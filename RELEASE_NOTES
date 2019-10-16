@@ -1,0 +1,21 @@
+.. $Id: RELEASE_NOTES 121473 2014-07-11 12:37:08Z olivas $
+.. $Author: olivas $
+.. $Date: 2014-07-11 06:37:08 -0600 (Fri, 11 Jul 2014) $
+
+Release Notes
+=============
+
+trunk
+
+Feb 25, 2019 Kotoyo Hoshina(hoshina@icecube.wisc.edu)
+--------------------------------------------------------------------
+* changed include path of I3CrossSection.h (from sim-services to phys-services)
+
+
+ * Added release notes
+
+Oct 07, 2019 Ben Smithers (bsmithers@mail.icecube.wisc.edu)
+--------------------------------------------------------------------
+* changed CMakeLists to include the hdf5 tool
+* fixed the header for writing LIC files
+* added module for writing LIC files as hdf5 files instead of binary files
