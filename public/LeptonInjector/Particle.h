@@ -4,26 +4,38 @@
 // Used to define the Particle class
 // Partiles have a type, energy, position, and direction
 
-// positions are in the IceCube coordinate system
+#include <string>
+#include <exception>
+
+// positions are in Cartesian, centered in the middle of IceCube
 
 namespace LI_Particle{ 
     
     // simple data structure for particles
     struct Particle{
-
+    
         Particle();
         ~Particle();
-        
-        ParticleType type; 
 
+        Particle(ParticleType type);
+        
+        // what kind of particle is this (see below)
+        ParticleType type; 
+        // what is this event's topology? (see below)
+    
         double energy; // GeV 
         double direction[2]; //( zenith, azimuth ) in degrees
         double position[3]; // (x,y,z) in meters
+    
+        double GetMass(); //GeV/c^2
+        bool HasMass(); // .... 
+        std::string GetTypeString();
 
     };
 
 
     // these match the PDG codes!
+    // copied over from IceCube's dataclasses I3Particle definition
     enum class ParticleType : int32_t{
         unknown = 0,
         Gamma = 22,
@@ -193,5 +205,32 @@ namespace LI_Particle{
 
     };
 
+    // There are two kinds of event topologies in IceCube
+    //      cascades 
+    //      tracks
+    enum class ParticleShape{ MCTrack, Cascade };
 
-}// end namespace LI_Particle 
+    // Particle-based exceptions:
+
+    class BadParticleShape: public exception{
+        virtual const char* what() const throw(){
+        return("Unable to decide shape for unexpected particle type");
+        }
+    } BadShape;
+
+    class BadParticleType: public exception{
+        virtual const char* what() const throw(){
+            return("Unexpected particle type.");
+        }
+    } BadParticle;
+
+    class BadFinalState: public exception{
+        virtual const char* what() const throw{
+            return("Unexpected final state");
+        }
+    } BadFinal;
+
+
+}// end namespace LI_Particle
+
+#endif
