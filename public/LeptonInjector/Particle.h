@@ -6,6 +6,7 @@
 
 #include <string>
 #include <exception>
+#include <utility> // std::pair
 
 // positions are in Cartesian, centered in the middle of IceCube
 
@@ -24,7 +25,7 @@ namespace LI_Particle{
         // what is this event's topology? (see below)
     
         double energy; // GeV 
-        double direction[2]; //( zenith, azimuth ) in degrees
+        std::pair<double, double> direction; //( zenith, azimuth ) in degrees
         double position[3]; // (x,y,z) in meters
     
         double GetMass(); //GeV/c^2
