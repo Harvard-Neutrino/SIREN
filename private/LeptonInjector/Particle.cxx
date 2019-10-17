@@ -11,7 +11,7 @@ namespace LI_Particle{
         
         // instantiate with minimum energy
         energy      = Constants::electronMass;
-        direction   = {0.0, 0.0};
+        direction   = std::make_pair( 0.0, 0.0) ;
         position    = {0.0, 0.0, 0.0}; 
     }
     
@@ -21,7 +21,7 @@ namespace LI_Particle{
 
         // energy will instead be built using particle's mass
         energy      = this->GetMass();
-        direction   = {0.0, 0.0};
+        direction   = std::make_pair(0.0, 0.0);
         position    = {0.0, 0.0, 0.0}; 
     }
 
