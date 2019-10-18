@@ -50,7 +50,7 @@ namespace LeptonInjector{
 	};
 	
 	///Configuration parameters for ranged injections mode
-	struct RangedInjectionConfiguration{
+	struct RangedInjectionConfiguration : BasicInjectionConfiguration{
 		RangedInjectionConfiguration();
 		~RangedInjectionConfiguration();
 		
@@ -62,7 +62,7 @@ namespace LeptonInjector{
 	};
 	
 	///Configuration parameters for volume injection mode
-	struct VolumeInjectionConfiguration{
+	struct VolumeInjectionConfiguration : BasicInjectionConfiguration{
 		VolumeInjectionConfiguration();
 		~VolumeInjectionConfiguration();
 		
@@ -75,6 +75,8 @@ namespace LeptonInjector{
 	
 	///Parameters for injectors placed within a MultiLeptonInjector
 	struct MinimalInjectionConfiguration{
+		// The below  puts in a constructor for the MinimalInjectionConfiguration. 
+		// you just pass the things in order and BAM
 		MinimalInjectionConfiguration(unsigned int events,
 		  ParticleType finalType1, ParticleType finalType2,
 		  const std::string& crossSectionPath, const std::string& totalCrossSectionPath,
@@ -82,6 +84,7 @@ namespace LeptonInjector{
 		events(events),finalType1(finalType1),finalType2(finalType2),
 		crossSectionPath(crossSectionPath),totalCrossSectionPath(totalCrossSectionPath),
 		ranged(ranged){}
+		
 		
 		///Number of events the generator should/did generate
 		unsigned int events;
@@ -246,6 +249,8 @@ namespace LeptonInjector{
 		MultiLeptonInjector(const I3Context& ctx, RangedInjectionConfiguration rconfig, VolumeInjectionConfiguration vconfig);
 		void Configure();
 		void DAQ(boost::shared_ptr<I3Frame>);
+		double seed;
+
 	private:
 		void AddParameters();
 		

@@ -559,24 +559,7 @@ namespace LeptonInjector{
 	
 	I3_MODULE(VolumeLeptonInjector);
 	
-	bool operator==(const MinimalInjectionConfiguration& c1, const MinimalInjectionConfiguration& c2){
-		return(c1.events==c2.events && c1.finalType1==c2.finalType1 && c1.finalType2==c2.finalType2
-			   && c1.crossSectionPath==c2.crossSectionPath && c1.ranged==c2.ranged);
-	}
-	
-	MultiLeptonInjector::MultiLeptonInjector(const I3Context& ctx):
-	I3ConditionalModule(ctx),collector(new OutputCollector(innerContext)),
-	results(collector->output){
-		AddParameters();
-	}
-	
-	MultiLeptonInjector::MultiLeptonInjector(const I3Context& ctx,
-	                                         RangedInjectionConfiguration rconfig,
-	                                         VolumeInjectionConfiguration vconfig):
-	I3ConditionalModule(ctx),collector(new OutputCollector(innerContext)),
-	results(collector->output),rangedConfig(rconfig),volumeConfig(vconfig){
-		AddParameters();
-	}
+
 	
 	void MultiLeptonInjector::AddParameters(){
 		AddOutBox("OutBox");
