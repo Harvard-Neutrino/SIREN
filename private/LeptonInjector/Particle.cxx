@@ -25,8 +25,32 @@ namespace LI_Particle{
         position    = {0.0, 0.0, 0.0}; 
     }
 
+	// returns name for particle of known type. 
+	// If this code is to be expanded, this should really be modified to use the boost preprocessor libraries
+	// atm, only implemented for the particles relevant to LeptonInjector 
 	std::string Particle::GetTypeString(){
-			
+
+		// this is **BAD** and I should feel bad
+		// there is a way to do this better with boost preprocessor libraries, but I think that's a little unnecessary given the scope of what LI does. 
+
+		switch( this->type ){
+			case 22: return("Gamma"); break;
+			case 11: return("EMinus"); break;
+			case -11: return("EPlus"); break;
+			case 13: return("MuMinus"); break;
+			case -13: return("MuPlus"); break;
+			case 15: return("TauMinus"); break;
+			case -15: return("TauPlus"); break;
+			case 12: return("NuE"); break;
+			case -12: return("NuEBar"); break;
+			case 14: return("NuMu"); break;
+			case -14: return("NuMuBar"); break;
+			case 16: return("NuTau"); break;
+			case -16: return("NuTauBar"); break;
+			case -2000001006: return("Hadrons"); break;
+			default: return("Unsupported"); break;
+		}
+
 	}
 
     Particle::HasMass(){

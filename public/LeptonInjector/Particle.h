@@ -4,6 +4,9 @@
 // Used to define the Particle class
 // Partiles have a type, energy, position, and direction
 
+// !!! Important !!!
+// At the moment, only leptons (charged + uncharged) and hadrons are fully supported 
+
 #include <string>
 #include <exception>
 #include <utility> // std::pair
@@ -226,7 +229,7 @@ namespace LeptonInjector{
     } BadParticle;
 
     class BadFinalState: public std::exception{
-        virtual const char* what() const throw{
+        virtual const char* what() const throw(){
             return("Unexpected final state");
         }
     } BadFinal;
