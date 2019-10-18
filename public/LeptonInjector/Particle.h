@@ -10,7 +10,7 @@
 
 // positions are in Cartesian, centered in the middle of IceCube
 
-namespace LI_Particle{ 
+namespace LeptonInjector{ 
     
     // simple data structure for particles
     struct Particle{
@@ -213,19 +213,19 @@ namespace LI_Particle{
 
     // Particle-based exceptions:
 
-    class BadParticleShape: public exception{
+    class BadParticleShape: public std::exception{
         virtual const char* what() const throw(){
         return("Unable to decide shape for unexpected particle type");
         }
     } BadShape;
 
-    class BadParticleType: public exception{
+    class BadParticleType: public std::exception{
         virtual const char* what() const throw(){
             return("Unexpected particle type.");
         }
     } BadParticle;
 
-    class BadFinalState: public exception{
+    class BadFinalState: public std::exception{
         virtual const char* what() const throw{
             return("Unexpected final state");
         }

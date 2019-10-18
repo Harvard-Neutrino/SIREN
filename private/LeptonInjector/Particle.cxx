@@ -25,6 +25,10 @@ namespace LI_Particle{
         position    = {0.0, 0.0, 0.0}; 
     }
 
+	std::string Particle::GetTypeString(){
+			
+	}
+
     Particle::HasMass(){
         // return the negation of the bool that (particle is massless)
         return(!( this->type == ParticleType::Gamma || 
