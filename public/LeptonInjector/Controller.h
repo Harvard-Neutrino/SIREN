@@ -9,7 +9,7 @@ namespace LeptonInjector{
 class Controller{
     private:
         void Generate();
-        LeptonInjectorBase& ActiveGenerator;
+        LeptonInjectorBase* ActiveGenerator;
         std::deque<LeptonInjectorBase*> generators;
         std::vector<MinimalInjectionConfiguration> configs; 
 
@@ -17,6 +17,10 @@ class Controller{
         double minimumEnergy, maximumEnergy, powerlawIndex,
                 minimumAzimuth, maximumAzimuth, minimumZenith, maximumZenith;
         
+        // ones used by ranged and/or volume mode
+        double injectionRadius, endcapLength;
+        double cylinderRadius, cylinderHeight;
+
         RangedInjectionConfiguration rangedConfig;
 		VolumeInjectionConfiguration volumeConfig;
 
@@ -32,7 +36,9 @@ class Controller{
         // The BEST constructor
         Controller(std::vector<MinimalInjectionConfiguration> configs_received, double minimumEnergy
             double maximumEnergy, double powerlawIndex, double minimumAzimuth, 
-            double maximumAzimuth, double minimumZenith, double maximumZenith);
+            double maximumAzimuth, double minimumZenith, double maximumZenith,
+            double injectionRadius=1200*Constants::m, double endcapLength=1200*Constants::m, 
+            double cylinderRadius=1200*Constants::m, double cylinderHeight= 1200*Constants::m);
         
 
         void AddInjector(MinimalInjectionConfiguration configs_received);
