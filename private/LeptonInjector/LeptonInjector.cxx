@@ -82,7 +82,7 @@ namespace LeptonInjector{
 	//-----------
 	//Module base
 	
-	LeptonInjectorBase::LeptonInjectorBase(const I3Context& context,BasicInjectionConfiguration& config):
+	LeptonInjectorBase::LeptonInjectorBase(BasicInjectionConfiguration& config):
 	I3ConditionalModule(context),
 	config(config),
 	eventsGenerated(0),
@@ -205,15 +205,15 @@ namespace LeptonInjector{
 							 " event have been output out of a requested total of " << config.events);
 	}
 	
-	I3Position LeptonInjectorBase::SampleFromDisk(double radius, double zenith, double azimuth){
+	std::array<double,3> LeptonInjectorBase::SampleFromDisk(double radius, double zenith, double azimuth){
 		//choose a random point on a disk laying in the xy plane
-		double t=random->Uniform(0,2*constants::pi<double>());
+		double t=random->Uniform(0,2*Constants::pi);
 		double u=random->Uniform()+random->Uniform();
 		double r=(u>1.?2.-u:u)*radius;
-		I3Position pos(r*cos(t),r*sin(t),0.0);
+		std::array<double, 3>  pos = {r*cos(t) ,r*sin(t), 0.0};
 		//now rotate to make the disc perpendicular to the requested normal vector
-		pos.RotateY(zenith);
-		pos.RotateZ(azimuth);
+		pos = RotateY(pos, zenith );
+		pos = RotateZ(pos, azimuth);
 		return(pos);
 	}
 	
@@ -230,7 +230,7 @@ namespace LeptonInjector{
 		}
 	}
 	
-    // updated! 
+    // this function returns a pair of angles
 	std::pair<double,double> LeptonInjectorBase::computeFinalStateAngles(double E_total, double x, double y){
 		const double M_N = crossSection.GetTargetMass();
 		double theta1=0, theta2=0;
@@ -286,13 +286,18 @@ namespace LeptonInjector{
 		}
 		//otherwise we have hadronic GR, so both final state masses are unknown
 		//and there isn't much we can do, so leave everything colinear
+		// angle of particle 1 from initial dir
 		return(std::make_pair(theta1,theta2));
 	}
 	
-	I3Direction rotateRelative(I3Direction base, double zenith, double azimuth){
-		I3Direction result(zenith,azimuth);
-		result.RotateY(base.GetZenith());
-		result.RotateZ(base.GetAzimuth());
+	// take a direction, deflect that direction by a distance /zenith/
+	//		rotate the new direction around the initial direction by /azimuth/
+	// So the zenith and azimuth are only what their names would suggest in the coordinate system where 
+	//		/base/ is the \hat{z} axis 
+	std::pair<double,double> rotateRelative(std::pair<double,double> base, double zenith, double azimuth){
+		std::pair<double, double> result;
+		result.first += zenith*cos(azimuth);
+		result.second+= zenith*sin(azimuth);
 		return(result);
 	}
 	
@@ -300,8 +305,8 @@ namespace LeptonInjector{
 		const I3CrossSection::finalStateRecord& fs=crossSection.sampleFinalState(energy,config.finalType1,random);
 		
 		std::pair<double,double> relativeZeniths=computeFinalStateAngles(energy,fs.x,fs.y);
-		double azimuth1=random->Uniform(0,2*constants::pi<double>());
-		double azimuth2=azimuth1+(azimuth1<constants::pi<double>() ? 1 : -1)*constants::pi<double>();
+		double azimuth1=random->Uniform(0,2*Constants:pi);
+		double azimuth2=azimuth1+(azimuth1<Constants::pi ? 1 : -1)*Constants::pi ;
 		
 		//Make the first final state particle
 		I3Particle p1(decideShape(config.finalType1),config.finalType1);

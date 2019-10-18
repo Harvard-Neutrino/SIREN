@@ -4,10 +4,7 @@
 #include <queue>
 
 #include <icetray/I3ConditionalModule.h>
-#include <dataclasses/physics/I3Particle.h>
-#include <phys-services/I3RandomService.h>
 #include <earthmodel-service/EarthModelService.h>
-#include <dataclasses/physics/I3Particle.h>
 #include <dataclasses/physics/I3MCTree.h>
 #include <phys-services/I3CrossSection.h>
 
@@ -214,7 +211,7 @@ namespace LeptonInjector{
 	///\param base the existing base direction
 	///\param zenith the angle of the new direction with respect to the base
 	///\param azimuth the rotation of the new direction about the base
-	I3Direction rotateRelative(I3Direction base, double zenith, double azimuth);
+	std::pair<double,double> rotateRelative(std::pair<double,double> base, double zenith, double azimuth);
 	
 	///A normal I3Module can only send its output frames to the inbox associated
 	///with another I3Module. This Module provides such an inbox, but instead of
