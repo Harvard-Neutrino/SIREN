@@ -100,59 +100,7 @@ namespace LeptonInjector{
 	
 	//----
 	
-	// Event property structures
 	
-	///Parameters common to events injected in all modes
-	struct BasicEventProperties{
-		BasicEventProperties(){}
-		~BasicEventProperties();
-		
-		///Total energy in the final state (lab frame)
-		double totalEnergy;
-		///Sampled zenith angle (of final state particle 1)
-		double zenith;
-		///Sampled azimuth angle (of final state particle 1)
-		double azimuth;
-		///Bjorken x for the interaction
-		double finalStateX;
-		///Bjorken y for the interaction
-		///p1.energy = (1-finalStateY)*totalEnergy
-		///p2.energy = finalStateY*totalEnergy
-		double finalStateY;
-		///Type of first particle which was injected in the final state
-		ParticleType finalType1;
-		///Type of second particle which was injected in the final state
-		ParticleType finalType2;
-		///Type of the neutrino which interacted to produce this event
-		ParticleType initialType;
-		
-	};
-	
-	///Parameters for events produced in ranged injection mode
-	struct RangedEventProperties : public BasicEventProperties{
-		RangedEventProperties(){}
-		~RangedEventProperties();
-		
-		///Sampled distance of the closest approach of the particle path to the
-		///origin of the coordinate system
-		double impactParameter;
-		///The total column depth along the particle path within which the
-		///interaction is sampled
-		double totalColumnDepth;
-		
-	};
-	
-	///Parameters for events produced in volume injection mode
-	struct VolumeEventProperties : public BasicEventProperties{
-		VolumeEventProperties(){}
-		~VolumeEventProperties();
-		
-		///Sampled radial cylindrical coordinate of the interaction point
-		double radius;
-		///Sampled vertical cylindrical coordinate of the interaction point
-		double z;
-		
-	};
 	
 	//----
 	

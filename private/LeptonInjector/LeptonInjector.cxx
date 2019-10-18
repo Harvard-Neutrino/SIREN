@@ -1,4 +1,5 @@
 #include <LeptonInjector/LeptonInjector.h>
+#include <LeptonInjector/EventProps.h>
 
 #include <cassert>
 #include <fstream>
@@ -10,7 +11,7 @@
 #include <icetray/I3Units.h>
 #include <dataclasses/physics/I3MCTree.h>
 
-namespace constants = boost::math::constants;
+// namespace constants = boost::math::constants;
 
 namespace LeptonInjector{
 	
@@ -20,15 +21,15 @@ namespace LeptonInjector{
 	
 	BasicInjectionConfiguration::BasicInjectionConfiguration():
 	events(1),
-	energyMinimum(10*I3Units::GeV),
-	energyMaximum(1e9*I3Units::GeV),
+	energyMinimum(10*Constants::GeV),
+	energyMaximum((1e9)*Constants::GeV),
 	powerlawIndex(1.0),
 	azimuthMinimum(0),
 	azimuthMaximum(2*constants::pi<double>()),
 	zenithMinimum(0),
 	zenithMaximum(constants::pi<double>()),
-	finalType1(I3Particle::MuMinus),
-	finalType2(I3Particle::Hadrons)
+	finalType1(ParticleType::MuMinus),
+	finalType2(ParticleType::Hadrons)
 	{}
 	
 	BasicInjectionConfiguration::~BasicInjectionConfiguration(){}
@@ -47,6 +48,7 @@ namespace LeptonInjector{
 	
 	VolumeInjectionConfiguration::~VolumeInjectionConfiguration(){}
 	
+	// TODO: update this, find out where the splinetable object is coming from 
 	void BasicInjectionConfiguration::setCrossSection(const splinetable& crossSection, const splinetable& totalCrossSection){
 		splinetable_buffer buf;
 		buf.size=0;
@@ -74,14 +76,8 @@ namespace LeptonInjector{
 		free(buf.data);
 	}
 	
-	//---------------------
-	//Event propery objects
-	
-	BasicEventProperties::~BasicEventProperties(){}
-	
-	RangedEventProperties::~RangedEventProperties(){}
-	
-	VolumeEventProperties::~VolumeEventProperties(){}
+	//--------------------
+
 	
 	//-----------
 	//Module base
