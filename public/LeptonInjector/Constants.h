@@ -5,6 +5,15 @@
 
 namespace LeptonInjector{ namespace Constants{
 
+// meter
+static const double m               = 1.; 
+
+// second is a billion to be consistent with IceCube code
+static const double second          = 1.e9;
+
+// speed of light
+static const double c               = 299792458.*(m/second); // [m sec^-1]
+
 // masses, GeV/c^2
 static const double protonMass      = 0.938272;
 static const double neutronMass     = 0.939565;
@@ -37,17 +46,18 @@ Z boson - http://pdg.lbl.gov/2018/listings/rpp2018-list-z-boson.pdf
 */
 
 // Unit Conversions 
-static const double EeV             = 1.0e18; // [eV/EeV]
-static const double PeV             = 1.0e15;
-static const double TeV             = 1.0e12;
-static const double GeV             = 1.0e9;
-static const double MeV             = 1.0e6;
-static const double keV             = 1.0e3;
-static const double  eV             = 1.0;
-static const double Joule           = 1.0/(1.60225e-19); // eV/J
 
-// Taken from SQUIDS, but modified because instantiating an object for constants is silly
+static const double GeV             = 1.0;
+static const double EeV             = (1.0e9)*GeV; // [eV/EeV]
+static const double PeV             = (1.0e6)*GeV;
+static const double TeV             = (1.0e3)*GeV;
+static const double MeV             = (1.0e-3)*GeV;
+static const double keV             = (1.0e-6)*GeV;
+static const double  eV             = (1.0e-9)*GeV;
+static const double Joule           = eV/(1.60225e-19); // eV/J
 
+
+// may need to fix these after setting GeV to 1.0
 static const double FermiConstant   = 1.16639e-23/pow(GeV,2); // [GeV^-2] 
 static const double avogadro        = 6.0221415e+23; // [mol cm^-3]
 static const double thetaWeinberg   = 0.2312; // dimensionless 
@@ -55,5 +65,5 @@ static const double gravConstant    = 6.6700e-11; // [m^3 kg^-1 s^-2]
 static const double fineStructure   = 1.0/137.0; // dimensionless
 
 } // namespace Constants
-} // namespace nucross
+} // namespace LeptonInjector
 #endif
