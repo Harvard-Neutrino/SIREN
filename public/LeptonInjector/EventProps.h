@@ -1,7 +1,6 @@
 #ifndef LI_EVENT
 #define LI_EVENT
 
-
 namespace LeptonInjector {
     // Event property structures
 	
@@ -24,13 +23,13 @@ namespace LeptonInjector {
 		///p2.energy = finalStateY*totalEnergy
 		double finalStateY;
 		///Type of first particle which was injected in the final state
-		ParticleType finalType1;
+		int32_t finalType1;
 		///Type of second particle which was injected in the final state
-		ParticleType finalType2;
+		int32_t finalType2;
 		///Type of the neutrino which interacted to produce this event
-		ParticleType initialType;
+		int32_t initialType;
 
-        void fill_BasicEventProperties(double totalEnergy, double zenith, double azimuth, double finalStateX, double finalStateY,  ParticleType finalType1, ParticleType finalType2, ParticleType initialType );
+        void fill_BasicEventProperties(double totalEnergy, double zenith, double azimuth, double finalStateX, double finalStateY,  int32_t finalType1, int32_t finalType2, int32_t initialType );
 		
 	};
 	
@@ -60,7 +59,7 @@ namespace LeptonInjector {
 		
 	};
 
-    void fill_BasicEventProperties(double totalEnergy, double zenith, double azimuth, double finalStateX, double finalStateY,  ParticleType finalType1, ParticleType finalType2, ParticleType initialType );
+    void fill_BasicEventProperties(double totalEnergy, double zenith, double azimuth, double finalStateX, double finalStateY,  int32_t finalType1, int32_t finalType2, int32_t initialType );
 
 
 }// end namespace LeptonInjector
