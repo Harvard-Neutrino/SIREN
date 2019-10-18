@@ -11,6 +11,10 @@
 
 namespace LeptonInjector{ namespace Constants{
 
+// geometry
+static const long double pi         = 3.141592653589793238462643383279502884197;
+static const double degrees         = pi/180.; // converts radians into degrees   
+
 // meter
 static const double m               = 1.; 
 
