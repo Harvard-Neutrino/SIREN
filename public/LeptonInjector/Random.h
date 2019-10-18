@@ -17,6 +17,9 @@ namespace LeptonInjector {
             double Uniform();
             double Uniform( double from, double to);
 
+            // in case this is set up without a seed! 
+            void set_seed(unsigned int new_seed);
+
         private: 
             std::default_random_engine configuration;
             std::uniform_real_distribution<double> generator;

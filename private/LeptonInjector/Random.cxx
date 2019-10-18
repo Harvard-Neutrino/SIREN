@@ -15,7 +15,7 @@ namespace LeptonInjector{
     }
 
     double LI_random::Uniform(void){
-        return( this->distribution(generator) );
+        return( this->generator(configuration) );
     }
 
     double LI_random::Uniform( double from, double to ){
@@ -23,8 +23,12 @@ namespace LeptonInjector{
             throw "'to' should be greater than 'from'";
         }
 
-        double result = (from-to)*(this->distribution(generator)) + to;
+        double result = (from-to)*(this->generator(configuration)) + to;
         return( result );
+    }
+
+    void LI_random::set_seed( unsigned int new_seed) {
+        this->configuration = std::default_random_engine(new_seed);
     }
 
 } //end namespace LeptonInjector 
