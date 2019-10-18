@@ -3,6 +3,12 @@
 
 #include <math.h> // pow function
 
+// Ben Smithers
+// benjamin.smithers@mavs.uta.edu
+
+// This header defines a lot of constants - not all actually used in this code. 
+// This was, for the most part, just copied from previous code of mine. 
+
 namespace LeptonInjector{ namespace Constants{
 
 // meter
