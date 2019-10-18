@@ -23,7 +23,7 @@ namespace LeptonInjector{
             throw "'to' should be greater than 'from'";
         }
 
-        double result = (from-to)*distribution(generator) + to;
+        double result = (from-to)*(this->distribution(generator)) + to;
         return( result );
     }
 
