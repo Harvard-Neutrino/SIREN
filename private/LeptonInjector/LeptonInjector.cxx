@@ -234,45 +234,49 @@ namespace LeptonInjector{
 		}
 	}
 	
+    // updated! 
 	std::pair<double,double> LeptonInjectorBase::computeFinalStateAngles(double E_total, double x, double y){
 		const double M_N = crossSection.GetTargetMass();
 		double theta1=0, theta2=0;
 		
 		//first particle is a lepton, which covers CC, NC, and leptonic GR
 		if(isLepton(config.finalType1)){
-			double m1=I3Particle::GetMassForType(config.finalType1);
+			double m1=Particle(config.finalType1).GetMass();
 			double E1 = (1 - y) * E_total;
 			double cos_theta1, kE1;
 			
 			if(!isLepton(config.finalType2)){ //CC and NC have Hadrons as particle 2
 				//squared kinetic energy of final state particle 1:
 				double kE1sq=E1*E1 - m1*m1;
-				if(kE1sq<=0)
-					log_fatal_stream("Underflow: Squared total lepton energy smaller than squared rest mass"
-						"\n(E_total=" << E_total/I3Units::GeV << " x=" << x << " y=" << y << " m=" << m1 << ")");
+				if(kE1sq<=0){
+                    throw "Negative kinetic energy. Not good";
+                }
 				cos_theta1=(E1 - x*y*M_N - m1*m1/(2*E_total))/sqrt(kE1sq);
 				kE1=sqrt(kE1sq);
 			}
 			else{ //leptonic GR
-				double m_e = I3Particle::GetMassForType(I3Particle::EMinus);
+				double m_e = Constants::electronMass;
 				
-				if(E1<=0)
-					log_fatal("Underflow: Final state neutrino energy is unphysical");
+				if(E1<=0){ throw "Bjorken Y > 1?"; }
+                
 				
 				cos_theta1=1 - (m_e*m_e + 2*m_e*E_total - m1*m1)/(2*E_total*E1);
 				kE1=E1;
 			}
 			
 			if(cos_theta1<-1){
-				log_warn_stream("cos(theta) underflow (" << cos_theta1 << "); rounding up to -1"
-					"\n(E_total=" << E_total/I3Units::GeV << " x=" << x << " y=" << y << ")");
+                // commented out until new logger is implemented
+//				log_warn_stream("cos(theta) underflow (" << cos_theta1 << "); rounding up to -1"
+//					"\n(E_total=" << E_total/I3Units::GeV << " x=" << x << " y=" << y << ")");
 				cos_theta1=-1;
 			}
 			else if(cos_theta1>1){
 				//tell the user if the difference was large enough to plausibly not be just round-off
-				if((cos_theta1-1)>1e-3)
-					log_warn_stream("cos(theta) overflow (" << cos_theta1 << "); rounding down to 1"
-						"\n(E_total=" << E_total/I3Units::GeV << " x=" << x << " y=" << y <<")");
+                
+                // need new logger 
+//				if((cos_theta1-1)>1e-3)
+//					log_warn_stream("cos(theta) overflow (" << cos_theta1 << "); rounding down to 1"
+//						"\n(E_total=" << E_total/I3Units::GeV << " x=" << x << " y=" << y <<")");
 				cos_theta1=1;
 			}
 			

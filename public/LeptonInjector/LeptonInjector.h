@@ -11,12 +11,14 @@
 #include <dataclasses/physics/I3MCTree.h>
 #include <phys-services/I3CrossSection.h>
 
+#include <LeptonInjector/Random.h>
+
 namespace LeptonInjector{
 	
 	// Generator configuration structures
 	
 	///Configuration parameters needed for all injection modes
-	struct BasicInjectionConfiguration : public I3FrameObject{
+	struct BasicInjectionConfiguration{
 		BasicInjectionConfiguration();
 		~BasicInjectionConfiguration();
 		
@@ -37,22 +39,18 @@ namespace LeptonInjector{
 		///Maximum zenith angle at which to inject events
 		double zenithMaximum;
 		///Type of first particle to be injected in the final state
-		I3Particle::ParticleType finalType1;
+		ParticleType finalType1;
 		///Type of second particle to be injected in the final state
-		I3Particle::ParticleType finalType2;
+		ParticleType finalType2;
 		
 		std::vector<char> crossSectionBlob;
 		std::vector<char> totalCrossSectionBlob;
-		
-		friend class icecube::serialization::access;
-		template <typename Archive>
-		void serialize(Archive&, unsigned);
-		
+			
 		void setCrossSection(const splinetable& crossSection, const splinetable& totalCrossSection);
 	};
 	
 	///Configuration parameters for ranged injections mode
-	struct RangedInjectionConfiguration : public BasicInjectionConfiguration{
+	struct RangedInjectionConfiguration{
 		RangedInjectionConfiguration();
 		~RangedInjectionConfiguration();
 		
@@ -61,13 +59,10 @@ namespace LeptonInjector{
 		///Length of the fixed endcaps add to the distance along which to sample interactions
 		double endcapLength;
 		
-		friend class icecube::serialization::access;
-		template <typename Archive>
-		void serialize(Archive&, unsigned);
 	};
 	
 	///Configuration parameters for volume injection mode
-	struct VolumeInjectionConfiguration : public BasicInjectionConfiguration{
+	struct VolumeInjectionConfiguration{
 		VolumeInjectionConfiguration();
 		~VolumeInjectionConfiguration();
 		
@@ -76,15 +71,12 @@ namespace LeptonInjector{
 		///Height of the origin-centered vertical cylinder within which to inject events
 		double cylinderHeight;
 		
-		friend class icecube::serialization::access;
-		template <typename Archive>
-		void serialize(Archive&, unsigned);
 	};
 	
 	///Parameters for injectors placed within a MultiLeptonInjector
 	struct MinimalInjectionConfiguration{
 		MinimalInjectionConfiguration(unsigned int events,
-		  I3Particle::ParticleType finalType1, I3Particle::ParticleType finalType2,
+		  ParticleType finalType1, ParticleType finalType2,
 		  const std::string& crossSectionPath, const std::string& totalCrossSectionPath,
 		  bool ranged):
 		events(events),finalType1(finalType1),finalType2(finalType2),
@@ -111,7 +103,7 @@ namespace LeptonInjector{
 	// Event property structures
 	
 	///Parameters common to events injected in all modes
-	struct BasicEventProperties : public I3FrameObject{
+	struct BasicEventProperties{
 		BasicEventProperties(){}
 		~BasicEventProperties();
 		
@@ -128,15 +120,12 @@ namespace LeptonInjector{
 		///p2.energy = finalStateY*totalEnergy
 		double finalStateY;
 		///Type of first particle which was injected in the final state
-		I3Particle::ParticleType finalType1;
+		ParticleType finalType1;
 		///Type of second particle which was injected in the final state
-		I3Particle::ParticleType finalType2;
+		ParticleType finalType2;
 		///Type of the neutrino which interacted to produce this event
-		I3Particle::ParticleType initialType;
+		ParticleType initialType;
 		
-		friend class icecube::serialization::access;
-		template <typename Archive>
-		void serialize(Archive&, unsigned);
 	};
 	
 	///Parameters for events produced in ranged injection mode
@@ -151,9 +140,6 @@ namespace LeptonInjector{
 		///interaction is sampled
 		double totalColumnDepth;
 		
-		friend class icecube::serialization::access;
-		template <typename Archive>
-		void serialize(Archive&, unsigned);
 	};
 	
 	///Parameters for events produced in volume injection mode
@@ -166,9 +152,6 @@ namespace LeptonInjector{
 		///Sampled vertical cylindrical coordinate of the interaction point
 		double z;
 		
-		friend class icecube::serialization::access;
-		template <typename Archive>
-		void serialize(Archive&, unsigned);
 	};
 	
 	//----
@@ -274,39 +257,6 @@ namespace LeptonInjector{
 	
 	//----
 	
-	// Utility functions
-	
-	///Determine whether a given particle type is a lepton.
-	///\note Only knows about the types used by LeptonInjector.
-	bool isLepton(I3Particle::ParticleType p);
-	
-	///Determine whether a given particle type is charged.
-	///\note Only knows about the types used by LeptonInjector.
-	bool isCharged(I3Particle::ParticleType p);
-	
-	///Extract the name for a given particle type.
-	std::string particleName(I3Particle::ParticleType p);
-	
-	///Compute the portion of a particle's energy which is kinetic
-	///\note Treats particles of unknown mass as massless, making their kinetic
-	///      energy equal to their total energy
-	double kineticEnergy(I3Particle::ParticleType type, double totalEnergy);
-	
-	///Figure out a particle's speed given its kinetic energy.
-	///\note Treats particles of unknown mass as massless, assigning them speed c.
-	double particleSpeed(I3Particle::ParticleType type, double kineticEnergy);
-	
-	///Guess the shape which should be associated with a given particle type.
-	///Particles with long ranges (at least multiple meters) in ice are
-	///considered tracks, while those with shorter ranges are labeled cascades.
-	///\note Only knows about the types used by LeptonInjector.
-	I3Particle::ParticleShape decideShape(I3Particle::ParticleType t);
-	
-	///Determine the type of neutrino which would produce the specified final state.
-	///Verify that the user has provided a valid pair of particle types for
-	///the final state, call log_fatal() if the settings are not valid.
-	///\returns The interacting neutrino type required by the specified final state.
-	I3Particle::ParticleType deduceInitialType(I3Particle::ParticleType pType1, I3Particle::ParticleType pType2);
 	
 	///Construct a new direction with the given relative angles with respect to
 	///an existing direction.
