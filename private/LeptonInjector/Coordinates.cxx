@@ -1,6 +1,3 @@
-#ifndef LI_HELPER
-#define LI_HELPER
-
 #include<LeptonInjector/Helper.h>
 #include <array>
 
@@ -131,5 +128,3 @@ namespace LeptonInjector {
 	}
 
 } // end namespace LeptonInjector
-
-#endif
