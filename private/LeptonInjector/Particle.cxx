@@ -1,7 +1,7 @@
 #include <math.h> // adds sqrt, power functions
 #include <LeptonInjector/Particle.h>
 
-namespace LI_Particle{
+namespace LeptonInjector{
     Particle::Particle(void){
         // Just sit it at the origin 
         
@@ -25,6 +25,11 @@ namespace LI_Particle{
         position    = {0.0, 0.0, 0.0}; 
     }
 
+	// deconstructor
+	Particle::~Particle(){
+		// do nothing?
+	}
+
 	// returns name for particle of known type. 
 	// If this code is to be expanded, this should really be modified to use the boost preprocessor libraries
 	// atm, only implemented for the particles relevant to LeptonInjector 
@@ -33,7 +38,8 @@ namespace LI_Particle{
 		// this is **BAD** and I should feel bad
 		// there is a way to do this better with boost preprocessor libraries, but I think that's a little unnecessary given the scope of what LI does. 
 
-		switch( this->type ){
+		// this just casts the particle type to its pdg code, and uses a switch to grab the name
+		switch( static_cast<int32_t>(this->type) ){
 			case 22: return("Gamma"); break;
 			case 11: return("EMinus"); break;
 			case -11: return("EPlus"); break;
@@ -53,7 +59,7 @@ namespace LI_Particle{
 
 	}
 
-    Particle::HasMass(){
+    bool Particle::HasMass(){
         // return the negation of the bool that (particle is massless)
         return(!( this->type == ParticleType::Gamma || 
                this->type == ParticleType::NuE   || this->type==ParticleType::NuEBar   ||
@@ -62,13 +68,13 @@ namespace LI_Particle{
     }
 
     // only implemented for the charged leptons to stay within scope
-    Particle::GetMass(){
+    double Particle::GetMass(){
         switch(this->ParticleType){
             case ParticleType::EPlus:
                 return( Constants::electronMass );
                 break;
             case ParticleType::EMinus:
-                return( Constants::eletronMass );
+                return( Constants::electronMass );
                 break;
             case ParticleType::MuPlus:
                 return( Constants::muonMass );
@@ -87,7 +93,6 @@ namespace LI_Particle{
         }
     }
 
-    ~Particle::Particle(){}
 
 
     // Helper functions for dealing with particle types  
@@ -168,14 +173,14 @@ namespace LI_Particle{
 	
 	ParticleShape decideShape(ParticleType t){
 		switch(t){
-			case Particle::MuMinus:  case Particle::MuPlus:
-			case Particle::TauMinus: case Particle::TauPlus:
-			case Particle::NuE:      case Particle::NuEBar:
-			case Particle::NuMu:     case Particle::NuMuBar:
-			case Particle::NuTau:    case Particle::NuTauBar:
+			case ParticleType::MuMinus:  case ParticleType::MuPlus:
+			case ParticleType::TauMinus: case ParticleType::TauPlus:
+			case ParticleType::NuE:      case ParticleType::NuEBar:
+			case ParticleType::NuMu:     case ParticleType::NuMuBar:
+			case ParticleType::NuTau:    case ParticleType::NuTauBar:
 				return(ParticleShape::MCTrack);
-			case Particle::EMinus: case Particle::EPlus:
-			case Particle::Hadrons:
+			case ParticleType::EMinus: case ParticleType::EPlus:
+			case ParticleType::Hadrons:
 				return(ParticleShape::Cascade);
 			default:
                 throw BadShape; // this replaces the previous fatal log
@@ -205,9 +210,10 @@ namespace LI_Particle{
 		
 		//at least one particle should be charged
 		if(!c1 && !c2)
-			log_fatal_stream("Final state must contain at least one charged particle\n"
-							 << "specified particles were " << particleName(pType1)
-							 << " and " << particleName(pType2));
+			throw "Final state should have at least one charged particle";
+//			log_fatal_stream("Final state must contain at least one charged particle\n"
+//							 << "specified particles were " << particleName(pType1)
+//							 << " and " << particleName(pType2));
 		
 		//first particle is charged, second is not
 		if(c1 && !c2){
@@ -271,7 +277,7 @@ namespace LI_Particle{
 				return(ParticleType::NuEBar);
 			}
 		}
-        throw "You must be a wizard: this point should be unreachable"i;
+        throw "You must be a wizard: this point should be unreachable";
 //log_fatal("Logic error; this point should be unreachable");
 	}
 
