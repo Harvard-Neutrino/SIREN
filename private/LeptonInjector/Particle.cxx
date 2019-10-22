@@ -12,7 +12,9 @@ namespace LeptonInjector{
         // instantiate with minimum energy
         energy      = Constants::electronMass;
         direction   = std::make_pair( 0.0, 0.0) ;
-        position    = {0.0, 0.0, 0.0}; 
+		for (uint8_t var = 0; var<3; var++){
+			position[var] = 0.0;
+		}
     }
     
     // constructor for specific type
@@ -22,7 +24,9 @@ namespace LeptonInjector{
         // energy will instead be built using particle's mass
         energy      = this->GetMass();
         direction   = std::make_pair(0.0, 0.0);
-        position    = {0.0, 0.0, 0.0}; 
+		for (uint8_t var = 0; var<3; var++){
+			position[var] = 0.0;
+		}
     }
 
 	// deconstructor
@@ -69,7 +73,7 @@ namespace LeptonInjector{
 
     // only implemented for the charged leptons to stay within scope
     double Particle::GetMass(){
-        switch(this->ParticleType){
+        switch(this->type){
             case ParticleType::EPlus:
                 return( Constants::electronMass );
                 break;
@@ -110,8 +114,13 @@ namespace LeptonInjector{
     // returns true if the particle is either
     //        a charged lepton 
     //   (OR) a "hadrons" particle
+	// If passed a disallowed particle, throws a tempter tantrum 
 	bool isCharged(ParticleType p){
-		assert(isLepton(p) || p==ParticleType::Hadrons); // keeps this within scope. Shouldn't be getting some other kind of charged particle
+		if( !(isLepton(p) || p==ParticleType::Hadrons) ){
+			throw "You should only be using Leptons or Hadrons!";
+		}
+		
+		// keeps this within scope. Shouldn't be getting some other kind of charged particle
 		return(p==ParticleType::EMinus   || p==ParticleType::EPlus ||
 			   p==ParticleType::MuMinus  || p==ParticleType::MuPlus ||
 			   p==ParticleType::TauMinus || p==ParticleType::TauPlus ||
