@@ -7,13 +7,16 @@
 // benjamin.smithers@mavs.uta.edu
 
 // This header defines a lot of constants - not all actually used in this code. 
-// This was, for the most part, just copied from previous code of mine. 
+// This was, for the most part, just copied from previous code of mine 
 
 namespace LeptonInjector{ namespace Constants{
 
 // geometry
 static const long double pi         = 3.141592653589793238462643383279502884197;
-static const double degrees         = pi/180.; // converts degrees into radians 
+static const long double tau        = 2*pi; //let's not play favorites 
+static const double degrees         = pi/180.; // converts degrees into radians. 
+// This is used since the user will enter a number in degrees, while the c trigonometric functions
+// expect angles presented in radians. 
 
 // meter
 static const double m               = 1.; 

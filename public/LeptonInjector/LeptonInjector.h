@@ -8,6 +8,7 @@
 #include <dataclasses/physics/I3MCTree.h>
 #include <phys-services/I3CrossSection.h>
 
+#include <LeptonInjector/Particle.h>
 #include <LeptonInjector/Random.h>
 
 namespace LeptonInjector{
