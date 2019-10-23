@@ -3,6 +3,7 @@
 
 #include <LeptonInjector.h>
 #include <Constants.h>
+#include <Coordinates.h>
 
 namespace LeptonInjector{
 

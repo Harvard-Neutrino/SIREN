@@ -55,7 +55,7 @@ namespace LeptonInjector {
         this->cylinderHeight = 1200*Constants::m;
     }
 
-    Controller(std::vector<MinimalInjectionConfiguration> configs_received, double minimumEnergy
+    Controller::Controller(std::vector<MinimalInjectionConfiguration> configs_received, double minimumEnergy
             double maximumEnergy, double powerlawIndex, double minimumAzimuth, 
             double maximumAzimuth, double minimumZenith, double maximumZenith,
             double injectionRadius=1200*Constants::m, double endcapLength=1200*Constants::m,
@@ -189,6 +189,10 @@ namespace LeptonInjector {
         this->ActiveGenerator = *(generators.front());
 
     }
+
+	Controller::Generate(void) {
+
+	}
 
 
 }
