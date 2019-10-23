@@ -1,7 +1,7 @@
 #ifndef I3CROSSSECTION_H
 #define I3CROSSSECTION_H
 
-#include <photospline/bspline.h>
+// #include <photospline/bspline.h>
 #include <LeptonInjector/Particle.h>
 #include <LeptonInjector/Random.h>
 ///Encapsulates cross section information for one physical process with a
