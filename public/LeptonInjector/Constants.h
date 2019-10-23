@@ -12,14 +12,16 @@
 namespace LeptonInjector{ namespace Constants{
 
 // geometry
-static const long double pi         = 3.141592653589793238462643383279502884197;
-static const long double tau        = 2*pi; //let's not play favorites 
+static const double pi         = 3.141592653589793238462643383279502884197;
+static const double tau        = 2*pi; //let's not play favorites 
 static const double degrees         = pi/180.; // converts degrees into radians. 
 // This is used since the user will enter a number in degrees, while the c trigonometric functions
 // expect angles presented in radians. 
+static const double &deg            = degrees; // adding this in too... 
 
 // meter
 static const double m               = 1.; 
+static const double &meter          = m;
 
 // second is a billion to be consistent with IceCube code
 static const double second          = 1.e9;
@@ -37,6 +39,7 @@ static const double tauMass         = 1.77686;
 
 // confusing units
 static const double second          = 1.523e15; // [eV^-1 sec^-1]
+static const double &s              = second; 
 static const double tauLifeTime     = second*2.906e-13;
 static const double MuonLifeTime    = second*2.196e-6;
 
