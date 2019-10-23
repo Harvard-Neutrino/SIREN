@@ -1,9 +1,9 @@
 #ifndef LI_CONTROLLER
 #define LI_CONTROLLER
 
-#include <LeptonInjector.h>
-#include <Constants.h>
-#include <Coordinates.h>
+#include <LeptonInjector/LeptonInjector.h>
+#include <LeptonInjector/Constants.h>
+#include <LeptonInjector/Coordinates.h>
 
 namespace LeptonInjector{
 
@@ -13,6 +13,8 @@ class Controller{
         LeptonInjectorBase* ActiveGenerator;
         std::deque<LeptonInjectorBase*> generators;
         std::vector<MinimalInjectionConfiguration> configs; 
+
+        uint seed;
 
         // overall generation parameters
         double minimumEnergy, maximumEnergy, powerlawIndex,
@@ -35,7 +37,7 @@ class Controller{
         Controller(	std::vector<MinimalInjectionConfiguration> configs_received );
 
         // The BEST constructor
-        Controller(std::vector<MinimalInjectionConfiguration> configs_received, double minimumEnergy
+        Controller(std::vector<MinimalInjectionConfiguration> configs_received, double minimumEnergy,
             double maximumEnergy, double powerlawIndex, double minimumAzimuth, 
             double maximumAzimuth, double minimumZenith, double maximumZenith,
             double injectionRadius=1200*Constants::m, double endcapLength=1200*Constants::m, 
