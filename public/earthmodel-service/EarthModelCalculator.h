@@ -13,8 +13,8 @@
 #define EarthModelCalculator_h
 
 #include <cmath>
-#include "dataclasses/I3Position.h"
-#include "dataclasses/I3Direction.h"
+#include <LeptonInjector/Coordinates.h>
+#include <LeptonInjector/Constants.h>
 
 /**
  * @brief This is a namespace which provides a collection of stand-alone 
@@ -47,10 +47,10 @@ namespace EarthModelCalculator
    * @return impact parameter, distance from origin to p
    *
    */
-   double GetImpactParameter(const I3Position &p0,
-                             const I3Direction &d,
+   double GetImpactParameter(const LeptonInjector::LI_Position &p0,
+                             const LeptonInjector::LI_Direction &d,
                              double &t,
-                             I3Position &p);
+                             LeptonInjector::LI_Position &p);
 
   /**
    * This function returns intersection-positions between a track
@@ -71,11 +71,11 @@ namespace EarthModelCalculator
    * @return number of intersections
    */
    int GetIntersectionsWithSphere(
-                           const I3Position &pos,
-                           const I3Direction &dir,
+                           const LeptonInjector::LI_Position &pos,
+                           const LeptonInjector::LI_Direction &dir,
                            double r,
-                           I3Position &startPos,
-                           I3Position &endPos);
+                           LeptonInjector::LI_Position &startPos,
+                           LeptonInjector::LI_Position &endPos);
 
   /**
    * wrapper function of GetIntersectionsWithSphere
@@ -93,8 +93,8 @@ namespace EarthModelCalculator
    * @return number of intersections
    */
    int GetDistsToIntersectionsWithSphere(
-                           const I3Position &pos,
-                           const I3Direction &dir,
+                           const LeptonInjector::LI_Position &pos,
+                           const LeptonInjector::LI_Direction &dir,
                            double r,
                            double & enterdist,
                            double & exitdist);

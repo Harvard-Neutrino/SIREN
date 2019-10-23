@@ -1,5 +1,5 @@
-#ifndef EarthModelService_H  
-#define EarthModelService_H  
+#ifndef LI_EarthModelService_H  
+#define LI_EarthModelService_H  
 /**
  *@file EarthModelService.h
  *@brief A class for managing Earth's density profile and ice geometry.
@@ -27,14 +27,16 @@
  *
  */
 
-#include "icetray/I3SingleServiceFactory.h"
+#include <LeptonInjector/Constants.h>
 #include <LeptonInjector/Coordinates.h>
-#include <earthmodel-service/EarthModelCalculator.h>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <map>
 #include <boost/foreach.hpp>
-#include <boost/python.hpp>
+#include <earthmodel-service/EarthModelCalculator.h>
+//#include <boost/python.hpp>
+// #include <boost/python.hpp>
 
 namespace earthmodel {
 
@@ -160,8 +162,8 @@ class EarthModelService
           const std::vector<std::string>& earthmodels = std::vector<std::string>(),
           const std::vector<std::string>& materialmodels = std::vector<std::string>(),
           const std::string &icecapname = "SimpleIceCap",
-          double icecapangle = 20.0*I3Units::degree,
-          double detectordepth = 1948.0*I3Units::m);
+          double icecapangle = 20.0*LeptonInjector::Constants::degrees,
+          double detectordepth = 1948.0*LeptonInjector::Constants::m);
 
    /**
     * Destructor - 
@@ -409,7 +411,8 @@ class EarthModelService
 
    /**
     * Get Earth Params.
-    */
+    */ 
+   /* currently borked
    boost::python::list GetEarthParamsList() 
    { 
       boost::python::list py_list;
@@ -417,7 +420,7 @@ class EarthModelService
          py_list.append(param.second);
       }
       return py_list;
-   }
+   } */
 
    /**
     * Earth model function. 
@@ -645,7 +648,7 @@ class EarthModelService
    double fAtmoRadius_;       // [m], Atmosphere radius
 
    double fDetDepth_;   // [m] depth of I3 origin from ice surface
-   LI_Position fDetPos_;   // position of I3 origin in Earth-centered coordinate
+   LeptonInjector::LI_Position fDetPos_;   // position of I3 origin in Earth-centered coordinate
 
    //-----------------------------------------
    // option for icecap at south pole
@@ -738,34 +741,31 @@ class EarthModelService
       ///Evaluates the density at the appropriate point along the parameterized track
       // returns in cgs unit
       double operator()(double dist) const {
-         I3Position curpos = pos + dist*dir;
+         LeptonInjector::LI_Position curpos = pos + dist*dir;
          double density = GetEarthDensityInCGS(medium,curpos);
 
          if (intg_type == PATH || intg_type == RADIUS) {
             return density;  // [g/cm^3]
          }
 
-         double r_cm = curpos.Magnitude() * I3Units::m / I3Units::cm;
+         double r_cm = curpos.Magnitude() * LeptonInjector::Constants::m / LeptonInjector::Constants::cm;
          if (intg_type == SPHERE) {
             // calculate sphere * density [g/cm]
             // we assume dist is small ehough 
-            return 4 * r_cm * r_cm * I3Constants::pi * density;
+            return 4 * r_cm * r_cm * LeptonInjector::Constants::pi * density;
 
          } else if (intg_type == CIRCLE) {
             // calculate circle line * density  [g/cm^2]
             // we assume dist is small ehough 
-            return 2 * r_cm * I3Constants::pi * density;
+            return 2 * r_cm * LeptonInjector::Constants::pi * density;
          }
-         log_error("wrong intg type %d", intg_type);
+         throw("wrong intg type " +std::to_string(static_cast<int>(intg_type)));
          return -1;
       }
 
    };
 
-   SET_LOGGER("EarthModelService");
 };
-
-I3_POINTER_TYPEDEFS(EarthModelService);
 
 }
 

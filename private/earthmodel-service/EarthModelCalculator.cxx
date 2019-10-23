@@ -11,8 +11,6 @@
 
 */
 #include "earthmodel-service/EarthModelCalculator.h"
-#include "icetray/I3Units.h"
-#include "dataclasses/I3Constants.h"
 
 using namespace std;
 //------------------------------------------------------
@@ -32,10 +30,10 @@ static double TOLERANCE = 1e-6;
 //----------------------------------------
 
 //__________________________________________________________
-double EarthModelCalculator::GetImpactParameter(const I3Position &p0,
-                                      const I3Direction &d,
+double EarthModelCalculator::GetImpactParameter(const LeptonInjector::LI_Position &p0,
+                                      const LeptonInjector::LI_Direction &d,
                                       double &t,
-                                      I3Position &p)
+                                      LeptonInjector::LI_Position &p)
 {
 //
 // calculate impact parameter to origin and scalar value t
@@ -50,7 +48,7 @@ double EarthModelCalculator::GetImpactParameter(const I3Position &p0,
   // p = p0 + td;
   // p*d = 0 => (p0 + td) * d = 0 => t = -p0*d
 
-  t = -1.0 * p0*d;
+  t = -1.0 * (p0*d);
   p = p0 + d*t;
   double r = p.Magnitude();
 
@@ -60,22 +58,22 @@ double EarthModelCalculator::GetImpactParameter(const I3Position &p0,
 
 //_________________________________________________________
 int EarthModelCalculator::GetIntersectionsWithSphere(
-                             const I3Position &pos,
-                             const I3Direction &dir,
+                             const LeptonInjector::LI_Position &pos,
+                             const LeptonInjector::LI_Direction &dir,
                              double r,
-                             I3Position &startPos,
-                             I3Position &endPos)
+                             LeptonInjector::LI_Position &startPos,
+                             LeptonInjector::LI_Position &endPos)
 {
 
   // calc impact position
-  I3Position impact_pos;
+  LeptonInjector::LI_Position impact_pos;
   double t = 0;
   double impact_param = GetImpactParameter(pos, dir, t, impact_pos);
 
   if (fabs(impact_pos* dir) > TOLERANCE) {
-     log_warn("impact_pos must be most closest position "
+     /*log_warn("impact_pos must be most closest position "
                "to origin, but your impact_pos vector and "
-               "dir are not parpendicular. Check params. ");
+               "dir are not parpendicular. Check params. ");*/
      return 0;
   }
 
@@ -122,14 +120,14 @@ int EarthModelCalculator::GetIntersectionsWithSphere(
 
 //_________________________________________________________
 int EarthModelCalculator::GetDistsToIntersectionsWithSphere(
-                             const I3Position &pos,
-                             const I3Direction &dir,
+                             const LeptonInjector::LI_Position &pos,
+                             const LeptonInjector::LI_Direction &dir,
                              double r,
                              double &enterdist,
                              double &exitdist)
 {
 
-   I3Position startp, endp;
+   LeptonInjector::LI_Position startp, endp;
    int n = GetIntersectionsWithSphere(pos, dir, r, startp, endp);
 
    if (n == 0) return 0; 
@@ -179,7 +177,7 @@ double EarthModelCalculator::GetLeptonRange(double particle_energy,
      }
 
   } else {
-     log_error("The LeptonRange option %d is not supported! ", option);
+     throw("The LeptonRange option "+std::to_string(static_cast<int>(option))+" is not supported! ");
   }
 
   if (isTau) {

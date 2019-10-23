@@ -15,9 +15,8 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
-#include "earthmodel-service/EarthModelService.h"
-#include "earthmodel-service/ParticleConstants.h"
-#include "icetray/I3SingleServiceFactory.h"
+#include <earthmodel-service/EarthModelService.h>
+//  #include "earthmodel-service/EarthModelService.h"
 
 using namespace std;
 using namespace earthmodel;
@@ -1561,7 +1560,7 @@ void EarthModelService::SetMaterialModel(const vector<string>& s)
       ifstream in(fname1.c_str());
 
       if (in.fail())
-         throw("failed to open %s. Set correct EarthParamsPath.", fname1.c_str());
+         throw("failed to open "+fname1+". Set correct EarthParamsPath.");
 
       //
       // read the file
@@ -1685,8 +1684,7 @@ void EarthModelService::SetIceCapTypeString(string s)
    } else if (s == "SimpleIceCap") {
       fIceCapType_ = EarthModelService::SIMPLEICECAP;
    } else {
-      throw("IceCapType %s is not supported. set IceSheet.", 
-                 s.c_str());
+      throw("IceCapType '"+s+"' is not supported. set IceSheet.");
       fIceCapTypeString_ = "IceSheet";
       fIceCapType_ = EarthModelService::ICESHEET;
    }
@@ -1774,7 +1772,7 @@ void EarthModelService::SetDetectorXY(double x, double y)
 
 bool EarthModelService::ignored_bool;
 
-typedef I3SingleServiceFactory<EarthModelService>
-I3EarthModelServiceFactory;
-I3_SERVICE_FACTORY(I3EarthModelServiceFactory);
+// typedef I3SingleServiceFactory<EarthModelService>
+// I3EarthModelServiceFactory;
+// I3_SERVICE_FACTORY(I3EarthModelServiceFactory);
 
