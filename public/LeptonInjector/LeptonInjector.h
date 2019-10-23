@@ -3,10 +3,8 @@
 
 #include <queue>
 
-#include <icetray/I3ConditionalModule.h>
 #include <earthmodel-service/EarthModelService.h>
-#include <dataclasses/physics/I3MCTree.h>
-#include <phys-services/I3CrossSection.h>
+#include <phys-services/LICrossSection.h>
 
 #include <LeptonInjector/Particle.h>
 #include <LeptonInjector/Random.h>
