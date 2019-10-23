@@ -35,8 +35,8 @@ namespace LeptonInjector {
 			LI_Direction( double theta, double phi);
 			LI_Direction( std::array<double, 2> dir);
 			LI_Direction( std::pair<double, double> dir);
-			LI_Direction( LI_Direction& old_one);
-			LI_Direction( LI_Position& vec);  // get the direction of a vector 
+			LI_Direction( const LI_Direction& old_one);
+			LI_Direction( LI_Position vec);  // get the direction of a vector 
 
 			
 			double zenith;
@@ -54,15 +54,29 @@ namespace LeptonInjector {
 			virtual ~LI_Position();
 
 			LI_Position(double ex, double why, double zee);
-			LI_Position(LI_Position& old_one);
+			LI_Position(const LI_Position& old_one);
 			LI_Position(std::array<double, n_dimensions> pos);
 
-			double at(uint8_t component);
-			double Magnitude();
+			double at(uint8_t component) const;
+			//double Magnitude(void);
+			double Magnitude(void) const;
 
 		private:
 			std::array<double, n_dimensions> position;
 	};
+
+	LI_Position operator * (LI_Position point, double scalar);
+	LI_Position operator * (double scalar, LI_Position point);
+	LI_Position operator * (LI_Direction  dir, double scalar);
+	LI_Position operator * (double scalar, LI_Direction dir);
+	double operator * (LI_Position  pos, LI_Direction  dir);
+	double operator * (LI_Direction  dir, LI_Position  pos);
+	double operator * (LI_Position  vec1, LI_Position  vec2);
+	LI_Position operator + (LI_Position  pos1, LI_Position pos2);
+	LI_Position operator - (LI_Position  pos1, LI_Position pos2);
+	LI_Position& operator += (LI_Position& one, LI_Position& two);
+	LI_Position& operator -= (LI_Position& one, LI_Position& two);
+	bool operator == (LI_Position one, LI_Position two);
 
 } // end namespace LeptonInjector
 

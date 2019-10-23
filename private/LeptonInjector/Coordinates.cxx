@@ -48,7 +48,7 @@ namespace LeptonInjector {
 		this->zenith = dir.first;
 		this->azimuth = dir.second;
 	}
-	LI_Direction::LI_Direction(LI_Direction& old_one){
+	LI_Direction::LI_Direction(const LI_Direction& old_one){
 		this->zenith = old_one.zenith;
 		this->azimuth = old_one.azimuth;
 	}
@@ -69,7 +69,7 @@ namespace LeptonInjector {
 		}
 	}
 	// uses old position to make a new position
-	LI_Position::LI_Position(LI_Position& old_one){
+	LI_Position::LI_Position(const LI_Position&  old_one){
 		this->position = old_one.position;
 	}
 	// uses an array to construct a position 
@@ -90,8 +90,9 @@ namespace LeptonInjector {
 		return( this->position[component] );
 	}
 
+
 	// returns the magnitude of the position vector
-	double LI_Position::Magnitude(){
+	double LI_Position::Magnitude(void){
 		double mag = 0.0;
 		// note that the pythagorean theorem trivially generalizes to n_dim>2
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
@@ -104,71 +105,91 @@ namespace LeptonInjector {
 	// need to overload some operations on the newly formed LI_Direction and LI_Position
 
 	// this one scales a position vector by a constant
-	LI_Position operator * (LI_Position const &point, double scalar){
+	LI_Position operator * ( LI_Position point, double scalar){
 		std::array<double, n_dimensions> new_one; 
 		for (uint8_t iter  = 0; iter<n_dimensions; iter++){
 			new_one[iter] = point.at(iter) * scalar;
 		}
 		return(LI_Position( new_one ));
+	} // and the commutation!
+	LI_Position operator * (double scalar, LI_Position const point){
+		return( point*scalar );
 	}
 
 	// when multiplying a direction by a scalar, you are left with a vector 
-	LI_Position operator * (LI_Direction const &dir, double scalar){
+	LI_Position operator * (LI_Direction const dir, double scalar){
 		// calculate the coordinates
 		double ex = scalar*cos(dir.azimuth)*sin(dir.zenith);
 		double why = scalar*sin(dir.zenith)*sin(dir.azimuth);
 		double zee = scalar*cos(dir.zenith);
 		return( LI_Position(ex, why, zee) );
+	} // commutation
+	LI_Position operator * (double scalar, LI_Direction const dir){
+		return( dir*scalar );
 	}
 
 	// define the dot product between a vector and a direction. The direction is first turned into a unit vector
-	double operator * (LI_Position const &pos, LI_Direction const &dir){
+	double operator * (LI_Position  pos, LI_Direction  dir){
 		// construct effective position for a unit vector in the direction of dir
 		std::array<double,n_dimensions> new_dir = { cos(dir.azimuth)*sin(dir.zenith), sin(dir.azimuth)*sin(dir.zenith), cos(dir.zenith)};
 
 		// with the iterable unit vector, we now compute the inner product. 
 		double projected = 0;
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
-			projected += pos.at(iter)*dir[iter];
+			projected += pos.at(iter)*new_dir[iter];
 		}
-
 		return( projected );
+	}// commutation
+	double operator * (LI_Direction  dir, LI_Position  pos){
+		return( pos*dir );
 	}
 
 	// similar to above, this calculates the dot product of two position vectors 
-	double operator * (LI_Position const &vec1, LI_Position const &vec2){
+	double operator * (LI_Position  vec1, LI_Position  vec2){
 		double dot_prod = 0;
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
 			dot_prod += vec1.at(iter)*vec2.at(iter);
 		}
 		return( dot_prod );
-	}
+	}//commutation is implicitly already here... 
 
 	// implement adding and subtracting positions. Like vector addition! 
-	LI_Position operator + (LI_Position const &pos1, LI_Position const &pos2){
+	LI_Position operator + (LI_Position pos1, LI_Position pos2){
 		std::array<double, n_dimensions> new_one;
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
 			new_one[iter] = pos1.at(iter) + pos2.at(iter);
 		}
 		return( LI_Position( new_one ) );
-	}
-	LI_Position operator - (LI_Position const &pos1, LI_Position const &pos2){
+	}// commutation is implicitly implemented
+	LI_Position operator - (LI_Position pos1, LI_Position pos2){
 		std::array<double, n_dimensions> new_one;
 
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
 			new_one[iter] = pos1.at(iter) - pos2.at(iter);
 		}
-
 		return( LI_Position( new_one ) );
-	}
+	}// implicitly blah blah blah
 
 	LI_Position& operator += (LI_Position& one, LI_Position& two){
 		one = one + two;
 		return( one );
 	}
-	LI_Position& operator += (LI_Position& one, LI_Position& two){
+	LI_Position& operator -= (LI_Position& one, LI_Position& two){
 		one = one - two;
 		return( one );
+	}// same for those last two, too
+
+	// check if two points are identical
+	// 		maybe use a different epsilon? Not sure. 
+	bool operator == (LI_Position& one, LI_Position& two){
+		for (uint8_t iter=0; iter<n_dimensions; iter++){
+			// check if the difference between each comonent isless than the minimum expressible distance between doubles
+			//		this, as opposed to using '==' is to avoid floating point errors 
+			if ( !(abs(one.at(iter)-two.at(iter)) <= std::numeric_limits<double>::epsilon()) ){
+				return(false);
+			}
+		}
+		return(true);
 	}
 
 } // end namespace LeptonInjector
