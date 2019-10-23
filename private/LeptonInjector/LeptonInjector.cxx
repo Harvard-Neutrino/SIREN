@@ -35,15 +35,15 @@ namespace LeptonInjector{
 	BasicInjectionConfiguration::~BasicInjectionConfiguration(){}
 	
 	RangedInjectionConfiguration::RangedInjectionConfiguration():
-	injectionRadius(1200*I3Units::meter),
-	endcapLength(1200*I3Units::meter)
+	injectionRadius(1200*LeptonInjector::Constants::m),
+	endcapLength(1200*LeptonInjector::Constants::m)
 	{}
 	
 	RangedInjectionConfiguration::~RangedInjectionConfiguration(){}
 	
 	VolumeInjectionConfiguration::VolumeInjectionConfiguration():
-	cylinderRadius(1200*I3Units::meter),
-	cylinderHeight(1200*I3Units::meter)
+	cylinderRadius(1200*LeptonInjector::Constants::m),
+	cylinderHeight(1200*LeptonInjector::Constants::m)
 	{}
 	
 	VolumeInjectionConfiguration::~VolumeInjectionConfiguration(){}
