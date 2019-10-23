@@ -22,6 +22,8 @@ static const double &deg            = degrees; // adding this in too...
 // meter
 static const double m               = 1.; 
 static const double &meter          = m;
+static const double cm              = 0.01*m;
+static const double &centimeter     = cm;
 
 // second is a billion to be consistent with IceCube code
 static const double second          = 1.e9;
