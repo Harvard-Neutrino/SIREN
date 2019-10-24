@@ -21,9 +21,9 @@ namespace LeptonInjector {
 
 	// these functions rotate a 3-vector about some axis
 	// assumes vector is in cartesian coordinates
-	std::array<double, n_dimensions> RotateY(std::array<double, n_dimensions> vector, double angle);
-	std::array<double, n_dimensions> RotateX(std::array<double, n_dimensions> vector, double angle);
-	std::array<double, n_dimensions> RotateZ(std::array<double, n_dimensions> vector, double angle);
+	LI_Position RotateY(LI_Position vector, double angle);
+	LI_Position RotateX(LI_Position vector, double angle);
+	LI_Position RotateZ(LI_Position vector, double angle);
 
 	// Creating a "LI_Direction" to mimic the I3_Direction object
 	// this should behave in the same exact way, at least within the scope of this project 
@@ -61,6 +61,17 @@ namespace LeptonInjector {
 			//double Magnitude(void);
 			double Magnitude(void) const;
 
+			// added for historical reasons
+			double GetZ() const;
+			double GetY() const;
+			double GetX() const;
+
+			// added for that last beit of needed functionality 
+			// I don't like adding these, since it violates that whole trust of the "const" above.
+			void SetZ(double amt);
+			void SetY(double amt);
+			void SetX(double amt);
+
 		private:
 			std::array<double, n_dimensions> position;
 	};
@@ -74,8 +85,10 @@ namespace LeptonInjector {
 	double operator * (LI_Position  vec1, LI_Position  vec2);
 	LI_Position operator + (LI_Position  pos1, LI_Position pos2);
 	LI_Position operator - (LI_Position  pos1, LI_Position pos2);
-	LI_Position& operator += (LI_Position& one, LI_Position& two);
-	LI_Position& operator -= (LI_Position& one, LI_Position& two);
+	LI_Position& operator += (LI_Position one, LI_Position two);
+	LI_Position& operator -= (LI_Position one, LI_Position two);
+	LI_Direction operator - (LI_Direction obj);
+
 	bool operator == (LI_Position one, LI_Position two);
 
 } // end namespace LeptonInjector

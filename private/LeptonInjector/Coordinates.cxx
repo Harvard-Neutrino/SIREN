@@ -3,19 +3,19 @@
 
 namespace LeptonInjector {
 
-	std::array<double, n_dimensions> RotateX(std::array<double, n_dimensions> vector, double angle) {
-		std::array<double, n_dimensions> rotated = {vector[0], vector[1]*cos(angle) +vector[2]*sin(angle), -1*vector[1]*sin(angle) + vector[2]*cos(angle) };
-		return(rotated);
+	LI_Position RotateX(LI_Position vector, double angle) {
+		std::array<double, n_dimensions> rotated = {vector.at(0), vector.at(1)*cos(angle) +vector.at(2)*sin(angle), -1*vector.at(1)*sin(angle) + vector.at(2)*cos(angle) };
+		return(LI_Position(rotated));
 	}
 
-	std::array<double, n_dimensions> RotateY(std::array<double, n_dimensions> vector, double angle) {
-		std::array<double, n_dimensions> rotated = {vector[0] * cos(angle) + -1 * vector[2] * sin(angle), vector[1] ,vector[0]*sin(angle) + vector[2]*cos(angle) };
-		return(rotated);
+	LI_Position RotateY(LI_Position vector, double angle) {
+		std::array<double, n_dimensions> rotated = {vector.at(0) * cos(angle) + -1 * vector.at(2) * sin(angle), vector.at(1) ,vector.at(0)*sin(angle) + vector.at(2)*cos(angle) };
+		return(LI_Position(rotated));
 	}
 
-	std::array<double, n_dimensions> RotateZ(std::array<double, n_dimensions> vector, double angle) {
-		std::array<double, n_dimensions> rotated = { vector[0]*cos(angle)+vector[1]*sin(angle), -1*vector[0]*sin(angle)+vector[1]*cos(angle), vector[2] };
-		return(rotated);
+	LI_Position RotateZ(LI_Position vector, double angle) {
+		std::array<double, n_dimensions> rotated = { vector.at(0)*cos(angle)+vector.at(1)*sin(angle), -1*vector.at(0)*sin(angle)+vector.at(1)*cos(angle), vector.at(2) };
+		return(LI_Position(rotated));
 	}
 
 
@@ -53,7 +53,7 @@ namespace LeptonInjector {
 		this->azimuth = old_one.azimuth;
 	}
 	// construct a direction for a given vector 
-	LI_Direction::LI_Direction( LI_Position& vec){
+	LI_Direction::LI_Direction( LI_Position vec){
 		this->azimuth = atan( vec.at(1)/ vec.at(0) );
 		this->zenith  = acos( vec.at(2)/ vec.Magnitude() );
 	}
@@ -79,7 +79,7 @@ namespace LeptonInjector {
 		}
 	}
 	// returns the value of a specified component 
-	double LI_Position::at( uint8_t component){
+	double LI_Position::at( uint8_t component) const{
 		// because component is unsigned, the only achievable values are >0 and <255. So, we just check that it's 
 		// 		under the dimensionality of the arrays 
 		if(component >= n_dimensions){
@@ -90,9 +90,17 @@ namespace LeptonInjector {
 		return( this->position[component] );
 	}
 
+	double LI_Position::GetX() const{return( position[0]); }
+	double LI_Position::GetY() const{return( position[1]); }
+	double LI_Position::GetZ() const{return( position[2]); }
+
+	void LI_Position::SetX(double amt){this->position[0]= amt; }
+	void LI_Position::SetY(double amt){this->position[1]= amt; }
+	void LI_Position::SetZ(double amt){this->position[2]= amt; }
+
 
 	// returns the magnitude of the position vector
-	double LI_Position::Magnitude(void){
+	double LI_Position::Magnitude(void) const{
 		double mag = 0.0;
 		// note that the pythagorean theorem trivially generalizes to n_dim>2
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
@@ -170,14 +178,28 @@ namespace LeptonInjector {
 		return( LI_Position( new_one ) );
 	}// implicitly blah blah blah
 
-	LI_Position& operator += (LI_Position& one, LI_Position& two){
+	LI_Position& operator += (LI_Position one, LI_Position two){
 		one = one + two;
 		return( one );
 	}
-	LI_Position& operator -= (LI_Position& one, LI_Position& two){
+	LI_Position& operator -= (LI_Position one, LI_Position two){
 		one = one - two;
 		return( one );
 	}// same for those last two, too
+
+	// turns a direction around
+	LI_Direction operator - (LI_Direction obj){
+		LI_Direction new_one;
+		new_one.zenith = Constants::pi - obj.zenith;
+		new_one.azimuth += Constants::pi; 
+
+		if (obj.azimuth >= 2*Constants::pi){
+			obj.azimuth -= 2*Constants::pi;
+		}
+
+		return(new_one);
+	}
+
 
 	// check if two points are identical
 	// 		maybe use a different epsilon? Not sure. 
