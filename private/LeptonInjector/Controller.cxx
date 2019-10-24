@@ -84,6 +84,10 @@ namespace LeptonInjector {
         this->configs.push_back( configs_received );
     }
 
+    void Controller::SetEarthModel( std::string new_name ){
+        this->earthmodelname = new_name;
+    }
+
     void Controller::Execute(){
         // setup the injectors! 
 
@@ -132,13 +136,14 @@ namespace LeptonInjector {
             
             if(this->rangedConfig.injectionRadius<0){throw": InjectionRadius must be non-negative"; }
             if(this->rangedConfig.endcapLength<0){ throw ": EndcapLength must be non-negative"; }
-            /*(
-            earthModel = context_.Get<boost::shared_ptr<earthmodel::EarthModelService> >(earthModelName);
             
+            //context_.Get<boost::shared_ptr<earthmodel::EarthModelService> >(earthmodelname);
+            //earthmodel::EarthModelService actual_model();
+
             if(!earthModel)
-                log_fatal_stream(GetName() << ": an Earth model service is required");
+                throw("an Earth model service is required");
             
-            innerContext.Put(earthModel,earthModelName); */
+            //innerContext.Put(earthModel,earthModelName); 
         }
         
         //get the properties for volume injectors
@@ -159,15 +164,19 @@ namespace LeptonInjector {
             try{
                 if(genSet->ranged){
                     //log_debug_stream(" this is a ranged injector");
-                    generator=new RangedLeptonInjector(this->rangedConfig);
-                    generator->GetConfiguration().Set("EarthModel",boost::python::object(earthModelName));
+                    RangedLeptonInjector* generator=new RangedLeptonInjector(this->rangedConfig);
+                    generator->earthModel = this->earthModel;
                 }
                 else{ //volume
                     //log_debug_stream(" this is a volume injector");
-                    generator=new VolumeLeptonInjector(this->volumeConfig);
+                    VolumeLeptonInjector* generator=new VolumeLeptonInjector(this->volumeConfig);
                 }
                 
                 //set properties not shared with other injectors, or which are not part of the config object
+
+
+
+                /*
                 generator->GetConfiguration().Set("NEvents",boost::python::object(genSet->events));
                 generator->GetConfiguration().Set("FinalType1",boost::python::object(genSet->finalType1));
                 generator->GetConfiguration().Set("FinalType2",boost::python::object(genSet->finalType2));
@@ -177,18 +186,18 @@ namespace LeptonInjector {
                 generator->GetConfiguration().Set("SuspendOnCompletion",boost::python::object(false));
                 
                 generator->SetName(GetName()+"_Generator_"+boost::lexical_cast<std::string>(i++));
-                generator->Configure();
+                generator->Configure(); */
+                
             }catch(...){
                 delete generator;
                 throw;
-            }
+            } // end try/catch
             generators.push_back(generator);
-        }
+            
+        } // end for loop constructing generators 
         
-        // set up the reference to the first generator
-        this->ActiveGenerator = *(generators.front());
 
-    }
+    } // end execute
 
 	void Controller::Generate(void) {
 

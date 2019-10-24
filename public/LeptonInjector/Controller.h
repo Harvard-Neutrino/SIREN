@@ -4,13 +4,13 @@
 #include <LeptonInjector/LeptonInjector.h>
 #include <LeptonInjector/Constants.h>
 #include <LeptonInjector/Coordinates.h>
+#include <boost/shared_ptr.hpp>
 
 namespace LeptonInjector{
 
 class Controller{
     private:
         void Generate();
-        LeptonInjectorBase* ActiveGenerator;
         std::deque<LeptonInjectorBase*> generators;
         std::vector<MinimalInjectionConfiguration> configs; 
 
@@ -23,6 +23,11 @@ class Controller{
         // ones used by ranged and/or volume mode
         double injectionRadius, endcapLength;
         double cylinderRadius, cylinderHeight;
+
+        std::string earthmodelname;
+        //earthmodel::EarthModelService earthModel_obj();
+        std::shared_ptr<earthmodel::EarthModelService> earthModel();
+
 
         RangedInjectionConfiguration rangedConfig;
 		VolumeInjectionConfiguration volumeConfig;
@@ -43,7 +48,8 @@ class Controller{
             double injectionRadius=1200*Constants::m, double endcapLength=1200*Constants::m, 
             double cylinderRadius=1200*Constants::m, double cylinderHeight= 1200*Constants::m);
         
-
+        
+        void SetEarthModel( std::string new_name );
         void AddInjector(MinimalInjectionConfiguration configs_received);
         void Execute(); 
 
