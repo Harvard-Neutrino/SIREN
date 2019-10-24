@@ -154,7 +154,7 @@ void EarthModelService::Init()
    SetDetectorDepth(fDetDepth_);
    SetDetectorXY(0., 0.);
 
-   log_info("%s", PrintEarthParams().c_str()); 
+   //log_info("%s", PrintEarthParams().c_str()); 
 
 }
 
@@ -628,9 +628,9 @@ const double EarthModelService::IntegrateDensityInCGS(
          distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
          assert(distToNext>0);
          
-         log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
-         log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
-         log_trace_stream("  Distance to next layer is " << distToNext << " meters");
+         //log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
+         //log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
+         //log_trace_stream("  Distance to next layer is " << distToNext << " meters");
          
          continue;
       }
@@ -639,21 +639,21 @@ const double EarthModelService::IntegrateDensityInCGS(
       double h=distToNext;
       approachingGoal=false;
       if(x+h>len){
-         log_trace_stream("   Reducing step size to avoid overshooting target distance");
+         //log_trace_stream("   Reducing step size to avoid overshooting target distance");
          h=len-x;
          approachingGoal=true;
       }
-      log_trace_stream("  Integrating density over next " << h << " meters");
+      //log_trace_stream("  Integrating density over next " << h << " meters");
       densityPathIntegrand integrand(curMedium,pos,dirCE, intg_type);
       double dDepth = M_TO_CM * Integration::rombergIntegrate(integrand,0,h,1e-6);
-      log_trace_stream("   Integrated column depth is " << dDepth << " g/cm^2");
+      //log_trace_stream("   Integrated column depth is " << dDepth << " g/cm^2");
       
       x+=h;
       depth+=dDepth;
       pos+=distToNext*dirCE;
       
       if(willLeaveAtmosphere){ //we have now done so; there's nothing more to integrate
-         log_trace_stream(" Stopping at atmosphere boundary");
+         //log_trace_stream(" Stopping at atmosphere boundary");
          break;
       }
       if(approachingGoal) //done
@@ -662,13 +662,13 @@ const double EarthModelService::IntegrateDensityInCGS(
       std::string oldLayerName=curMedium.fBoundaryName_;
       //make sure that we actually get into the next layer
       while(curMedium.fBoundaryName_==oldLayerName){
-         log_trace_stream("   Taking tiny step toward next layer");
+         //log_trace_stream("   Taking tiny step toward next layer");
 
          lastpos = pos;
          pos += tinyStepSize * dirCE;
          // because this is so tiny step I assume it's flat density
          depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
-         log_trace("   depth updated to %e, tinyStepSize is %e, boundary name %s",  depth, tinyStepSize, oldLayerName.c_str());
+         //log_trace("   depth updated to %e, tinyStepSize is %e, boundary name %s",  depth, tinyStepSize, oldLayerName.c_str());
          x+=tinyStepSize;
          if (use_electron_density){
                 density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
@@ -683,13 +683,13 @@ const double EarthModelService::IntegrateDensityInCGS(
       distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
       assert(distToNext>0);
       
-      log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
-      log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
-      log_trace_stream("  Distance to next layer is " << distToNext << " meters");
+      //log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
+      //log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
+      //log_trace_stream("  Distance to next layer is " << distToNext << " meters");
 
    } // while loop end
    
-   log_trace_stream(" Len error: " << len-x);
+   //log_trace_stream(" Len error: " << len-x);
    return(depth);
 }
 
@@ -710,7 +710,7 @@ bool EarthModelService::CheckIntersectionWithLayer(
    LeptonInjector::LI_Position shiftedPos = pos-LeptonInjector::LI_Position(0,0,ep->second.fZOffset_);
    double r = shiftedPos.Magnitude();
    bool inside = (r<=ep->second.fUpperRadius_);
-   log_trace_stream("    Testing intersection with " << ep->second.fBoundaryName_ << " starting from relative radius " << r << "; point is " << (inside?"":"not ") << "inside");
+   //log_trace_stream("    Testing intersection with " << ep->second.fBoundaryName_ << " starting from relative radius " << r << "; point is " << (inside?"":"not ") << "inside");
    
    LeptonInjector::LI_Position entryPoint, exitPoint;
    int isect;
@@ -736,7 +736,7 @@ bool EarthModelService::CheckIntersectionWithLayer(
          //we are interested in the entry point, but only if it is closer than the exit point
          dist=(shiftedPos-entryPoint).Magnitude();
          double dist2=(shiftedPos-exitPoint).Magnitude();
-         log_trace_stream("     entryDist=" << dist << " exitDist=" << dist2);
+         //log_trace_stream("     entryDist=" << dist << " exitDist=" << dist2);
          if(dist2<dist) //exit is closer than entry; we are headed away
             isect=0; //ignore this layer by treating it as if there were no intersection
       }
@@ -744,7 +744,7 @@ bool EarthModelService::CheckIntersectionWithLayer(
    
    if(isect>=1){
       // update the given crosestDist
-      log_trace_stream("     dist=" << dist);
+      //log_trace_stream("     dist=" << dist);
       if(dist<closestDist){
          closestDist=dist;
          closestBoundary=ep;
@@ -779,7 +779,7 @@ double EarthModelService::DistanceToNextBoundaryCrossing(
       //if we're not inside an ice, air, or vacuum layer, there can be no ice further down
       ignoreIce=!(it->second.fMediumType_==ICE || it->second.fMediumType_==AIR || it->second.fMediumType_==VACUUM);
       if(ignoreIce)
-         log_trace_stream("    Inside medium type " << it->second.fMediumType_ << ", ignoring ice");
+         //log_trace_stream("    Inside medium type " << it->second.fMediumType_ << ", ignoring ice");
       
       if(it!=fEarthParams_.begin()){ //check the next layer inwards
          it--;
@@ -839,18 +839,18 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
                  double cDepth,
                  const bool use_electron_density) const
 {
-   log_trace_stream("DistanceForColumnDepthFromPoint from_posI3=" << from_posI3 << " dirI3=" << dirI3 << " cDepth=" << cDepth);
+   //log_trace_stream("DistanceForColumnDepthFromPoint from_posI3=" << from_posI3 << " dirI3=" << dirI3 << " cDepth=" << cDepth);
    const double precision=0.1; //the precision with which the target column depth must be matched
    
    if(cDepth<0)
-      throw_stream("Column depth must be positive (value was " << cDepth << ')');
+      throw("Column depth must be positive (value was " + std::to_string(cDepth) + ")");
    
    //convert to Earth centered coordinates
    LeptonInjector::LI_Position endCE = GetEarthCoordPosFromDetCoordPos(from_posI3);
    LeptonInjector::LI_Direction dirCE = GetEarthCoordDirFromDetCoordDir(dirI3);
    if(endCE.Magnitude()>fAtmoRadius_)
-      throw_stream("Starting point " << from_posI3 << " is outside the atmosphere");
-   log_trace_stream("Starting point radius is " << endCE.Magnitude());
+      throw("Starting point is outside the atmosphere");
+   //log_trace_stream("Starting point radius is " << endCE.Magnitude());
    
    LeptonInjector::LI_Position pos=endCE; //current position (earth centered)
    double x=0; //distance traversed so far
@@ -866,9 +866,9 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
    double density=GetEarthDensityInCGS(curMedium,pos)*density_offset; //the current density == d(depth)/dx
    bool willLeaveAtmosphere=false;
    double distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
-   log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
-   log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
-   log_trace_stream("  Distance to next layer is " << distToNext << " meters");
+   //log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
+   //log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
+   //log_trace_stream("  Distance to next layer is " << distToNext << " meters");
    
    const double tinyStepSize=.01*LeptonInjector::Constants::meter;
    double h=distToNext/10; //simple tuning suggests that this is a good starting step size
@@ -886,33 +886,33 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
       
       //if the density is constant, take a shortcut
       if(curMedium.fParams_.size()==1){
-         log_trace_stream(" Skipping across constant density material");
+         //log_trace_stream(" Skipping across constant density material");
          double totalDepthRemaining = distToNext * M_TO_CM * density;
-         log_trace_stream("  Column depth remaining in this layer is " << totalDepthRemaining << " gm/cm^2");
+         //log_trace_stream("  Column depth remaining in this layer is " << totalDepthRemaining << " gm/cm^2");
          //finish by linear interpolation if there is enough depth in this layer
          if(depth+totalDepthRemaining > cDepth){
-            log_trace_stream("  Linearly interpolating remaining distance");
+            //log_trace_stream("  Linearly interpolating remaining distance");
             double dx = (cDepth-depth)/(density) * CM_TO_M;
             x += dx;
             depth += dx * M_TO_CM * density;
             break;
          }
-         log_trace_stream("  Adding remaining column depth and advancing to next layer");
+         //log_trace_stream("  Adding remaining column depth and advancing to next layer");
          //otherwise add on the full depth from this layer and jump to the next layer
          depth+=totalDepthRemaining;
          x+=distToNext;
          pos+=distToNext*dirCE;
          
-         log_trace_stream("  Position is now " << pos << " with radius " << pos.Magnitude());
+         //log_trace_stream("  Position is now " << pos << " with radius " << pos.Magnitude());
          
          if(willLeaveAtmosphere){ //we have now done so; there's nothing more to integrate
-            log_debug("Integration would leave atmosphere, aborting before full column depth reached");
+            //log_debug("Integration would leave atmosphere, aborting before full column depth reached");
             break;
          }
          std::string oldLayerName=curMedium.fBoundaryName_;
          //make sure that we actually get into the next layer
          while(curMedium.fBoundaryName_==oldLayerName){
-            log_trace_stream("   Taking tiny step toward next layer");
+            //log_trace_stream("   Taking tiny step toward next layer");
             depth += tinyStepSize * M_TO_CM * density;
             x+=tinyStepSize;
             pos+=tinyStepSize*dirCE;
@@ -931,23 +931,23 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
          h=distToNext/5;//defaultStep; //reset step size
          //h=defaultStep;
          
-         log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
-         log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
-         log_trace_stream("  Distance to next layer is " << distToNext << " meters");
+         //log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
+         //log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
+         //log_trace_stream("  Distance to next layer is " << distToNext << " meters");
          
          continue;
       }
       
       //take a step
       bool stepped=false, reducedStepSize=false, steppingToNext=false;
-      log_trace_stream(" Attempting to step");
+      //log_trace_stream(" Attempting to step");
       while(!stepped){
          //if the proposed next step would go outside of the current layer, clip it
          if(h>distToNext){
-            log_trace_stream(" Decreasing step size to avoid entering next layer");
+            //log_trace_stream(" Decreasing step size to avoid entering next layer");
             if((distToNext-tinyStepSize)<distToNext
                && GetEarthParam(pos+(distToNext-tinyStepSize)*dirCE).fBoundaryName_==curMedium.fBoundaryName_){ //try to get very close without crossing
-               log_trace_stream("   Will attempt to reach layer boundary");
+               //log_trace_stream("   Will attempt to reach layer boundary");
                h=distToNext-tinyStepSize;
                steppingToNext=true;
             }
@@ -957,7 +957,7 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
                h*=.999;
          }
          
-         log_trace_stream("  Trial step size: " << h << " m");
+         //log_trace_stream("  Trial step size: " << h << " m");
          //------
          //actually do a Runge-Kutta step
          {
@@ -978,7 +978,7 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
             depthErr=h * M_TO_CM * (e1*density + e3*k3 + e4*k4 + e5*k5 + e6*k6 + e7*densNew);
          }
          //------
-         log_trace_stream("  Step results: depth=" << depthNew << " err=" << depthErr);
+         //log_trace_stream("  Step results: depth=" << depthNew << " err=" << depthErr);
          depthErr/=errTol;
          depthErr=std::abs(depthErr);
          
@@ -991,7 +991,7 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
          //check whether step was acceptable
          if(depthErr>1){
             //need to decrease step size
-            log_trace_stream("  Decreasing step size to control error");
+            //log_trace_stream("  Decreasing step size to control error");
             if(depthErr < shrinkLimit)
                h=SAFETY*h/sqrt(sqrt(depthErr)); // 1/sqrt(sqrt(depthErr)) == depthErr**shrinkPower
 			else
@@ -1001,7 +1001,7 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
          }
          else if(depthNew>cDepth+precision){
             //need to decrease step size
-            log_trace_stream("  Decreasing step size to avoid overshooting target depth");
+            //log_trace_stream("  Decreasing step size to avoid overshooting target depth");
             //attempt to linearly interpolate what our step size would be
             //if the interpolation underflows of fails to recommend a change, though,
             //just halve the step size to avoid an infinite loop
@@ -1014,12 +1014,12 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
             approachingTarget=true;
          }
          else{ //step looks good, recommend an increase for next step
-            log_trace_stream("  Accepting step");
+            //log_trace_stream("  Accepting step");
             if(approachingTarget){
                //attempt to linearly extrapolate what our step size would be
                //if the extrapolation underflows, though, just halve the step size
                double factor=(cDepth+precision-depthNew)/(depthNew-depth);
-               log_trace_stream("   Extrapolating distance to endpoint, factor=" << factor);
+               //log_trace_stream("   Extrapolating distance to endpoint, factor=" << factor);
                if(factor==0) //in case of underflow, just halve the step size
                   hNew=h/2;
                else{
@@ -1046,7 +1046,7 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
       h=hNew;
       
       if(willLeaveAtmosphere){ //we have now done so; there's nothing more to integrate
-         log_warn("Integration would leave atmosphere, aborting before full column depth reached");
+         //log_warn("Integration would leave atmosphere, aborting before full column depth reached");
          break;
       }
       //check if we are transitioning to the next layer
@@ -1054,7 +1054,7 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
          std::string oldLayerName=curMedium.fBoundaryName_;
          //make sure that we actually get into the next layer
          while(curMedium.fBoundaryName_==oldLayerName){
-            log_trace_stream("   Taking tiny step toward next layer");
+            //log_trace_stream("   Taking tiny step toward next layer");
             depth += tinyStepSize * M_TO_CM * density;
             x+=tinyStepSize;
             pos+=tinyStepSize*dirCE;
@@ -1076,15 +1076,15 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
       else
          density=densNew;
       
-      log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
-      log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
-      log_trace_stream("  Distance to next layer is " << distToNext << " meters");
+      //log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
+      //log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
+      //log_trace_stream("  Distance to next layer is " << distToNext << " meters");
       
       //if close enough to the target depth, stop
       if(std::abs(cDepth-depth)<precision)
          break;
    }
-   log_trace_stream(" CDepth error: " << cDepth-depth);
+   //log_trace_stream(" CDepth error: " << cDepth-depth);
    return(x);
 }
 
@@ -1132,10 +1132,10 @@ const double EarthModelService::GetLeptonRangeInMeter(
   double range = EarthModelCalculator::GetLeptonRange(energy, isTau, 
                                                     option, scale);
 
-  log_debug("GetLeptonRangeInMeter is called with energy %g,"
-            "endpos(%g,%g,%g), dir(%g,%g,%g), range=%g", 
-            energy, posI3.GetX(), posI3.GetY(), posI3.GetZ(), 
-            dirI3.GetX(), dirI3.GetY(), dirI3.GetZ(), range);
+  //log_debug("GetLeptonRangeInMeter is called with energy %g,"
+  //          "endpos(%g,%g,%g), dir(%g,%g,%g), range=%g", 
+   //         energy, posI3.GetX(), posI3.GetY(), posI3.GetZ(), 
+   //         dirI3.GetX(), dirI3.GetY(), dirI3.GetZ(), range);
   
   // this function is faster than old MeterMWEConverter.
   // however, input value must be column depth [g/cm2] instead of 
@@ -1149,7 +1149,7 @@ const double EarthModelService::GetLeptonRangeInMeter(
   } else {
      length = DistanceForColumnDepthFromPoint(posI3, dirI3, cdep);
   } 
-  log_debug("... and length is obtained %g,", length);
+  //log_debug("... and length is obtained %g,", length);
 
   // -------------------------------------------
   // track length is also limited by muon's lifetime
@@ -1188,7 +1188,7 @@ const double EarthModelService::GetLeptonRangeInMeter(
 
   if (length > max_len_lab) length = max_len_lab;
 
-  log_debug("... then final length is obtained %g,", length);
+  //log_debug("... then final length is obtained %g,", length);
 
   return length;
 
@@ -1205,7 +1205,7 @@ EarthModelService::GetDistanceFromEarthEntranceToDetector(double zenrad) const
    if (zenrad > LeptonInjector::Constants::pi) throw("zenrad exceeds pi!");
    if (zenrad < 0) throw("zenrad is negative!");
    if (fIceCapType_ == NOICE && fDetPos_.GetZ() > fRockIceBoundary_) {
-      log_notice("Detector Center is outside of Ice/Rock. return 0.");
+      //log_notice("Detector Center is outside of Ice/Rock. return 0.");
       return 0.;
    }
 
@@ -1296,12 +1296,12 @@ EarthModelService::GetDistanceFromEarthEntranceToDetector(double zenrad) const
       sphere = "IceCap";
    }
 
-   log_debug("length1(Earth) = %f, p1theta %f[deg], p1.Mag %f,"
-             " length2(IceCap) = %f, p2theta %f[deg], p2.Mag %f " 
-             " and selected length %f(%s) ", 
-             length1, pos1CE.GetTheta()/LeptonInjector::Constants::degrees, r1,
-             length2, pos2CE.GetTheta()/LeptonInjector::Constants::degrees, r2,
-             length, sphere.c_str());
+   //log_debug("length1(Earth) = %f, p1theta %f[deg], p1.Mag %f,"
+   //          " length2(IceCap) = %f, p2theta %f[deg], p2.Mag %f " 
+   //          " and selected length %f(%s) ", 
+   //          length1, pos1CE.GetTheta()/LeptonInjector::Constants::degrees, r1,
+   //          length2, pos2CE.GetTheta()/LeptonInjector::Constants::degrees, r2,
+   //          length, sphere.c_str());
   
    return length;
 
@@ -1343,8 +1343,8 @@ EarthModelService::GetDistanceFromSphereSurfaceToDetector(
 
    double x1 = (-b + sqrt(b*b - c));
    double x2 = (-b - sqrt(b*b - c));
-   log_debug("zen %f[deg], zenrad %f,  coszen %f, r %f, l %f, c %f, b %f, d %f, sqrtd %f,  x1 %f, x2 %f", 
-              zenrad/LeptonInjector::Constants::degrees, zenrad,  coszen, r, l, c, b, d, sqrtd,  x1, x2);
+   //log_debug("zen %f[deg], zenrad %f,  coszen %f, r %f, l %f, c %f, b %f, d %f, sqrtd %f,  x1 %f, x2 %f", 
+   //           zenrad/LeptonInjector::Constants::degrees, zenrad,  coszen, r, l, c, b, d, sqrtd,  x1, x2);
 
    std::vector<double> x;
    if (sqrtd > 0) {
@@ -1503,8 +1503,8 @@ void EarthModelService::SetEarthModel(const vector<string> & s)
    //
    // print the EarthCrust parameters
    // 
-   log_debug("*** EarthModel parameters ***");
-   log_debug("radius[m] \t MatType \t params");
+   //log_debug("*** EarthModel parameters ***");
+   //log_debug("radius[m] \t MatType \t params");
    for (EarthParamMap::iterator it = fEarthParams_.begin();
         it != fEarthParams_.end(); ++it) {
       EarthParam ep = it->second;
@@ -1512,12 +1512,12 @@ void EarthModelService::SetEarthModel(const vector<string> & s)
          for (EarthParamMap::iterator it = fIceParams_.begin();
               it != fIceParams_.end(); ++it) {
             EarthParam ep = it->second;
-            log_debug("%lf \t %s", it->first,
-                      GetMediumTypeString(ep.fMediumType_).c_str());
+            //log_debug("%lf \t %s", it->first,
+            //          GetMediumTypeString(ep.fMediumType_).c_str());
          }
       }
-      log_debug("%lf \t %s", it->first,
-                 GetMediumTypeString(ep.fMediumType_).c_str());
+      //log_debug("%lf \t %s", it->first,
+      //           GetMediumTypeString(ep.fMediumType_).c_str());
    }
    // Update detector center position.
    SetDetectorDepth(fDetDepth_);
@@ -1647,28 +1647,28 @@ void EarthModelService::SetMaterialModel(const vector<string>& s)
 
    // debug print for Ratio parameters
    // 
-   log_debug("*** Material Weight Ratio ***");
-   log_debug("MediumType \t Material PDG \t weight");
+   //log_debug("*** Material Weight Ratio ***");
+   //log_debug("MediumType \t Material PDG \t weight");
    for (it = fMatRatioMap_.begin();
         it != fMatRatioMap_.end(); ++it) {
       string medtypestr = GetMediumTypeString(it->first); 
       map<int, double> &mats = it->second;
       map<int, double>::iterator it2;
       for (it2 = mats.begin(); it2 != mats.end(); ++it2) {
-         log_debug("%s \t %d \t %f", medtypestr.c_str(),
-                   it2->first, it2->second);                
+         //log_debug("%s \t %d \t %f", medtypestr.c_str(),
+         //          it2->first, it2->second);                
       }
    }
-   log_debug("*** P,N,E Number Ratio ***");
-   log_debug("MediumType \t PDG \t weight");
+   //log_debug("*** P,N,E Number Ratio ***");
+   //log_debug("MediumType \t PDG \t weight");
    for (it = fPNERatioMap_.begin();
         it != fPNERatioMap_.end(); ++it) {
       string medtypestr = GetMediumTypeString(it->first); 
       map<int, double> &mats = it->second;
       map<int, double>::iterator it2;
       for (it2 = mats.begin(); it2 != mats.end(); ++it2) {
-         log_debug("%s \t %d \t %f", medtypestr.c_str(),
-                   it2->first, it2->second);                
+         //log_debug("%s \t %d \t %f", medtypestr.c_str(),
+         //          it2->first, it2->second);                
       }
    }
 }
@@ -1697,7 +1697,7 @@ void EarthModelService::SetIceCapSimpleAngle(double cap_angle)
 // You must set correct IceAirBoundary and RockIceBoundary in advance!
 //
    if (fIceCapType_ != EarthModelService::SIMPLEICECAP) {
-      log_trace("SetIceCapSimpleAngle should not be called when the ice cap type is not SIMPLEICECAP");
+      //log_trace("SetIceCapSimpleAngle should not be called when the ice cap type is not SIMPLEICECAP");
       fIceCapSimpleRadius_ = -1;
       fIceCapSimpleZshift_ = 0;
       return;
@@ -1731,7 +1731,7 @@ void EarthModelService::SetIceCapSimpleAngle(double cap_angle)
    fIceCapSimpleRadius_ = d + h; // radius of sphere of icecap
    fIceCapSimpleZshift_ = r - d; // z-pos of center of sphere of icecap
    
-   log_info_stream("Shifted center for ice layer spheres is " << fIceCapSimpleZshift_ << " m above the earth center");
+   //log_info_stream("Shifted center for ice layer spheres is " << fIceCapSimpleZshift_ << " m above the earth center");
 
    EarthParamMap newIceParams;
    //re-center each ice surface on the new, shifted center point
@@ -1742,18 +1742,18 @@ void EarthModelService::SetIceCapSimpleAngle(double cap_angle)
       EarthParam& ice=iter->second;
       ice.fZOffset_=fIceCapSimpleZshift_;
       ice.fUpperRadius_-= ice.fZOffset_;
-      log_info_stream(" Corrected " << ice.fBoundaryName_ << " to have center (0,0," << ice.fZOffset_
-                      << ") and radius " << ice.fUpperRadius_);
+      //log_info_stream(" Corrected " << ice.fBoundaryName_ << " to have center (0,0," << ice.fZOffset_
+      //                << ") and radius " << ice.fUpperRadius_);
       newIceParams[ice.fUpperRadius_]=ice;
    }
    fIceParams_.swap(newIceParams);
    
-   log_info("*** CapRadius (valid only for SimpleCap icecap model) ***");   
-   log_info("Icecap Angle %f[deg], Icecap Radius %f [m], BedRock radius %f [m], Zshift %f [m] are set",
-             fIceCapSimpleAngle_/LeptonInjector::Constants::deg,
-             fIceCapSimpleRadius_/LeptonInjector::Constants::m,
-             fRockIceBoundary_/LeptonInjector::Constants::m,
-             fIceCapSimpleZshift_/LeptonInjector::Constants::m);
+   //log_info("*** CapRadius (valid only for SimpleCap icecap model) ***");   
+   //log_info("Icecap Angle %f[deg], Icecap Radius %f [m], BedRock radius %f [m], Zshift %f [m] are set",
+   //          fIceCapSimpleAngle_/LeptonInjector::Constants::deg,
+   //          fIceCapSimpleRadius_/LeptonInjector::Constants::m,
+   //          fRockIceBoundary_/LeptonInjector::Constants::m,
+   //          fIceCapSimpleZshift_/LeptonInjector::Constants::m);
 }
 
 //__________________________________________________________

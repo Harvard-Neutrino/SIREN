@@ -31,6 +31,7 @@
 #include <LeptonInjector/Coordinates.h>
 #include <sstream>
 #include <string>
+#include <assert.h>
 #include <vector>
 #include <map>
 #include <boost/foreach.hpp>
