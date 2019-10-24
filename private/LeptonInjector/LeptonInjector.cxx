@@ -4,12 +4,7 @@
 #include <cassert>
 #include <fstream>
 
-#include <boost/math/constants/constants.hpp>
 #include <boost/make_shared.hpp>
-
-#include <icetray/open.h>
-#include <icetray/I3Units.h>
-#include <dataclasses/physics/I3MCTree.h>
 
 // namespace constants = boost::math::constants;
 
@@ -25,9 +20,9 @@ namespace LeptonInjector{
 	energyMaximum((1e9)*Constants::GeV),
 	powerlawIndex(1.0),
 	azimuthMinimum(0),
-	azimuthMaximum(2*constants::pi<double>()),
+	azimuthMaximum(2*Constants::pi),
 	zenithMinimum(0),
-	zenithMaximum(constants::pi<double>()),
+	zenithMaximum(Constants::pi),
 	finalType1(ParticleType::MuMinus),
 	finalType2(ParticleType::Hadrons)
 	{}
@@ -57,8 +52,7 @@ namespace LeptonInjector{
 		int result=writesplinefitstable_mem(&buf, &crossSection);
 		if(result!=0){
 			free(buf.data);
-			log_fatal_stream("photospline error while serializing cross section: "
-							 << result);
+			throw("photospline error while serializing cross section: "+std::to_string(result));
 		}
 		crossSectionBlob.resize(buf.size);
 		std::copy((char*)buf.data,(char*)buf.data+buf.size,&crossSectionBlob[0]);
@@ -68,8 +62,8 @@ namespace LeptonInjector{
 		result=writesplinefitstable_mem(&buf, &totalCrossSection);
 		if(result!=0){
 			free(buf.data);
-			log_fatal_stream("photospline error while serializing cross section: "
-							 << result);
+			throw("photospline error while serializing cross section: "
+							 + std::to_string(result));
 		}
 		totalCrossSectionBlob.resize(buf.size);
 		std::copy((char*)buf.data,(char*)buf.data+buf.size,&totalCrossSectionBlob[0]);
@@ -82,20 +76,23 @@ namespace LeptonInjector{
 	//-----------
 	//Module base
 	
+	LeptonInjectorBase::LeptonInjectorBase(){
+		// also do nothing with this...
+		//config = BasicInjectionConfiguration();
+	}
+
 	LeptonInjectorBase::LeptonInjectorBase(BasicInjectionConfiguration& config):
-	I3ConditionalModule(context),
 	config(config),
 	eventsGenerated(0),
 	wroteConfigFrame(false),
 	suspendOnCompletion(true){
 		//do NOTHING with config in this constructor, as it is not yet fully constructed
-		AddOutBox("OutBox");
 	}
 	
 	LeptonInjectorBase::~LeptonInjectorBase(){
 	}
 	
-	void LeptonInjectorBase::AddBaseParameters(){
+	/*void LeptonInjectorBase::AddBaseParameters(){
 		AddParameter("NEvents",
 					 "Number of events to generate",
 					 config.events);
@@ -140,14 +137,14 @@ namespace LeptonInjector{
 		AddParameter("SuspendOnCompletion",
 					 "Suspend the tray after all events have been generated",
 					 suspendOnCompletion);
-	}
+	}*/
 	
 	void LeptonInjectorBase::BaseConfigure(){
 		std::string randomServiceName;
 		std::string dd_crossSectionFile;
 		std::string total_crossSectionFile;
 		
-		GetParameter("NEvents",config.events);
+		/*GetParameter("NEvents",config.events);
 		GetParameter("MinimumEnergy",config.energyMinimum);
 		GetParameter("MaximumEnergy",config.energyMaximum);
 		GetParameter("PowerlawIndex",config.powerlawIndex);
@@ -160,57 +157,56 @@ namespace LeptonInjector{
 		GetParameter("RandomService",randomServiceName);
 		GetParameter("DoublyDifferentialCrossSectionFile",dd_crossSectionFile);
 		GetParameter("TotalCrossSectionFile",total_crossSectionFile);
-		GetParameter("SuspendOnCompletion",suspendOnCompletion);
+		GetParameter("SuspendOnCompletion",suspendOnCompletion);*/
 		
-		if(config.events==0)
-			log_fatal_stream(GetName() << ": there's no point in running this if you don't generate at least one event");
-		if(config.energyMinimum<=0)
-			log_fatal_stream(GetName() << ": minimum energy must be positive");
-		if(config.energyMaximum<=0)
-			log_fatal_stream(GetName() << ": maximum energy must be positive");
-		if(config.energyMaximum<config.energyMinimum)
-			log_fatal_stream(GetName() << ": maximum energy must be greater than or equal to minimum energy");
-		if(config.azimuthMinimum<0.0)
-			log_fatal_stream(GetName() << ": minimum azimuth angle must be greater than or equal to zero");
-		if(config.azimuthMaximum>2*constants::pi<double>())
-			log_fatal_stream(GetName() << ": maximum azimuth angle must be less than or equal to 2 pi");
-		if(config.azimuthMinimum>config.azimuthMaximum)
-			log_fatal_stream(GetName() << ": minimum azimuth angle must be less than or equal to maximum azimuth angle");
-		if(config.zenithMinimum<0.0)
-			log_fatal_stream(GetName() << ": minimum zenith angle must be greater than or equal to zero");
-		if(config.zenithMaximum>constants::pi<double>())
-			log_fatal_stream(GetName() << ": maximum zenith angle must be less than or equal to pi");
-		if(config.zenithMinimum>config.zenithMaximum)
-			log_fatal_stream(GetName() << ": minimum zenith angle must be less than or equal to maximum zenith angle");
+		if(this->config.events==0)
+			throw("there's no point in running this if you don't generate at least one event");
+		if(this->config.energyMinimum<=0)
+			throw(": minimum energy must be positive");
+		if(this->config.energyMaximum<=0)
+			throw(": maximum energy must be positive");
+		if(this->config.energyMaximum<this->config.energyMinimum)
+			throw(": maximum energy must be greater than or equal to minimum energy");
+		if(this->config.azimuthMinimum<0.0)
+			throw(": minimum azimuth angle must be greater than or equal to zero");
+		if(this->config.azimuthMaximum>2*Constants::pi)
+			throw(": maximum azimuth angle must be less than or equal to 2 pi");
+		if(this->config.azimuthMinimum>this->config.azimuthMaximum)
+			throw(": minimum azimuth angle must be less than or equal to maximum azimuth angle");
+		if(this->config.zenithMinimum<0.0)
+			throw(": minimum zenith angle must be greater than or equal to zero");
+		if(this->config.zenithMaximum>Constants::pi)
+			throw(": maximum zenith angle must be less than or equal to pi");
+		if(this->config.zenithMinimum>this->config.zenithMaximum)
+			throw(": minimum zenith angle must be less than or equal to maximum zenith angle");
 		try{
-			initialType=deduceInitialType(config.finalType1,config.finalType2);
+			ParticleType initialType=deduceInitialType(this->config.finalType1,this->config.finalType2);
 		}catch(std::runtime_error& re){
-			log_error_stream("While configuring " << GetName());
-			throw;
+			throw("Something bad happened while deducing the Initial particle type");
 		}
 		random = context_.Get<boost::shared_ptr<I3RandomService> >(randomServiceName);
 		if(!random)
-			log_fatal_stream(GetName() << ": A random service is required");
+			throw("A random service is required");
 		if(dd_crossSectionFile.empty())
-			log_fatal_stream(GetName() << ": DoublyDifferentialCrossSectionFile must be specified");
+			throw(": DoublyDifferentialCrossSectionFile must be specified");
 		else if(total_crossSectionFile.empty())
-			log_fatal_stream(GetName() << ": TotalCrossSectionFile must be specified");
+			throw(": TotalCrossSectionFile must be specified");
 		else
 			crossSection.load(dd_crossSectionFile,total_crossSectionFile);
 	}
 	
 	void LeptonInjectorBase::Finish(){
 		if(eventsGenerated!=config.events)
-			log_error_stream(GetName() << ": Only " << eventsGenerated <<
+			std::cout << ": Only " << eventsGenerated <<
 							 " event have been output out of a requested total of " << config.events);
 	}
 	
-	std::array<double,3> LeptonInjectorBase::SampleFromDisk(double radius, double zenith, double azimuth){
+	LI_Position LeptonInjectorBase::SampleFromDisk(double radius, double zenith, double azimuth){
 		//choose a random point on a disk laying in the xy plane
 		double t=random->Uniform(0,2*Constants::pi);
 		double u=random->Uniform()+random->Uniform();
 		double r=(u>1.?2.-u:u)*radius;
-		std::array<double, 3>  pos = {r*cos(t) ,r*sin(t), 0.0};
+		LI_Position  pos = {r*cos(t) ,r*sin(t), 0.0};
 		//now rotate to make the disc perpendicular to the requested normal vector
 		pos = RotateY(pos, zenith );
 		pos = RotateZ(pos, azimuth);
@@ -354,13 +350,13 @@ namespace LeptonInjector{
 	//-----------------------
 	//Ranged injection module
 	
-	RangedLeptonInjector::RangedLeptonInjector(const I3Context& context):
-	LeptonInjectorBase(context,config){
+	RangedLeptonInjector::RangedLeptonInjector():
+	LeptonInjectorBase(){
 		init();
 	}
 	
-	RangedLeptonInjector::RangedLeptonInjector(const I3Context& context, RangedInjectionConfiguration config_):
-	LeptonInjectorBase(context,config),config(config_){
+	RangedLeptonInjector::RangedLeptonInjector( RangedInjectionConfiguration config_):
+	LeptonInjectorBase(config),config(config_){
 		init();
 	}
 	
@@ -387,12 +383,12 @@ namespace LeptonInjector{
 		GetParameter("EarthModel",earthModelName);
 		
 		if(config.injectionRadius<0)
-			log_fatal_stream(GetName() << ": InjectionRadius must be non-negative");
+			throw(": InjectionRadius must be non-negative");
 		if(config.endcapLength<0)
-			log_fatal_stream(GetName() << ": EndcapLength must be non-negative");
+			throw(": EndcapLength must be non-negative");
 		earthModel = context_.Get<boost::shared_ptr<earthmodel::EarthModelService> >(earthModelName);
 		if(!earthModel)
-			log_fatal_stream(GetName() << ": an Earth model service is required");
+			throw(": an Earth model service is required");
 	}
 	
 	void RangedLeptonInjector::DAQ(boost::shared_ptr<I3Frame> frame){
@@ -414,13 +410,13 @@ namespace LeptonInjector{
 		double energy=SampleEnergy();
 		
 		//Pick a direction on the sphere
-		I3Direction dir(acos(random->Uniform(cos(config.zenithMaximum),cos(config.zenithMinimum))),
+		LI_Direction dir(acos(random->Uniform(cos(config.zenithMaximum),cos(config.zenithMinimum))),
 						random->Uniform(config.azimuthMinimum,config.azimuthMaximum));
-		log_trace_stream("dir=(" << dir.GetX() << ',' << dir.GetY() << ',' << dir.GetZ() << ')');
+		//log_trace_stream("dir=(" << dir.GetX() << ',' << dir.GetY() << ',' << dir.GetZ() << ')');
 		
 		//decide the point of closest approach
-		I3Position pca=SampleFromDisk(config.injectionRadius,dir.GetZenith(),dir.GetAzimuth());
-		log_trace_stream("pca=(" << pca.GetX() << ',' << pca.GetY() << ',' << pca.GetZ() << ')');
+		LI_Position pca=SampleFromDisk(config.injectionRadius,dir.zenith,dir.azimuth);
+		//log_trace_stream("pca=(" << pca.GetX() << ',' << pca.GetY() << ',' << pca.GetZ() << ')');
 		
 		//Figure out where we want the vertex
 		//Add up the column depth for the range of a muon at this energy with the
@@ -434,7 +430,7 @@ namespace LeptonInjector{
 			double maxDist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth)-config.endcapLength;
 			double actualColumnDepth=earthModel->GetColumnDepthInCGS(pca+config.endcapLength*dir,pca-maxDist*dir);
 			if(actualColumnDepth<(totalColumnDepth-1)){ //if actually smaller, clip as needed, but for tiny differences we don't care
-				log_debug_stream("Wanted column depth of " << totalColumnDepth << " but found only " << actualColumnDepth << " g/cm^2");
+				//log_debug_stream("Wanted column depth of " << totalColumnDepth << " but found only " << actualColumnDepth << " g/cm^2");
 				totalColumnDepth=actualColumnDepth;
 			}
 		}
@@ -444,25 +440,25 @@ namespace LeptonInjector{
 		double dist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth-traversedColumnDepth)-config.endcapLength;
 		
 		{ //ensure that the point we picked is inside the atmosphere
-			I3Position atmoEntry, atmoExit;
+			LI_Position atmoEntry, atmoExit;
 			int isect=GetIntersectionsWithSphere(earthModel->GetEarthCoordPosFromDetCoordPos(pca),
 												 earthModel->GetEarthCoordDirFromDetCoordDir(dir),
 												 earthModel->GetAtmoRadius(),atmoEntry,atmoExit);
 			if(isect<2)
-				log_fatal_stream("PCA not inside atmosphere: " << pca << " (" << earthModel->GetEarthCoordPosFromDetCoordPos(pca) << ')');
+				throw("PCA not inside atmosphere");
 			atmoEntry=earthModel->GetDetCoordPosFromEarthCoordPos(atmoEntry);
 			double atmoDist=(pca-atmoEntry).Magnitude();
 			if(std::abs(dist-atmoDist)<100.0)
 				dist=std::min(dist,atmoDist);
 		}
-		I3Position vertex=pca-dist*dir;
+		LI_Position vertex=pca-dist*dir;
 		
 		//assemble the MCTree
 		boost::shared_ptr<RangedEventProperties> properties(new RangedEventProperties);
 		boost::shared_ptr<I3MCTree> mctree=FillTree(vertex,dir,energy,*properties);
 		
 		//set subclass properties
-		properties->impactParameter=(pca-I3Position(0,0,0)).Magnitude();
+		properties->impactParameter=(pca-LI_Position(0,0,0)).Magnitude();
 		properties->totalColumnDepth=totalColumnDepth;
 		
 		//package up output and send it
@@ -476,18 +472,17 @@ namespace LeptonInjector{
 			RequestSuspension();
 	}
 	
-	I3_MODULE(RangedLeptonInjector);
 	
 	//-----------------------
 	//Volume injection module
 	
-	VolumeLeptonInjector::VolumeLeptonInjector(const I3Context& context):
-	LeptonInjectorBase(context,config){
+	VolumeLeptonInjector::VolumeLeptonInjector():
+	LeptonInjectorBase(config){
 		init();
 	}
 	
-	VolumeLeptonInjector::VolumeLeptonInjector(const I3Context& context, VolumeInjectionConfiguration config_):
-	LeptonInjectorBase(context,config),config(config_){
+	VolumeLeptonInjector::VolumeLeptonInjector(VolumeInjectionConfiguration config_):
+	LeptonInjectorBase(config),config(config_){
 		init();
 	}
 	
@@ -509,9 +504,9 @@ namespace LeptonInjector{
 		GetParameter("CylinderRadius",config.cylinderRadius);
 		GetParameter("CylinderHeight",config.cylinderHeight);
 		if(config.cylinderRadius<0)
-			log_fatal_stream(GetName() << ": CylinderRadius must be non-negative");
+			throw(": CylinderRadius must be non-negative");
 		if(config.cylinderHeight<0)
-			log_fatal_stream(GetName() << ": CylinderHeight must be non-negative");
+			throw(": CylinderHeight must be non-negative");
 	}
 	
 	void VolumeLeptonInjector::DAQ(boost::shared_ptr<I3Frame> frame){
@@ -533,25 +528,29 @@ namespace LeptonInjector{
 		double energy=SampleEnergy();
 		
 		//Pick a direction on the sphere
-		I3Direction dir(acos(random->Uniform(cos(config.zenithMaximum),cos(config.zenithMinimum))),
+		LI_Direction dir(acos(random->Uniform(cos(config.zenithMaximum),cos(config.zenithMinimum))),
 						random->Uniform(config.azimuthMinimum,config.azimuthMaximum));
-		log_trace_stream("dir=(" << dir.GetX() << ',' << dir.GetY() << ',' << dir.GetZ() << ')');
+		//log_trace_stream("dir=(" << dir.GetX() << ',' << dir.GetY() << ',' << dir.GetZ() << ')');
 		
 		//Pick a position in the xy-plane
-		I3Position vertex=SampleFromDisk(config.cylinderRadius);
+		LI_Position vertex=SampleFromDisk(config.cylinderRadius);
 		//Add on the vertical component
 		vertex.SetZ(random->Uniform(-config.cylinderHeight/2,config.cylinderHeight/2));
-		log_trace_stream("vtx=(" << vertex.GetX() << ',' << vertex.GetY() << ',' << vertex.GetZ() << ')');
+		//log_trace_stream("vtx=(" << vertex.GetX() << ',' << vertex.GetY() << ',' << vertex.GetZ() << ')');
 		
 		//assemble the MCTree
 		boost::shared_ptr<VolumeEventProperties> properties(new VolumeEventProperties);
+
+		// write hdf5 file! 
+
 		boost::shared_ptr<I3MCTree> mctree=FillTree(vertex,dir,energy,*properties);
 		
 		//set subclass properties
-		properties->radius=vertex.GetRho();
+		properties->radius=vertex.Magnitude();
 		properties->z=vertex.GetZ();
 	
 		//package up output and send it
+
 		frame->Put(mctree);
 		frame->Put("EventProperties",properties);
 		PushFrame(frame);
@@ -562,7 +561,6 @@ namespace LeptonInjector{
 			RequestSuspension();
 	}
 	
-	I3_MODULE(VolumeLeptonInjector);
 	
 
 	
@@ -617,13 +615,14 @@ namespace LeptonInjector{
 		AddParameter("Generators","The collection of configurations to generate",generatorSettings);
 	}
 	
+	
 	void MultiLeptonInjector::Configure(){
 		try{
 			//get the set of generators to be run
 			GetParameter("Generators",generatorSettings);
 			
 			if(generatorSettings.empty())
-				log_fatal_stream(GetName()+": There is no point in running this module without specfying at least one generator");
+				throw(": There is no point in running this module without specfying at least one generator");
 			
 			//figure out whether there are any ranged or volume injectors
 			bool hasRanged=false, hasVolume=false;

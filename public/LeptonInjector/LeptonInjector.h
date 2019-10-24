@@ -6,6 +6,10 @@
 #include <earthmodel-service/EarthModelService.h>
 #include <phys-services/LICrossSection.h>
 
+#include <iostream>
+
+#include <LeptonInjector/Coordinates.h>
+#include <LeptonInjector/Constants.h>
 #include <LeptonInjector/Particle.h>
 #include <LeptonInjector/Random.h>
 
@@ -103,9 +107,10 @@ namespace LeptonInjector{
 	
 	//----
 	
-	class LeptonInjectorBase : public I3ConditionalModule{
+	class LeptonInjectorBase {
 	public:
-		LeptonInjectorBase(const I3Context& context, BasicInjectionConfiguration& config);
+		LeptonInjectorBase();
+		LeptonInjectorBase(BasicInjectionConfiguration& config);
 		virtual ~LeptonInjectorBase();
 		//No implementation of DAQ; this base class should be pure virtual
 		virtual void DAQ(boost::shared_ptr<I3Frame>)=0;
@@ -114,7 +119,7 @@ namespace LeptonInjector{
 		bool DoneGenerating() const{ return(eventsGenerated>=config.events); }
 	protected:
 		///Add common I3Module parameters
-		void AddBaseParameters();
+		//void AddBaseParameters();
 		
 		///Get common I3Module parameter values
 		void BaseConfigure();
@@ -124,13 +129,13 @@ namespace LeptonInjector{
 		///\param radius the radius of the disk
 		///\param zenith the zenith angle of the disk normal
 		///\param azimuth the azimuth angle of the disk normal
-		I3Position SampleFromDisk(double radius, double zenith=0., double azimuth=0.);
+		LI_Position SampleFromDisk(double radius, double zenith=0., double azimuth=0.);
 		
 		///Sample one energy value from the energy spectrum
 		double SampleEnergy();
 		
 		///Sample either baseType or its antiparticle depending on config.toggleAntiparticles
-		I3Particle::ParticleType SampleParticleType(I3Particle::ParticleType baseType);
+		ParticleType SampleParticleType(I3Particle::ParticleType baseType);
 		
 		///Determine the angles of the final state particles with respect to the
 		///initial state neutrino direction, in the lab frame
@@ -153,7 +158,7 @@ namespace LeptonInjector{
 		///Random number source
 		boost::shared_ptr<I3RandomService> random;
 		///Configuration structure in which to store parameters
-		BasicInjectionConfiguration& config;
+		BasicInjectionConfiguration& config();
 		///Number of events produced so far
 		unsigned int eventsGenerated;
 		///Whether an S frame has been written
@@ -171,22 +176,20 @@ namespace LeptonInjector{
 		
 		I3CrossSection crossSection;
 		
-		SET_LOGGER("LeptonInjectorBase");
 	};
 	
 	class RangedLeptonInjector : public LeptonInjectorBase{
 	public:
-		RangedLeptonInjector(const I3Context& context);
-		RangedLeptonInjector(const I3Context& context, RangedInjectionConfiguration config);
+		RangedLeptonInjector();
+		RangedLeptonInjector(RangedInjectionConfiguration config);
 		void Configure();
 		void DAQ(boost::shared_ptr<I3Frame> frame);
+		boost::shared_ptr<earthmodel::EarthModelService> earthModel;
+
 	private:
 		void init();
 		RangedInjectionConfiguration config;
-		///Model to use for calculating lepton range due to matter
-		boost::shared_ptr<earthmodel::EarthModelService> earthModel;
-		
-		SET_LOGGER("RangedLeptonInjector");
+		///Model to use for calculating lepton range due to matter		
 	};
 	
 	class VolumeLeptonInjector : public LeptonInjectorBase{
@@ -199,7 +202,6 @@ namespace LeptonInjector{
 		void init();
 		VolumeInjectionConfiguration config;
 		
-		SET_LOGGER("VolumeLeptonInjector");
 	};
 	
 	//----
