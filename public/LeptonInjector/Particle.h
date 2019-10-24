@@ -236,6 +236,16 @@ namespace LeptonInjector{
         }
     } BadFinal;
 
+    // prototype some of the particle helper functions
+
+    bool isLepton(ParticleType p);
+    bool isCharged(ParticleType p);
+    std::string particleName( ParticleType p);
+    double particleMass( ParticleType type);
+    double kineticEnergy( ParticleType type, double totalEnergy);
+    double particleSpee( ParticleType type, double kineticEnergy);
+    ParticleShape decideShape(ParticleType t);
+    ParticleType deduceInitialType( ParticleType pType1, ParticleType pType2);
 
 }// end namespace LI_Particle
 
