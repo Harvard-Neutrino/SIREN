@@ -4,6 +4,19 @@
 namespace LeptonInjector {
     // Event property structures
 	
+	struct h5Particle{
+		h5Particle();
+		virtual ~h5Particle();
+
+		bool initial;
+		int32_t ptype;
+		double pos[3];
+		double dir[2];
+		double energy;
+		
+	};
+
+
 	// one of these 
 	///Parameters common to events injected in all modes
 	struct BasicEventProperties{
