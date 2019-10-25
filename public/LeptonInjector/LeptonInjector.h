@@ -3,9 +3,10 @@
 
 #include <queue>
 
-#include <earthmodel-service/EarthModelService.h>
-#include <phys-services/LICrossSection.h>
+#include "earthmodel-service/EarthModelService.h"
+#include "phys-services/LICrossSection.h"
 
+#include <photospline/splinetable.h>
 #include <iostream>
 
 #include <LeptonInjector/Coordinates.h>
@@ -89,9 +90,9 @@ namespace LeptonInjector{
 		///Number of events the generator should/did generate
 		unsigned int events;
 		///Type of first particle to be injected in the final state
-		I3Particle::ParticleType finalType1;
+		ParticleType finalType1;
 		///Type of second particle to be injected in the final state
-		I3Particle::ParticleType finalType2;
+		ParticleType finalType2;
 		///
 		std::string crossSectionPath;
 		///
@@ -110,7 +111,7 @@ namespace LeptonInjector{
 	class LeptonInjectorBase {
 	public:
 		LeptonInjectorBase();
-		LeptonInjectorBase(BasicInjectionConfiguration& config);
+		LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> rando);
 		virtual ~LeptonInjectorBase();
 		//No implementation of DAQ; this base class should be pure virtual
 		virtual void DAQ(boost::shared_ptr<I3Frame>)=0;
@@ -122,7 +123,7 @@ namespace LeptonInjector{
 		//void AddBaseParameters();
 		
 		///Get common I3Module parameter values
-		void BaseConfigure();
+		void BaseConfigure(std::shared_ptr<LI_random> pass);
 		
 		///Sample a random position on a disk with a given size and orientation.
 		///The disk is always centered on the origin of the coordinate system.
@@ -153,12 +154,12 @@ namespace LeptonInjector{
 		///\param dir the direction of the interacting neutrino
 		///\param energy the energy of the interacting neutrino
 		///\param properties the associated structure where the event properties should be recorded
-		boost::shared_ptr<I3MCTree> FillTree(I3Position vertex, I3Direction dir, double energy, BasicEventProperties& properties);
+		std::shared_ptr<I3MCTree> FillTree(I3Position vertex, I3Direction dir, double energy, BasicEventProperties& properties);
 		
 		///Random number source
-		boost::shared_ptr<I3RandomService> random;
+		std::shared_ptr<LI_random> random(nullptr);
 		///Configuration structure in which to store parameters
-		BasicInjectionConfiguration& config();
+		BasicInjectionConfiguration& config;
 		///Number of events produced so far
 		unsigned int eventsGenerated;
 		///Whether an S frame has been written
@@ -168,7 +169,7 @@ namespace LeptonInjector{
 		///The type of interacting neutrino this instance will produce.
 		///Note that in the presence of oscillations this may not be the type of
 		///the neutrino which arrived at the surface of the Earth.
-		I3Particle::ParticleType initialType;
+		ParticleType initialType;
 		
 		const splinetable& getCrossSection() const{ return(crossSection.getCrossSection()); }
 		const splinetable& getTotalCrossSection() const{ return(crossSection.getTotalCrossSection()); }
@@ -181,25 +182,23 @@ namespace LeptonInjector{
 	class RangedLeptonInjector : public LeptonInjectorBase{
 	public:
 		RangedLeptonInjector();
-		RangedLeptonInjector(RangedInjectionConfiguration config);
-		void Configure();
+		RangedLeptonInjector(RangedInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> rando);
 		void DAQ(boost::shared_ptr<I3Frame> frame);
-		boost::shared_ptr<earthmodel::EarthModelService> earthModel;
+
+		// the earthmodel will just be a null poitner at instantiation
+		std::shared_ptr<earthmodel::EarthModelService> earthModel(nullptr);
 
 	private:
-		void init();
 		RangedInjectionConfiguration config;
 		///Model to use for calculating lepton range due to matter		
 	};
 	
 	class VolumeLeptonInjector : public LeptonInjectorBase{
 	public:
-		VolumeLeptonInjector(const I3Context& context);
-		VolumeLeptonInjector(const I3Context& context, VolumeInjectionConfiguration config);
-		void Configure();
+		VolumeLeptonInjector();
+		VolumeLeptonInjector(VolumeInjectionConfiguration config, std::shared_ptr<LI_random> rando);
 		void DAQ(boost::shared_ptr<I3Frame> frame);
 	private:
-		void init();
 		VolumeInjectionConfiguration config;
 		
 	};
@@ -214,29 +213,7 @@ namespace LeptonInjector{
 	///\param azimuth the rotation of the new direction about the base
 	std::pair<double,double> rotateRelative(std::pair<double,double> base, double zenith, double azimuth);
 	
-	///A normal I3Module can only send its output frames to the inbox associated
-	///with another I3Module. This Module provides such an inbox, but instead of
-	///sending output to another module's inbox it stores it in a queue of its
-	///own, which it makes externally accessible.
-	class OutputCollector : public I3Module{
-	public:
-		OutputCollector(const I3Context& ctx):I3Module(ctx){}
-		void Process(){
-			while(PeekFrame()){
-				boost::shared_ptr<I3Frame> frame=PopFrame();
-				if(!frame)
-					return;
-				output.push(frame);
-			}
-		}
-		
-		void DiscardOutput(){
-			while(!output.empty())
-				output.pop();
-		}
-		
-		std::queue<boost::shared_ptr<I3Frame> > output;
-	};
+	
 	
 	void ProcessFrame(I3Module& mod, boost::shared_ptr<I3Frame> frame);
 	

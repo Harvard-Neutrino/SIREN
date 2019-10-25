@@ -81,11 +81,12 @@ namespace LeptonInjector{
 		//config = BasicInjectionConfiguration();
 	}
 
-	LeptonInjectorBase::LeptonInjectorBase(BasicInjectionConfiguration& config):
+	LeptonInjectorBase::LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> rando):
 	config(config),
 	eventsGenerated(0),
 	wroteConfigFrame(false),
 	suspendOnCompletion(true){
+		this->BaseConfigure( rando );
 		//do NOTHING with config in this constructor, as it is not yet fully constructed
 	}
 	
@@ -139,7 +140,7 @@ namespace LeptonInjector{
 					 suspendOnCompletion);
 	}*/
 	
-	void LeptonInjectorBase::BaseConfigure(){
+	void LeptonInjectorBase::BaseConfigure(std::shared_ptr<LI_random> pass){
 		std::string randomServiceName;
 		std::string dd_crossSectionFile;
 		std::string total_crossSectionFile;
@@ -184,7 +185,9 @@ namespace LeptonInjector{
 		}catch(std::runtime_error& re){
 			throw("Something bad happened while deducing the Initial particle type");
 		}
-		random = context_.Get<boost::shared_ptr<I3RandomService> >(randomServiceName);
+
+		// write the pointer to the RNG
+		this->random = pass;
 		if(!random)
 			throw("A random service is required");
 		if(dd_crossSectionFile.empty())
@@ -203,8 +206,8 @@ namespace LeptonInjector{
 	
 	LI_Position LeptonInjectorBase::SampleFromDisk(double radius, double zenith, double azimuth){
 		//choose a random point on a disk laying in the xy plane
-		double t=random->Uniform(0,2*Constants::pi);
-		double u=random->Uniform()+random->Uniform();
+		double t=this->random->Uniform(0,2*Constants::pi);
+		double u=this->random->Uniform()+this->random->Uniform();
 		double r=(u>1.?2.-u:u)*radius;
 		LI_Position  pos = {r*cos(t) ,r*sin(t), 0.0};
 		//now rotate to make the disc perpendicular to the requested normal vector
@@ -218,9 +221,9 @@ namespace LeptonInjector{
 			return(config.energyMinimum); //return the only allowed energy
 			
 		if(config.powerlawIndex==1.0) //sample uniformly in log space
-			return(pow(10.0,random->Uniform(log10(config.energyMinimum),log10(config.energyMaximum))));
+			return(pow(10.0,this->random->Uniform(log10(config.energyMinimum),log10(config.energyMaximum))));
 		else{
-			double u=random->Uniform();
+			double u=this->random->Uniform();
 			double energyP=(1-u)*pow(config.energyMinimum,1-config.powerlawIndex) + u*pow(config.energyMaximum,1-config.powerlawIndex);
 			return(pow(energyP,1/(1-config.powerlawIndex)));
 		}
@@ -352,44 +355,21 @@ namespace LeptonInjector{
 	
 	RangedLeptonInjector::RangedLeptonInjector():
 	LeptonInjectorBase(){
-		init();
 	}
 	
-	RangedLeptonInjector::RangedLeptonInjector( RangedInjectionConfiguration config_):
-	LeptonInjectorBase(config),config(config_){
-		init();
-	}
-	
-	void RangedLeptonInjector::init(){
-		AddBaseParameters();
-		AddParameter("InjectionRadius",
-					 "Radius around the origin within which to target events",
-					 config.injectionRadius);
-		AddParameter("EndcapLength",
-					 "Length of the fixed endcaps add to each end of the distance "
-					 "along which to sample interactions",
-					 config.endcapLength);
-		AddParameter("EarthModel",
-					 "Name of the Earth model service to use",
-					 "");
-		AddOutBox("OutBox");
-	}
-	
-	void RangedLeptonInjector::Configure(){
-		BaseConfigure();
-		GetParameter("InjectionRadius",config.injectionRadius);
-		GetParameter("EndcapLength",config.endcapLength);
-		std::string earthModelName;
-		GetParameter("EarthModel",earthModelName);
-		
+	RangedLeptonInjector::RangedLeptonInjector( RangedInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModelService> earth_, std::shared_ptr<LI_random> rando_):
+	LeptonInjectorBase(config, rando_),config(config_){
+		this->earthModel = earth_;
 		if(config.injectionRadius<0)
 			throw(": InjectionRadius must be non-negative");
 		if(config.endcapLength<0)
 			throw(": EndcapLength must be non-negative");
-		earthModel = context_.Get<boost::shared_ptr<earthmodel::EarthModelService> >(earthModelName);
 		if(!earthModel)
 			throw(": an Earth model service is required");
 	}
+	
+
+	
 	
 	void RangedLeptonInjector::DAQ(boost::shared_ptr<I3Frame> frame){
 		//first, make sure configuration gets written once
@@ -477,37 +457,18 @@ namespace LeptonInjector{
 	//Volume injection module
 	
 	VolumeLeptonInjector::VolumeLeptonInjector():
-	LeptonInjectorBase(config){
-		init();
+	LeptonInjectorBase(){
 	}
 	
-	VolumeLeptonInjector::VolumeLeptonInjector(VolumeInjectionConfiguration config_):
-	LeptonInjectorBase(config),config(config_){
-		init();
-	}
-	
-	void VolumeLeptonInjector::init(){
-		AddBaseParameters();
-		AddParameter("CylinderRadius",
-					 "Radius of the vertical cylinder around the origin within "
-					 "which to place events",
-					 config.cylinderRadius);
-		AddParameter("CylinderHeight",
-					 "Height of the vertical cylinder around the origin within "
-					 "which to place events",
-					 config.cylinderHeight);
-		AddOutBox("OutBox");
-	}
-	
-	void VolumeLeptonInjector::Configure(){
-		BaseConfigure();
-		GetParameter("CylinderRadius",config.cylinderRadius);
-		GetParameter("CylinderHeight",config.cylinderHeight);
+	VolumeLeptonInjector::VolumeLeptonInjector(VolumeInjectionConfiguration config_, std::shared_ptr<LI_random> rando_):
+	LeptonInjectorBase(config, rando_),config(config_){
 		if(config.cylinderRadius<0)
 			throw(": CylinderRadius must be non-negative");
 		if(config.cylinderHeight<0)
 			throw(": CylinderHeight must be non-negative");
 	}
+	
+	
 	
 	void VolumeLeptonInjector::DAQ(boost::shared_ptr<I3Frame> frame){
 		//first, make sure configuration gets written once
