@@ -164,16 +164,16 @@ namespace LeptonInjector {
             try{
                 if(genSet->ranged){
                     //log_debug_stream(" this is a ranged injector");
-                    RangedLeptonInjector* generator=new RangedLeptonInjector(this->rangedConfig);
+                    RangedLeptonInjector* generator=new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->random);
                     generator->earthModel = this->earthModel;
                 }
                 else{ //volume
                     //log_debug_stream(" this is a volume injector");
-                    VolumeLeptonInjector* generator=new VolumeLeptonInjector(this->volumeConfig);
+                    VolumeLeptonInjector* generator=new VolumeLeptonInjector(this->volumeConfig, this->random);
                 }
                 
+                
                 //set properties not shared with other injectors, or which are not part of the config object
-
 
 
                 /*

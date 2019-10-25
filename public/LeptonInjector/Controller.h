@@ -24,10 +24,9 @@ class Controller{
         double injectionRadius, endcapLength;
         double cylinderRadius, cylinderHeight;
 
-        std::string earthmodelname;
-        //earthmodel::EarthModelService earthModel_obj();
         std::shared_ptr<earthmodel::EarthModelService> earthModel();
-
+        std::shared_ptr<LI_random> random();
+        std::string earthmodelname;
 
         RangedInjectionConfiguration rangedConfig;
 		VolumeInjectionConfiguration volumeConfig;
@@ -52,6 +51,8 @@ class Controller{
         void SetEarthModel( std::string new_name );
         void AddInjector(MinimalInjectionConfiguration configs_received);
         void Execute(); 
+
+
 
 };
 
