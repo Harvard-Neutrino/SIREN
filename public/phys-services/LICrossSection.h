@@ -1,9 +1,15 @@
 #ifndef I3CROSSSECTION_H
 #define I3CROSSSECTION_H
 
-// #include <photospline/bspline.h>
-#include <LeptonInjector/Particle.h>
-#include <LeptonInjector/Random.h>
+#include "photospline/bspline.h"
+#include "photospline/splinetable.h"
+
+#include "../LeptonInjector/Particle.h"
+#include "../LeptonInjector/Random.h"
+
+#include <string>
+
+
 ///Encapsulates cross section information for one physical process with a
 ///two-body final state.
 ///
@@ -57,18 +63,18 @@ public:
 	///\param random a source of random numbers
 	finalStateRecord sampleFinalState_DIS(double energy,
 	                                  LeptonInjector::ParticleType scatteredType,
-	                                  boost::shared_ptr<LI_random> random) const;
+	                                  std::shared_ptr<LeptonInjector::LI_random> random) const;
 
     
     // the GR sampler just returns X=1
     finalStateRecord sampleFinalState_GR(double energy,
 	                                  LeptonInjector::ParticleType scatteredType,
-	                                  boost::shared_ptr<LI_random> random) const;
+	                                  std::shared_ptr<LeptonInjector::LI_random> random) const;
 
     // this has been changed to mainly be a steering function to the other two samplers 
     finalStateRecord sampleFinalState(double energy,
 	                                  LeptonInjector::ParticleType scatteredType,
-	                                  boost::shared_ptr<LI_random> random) const;
+	                                  std::shared_ptr<LeptonInjector::LI_random> random) const;
 	
 	///Get the value of the doubly-differential cross section
 	///\param energy the neutrino energy in GeV

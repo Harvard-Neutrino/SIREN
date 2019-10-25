@@ -1,4 +1,4 @@
-#include <phys-services/I3CrossSection.h>
+#include "../../public/phys-services/LICrossSection.h"
 #include <array>
 #include <fstream>
 
@@ -6,8 +6,8 @@ namespace{
 	double particleMass(LeptonInjector::ParticleType type){
 		LeptonInjector::Particle p(type);
 		if(!p.HasMass()){
-			log_debug_stream("Treating particle of type " << p.GetTypeString()
-			                 << " with unknown mass as massless");
+			//log_debug_stream("Treating particle of type " << p.GetTypeString()
+			//                 << " with unknown mass as massless");
 			return(0);
 		}
 		return(p.GetMass());
@@ -42,15 +42,15 @@ namespace{
 I3CrossSection::finalStateRecord 
 I3CrossSection::sampleFinalState_DIS(double energy, 
                                LeptonInjector::ParticleType scatteredType, 
-                               boost::shared_ptr<LI_random> random) const{
+                               std::shared_ptr<LeptonInjector::LI_random> random) const{
     // Uses Metropolis-Hastings Algorithm! 
     //      useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional 
     
     if (crossSection.ndim!=3){
-        log_fatal_stream("I expected 3 dimensions in the cross section spline, but got "<< crossSection.ndim <<". Maybe your fits file doesn't have the right 'INTERACTION' key?");
+        throw("I expected 3 dimensions in the cross section spline, but got "+std::to_string(crossSection.ndim) +". Maybe your fits file doesn't have the right 'INTERACTION' key?");
     }
 
-	double m=particleMass(scatteredType);
+	double m=LeptonInjector::particleMass(scatteredType);
 	//The out-going particle always gets at least enough energy for its rest mass
 	double yMax=1-m/energy;
 	double logYMax=log10(yMax);
@@ -85,9 +85,9 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 	//check preconditions
 	if(kin_vars[0]<crossSection.extents[0][0]
 	   || kin_vars[0]>crossSection.extents[0][1])
-	log_fatal_stream("Interaction energy out of cross section table range: ["
-	                 << pow(10.,crossSection.extents[0][0]) << " GeV,"
-	                 << pow(10.,crossSection.extents[0][1]) << " GeV]");
+	throw("Interaction energy out of cross section table range: ["
+	                 + std::to_string(pow(10.,crossSection.extents[0][0])) + " GeV,"
+	                 + std::to_string(pow(10.,crossSection.extents[0][1])) + " GeV]");
 	
 	//sample an intial point
 	do{
@@ -171,11 +171,11 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 I3CrossSection::finalStateRecord
 I3CrossSection::sampleFinalState_GR(double energy,
                                 LeptonInjector::ParticleType scatteredType,
-                                boost::shared_ptr<LI_random> random) const{
+                                std::shared_ptr<LeptonInjector::LI_random> random) const{
     // this does the work for GR interactions.
     // should be like (log(E) vs log(Bjorken Y))
     if (crossSection.ndim!=2){
-        log_fatal_stream("I expected a 2D cross section spline, but got "<<crossSection.ndim<<" dimensions. Are you sure this is the right fits file? Check the 'INTERACTION' key!");
+        throw("I expected a 2D cross section spline, but got "+std::to_string(crossSection.ndim)+" dimensions. Are you sure this is the right fits file? Check the 'INTERACTION' key!");
     }
    
     ///
@@ -183,7 +183,7 @@ I3CrossSection::sampleFinalState_GR(double energy,
     //      basically, this is just like the DIS function, but there are some changes. I'll highlight the changes
     ///
     ///
-    double m=particleMass(scatteredType);
+    double m=LeptonInjector::particleMass(scatteredType);
 	double yMax=1-m/energy;
 	double logYMax=log10(yMax);
     
@@ -209,9 +209,9 @@ I3CrossSection::sampleFinalState_GR(double energy,
 	//check preconditions
 	if(kin_vars[0]<crossSection.extents[0][0]
 	   || kin_vars[0]>crossSection.extents[0][1])
-	log_fatal_stream("Interaction energy out of cross section table range: ["
-	                 << pow(10.,crossSection.extents[0][0]) << " GeV,"
-	                 << pow(10.,crossSection.extents[0][1]) << " GeV]");
+	throw("Interaction energy out of cross section table range: ["
+	                 + std::to_string(pow(10.,crossSection.extents[0][0])) + " GeV,"
+	                 + std::to_string(pow(10.,crossSection.extents[0][1])) + " GeV]");
 	
 	//sample an intial point
 	do{
@@ -279,7 +279,7 @@ I3CrossSection::sampleFinalState_GR(double energy,
 I3CrossSection::finalStateRecord
 I3CrossSection::sampleFinalState(double energy,
                                 LeptonInjector::ParticleType scatteredType,
-                                boost::shared_ptr<LI_random> random) const{
+                                std::shared_ptr<LeptonInjector::LI_random> random) const{
     // calls the DIS function for DIS cases
     // calls the GR function  for GR  cases
     // if it doesn't know what kind of interaction this is, give up
@@ -289,7 +289,7 @@ I3CrossSection::sampleFinalState(double energy,
     }else if(interaction==3){
         return( I3CrossSection::sampleFinalState_GR(  energy, scatteredType, random ) );
     }else{ //should be easy to modify this to support other interaction cross sections! 
-        log_fatal_stream("Unknown interaction number "<<interaction<<". Your fits files are funky.");
+        throw("Unknown interaction number "+ std::to_string(interaction) + ". Your fits files are funky.");
     }
 }
 
@@ -300,14 +300,14 @@ double I3CrossSection::evaluateCrossSection(double energy, double x, double y,
 	//check preconditions
 	if(log_energy<totalCrossSection.extents[0][0]
 	   || log_energy>totalCrossSection.extents[0][1])
-		log_fatal_stream("Interaction energy (" << energy << 
+		throw("Interaction energy ("+ std::to_string(energy) + 
 						 ") out of cross section table range: ["
-						 << pow(10.,totalCrossSection.extents[0][0]) << " GeV,"
-						 << pow(10.,totalCrossSection.extents[0][1]) << " GeV]");
+						 + std::to_string(pow(10.,totalCrossSection.extents[0][0])) + " GeV,"
+						 + std::to_string(pow(10.,totalCrossSection.extents[0][1])) + " GeV]");
 	if(x<=0 || x>=1)
-		log_fatal_stream("Interaction x out of range: " << x);
+		throw("Interaction x out of range: " + std::to_string(x));
 	if(y<=0 || y>=1)
-		log_fatal_stream("Interaction y out of range: " << y);
+		throw("Interaction y out of range: " + std::to_string(y));
 	
 	//we assume that:
 	//the target is stationary so its energy is just its mass
@@ -319,7 +319,7 @@ double I3CrossSection::evaluateCrossSection(double energy, double x, double y,
 	
 	//cross section should be zero, but this check is missing from the original 
 	//CSMS calculation, so we must add it here
-	if(!kinematicallyAllowed(x, y, energy, targetMass, particleMass(scatteredType)))
+	if(!kinematicallyAllowed(x, y, energy, targetMass, LeptonInjector::particleMass(scatteredType)))
 		return 0;
 	
 	std::array<double,3> coordinates{{log_energy,log10(x),log10(y)}};
@@ -336,9 +336,9 @@ double I3CrossSection::evaluateTotalCrossSection(double energy) const{
 	//check preconditions
 	if(log_energy<totalCrossSection.extents[0][0]
 	   || log_energy>totalCrossSection.extents[0][1])
-	log_fatal_stream("Interaction energy out of cross section table range: ["
-	                 << pow(10.,totalCrossSection.extents[0][0]) << " GeV,"
-	                 << pow(10.,totalCrossSection.extents[0][1]) << " GeV]");
+	throw("Interaction energy out of cross section table range: ["
+	                 + std::to_string(pow(10.,totalCrossSection.extents[0][0])) + " GeV,"
+	                 + std::to_string(pow(10.,totalCrossSection.extents[0][1])) + " GeV]");
 	//evaluate
 	int center;
 	tablesearchcenters(&totalCrossSection,&log_energy,&center);
@@ -349,45 +349,43 @@ double I3CrossSection::evaluateTotalCrossSection(double energy) const{
 void I3CrossSection::load(std::string dd_crossSectionFile, std::string total_crossSectionFile){
 	int status=readsplinefitstable(dd_crossSectionFile.c_str(),&crossSection);
 	if(status!=0)
-		log_fatal_stream("Failed to read cross section data from spline FITS file '"
-		                 << dd_crossSectionFile << "': error code " << status);
+		throw("Failed to read cross section data from spline FITS file '");
 	if(crossSection.ndim!=3 && crossSection.ndim!=2)
-		log_fatal_stream("cross section spline has " << crossSection.ndim
-		                 << " dimensions, should have either 3 (log10(E), log10(x), log10(y)) or 2 (log10(E), log10(y))");
+		throw("cross section spline has " + std::to_string(crossSection.ndim)
+		                 + " dimensions, should have either 3 (log10(E), log10(x), log10(y)) or 2 (log10(E), log10(y))");
 	
 	status=readsplinefitstable(total_crossSectionFile.c_str(),&totalCrossSection);
 	if(status!=0)
-		log_fatal_stream("Failed to read cross section data from spline FITS file '"
-		                 << total_crossSectionFile << "': error code " << status);
+		throw("Failed to read cross section data from spline FITS file '");
 	if(totalCrossSection.ndim!=1)
-		log_fatal_stream("Total cross section spline has " << totalCrossSection.ndim
-		                 << " dimensions, should have 1, log10(E)");
+		throw("Total cross section spline has " + std::to_string(totalCrossSection.ndim)
+		                 + " dimensions, should have 1, log10(E)");
 	
 	int err=0;
 	err=splinetable_read_key(&crossSection, SPLINETABLE_DOUBLE, "TARGETMASS", &targetMass);
 	if(err){
         // TODO: have it use the interaction type to set the masses as a backup instead of the dimensionality 
         if(crossSection.ndim==3){
-		    log_warn("Unable to read TARGETMASS key from cross section spline, using isoscalar mass");
-    		targetMass=(particleMass(I3Particle::PPlus)+
-		                particleMass(I3Particle::Neutron))/2;
+		    //log_warn("Unable to read TARGETMASS key from cross section spline, using isoscalar mass");
+    		targetMass=(LeptonInjector::particleMass(LeptonInjector::ParticleType::PPlus)+
+		                LeptonInjector::particleMass(LeptonInjector::ParticleType::Neutron))/2;
         }else if(crossSection.ndim==2){
-            log_warn("Unable to read TARGETMASS key from cross section spline, using electron mass");
-            targetMass=particleMass(I3Particle::EMinus);
+            //log_warn("Unable to read TARGETMASS key from cross section spline, using electron mass");
+            targetMass=LeptonInjector::particleMass(LeptonInjector::ParticleType::EMinus);
         }else{
-            log_fatal_stream("Logic error. This point should be unreachable!");
+            throw("Logic error. This point should be unreachable!");
         }
 	}
     err=splinetable_read_key(&crossSection, SPLINETABLE_INT, "INTERACTION", &interaction);
     if(err){
         // assume DIS to preserve compatability with previous versions!
-        log_warn("Unable to read INTERACTION key from cross section spline, assuming DIS");
+        //log_warn("Unable to read INTERACTION key from cross section spline, assuming DIS");
         interaction=1;
     }
 
 	err=splinetable_read_key(&crossSection, SPLINETABLE_DOUBLE, "Q2MIN", &Q2Min);
 	if(err){
-		log_warn("Unable to read Q2Min key from cross section spline; assuming 1 GeV^2");
+		//log_warn("Unable to read Q2Min key from cross section spline; assuming 1 GeV^2");
 		Q2Min=1;
 	}
 }
