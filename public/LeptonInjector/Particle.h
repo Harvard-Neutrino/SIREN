@@ -11,7 +11,7 @@
 #include <exception>
 #include <utility> // std::pair
 
-#include <LeptonInjector/Constants.h>
+#include "Constants.h"
 
 // positions are in Cartesian, centered in the middle of IceCube
 

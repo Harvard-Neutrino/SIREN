@@ -1,5 +1,6 @@
 #include <math.h> // adds sqrt, power functions
 #include <LeptonInjector/Particle.h>
+#include <assert.h>
 
 namespace LeptonInjector{
     Particle::Particle(void){
@@ -68,7 +69,8 @@ namespace LeptonInjector{
         return(!( this->type == ParticleType::Gamma || 
                this->type == ParticleType::NuE   || this->type==ParticleType::NuEBar   ||
                this->type == ParticleType::NuMu  || this->type==ParticleType::NuMuBar  ||
-               this->type == ParticleType::NuTau || this->type==ParticleType::NuTauBar) );
+               this->type == ParticleType::NuTau || this->type==ParticleType::NuTauBar ||
+			   this->type == ParticleType::PPlus || this->type==ParticleType::Neutron) );
     }
 
     // only implemented for the charged leptons to stay within scope
@@ -92,6 +94,11 @@ namespace LeptonInjector{
             case ParticleType::TauMinus:
                 return( Constants::tauMass );
                 break;
+			case ParticleType::PPlus:
+				return( Constants::protonMass );
+				break;
+			case ParticleType::Neutron:
+				return( Constants::neutronMass);
             default:
                 return(0.0);
         }
@@ -138,7 +145,7 @@ namespace LeptonInjector{
 	double particleMass(ParticleType type){
 		Particle p(type);
 		if(!p.HasMass()){
-            // VV removed until new logging system implemented VV 
+            //  removed until new logging system implemented 
 			//log_debug_stream("Treating particle of type " << p.GetTypeString()
 			//				 << " with unknown mass as massless");
 			return(0);
