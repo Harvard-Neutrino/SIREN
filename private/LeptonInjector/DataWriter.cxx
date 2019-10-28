@@ -18,14 +18,84 @@ hid_t DataWriter::OpenFile( std::string filename ){
     // leave the defaults for property lists
     // the last two can be adjusted to allow for parallel file access as I understand 
     fileHandle = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT );
-
     makeTables();
+
+    event_count = 0;
 
 }
 
-void DataWriter::AddInjector( std::string injector_name ){
-    hid_t injector_handle = H5Gcreate( fileHandle, injector_name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
+
+void DataWriter::AddInjector( std::string injector_name , bool ranged){
+    if(events!=NULL){
+        H5Dclose(events);
+    }
+    herr_t status = H5Gclose( group_handle );
+
+    group_handle = H5Gcreate( fileHandle, injector_name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+    // prepare the event properties writing dataspace! 
+    const hsize_t ndims = 3;
+    hsize_t dims[ndims]={0,0,0};
+    hsize_t max_dims[ndims] = {H5S_UNLIMITED,H5S_UNLIMITED,H5S_UNLIMITED};
+    hsize_t file_space = H5Screate_simple( ndims, dims, max_dims);
+
+    hid_t plist = H5Pcreate( H5P_DATASET_CREATE);
+    H5Pset_layout( plist, H5D_CHUNKED);
+    hsize_t chunk_dims[ndims] = {32768,32768,32768};
+    H5Pset_chunk(plist, ndims, chunk_dims);
+
+    const char* name = "events";
+    events = H5Dcreate(group_handle,name, particleTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT );
+    
+
+    delete(&ndims);
+    delete(&dims);
+    delete(&max_dims);
+
+    const hsize_t ndims =1; 
+    hsize_t dims[ndims] = {0};
+    hsize_t max_dims[ndims] = {H5S_UNLIMITED};
+    file_space = H5Screate_simple( ndims, dims, max_dims);
+
+    plist = H5Pcreate( H5P_DATASET_CREATE);
+    H5Pset_layout( plist, H5D_CHUNKED);
+    chunk_dims[ndims] = {32768};
+    H5Pset_chunk(plist, ndims, chunk_dims);
+
+    const char* props = "properties";
+    if (ranged){
+        events = H5Dcreate(group_handle, props , rangedPropertiesTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT );
+    }else{
+        events = H5Dcreate(group_handle, props , volumePropertiesTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT );
+    }
+}
+
+void DataWriter::WriteEvent( BasicEventProperties& props, h5Particle& part1, h5Particle& part2, h5Particle& part3 ){
+    hid_t memspace, file_space;
+    const hsize_t n_dims = 3;
+    hsize_t dims[n_dims] = {1,1,1};
+    memspace = H5Screate_simple(n_dims, dims, NULL);
+
+    //Extend dataset
+    dims[0] = event_count+1;
+    dims[1] = event_count+1;
+    dims[2] = event_count+1;    
+    H5Dset_extent(event_count, dims);
+
+    //Write waveforms
+    file_space = H5Dget_space(events);
+    hsize_t start[3] = {event_count,event_count,event_count};
+    hsize_t count[3] = {1,1,1};
+    H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, NULL, count, NULL);
+
+    std::array<h5Particle,3>  temp_data= {part1, part2, part3};
+    H5Dwrite(events, particleTable, memspace, file_space, H5P_DEFAULT, &temp_data);
+    delete(&temp_data);
+
+    H5Sclose(file_space);
+    H5Sclose(memspace);
+    event_count++; 
 }
 
 void DataWriter::makeTables(){
