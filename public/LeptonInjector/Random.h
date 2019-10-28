@@ -8,6 +8,7 @@
 // Essentially, this will act as a wrapper object to dictate random number sampling 
 
 #include <random>
+#include <LeptonInjector/LeptonInjector.h>
 
 namespace LeptonInjector {
 

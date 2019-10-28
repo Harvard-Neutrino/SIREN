@@ -1,6 +1,8 @@
 #ifndef LI_EVENT
 #define LI_EVENT
 
+// TODO: add support to construct these from their related, complicated, data types! 
+
 namespace LeptonInjector {
     // Event property structures
 	
