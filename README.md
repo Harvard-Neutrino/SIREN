@@ -16,11 +16,19 @@ To use it, you will
 
 # Dependencies
 
-This code requires the `HDF5` C libraries. Read more about it here: https://portal.hdfgroup.org/display/support. 
+All of the dependencies are already installed on the CVMFS environments on the IceCube Cobalt testbeds. For local installations, you may need to install the below. You only 'may' need to, because you might already have these. All three are definitely necessary. 
 
-It more than likely require `BOOST` once complete as well. 
+This code requires the `HDF5` C libraries. Read more about it here: https://portal.hdfgroup.org/display/support.  
 
-What's up with splines? Right? https://github.com/IceCubeOpenSource/photospline
+It requires `BOOST`, which can be installed as easily as typing `sudo apt-get install libboost-all-dev` on linux machines. There's probably a homebrew version for mac. 
+
+It also requires Photospline to create and to read cross sections. Read more about it, and its installation at https://github.com/IceCubeOpenSource/photospline
+
+# Included Dependencies
+
+* I3CrossSections: 
+
+* Earthmodel Services: 
 
 # Compilation and Installation
 
@@ -47,3 +55,6 @@ The code base is divided into several files.
 * LeptonInjector (the file): defines the Injector objects described above in addition to several configuration objects and event generators 
 * Particle: simple implementation of particles 
 * Random: object for random number sampling. 
+
+# Cross Sections
+More to come on this front later. You will need cross sections, saved as fits files. Maybe we should upload examples XS to the repo?
