@@ -1,82 +1,25 @@
-i3_project(LeptonInjector
-          PYTHON_DIR python)
+cmake_minimum_required(VERSION 3.9)
+project(lepton_injector VERSION 1.0.0 DESCRIPTION "lepton injector library")
+include(GNUInstallDirs)
 
-
-IF(HDF5_FOUND)
-    
-    message(STATUS "     + hdf5 support")
-
-    SET(LIB_${PROJECT_NAME}_SOURCEFILES private/LeptonInjector/LeptonInjector.cxx private/LeptonInjector/serialization.cxx private/LeptonInjector/h5write.cxx)
-    SET(LIB_${PROJECT_NAME}_PROJECTS serialization icetray dataclasses phys-services sim-services earthmodel-service photospline)
-    SET(LIB_${PROJECT_NAME}_TOOLS boost python)
-
-    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tableio)
-        LIST(APPEND LIB_${PROJECT_NAME}_PROJECTS tableio)
-        LIST(APPEND LIB_${PROJECT_NAME}_SOURCEFILES private/LeptonInjector/converter/LeptonInjectionConfigurationConverter.cxx)
-        ADD_DEFINITIONS(-DUSE_TABLEIO)
-        MESSAGE(STATUS "     + tableio support")
-    endif(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tableio)
-
-
-    INCLUDE_DIRECTORIES(${HDF5_INCLUDE_DIR})
-
-    i3_add_library(${PROJECT_NAME} 
-      ${LIB_${PROJECT_NAME}_SOURCEFILES}
-      USE_TOOLS ${LIB_${PROJECT_NAME}_TOOLS} hdf5
-      USE_PROJECTS ${LIB_${PROJECT_NAME}_PROJECTS} 
-    )
-
-
-ELSE(HDF5_FOUND)
-    
-    colormsg(CYAN "+-- hdf5 library not found, skipping hdf5 support!")
-
-    SET(LIB_${PROJECT_NAME}_SOURCEFILES private/LeptonInjector/LeptonInjector.cxx private/LeptonInjector/serialization.cxx)
-    SET(LIB_${PROJECT_NAME}_PROJECTS serialization icetray dataclasses phys-services sim-services earthmodel-service photospline)
-    SET(LIB_${PROJECT_NAME}_TOOLS boost python)
-
-    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tableio)
-        LIST(APPEND LIB_${PROJECT_NAME}_PROJECTS tableio)
-        LIST(APPEND LIB_${PROJECT_NAME}_SOURCEFILES private/LeptonInjector/converter/LeptonInjectionConfigurationConverter.cxx)
-        ADD_DEFINITIONS(-DUSE_TABLEIO)
-        MESSAGE(STATUS "     + tableio support")
-    endif(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tableio)
-
-    i3_add_library(${PROJECT_NAME} 
-      ${LIB_${PROJECT_NAME}_SOURCEFILES}
-      USE_TOOLS ${LIB_${PROJECT_NAME}_TOOLS} 
-      USE_PROJECTS ${LIB_${PROJECT_NAME}_PROJECTS} 
-    )
-
-ENDIF(HDF5_FOUND)
-
-if(BUILD_PYBINDINGS)
-  i3_add_pybindings(LeptonInjector
-    private/pybindings/LeptonInjector.cxx
-    USE_TOOLS ${LIB_${PROJECT_NAME}_TOOLS} 
-    USE_PROJECTS ${LIB_${PROJECT_NAME}_PROJECTS} LeptonInjector
-    )
-endif(BUILD_PYBINDINGS)
-
-i3_test_executable(test 
-  private/test/main.cxx
-  private/test/RangedInjection.cxx
-  private/test/VolumeInjection.cxx
-  private/test/MultiInjection.cxx
-  private/test/Utils.cxx
-  private/test/tools.cxx
-  USE_TOOLS gsl
-  USE_PROJECTS icetray dataclasses dataio phys-services earthmodel-service LeptonInjector
+add_library(lepton_injector SHARED
+    private/LeptonInjector/Controller.cxx
+    private/LeptonInjector/Coordinates.cxx
+    private/LeptonInjector/DataWriter.cxx
+    private/LeptonInjector/EventProps.cxx
+    private/LeptonInjector/LeptonInjector.cxx
+    private/LeptonInjector/Particle.cxx
+    private/LeptonInjector/Random.cxx
+    private/earthmodel-service/EarthModelCalculator.cxx
+    private/earthmodel-service/EarthModelService.cxx
+    private/phys-services/LICrossSection.cxx
 )
+configure_file(leptoninjector.pc.in leptoninjector.pc @ONLY)
+target_include_directories(lepton_injector PRIVATE .)
+install(TARGETS lepton_injector
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION $CMAKE_INSTALL_INCLUDEDIR})
+install(FILES ${CMAKE_BINARY_DIR}/lepton_injector.pc
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 
-#i3_executable(exercise-final-states 
-#  private/exercise-final-states/main.cxx
-#  USE_TOOLS ${LIB_${PROJECT_NAME}_TOOLS}
-#  USE_PROJECTS ${LIB_${PROJECT_NAME}_PROJECTS} LeptonInjector
-#)
-#
-#SET_SOURCE_FILES_PROPERTIES(
-#	private/exercise-final-states/main.cxx
-#	PROPERTIES
-#	COMPILE_FLAGS -std=c++11
-#)
+
