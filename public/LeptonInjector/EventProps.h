@@ -1,6 +1,8 @@
 #ifndef LI_EVENT
 #define LI_EVENT
 
+#include <Coordinates.h>
+
 // TODO: add support to construct these from their related, complicated, data types! 
 
 namespace LeptonInjector {
@@ -8,6 +10,7 @@ namespace LeptonInjector {
 	
 	struct h5Particle{
 		h5Particle();
+		h5Particle(bool initial_, int32_t ptype_, LI_Position pos_, LI_Direction dir_, double energy_);
 		virtual ~h5Particle();
 
 		bool initial;
