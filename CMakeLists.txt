@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
 cmake_policy(VERSION 3.1.0)
 
+
+#TODO
+# + add support for Apple systems (needs an apple part??)
+# + make sure it correctly builds on the cobalt testbed
+
 project(lepton_injector VERSION 1.0.0 DESCRIPTION "lepton injector library")
 SET(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_C_STANDARD 99)
