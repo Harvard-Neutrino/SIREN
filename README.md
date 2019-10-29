@@ -32,17 +32,23 @@ It also requires Photospline to create and to read cross sections. Read more abo
 
 # Compilation and Installation
 
-Will use a configure script, like what's in SQuIDS. So you'll do something like
+This project uses cmake to compile. First, go to a folder where you would like to build and compile lepton injector. Run 
 
-`./Configure --help`
+`git clone git@github.com:IceCubeOpenSource/LeptonInjector.git`
 
-first, just to know what to do. Then 
+to download the source code. Then, `mv` the folder that is created to rename it to `source`. We will be trying to keep our source, build, and install directories separate. Now
 
-`./Configure $YOUR_CHOSEN_OPTIONS`
+`mkdir build` and `mkdir install`
 
-to configure everything (include paths, etc.). And finally,
+to prepare. `cd ./build` to move into the build directory. Now, we call cmake
 
-`make -j4 && make install`.
+`cmake -DCMAKE_INSTALL_PREFIX=../install ../source`
+
+This tells cmake to install the shared objects in the `install` directory we just made. Cmake prepares a `Makefile` which calls the `g++` compiler with the necessary instructions to... compile. So now you'll call
+
+`make -j4 && make install`
+
+to build the project and install the project. Now you need to set all the environmental variables so this actually works. 
 
 # Structure
 The code base is divided into several files. 
