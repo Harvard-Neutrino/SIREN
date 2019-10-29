@@ -19,12 +19,6 @@ namespace LeptonInjector {
 	static const int n_dimensions = 3;
 
 
-	// these functions rotate a 3-vector about some axis
-	// assumes vector is in cartesian coordinates
-	LI_Position RotateY(LI_Position vector, double angle);
-	LI_Position RotateX(LI_Position vector, double angle);
-	LI_Position RotateZ(LI_Position vector, double angle);
-
 	// Creating a "LI_Direction" to mimic the I3_Direction object
 	// this should behave in the same exact way, at least within the scope of this project 
 	class LI_Direction{
@@ -35,7 +29,7 @@ namespace LeptonInjector {
 			LI_Direction( double theta, double phi);
 			LI_Direction( std::array<double, 2> dir);
 			LI_Direction( std::pair<double, double> dir);
-			LI_Direction( const LI_Direction& old_one);
+			LI_Direction( LI_Direction* old_one);
 			LI_Direction( LI_Position vec);  // get the direction of a vector 
 
 			
@@ -76,6 +70,13 @@ namespace LeptonInjector {
 			std::array<double, n_dimensions> position;
 	};
 
+	// these functions rotate a 3-vector about some axis
+	// assumes vector is in cartesian coordinates
+	LI_Position RotateY(LI_Position vector, double angle);
+	LI_Position RotateX(LI_Position vector, double angle);
+	LI_Position RotateZ(LI_Position vector, double angle);
+
+
 	LI_Position operator * (LI_Position point, double scalar);
 	LI_Position operator * (double scalar, LI_Position point);
 	LI_Position operator * (LI_Direction  dir, double scalar);
@@ -90,6 +91,8 @@ namespace LeptonInjector {
 	LI_Direction operator - (LI_Direction obj);
 
 	bool operator == (LI_Position one, LI_Position two);
+
+	LI_Direction rotateRelative(LI_Direction base, double zenith, double azimuth);
 
 } // end namespace LeptonInjector
 

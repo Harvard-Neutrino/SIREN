@@ -58,8 +58,8 @@ namespace LeptonInjector {
     Controller::Controller(std::vector<MinimalInjectionConfiguration> configs_received, double minimumEnergy,
             double maximumEnergy, double powerlawIndex, double minimumAzimuth, 
             double maximumAzimuth, double minimumZenith, double maximumZenith,
-            double injectionRadius=1200*Constants::m, double endcapLength=1200*Constants::m,
-            double cylinderRadius=1200*Constants::m, double cylinderHeight= 1200*Constants::m){
+            double injectionRadius, double endcapLength,
+            double cylinderRadius, double cylinderHeight){
 
         this->configs = configs_received;
         this->minimumEnergy   = 100*Constants::GeV ;
@@ -140,10 +140,7 @@ namespace LeptonInjector {
             //context_.Get<boost::shared_ptr<earthmodel::EarthModelService> >(earthmodelname);
             //earthmodel::EarthModelService actual_model();
 
-            if(!earthModel)
-                throw("an Earth model service is required");
             
-            //innerContext.Put(earthModel,earthModelName); 
         }
         
         //get the properties for volume injectors
@@ -164,12 +161,12 @@ namespace LeptonInjector {
             try{
                 if(genSet->ranged){
                     //log_debug_stream(" this is a ranged injector");
-                    RangedLeptonInjector* generator=new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->random);
+                    RangedLeptonInjector* generator = new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->random);
                     generator->earthModel = this->earthModel;
                 }
                 else{ //volume
                     //log_debug_stream(" this is a volume injector");
-                    VolumeLeptonInjector* generator=new VolumeLeptonInjector(this->volumeConfig, this->random);
+                    VolumeLeptonInjector* generator= new VolumeLeptonInjector(this->volumeConfig, this->random);
                 }
                 
                 

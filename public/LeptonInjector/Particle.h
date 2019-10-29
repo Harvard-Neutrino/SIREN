@@ -17,29 +17,6 @@
 
 namespace LeptonInjector{ 
     
-    // simple data structure for particles
-    struct Particle{
-    
-        Particle();
-        ~Particle();
-
-        Particle(ParticleType type);
-        
-        // what kind of particle is this (see below)
-        ParticleType type; 
-        // what is this event's topology? (see below)
-    
-        double energy; // GeV 
-        std::pair<double, double> direction; //( zenith, azimuth ) in degrees
-        double position[3]; // (x,y,z) in meters
-    
-        double GetMass(); //GeV/c^2
-        bool HasMass(); // .... 
-        std::string GetTypeString();
-
-    };
-
-
     // these match the PDG codes!
     // copied over from IceCube's dataclasses I3Particle definition
     enum class ParticleType : int32_t{
@@ -211,6 +188,31 @@ namespace LeptonInjector{
 
     };
 
+    // simple data structure for particles
+    struct Particle{
+    
+        Particle();
+        ~Particle();
+
+        Particle(ParticleType type);
+        
+        // what kind of particle is this (see below)
+        ParticleType type; 
+        // what is this event's topology? (see below)
+    
+        double energy; // GeV 
+        std::pair<double, double> direction; //( zenith, azimuth ) in degrees
+        double position[3]; // (x,y,z) in meters
+    
+        double GetMass(); //GeV/c^2
+        bool HasMass(); // .... 
+        std::string GetTypeString();
+
+    };
+
+
+
+
     // There are two kinds of event topologies in IceCube
     //      cascades 
     //      tracks
@@ -243,7 +245,7 @@ namespace LeptonInjector{
     std::string particleName( ParticleType p);
     double particleMass( ParticleType type);
     double kineticEnergy( ParticleType type, double totalEnergy);
-    double particleSpee( ParticleType type, double kineticEnergy);
+    double particleSpeed( ParticleType type, double kineticEnergy);
     ParticleShape decideShape(ParticleType t);
     ParticleType deduceInitialType( ParticleType pType1, ParticleType pType2);
 

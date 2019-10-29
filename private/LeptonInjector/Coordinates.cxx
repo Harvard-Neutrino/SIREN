@@ -48,10 +48,11 @@ namespace LeptonInjector {
 		this->zenith = dir.first;
 		this->azimuth = dir.second;
 	}
-	LI_Direction::LI_Direction(const LI_Direction& old_one){
-		this->zenith = old_one.zenith;
-		this->azimuth = old_one.azimuth;
+	LI_Direction::LI_Direction(LI_Direction* old_one){
+		this->zenith = old_one->zenith;
+		this->azimuth = old_one->azimuth;
 	}
+
 	// construct a direction for a given vector 
 	LI_Direction::LI_Direction( LI_Position vec){
 		this->azimuth = atan( vec.at(1)/ vec.at(0) );
@@ -109,6 +110,8 @@ namespace LeptonInjector {
 
 		return( sqrt(mag) ); //return the sum's root
 	}
+
+	
 
 	// need to overload some operations on the newly formed LI_Direction and LI_Position
 
@@ -212,6 +215,13 @@ namespace LeptonInjector {
 			}
 		}
 		return(true);
+	}
+
+	LI_Direction rotateRelative(LI_Direction base, double zenith, double azimuth){
+		LI_Direction result;
+		result.zenith += zenith*cos(azimuth);
+		result.azimuth+= zenith*sin(azimuth);
+		return(result);
 	}
 
 } // end namespace LeptonInjector
