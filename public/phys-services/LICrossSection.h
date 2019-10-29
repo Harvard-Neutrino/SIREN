@@ -4,8 +4,8 @@
 #include "photospline/bspline.h"
 #include "photospline/splinetable.h"
 
-#include "../LeptonInjector/Particle.h"
-#include "../LeptonInjector/Random.h"
+#include "Particle.h"
+#include "Random.h"
 
 #include <string>
 

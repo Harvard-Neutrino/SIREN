@@ -7,6 +7,7 @@
 #include "LICrossSection.h"
 
 #include <photospline/splinetable.h>
+#include <photospline/bspline.h>
 
 #include <iostream>
 
@@ -50,7 +51,7 @@ namespace LeptonInjector{
 		std::vector<char> crossSectionBlob;
 		std::vector<char> totalCrossSectionBlob;
 			
-		void setCrossSection(const splinetable& crossSection, const splinetable& totalCrossSection);
+		void setCrossSection(const photospline::splinetable& crossSection, const photospline::splinetable& totalCrossSection);
 	};
 	
 	///Configuration parameters for ranged injections mode
@@ -176,8 +177,8 @@ namespace LeptonInjector{
 		///the neutrino which arrived at the surface of the Earth.
 		ParticleType initialType;
 		
-		const splinetable& getCrossSection() const{ return(crossSection.getCrossSection()); }
-		const splinetable& getTotalCrossSection() const{ return(crossSection.getTotalCrossSection()); }
+		const photospline::splinetable& getCrossSection() const{ return(crossSection.getCrossSection()); }
+		const photospline::splinetable& getTotalCrossSection() const{ return(crossSection.getTotalCrossSection()); }
 	private:
 		
 		I3CrossSection crossSection;

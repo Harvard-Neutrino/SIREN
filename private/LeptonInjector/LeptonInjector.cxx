@@ -44,12 +44,12 @@ namespace LeptonInjector{
 	VolumeInjectionConfiguration::~VolumeInjectionConfiguration(){}
 	
 	// TODO: update this, find out where the splinetable object is coming from 
-	void BasicInjectionConfiguration::setCrossSection(const splinetable& crossSection, const splinetable& totalCrossSection){
-		splinetable_buffer buf;
+	void BasicInjectionConfiguration::setCrossSection(const photospline::splinetable& crossSection, const photospline::splinetable& totalCrossSection){
+		photospline::splinetable_buffer buf;
 		buf.size=0;
 		buf.mem_alloc=&malloc;
 		buf.mem_realloc=&realloc;
-		int result=writesplinefitstable_mem(&buf, &crossSection);
+		int result=photospline::writesplinefitstable_mem(&buf, &crossSection);
 		if(result!=0){
 			free(buf.data);
 			throw("photospline error while serializing cross section: "+std::to_string(result));
@@ -59,7 +59,7 @@ namespace LeptonInjector{
 		free(buf.data);
 		
 		buf.size=0;
-		result=writesplinefitstable_mem(&buf, &totalCrossSection);
+		result=photospline::writesplinefitstable_mem(&buf, &totalCrossSection);
 		if(result!=0){
 			free(buf.data);
 			throw("photospline error while serializing cross section: "
