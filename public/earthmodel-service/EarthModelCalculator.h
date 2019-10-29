@@ -268,7 +268,7 @@ namespace Integration{
       const unsigned int order=5;
       const unsigned int maxIter=20;
       if(tol<0)
-         log_fatal("Integration tolerance must be positive");
+         throw("Integration tolerance must be positive");
       
       std::vector<double> stepSizes, estimates, c(order), d(order);
       stepSizes.push_back(1);
@@ -307,7 +307,7 @@ namespace Integration{
          //prepare for next step
          stepSizes.push_back(stepSizes.back()/4);
       }
-      log_fatal("Integral failed to converge");
+      throw("Integral failed to converge");
    }
    
 }
