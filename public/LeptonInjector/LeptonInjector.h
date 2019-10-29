@@ -7,12 +7,14 @@
 #include "LICrossSection.h"
 
 #include <photospline/splinetable.h>
+
 #include <iostream>
 
 #include <Coordinates.h>
 #include <Constants.h>
 #include <Particle.h>
 #include <Random.h>
+#include <EventProps.h>
 
 namespace LeptonInjector{
 	
@@ -114,7 +116,7 @@ namespace LeptonInjector{
 		LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> rando);
 		virtual ~LeptonInjectorBase();
 		//No implementation of DAQ; this base class should be pure virtual
-		virtual void DAQ(boost::shared_ptr<I3Frame>)=0;
+		virtual void DAQ();
 		void Finish();
 		//Whether this module has generated as many events already as it was configured to
 		bool DoneGenerating() const{ return(eventsGenerated>=config.events); }
@@ -135,9 +137,6 @@ namespace LeptonInjector{
 		///Sample one energy value from the energy spectrum
 		double SampleEnergy();
 		
-		///Sample either baseType or its antiparticle depending on config.toggleAntiparticles
-		ParticleType SampleParticleType(I3Particle::ParticleType baseType);
-		
 		///Determine the angles of the final state particles with respect to the
 		///initial state neutrino direction, in the lab frame
 		///\param E_total the energy of the initial neutrino
@@ -154,12 +153,12 @@ namespace LeptonInjector{
 		///\param dir the direction of the interacting neutrino
 		///\param energy the energy of the interacting neutrino
 		///\param properties the associated structure where the event properties should be recorded
-		std::shared_ptr<I3MCTree> FillTree(I3Position vertex, I3Direction dir, double energy, BasicEventProperties& properties);
+		void FillTree(LI_Position vertex, LI_Direction dir, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree);
 		
 		///Random number source
-		std::shared_ptr<LI_random> random(nullptr);
+		std::shared_ptr<LI_random> random = nullptr;
 		///Configuration structure in which to store parameters
-		BasicInjectionConfiguration& config;
+		BasicInjectionConfiguration config;
 		///Number of events produced so far
 		unsigned int eventsGenerated;
 		///Whether an S frame has been written
@@ -183,10 +182,10 @@ namespace LeptonInjector{
 	public:
 		RangedLeptonInjector();
 		RangedLeptonInjector(RangedInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> rando);
-		void DAQ(boost::shared_ptr<I3Frame> frame);
+		void DAQ();
 
 		// the earthmodel will just be a null poitner at instantiation
-		std::shared_ptr<earthmodel::EarthModelService> earthModel(nullptr);
+		std::shared_ptr<earthmodel::EarthModelService> earthModel = nullptr;
 
 	private:
 		RangedInjectionConfiguration config;
@@ -197,7 +196,7 @@ namespace LeptonInjector{
 	public:
 		VolumeLeptonInjector();
 		VolumeLeptonInjector(VolumeInjectionConfiguration config, std::shared_ptr<LI_random> rando);
-		void DAQ(boost::shared_ptr<I3Frame> frame);
+		void DAQ();
 	private:
 		VolumeInjectionConfiguration config;
 		
@@ -214,29 +213,7 @@ namespace LeptonInjector{
 	std::pair<double,double> rotateRelative(std::pair<double,double> base, double zenith, double azimuth);
 	
 	
-	
-	void ProcessFrame(I3Module& mod, boost::shared_ptr<I3Frame> frame);
-	
-	class MultiLeptonInjector : public I3ConditionalModule{
-	public:
-		MultiLeptonInjector(const I3Context& ctx);
-		///For properties appearing in both config objects, the values in rconfig will take precedence
-		MultiLeptonInjector(const I3Context& ctx, RangedInjectionConfiguration rconfig, VolumeInjectionConfiguration vconfig);
-		void Configure();
-		void DAQ(boost::shared_ptr<I3Frame>);
-		double seed;
-
-	private:
-		void AddParameters();
 		
-		I3Context innerContext;
-		boost::shared_ptr<OutputCollector> collector;
-		std::queue<boost::shared_ptr<I3Frame> >& results;
-		std::vector<MinimalInjectionConfiguration> generatorSettings;
-		std::deque<LeptonInjectorBase*> generators;
-		RangedInjectionConfiguration rangedConfig;
-		VolumeInjectionConfiguration volumeConfig;
-	};
 	
 } //namespace LeptonInjector
 

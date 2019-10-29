@@ -201,7 +201,7 @@ namespace LeptonInjector{
 	void LeptonInjectorBase::Finish(){
 		if(eventsGenerated!=config.events)
 			std::cout << ": Only " << eventsGenerated <<
-							 " event have been output out of a requested total of " << config.events);
+							 " event have been output out of a requested total of " << config.events;
 	}
 	
 	LI_Position LeptonInjectorBase::SampleFromDisk(double radius, double zenith, double azimuth){
@@ -293,61 +293,45 @@ namespace LeptonInjector{
 	//		rotate the new direction around the initial direction by /azimuth/
 	// So the zenith and azimuth are only what their names would suggest in the coordinate system where 
 	//		/base/ is the \hat{z} axis 
-	std::pair<double,double> rotateRelative(std::pair<double,double> base, double zenith, double azimuth){
-		std::pair<double, double> result;
-		result.first += zenith*cos(azimuth);
-		result.second+= zenith*sin(azimuth);
-		return(result);
-	}
 	
-	boost::shared_ptr<I3MCTree> LeptonInjectorBase::FillTree(I3Position vertex, I3Direction dir, double energy, BasicEventProperties& properties){
-		const I3CrossSection::finalStateRecord& fs=crossSection.sampleFinalState(energy,config.finalType1,random);
+	void LeptonInjectorBase::FillTree(LI_Position vertex, LI_Direction dir, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree){
+		const I3CrossSection::finalStateRecord& fs=crossSection.sampleFinalState(energy,config.finalType1,this->random);
 		
 		std::pair<double,double> relativeZeniths=computeFinalStateAngles(energy,fs.x,fs.y);
-		double azimuth1=random->Uniform(0,2*Constants:pi);
+		double azimuth1=this->random->Uniform(0,2*Constants::pi);
 		double azimuth2=azimuth1+(azimuth1<Constants::pi ? 1 : -1)*Constants::pi ;
 		
+		particle_tree[0]=  h5Particle(true,
+					static_cast<int32_t>(this->initialType),
+					vertex,
+					dir,
+					energy
+		);
+
 		//Make the first final state particle
-		I3Particle p1(decideShape(config.finalType1),config.finalType1);
-		p1.SetLocationType(I3Particle::InIce);
-		p1.SetPos(vertex);
-		p1.SetDir(rotateRelative(dir,relativeZeniths.first,azimuth1));
-		p1.SetEnergy(kineticEnergy(p1.GetType(),(1-fs.y)*energy));
-		p1.SetSpeed(particleSpeed(p1.GetType(),p1.GetEnergy()));
-		p1.SetTime(0.0);
-		
-		//Make the second final state particle
-		I3Particle p2(decideShape(config.finalType2),config.finalType2);
-		p2.SetLocationType(I3Particle::InIce);
-		p2.SetPos(vertex);
-		p2.SetDir(rotateRelative(dir,relativeZeniths.second,azimuth2));
-		p2.SetEnergy(kineticEnergy(p2.GetType(),fs.y*energy));
-		p2.SetSpeed(particleSpeed(p2.GetType(),p2.GetEnergy()));
-		p2.SetTime(0.0);
-		
-		boost::shared_ptr<I3MCTree> mctree(new I3MCTree);
-		//Make a dummy primary
-		I3Particle primary(I3Particle::Primary,initialType);
-		primary.SetEnergy(kineticEnergy(primary.GetType(),energy));
-		primary.SetSpeed(particleSpeed(primary.GetType(),primary.GetEnergy()));
-		primary.SetDir(dir);
-		primary.SetPos(vertex);
-		primary.SetTime(0.0);
-		primary.SetLength(0.0);
-		I3MCTree::iterator primaryIt=mctree->insert(mctree->end(), primary);
-		I3MCTree::iterator p1It=mctree->append_child(primaryIt, p1);
-		mctree->insert_after(p1It, p2);
-		
+		particle_tree[1] = h5Particle( false, 
+					static_cast<int32_t>(config.finalType1),
+					vertex,
+					rotateRelative(dir,relativeZeniths.first,azimuth1),
+					kineticEnergy(config.finalType1,(1-fs.y)*energy)
+		);
+
+		particle_tree[2] = h5Particle(false,
+					static_cast<int32_t>(config.finalType2),
+					vertex,
+					rotateRelative(dir,relativeZeniths.second,azimuth2),
+					kineticEnergy(config.finalType2,fs.y*energy)
+		);
+
 		properties.totalEnergy=energy;
-		properties.zenith=dir.GetZenith();
-		properties.azimuth=dir.GetAzimuth();
+		properties.zenith=dir.zenith;
+		properties.azimuth=dir.azimuth;
 		properties.finalStateX=fs.x;
 		properties.finalStateY=fs.y;
-		properties.finalType1=p1.GetType();
-		properties.finalType2=p2.GetType();
-		properties.initialType=primary.GetType();
+		properties.finalType1= static_cast<int32_t>(config.finalType1);
+		properties.finalType2= static_cast<int32_t>(config.finalType2);
+		properties.initialType=static_cast<int32_t>(this->initialType);
 		
-		return(mctree);
 	}
 	
 	//-----------------------
@@ -371,20 +355,8 @@ namespace LeptonInjector{
 
 	
 	
-	void RangedLeptonInjector::DAQ(boost::shared_ptr<I3Frame> frame){
+	void RangedLeptonInjector::DAQ(){
 		//first, make sure configuration gets written once
-		if(!wroteConfigFrame){
-			boost::shared_ptr<I3Frame> sframe(new I3Frame('S'));
-			boost::shared_ptr<RangedInjectionConfiguration> sconfig(new RangedInjectionConfiguration(config));
-			sconfig->setCrossSection(getCrossSection(),getTotalCrossSection());
-			sframe->Put("LeptonInjectorProperties",sconfig);
-			PushFrame(sframe);
-			wroteConfigFrame=true;
-		}
-		if(DoneGenerating()){
-			PushFrame(frame);
-			return;
-		}
 		
 		//Choose an energy
 		double energy=SampleEnergy();
@@ -434,22 +406,18 @@ namespace LeptonInjector{
 		LI_Position vertex=pca-dist*dir;
 		
 		//assemble the MCTree
-		boost::shared_ptr<RangedEventProperties> properties(new RangedEventProperties);
-		boost::shared_ptr<I3MCTree> mctree=FillTree(vertex,dir,energy,*properties);
+		std::shared_ptr<RangedEventProperties> properties(new RangedEventProperties);
+		std::shared_ptr< std::array<h5Particle, 3> > particle_tree = nullptr;
+
+
+		FillTree(vertex,dir,energy,*properties, *particle_tree);
 		
 		//set subclass properties
 		properties->impactParameter=(pca-LI_Position(0,0,0)).Magnitude();
 		properties->totalColumnDepth=totalColumnDepth;
-		
-		//package up output and send it
-		frame->Put(mctree);
-		frame->Put("EventProperties",properties);
-		PushFrame(frame);
-		
+
 		//update event count and check for completion
 		eventsGenerated++;
-		if(eventsGenerated==config.events && suspendOnCompletion)
-			RequestSuspension();
 	}
 	
 	
@@ -470,9 +438,9 @@ namespace LeptonInjector{
 	
 	
 	
-	void VolumeLeptonInjector::DAQ(boost::shared_ptr<I3Frame> frame){
+	void VolumeLeptonInjector::DAQ(){
 		//first, make sure configuration gets written once
-		if(!wroteConfigFrame){
+		/*if(!wroteConfigFrame){
 			boost::shared_ptr<I3Frame> sframe(new I3Frame('S'));
 			boost::shared_ptr<VolumeInjectionConfiguration> sconfig(new VolumeInjectionConfiguration(config));
 			sconfig->setCrossSection(getCrossSection(),getTotalCrossSection());
@@ -483,255 +451,43 @@ namespace LeptonInjector{
 		if(DoneGenerating()){
 			PushFrame(frame);
 			return;
-		}
+		}*/
 		
 		//Choose an energy
 		double energy=SampleEnergy();
 		
 		//Pick a direction on the sphere
-		LI_Direction dir(acos(random->Uniform(cos(config.zenithMaximum),cos(config.zenithMinimum))),
-						random->Uniform(config.azimuthMinimum,config.azimuthMaximum));
+		LI_Direction dir(acos(this->random->Uniform(cos(config.zenithMaximum),cos(config.zenithMinimum))),
+						this->random->Uniform(config.azimuthMinimum,config.azimuthMaximum));
 		//log_trace_stream("dir=(" << dir.GetX() << ',' << dir.GetY() << ',' << dir.GetZ() << ')');
 		
 		//Pick a position in the xy-plane
 		LI_Position vertex=SampleFromDisk(config.cylinderRadius);
 		//Add on the vertical component
-		vertex.SetZ(random->Uniform(-config.cylinderHeight/2,config.cylinderHeight/2));
+		vertex.SetZ(this->random->Uniform(-config.cylinderHeight/2,config.cylinderHeight/2));
 		//log_trace_stream("vtx=(" << vertex.GetX() << ',' << vertex.GetY() << ',' << vertex.GetZ() << ')');
 		
 		//assemble the MCTree
-		boost::shared_ptr<VolumeEventProperties> properties(new VolumeEventProperties);
+		std::shared_ptr<VolumeEventProperties> properties(new VolumeEventProperties);
+		std::shared_ptr< std::array<h5Particle,3> > particle_tree = nullptr;
 
 		// write hdf5 file! 
 
-		boost::shared_ptr<I3MCTree> mctree=FillTree(vertex,dir,energy,*properties);
+		FillTree(vertex,dir,energy,*properties, *particle_tree);
 		
 		//set subclass properties
 		properties->radius=vertex.Magnitude();
 		properties->z=vertex.GetZ();
-	
+
+
 		//package up output and send it
 
-		frame->Put(mctree);
-		frame->Put("EventProperties",properties);
-		PushFrame(frame);
 		
 		//update event count and check for completion
 		eventsGenerated++;
-		if(eventsGenerated==config.events && suspendOnCompletion)
-			RequestSuspension();
-	}
-	
-	
 
-	
-	void MultiLeptonInjector::AddParameters(){
-		AddOutBox("OutBox");
-		AddParameter("MinimumEnergy",
-					 "Minimum total event energy to inject",
-					 rangedConfig.energyMinimum);
-		AddParameter("MaximumEnergy",
-					 "Maximum total event energy to inject",
-					 rangedConfig.energyMaximum);
-		AddParameter("PowerlawIndex",
-					 "Powerlaw index of the energy spectrum to inject "
-					 "(should be positive)",
-					 rangedConfig.powerlawIndex);
-		AddParameter("MinimumAzimuth",
-					 "Minimum azimuth angle for injected events",
-					 rangedConfig.azimuthMinimum);
-		AddParameter("MaximumAzimuth",
-					 "Maximum azimuth angle for injected events",
-					 rangedConfig.azimuthMaximum);
-		AddParameter("MinimumZenith",
-					 "Minimum zenith angle for injected events",
-					 rangedConfig.zenithMinimum);
-		AddParameter("MaximumZenith",
-					 "Maximum zenith angle for injected events",
-					 rangedConfig.zenithMaximum);
-		AddParameter("RandomService",
-					 "Name of the random service to use",
-					 "I3RandomService");
-		
-		AddParameter("InjectionRadius",
-					 "Radius around the origin within which to target events",
-					 rangedConfig.injectionRadius);
-		AddParameter("EndcapLength",
-					 "Length of the fixed endcaps add to each end of the distance "
-					 "along which to sample interactions",
-					 rangedConfig.endcapLength);
-		AddParameter("EarthModel",
-					 "Name of the Earth model service to use",
-					 "");
-		
-		AddParameter("CylinderRadius",
-					 "Radius of the vertical cylinder around the origin within "
-					 "which to place events",
-					 volumeConfig.cylinderRadius);
-		AddParameter("CylinderHeight",
-					 "Height of the vertical cylinder around the origin within "
-					 "which to place events",
-					 volumeConfig.cylinderHeight);
-		
-		AddParameter("Generators","The collection of configurations to generate",generatorSettings);
 	}
 	
 	
-	void MultiLeptonInjector::Configure(){
-		try{
-			//get the set of generators to be run
-			GetParameter("Generators",generatorSettings);
-			
-			if(generatorSettings.empty())
-				throw(": There is no point in running this module without specfying at least one generator");
-			
-			//figure out whether there are any ranged or volume injectors
-			bool hasRanged=false, hasVolume=false;
-			for(std::vector<MinimalInjectionConfiguration>::const_iterator genSet=generatorSettings.begin(), end=generatorSettings.end(); genSet!=end; genSet++){
-				hasRanged |= genSet->ranged;
-				hasVolume |= !genSet->ranged;
-			}
-			
-			//get the properties shared by all generators
-			std::string randomServiceName;
-			boost::shared_ptr<I3RandomService> random;
-			//fetch each parameter directly into one configuration object,
-			//and clone it into the other
-			GetParameter("MinimumEnergy",rangedConfig.energyMinimum);
-			volumeConfig.energyMinimum=rangedConfig.energyMinimum;
-			GetParameter("MaximumEnergy",rangedConfig.energyMaximum);
-			volumeConfig.energyMaximum=rangedConfig.energyMaximum;
-			GetParameter("PowerlawIndex",rangedConfig.powerlawIndex);
-			volumeConfig.powerlawIndex=rangedConfig.powerlawIndex;
-			GetParameter("MinimumAzimuth",rangedConfig.azimuthMinimum);
-			volumeConfig.azimuthMinimum=rangedConfig.azimuthMinimum;
-			GetParameter("MaximumAzimuth",rangedConfig.azimuthMaximum);
-			volumeConfig.azimuthMaximum=rangedConfig.azimuthMaximum;
-			GetParameter("MinimumZenith",rangedConfig.zenithMinimum);
-			volumeConfig.zenithMinimum=rangedConfig.zenithMinimum;
-			GetParameter("MaximumZenith",rangedConfig.zenithMaximum);
-			volumeConfig.zenithMaximum=rangedConfig.zenithMaximum;
-			GetParameter("RandomService",randomServiceName);
-			
-			if(rangedConfig.energyMinimum<=0)
-				log_fatal_stream(GetName() << ": minimum energy must be positive");
-			if(rangedConfig.energyMaximum<=0)
-				log_fatal_stream(GetName() << ": maximum energy must be positive");
-			if(rangedConfig.energyMaximum<rangedConfig.energyMinimum)
-				log_fatal_stream(GetName() << ": maximum energy must be greater than or equal to minimum energy");
-			if(rangedConfig.azimuthMinimum<0.0)
-				log_fatal_stream(GetName() << ": minimum azimuth angle must be greater than or equal to zero");
-			if(rangedConfig.azimuthMaximum>2*constants::pi<double>())
-				log_fatal_stream(GetName() << ": maximum azimuth angle must be less than or equal to 2 pi");
-			if(rangedConfig.azimuthMinimum>rangedConfig.azimuthMaximum)
-				log_fatal_stream(GetName() << ": minimum azimuth angle must be less than or equal to maximum azimuth angle");
-			if(rangedConfig.zenithMinimum<0.0)
-				log_fatal_stream(GetName() << ": minimum zenith angle must be greater than or equal to zero");
-			if(rangedConfig.zenithMaximum>constants::pi<double>())
-				log_fatal_stream(GetName() << ": maximum zenith angle must be less than or equal to pi");
-			if(rangedConfig.zenithMinimum>rangedConfig.zenithMaximum)
-				log_fatal_stream(GetName() << ": minimum zenith angle must be less than or equal to maximum zenith angle");
-			random = context_.Get<boost::shared_ptr<I3RandomService> >(randomServiceName);
-			if(!random)
-				log_fatal_stream(GetName() << ": A random service is required");
-			
-			innerContext.Put(random,randomServiceName);
-			
-			//get the properties for ranged injectors
-			std::string earthModelName;
-			boost::shared_ptr<earthmodel::EarthModelService> earthModel;
-			if(hasRanged){
-				GetParameter("InjectionRadius",rangedConfig.injectionRadius);
-				GetParameter("EndcapLength",rangedConfig.endcapLength);
-				GetParameter("EarthModel",earthModelName);
-				
-				if(rangedConfig.injectionRadius<0)
-					log_fatal_stream(GetName() << ": InjectionRadius must be non-negative");
-				if(rangedConfig.endcapLength<0)
-					log_fatal_stream(GetName() << ": EndcapLength must be non-negative");
-				earthModel = context_.Get<boost::shared_ptr<earthmodel::EarthModelService> >(earthModelName);
-				if(!earthModel)
-					log_fatal_stream(GetName() << ": an Earth model service is required");
-				
-				innerContext.Put(earthModel,earthModelName);
-			}
-			
-			//get the properties for volume injectors
-			if(hasVolume){
-				GetParameter("CylinderRadius",volumeConfig.cylinderRadius);
-				GetParameter("CylinderHeight",volumeConfig.cylinderHeight);
-				
-				if(volumeConfig.cylinderRadius<0)
-					log_fatal_stream(GetName() << ": CylinderRadius must be non-negative");
-				if(volumeConfig.cylinderHeight<0)
-					log_fatal_stream(GetName() << ": CylinderHeight must be non-negative");
-			}
-			
-			//construct all generators
-			unsigned int i=0;
-			for(std::vector<MinimalInjectionConfiguration>::const_iterator genSet=generatorSettings.begin(), end=generatorSettings.end(); genSet!=end; genSet++){
-				log_debug_stream("Configuring injector " << i << ":");
-				LeptonInjectorBase* generator=NULL;
-				try{
-					if(genSet->ranged){
-						log_debug_stream(" this is a ranged injector");
-						generator=new RangedLeptonInjector(innerContext,rangedConfig);
-						generator->GetConfiguration().Set("EarthModel",boost::python::object(earthModelName));
-					}
-					else{ //volume
-						log_debug_stream(" this is a volume injector");
-						generator=new VolumeLeptonInjector(innerContext,volumeConfig);
-					}
-					
-					//set properties not shared with other injectors, or which are not part of the config object
-					generator->GetConfiguration().Set("NEvents",boost::python::object(genSet->events));
-					generator->GetConfiguration().Set("FinalType1",boost::python::object(genSet->finalType1));
-					generator->GetConfiguration().Set("FinalType2",boost::python::object(genSet->finalType2));
-					generator->GetConfiguration().Set("RandomService",boost::python::object(randomServiceName));
-					generator->GetConfiguration().Set("DoublyDifferentialCrossSectionFile",boost::python::object(genSet->crossSectionPath));
-					generator->GetConfiguration().Set("TotalCrossSectionFile",boost::python::object(genSet->totalCrossSectionPath));
-					generator->GetConfiguration().Set("SuspendOnCompletion",boost::python::object(false));
-					
-					generator->SetName(GetName()+"_Generator_"+boost::lexical_cast<std::string>(i++));
-					generator->Configure();
-				}catch(...){
-					delete generator;
-					throw;
-				}
-				generators.push_back(generator);
-			}
-			
-			//bind the first generator to the collector
-			generators.front()->ConnectOutBox("OutBox",collector);
-		}catch(std::runtime_error& err){
-			throw std::runtime_error("While configuring "+GetName()+":\n"+err.what());
-		}
-	}
-	
-	void MultiLeptonInjector::DAQ(boost::shared_ptr<I3Frame> frame){
-		if(generators.empty()){
-			RequestSuspension();
-			return;
-		}
-		while(generators.front()->DoneGenerating()){
-			delete generators.front();
-			generators.pop_front();
-			//if there are no more generators, we are done
-			if(generators.empty()){
-				RequestSuspension();
-				return;
-			}
-			//bind the next generator to the collector
-			generators.front()->ConnectOutBox("OutBox",collector);
-		}
-		generators.front()->DAQ(frame);
-		collector->Process();
-		while(!collector->output.empty()){
-			PushFrame(collector->output.front());
-			collector->output.pop();
-		}
-	}
-		
-	I3_MODULE(MultiLeptonInjector);
 	
 } //namespace LeptonInjector
