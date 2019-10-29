@@ -16,12 +16,12 @@ find_package(PythonInterp)
 find_package(PythonLibs)
 set(PYTHON_FOUND PYTHONLIBS_FOUND AND PYTHONINTERP_FOUND)
 if(PYTHON_FOUND)
-    MESSAGE("++ Found python at ${PYTHON_INCLUDE_DIR}")
+    MESSAGE("-- Found python at ${PYTHON_INCLUDE_DIR}")
 endif()
 
 find_package(HDF5 REQUIRED)
 if(HDF5_FOUND)
-    MESSAGE("++ Found hdf5 at ${HDF5_INCLUDE_DIR}")
+    MESSAGE("-- Found hdf5 at ${HDF5_INCLUDE_DIR}")
     include_directories(${HDF5_INCLUDE_DIR})
     set(_hdf5_libs hdf5 hdf5_cpp)
 endif()
@@ -32,8 +32,14 @@ set(Boost_USE_MULTITHREADED OFF)
 set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost REQUIRED)
 if(Boost_FOUND)
-    MESSAGE("++ Found Boost at ${Boost_INCLUDE_DIRS}")
+    MESSAGE("-- Found Boost at ${Boost_INCLUDE_DIRS}")
     include_directories(${Boost_INCLUDE_DIRS})
+endif()
+
+find_package(photospline REQUIRED)
+
+if(photospline_FOUND)
+    MESSAGE("-- photospline found")
 endif()
 
 include(GNUInstallDirs)
@@ -60,6 +66,7 @@ target_include_directories(lepton_injector PUBLIC
     ${CMAKE_SOURCE_DIR}/public/phys-services/ 
 )
 target_link_libraries(lepton_injector ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(lepton_injector cphotospline)
 
 set_target_properties(lepton_injector PROPERTIES
     VERSION ${PROJECT_VERSION}
