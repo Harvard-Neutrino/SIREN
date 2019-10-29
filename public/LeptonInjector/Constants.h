@@ -40,7 +40,7 @@ static const double muonMass        = 0.105658374;
 static const double tauMass         = 1.77686;
 
 // confusing units
-static const double second          = 1.523e15; // [eV^-1 sec^-1]
+// static const double second          = 1.523e15; // [eV^-1 sec^-1]
 static const double &s              = second; 
 static const double tauLifeTime     = second*2.906e-13;
 static const double MuonLifeTime    = second*2.196e-6;

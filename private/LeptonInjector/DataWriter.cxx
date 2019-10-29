@@ -1,4 +1,4 @@
-#include <LeptonInjector/DataWriter.h>
+#include "DataWriter.h"
 
 #include<hdf5/serial/hdf5.h>
 

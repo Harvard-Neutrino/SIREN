@@ -1,5 +1,5 @@
-#include <LeptonInjector/LeptonInjector.h>
-#include <LeptonInjector/EventProps.h>
+#include "LeptonInjector.h"
+#include "EventProps.h"
 
 #include <cassert>
 #include <fstream>

@@ -1,9 +1,9 @@
 #ifndef LI_CONTROLLER
 #define LI_CONTROLLER
 
-#include <LeptonInjector/LeptonInjector.h>
-#include <LeptonInjector/Constants.h>
-#include <LeptonInjector/Coordinates.h>
+#include <LeptonInjector.h>
+#include <Constants.h>
+#include <Coordinates.h>
 #include <boost/shared_ptr.hpp>
 
 namespace LeptonInjector{

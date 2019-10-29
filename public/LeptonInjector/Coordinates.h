@@ -4,7 +4,7 @@
 #include <array> // used for many of the constructors, and for the position
 #include <math.h> //sqrt, sin, cos, pow
 #include <exception> //allows throwing the out_of_range exception
-#include <LeptonInjector/Constants.h>
+#include <Constants.h>
 
 // Implements tools and classes for working with positions and directions
 

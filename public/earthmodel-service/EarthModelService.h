@@ -27,15 +27,15 @@
  *
  */
 
-#include <LeptonInjector/Constants.h>
-#include <LeptonInjector/Coordinates.h>
+#include <Constants.h>
+#include <Coordinates.h>
 #include <sstream>
 #include <string>
 #include <assert.h>
 #include <vector>
 #include <map>
 #include <boost/foreach.hpp>
-#include <earthmodel-service/EarthModelCalculator.h>
+#include <EarthModelCalculator.h>
 //#include <boost/python.hpp>
 // #include <boost/python.hpp>
 

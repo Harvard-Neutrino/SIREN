@@ -10,7 +10,7 @@
     @todo
 
 */
-#include "earthmodel-service/EarthModelCalculator.h"
+#include "EarthModelCalculator.h"
 
 using namespace std;
 //------------------------------------------------------

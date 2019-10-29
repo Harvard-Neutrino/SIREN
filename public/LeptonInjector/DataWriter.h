@@ -3,7 +3,7 @@
 
 #include "hdf5/serial/hdf5.h"
 #include <string>
-#include <LeptonInjector/EventProps.h>
+#include <EventProps.h>
 #include <array>
 
 // See https://portal.hdfgroup.org/display/HDF5/HDF5

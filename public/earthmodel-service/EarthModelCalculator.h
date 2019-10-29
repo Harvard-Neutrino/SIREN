@@ -13,8 +13,8 @@
 #define EarthModelCalculator_h
 
 #include <cmath>
-#include <LeptonInjector/Coordinates.h>
-#include <LeptonInjector/Constants.h>
+#include <Coordinates.h>
+#include <Constants.h>
 
 /**
  * @brief This is a namespace which provides a collection of stand-alone 

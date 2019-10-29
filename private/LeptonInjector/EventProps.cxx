@@ -1,5 +1,5 @@
-#include <LeptonInjector/EventProps.h>
-#include <LeptonInjector/Particle.h>
+#include <EventProps.h>
+#include <Particle.h>
 
 namespace LeptonInjector {
 	//Event propery objects

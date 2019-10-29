@@ -3,16 +3,16 @@
 
 #include <queue>
 
-#include "earthmodel-service/EarthModelService.h"
-#include "phys-services/LICrossSection.h"
+#include "EarthModelService.h"
+#include "LICrossSection.h"
 
 #include <photospline/splinetable.h>
 #include <iostream>
 
-#include <LeptonInjector/Coordinates.h>
-#include <LeptonInjector/Constants.h>
-#include <LeptonInjector/Particle.h>
-#include <LeptonInjector/Random.h>
+#include <Coordinates.h>
+#include <Constants.h>
+#include <Particle.h>
+#include <Random.h>
 
 namespace LeptonInjector{
 	

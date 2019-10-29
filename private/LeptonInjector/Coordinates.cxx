@@ -1,4 +1,4 @@
-#include<LeptonInjector/Coordinates.h>
+#include "Coordinates.h"
 #include <array>
 
 namespace LeptonInjector {
