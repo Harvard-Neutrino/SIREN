@@ -88,6 +88,10 @@ namespace LeptonInjector {
         this->earthmodelname = new_name;
     }
 
+    void Controller::NameOutfile( std::string out_file_){
+        out_file = out_file_;
+    }
+
     void Controller::Execute(){
         // setup the injectors! 
 
@@ -193,12 +197,33 @@ namespace LeptonInjector {
             
         } // end for loop constructing generators 
         
+        // open the hdf5 file
+
+        this->datawriter.OpenFile(this->out_file);
+
+        bool generating = true;
+        uint8_t n_gen = 0;
+        while(generating){
+
+            // grab the first genereator, get ready to generate! 
+            LeptonInjectorBase* active = generators.front();
+            active->writer_link = this->datawriter;
+            this->datawriter.AddInjector(active->Name(), active->isRanged() );
+
+            // enters a generating loop. Keep calling generate until it returns FALSE 
+            while( active->Generate() ); 
+            
+            // pop the generator, it's done! 
+            generators.pop_front();
+            active = nullptr; // clean that pointer 
+            if (generators.empty()){ break; } // check if there's another generator, if there isn't, give up
+        }
+
+        // call the destructor on datawriter 
+        delete( &this->datawriter );
 
     } // end execute
 
-	void Controller::Generate(void) {
-
-	}
 
 
 }

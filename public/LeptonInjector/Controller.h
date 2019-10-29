@@ -5,12 +5,12 @@
 #include <Constants.h>
 #include <Coordinates.h>
 #include <boost/shared_ptr.hpp>
+#include <DataWriter.h>
 
 namespace LeptonInjector{
 
 class Controller{
     private:
-        void Generate();
         std::deque<LeptonInjectorBase*> generators;
         std::vector<MinimalInjectionConfiguration> configs; 
 
@@ -28,8 +28,12 @@ class Controller{
         std::shared_ptr<LI_random> random();
         std::string earthmodelname;
 
+        std::string out_file;
+
         RangedInjectionConfiguration rangedConfig;
 		VolumeInjectionConfiguration volumeConfig;
+
+        DataWriter datawriter();
 
     public:
         // default constructor will just use some default minimal injection setup 
@@ -50,6 +54,7 @@ class Controller{
         
         void SetEarthModel( std::string new_name );
         void AddInjector(MinimalInjectionConfiguration configs_received);
+        void NameOutfile( std::string out_file );
         void Execute(); 
 
 
