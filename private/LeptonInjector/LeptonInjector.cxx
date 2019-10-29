@@ -355,7 +355,7 @@ namespace LeptonInjector{
 
 	
 	
-	void RangedLeptonInjector::DAQ(){
+	bool RangedLeptonInjector::Generate(){
 		//first, make sure configuration gets written once
 		
 		//Choose an energy
@@ -410,6 +410,7 @@ namespace LeptonInjector{
 		std::shared_ptr< std::array<h5Particle, 3> > particle_tree = nullptr;
 
 
+
 		FillTree(vertex,dir,energy,*properties, *particle_tree);
 		
 		//set subclass properties
@@ -418,6 +419,8 @@ namespace LeptonInjector{
 
 		//update event count and check for completion
 		eventsGenerated++;
+
+
 	}
 	
 	
@@ -438,7 +441,7 @@ namespace LeptonInjector{
 	
 	
 	
-	void VolumeLeptonInjector::DAQ(){
+	bool VolumeLeptonInjector::Generate(){
 		//first, make sure configuration gets written once
 		/*if(!wroteConfigFrame){
 			boost::shared_ptr<I3Frame> sframe(new I3Frame('S'));
@@ -481,10 +484,12 @@ namespace LeptonInjector{
 
 
 		//package up output and send it
-
+		writer_link->WriteEvent( *properties, (*particle_tree)[0] , (*particle_tree)[1], (*particle_tree)[2]);
 		
 		//update event count and check for completion
 		eventsGenerated++;
+
+		return(  !(eventsGenerated < config.events)  );
 
 	}
 	

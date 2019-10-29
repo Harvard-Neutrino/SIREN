@@ -15,6 +15,7 @@
 #include <Particle.h>
 #include <Random.h>
 #include <EventProps.h>
+#include <DataWriter.h>
 
 namespace LeptonInjector{
 	
@@ -116,10 +117,15 @@ namespace LeptonInjector{
 		LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> rando);
 		virtual ~LeptonInjectorBase();
 		//No implementation of DAQ; this base class should be pure virtual
-		virtual void DAQ();
+		virtual bool Generate();
 		void Finish();
 		//Whether this module has generated as many events already as it was configured to
 		bool DoneGenerating() const{ return(eventsGenerated>=config.events); }
+		virtual std::string Name();
+		virtual bool isRanged();
+
+		std::shared_ptr<DataWriter> writer_link;
+
 	protected:
 		///Add common I3Module parameters
 		//void AddBaseParameters();
@@ -182,7 +188,9 @@ namespace LeptonInjector{
 	public:
 		RangedLeptonInjector();
 		RangedLeptonInjector(RangedInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> rando);
-		void DAQ();
+		bool Generate();
+		std::string Name(){return("RangedInjector");}
+		bool isRanged(){return(true);}
 
 		// the earthmodel will just be a null poitner at instantiation
 		std::shared_ptr<earthmodel::EarthModelService> earthModel = nullptr;
@@ -196,7 +204,9 @@ namespace LeptonInjector{
 	public:
 		VolumeLeptonInjector();
 		VolumeLeptonInjector(VolumeInjectionConfiguration config, std::shared_ptr<LI_random> rando);
-		void DAQ();
+		bool Generate();
+		std::string Name(){return("VolumeInjector");}
+		bool isRanged(){return(false);}
 	private:
 		VolumeInjectionConfiguration config;
 		
