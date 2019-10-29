@@ -16,7 +16,7 @@ namespace LeptonInjector{
             DataWriter();
             ~DataWriter();
 
-            hid_t OpenFile(std::string filename);
+            void OpenFile(std::string filename);
 
             // close the active group and its sub-datasets
             // add a new group for the next injector 
@@ -33,8 +33,6 @@ namespace LeptonInjector{
             // [event][particle]
             hid_t events; 
 
-            // 1D dataset for event properties 
-            hid_t properties; 
             hid_t group_handle;
 
             // handle for the file itself 

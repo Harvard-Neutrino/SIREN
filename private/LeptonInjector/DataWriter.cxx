@@ -7,13 +7,24 @@ namespace LeptonInjector{
 DataWriter::DataWriter(){
 }
 
+// close all the hdf5 things that are open! 
 DataWriter::~DataWriter(){
+    herr_t status;
+    status = H5Tclose( particleTable );
+    status = H5Tclose( rangedPropertiesTable );
+    status = H5Tclose( volumePropertiesTable );
+
+    status = H5Gclose( group_handle ); 
+    status = H5Dclose( events );
+
+    status = H5Fclose( fileHandle );
+
     // deconstructor
     // should kill all the hdf5 stuff
 }
 
 // open the file, establish the datastructure, and create the datatypes that will be written
-hid_t DataWriter::OpenFile( std::string filename ){
+void DataWriter::OpenFile( std::string filename ){
     // open a new file. If one already exists by the same name - overwrite it (H5F_ACC_TRUNC)
     // leave the defaults for property lists
     // the last two can be adjusted to allow for parallel file access as I understand 
