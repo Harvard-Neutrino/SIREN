@@ -98,3 +98,7 @@ ELSE(NOT PYTHON FOUND)
     MESSAGE("-- no python. skipping")
 ENDIF(PYTHON_FOUND)
 
+
+MESSAGE("")
+MESSAGE("Done!")
+MESSAGE("Run `make` then `make install`")
