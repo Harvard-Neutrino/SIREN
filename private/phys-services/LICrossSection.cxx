@@ -229,14 +229,14 @@ I3CrossSection::sampleFinalState_GR(double energy,
 			accept=false;	
 
 		if(accept)
-			accept=!tablesearchcenters(&crossSection,kin_vars.data(),spline_table_center.data());
+			accept=!photospline::splinetable::tablesearchcenters(&crossSection,kin_vars.data(),spline_table_center.data());
 	} while(!accept);
 
 	//TODO: better proposal distribution?
     // dropped the extra term
 	double measure=pow(10.,kin_vars[1]); // By
 
-	cross_section=measure*pow(10.,ndsplineeval(&crossSection,kin_vars.data(),spline_table_center.data(),0)); 
+	cross_section=measure*pow(10.,photospline::splinetable::ndsplineeval(&crossSection,kin_vars.data(),spline_table_center.data(),0)); 
     
 	const size_t burnin=40; // converges to the correct distribution over multiple samplings. 
 	for(size_t j=0; j<=burnin; j++){
@@ -250,12 +250,12 @@ I3CrossSection::sampleFinalState_GR(double energy,
 		if(!accept)
 			continue;
 
-		accept=!tablesearchcenters(&crossSection,test_kin_vars.data(),test_spline_table_center.data());
+		accept=!photospline::splinetable::tablesearchcenters(&crossSection,test_kin_vars.data(),test_spline_table_center.data());
 		if(!accept)
 			continue;
 		
 		double measure=pow(10.,test_kin_vars[1]);
-		double eval=ndsplineeval(&crossSection,test_kin_vars.data(),test_spline_table_center.data(),0);
+		double eval=photospline::splinetable::ndsplineeval(&crossSection,test_kin_vars.data(),test_spline_table_center.data(),0);
 		if(std::isnan(eval))
 			continue;
 		test_cross_section=measure*pow(10.,eval);
@@ -326,7 +326,7 @@ double I3CrossSection::evaluateCrossSection(double energy, double x, double y,
 	std::array<int,3> centers;
 	if(tablesearchcenters(&crossSection,coordinates.data(),centers.data()))
 		return 0;
-	double result=pow(10.,ndsplineeval(&crossSection,coordinates.data(),centers.data(),0));
+	double result=pow(10.,photospline::splinetable::ndsplineeval(&crossSection,coordinates.data(),centers.data(),0));
 	assert(result>=0);
 	return(result);
 }
@@ -342,7 +342,7 @@ double I3CrossSection::evaluateTotalCrossSection(double energy) const{
 	//evaluate
 	int center;
 	tablesearchcenters(&totalCrossSection,&log_energy,&center);
-	double log_xs=ndsplineeval(&totalCrossSection,&log_energy,&center,0);
+	double log_xs=photospline::splinetable::ndsplineeval(&totalCrossSection,&log_energy,&center,0);
 	return(pow(10.,log_xs));
 }
 

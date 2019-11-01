@@ -4,8 +4,6 @@
 #include <cassert>
 #include <fstream>
 
-#include <boost/make_shared.hpp>
-
 // namespace constants = boost::math::constants;
 
 namespace LeptonInjector{
