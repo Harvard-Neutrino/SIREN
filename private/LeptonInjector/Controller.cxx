@@ -101,7 +101,7 @@ namespace LeptonInjector {
 			hasVolume |= !genSet->ranged;
 		}
 
-        LI_random random(this->seed);
+        (*this->random).set_seed(seed);
 
         // sanity check! 
         if (this->minimumEnergy <= 0 ){ throw "minimum energy must be positive"; }
@@ -199,16 +199,15 @@ namespace LeptonInjector {
         
         // open the hdf5 file
 
-        this->datawriter.OpenFile(this->out_file);
+        (*this->datawriter).OpenFile(this->out_file);
 
-        bool generating = true;
         uint8_t n_gen = 0;
-        while(generating){
+        while(true){
 
             // grab the first genereator, get ready to generate! 
             LeptonInjectorBase* active = generators.front();
             active->writer_link = this->datawriter;
-            this->datawriter.AddInjector(active->Name(), active->isRanged() );
+            (*this->datawriter).AddInjector(active->Name(), active->isRanged() );
 
             // enters a generating loop. Keep calling generate until it returns FALSE 
             while( active->Generate() ); 
@@ -218,9 +217,9 @@ namespace LeptonInjector {
             active = nullptr; // clean that pointer 
             if (generators.empty()){ break; } // check if there's another generator, if there isn't, give up
         }
-
-        // call the destructor on datawriter 
-        delete( &this->datawriter );
+        
+        // deconstruct the hdf5 writer. It closes all the hdf5 stuff. 
+        ~(*this->datawriter)();
 
     } // end execute
 
