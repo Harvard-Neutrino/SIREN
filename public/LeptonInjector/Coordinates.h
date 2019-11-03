@@ -5,6 +5,7 @@
 #include <math.h> //sqrt, sin, cos, pow
 #include <exception> //allows throwing the out_of_range exception
 #include <Constants.h>
+#include <limits> //numeric limits
 
 // Implements tools and classes for working with positions and directions
 
