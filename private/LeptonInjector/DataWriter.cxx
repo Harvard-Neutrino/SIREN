@@ -60,25 +60,22 @@ void DataWriter::AddInjector( std::string injector_name , bool ranged){
     events = H5Dcreate(group_handle,name, particleTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT );
     
 
-    delete(&ndims);
-    delete(&dims);
-    delete(&max_dims);
 
-    const hsize_t ndims =1; 
-    hsize_t dims[ndims] = {0};
-    hsize_t max_dims[ndims] = {H5S_UNLIMITED};
-    file_space = H5Screate_simple( ndims, dims, max_dims);
+    const hsize_t ndims2 =1; 
+    hsize_t dims2[ndims2] = {0};
+    hsize_t max_dims2[ndims2] = {H5S_UNLIMITED};
+    hsize_t file_space2 = H5Screate_simple( ndims2, dims2, max_dims2);
 
-    plist = H5Pcreate( H5P_DATASET_CREATE);
-    H5Pset_layout( plist, H5D_CHUNKED);
-    chunk_dims[ndims] = {32768};
-    H5Pset_chunk(plist, ndims, chunk_dims);
+    hid_t plist2 = H5Pcreate( H5P_DATASET_CREATE);
+    H5Pset_layout( plist2, H5D_CHUNKED);
+    hsize_t chunk_dims2[ndims2] = {32768};
+    H5Pset_chunk(plist2, ndims2, chunk_dims2);
 
     const char* props = "properties";
     if (ranged){
-        events = H5Dcreate(group_handle, props , rangedPropertiesTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT );
+        events = H5Dcreate(group_handle, props , rangedPropertiesTable, file_space2, H5P_DEFAULT, plist2, H5P_DEFAULT );
     }else{
-        events = H5Dcreate(group_handle, props , volumePropertiesTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT );
+        events = H5Dcreate(group_handle, props , volumePropertiesTable, file_space2, H5P_DEFAULT, plist2, H5P_DEFAULT );
     }
 }
 
