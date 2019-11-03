@@ -15,6 +15,8 @@
 #include <cmath>
 #include <Coordinates.h>
 #include <Constants.h>
+#include <vector>
+#include <cassert>
 
 /**
  * @brief This is a namespace which provides a collection of stand-alone 
