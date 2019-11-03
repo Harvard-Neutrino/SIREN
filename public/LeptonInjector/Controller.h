@@ -23,8 +23,8 @@ class Controller{
         double injectionRadius, endcapLength;
         double cylinderRadius, cylinderHeight;
 
-        const earthmodel::EarthModelService earth();
-        const LI_random random_obj();
+        earthmodel::EarthModelService earth();
+        LI_random random_obj();
 
         const std::shared_ptr<earthmodel::EarthModelService> earthModel = std::make_shared<earthmodel::EarthModelService>(earth);
         const std::shared_ptr<LI_random> random = std::make_shared<LI_random>(random_obj);
@@ -35,7 +35,7 @@ class Controller{
         RangedInjectionConfiguration rangedConfig;
 		VolumeInjectionConfiguration volumeConfig;
 
-        std::shared_ptr<DataWriter> datawriter();
+        std::shared_ptr<DataWriter> datawriter = std::make_shared<DataWriter>( DataWriter() );
 
     public:
         // default constructor will just use some default minimal injection setup 

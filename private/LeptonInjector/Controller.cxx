@@ -202,7 +202,7 @@ namespace LeptonInjector {
         
         // open the hdf5 file
 
-        (*this->datawriter).OpenFile(this->out_file);
+        this->datawriter->OpenFile(this->out_file);
 
         uint8_t n_gen = 0;
         while(true){
@@ -210,19 +210,19 @@ namespace LeptonInjector {
             // grab the first genereator, get ready to generate! 
             LeptonInjectorBase* active = generators.front();
             active->writer_link = this->datawriter;
-            (*this->datawriter).AddInjector(active->Name(), active->isRanged() );
+            this->datawriter->AddInjector(active->Name(), active->isRanged() );
 
             // enters a generating loop. Keep calling generate until it returns FALSE 
             while( active->Generate() ); 
             
             // pop the generator, it's done! 
-            generators.pop_front();
             active = nullptr; // clean that pointer 
+            generators.pop_front();
             if (generators.empty()){ break; } // check if there's another generator, if there isn't, give up
         }
         
         // deconstruct the hdf5 writer. It closes all the hdf5 stuff. 
-        ~(*this->datawriter)();
+        this->datawriter->~DataWriter();
 
     } // end execute
 

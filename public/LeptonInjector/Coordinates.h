@@ -18,25 +18,6 @@ namespace LeptonInjector {
 	// but... maybe one day we want more dimensions, and don't want to have to rewrite all of this? 
 	static const int n_dimensions = 3;
 
-
-	// Creating a "LI_Direction" to mimic the I3_Direction object
-	// this should behave in the same exact way, at least within the scope of this project 
-	class LI_Direction{
-		public:
-			LI_Direction();
-			virtual ~LI_Direction();
-
-			LI_Direction( double theta, double phi);
-			LI_Direction( std::array<double, 2> dir);
-			LI_Direction( std::pair<double, double> dir);
-			LI_Direction( LI_Direction* old_one);
-			LI_Direction( LI_Position* vec );  // get the direction of a vector 
-
-			
-			double zenith;
-			double azimuth;
-	};
-
 	// Creating a "LI_Position" to mimic the I3_Position object
 	// this is more accurately described as a vector in cartesian coordinates
 	//
@@ -69,6 +50,25 @@ namespace LeptonInjector {
 		private:
 			std::array<double, n_dimensions> position;
 	};
+
+	// Creating a "LI_Direction" to mimic the I3_Direction object
+	// this should behave in the same exact way, at least within the scope of this project 
+	class LI_Direction{
+		public:
+			LI_Direction();
+			virtual ~LI_Direction();
+
+			LI_Direction( double theta, double phi);
+			LI_Direction( std::array<double, 2> dir);
+			LI_Direction( std::pair<double, double> dir);
+			LI_Direction( LI_Direction* old_one);
+			LI_Direction( LI_Position* vec );  // get the direction of a vector 
+
+			
+			double zenith;
+			double azimuth;
+	};
+	
 
 	// these functions rotate a 3-vector about some axis
 	// assumes vector is in cartesian coordinates
