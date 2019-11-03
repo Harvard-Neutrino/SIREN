@@ -27,20 +27,6 @@ namespace LeptonInjector{
 	
 	BasicInjectionConfiguration::~BasicInjectionConfiguration(){}
 	
-	void BasicInjectionConfiguration::fill_with(BasicInjectionConfiguration& paul){
-		this->events 		= paul.events;
-		this->energyMinimum = paul.energyMinimum; 
-		this->energyMaximum = paul.energyMaximum; 
-		this->powerlawIndex = paul.powerlawIndex; 
-		this->azimuthMinimum= paul.azimuthMinimum; 
-		this->azimuthMaximum= paul.azimuthMaximum; 
-		this->zenithMinimum = paul.zenithMinimum; 
-		this->zenithMaximum = paul.zenithMaximum; 
-		this->finalType1    = paul.finalType1; 
-		this->finalType2    = paul.finalType2; 
-		this->finalType2    = paul.finalType2; 
-
-	}
 
 	RangedInjectionConfiguration::RangedInjectionConfiguration():
 	injectionRadius(1200*LeptonInjector::Constants::m),
@@ -57,13 +43,6 @@ namespace LeptonInjector{
 	VolumeInjectionConfiguration::~VolumeInjectionConfiguration(){}
 	
 
-
-
-	// TODO: update this, find out where the splinetable object is coming from 
-	void BasicInjectionConfiguration::setCrossSection(const photospline::splinetable<>& crossSection, const photospline::splinetable<>& totalCrossSection){
-		crossSection.read_fits("test");
-	}
-	
 	
 	/* Commented out while I work on the replacement to this function! 
 	void BasicInjectionConfiguration::setCrossSection(const photospline::splinetable<>& crossSection, const photospline::splinetable<>& totalCrossSection){
@@ -104,84 +83,23 @@ namespace LeptonInjector{
 		//config = BasicInjectionConfiguration();
 	}
 
-	LeptonInjectorBase::LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> rando):
+	LeptonInjectorBase::LeptonInjectorBase(BasicInjectionConfiguration& config):
 	config(config),
 	eventsGenerated(0),
 	wroteConfigFrame(false),
 	suspendOnCompletion(true){
-		this->BaseConfigure( rando );
 	}
 	
 	LeptonInjectorBase::~LeptonInjectorBase(){
 	}
 	
-	/*void LeptonInjectorBase::AddBaseParameters(){
-		AddParameter("NEvents",
-					 "Number of events to generate",
-					 config.events);
-		AddParameter("MinimumEnergy",
-					 "Minimum total event energy to inject",
-					 config.energyMinimum);
-		AddParameter("MaximumEnergy",
-					 "Maximum total event energy to inject",
-					 config.energyMaximum);
-		AddParameter("PowerlawIndex",
-					 "Powerlaw index of the energy spectrum to inject "
-					 "(should be positive)",
-					 config.powerlawIndex);
-		AddParameter("MinimumAzimuth",
-					 "Minimum azimuth angle for injected events",
-					 config.azimuthMinimum);
-		AddParameter("MaximumAzimuth",
-					 "Maximum azimuth angle for injected events",
-					 config.azimuthMaximum);
-		AddParameter("MinimumZenith",
-					 "Minimum zenith angle for injected events",
-					 config.zenithMinimum);
-		AddParameter("MaximumZenith",
-					 "Maximum zenith angle for injected events",
-					 config.zenithMaximum);
-		AddParameter("FinalType1",
-					 "The first particle type in the final state",
-					 config.finalType1);
-		AddParameter("FinalType2",
-					 "The seocnd particle type in the final state",
-					 config.finalType2);
-		AddParameter("RandomService",
-					 "Name of the random service to use",
-					 "I3RandomService");
-		AddParameter("DoublyDifferentialCrossSectionFile",
-					 "Path to the spline FITS file representing the doubly-differential cross section",
-					 "");
-		AddParameter("TotalCrossSectionFile",
-					 "Path to the spline FITS file representing the total cross section as a function of energy"
-					 " (same as DoublyDifferentialCrossSectionFile but integrated over x and y)",
-					 "");
-		AddParameter("SuspendOnCompletion",
-					 "Suspend the tray after all events have been generated",
-					 suspendOnCompletion);
-	}*/
-	
-	void LeptonInjectorBase::BaseConfigure(std::shared_ptr<LI_random> pass){
-		std::string randomServiceName;
-		std::string dd_crossSectionFile;
-		std::string total_crossSectionFile;
+	void LeptonInjectorBase::Configure(const MinimalInjectionConfiguration basic, std::shared_ptr<LI_random> pass){
 		
+		this->random = pass;
+		this->config.events = basic.events;
+		this->config.finalType1 = basic.finalType1;
+		this->config.finalType2 = basic.finalType2;
 
-		/*GetParameter("NEvents",config.events);
-		GetParameter("MinimumEnergy",config.energyMinimum);
-		GetParameter("MaximumEnergy",config.energyMaximum);
-		GetParameter("PowerlawIndex",config.powerlawIndex);
-		GetParameter("MinimumAzimuth",config.azimuthMinimum);
-		GetParameter("MaximumAzimuth",config.azimuthMaximum);
-		GetParameter("MinimumZenith",config.zenithMinimum);
-		GetParameter("MaximumZenith",config.zenithMaximum);
-		GetParameter("FinalType1",config.finalType1);
-		GetParameter("FinalType2",config.finalType2);
-		GetParameter("RandomService",randomServiceName);
-		GetParameter("DoublyDifferentialCrossSectionFile",dd_crossSectionFile);
-		GetParameter("TotalCrossSectionFile",total_crossSectionFile);
-		GetParameter("SuspendOnCompletion",suspendOnCompletion);*/
 		
 		if(this->config.events==0)
 			throw("there's no point in running this if you don't generate at least one event");
@@ -210,15 +128,14 @@ namespace LeptonInjector{
 		}
 
 		// write the pointer to the RNG
-		this->random = pass;
 		if(!random)
 			throw("A random service is required");
-		if(dd_crossSectionFile.empty())
+		if(basic.crossSectionPath.empty())
 			throw(": DoublyDifferentialCrossSectionFile must be specified");
-		else if(total_crossSectionFile.empty())
+		else if(basic.totalCrossSectionPath.empty())
 			throw(": TotalCrossSectionFile must be specified");
 		else
-			crossSection.load(dd_crossSectionFile,total_crossSectionFile);
+			crossSection.load(basic.crossSectionPath,basic.totalCrossSectionPath);
 	}
 	
 	void LeptonInjectorBase::Finish(){
@@ -364,8 +281,8 @@ namespace LeptonInjector{
 	LeptonInjectorBase(){
 	}
 	
-	RangedLeptonInjector::RangedLeptonInjector( RangedInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModelService> earth_, std::shared_ptr<LI_random> rando_):
-	LeptonInjectorBase(config, rando_),config(config_){
+	RangedLeptonInjector::RangedLeptonInjector( RangedInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModelService> earth_):
+	LeptonInjectorBase(config),config(config_){
 		this->earthModel = earth_;
 		if(config.injectionRadius<0)
 			throw(": InjectionRadius must be non-negative");
@@ -454,8 +371,8 @@ namespace LeptonInjector{
 	LeptonInjectorBase(){
 	}
 	
-	VolumeLeptonInjector::VolumeLeptonInjector(VolumeInjectionConfiguration config_, std::shared_ptr<LI_random> rando_):
-	LeptonInjectorBase(config, rando_),config(config_){
+	VolumeLeptonInjector::VolumeLeptonInjector(VolumeInjectionConfiguration config_):
+	LeptonInjectorBase(config),config(config_){
 		if(config.cylinderRadius<0)
 			throw(": CylinderRadius must be non-negative");
 		if(config.cylinderHeight<0)

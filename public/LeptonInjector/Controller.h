@@ -4,7 +4,6 @@
 #include <LeptonInjector.h>
 #include <Constants.h>
 #include <Coordinates.h>
-#include <boost/shared_ptr.hpp>
 #include <DataWriter.h>
 
 namespace LeptonInjector{
@@ -24,8 +23,11 @@ class Controller{
         double injectionRadius, endcapLength;
         double cylinderRadius, cylinderHeight;
 
-        const std::shared_ptr<earthmodel::EarthModelService> earthModel();
-        const std::shared_ptr<LI_random> random();
+        const earthmodel::EarthModelService earth();
+        const LI_random random_obj();
+
+        const std::shared_ptr<earthmodel::EarthModelService> earthModel = std::make_shared<earthmodel::EarthModelService>(earth);
+        const std::shared_ptr<LI_random> random = std::make_shared<LI_random>(random_obj);
         std::string earthmodelname;
 
         std::string out_file;

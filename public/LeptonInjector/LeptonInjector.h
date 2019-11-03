@@ -52,7 +52,6 @@ namespace LeptonInjector{
 		std::vector<char> crossSectionBlob;
 		std::vector<char> totalCrossSectionBlob;
 
-		void fill_with(BasicInjectionConfiguration& paul);			
 		void setCrossSection(const photospline::splinetable<>& crossSection, const photospline::splinetable<>& totalCrossSection);
 	};
 	
@@ -117,7 +116,7 @@ namespace LeptonInjector{
 	class LeptonInjectorBase {
 	public:
 		LeptonInjectorBase();
-		LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> rando);
+		LeptonInjectorBase(BasicInjectionConfiguration& config);
 		virtual ~LeptonInjectorBase();
 		//No implementation of DAQ; this base class should be pure virtual
 		virtual bool Generate();
@@ -127,6 +126,8 @@ namespace LeptonInjector{
 		virtual std::string Name();
 		virtual bool isRanged();
 
+		void Configure(const MinimalInjectionConfiguration basic, std::shared_ptr<LI_random> pass);
+
 		std::shared_ptr<DataWriter> writer_link;
 
 	protected:
@@ -134,7 +135,6 @@ namespace LeptonInjector{
 		//void AddBaseParameters();
 		
 		///Get common I3Module parameter values
-		void BaseConfigure(std::shared_ptr<LI_random> pass);
 		
 		///Sample a random position on a disk with a given size and orientation.
 		///The disk is always centered on the origin of the coordinate system.
@@ -190,7 +190,7 @@ namespace LeptonInjector{
 	class RangedLeptonInjector : public LeptonInjectorBase{
 	public:
 		RangedLeptonInjector();
-		RangedLeptonInjector(RangedInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> rando);
+		RangedLeptonInjector(RangedInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth);
 		bool Generate();
 		std::string Name(){return("RangedInjector");}
 		bool isRanged(){return(true);}
@@ -206,7 +206,7 @@ namespace LeptonInjector{
 	class VolumeLeptonInjector : public LeptonInjectorBase{
 	public:
 		VolumeLeptonInjector();
-		VolumeLeptonInjector(VolumeInjectionConfiguration config, std::shared_ptr<LI_random> rando);
+		VolumeLeptonInjector(VolumeInjectionConfiguration config);
 		bool Generate();
 		std::string Name(){return("VolumeInjector");}
 		bool isRanged(){return(false);}

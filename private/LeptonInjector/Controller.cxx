@@ -115,6 +115,7 @@ namespace LeptonInjector {
         if (this->minimumZenith >this->maximumZenith){throw "Max zenith must be greater or equal to min.";}
 
         // first, construct the template injector configuration objects
+        // with only those criteria shared between Configurations 
         this->rangedConfig.energyMinimum = this->minimumEnergy; 
         this->rangedConfig.energyMaximum = this->maximumEnergy; 
         this->rangedConfig.powerlawIndex = this->powerlawIndex; 
@@ -163,19 +164,21 @@ namespace LeptonInjector {
 //            log_debug_stream("Configuring injector " << i << ":");
             LeptonInjectorBase* generator=NULL;
             try{
+                
+
                 if(genSet->ranged){
                     //log_debug_stream(" this is a ranged injector");
-                    RangedLeptonInjector* generator = new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->random);
+                    RangedLeptonInjector* generator = new RangedLeptonInjector(this->rangedConfig, this->earthModel);
                     generator->earthModel = this->earthModel;
                 }
                 else{ //volume
                     //log_debug_stream(" this is a volume injector");
-                    VolumeLeptonInjector* generator= new VolumeLeptonInjector(this->volumeConfig, this->random);
+                    VolumeLeptonInjector* generator= new VolumeLeptonInjector(this->volumeConfig);
                 }
-                
-                
+                                
                 //set properties not shared with other injectors, or which are not part of the config object
 
+                generator->Configure( *genSet, this->random );
 
                 /*
                 generator->GetConfiguration().Set("NEvents",boost::python::object(genSet->events));
