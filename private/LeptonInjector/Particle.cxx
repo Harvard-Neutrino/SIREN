@@ -1,5 +1,5 @@
 #include <math.h> // adds sqrt, power functions
-#include <LeptonInjector/Particle.h>
+#include <Particle.h>
 #include <assert.h>
 
 namespace LeptonInjector{
@@ -199,7 +199,7 @@ namespace LeptonInjector{
 			case ParticleType::Hadrons:
 				return(ParticleShape::Cascade);
 			default:
-                throw BadShape; // this replaces the previous fatal log
+                throw "BadShape"; // this replaces the previous fatal log
 //				log_fatal_stream("Unable to decide shape for unexpected particle type: " << particleName(t));
 		}
 	}
@@ -209,12 +209,12 @@ namespace LeptonInjector{
 	ParticleType deduceInitialType(ParticleType pType1, ParticleType pType2){
 		//only accept certain particle types in general
 		if(!isLepton(pType1) && pType1!=ParticleType::Hadrons)
-            throw BadParticle; //replace log
+            throw "BadParticle"; //replace log
 //			log_fatal_stream("Unexpected particle type: "
 //							 << particleName(pType1)
 //							 << ";\nonly leptons and 'Hadrons' are supported");
 		if(!isLepton(pType2) && pType2!=ParticleType::Hadrons)
-            throw BadParticle;
+            throw "BadParticle";
 //			log_fatal_stream("Unexpected particle type: "
 //							 << particleName(pType2)
 //							 << ";\nonly leptons and 'Hadrons' are supported");
@@ -248,7 +248,7 @@ namespace LeptonInjector{
 				//log_info_stream(particleName(pType1) << ", " << particleName(pType2) << " identified as Glashow Resonance (leptonic)");
 				return(ParticleType::NuEBar);
 			}
-            throw BadFinal;
+            throw "BadFinal";
 //			log_fatal_stream("Unrecognized final state type: " << particleName(pType1) << " and " << particleName(pType2));
 		}
 		
@@ -259,7 +259,7 @@ namespace LeptonInjector{
 //				log_info_stream(particleName(pType1) << ", " << particleName(pType2) << " identified as Neutral Current");
 				return(pType1); //the incoming neutrino type is the same as the outgoing
 			}
-            throw BadFinal;
+            throw "BadFinal";
 //			log_fatal_stream("Unrecognized final state type: " << particleName(pType1) << " and " << particleName(pType2));
 		}
 		
@@ -267,12 +267,12 @@ namespace LeptonInjector{
 		if(c1 && c2){
 			//no two charged lepton states
 			if(l1 && l2)
-                throw BadFinal;
+                throw "BadFinal";
 //				log_fatal_stream("Two charged lepton final states are not allowed.\n"
 //								 << "Specified particles were " << particleName(pType1) << " and " << particleName(pType2));
 			//lepton should be given first
 			if(!l1 && l2)
-                throw BadFinal;
+                throw "BadFinal";
 //				log_fatal_stream("Final states should specify charged leptons before 'Hadrons'.\n"
 //								 << "Specified particles were " << particleName(pType1) << " and " << particleName(pType2));
 			
@@ -294,8 +294,11 @@ namespace LeptonInjector{
 			}
 		}
         throw "You must be a wizard: this point should be unreachable";
-//log_fatal("Logic error; this point should be unreachable");
+        //log_fatal("Logic error; this point should be unreachable");
 	}
+
+
+    // Particle-based exceptions:
 
 
 } // end namespace LI_Particle

@@ -1,4 +1,4 @@
-#include <LeptonInjector/Random.h>
+#include <Random.h>
 
 namespace LeptonInjector{
 

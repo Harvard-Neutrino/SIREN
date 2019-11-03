@@ -11,7 +11,7 @@
 #include <exception>
 #include <utility> // std::pair
 
-#include "Constants.h"
+#include <Constants.h>
 
 // positions are in Cartesian, centered in the middle of IceCube
 
@@ -217,26 +217,6 @@ namespace LeptonInjector{
     //      cascades 
     //      tracks
     enum class ParticleShape{ MCTrack, Cascade };
-
-    // Particle-based exceptions:
-
-    class BadParticleShape: public std::exception{
-        virtual const char* what() const throw(){
-        return("Unable to decide shape for unexpected particle type");
-        }
-    } BadShape;
-
-    class BadParticleType: public std::exception{
-        virtual const char* what() const throw(){
-            return("Unexpected particle type.");
-        }
-    } BadParticle;
-
-    class BadFinalState: public std::exception{
-        virtual const char* what() const throw(){
-            return("Unexpected final state");
-        }
-    } BadFinal;
 
     // prototype some of the particle helper functions
 
