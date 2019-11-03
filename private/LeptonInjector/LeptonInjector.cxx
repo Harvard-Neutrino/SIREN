@@ -27,6 +27,21 @@ namespace LeptonInjector{
 	
 	BasicInjectionConfiguration::~BasicInjectionConfiguration(){}
 	
+	void BasicInjectionConfiguration::fill_with(BasicInjectionConfiguration& paul){
+		this->events 		= paul.events;
+		this->energyMinimum = paul.energyMinimum; 
+		this->energyMaximum = paul.energyMaximum; 
+		this->powerlawIndex = paul.powerlawIndex; 
+		this->azimuthMinimum= paul.azimuthMinimum; 
+		this->azimuthMaximum= paul.azimuthMaximum; 
+		this->zenithMinimum = paul.zenithMinimum; 
+		this->zenithMaximum = paul.zenithMaximum; 
+		this->finalType1    = paul.finalType1; 
+		this->finalType2    = paul.finalType2; 
+		this->finalType2    = paul.finalType2; 
+
+	}
+
 	RangedInjectionConfiguration::RangedInjectionConfiguration():
 	injectionRadius(1200*LeptonInjector::Constants::m),
 	endcapLength(1200*LeptonInjector::Constants::m)
@@ -41,8 +56,17 @@ namespace LeptonInjector{
 	
 	VolumeInjectionConfiguration::~VolumeInjectionConfiguration(){}
 	
+
+
+
 	// TODO: update this, find out where the splinetable object is coming from 
-	void BasicInjectionConfiguration::setCrossSection(const photospline::splinetable& crossSection, const photospline::splinetable& totalCrossSection){
+	void BasicInjectionConfiguration::setCrossSection(const photospline::splinetable<>& crossSection, const photospline::splinetable<>& totalCrossSection){
+		crossSection.read_fits("test");
+	}
+	
+	
+	/* Commented out while I work on the replacement to this function! 
+	void BasicInjectionConfiguration::setCrossSection(const photospline::splinetable<>& crossSection, const photospline::splinetable<>& totalCrossSection){
 		photospline::splinetable_buffer buf;
 		buf.size=0;
 		buf.mem_alloc=&malloc;
@@ -67,6 +91,7 @@ namespace LeptonInjector{
 		std::copy((char*)buf.data,(char*)buf.data+buf.size,&totalCrossSectionBlob[0]);
 		free(buf.data);
 	}
+	*/
 	
 	//--------------------
 
@@ -85,7 +110,6 @@ namespace LeptonInjector{
 	wroteConfigFrame(false),
 	suspendOnCompletion(true){
 		this->BaseConfigure( rando );
-		//do NOTHING with config in this constructor, as it is not yet fully constructed
 	}
 	
 	LeptonInjectorBase::~LeptonInjectorBase(){
@@ -143,6 +167,7 @@ namespace LeptonInjector{
 		std::string dd_crossSectionFile;
 		std::string total_crossSectionFile;
 		
+
 		/*GetParameter("NEvents",config.events);
 		GetParameter("MinimumEnergy",config.energyMinimum);
 		GetParameter("MaximumEnergy",config.energyMaximum);
@@ -407,13 +432,13 @@ namespace LeptonInjector{
 		std::shared_ptr<RangedEventProperties> properties(new RangedEventProperties);
 		std::shared_ptr< std::array<h5Particle, 3> > particle_tree = nullptr;
 
-
+		properties->impactParameter=(pca-LI_Position(0,0,0)).Magnitude();
+		properties->totalColumnDepth=totalColumnDepth;
 
 		FillTree(vertex,dir,energy,*properties, *particle_tree);
 		
 		//set subclass properties
-		properties->impactParameter=(pca-LI_Position(0,0,0)).Magnitude();
-		properties->totalColumnDepth=totalColumnDepth;
+		
 
 		//update event count and check for completion
 		eventsGenerated++;
