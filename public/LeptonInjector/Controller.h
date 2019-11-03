@@ -23,11 +23,9 @@ class Controller{
         double injectionRadius, endcapLength;
         double cylinderRadius, cylinderHeight;
 
-        earthmodel::EarthModelService earth();
-        LI_random random_obj();
 
-        const std::shared_ptr<earthmodel::EarthModelService> earthModel = std::make_shared<earthmodel::EarthModelService>(earth);
-        const std::shared_ptr<LI_random> random = std::make_shared<LI_random>(random_obj);
+        const std::shared_ptr<earthmodel::EarthModelService> earthModel = std::make_shared<earthmodel::EarthModelService>( earthmodel::EarthModelService("earf") );
+        const std::shared_ptr<LI_random> random = std::make_shared<LI_random>( LI_random() );
         std::string earthmodelname;
 
         std::string out_file;
