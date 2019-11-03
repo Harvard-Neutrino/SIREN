@@ -32,15 +32,15 @@
 class I3CrossSection{
 public:
 	I3CrossSection(){
-		memset(&crossSection,0,sizeof(photospline::splinetable));
-		memset(&totalCrossSection,0,sizeof(splinetable));
+		memset(&crossSection,0,sizeof(photospline::splinetable<>));
+		memset(&totalCrossSection,0,sizeof(photospline::splinetable<>));
 	}
 	
 	///\param dd_crossSectionFile path to the doubly-differential cross section spline to load
 	///\param total_crossSectionFile path to the total cross section file to load
 	I3CrossSection(std::string dd_crossSectionFile, std::string total_crossSectionFile){
-		memset(&crossSection,0,sizeof(photospline::splinetable));
-		memset(&totalCrossSection,0,sizeof(splinetable));
+		memset(&crossSection,0,sizeof(photospline::splinetable<>));
+		memset(&totalCrossSection,0,sizeof(photospline::splinetable<>));
 		load(dd_crossSectionFile, total_crossSectionFile);
 	}
 	
@@ -88,12 +88,12 @@ public:
 	///\return the cross section in in square meters
 	double evaluateTotalCrossSection(double energy) const;
 
-	const photospline::splinetable& getCrossSection() const{ return(crossSection); }
-	const photospline::splinetable& getTotalCrossSection() const{ return(totalCrossSection); }
+	const photospline::splinetable<>& getCrossSection() const{ return(crossSection); }
+	const photospline::splinetable<>& getTotalCrossSection() const{ return(totalCrossSection); }
 
 	~I3CrossSection(){
-		splinetable_free(&crossSection);
-		splinetable_free(&totalCrossSection);
+		crossSection.~splinetable();
+		totalCrossSection.~splinetable();
 	}
 
 	///\param dd_crossSectionFile path to the doubly-differential cross section spline to load
@@ -116,8 +116,8 @@ public:
     int GetInteraction() const{ return interaction; }
 
 private:
-	photospline::splinetable crossSection;
-	photospline::splinetable totalCrossSection;
+	photospline::splinetable<> crossSection;
+	photospline::splinetable<> totalCrossSection;
 	///The minimum value of Q^2 for which the cross section was calculated
 	double Q2Min; 
 	///The mass of the target nucleon

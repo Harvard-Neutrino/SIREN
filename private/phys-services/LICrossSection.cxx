@@ -46,8 +46,8 @@ I3CrossSection::sampleFinalState_DIS(double energy,
     // Uses Metropolis-Hastings Algorithm! 
     //      useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional 
     
-    if (crossSection.ndim!=3){
-        throw("I expected 3 dimensions in the cross section spline, but got "+std::to_string(crossSection.ndim) +". Maybe your fits file doesn't have the right 'INTERACTION' key?");
+    if (crossSection.get_ndim()!=3){
+        throw("I expected 3 dimensions in the cross section spline, but got "+std::to_string(crossSection.get_ndim()) +". Maybe your fits file doesn't have the right 'INTERACTION' key?");
     }
 
 	double m=LeptonInjector::particleMass(scatteredType);
@@ -83,11 +83,11 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 	kin_vars[0] = test_kin_vars[0] = log10(energy);
 
 	//check preconditions
-	if(kin_vars[0]<crossSection.extents[0][0]
-	   || kin_vars[0]>crossSection.extents[0][1])
+	if(kin_vars[0]<crossSection.lower_extent(0)
+	   || kin_vars[0]>crossSection.upper_extent(0))
 	throw("Interaction energy out of cross section table range: ["
-	                 + std::to_string(pow(10.,crossSection.extents[0][0])) + " GeV,"
-	                 + std::to_string(pow(10.,crossSection.extents[0][1])) + " GeV]");
+	                 + std::to_string(pow(10.,crossSection.lower_extent(0))) + " GeV,"
+	                 + std::to_string(pow(10.,crossSection.upper_extent(0))) + " GeV]");
 	
 	//sample an intial point
 	do{
@@ -101,18 +101,18 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 
 		accept=true;
 		//sanity check: demand that the sampled point be within the table extents
-		if(kin_vars[1]<crossSection.extents[1][0]
-		   || kin_vars[1]>crossSection.extents[1][1])
+		if(kin_vars[1]<crossSection.lower_extent(1)
+		   || kin_vars[1]>crossSection.upper_extent(1))
 			accept=false;
-        if(kin_vars[2]<crossSection.extents[2][0]
-		   || kin_vars[2]>crossSection.extents[2][1])
+        if(kin_vars[2]<crossSection.lower_extent(2)
+		   || kin_vars[2]>crossSection.upper_extent(2))
 			accept=false;
         
 
 		if(accept)
             // finds the centers in the cross section spline table, returns true if it's successful
             //      also sets the centers
-			accept=!tablesearchcenters(&crossSection,kin_vars.data(),spline_table_center.data());
+			accept=!crossSection.searchcenters(kin_vars.data(),spline_table_center.data());
 	} while(!accept);
 
 	//TODO: better proposal distribution?
@@ -120,7 +120,7 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 
     // Bx * By * xs(E, x, y)
     // evalutates the differential spline at that point? 
-	cross_section=measure*pow(10.,ndsplineeval(&crossSection,kin_vars.data(),spline_table_center.data(),0)); 
+	cross_section=measure*pow(10.,crossSection.ndsplineeval(kin_vars.data(),spline_table_center.data(),0)); 
     
     // this is the magic part. Metropolis Hastings Algorithm.
     // MCMC method! 
@@ -136,21 +136,21 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 		}while(trialQ<Q2Min || !kinematicallyAllowed(pow(10.,test_kin_vars[1]),pow(10.,test_kin_vars[2]),energy,targetMass,m));
 
 		accept=true;
-        if(test_kin_vars[1]<crossSection.extents[1][0]
-		   || test_kin_vars[1]>crossSection.extents[1][1])
+        if(test_kin_vars[1]<crossSection.lower_extent(1)
+		   || test_kin_vars[1]>crossSection.upper_extent(1))
 			accept=false;
-		if(test_kin_vars[2]<crossSection.extents[2][0]
-		   || test_kin_vars[2]>crossSection.extents[2][1])
+		if(test_kin_vars[2]<crossSection.lower_extent(2)
+		   || test_kin_vars[2]>crossSection.upper_extent(2))
 			accept=false;
 		if(!accept)
 			continue;
 
-		accept=!tablesearchcenters(&crossSection,test_kin_vars.data(),test_spline_table_center.data());
+		accept=!crossSection.searchcenters(test_kin_vars.data(),test_spline_table_center.data());
 		if(!accept)
 			continue;
 		
 		double measure=pow(10.,test_kin_vars[1]+test_kin_vars[2]);
-		double eval=ndsplineeval(&crossSection,test_kin_vars.data(),test_spline_table_center.data(),0);
+		double eval=crossSection.ndsplineeval(test_kin_vars.data(),test_spline_table_center.data(),0);
 		if(std::isnan(eval))
 			continue;
 		test_cross_section=measure*pow(10.,eval);
@@ -174,8 +174,8 @@ I3CrossSection::sampleFinalState_GR(double energy,
                                 std::shared_ptr<LeptonInjector::LI_random> random) const{
     // this does the work for GR interactions.
     // should be like (log(E) vs log(Bjorken Y))
-    if (crossSection.ndim!=2){
-        throw("I expected a 2D cross section spline, but got "+std::to_string(crossSection.ndim)+" dimensions. Are you sure this is the right fits file? Check the 'INTERACTION' key!");
+    if (crossSection.get_ndim()!=2){
+        throw("I expected a 2D cross section spline, but got "+std::to_string(crossSection.get_ndim())+" dimensions. Are you sure this is the right fits file? Check the 'INTERACTION' key!");
     }
    
     ///
@@ -207,11 +207,11 @@ I3CrossSection::sampleFinalState_GR(double energy,
 	kin_vars[0] = test_kin_vars[0] = log10(energy);
 
 	//check preconditions
-	if(kin_vars[0]<crossSection.extents[0][0]
-	   || kin_vars[0]>crossSection.extents[0][1])
+	if(kin_vars[0]<crossSection.lower_extent(0)
+	   || kin_vars[0]>crossSection.upper_extent(0))
 	throw("Interaction energy out of cross section table range: ["
-	                 + std::to_string(pow(10.,crossSection.extents[0][0])) + " GeV,"
-	                 + std::to_string(pow(10.,crossSection.extents[0][1])) + " GeV]");
+	                 + std::to_string(pow(10.,crossSection.lower_extent(0))) + " GeV,"
+	                 + std::to_string(pow(10.,crossSection.upper_extent(0))) + " GeV]");
 	
 	//sample an intial point
 	do{
@@ -224,19 +224,20 @@ I3CrossSection::sampleFinalState_GR(double energy,
         
 		accept=true;
         //only one dimension to ckeck in this case
-		if(kin_vars[1]<crossSection.extents[1][0]
-		   || kin_vars[1]>crossSection.extents[1][1])
+		if(kin_vars[1]<crossSection.lower_extent(1)
+		   || kin_vars[1]>crossSection.upper_extent(1))
 			accept=false;	
 
 		if(accept)
-			accept=!photospline::splinetable::tablesearchcenters(&crossSection,kin_vars.data(),spline_table_center.data());
+			crossSection.ndsplineeval(kin_vars.data(), spline_table_center.data(),0);
+			accept=!crossSection.searchcenters(kin_vars.data(),spline_table_center.data());
 	} while(!accept);
 
 	//TODO: better proposal distribution?
     // dropped the extra term
 	double measure=pow(10.,kin_vars[1]); // By
 
-	cross_section=measure*pow(10.,photospline::splinetable::ndsplineeval(&crossSection,kin_vars.data(),spline_table_center.data(),0)); 
+	cross_section=measure*pow(10.,crossSection.ndsplineeval(kin_vars.data(),spline_table_center.data(),0)); 
     
 	const size_t burnin=40; // converges to the correct distribution over multiple samplings. 
 	for(size_t j=0; j<=burnin; j++){
@@ -244,18 +245,18 @@ I3CrossSection::sampleFinalState_GR(double energy,
 		test_kin_vars[1]=random->Uniform(logYMin,logYMax);
 
 		accept=true;
-        if(test_kin_vars[1]<crossSection.extents[1][0]
-		   || test_kin_vars[1]>crossSection.extents[1][1])
+        if(test_kin_vars[1]<crossSection.lower_extent(1)
+		   || test_kin_vars[1]>crossSection.upper_extent(1))
 			accept=false;
 		if(!accept)
 			continue;
 
-		accept=!photospline::splinetable::tablesearchcenters(&crossSection,test_kin_vars.data(),test_spline_table_center.data());
+		accept=!crossSection.searchcenters(test_kin_vars.data(),test_spline_table_center.data());
 		if(!accept)
 			continue;
 		
 		double measure=pow(10.,test_kin_vars[1]);
-		double eval=photospline::splinetable::ndsplineeval(&crossSection,test_kin_vars.data(),test_spline_table_center.data(),0);
+		double eval=crossSection.ndsplineeval(test_kin_vars.data(),test_spline_table_center.data(),0);
 		if(std::isnan(eval))
 			continue;
 		test_cross_section=measure*pow(10.,eval);
@@ -298,12 +299,12 @@ double I3CrossSection::evaluateCrossSection(double energy, double x, double y,
                                             LeptonInjector::ParticleType scatteredType) const{
 	double log_energy=log10(energy);
 	//check preconditions
-	if(log_energy<totalCrossSection.extents[0][0]
-	   || log_energy>totalCrossSection.extents[0][1])
+	if(log_energy<totalCrossSection.lower_extent(0)
+	   || log_energy>totalCrossSection.upper_extent(0))
 		throw("Interaction energy ("+ std::to_string(energy) + 
 						 ") out of cross section table range: ["
-						 + std::to_string(pow(10.,totalCrossSection.extents[0][0])) + " GeV,"
-						 + std::to_string(pow(10.,totalCrossSection.extents[0][1])) + " GeV]");
+						 + std::to_string(pow(10.,totalCrossSection.lower_extent(0))) + " GeV,"
+						 + std::to_string(pow(10.,totalCrossSection.upper_extent(0))) + " GeV]");
 	if(x<=0 || x>=1)
 		throw("Interaction x out of range: " + std::to_string(x));
 	if(y<=0 || y>=1)
@@ -324,9 +325,9 @@ double I3CrossSection::evaluateCrossSection(double energy, double x, double y,
 	
 	std::array<double,3> coordinates{{log_energy,log10(x),log10(y)}};
 	std::array<int,3> centers;
-	if(tablesearchcenters(&crossSection,coordinates.data(),centers.data()))
+	if(crossSection.searchcenters(coordinates.data(),centers.data()))
 		return 0;
-	double result=pow(10.,photospline::splinetable::ndsplineeval(&crossSection,coordinates.data(),centers.data(),0));
+	double result=pow(10.,crossSection.ndsplineeval(coordinates.data(),centers.data(),0));
 	assert(result>=0);
 	return(result);
 }
@@ -334,56 +335,56 @@ double I3CrossSection::evaluateCrossSection(double energy, double x, double y,
 double I3CrossSection::evaluateTotalCrossSection(double energy) const{
 	double log_energy=log10(energy);
 	//check preconditions
-	if(log_energy<totalCrossSection.extents[0][0]
-	   || log_energy>totalCrossSection.extents[0][1])
+	if(log_energy<totalCrossSection.lower_extent(0)
+	   || log_energy>totalCrossSection.upper_extent(0))
 	throw("Interaction energy out of cross section table range: ["
-	                 + std::to_string(pow(10.,totalCrossSection.extents[0][0])) + " GeV,"
-	                 + std::to_string(pow(10.,totalCrossSection.extents[0][1])) + " GeV]");
+	                 + std::to_string(pow(10.,totalCrossSection.lower_extent(0))) + " GeV,"
+	                 + std::to_string(pow(10.,totalCrossSection.upper_extent(0))) + " GeV]");
 	//evaluate
 	int center;
-	tablesearchcenters(&totalCrossSection,&log_energy,&center);
-	double log_xs=photospline::splinetable::ndsplineeval(&totalCrossSection,&log_energy,&center,0);
+	bool temp = totalCrossSection.searchcenters(&log_energy,&center);
+	double log_xs=totalCrossSection.ndsplineeval(&log_energy,&center,0);
 	return(pow(10.,log_xs));
 }
 
 void I3CrossSection::load(std::string dd_crossSectionFile, std::string total_crossSectionFile){
-	int status=readsplinefitstable(dd_crossSectionFile.c_str(),&crossSection);
-	if(status!=0)
-		throw("Failed to read cross section data from spline FITS file '");
-	if(crossSection.ndim!=3 && crossSection.ndim!=2)
-		throw("cross section spline has " + std::to_string(crossSection.ndim)
+	
+	crossSection = photospline::splinetable<>(dd_crossSectionFile.c_str());
+	
+	if(crossSection.get_ndim()!=3 && crossSection.get_ndim()!=2)
+		throw("cross section spline has " + std::to_string(crossSection.get_ndim())
 		                 + " dimensions, should have either 3 (log10(E), log10(x), log10(y)) or 2 (log10(E), log10(y))");
 	
-	status=readsplinefitstable(total_crossSectionFile.c_str(),&totalCrossSection);
-	if(status!=0)
-		throw("Failed to read cross section data from spline FITS file '");
-	if(totalCrossSection.ndim!=1)
-		throw("Total cross section spline has " + std::to_string(totalCrossSection.ndim)
+	totalCrossSection = photospline::splinetable<>(total_crossSectionFile.c_str());
+
+	if(totalCrossSection.get_ndim()!=1)
+		throw("Total cross section spline has " + std::to_string(totalCrossSection.get_ndim())
 		                 + " dimensions, should have 1, log10(E)");
 	
-	int err=0;
-	err=splinetable_read_key(&crossSection, SPLINETABLE_DOUBLE, "TARGETMASS", &targetMass);
-	if(err){
+	bool err; 
+	// returns true if successfully read target mass
+	err=crossSection.read_key("TARGETMASS", targetMass);
+	if(!err){
         // TODO: have it use the interaction type to set the masses as a backup instead of the dimensionality 
-        if(crossSection.ndim==3){
+        if(crossSection.get_ndim()==3){
 		    //log_warn("Unable to read TARGETMASS key from cross section spline, using isoscalar mass");
     		targetMass=(LeptonInjector::particleMass(LeptonInjector::ParticleType::PPlus)+
 		                LeptonInjector::particleMass(LeptonInjector::ParticleType::Neutron))/2;
-        }else if(crossSection.ndim==2){
+        }else if(crossSection.get_ndim()==2){
             //log_warn("Unable to read TARGETMASS key from cross section spline, using electron mass");
             targetMass=LeptonInjector::particleMass(LeptonInjector::ParticleType::EMinus);
         }else{
             throw("Logic error. This point should be unreachable!");
         }
 	}
-    err=splinetable_read_key(&crossSection, SPLINETABLE_INT, "INTERACTION", &interaction);
+    err=crossSection.read_key("INTERACTION", interaction);
     if(err){
         // assume DIS to preserve compatability with previous versions!
         //log_warn("Unable to read INTERACTION key from cross section spline, assuming DIS");
         interaction=1;
     }
 
-	err=splinetable_read_key(&crossSection, SPLINETABLE_DOUBLE, "Q2MIN", &Q2Min);
+	err=crossSection.read_key("Q2MIN", Q2Min);
 	if(err){
 		//log_warn("Unable to read Q2Min key from cross section spline; assuming 1 GeV^2");
 		Q2Min=1;
@@ -391,9 +392,9 @@ void I3CrossSection::load(std::string dd_crossSectionFile, std::string total_cro
 }
 
 double I3CrossSection::GetMinimumEnergy() const{
-	return(pow(10.,totalCrossSection.extents[0][0]));
+	return(pow(10.,totalCrossSection.lower_extent(0)));
 }
 
 double I3CrossSection::GetMaximumEnergy() const{
-	return(pow(10.,totalCrossSection.extents[0][1]));
+	return(pow(10.,totalCrossSection.upper_extent(0)));
 }
