@@ -32,7 +32,7 @@ endif()
 set(Boost_USE_STATC_LIBS OFF)
 set(Boost_USE_MULTITHREADED OFF)
 set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost REQUIRED)
+find_package(Boost 1.55.0 COMPONENTS python)
 if(Boost_FOUND)
     MESSAGE("-- Found Boost at ${Boost_INCLUDE_DIRS}")
     include_directories(${Boost_INCLUDE_DIRS})
@@ -46,6 +46,7 @@ endif()
 
 include(GNUInstallDirs)
 
+# need to write 
 # some apple thing
 
 #core files 
@@ -74,9 +75,13 @@ set_target_properties(lepton_injector PROPERTIES
     SOVERSION 1)
 ###  target_include_directories(lepton_injector PRIVATE .)
 
+MESSAGE("")
+MESSAGE("Linking ...")
+MESSAGE("    hdf5 ${HDF5_LIBRARIES}")
+MESSAGE("    boost ${Boost_LIBRARIES}")
 target_link_libraries(lepton_injector ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
-target_link_libraries(lepton_injector photospline cphotospline)
-
+target_link_libraries(lepton_injector photospline)
+MESSAGE("")
 
 install(TARGETS lepton_injector
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -92,7 +97,7 @@ IF(PYTHON_FOUND)
     )
 
     add_library( pylepton_injector SHARED ${python_private})
-    set_target_properties( pylepton_injector PROPERTIES LINKER_LANGUAGE CXX OUTPUT_NAME "leptoninjector" PREFIX "" SUFFIX ".so")
+    set_target_properties( pylepton_injector PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME "leptoninjector" PREFIX "" SUFFIX ".so")
     target_include_directories( pylepton_injector PRIVATE ${PYTHON_INCLUDE_DIR})
     target_link_libraries(pylepton_injector PRIVATE lepton_injector)
     
