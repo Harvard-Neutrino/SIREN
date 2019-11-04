@@ -1,27 +1,25 @@
-#include <LeptonInjector/LeptonInjector.h>
-#include <LeptonInjector/converter/LeptonInjectionConfigurationConverter.h>
+#include <LeptonInjector.h>
+#include <Controller.h>
+#include <Random.h>
+
+// #include <converter/LeptonInjectionConfigurationConverter.h>
+#include <boost/python.hpp>
 
 
 using namespace boost::python;
 
 BOOST_PYTHON_MODULE(LeptonInjector){
 	using namespace LeptonInjector;
-	load_project("libLeptonInjector", false);
 
-    class_<LI_random> >("LI_random",init<unsigned int>(args("seed")));
+    class_<LI_random>("LI_random",init<unsigned int>(args("seed")));
 
-    class_<Controller> >("Controller", init<std::vector<MinimalInjectionConfiguration>,double,double,double,double,double,double,double,double,double,double,double>(args("injectors"),args("minimum energy"),args("maximum energy"),args("spectral index"),args("minimum azimuth"),args("maximum azimuth"),args("minimum zenith"),args("maximum zenith"),args("injection radius"), args("endcap length"), args("cylinder radius"), args("cylinder height") ) )
-        .def_readonly("seed",&Controller::seed)
-        .def_readonly("minimumEnergy", &Controller::minimumEnergy)
-        .def_readonly("maximumEnergy", &Controller::maximumEnergy)
-        .def_readonly("powerlawIndex", &Controller::powerlawIndex)
-        .def_readonly("minimumAzimuth",&Controller::minimumAzimuth)
-        .def_readonly("maximumAzimuth",&Controller::maximumAzimuth)
-        .def_readonly("minimumZenith", &Controller::minimumZenith)
-        .def_readonly("maximumZenith", &Controller::maximumZenith)
-    ;
+    class_<Controller>("Controller", init<std::vector<MinimalInjectionConfiguration>,double,double,double,double,double,double,double,double,double,double,double>(
+          (args("injectors"),args("minimum energy"),args("maximum energy"),args("spectral index"),args("minimum azimuth"),args("maximum azimuth"),args("minimum zenith"),args("maximum zenith"),args("injection radius"), args("endcap length"), args("cylinder radius"), args("cylinder height"))
+          ) 
+     )
+     ;
 
-	class_<BasicInjectionConfiguration> >("BasicInjectionConfiguration")
+	class_<BasicInjectionConfiguration>("BasicInjectionConfiguration")
 	.def_readonly("events",&BasicInjectionConfiguration::events)
 	.def_readonly("energyMinimum",&BasicInjectionConfiguration::energyMinimum)
 	.def_readonly("energyMaximum",&BasicInjectionConfiguration::energyMaximum)
@@ -44,7 +42,7 @@ BOOST_PYTHON_MODULE(LeptonInjector){
 	.def_readonly("cylinderHeight",&VolumeInjectionConfiguration::cylinderHeight)
 	;
 	
-	class_<MinimalInjectionConfiguration, boost::shared_ptr<MinimalInjectionConfiguration> >("injector",
+	class_<MinimalInjectionConfiguration, std::shared_ptr<MinimalInjectionConfiguration>>("injector",
 	  init<unsigned int,ParticleType,ParticleType,std::string,std::string,bool>(
 	    (args("NEvents"),args("FinalType1"),args("FinalType2"),args("DoublyDifferentialCrossSectionFile"),args("TotalCrossSectionFile"),args("Ranged"))
 	  )
@@ -57,12 +55,8 @@ BOOST_PYTHON_MODULE(LeptonInjector){
 	.def_readwrite("ranged",&MinimalInjectionConfiguration::ranged)
 	;
 	
-	class_<std::vector<MinimalInjectionConfiguration> >("MultiConfigList")
-	.def(vector_indexing_suite<std::vector<MinimalInjectionConfiguration> >())
-	;
-	from_python_sequence<std::vector<MinimalInjectionConfiguration>, variable_capacity_policy>();
-	
-	class_<BasicEventProperties> >("BasicEventProperties")
+
+	class_<BasicEventProperties>("BasicEventProperties")
 	.def_readonly("totalEnergy",&BasicEventProperties::totalEnergy)
 	.def_readonly("zenith",&BasicEventProperties::zenith)
 	.def_readonly("azimuth",&BasicEventProperties::azimuth)
