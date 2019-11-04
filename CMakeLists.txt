@@ -1,16 +1,18 @@
-cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
-cmake_policy(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
+cmake_policy(VERSION 3.3.2)
 
 
 #TODO
 # + add support for Apple systems (needs an apple part??)
 # + make sure it correctly builds on the cobalt testbed
+# + verify python build.
 
-project(lepton_injector VERSION 1.0.0 DESCRIPTION "lepton injector library")
+## project(lepton_injector VERSION 1.0.0 DESCRIPTION "lepton injector library")
+project(lepton_injector VERSION 1.0.0 LANGUAGES CXX C)
+
 SET(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_C_STANDARD 99)
 ## enable_language(cxx)
-
 
 find_package(PythonInterp)
 find_package(PythonLibs)
@@ -59,33 +61,38 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/EarthModelService.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/LICrossSection.cxx
 )
+
+
 add_library( lepton_injector SHARED ${core_SOURCES} )
 target_include_directories(lepton_injector PUBLIC
     ${CMAKE_SOURCE_DIR}/public/LeptonInjector/
     ${CMAKE_SOURCE_DIR}/public/earthmodel-service/
     ${CMAKE_SOURCE_DIR}/public/phys-services/ 
 )
-target_link_libraries(lepton_injector ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
-target_link_libraries(lepton_injector cphotospline)
-
 set_target_properties(lepton_injector PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION 1)
 ###  target_include_directories(lepton_injector PRIVATE .)
+
+target_link_libraries(lepton_injector ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(lepton_injector photospline cphotospline)
+
+
 install(TARGETS lepton_injector
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # build and install pyhton module
+
 IF(PYTHON_FOUND)
-    MESSAGE("-- building python module!")
+    MESSAGE("-- will build python module")
 
     LIST( APPEND python_private
         ${CMAKE_SOURCE_DIR}/private/pybindings/LeptonInjector.cxx
     )
 
     add_library( pylepton_injector SHARED ${python_private})
-    set_target_properties( pylepton_injector PROPERTIES LINKER_LANGUAGE CXX OUTPUT_NAME "leptoninjector" PREFIX "" SUFFIX ".SO")
+    set_target_properties( pylepton_injector PROPERTIES LINKER_LANGUAGE CXX OUTPUT_NAME "leptoninjector" PREFIX "" SUFFIX ".so")
     target_include_directories( pylepton_injector PRIVATE ${PYTHON_INCLUDE_DIR})
     target_link_libraries(pylepton_injector PRIVATE lepton_injector)
     
