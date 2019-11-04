@@ -17,7 +17,14 @@ BOOST_PYTHON_MODULE(LeptonInjector){
           (args("injectors"),args("minimum energy"),args("maximum energy"),args("spectral index"),args("minimum azimuth"),args("maximum azimuth"),args("minimum zenith"),args("maximum zenith"),args("injection radius"), args("endcap length"), args("cylinder radius"), args("cylinder height"))
           ) 
      )
+     .def("Execute",&Controller::Execute)
+     .def("AddInjector",&Controller::AddInjector)
+     .def("Output",&Controller::NameOutfile)
      ;
+
+    
+//    class_<ParticleType>("Particle");
+    
 
 	class_<BasicInjectionConfiguration>("BasicInjectionConfiguration")
 	.def_readonly("events",&BasicInjectionConfiguration::events)
