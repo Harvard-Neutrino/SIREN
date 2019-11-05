@@ -6,30 +6,32 @@
 #   + creates a muon Nuzooka, and its operator 
 #   + tells the operator to fire 
 
-import LeptonInjector as LI
+import pylepton_injector as LI
 
 # define the injector 
-final_type1 = LI.ParticleType.MuPlus
-final_type2 = LI.ParticleType.Hadrons
+final_type1 = LI.Particle.MuPlus
+final_type2 = LI.Particle.Hadrons
 n_events    = 100
-diff_xs     = "/path/to/example/diff_xs.fits"
-total_xs    = "/path/to/example/total_xs.fits"
+diff_xs     = "/home/benito/software/cross_sections/dsdxdy_nubar_CC_iso.fits"
+total_xs    = "/home/benito/software/cross_sections/sigma_nubar_CC_iso.fits"
 is_ranged   = True # use the ranged mode injection
 # because the final state had a charged muon and hadrons, the event is the result of an antimuon neutrino undergoing a charged current interaction
 
 # create the injector list using the above parameters
-LI_injector = [LI.injector( n_events, final_type1, final_type2, diff_xs, total_xs, is_ranged)]
+the_injector = LI.injector( n_events, final_type1, final_type2, diff_xs, total_xs, is_ranged)
 
-minE        = 1000*LI.Constants.GeV
-maxE        = 100000*LI.Constants.GeV
+deg = 3.13159/180.
+
+minE        = 1000.
+maxE        = 100000.
 gamma       = 2. #unitless
-minZenith   = 80.*LI.Constants.Degrees
-maxZenith   = 180.*LI.Constants.Degrees
-minAzimuth  = 0.*LI.Constants.Degrees
-maxAzimuth  = 180.*LI.Constants.Degrees
+minZenith   = 80.*deg
+maxZenith   = 180.*deg
+minAzimuth  = 0.*deg
+maxAzimuth  = 180.*deg
 
 # construct the controller 
-controller  = LI.Controller( LI_injector, minE, maxE, gamma, minAzimuth, maxAzimuth, minZenith, maxZenith)  
+controller  = LI.Controller( the_injector, minE, maxE, gamma, minAzimuth, maxAzimuth, minZenith, maxZenith)  
 # injection radius and endcap length are left as defaults
 
 # specify the output
