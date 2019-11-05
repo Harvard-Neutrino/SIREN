@@ -1,7 +1,8 @@
 #ifndef LI_H5WRITE
 #define LI_H5WRITE
 
-#include "hdf5.h"
+#include <hdf5.h>
+
 #include <string>
 #include <EventProps.h>
 #include <array>

@@ -30,10 +30,7 @@ namespace LeptonInjector{
 		}
     }
 
-	// deconstructor
-	Particle::~Particle(){
-		// do nothing?
-	}
+
 
 	// returns name for particle of known type. 
 	// If this code is to be expanded, this should really be modified to use the boost preprocessor libraries

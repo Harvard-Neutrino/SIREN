@@ -34,7 +34,6 @@
 #include <assert.h>
 #include <vector>
 #include <map>
-#include <boost/foreach.hpp>
 #include <EarthModelCalculator.h>
 //#include <boost/python.hpp>
 // #include <boost/python.hpp>

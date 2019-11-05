@@ -192,7 +192,6 @@ namespace LeptonInjector{
     struct Particle{
     
         Particle();
-        ~Particle();
 
         Particle(ParticleType type);
         
