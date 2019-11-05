@@ -23,10 +23,10 @@ class Controller{
         double injectionRadius, endcapLength;
         double cylinderRadius, cylinderHeight;
 
+        std::string earthmodelname = "earf";
 
-        const std::shared_ptr<earthmodel::EarthModelService> earthModel = std::make_shared<earthmodel::EarthModelService>( earthmodel::EarthModelService("earf") );
+        const std::shared_ptr<earthmodel::EarthModelService> earthModel = std::make_shared<earthmodel::EarthModelService>( earthmodel::EarthModelService(earthmodelname) );
         const std::shared_ptr<LI_random> random = std::make_shared<LI_random>( LI_random() );
-        std::string earthmodelname;
 
         std::string out_file;
 
@@ -38,14 +38,12 @@ class Controller{
     public:
         // default constructor will just use some default minimal injection setup 
         Controller();
-        ~Controller();
         // sending one will make a single little list... 
         Controller(MinimalInjectionConfiguration configs_received );
         // multilepton injector equivalent 
-        Controller(	std::vector<MinimalInjectionConfiguration> configs_received );
 
         // The BEST constructor
-        Controller(std::vector<MinimalInjectionConfiguration> configs_received, double minimumEnergy,
+        Controller(MinimalInjectionConfiguration configs_received, double minimumEnergy,
             double maximumEnergy, double powerlawIndex, double minimumAzimuth, 
             double maximumAzimuth, double minimumZenith, double maximumZenith,
             double injectionRadius=1200*Constants::m, double endcapLength=1200*Constants::m, 

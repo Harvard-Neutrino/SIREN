@@ -38,37 +38,22 @@ namespace LeptonInjector {
         this->cylinderHeight = 1200*Constants::m;
     }
 
-    //constructor if the user provides a list of injectors and no parameters 
-    Controller::Controller(	std::vector<MinimalInjectionConfiguration> configs_received ){
-        this->configs = configs_received;
-        this->minimumEnergy   = 100*Constants::GeV ;
-        this->maximumEnergy   = 10000*Constants::GeV;
-        this->powerlawIndex   = 2.0;
-        this->minimumAzimuth  = 0.0*Constants::degrees;
-        this->maximumAzimuth  = 360*Constants::degrees;
-        this->minimumZenith   = 80*Constants::degrees;
-        this->maximumZenith   = 180*Constants::degrees;
+   
 
-        this->injectionRadius = 1200*Constants::m;
-        this->endcapLength = 1200*Constants::m;
-        this->cylinderRadius = 1200*Constants::m;
-        this->cylinderHeight = 1200*Constants::m;
-    }
-
-    Controller::Controller(std::vector<MinimalInjectionConfiguration> configs_received, double minimumEnergy,
+    Controller::Controller(MinimalInjectionConfiguration configs_received, double minimumEnergy,
             double maximumEnergy, double powerlawIndex, double minimumAzimuth, 
             double maximumAzimuth, double minimumZenith, double maximumZenith,
             double injectionRadius, double endcapLength,
             double cylinderRadius, double cylinderHeight){
 
-        this->configs = configs_received;
-        this->minimumEnergy   = 100*Constants::GeV ;
-        this->maximumEnergy   = 10000*Constants::GeV;
-        this->powerlawIndex   = 2.0;
-        this->minimumAzimuth  = 0.0*Constants::degrees;
-        this->maximumAzimuth  = 360*Constants::degrees;
-        this->minimumZenith   = 80*Constants::degrees;
-        this->maximumZenith   = 180*Constants::degrees;
+        this->configs.push_back( configs_received );
+        this->minimumEnergy   = minimumEnergy;
+        this->maximumEnergy   = maximumEnergy;
+        this->powerlawIndex   = powerlawIndex;
+        this->minimumAzimuth  = minimumAzimuth;
+        this->maximumAzimuth  = maximumAzimuth;
+        this->minimumZenith   = minimumZenith;
+        this->maximumZenith   = maximumZenith;
 
         this->injectionRadius = injectionRadius;
         this->endcapLength    = endcapLength;
@@ -77,8 +62,6 @@ namespace LeptonInjector {
 
     }
 
-    Controller::~Controller(){
-    }
 
     void Controller::AddInjector( MinimalInjectionConfiguration configs_received ){
         this->configs.push_back( configs_received );
