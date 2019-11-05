@@ -14,10 +14,6 @@ namespace LeptonInjector{
         generator           = std::uniform_real_distribution<double>( 0.0, 1.0); 
     }
 
-    double LI_random::Uniform(void){
-        return( this->generator(configuration) );
-    }
-
     double LI_random::Uniform( double from, double to ){
         if (to < from ){
             throw "'to' should be greater than 'from'";

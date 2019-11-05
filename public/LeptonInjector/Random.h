@@ -17,8 +17,7 @@ namespace LeptonInjector {
             LI_random( unsigned int seed );
 
             // this naming convention is used to
-            double Uniform();
-            double Uniform( double from, double to);
+            double Uniform( double from=0.0, double to=1.0);
 
             // in case this is set up without a seed! 
             void set_seed(unsigned int new_seed);
