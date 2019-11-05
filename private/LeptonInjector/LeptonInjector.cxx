@@ -25,7 +25,6 @@ namespace LeptonInjector{
 	finalType2(ParticleType::Hadrons)
 	{}
 	
-	BasicInjectionConfiguration::~BasicInjectionConfiguration(){}
 	
 
 	RangedInjectionConfiguration::RangedInjectionConfiguration():
@@ -33,14 +32,12 @@ namespace LeptonInjector{
 	endcapLength(1200*LeptonInjector::Constants::m)
 	{}
 	
-	RangedInjectionConfiguration::~RangedInjectionConfiguration(){}
 	
 	VolumeInjectionConfiguration::VolumeInjectionConfiguration():
 	cylinderRadius(1200*LeptonInjector::Constants::m),
 	cylinderHeight(1200*LeptonInjector::Constants::m)
 	{}
 	
-	VolumeInjectionConfiguration::~VolumeInjectionConfiguration(){}
 	
 
 	
@@ -90,8 +87,7 @@ namespace LeptonInjector{
 	suspendOnCompletion(true){
 	}
 	
-	LeptonInjectorBase::~LeptonInjectorBase(){
-	}
+	
 	
 	void LeptonInjectorBase::Configure(const MinimalInjectionConfiguration basic, std::shared_ptr<LI_random> pass){
 		
@@ -433,6 +429,16 @@ namespace LeptonInjector{
 
 	}
 	
+	bool operator == (const MinimalInjectionConfiguration& one , const MinimalInjectionConfiguration& two){
+		return( one.crossSectionPath == two.crossSectionPath
+			&& one.events == two.events
+			&& one.finalType1 == two.finalType2
+			&& one.finalType2 == two.finalType2
+			&& one.totalCrossSectionPath == two.totalCrossSectionPath 
+			&& one.ranged == two.ranged 
+		);
+	}
+
 	
 	
 } //namespace LeptonInjector

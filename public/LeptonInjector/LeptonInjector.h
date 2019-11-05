@@ -26,7 +26,6 @@ namespace LeptonInjector{
 	///Configuration parameters needed for all injection modes
 	struct BasicInjectionConfiguration{
 		BasicInjectionConfiguration();
-		~BasicInjectionConfiguration();
 		
 		///Number of events the generator should/did generate
 		uint32_t events;
@@ -58,7 +57,6 @@ namespace LeptonInjector{
 	///Configuration parameters for ranged injections mode
 	struct RangedInjectionConfiguration : BasicInjectionConfiguration{
 		RangedInjectionConfiguration();
-		~RangedInjectionConfiguration();
 		
 		///Radius around the origin within which to target events
 		double injectionRadius;
@@ -70,7 +68,6 @@ namespace LeptonInjector{
 	///Configuration parameters for volume injection mode
 	struct VolumeInjectionConfiguration : BasicInjectionConfiguration{
 		VolumeInjectionConfiguration();
-		~VolumeInjectionConfiguration();
 		
 		///Radius of the origin-centered vertical cylinder within which to inject events
 		double cylinderRadius;
@@ -105,8 +102,7 @@ namespace LeptonInjector{
 		///
 		bool ranged;
 	};
-	bool operator==(const MinimalInjectionConfiguration&, const MinimalInjectionConfiguration&);
-	
+	bool operator == (const MinimalInjectionConfiguration& one , const MinimalInjectionConfiguration& two);
 	//----
 	
 	
@@ -117,14 +113,13 @@ namespace LeptonInjector{
 	public:
 		LeptonInjectorBase();
 		LeptonInjectorBase(BasicInjectionConfiguration& config);
-		virtual ~LeptonInjectorBase();
 		//No implementation of DAQ; this base class should be pure virtual
-		virtual bool Generate();
-		void Finish();
+		bool Generate(){ return(false); }
+        void Finish();
 		//Whether this module has generated as many events already as it was configured to
 		bool DoneGenerating() const{ return(eventsGenerated>=config.events); }
-		virtual std::string Name();
-		virtual bool isRanged();
+		std::string Name(){return("BasicInjector");}
+		bool isRanged(){ return(false);}
 
 		void Configure(const MinimalInjectionConfiguration basic, std::shared_ptr<LI_random> pass);
 
