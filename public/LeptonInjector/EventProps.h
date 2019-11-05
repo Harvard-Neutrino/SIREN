@@ -11,7 +11,6 @@ namespace LeptonInjector {
 	struct h5Particle{
 		h5Particle();
 		h5Particle(bool initial_, int32_t ptype_, LI_Position pos_, LI_Direction dir_, double energy_);
-		virtual ~h5Particle();
 
 		bool initial;
 		int32_t ptype;
@@ -26,7 +25,6 @@ namespace LeptonInjector {
 	///Parameters common to events injected in all modes
 	struct BasicEventProperties{
 		BasicEventProperties();
-		~BasicEventProperties();
 		
 		///Total energy in the final state (lab frame)
 		double totalEnergy;
@@ -57,7 +55,6 @@ namespace LeptonInjector {
 	///Parameters for events produced in ranged injection mode
 	struct RangedEventProperties : public BasicEventProperties{
 		RangedEventProperties();
-		~RangedEventProperties();
 		
 		///Sampled distance of the closest approach of the particle path to the
 		///origin of the coordinate system
@@ -71,7 +68,6 @@ namespace LeptonInjector {
 	///Parameters for events produced in volume injection mode
 	struct VolumeEventProperties : public BasicEventProperties{
 		VolumeEventProperties();
-		~VolumeEventProperties();
 		
 		///Sampled radial cylindrical coordinate of the interaction point
 		double radius;

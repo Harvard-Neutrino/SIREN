@@ -35,12 +35,5 @@ namespace LeptonInjector {
 
 
 
-	BasicEventProperties::~BasicEventProperties(){}
-	
-	RangedEventProperties::~RangedEventProperties(){}
-	
-	VolumeEventProperties::~VolumeEventProperties(){}
-
-
 
 }// end namespace LeptonInjector
