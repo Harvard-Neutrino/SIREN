@@ -27,7 +27,6 @@ namespace LeptonInjector {
 	class LI_Position{
 		public: 
 			LI_Position();
-			virtual ~LI_Position();
 
 			LI_Position(double ex, double why, double zee);
 			LI_Position(const LI_Position& old_one);
@@ -57,7 +56,6 @@ namespace LeptonInjector {
 	class LI_Direction{
 		public:
 			LI_Direction();
-			virtual ~LI_Direction();
 
 			LI_Direction( double theta, double phi);
 			LI_Direction( std::array<double, 2> dir);

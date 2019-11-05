@@ -79,6 +79,12 @@ namespace LeptonInjector {
 			this->position[iter] = pos[iter];
 		}
 	}
+	LI_Position::LI_Position( double ex, double why, double z){
+		this->position[0] = ex;
+		this->position[1] = why;
+		this->position[2] = z;
+	}
+
 	// returns the value of a specified component 
 	double LI_Position::at( uint8_t component) const{
 		// because component is unsigned, the only achievable values are >0 and <255. So, we just check that it's 
