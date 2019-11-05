@@ -97,7 +97,7 @@ IF(PYTHON_FOUND)
     )
 
     add_library( pylepton_injector SHARED ${python_private})
-    set_target_properties( pylepton_injector PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME "leptoninjector" PREFIX "" SUFFIX ".so")
+    set_target_properties( pylepton_injector PROPERTIES LINKER_LANGUAGE CXX OUTPUT_NAME "pylepton_injector" PREFIX "" SUFFIX ".so")
     target_include_directories( pylepton_injector PRIVATE ${PYTHON_INCLUDE_DIR})
     target_link_libraries(pylepton_injector PRIVATE lepton_injector)
     
