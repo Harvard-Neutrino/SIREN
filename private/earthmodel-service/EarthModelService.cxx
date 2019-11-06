@@ -80,6 +80,7 @@ EarthModelService::EarthModelService()
    AddParameter("DetectorDepth", "Depth of origin of IceCube "
                 "coordinate, measured from ice surface",  
                 fDetDepth_); */
+   this->Init();
 
 }
 
@@ -105,7 +106,8 @@ EarthModelService::EarthModelService(
       fIceCapSimpleRadius_(-1), // will be recaluclated if needed 
       fIceCapSimpleZshift_(0) // must be zero, will be recalculated if needed
 {
-   Init();
+   std::cout << "Initializing Construction of Eart" << std::endl;
+   this->Init();
 }
 
 //__________________________________________________________
@@ -116,31 +118,38 @@ EarthModelService::~EarthModelService()
 //___________________________________________________________________
 void EarthModelService::Init()
 {
+   std::cout<<"Initializing Earth" << std::endl;
    if (fPath_ == "") {
-      string path(getenv("I3_BUILD"));
+      string path(getenv("EARTH_PARAMS"));
       if (path == "") {
          path = "./";
       } 
-      path += "/earthmodel-service/resources/earthparams/";
+      path += "resources/earthparams/";
       fPath_ = path;
    }
 
+   std::cout<< "Using... ";
    if (fEarthModelStrings_.size() < 1) {
       // set default PREM+mmc rock
+      std::cout << "PREM... ";
       fEarthModelStrings_.push_back("PREM_mmc");
    }
 
    if (fMatRatioStrings_.size() < 1) {
       // set default materials
+      std::cout << "Standard Rock... ";
       fMatRatioStrings_.push_back("Standard");
    }
 
+   std::cout << std::endl;
    //-----------------------------------------
    // Set models. By calling these functions
    // default values set above may be modified
    // depends on which crust model you choose.
    //
+   std::cout << "Setting Earth model and materials." << std::endl;
    SetEarthModel(fEarthModelStrings_);
+   std::cout << "Earth model set" << std::endl;
    SetMaterialModel(fMatRatioStrings_);
 
    //-----------------------------------------
@@ -148,11 +157,14 @@ void EarthModelService::Init()
    // SetEarthModel is called
 
    // if ice type is SimpleIceCap, recalculate iceparams and z-shift etc.
+   std::cout << "Freezing ice" <<std::endl;
    SetIceCapTypeString(fIceCapTypeString_);
    SetIceCapSimpleAngle(fIceCapSimpleAngle_);
 
+   std::cout << "Placing IceCube" << std::endl;
    SetDetectorDepth(fDetDepth_);
    SetDetectorXY(0., 0.);
+   std::cout << "Freezing IceCube" << std::endl;
 
    //log_info("%s", PrintEarthParams().c_str()); 
 
@@ -1389,9 +1401,10 @@ void EarthModelService::SetEarthModel(const vector<string> & s)
       ifstream in(fname1.c_str());
 
       // if the earthmodel file doesn't exist, stop simulation 
-      if (in.fail())
-         throw("failed to open %s. Set correct EarthParamsPath.", 
-                    fname1.c_str());
+      if (in.fail()){
+         std::cout << "failed to open " << fname1 << " Set correct EarthParamsPath." << std::endl;
+         throw;
+      }
 
       //
       // read the file
@@ -1479,7 +1492,6 @@ void EarthModelService::SetEarthModel(const vector<string> & s)
          }
 
       } // end of the while loop
-
       in.close();
    }
 

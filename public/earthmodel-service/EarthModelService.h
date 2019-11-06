@@ -27,15 +27,21 @@
  *
  */
 
+// include custom LI headers
 #include <Constants.h>
 #include <Coordinates.h>
+
+// some standard lib headers
 #include <sstream>
 #include <string>
 #include <assert.h>
 #include <vector>
 #include <map>
+#include <iostream>
+
+// earthmodel! 
 #include <EarthModelCalculator.h>
-//#include <boost/python.hpp>
+#include <boost/python.hpp>
 // #include <boost/python.hpp>
 
 namespace earthmodel {
@@ -157,7 +163,7 @@ class EarthModelService
     *
     */
    EarthModelService(
-          const std::string& name = "EarthModelService",
+          const std::string& name,
           const std::string &tablepath = "",
           const std::vector<std::string>& earthmodels = std::vector<std::string>(),
           const std::vector<std::string>& materialmodels = std::vector<std::string>(),
@@ -412,7 +418,8 @@ class EarthModelService
    /**
     * Get Earth Params.
     */ 
-   /* currently borked
+    //currently borked
+    /*
    boost::python::list GetEarthParamsList() 
    { 
       boost::python::list py_list;
@@ -420,7 +427,8 @@ class EarthModelService
          py_list.append(param.second);
       }
       return py_list;
-   } */
+   } 
+   */
 
    /**
     * Earth model function. 
