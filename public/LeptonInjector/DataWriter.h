@@ -25,6 +25,7 @@ namespace LeptonInjector{
             void WriteEvent( BasicEventProperties& props, h5Particle& part1, h5Particle& part2, h5Particle& part3 );
 
         private:
+            bool opened = false; 
             uint32_t event_count;
 
             // utility function for constructing the datatypes 
