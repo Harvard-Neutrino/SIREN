@@ -20,7 +20,7 @@ is_ranged   = True # use the ranged mode injection
 # create the injector list using the above parameters
 the_injector = LI.injector( n_events, final_type1, final_type2, diff_xs, total_xs, is_ranged)
 
-deg = 3.13159/180.
+deg = 3./180.
 
 minE        = 1000.
 maxE        = 100000.
@@ -35,7 +35,7 @@ controller  = LI.Controller( the_injector, minE, maxE, gamma, minAzimuth, maxAzi
 # injection radius and endcap length are left as defaults
 
 # specify the output
-Controller.Output("./data_output.h5")
+controller.Output("./data_output.h5")
 
 # run the simulation
-Controller.Execute()
+controller.Execute()
