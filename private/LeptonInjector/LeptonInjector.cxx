@@ -28,12 +28,14 @@ namespace LeptonInjector{
 	
 
 	RangedInjectionConfiguration::RangedInjectionConfiguration():
+	BasicInjectionConfiguration(),
 	injectionRadius(1200*LeptonInjector::Constants::m),
 	endcapLength(1200*LeptonInjector::Constants::m)
 	{}
 	
 	
 	VolumeInjectionConfiguration::VolumeInjectionConfiguration():
+	BasicInjectionConfiguration(),
 	cylinderRadius(1200*LeptonInjector::Constants::m),
 	cylinderHeight(1200*LeptonInjector::Constants::m)
 	{}
@@ -80,22 +82,24 @@ namespace LeptonInjector{
 		//config = BasicInjectionConfiguration();
 	}
 
-	LeptonInjectorBase::LeptonInjectorBase(BasicInjectionConfiguration& config):
+	LeptonInjectorBase::LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> _random):
 	config(config),
 	eventsGenerated(0),
 	wroteConfigFrame(false),
-	suspendOnCompletion(true){
+	suspendOnCompletion(true),
+	random(_random){
 	}
 	
 	
 	
-	void LeptonInjectorBase::Configure(const MinimalInjectionConfiguration basic, std::shared_ptr<LI_random> pass){
+	void LeptonInjectorBase::Configure(MinimalInjectionConfiguration basic){// , std::shared_ptr<LI_random> pass){
 		
-		this->random = pass;
+
+		std::cout<<"configured the random thing" << std::endl;
 		this->config.events = basic.events;
 		this->config.finalType1 = basic.finalType1;
 		this->config.finalType2 = basic.finalType2;
-
+		std::cout << "wrote more" << std::endl;
 		
 		if(this->config.events==0)
 			throw("there's no point in running this if you don't generate at least one event");
@@ -131,6 +135,7 @@ namespace LeptonInjector{
 		else if(basic.totalCrossSectionPath.empty())
 			throw(": TotalCrossSectionFile must be specified");
 		else
+			std::cout <<" oh god the cross sections" << std::endl;
 			crossSection.load(basic.crossSectionPath,basic.totalCrossSectionPath);
 	}
 	
@@ -277,8 +282,8 @@ namespace LeptonInjector{
 	LeptonInjectorBase(){
 	}
 	
-	RangedLeptonInjector::RangedLeptonInjector( RangedInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModelService> earth_):
-	LeptonInjectorBase(config),config(config_){
+	RangedLeptonInjector::RangedLeptonInjector( RangedInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModelService> earth_, std::shared_ptr<LI_random> random_):
+	LeptonInjectorBase(config_, random_),config(config_){
 		this->earthModel = earth_;
 		if(config.injectionRadius<0)
 			throw(": InjectionRadius must be non-negative");
@@ -367,8 +372,8 @@ namespace LeptonInjector{
 	LeptonInjectorBase(){
 	}
 	
-	VolumeLeptonInjector::VolumeLeptonInjector(VolumeInjectionConfiguration config_):
-	LeptonInjectorBase(config),config(config_){
+	VolumeLeptonInjector::VolumeLeptonInjector(VolumeInjectionConfiguration config_, std::shared_ptr<LI_random> random_):
+	LeptonInjectorBase(config_, random_),config(config_){
 		if(config.cylinderRadius<0)
 			throw(": CylinderRadius must be non-negative");
 		if(config.cylinderHeight<0)

@@ -11,6 +11,7 @@
 #include <photospline/bspline.h>
 
 #include <iostream>
+#include <memory> // adds shared pointer 
 
 #include <Coordinates.h>
 #include <Constants.h>
@@ -112,7 +113,7 @@ namespace LeptonInjector{
 	class LeptonInjectorBase {
 	public:
 		LeptonInjectorBase();
-		LeptonInjectorBase(BasicInjectionConfiguration& config);
+		LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> random_);
 		//No implementation of DAQ; this base class should be pure virtual
 		bool Generate(){ return(false); }
         void Finish();
@@ -121,9 +122,10 @@ namespace LeptonInjector{
 		std::string Name(){return("BasicInjector");}
 		bool isRanged(){ return(false);}
 
-		void Configure(const MinimalInjectionConfiguration basic, std::shared_ptr<LI_random> pass);
+		void Configure(MinimalInjectionConfiguration basic);//, std::shared_ptr<LI_random> pass);
 
 		std::shared_ptr<DataWriter> writer_link;
+
 
 	protected:
 		///Add common I3Module parameters
@@ -160,7 +162,6 @@ namespace LeptonInjector{
 		void FillTree(LI_Position vertex, LI_Direction dir, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree);
 		
 		///Random number source
-		std::shared_ptr<LI_random> random = nullptr;
 		///Configuration structure in which to store parameters
 		BasicInjectionConfiguration config;
 		///Number of events produced so far
@@ -174,10 +175,12 @@ namespace LeptonInjector{
 		///the neutrino which arrived at the surface of the Earth.
 		ParticleType initialType;
 		
+		std::shared_ptr<LI_random> random;
+
+
 		const photospline::splinetable<>& getCrossSection() const{ return(crossSection.getCrossSection()); }
 		const photospline::splinetable<>& getTotalCrossSection() const{ return(crossSection.getTotalCrossSection()); }
 	private:
-		
 		I3CrossSection crossSection;
 		
 	};
@@ -185,13 +188,13 @@ namespace LeptonInjector{
 	class RangedLeptonInjector : public LeptonInjectorBase{
 	public:
 		RangedLeptonInjector();
-		RangedLeptonInjector(RangedInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth);
+		RangedLeptonInjector(RangedInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> random_);
 		bool Generate();
 		std::string Name(){return("RangedInjector");}
 		bool isRanged(){return(true);}
 
 		// the earthmodel will just be a null poitner at instantiation
-		std::shared_ptr<earthmodel::EarthModelService> earthModel = nullptr;
+		std::shared_ptr<earthmodel::EarthModelService> earthModel;
 
 	private:
 		RangedInjectionConfiguration config;
@@ -201,7 +204,7 @@ namespace LeptonInjector{
 	class VolumeLeptonInjector : public LeptonInjectorBase{
 	public:
 		VolumeLeptonInjector();
-		VolumeLeptonInjector(VolumeInjectionConfiguration config);
+		VolumeLeptonInjector(VolumeInjectionConfiguration config, std::shared_ptr<LI_random> random_);
 		bool Generate();
 		std::string Name(){return("VolumeInjector");}
 		bool isRanged(){return(false);}

@@ -5,6 +5,7 @@
 #include <Constants.h>
 #include <Coordinates.h>
 #include <DataWriter.h>
+#include <iostream>
 
 namespace LeptonInjector{
 
@@ -13,7 +14,7 @@ class Controller{
         std::deque<LeptonInjectorBase*> generators;
         std::vector<MinimalInjectionConfiguration> configs; 
 
-        uint seed;
+        uint seed = 100;
 
         // overall generation parameters
         double minimumEnergy, maximumEnergy, powerlawIndex,
@@ -25,15 +26,15 @@ class Controller{
 
         std::string earthmodelname = "earf";
 
-        const std::shared_ptr<earthmodel::EarthModelService> earthModel = std::make_shared<earthmodel::EarthModelService>( earthmodel::EarthModelService(earthmodelname) );
-        const std::shared_ptr<LI_random> random = std::make_shared<LI_random>( LI_random() );
+        const std::shared_ptr<earthmodel::EarthModelService> earthModel = std::make_shared<earthmodel::EarthModelService>();
+        const std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
 
-        std::string out_file;
+        std::string out_file="./outfile.h";
 
-        RangedInjectionConfiguration rangedConfig;
-		VolumeInjectionConfiguration volumeConfig;
+        RangedInjectionConfiguration rangedConfig = RangedInjectionConfiguration();
+		VolumeInjectionConfiguration volumeConfig = VolumeInjectionConfiguration();
 
-        std::shared_ptr<DataWriter> datawriter = std::make_shared<DataWriter>( DataWriter() );
+        std::shared_ptr<DataWriter> datawriter = std::make_shared<DataWriter>();
 
     public:
         // default constructor will just use some default minimal injection setup 

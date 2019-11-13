@@ -23,6 +23,7 @@ namespace LeptonInjector {
 
     // constructor if the user only provides one injector and no parameters
     Controller::Controller(MinimalInjectionConfiguration configs_received){
+        std::cout << "Creating Controller" << std::endl;
         this->configs.push_back( configs_received );
         this->minimumEnergy   = 100*Constants::GeV ;
         this->maximumEnergy   = 10000*Constants::GeV;
@@ -45,7 +46,7 @@ namespace LeptonInjector {
             double maximumAzimuth, double minimumZenith, double maximumZenith,
             double injectionRadius, double endcapLength,
             double cylinderRadius, double cylinderHeight){
-
+        std::cout << "Creating Controller" << std::endl;
         this->configs.push_back( configs_received );
         this->minimumEnergy   = minimumEnergy;
         this->maximumEnergy   = maximumEnergy;
@@ -77,6 +78,7 @@ namespace LeptonInjector {
 
     void Controller::Execute(){
         // setup the injectors! 
+        std::cout << "Preparing to execute!" << std::endl;
 
         bool hasRanged=false, hasVolume=false;
 		for(std::vector<MinimalInjectionConfiguration>::const_iterator genSet=this->configs.begin(), end=this->configs.end(); genSet!=end; genSet++){
@@ -87,18 +89,20 @@ namespace LeptonInjector {
         (*this->random).set_seed(seed);
 
         // sanity check! 
-        if (this->minimumEnergy <= 0 ){ throw "minimum energy must be positive"; }
-        if (this->maximumEnergy <= 0 ){ throw "maximum energy must be positive"; }
-        if (this->minimumEnergy < this->maximumEnergy ){ throw "Max energy must be greater or equal to minimum energy"; }
-        if (this->minimumAzimuth < 0 ){ throw "minimum azimuth must be positive"; }
-        if (this->maximumAzimuth > 2*Constants::pi ){ throw "maximum azimuth must be less than 2pi"; }
-        if (this->minimumAzimuth < this->maximumAzimuth ){ throw "Max azimuth must be greater or equal to min."; }
-        if (this->minimumZenith < 0.0 ){ throw "minimum zenith must be positive"; }
-        if (this->minimumZenith > Constants::pi ){ throw "maximum zenith must be less than or equal to pi"; }
-        if (this->minimumZenith >this->maximumZenith){throw "Max zenith must be greater or equal to min.";}
+        std::cout << "Verifying configuration... " ;
+        if (this->minimumEnergy <= 0 ){ std::cout<< "minimum energy must be positive" << std::endl; throw; }
+        if (this->maximumEnergy <= 0 ){ std::cout<<  "maximum energy must be positive"<< std::endl; throw; }
+        if (this->minimumEnergy > this->maximumEnergy ){ std::cout<<  "Max energy must be greater or equal to minimum energy"<< std::endl; throw; }
+        if (this->minimumAzimuth < 0 ){ std::cout<<  "minimum azimuth must be positive"<< std::endl; throw; }
+        if (this->maximumAzimuth > 2*Constants::pi ){ std::cout<<  "maximum azimuth must be less than 2pi"<< std::endl; throw; }
+        if (this->minimumAzimuth > this->maximumAzimuth ){ std::cout<<  "Max azimuth must be greater or equal to min."<< std::endl; throw; }
+        if (this->minimumZenith < 0.0 ){ std::cout<<  "minimum zenith must be positive"<< std::endl; throw;  }
+        if (this->minimumZenith > Constants::pi ){ std::cout<<  "maximum zenith must be less than or equal to pi"<< std::endl; throw;  }
+        if (this->minimumZenith >this->maximumZenith){std::cout<<  "Max zenith must be greater or equal to min."<< std::endl; throw; }
 
         // first, construct the template injector configuration objects
         // with only those criteria shared between Configurations 
+        std::cout << "build config objects... "; 
         this->rangedConfig.energyMinimum = this->minimumEnergy; 
         this->rangedConfig.energyMaximum = this->maximumEnergy; 
         this->rangedConfig.powerlawIndex = this->powerlawIndex; 
@@ -118,21 +122,21 @@ namespace LeptonInjector {
         //  SETUP EARTHMODEL
 
         if(hasRanged){
+            std::cout << "add ranged... ";
             this->rangedConfig.injectionRadius = this->injectionRadius; 
             this->rangedConfig.endcapLength = this->endcapLength; 
             // set pointer to earthmodel -- GetParameter("EarthModel",earthModelName);
             
             if(this->rangedConfig.injectionRadius<0){throw": InjectionRadius must be non-negative"; }
             if(this->rangedConfig.endcapLength<0){ throw ": EndcapLength must be non-negative"; }
-            
             //context_.Get<boost::shared_ptr<earthmodel::EarthModelService> >(earthmodelname);
             //earthmodel::EarthModelService actual_model();
-
             
         }
         
         //get the properties for volume injectors
         if(hasVolume){
+            std::cout << "add volume... ";
             this->volumeConfig.cylinderRadius = this->cylinderRadius; 
             this->volumeConfig.cylinderHeight = this->cylinderHeight;
             
@@ -144,24 +148,31 @@ namespace LeptonInjector {
         //construct all generators
         unsigned int i=0;
         for(std::vector<MinimalInjectionConfiguration>::const_iterator genSet=this->configs.begin(), end=this->configs.end(); genSet!=end; genSet++){
+            std::cout << std::endl;
+            std::cout << "Building generators!" << std::endl;
 //            log_debug_stream("Configuring injector " << i << ":");
-            LeptonInjectorBase* generator=NULL;
+            LeptonInjectorBase* generator;
             try{
-                
-
                 if(genSet->ranged){
                     //log_debug_stream(" this is a ranged injector");
-                    RangedLeptonInjector* generator = new RangedLeptonInjector(this->rangedConfig, this->earthModel);
+                    RangedLeptonInjector* generator = new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->random);
                     generator->earthModel = this->earthModel;
+                    std::cout << "adding generic settings" << std::endl;
+                    generator->Configure( *genSet );//, this->random );
+                    std::cout << "Built a generator" << std::endl;
+                    generators.push_back(generator);
                 }
                 else{ //volume
                     //log_debug_stream(" this is a volume injector");
-                    VolumeLeptonInjector* generator= new VolumeLeptonInjector(this->volumeConfig);
+                    VolumeLeptonInjector* generator= new VolumeLeptonInjector(this->volumeConfig, this->random);
+                    std::cout << "adding generic settings" << std::endl;
+                    generator->Configure( *genSet );//, this->random );
+                    std::cout << "Built a generator" << std::endl;
+                    generators.push_back(generator);
                 }
                                 
                 //set properties not shared with other injectors, or which are not part of the config object
 
-                generator->Configure( *genSet, this->random );
 
                 /*
                 generator->GetConfiguration().Set("NEvents",boost::python::object(genSet->events));
@@ -175,16 +186,21 @@ namespace LeptonInjector {
                 generator->SetName(GetName()+"_Generator_"+boost::lexical_cast<std::string>(i++));
                 generator->Configure(); */
                 
+                
             }catch(...){
                 delete generator;
+                std::cout << "Bad generator!" << std::endl;
                 throw;
             } // end try/catch
-            generators.push_back(generator);
+            
             
         } // end for loop constructing generators 
         
+        std::cout << "Built the generators" << std::endl; 
+
         // open the hdf5 file
 
+        std::cout << "Open output file" << std::endl;
         this->datawriter->OpenFile(this->out_file);
 
         uint8_t n_gen = 0;
