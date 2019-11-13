@@ -4,6 +4,7 @@
 #include <hdf5.h>
 
 #include <string>
+#include <iostream>
 #include <EventProps.h>
 #include <array>
 
@@ -34,6 +35,7 @@ namespace LeptonInjector{
             // a 2D dataset for particles
             // [event][particle]
             hid_t events; 
+            hid_t properties;
 
             hid_t group_handle;
 
