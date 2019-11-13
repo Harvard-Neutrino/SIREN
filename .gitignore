@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# hdf5 datafiles
+*.h5
+
