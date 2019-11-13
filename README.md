@@ -2,7 +2,7 @@
 
 LeptonInjector is a group of modules used to create events in IceCube. This code represents a standalone version of the original LeptonInjector which has been trimmed of the proprietary Icetray dependencies. It is currently a work in progress, and is *not* in a functional state! 
 
-The code is very nearly in a functional state and is in the final stages of debugging. 
+The code is very nearly in a functional state and is in the final stages of debugging. Yes, it's pretty messy in its current state - but I'll clean it up before release! 
 
 To use it, you will
 
@@ -14,29 +14,40 @@ To use it, you will
 
     4. Call Controller.Execute(). This will run the simulation. 
 
+For an example of this in action, see $root/resources/example/inject_muons.py
+
 # Dependencies
 
-All of the dependencies are already installed on the CVMFS environments on the IceCube Cobalt testbeds. For local installations, you may need to install the below. You only 'may' need to, because you might already have these. All three are definitely necessary. 
+All of the dependencies are already installed on the CVMFS environments on the IceCube Cobalt testbeds. 
 
-This code requires the `HDF5` C libraries. Read more about it here: https://portal.hdfgroup.org/display/support. These libraries are, of course, used to save the data files. 
+For local installations, you need the following:
 
-It requires `BOOST`, which can be installed as easily as typing `sudo apt-get install libboost-all-dev` on linux machines. There's probably a homebrew version for mac. Boost is primarily needed to compile the python bindings or this software. 
+* A C++ compiler with C++11 support.
 
-It also requires Photospline to create and to read cross sections. Read more about it, and its installation at https://github.com/IceCubeOpenSource/photospline. Note that Photospline has dependencies that you will need that are not listed here. 
+* The `HDF5` C libraries. Read more about it here: https://portal.hdfgroup.org/display/support. These libraries are, of course, used to save the data files. 
 
-Photospline requries `SuiteSparse`, which can be downloaded here http://faculty.cse.tamu.edu/davis/suitesparse.html
+* It also requires Photospline to create and to read cross sections. Read more about it, and its installation at https://github.com/IceCubeOpenSource/photospline. Note that Photospline has dependencies that you will need that are not listed here. 
+
+* Photospline requries `SuiteSparse`, which can be downloaded here http://faculty.cse.tamu.edu/davis/suitesparse.html
+
+For building py-bindings, 
+
+* Python, but you should've known that if you're building pybindings. 
+
+* `BOOST`, which can be installed as easily as typing `sudo apt-get install libboost-all-dev` on linux machines (so long as you use bash and not something like tcsh). There's probably a homebrew version for mac. Boost is primarily needed to compile the python bindings or this software. 
+
 
 # Included Dependencies
 
-These are not part of LeptonInjector, but are included for its functionality. 
+These are not ostensibly a part of LeptonInjector, but are included for its functionality. 
 
 * I3CrossSections: provies the tools for sampling DIS and GR cross sections. 
 
 * Earthmodel Services: provides the PREM for column depth calculations. 
 
-# Compilation and Installation
+# Download, Compilation and Installation
 
-This project uses cmake to compile. First, go to a folder where you would like to build and compile lepton injector. Run 
+First, go to a folder where you would like to build and compile lepton injector, and run 
 
 `git clone git@github.com:IceCubeOpenSource/LeptonInjector.git`
 
@@ -44,7 +55,7 @@ to download the source code. Then, `mv` the folder that is created to rename it 
 
 `mkdir build` and `mkdir install`
 
-to prepare. `cd ./build` to move into the build directory. Now, we call cmake
+so we have target locations. `cd ./build` to move into the build directory. Now, we call cmake
 
 `cmake -DCMAKE_INSTALL_PREFIX=../install ../source`
 
@@ -55,6 +66,7 @@ This tells cmake to install the shared objects in the `install` directory we jus
 to build the project and install the project. Now you need to set all the environmental variables so this actually works. You will be adding this to your .bashrc or .bash_profile. 
 
 `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/your/install/path/
+`export EARTH_PARAMS=/your/source/path/resources/earthparams/
 
 # Structure
 The code base is divided into several files. 

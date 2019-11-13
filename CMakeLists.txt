@@ -19,6 +19,10 @@ find_package(PythonLibs)
 set(PYTHON_FOUND PYTHONLIBS_FOUND AND PYTHONINTERP_FOUND)
 if(PYTHON_FOUND)
     MESSAGE("-- Found python at ${PYTHON_INCLUDE_DIR}")
+    MESSAGE("-- Will build python!")
+else()
+    MESSAGE("!! Python Not Found !!")
+    MESSAGE("!! Skipping Python Module !!")
 endif()
 
 find_package(HDF5 REQUIRED)
@@ -70,10 +74,11 @@ target_include_directories(lepton_injector PUBLIC
     ${CMAKE_SOURCE_DIR}/public/earthmodel-service/
     ${CMAKE_SOURCE_DIR}/public/phys-services/ 
 )
+target_include_directories(lepton_injector PRIVATE ${PYTHON_INCLUDE_DIR})
+
 set_target_properties(lepton_injector PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION 1)
-###  target_include_directories(lepton_injector PRIVATE .)
 
 MESSAGE("")
 MESSAGE("Linking ...")
@@ -90,7 +95,6 @@ install(TARGETS lepton_injector
 # build and install pyhton module
 
 IF(PYTHON_FOUND)
-    MESSAGE("-- will build python module")
 
     LIST( APPEND python_private
         ${CMAKE_SOURCE_DIR}/private/pybindings/LeptonInjector.cxx
