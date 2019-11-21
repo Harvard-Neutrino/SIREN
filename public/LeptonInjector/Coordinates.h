@@ -6,6 +6,7 @@
 #include <exception> //allows throwing the out_of_range exception
 #include <Constants.h>
 #include <limits> //numeric limits
+#include <iostream>
 
 // Implements tools and classes for working with positions and directions
 
@@ -88,6 +89,7 @@ namespace LeptonInjector {
 	LI_Position& operator += (LI_Position one, LI_Position two);
 	LI_Position& operator -= (LI_Position one, LI_Position two);
 	LI_Direction operator - (LI_Direction obj);
+	std::ostream & operator << (std::ostream& out, const LI_Position &dir);
 
 	bool operator == (LI_Position one, LI_Position two);
 

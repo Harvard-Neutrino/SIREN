@@ -45,7 +45,7 @@ I3CrossSection::sampleFinalState_DIS(double energy,
                                std::shared_ptr<LeptonInjector::LI_random> random) const{
     // Uses Metropolis-Hastings Algorithm! 
     //      useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional 
-    
+    // std::cout << "sampling dis" << std::endl;
     if (crossSection.get_ndim()!=3){
         throw("I expected 3 dimensions in the cross section spline, but got "+std::to_string(crossSection.get_ndim()) +". Maybe your fits file doesn't have the right 'INTERACTION' key?");
     }
@@ -90,6 +90,7 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 	                 + std::to_string(pow(10.,crossSection.upper_extent(0))) + " GeV]");
 	
 	//sample an intial point
+	// std::cout << "sampling iniital point" << std::endl;
 	do{
 		//rejection sample a point which is kinematically allowed by calculation limits
 		double trialQ;
@@ -102,18 +103,24 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 		accept=true;
 		//sanity check: demand that the sampled point be within the table extents
 		if(kin_vars[1]<crossSection.lower_extent(1)
-		   || kin_vars[1]>crossSection.upper_extent(1))
+		   || kin_vars[1]>crossSection.upper_extent(1)){
 			accept=false;
+			std::cout << "reject" << std::endl;
+		   }
         if(kin_vars[2]<crossSection.lower_extent(2)
-		   || kin_vars[2]>crossSection.upper_extent(2))
+		   || kin_vars[2]>crossSection.upper_extent(2)){
 			accept=false;
+		   	std::cout << "reject" << std::endl;
+		   }
         
 
-		if(accept)
+		if(accept){
             // finds the centers in the cross section spline table, returns true if it's successful
             //      also sets the centers
-			accept=!crossSection.searchcenters(kin_vars.data(),spline_table_center.data());
+			accept=crossSection.searchcenters(kin_vars.data(),spline_table_center.data());
+		}
 	} while(!accept);
+	// std::cout << "sampled iniital point" << std::endl;
 
 	//TODO: better proposal distribution?
 	double measure=pow(10.,kin_vars[1]+kin_vars[2]); // Bx * By
@@ -122,6 +129,8 @@ I3CrossSection::sampleFinalState_DIS(double energy,
     // evalutates the differential spline at that point? 
 	cross_section=measure*pow(10.,crossSection.ndsplineeval(kin_vars.data(),spline_table_center.data(),0)); 
     
+	// std::cout << "alalal" << std::endl;
+
     // this is the magic part. Metropolis Hastings Algorithm.
     // MCMC method! 
 	const size_t burnin=40; // converges to the correct distribution over multiple samplings. 
@@ -145,7 +154,7 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 		if(!accept)
 			continue;
 
-		accept=!crossSection.searchcenters(test_kin_vars.data(),test_spline_table_center.data());
+		accept=crossSection.searchcenters(test_kin_vars.data(),test_spline_table_center.data());
 		if(!accept)
 			continue;
 		
@@ -230,7 +239,7 @@ I3CrossSection::sampleFinalState_GR(double energy,
 
 		if(accept)
 			crossSection.ndsplineeval(kin_vars.data(), spline_table_center.data(),0);
-			accept=!crossSection.searchcenters(kin_vars.data(),spline_table_center.data());
+			accept=crossSection.searchcenters(kin_vars.data(),spline_table_center.data());
 	} while(!accept);
 
 	//TODO: better proposal distribution?
@@ -251,7 +260,7 @@ I3CrossSection::sampleFinalState_GR(double energy,
 		if(!accept)
 			continue;
 
-		accept=!crossSection.searchcenters(test_kin_vars.data(),test_spline_table_center.data());
+		accept=crossSection.searchcenters(test_kin_vars.data(),test_spline_table_center.data());
 		if(!accept)
 			continue;
 		
@@ -290,7 +299,8 @@ I3CrossSection::sampleFinalState(double energy,
     }else if(interaction==3){
         return( I3CrossSection::sampleFinalState_GR(  energy, scatteredType, random ) );
     }else{ //should be easy to modify this to support other interaction cross sections! 
-        throw("Unknown interaction number "+ std::to_string(interaction) + ". Your fits files are funky.");
+        std::cout << "Unknown interaction number "+ std::to_string(interaction) + ". Your fits files are funky." << std::endl;
+		throw;
     }
 }
 
@@ -325,7 +335,7 @@ double I3CrossSection::evaluateCrossSection(double energy, double x, double y,
 	
 	std::array<double,3> coordinates{{log_energy,log10(x),log10(y)}};
 	std::array<int,3> centers;
-	if(crossSection.searchcenters(coordinates.data(),centers.data()))
+	if(!crossSection.searchcenters(coordinates.data(),centers.data()))
 		return 0;
 	double result=pow(10.,crossSection.ndsplineeval(coordinates.data(),centers.data(),0));
 	assert(result>=0);

@@ -16,7 +16,10 @@ DataWriter::~DataWriter(){
         status = H5Tclose( volumePropertiesTable );
 
         status = H5Gclose( group_handle ); 
-        status = H5Dclose( events );
+        status = H5Dclose( initials );
+        status = H5Dclose( final_1 );
+        status = H5Dclose( final_2 );
+        status = H5Dclose( properties );
 
         status = H5Fclose( fileHandle );
     }
@@ -40,29 +43,34 @@ void DataWriter::OpenFile( std::string filename ){
 
 
 void DataWriter::AddInjector( std::string injector_name , bool ranged){
-    herr_t status = H5Dclose(events);
-    status = H5Gclose( group_handle );
+    herr_t status;
+
+    //status = H5Dclose(events);
+    //status = H5Gclose( group_handle );
 
     group_handle = H5Gcreate( fileHandle, injector_name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
     // prepare the event properties writing dataspace! 
-    const hsize_t ndims = 3;
-    hsize_t dims[ndims]={0,0,0}; // current dimensionality of the file space is zero
-    hsize_t max_dims[ndims] = {H5S_UNLIMITED,H5S_UNLIMITED,H5S_UNLIMITED}; // but can be expanded infinitely 
+    const hsize_t ndims = 1;
+    hsize_t dims[ndims]={0}; // current dimensionality of the file space is zero
+    hsize_t max_dims[ndims] = {H5S_UNLIMITED}; // but can be expanded infinitely 
     hsize_t file_space = H5Screate_simple( ndims, dims, max_dims);
 
     hid_t plist = H5Pcreate( H5P_DATASET_CREATE);
     H5Pset_layout( plist, H5D_CHUNKED);
     // 32768
     // any time you have an infinite sized dimension, you need to chunk it. 1000 is a nice round number 
-    const int nice_round_number = 1000;
-    hsize_t chunk_dims[ndims] = {nice_round_number,nice_round_number,nice_round_number};
+    const int nice_round_number = 100;
+    hsize_t chunk_dims[ndims] = {nice_round_number};
     H5Pset_chunk(plist, ndims, chunk_dims);
     std::cout << "set chunck" << std::endl;
 
-    const char* name = "events";
-    events = H5Dcreate(group_handle,name, particleTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT );
-    std::cout << "tried making events dataset" << std::endl;
+    const char* init_name = "initial";
+    const char* final_1_name = "final_1";
+    const char* final_2_name = "final_2";
+    initials  = H5Dcreate(group_handle,init_name, particleTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT );
+    final_1 = H5Dcreate(group_handle,final_1_name, particleTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT); 
+    final_2 = H5Dcreate(group_handle,final_2_name, particleTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT); 
     H5Sclose(file_space);
 
 
@@ -78,8 +86,10 @@ void DataWriter::AddInjector( std::string injector_name , bool ranged){
 
     const char* props = "properties";
     if (ranged){
+        write_ranged = true;
         properties = H5Dcreate(group_handle, props , rangedPropertiesTable, file_space2, H5P_DEFAULT, plist2, H5P_DEFAULT );
     }else{
+        write_ranged = false;
         properties = H5Dcreate(group_handle, props , volumePropertiesTable, file_space2, H5P_DEFAULT, plist2, H5P_DEFAULT );
     }
     std::cout << "tried making second dataset" << std::endl;
@@ -88,27 +98,46 @@ void DataWriter::AddInjector( std::string injector_name , bool ranged){
 }
 
 void DataWriter::WriteEvent( BasicEventProperties& props, h5Particle& part1, h5Particle& part2, h5Particle& part3 ){
+    // std::cout << " writing an event" << std::endl;
     hid_t memspace, file_space;
-    const hsize_t n_dims = 3;
-    hsize_t dims[n_dims] = {1,1,1};
+    const hsize_t n_dims = 1;
+    hsize_t dims[n_dims] = {1};
     memspace = H5Screate_simple(n_dims, dims, NULL);
 
     //Extend dataset
     dims[0] = event_count+1;
-    dims[1] = event_count+1;
-    dims[2] = event_count+1;    
-    H5Dset_extent(event_count, dims);
+    H5Dset_extent(initials, dims);
+    H5Dset_extent(final_1, dims);
+    H5Dset_extent(final_2, dims);
+    H5Dset_extent(properties, dims);
 
     //Write waveforms
-    file_space = H5Dget_space(events);
-    hsize_t start[3] = {event_count,event_count,event_count};
-    hsize_t count[3] = {1,1,1};
+    file_space = H5Dget_space(initials);
+    hsize_t start[n_dims] = {event_count};
+    hsize_t count[n_dims] = {1};
     H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, NULL, count, NULL);
 
-    std::array<h5Particle,3>  temp_data= {part1, part2, part3};
-    H5Dwrite(events, particleTable, memspace, file_space, H5P_DEFAULT, &temp_data);
-    delete(&temp_data);
 
+    // h5Particle temp_data[3] = {part1, part2, part3};
+    H5Dwrite(initials, particleTable, memspace, file_space, H5P_DEFAULT, &part1);
+    file_space = H5Dget_space( final_1 );
+    H5Sselect_hyperslab( file_space, H5S_SELECT_SET, start, NULL, count, NULL);
+    H5Dwrite(final_1, particleTable, memspace, file_space, H5P_DEFAULT, &part2);
+    file_space = H5Dget_space( final_2 );
+    H5Sselect_hyperslab( file_space, H5S_SELECT_SET, start, NULL, count, NULL);
+    H5Dwrite(final_2, particleTable, memspace, file_space, H5P_DEFAULT, &part3);
+
+    file_space = H5Dget_space( properties );
+    H5Sselect_hyperslab( file_space, H5S_SELECT_SET, start, NULL, count, NULL);
+    if (write_ranged){
+        H5Dwrite(properties, rangedPropertiesTable, memspace, file_space, H5P_DEFAULT, &props);
+    }else{
+        H5Dwrite(properties, volumePropertiesTable, memspace, file_space, H5P_DEFAULT, &props);
+    }
+
+    // delete(&temp_data);
+
+    // std::cout << "cleaning up" << std::endl;
     H5Sclose(file_space);
     H5Sclose(memspace);
     event_count++; 
@@ -131,22 +160,28 @@ void DataWriter::makeTables(){
     herr_t status; // hdf5 error type. 
     hid_t basicPropertiesTable = H5Tcreate(H5T_COMPOUND, dataSize);
     size_t offset = 0;
-    status = H5Tinsert(basicPropertiesTable, "totalEnergy", offset, H5T_NATIVE_DOUBLE); offset+=8;
-    status = H5Tinsert(basicPropertiesTable, "zenith", offset, H5T_NATIVE_DOUBLE); offset+=8;
-    status = H5Tinsert(basicPropertiesTable, "azimuth", offset , H5T_NATIVE_DOUBLE); offset+=8;
-    status = H5Tinsert(basicPropertiesTable, "finalStateX", offset , H5T_NATIVE_DOUBLE); offset += 8;
-    status = H5Tinsert(basicPropertiesTable, "finalStateY", offset , H5T_NATIVE_DOUBLE); offset += 8;
-    status = H5Tinsert(basicPropertiesTable, "finalType1", offset , H5T_NATIVE_LONG); offset += 8;
-    status = H5Tinsert(basicPropertiesTable, "finalType2", offset , H5T_NATIVE_LONG); offset += 8;
-    status = H5Tinsert(basicPropertiesTable, "initialType", offset , H5T_NATIVE_LONG); offset += 8;
+    hid_t real_long = H5Tcopy( H5T_NATIVE_LONG );
+    status = H5Tset_size( real_long, 4);
+    hid_t real_bool = H5Tcopy( H5T_NATIVE_HBOOL);
+    status = H5Tset_size( real_bool, 1);
+
+    status = H5Tinsert(basicPropertiesTable, "totalEnergy", HOFFSET(BasicEventProperties, totalEnergy), H5T_NATIVE_DOUBLE);
+    status = H5Tinsert(basicPropertiesTable, "zenith", HOFFSET(BasicEventProperties, zenith), H5T_NATIVE_DOUBLE); 
+    status = H5Tinsert(basicPropertiesTable, "azimuth", HOFFSET(BasicEventProperties, azimuth) , H5T_NATIVE_DOUBLE); 
+    status = H5Tinsert(basicPropertiesTable, "finalStateX", HOFFSET(BasicEventProperties, finalStateX) , H5T_NATIVE_DOUBLE);
+    status = H5Tinsert(basicPropertiesTable, "finalStateY", HOFFSET(BasicEventProperties, finalStateY) , H5T_NATIVE_DOUBLE); 
+    status = H5Tinsert(basicPropertiesTable, "finalType1", HOFFSET(BasicEventProperties, finalType1) , real_long); 
+    status = H5Tinsert(basicPropertiesTable, "finalType2", HOFFSET(BasicEventProperties, finalType2) , real_long);
+    status = H5Tinsert(basicPropertiesTable, "initialType", HOFFSET(BasicEventProperties, initialType) , real_long); 
+
     // we want tables for volume and ranged, so let's copy that basic one and make the (slightly) different ones below
     rangedPropertiesTable = H5Tcopy( basicPropertiesTable );
-    status = H5Tinsert(rangedPropertiesTable, "impactParameter", offset , H5T_NATIVE_DOUBLE); offset +=8;
-    status = H5Tinsert(rangedPropertiesTable, "totalColumnDepth", offset , H5T_NATIVE_DOUBLE); offset += 8;
-    offset -= 16;
+    status = H5Tinsert(rangedPropertiesTable, "impactParameter", HOFFSET(RangedEventProperties, impactParameter) , H5T_NATIVE_DOUBLE); 
+    status = H5Tinsert(rangedPropertiesTable, "totalColumnDepth", HOFFSET(RangedEventProperties, totalColumnDepth) , H5T_NATIVE_DOUBLE); 
+
     volumePropertiesTable = H5Tcopy( basicPropertiesTable );
-    status = H5Tinsert(volumePropertiesTable, "radius", offset , H5T_NATIVE_DOUBLE); offset += 8;
-    status = H5Tinsert(volumePropertiesTable, "z", offset , H5T_NATIVE_DOUBLE); offset += 8;
+    status = H5Tinsert(volumePropertiesTable, "radius", HOFFSET(VolumeEventProperties, radius) , H5T_NATIVE_DOUBLE); 
+    status = H5Tinsert(volumePropertiesTable, "z", HOFFSET(VolumeEventProperties, z) , H5T_NATIVE_DOUBLE); 
 
     H5Tclose( basicPropertiesTable );
 
@@ -159,12 +194,19 @@ void DataWriter::makeTables(){
     //  hdf5 has asinine datasizes. Everything is 8 bytes!!! 
     offset = 0;
     particleTable = H5Tcreate( H5T_COMPOUND, dataSize);
+    status = H5Tinsert(particleTable, "initial",        HOFFSET(h5Particle, initial), real_bool);
+    status = H5Tinsert(particleTable, "ParticleType",   HOFFSET(h5Particle, ptype),  real_long); 
+    status = H5Tinsert(particleTable, "Position",       HOFFSET(h5Particle, pos) , point3d);     
+    status = H5Tinsert(particleTable, "Direction",      HOFFSET(h5Particle, dir) , direction); 
+    status = H5Tinsert(particleTable, "Energy",         HOFFSET(h5Particle, energy) , H5T_NATIVE_DOUBLE); 
+
+    /*
     status = H5Tinsert(particleTable, "initial", offset, H5T_NATIVE_HBOOL); offset +=8;
-    status = H5Tinsert(particleTable, "ParticleType", offset,  H5T_NATIVE_INT32); offset += 8;
+    status = H5Tinsert(particleTable, "ParticleType", offset,  H5T_NATIVE_LONG); offset += 8;
     status = H5Tinsert(particleTable, "Position", offset , point3d); offset += 24;
     status = H5Tinsert(particleTable, "Direction", offset , direction); offset += 16;
     status = H5Tinsert(particleTable, "Energy", offset , H5T_NATIVE_DOUBLE); offset += 8;
-    
+    */
 
 }
 

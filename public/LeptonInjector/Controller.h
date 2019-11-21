@@ -31,8 +31,8 @@ class Controller{
 
         std::string out_file="./outfile.h";
 
-        RangedInjectionConfiguration rangedConfig = RangedInjectionConfiguration();
-		VolumeInjectionConfiguration volumeConfig = VolumeInjectionConfiguration();
+        BasicInjectionConfiguration rangedConfig = BasicInjectionConfiguration();
+		BasicInjectionConfiguration volumeConfig = BasicInjectionConfiguration();
 
         std::shared_ptr<DataWriter> datawriter = std::make_shared<DataWriter>();
 

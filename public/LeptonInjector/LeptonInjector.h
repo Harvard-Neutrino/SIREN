@@ -27,7 +27,6 @@ namespace LeptonInjector{
 	///Configuration parameters needed for all injection modes
 	struct BasicInjectionConfiguration{
 		BasicInjectionConfiguration();
-		
 		///Number of events the generator should/did generate
 		uint32_t events;
 		///Minimum total event energy to inject
@@ -48,34 +47,23 @@ namespace LeptonInjector{
 		ParticleType finalType1;
 		///Type of second particle to be injected in the final state
 		ParticleType finalType2;
+
+		///Radius around the origin within which to target events
+		double injectionRadius;
+		///Length of the fixed endcaps add to the distance along which to sample interactions
+		double endcapLength;
+
+		///Radius of the origin-centered vertical cylinder within which to inject events
+		double cylinderRadius;
+		///Height of the origin-centered vertical cylinder within which to inject events
+		double cylinderHeight;
 		
 		std::vector<char> crossSectionBlob;
 		std::vector<char> totalCrossSectionBlob;
 
 		void setCrossSection(const photospline::splinetable<>& crossSection, const photospline::splinetable<>& totalCrossSection);
 	};
-	
-	///Configuration parameters for ranged injections mode
-	struct RangedInjectionConfiguration : BasicInjectionConfiguration{
-		RangedInjectionConfiguration();
-		
-		///Radius around the origin within which to target events
-		double injectionRadius;
-		///Length of the fixed endcaps add to the distance along which to sample interactions
-		double endcapLength;
-		
-	};
-	
-	///Configuration parameters for volume injection mode
-	struct VolumeInjectionConfiguration : BasicInjectionConfiguration{
-		VolumeInjectionConfiguration();
-		
-		///Radius of the origin-centered vertical cylinder within which to inject events
-		double cylinderRadius;
-		///Height of the origin-centered vertical cylinder within which to inject events
-		double cylinderHeight;
-		
-	};
+
 	
 	///Parameters for injectors placed within a MultiLeptonInjector
 	struct MinimalInjectionConfiguration{
@@ -113,15 +101,16 @@ namespace LeptonInjector{
 	class LeptonInjectorBase {
 	public:
 		LeptonInjectorBase();
-		LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> random_);
+		//LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> random_);
 		//No implementation of DAQ; this base class should be pure virtual
-		bool Generate(){ return(false); }
+		virtual bool Generate(){}
         void Finish();
 		//Whether this module has generated as many events already as it was configured to
 		bool DoneGenerating() const{ return(eventsGenerated>=config.events); }
-		std::string Name(){return("BasicInjector");}
+		virtual std::string Name(){return("BasicInjector");}
 		bool isRanged(){ return(false);}
 
+		void Print_Configuration();
 		void Configure(MinimalInjectionConfiguration basic);//, std::shared_ptr<LI_random> pass);
 
 		std::shared_ptr<DataWriter> writer_link;
@@ -159,7 +148,7 @@ namespace LeptonInjector{
 		///\param dir the direction of the interacting neutrino
 		///\param energy the energy of the interacting neutrino
 		///\param properties the associated structure where the event properties should be recorded
-		void FillTree(LI_Position vertex, LI_Direction dir, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree);
+		void FillTree(LI_Position vertex, LI_Direction dir, double energy, std::shared_ptr<BasicEventProperties> properties, std::shared_ptr<std::array<h5Particle,3>> particle_tree);
 		
 		///Random number source
 		///Configuration structure in which to store parameters
@@ -188,29 +177,24 @@ namespace LeptonInjector{
 	class RangedLeptonInjector : public LeptonInjectorBase{
 	public:
 		RangedLeptonInjector();
-		RangedLeptonInjector(RangedInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> random_);
+		RangedLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> random_);
 		bool Generate();
-		std::string Name(){return("RangedInjector");}
+		std::string Name() {return("RangedInjector");}
 		bool isRanged(){return(true);}
 
 		// the earthmodel will just be a null poitner at instantiation
 		std::shared_ptr<earthmodel::EarthModelService> earthModel;
-
-	private:
-		RangedInjectionConfiguration config;
-		///Model to use for calculating lepton range due to matter		
+	
 	};
 	
 	class VolumeLeptonInjector : public LeptonInjectorBase{
 	public:
 		VolumeLeptonInjector();
-		VolumeLeptonInjector(VolumeInjectionConfiguration config, std::shared_ptr<LI_random> random_);
+		VolumeLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<LI_random> random_);
 		bool Generate();
-		std::string Name(){return("VolumeInjector");}
+		std::string Name() {return("VolumeInjector");}
 		bool isRanged(){return(false);}
-	private:
-		VolumeInjectionConfiguration config;
-		
+
 	};
 	
 	//----

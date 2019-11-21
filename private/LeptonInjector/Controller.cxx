@@ -78,7 +78,6 @@ namespace LeptonInjector {
 
     void Controller::Execute(){
         // setup the injectors! 
-        std::cout << "Preparing to execute!" << std::endl;
 
         bool hasRanged=false, hasVolume=false;
 		for(std::vector<MinimalInjectionConfiguration>::const_iterator genSet=this->configs.begin(), end=this->configs.end(); genSet!=end; genSet++){
@@ -89,7 +88,6 @@ namespace LeptonInjector {
         (*this->random).set_seed(seed);
 
         // sanity check! 
-        std::cout << "Verifying configuration... " ;
         if (this->minimumEnergy <= 0 ){ std::cout<< "minimum energy must be positive" << std::endl; throw; }
         if (this->maximumEnergy <= 0 ){ std::cout<<  "maximum energy must be positive"<< std::endl; throw; }
         if (this->minimumEnergy > this->maximumEnergy ){ std::cout<<  "Max energy must be greater or equal to minimum energy"<< std::endl; throw; }
@@ -102,7 +100,7 @@ namespace LeptonInjector {
 
         // first, construct the template injector configuration objects
         // with only those criteria shared between Configurations 
-        std::cout << "build config objects... "; 
+        std::cout << "min e "<<this->minimumEnergy << std::endl;
         this->rangedConfig.energyMinimum = this->minimumEnergy; 
         this->rangedConfig.energyMaximum = this->maximumEnergy; 
         this->rangedConfig.powerlawIndex = this->powerlawIndex; 
@@ -122,7 +120,6 @@ namespace LeptonInjector {
         //  SETUP EARTHMODEL
 
         if(hasRanged){
-            std::cout << "add ranged... ";
             this->rangedConfig.injectionRadius = this->injectionRadius; 
             this->rangedConfig.endcapLength = this->endcapLength; 
             // set pointer to earthmodel -- GetParameter("EarthModel",earthModelName);
@@ -136,7 +133,6 @@ namespace LeptonInjector {
         
         //get the properties for volume injectors
         if(hasVolume){
-            std::cout << "add volume... ";
             this->volumeConfig.cylinderRadius = this->cylinderRadius; 
             this->volumeConfig.cylinderHeight = this->cylinderHeight;
             
@@ -149,74 +145,58 @@ namespace LeptonInjector {
         unsigned int i=0;
         for(std::vector<MinimalInjectionConfiguration>::const_iterator genSet=this->configs.begin(), end=this->configs.end(); genSet!=end; genSet++){
             std::cout << std::endl;
-            std::cout << "Building generators!" << std::endl;
-//            log_debug_stream("Configuring injector " << i << ":");
-            LeptonInjectorBase* generator;
-            try{
-                if(genSet->ranged){
-                    //log_debug_stream(" this is a ranged injector");
-                    RangedLeptonInjector* generator = new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->random);
-                    generator->earthModel = this->earthModel;
-                    std::cout << "adding generic settings" << std::endl;
-                    generator->Configure( *genSet );//, this->random );
-                    std::cout << "Built a generator" << std::endl;
-                    generators.push_back(generator);
-                }
-                else{ //volume
-                    //log_debug_stream(" this is a volume injector");
-                    VolumeLeptonInjector* generator= new VolumeLeptonInjector(this->volumeConfig, this->random);
-                    std::cout << "adding generic settings" << std::endl;
-                    generator->Configure( *genSet );//, this->random );
-                    std::cout << "Built a generator" << std::endl;
-                    generators.push_back(generator);
-                }
-                                
-                //set properties not shared with other injectors, or which are not part of the config object
+            //log_debug_stream("Configuring injector " << i << ":");
+            //LeptonInjectorBase* generator;
 
-
-                /*
-                generator->GetConfiguration().Set("NEvents",boost::python::object(genSet->events));
-                generator->GetConfiguration().Set("FinalType1",boost::python::object(genSet->finalType1));
-                generator->GetConfiguration().Set("FinalType2",boost::python::object(genSet->finalType2));
-                generator->GetConfiguration().Set("RandomService",boost::python::object(randomServiceName));
-                generator->GetConfiguration().Set("DoublyDifferentialCrossSectionFile",boost::python::object(genSet->crossSectionPath));
-                generator->GetConfiguration().Set("TotalCrossSectionFile",boost::python::object(genSet->totalCrossSectionPath));
-                generator->GetConfiguration().Set("SuspendOnCompletion",boost::python::object(false));
-                
-                generator->SetName(GetName()+"_Generator_"+boost::lexical_cast<std::string>(i++));
-                generator->Configure(); */
-                
-                
-            }catch(...){
-                delete generator;
-                std::cout << "Bad generator!" << std::endl;
-                throw;
-            } // end try/catch
+            if(genSet->ranged){
+                //log_debug_stream(" this is a ranged injector");
+                RangedLeptonInjector* generator  = new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->random);
+                generator->earthModel = this->earthModel;
+                generator->Configure( *genSet );//, this->random );
+                generators.push_back(generator);
+            }
+            else{ //volume
+                //log_debug_stream(" this is a volume injector");
+                VolumeLeptonInjector* generator= new VolumeLeptonInjector(volumeConfig, random);
+                generator->Configure( *genSet );//, this->random );
+                generators.push_back(generator);
+            }
+                            
             
             
         } // end for loop constructing generators 
         
-        std::cout << "Built the generators" << std::endl; 
 
         // open the hdf5 file
 
-        std::cout << "Open output file" << std::endl;
         this->datawriter->OpenFile(this->out_file);
 
         uint8_t n_gen = 0;
         while(true){
 
             // grab the first genereator, get ready to generate! 
-            LeptonInjectorBase* active = generators.front();
+            //LeptonInjectorBase* active = generators.front();
+
+            generators.back()->writer_link = this->datawriter;
+            this->datawriter->AddInjector( generators.back()->Name(), generators.back()->isRanged() );
+            generators.back()->Print_Configuration();
+
+            /*
             active->writer_link = this->datawriter;
             this->datawriter->AddInjector(active->Name(), active->isRanged() );
-
+            active->Print_Configuration();
+            
+            */
             // enters a generating loop. Keep calling generate until it returns FALSE 
-            while( active->Generate() ); 
+            bool generating = true;
+            // std::cout << "running generator for "<< active->config.events << " events" <<std::endl;
+            while( generating ){
+                generating = generators.back()->Generate();
+            }
             
             // pop the generator, it's done! 
-            active = nullptr; // clean that pointer 
-            generators.pop_front();
+            //active = nullptr; // clean that pointer 
+            generators.pop_back();
             if (generators.empty()){ break; } // check if there's another generator, if there isn't, give up
         }
         

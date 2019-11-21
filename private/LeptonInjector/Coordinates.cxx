@@ -4,18 +4,18 @@
 namespace LeptonInjector {
 
 	LI_Position RotateX(LI_Position vector, double angle) {
-		std::array<double, n_dimensions> rotated = {vector.at(0), vector.at(1)*cos(angle) +vector.at(2)*sin(angle), -1*vector.at(1)*sin(angle) + vector.at(2)*cos(angle) };
-		return(LI_Position(rotated));
+		LI_Position rotated(vector.at(0), vector.at(1)*cos(angle) +vector.at(2)*sin(angle), -1*vector.at(1)*sin(angle) + vector.at(2)*cos(angle) );
+		return(rotated);
 	}
 
 	LI_Position RotateY(LI_Position vector, double angle) {
-		std::array<double, n_dimensions> rotated = {vector.at(0) * cos(angle) + -1 * vector.at(2) * sin(angle), vector.at(1) ,vector.at(0)*sin(angle) + vector.at(2)*cos(angle) };
-		return(LI_Position(rotated));
+		LI_Position rotated(vector.at(0) * cos(angle) + -1 * vector.at(2) * sin(angle), vector.at(1) ,vector.at(0)*sin(angle) + vector.at(2)*cos(angle) );
+		return(rotated);
 	}
 
 	LI_Position RotateZ(LI_Position vector, double angle) {
-		std::array<double, n_dimensions> rotated = { vector.at(0)*cos(angle)+vector.at(1)*sin(angle), -1*vector.at(0)*sin(angle)+vector.at(1)*cos(angle), vector.at(2) };
-		return(LI_Position(rotated));
+		LI_Position rotated(vector.at(0)*cos(angle)+vector.at(1)*sin(angle), -1*vector.at(0)*sin(angle)+vector.at(1)*cos(angle), vector.at(2) );
+		return(rotated);
 	}
 
 
@@ -188,12 +188,12 @@ namespace LeptonInjector {
 	}// implicitly blah blah blah
 
 	LI_Position& operator += (LI_Position one, LI_Position two){
-		one = one + two;
-		return( one );
+		LI_Position newone = one + two;
+		return( newone );
 	}
 	LI_Position& operator -= (LI_Position one, LI_Position two){
-		one = one - two;
-		return( one );
+		LI_Position newone = one - two;
+		return( newone );
 	}// same for those last two, too
 
 	// turns a direction around
@@ -209,6 +209,18 @@ namespace LeptonInjector {
 		return(new_one);
 	}
 
+	std::ostream & operator << (std::ostream &out, const LI_Position &dir){
+		out << "LI_Point@";
+		out << "(";
+		for (uint8_t iter=0; iter<n_dimensions;iter++){
+			if (iter!=0){
+				out << ", ";
+			}
+			out << dir.at(iter);
+		}
+		out << ")";
+		return(out);
+	}
 
 	// check if two points are identical
 	// 		maybe use a different epsilon? Not sure. 

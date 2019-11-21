@@ -34,7 +34,10 @@ namespace LeptonInjector{
 
             // a 2D dataset for particles
             // [event][particle]
-            hid_t events; 
+            hid_t initials;
+            hid_t final_1;
+            hid_t final_2;
+
             hid_t properties;
 
             hid_t group_handle;
@@ -46,6 +49,9 @@ namespace LeptonInjector{
             hid_t particleTable;
             hid_t rangedPropertiesTable;
             hid_t volumePropertiesTable;
+
+            bool write_ranged;
+
 
     };
 

@@ -579,8 +579,10 @@ const double EarthModelService::IntegrateDensityInCGS(
    bool approachingGoal=false;
 
    while(true){
-      if(++iterations>maxIterations)
-         throw("Exceeded iteration count limit. Something is horribly wrong");
+      if(++iterations>maxIterations){
+         std::cout << "584 Exceeded iteration count limit. Something is horribly wrong" << std::endl;
+         throw;
+      }
       
       //if the density is constant, take a shortcut
       if(curMedium.fParams_.size()==1){
@@ -598,7 +600,7 @@ const double EarthModelService::IntegrateDensityInCGS(
          //log_trace_stream("  Adding remaining column depth and advancing to next layer");
          lastpos = pos;
          x += distToNext;
-         pos += distToNext * dirCE;
+         pos = pos + (distToNext * dirCE);
 
          depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
 
@@ -623,7 +625,7 @@ const double EarthModelService::IntegrateDensityInCGS(
             //log_trace_stream("   Taking tiny step toward next layer");
 
             lastpos = pos;
-            pos += tinyStepSize * dirCE;
+            pos = pos + (tinyStepSize * dirCE);
             depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
             //log_trace("   depth updated to %e, tinyStepSize is %e, boundary name %s",  depth, tinyStepSize, oldLayerName.c_str());
             x+=tinyStepSize;
@@ -633,8 +635,10 @@ const double EarthModelService::IntegrateDensityInCGS(
             }else{
                 density_offset = 1.0;
             }
-            if(++iterations>maxIterations)
-               throw("Exceeded iteration count limit");
+            if(++iterations>maxIterations){
+               std::cout << "Exceeded iteration count limit" << std::endl;
+               throw;
+            }
          };
          density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
          distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
@@ -662,7 +666,7 @@ const double EarthModelService::IntegrateDensityInCGS(
       
       x+=h;
       depth+=dDepth;
-      pos+=distToNext*dirCE;
+      pos= pos + (distToNext*dirCE);
       
       if(willLeaveAtmosphere){ //we have now done so; there's nothing more to integrate
          //log_trace_stream(" Stopping at atmosphere boundary");
@@ -688,8 +692,10 @@ const double EarthModelService::IntegrateDensityInCGS(
                 density_offset = 1.0;
          }
          curMedium=GetEarthParam(pos);
-         if(++iterations>maxIterations)
-            throw("Exceeded iteration count limit");
+         if(++iterations>maxIterations){
+            std::cout << "Exceeded iteration count limit" << std::endl;
+            throw;
+         }
       };
       density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
       distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
@@ -841,6 +847,7 @@ double EarthModelService::DistanceForColumnDepthToPoint(
                  const  bool use_electron_density) const
 {
    //the integration problem gives the same result when run in reverse
+   std::cout << "here1" <<  std::endl;
    return(DistanceForColumnDepthFromPoint(to_posI3,-dirI3,cDepth, use_electron_density));
 }
 
@@ -851,17 +858,27 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
                  double cDepth,
                  const bool use_electron_density) const
 {
+   // debuggy!
+   //std::cout<< dirI3 <<std::endl;
+   //std::cout << "column depth " << cDepth << std::endl;
+
+
    //log_trace_stream("DistanceForColumnDepthFromPoint from_posI3=" << from_posI3 << " dirI3=" << dirI3 << " cDepth=" << cDepth);
    const double precision=0.1; //the precision with which the target column depth must be matched
    
-   if(cDepth<0)
-      throw("Column depth must be positive (value was " + std::to_string(cDepth) + ")");
+   if(cDepth<0){
+      std::cout << "Column depth must be positive (value was " + std::to_string(cDepth) + ")" << std::endl;
+      throw;
+   }
    
    //convert to Earth centered coordinates
    LeptonInjector::LI_Position endCE = GetEarthCoordPosFromDetCoordPos(from_posI3);
+   //std::cout << "From : " << endCE << " in earth coords" << std::endl;
    LeptonInjector::LI_Direction dirCE = GetEarthCoordDirFromDetCoordDir(dirI3);
-   if(endCE.Magnitude()>fAtmoRadius_)
-      throw("Starting point is outside the atmosphere");
+   if(endCE.Magnitude()>fAtmoRadius_){
+      std::cout << "Starting point is outside the atmosphere" << std::endl;
+      throw;
+   }
    //log_trace_stream("Starting point radius is " << endCE.Magnitude());
    
    LeptonInjector::LI_Position pos=endCE; //current position (earth centered)
@@ -893,14 +910,16 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
    unsigned int maxIterations=1e6; //if we try to take more steps than this something is horribly wrong
 
    while(true){
-      if(++iterations>maxIterations)
-         throw("Exceeded iteration count limit");
+      if(++iterations>maxIterations){
+         std::cout << "902 Exceeded iteration count limit" << std::endl;
+         throw;
+      }
       
       //if the density is constant, take a shortcut
       if(curMedium.fParams_.size()==1){
          //log_trace_stream(" Skipping across constant density material");
          double totalDepthRemaining = distToNext * M_TO_CM * density;
-         //log_trace_stream("  Column depth remaining in this layer is " << totalDepthRemaining << " gm/cm^2");
+         //std::cout << "  Column depth remaining in this layer is " << totalDepthRemaining << " gm/cm^2" << std::endl;
          //finish by linear interpolation if there is enough depth in this layer
          if(depth+totalDepthRemaining > cDepth){
             //log_trace_stream("  Linearly interpolating remaining distance");
@@ -913,9 +932,9 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
          //otherwise add on the full depth from this layer and jump to the next layer
          depth+=totalDepthRemaining;
          x+=distToNext;
-         pos+=distToNext*dirCE;
+         pos= pos + distToNext*dirCE;
          
-         //log_trace_stream("  Position is now " << pos << " with radius " << pos.Magnitude());
+         //std::cout << "  Position is now " << pos << " with radius " << pos.Magnitude() << std::endl;
          
          if(willLeaveAtmosphere){ //we have now done so; there's nothing more to integrate
             //log_debug("Integration would leave atmosphere, aborting before full column depth reached");
@@ -924,18 +943,21 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
          std::string oldLayerName=curMedium.fBoundaryName_;
          //make sure that we actually get into the next layer
          while(curMedium.fBoundaryName_==oldLayerName){
-            //log_trace_stream("   Taking tiny step toward next layer");
+            //"   Taking tiny step toward next layer");
             depth += tinyStepSize * M_TO_CM * density;
             x+=tinyStepSize;
-            pos+=tinyStepSize*dirCE;
+            pos = pos + tinyStepSize*dirCE;
             curMedium=GetEarthParam(pos);
             if (use_electron_density){
                 density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
             }else{
                 density_offset = 1.0;
             }
-            if(++iterations>maxIterations)
-               throw("Exceeded iteration count limit");
+            if(++iterations>maxIterations){
+               std::cout << totalDepthRemaining << std::endl;
+               std::cout << "945 Exceeded iteration count limit" << std::endl;
+               throw;
+            }
          };
          density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
          distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
@@ -1047,8 +1069,10 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
                hNew=h*5;
             stepped=true;
          }
-         if(++iterations>maxIterations)
-            throw("Exceeded iteration count limit");
+         if(++iterations>maxIterations){
+            std::cout << "1060 Exceeded iteration count limit" << std::endl;
+            throw;
+         }
       }
       
       x+=h;
@@ -1076,8 +1100,10 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
             }else{
                 density_offset = 1.0;
             }
-            if(++iterations>maxIterations)
-               throw("Exceeded iteration count limit");
+            if(++iterations>maxIterations){
+               std::cout << "1091 Exceeded iteration count limit" << std::endl;
+               throw;
+            }
          };
          density=GetEarthDensityInCGS(curMedium, pos)*density_offset;
          distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
