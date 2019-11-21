@@ -45,10 +45,16 @@ void DataWriter::OpenFile( std::string filename ){
 void DataWriter::AddInjector( std::string injector_name , bool ranged){
     herr_t status;
 
-    //status = H5Dclose(events);
-    //status = H5Gclose( group_handle );
-
-    group_handle = H5Gcreate( fileHandle, injector_name.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    if(name_iterator>0){
+        status = H5Dclose(initials);
+        status = H5Dclose(final_1);
+        status = H5Dclose(final_2);
+        status = H5Dclose(properties);
+        status = H5Gclose( group_handle );
+    }
+    
+    group_handle = H5Gcreate( fileHandle, (injector_name + std::to_string(name_iterator)).c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    name_iterator++;
 
     // prepare the event properties writing dataspace! 
     const hsize_t ndims = 1;
@@ -60,10 +66,9 @@ void DataWriter::AddInjector( std::string injector_name , bool ranged){
     H5Pset_layout( plist, H5D_CHUNKED);
     // 32768
     // any time you have an infinite sized dimension, you need to chunk it. 1000 is a nice round number 
-    const int nice_round_number = 100;
+    const int nice_round_number = 32768;
     hsize_t chunk_dims[ndims] = {nice_round_number};
     H5Pset_chunk(plist, ndims, chunk_dims);
-    std::cout << "set chunck" << std::endl;
 
     const char* init_name = "initial";
     const char* final_1_name = "final_1";

@@ -847,7 +847,6 @@ double EarthModelService::DistanceForColumnDepthToPoint(
                  const  bool use_electron_density) const
 {
    //the integration problem gives the same result when run in reverse
-   std::cout << "here1" <<  std::endl;
    return(DistanceForColumnDepthFromPoint(to_posI3,-dirI3,cDepth, use_electron_density));
 }
 

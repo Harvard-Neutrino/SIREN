@@ -117,12 +117,7 @@ namespace LeptonInjector{
 		std::cout << "    FT1      : " << static_cast<int32_t>(this->config.finalType1) << std::endl;
 		std::cout << "    FT2      : " << static_cast<int32_t>(this->config.finalType2) << std::endl;
 	}
-	
-	void LeptonInjectorBase::Finish(){
-		if(eventsGenerated!=config.events)
-			std::cout << ": Only " << eventsGenerated <<
-							 " event have been output out of a requested total of " << config.events;
-	}
+
 	
 	LI_Position LeptonInjectorBase::SampleFromDisk(double radius, double zenith, double azimuth){
 		//choose a random point on a disk laying in the xy plane

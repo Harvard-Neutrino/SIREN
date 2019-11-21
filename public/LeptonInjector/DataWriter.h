@@ -27,6 +27,7 @@ namespace LeptonInjector{
 
         private:
             bool opened = false; 
+            uint8_t name_iterator = 0;
             uint32_t event_count;
 
             // utility function for constructing the datatypes 

@@ -177,6 +177,7 @@ namespace LeptonInjector {
             // grab the first genereator, get ready to generate! 
             //LeptonInjectorBase* active = generators.front();
 
+            std::cout << "starting up generator" << std::endl;
             generators.back()->writer_link = this->datawriter;
             this->datawriter->AddInjector( generators.back()->Name(), generators.back()->isRanged() );
             generators.back()->Print_Configuration();

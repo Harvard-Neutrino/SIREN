@@ -104,9 +104,7 @@ namespace LeptonInjector{
 		//LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> random_);
 		//No implementation of DAQ; this base class should be pure virtual
 		virtual bool Generate(){}
-        void Finish();
 		//Whether this module has generated as many events already as it was configured to
-		bool DoneGenerating() const{ return(eventsGenerated>=config.events); }
 		virtual std::string Name(){return("BasicInjector");}
 		bool isRanged(){ return(false);}
 
