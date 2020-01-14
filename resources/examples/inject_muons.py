@@ -7,6 +7,7 @@
 #   + tells the operator to fire 
 
 import pylepton_injector as LI
+from math import pi
 
 # define the injector 
 final_type1 = LI.Particle.MuPlus
@@ -21,10 +22,14 @@ is_ranged   = True
 # create the injector list using the above parameters
 the_injector = LI.injector( n_events, final_type1, final_type2, diff_xs, total_xs, is_ranged)
 
+
+diff_xs     = "/home/benito/software/cross_sections/dsdxdy_nubar_NC_iso.fits"
+total_xs    = "/home/benito/software/cross_sections/sigma_nubar_NC_iso.fits"
 the_next_injector = LI.injector( n_events , LI.Particle.NuEBar, LI.Particle.Hadrons, diff_xs, total_xs, True)
 
 
-deg = 3./180.
+
+deg = pi/180.
 
 minE        = 1000.
 maxE        = 100000.

@@ -32,7 +32,8 @@ void DataWriter::OpenFile( std::string filename ){
     this->opened = true;
     // open a new file. If one already exists by the same name - overwrite it (H5F_ACC_TRUNC)
     // leave the defaults for property lists
-    // the last two can be adjusted to allow for parallel file access as I understand 
+    // the last two can be adjusted to allow for parallel file access as I understand, which may allow for multi-processing
+    //      the different injectors, and therefore much quicker injection 
     fileHandle = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT );
     makeTables();
 
@@ -44,6 +45,8 @@ void DataWriter::OpenFile( std::string filename ){
 
 void DataWriter::AddInjector( std::string injector_name , bool ranged){
     herr_t status;
+
+    event_count = 0;
 
     if(name_iterator>0){
         status = H5Dclose(initials);
