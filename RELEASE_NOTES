@@ -7,15 +7,6 @@ Release Notes
 
 trunk
 
-Feb 25, 2019 Kotoyo Hoshina(hoshina@icecube.wisc.edu)
+Jan 13, 2020 Ben Smithers
 --------------------------------------------------------------------
-* changed include path of I3CrossSection.h (from sim-services to phys-services)
-
-
- * Added release notes
-
-Oct 07, 2019 Ben Smithers (bsmithers@mail.icecube.wisc.edu)
---------------------------------------------------------------------
-* changed CMakeLists to include the hdf5 tool
-* fixed the header for writing LIC files
-* added module for writing LIC files as hdf5 files instead of binary files
+* First functioning version of standalone LeptonInjector
