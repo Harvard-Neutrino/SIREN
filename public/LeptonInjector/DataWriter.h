@@ -1,12 +1,21 @@
 #ifndef LI_H5WRITE
 #define LI_H5WRITE
 
-#include <hdf5.h>
+#include <BasicInjectionConfiguration.h>
+#include <hdf5.h> // all the data writing
+#include <fstream> // std::ostream 
 
-#include <string>
-#include <iostream>
+#include <string> // strings
+#include <vector> //MAKE_ENUM_VECTOR
+
+#include <iostream> // std::cout 
 #include <EventProps.h>
 #include <array>
+
+#include <boost/detail/endian.hpp>
+#include <boost/assign/list_inserter.hpp>
+#include <boost/preprocessor/seq/transform.hpp>
+
 
 // See https://portal.hdfgroup.org/display/HDF5/HDF5
 // for hdf5 documentation! 
@@ -19,11 +28,13 @@ namespace LeptonInjector{
             ~DataWriter();
 
             void OpenFile(std::string filename);
+            void OpenLICFile( std::string filename);
 
             // close the active group and its sub-datasets
             // add a new group for the next injector 
             void AddInjector(std::string injector_name , bool ranged);
             void WriteEvent( BasicEventProperties& props, h5Particle& part1, h5Particle& part2, h5Particle& part3 );
+            void WriteConfig( BasicInjectionConfiguration& config, bool ranged );
 
         private:
             bool opened = false; 
@@ -53,7 +64,10 @@ namespace LeptonInjector{
 
             bool write_ranged;
 
+            std::ofstream lic_file_output;
 
+            void writeRangedConfig( BasicInjectionConfiguration& config );
+            void writeVolumeConfig( BasicInjectionConfiguration& config );
     };
 
 }// end namespace LeptonInjector
