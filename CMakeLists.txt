@@ -55,11 +55,12 @@ include(GNUInstallDirs)
 
 #core files 
 LIST (APPEND core_SOURCES
+    ${CMAKE_SOURCE_DIR}/private/LeptonInjector/BasicInjectionConfiguration.cxx
+    ${CMAKE_SOURCE_DIR}/private/LeptonInjector/LeptonInjector.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Controller.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Coordinates.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/DataWriter.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/EventProps.cxx
-    ${CMAKE_SOURCE_DIR}/private/LeptonInjector/LeptonInjector.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Particle.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Random.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/EarthModelCalculator.cxx
