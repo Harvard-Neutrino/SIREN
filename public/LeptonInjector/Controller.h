@@ -30,6 +30,7 @@ class Controller{
         const std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
 
         std::string out_file="./outfile.h";
+        std::string lic_file="./config.lic";
 
         BasicInjectionConfiguration rangedConfig = BasicInjectionConfiguration();
 		BasicInjectionConfiguration volumeConfig = BasicInjectionConfiguration();
@@ -54,6 +55,7 @@ class Controller{
         void SetEarthModel( std::string new_name );
         void AddInjector(MinimalInjectionConfiguration configs_received);
         void NameOutfile( std::string out_file );
+        void NameLicFile( std::string lic_file );
         void Execute(); 
 
 
