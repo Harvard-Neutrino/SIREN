@@ -41,8 +41,6 @@
 
 // earthmodel! 
 #include <EarthModelCalculator.h>
-#include <boost/python.hpp>
-// #include <boost/python.hpp>
 
 namespace earthmodel {
 
