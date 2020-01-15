@@ -11,25 +11,7 @@ namespace LeptonInjector{
 		
 	//--------------
 	//Config objects
-	
-	BasicInjectionConfiguration::BasicInjectionConfiguration():
-	events(1),
-	energyMinimum(10*Constants::GeV),
-	energyMaximum((1e9)*Constants::GeV),
-	powerlawIndex(1.0),
-	azimuthMinimum(0),
-	azimuthMaximum(2*Constants::pi),
-	zenithMinimum(0),
-	zenithMaximum(Constants::pi),
-	finalType1(ParticleType::MuMinus),
-	finalType2(ParticleType::Hadrons),
-	injectionRadius(1200*LeptonInjector::Constants::m),
-	endcapLength(1200*LeptonInjector::Constants::m),
-	cylinderRadius(1200*LeptonInjector::Constants::m),
-	cylinderHeight(1200*LeptonInjector::Constants::m)
-	{}
-	
-	
+
 	
 
 	//-----------
@@ -37,7 +19,6 @@ namespace LeptonInjector{
 
 
 	LeptonInjectorBase::LeptonInjectorBase(){
-		std::cout << "calling LIB like a scrub " << std::endl;
 		eventsGenerated = 0;
 		wroteConfigFrame = false;
 		suspendOnCompletion = true;
@@ -60,9 +41,7 @@ namespace LeptonInjector{
 		
 
 		//std::cout<<"configured the random thing" << std::endl;
-		std::cout << "configuring with "<< basic.events << " events." <<std::endl;
 		config.events = basic.events;
-		std::cout << "yeah configured with "<< config.events << std::endl;
 		config.finalType1 = basic.finalType1;
 		config.finalType2 = basic.finalType2;
 		//std::cout << "wrote more" << std::endl;
@@ -101,8 +80,11 @@ namespace LeptonInjector{
 		else if(basic.totalCrossSectionPath.empty())
 			throw(": TotalCrossSectionFile must be specified");
 		else
-			std::cout <<" oh god the cross sections" << std::endl;
 			crossSection.load(basic.crossSectionPath,basic.totalCrossSectionPath);
+	}
+
+	BasicInjectionConfiguration& LeptonInjectorBase::getConfig(void){
+		return( this->config );
 	}
 
 	void LeptonInjectorBase::Print_Configuration(){
