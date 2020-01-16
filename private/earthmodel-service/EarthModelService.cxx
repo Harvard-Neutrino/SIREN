@@ -106,7 +106,6 @@ EarthModelService::EarthModelService(
       fIceCapSimpleRadius_(-1), // will be recaluclated if needed 
       fIceCapSimpleZshift_(0) // must be zero, will be recalculated if needed
 {
-   std::cout << "Initializing Construction of Eart" << std::endl;
    this->Init();
 }
 
@@ -147,9 +146,7 @@ void EarthModelService::Init()
    // default values set above may be modified
    // depends on which crust model you choose.
    //
-   std::cout << "Setting Earth model and materials." << std::endl;
    SetEarthModel(fEarthModelStrings_);
-   std::cout << "Earth model set" << std::endl;
    SetMaterialModel(fMatRatioStrings_);
 
    //-----------------------------------------
@@ -160,11 +157,8 @@ void EarthModelService::Init()
    std::cout << "Freezing ice" <<std::endl;
    SetIceCapTypeString(fIceCapTypeString_);
    SetIceCapSimpleAngle(fIceCapSimpleAngle_);
-
-   std::cout << "Placing IceCube" << std::endl;
    SetDetectorDepth(fDetDepth_);
    SetDetectorXY(0., 0.);
-   std::cout << "Freezing IceCube" << std::endl;
 
    //log_info("%s", PrintEarthParams().c_str()); 
 
