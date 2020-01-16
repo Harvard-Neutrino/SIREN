@@ -179,6 +179,7 @@ namespace LeptonInjector {
         uint8_t n_gen = 0;
         while(true){
 
+
             std::cout << "Starting up "<< generators.back()->Name() << std::endl;
             generators.back()->writer_link = this->datawriter;
             this->datawriter->AddInjector( generators.back()->Name(), generators.back()->isRanged() );
