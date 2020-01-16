@@ -174,8 +174,6 @@ namespace LeptonInjector {
         uint8_t n_gen = 0;
         while(true){
 
-            // grab the first genereator, get ready to generate! 
-            //LeptonInjectorBase* active = generators.front();
 
             std::cout << "starting up generator" << std::endl;
             generators.back()->writer_link = this->datawriter;
