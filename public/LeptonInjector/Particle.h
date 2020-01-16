@@ -24,7 +24,7 @@ namespace LeptonInjector{
 
             // these match the PDG codes!
             // copied over from IceCube's dataclasses I3Particle definition
-            enum class ParticleType : int32_t{
+            enum ParticleType : int32_t{
                 unknown = 0,
                 Gamma = 22,
                 EPlus = -11,
@@ -202,7 +202,7 @@ namespace LeptonInjector{
 
             Particle();
 
-            Particle(ParticleType type);
+            Particle(ParticleType type = ParticleType::unknown);
 
             
             // what kind of particle is this (see below)
@@ -216,6 +216,8 @@ namespace LeptonInjector{
             double GetMass(); //GeV/c^2
             bool HasMass(); // .... 
             std::string GetTypeString();
+        private:
+            int32_t pdgEncoding_; 
 
     };
 

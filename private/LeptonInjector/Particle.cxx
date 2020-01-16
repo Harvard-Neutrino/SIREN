@@ -1,6 +1,7 @@
 #include <math.h> // adds sqrt, power functions
 #include <Particle.h>
 #include <assert.h>
+#include <map>
 
 namespace LeptonInjector{
     Particle::Particle(void){
@@ -42,7 +43,7 @@ namespace LeptonInjector{
 
 		// this just casts the particle type to its pdg code, and uses a switch to grab the name
 		switch( static_cast<int32_t>(this->type) ){
-			case 0: return("Unknwon"; break;
+			case 0: return("Unknwon"); break;
 			case 22: return("Gamma"); break;
 			case 11: return("EMinus"); break;
 			case -11: return("EPlus"); break;
@@ -229,7 +230,7 @@ namespace LeptonInjector{
 			throw "Final state should have at least one charged particle";
 //			log_fatal_stream("Final state must contain at least one charged particle\n"
 //							 << "specified particles were " << particleName(pType1)
-//							 << " and " << particleName(pType2));
+//							 << " and " << particleName(pType2)); 
 		
 		//first particle is charged, second is not
 		if(c1 && !c2){
@@ -299,6 +300,5 @@ namespace LeptonInjector{
 
 
     // Particle-based exceptions:
-
 
 } // end namespace LI_Particle
