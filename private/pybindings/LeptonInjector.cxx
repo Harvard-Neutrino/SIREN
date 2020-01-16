@@ -28,24 +28,24 @@ BOOST_PYTHON_MODULE(pylepton_injector){
      ;
 
     
-    enum_<ParticleType>("Particle")
-        .value("EPlus",ParticleType::EPlus)
-        .value("EMinus",ParticleType::EMinus)
-        .value("MuPlus",ParticleType::MuPlus)
-        .value("MuMinus",ParticleType::MuMinus)
-        .value("TauPlus",ParticleType::TauPlus)
-        .value("TauMinus",ParticleType::TauMinus)
-        .value("NuE",ParticleType::NuE)
-        .value("NuEBar",ParticleType::NuEBar)
-        .value("NuMuBar",ParticleType::NuMuBar)
-        .value("NuTau",ParticleType::NuTau)
-        .value("NuTauBar",ParticleType::NuTauBar)
-        .value("NuMu",ParticleType::NuMu)
-        .value("Hadrons",ParticleType::Hadrons)
+    enum_<Particle::ParticleType>("Particle")
+        .value("EPlus",Particle::EPlus)
+        .value("EMinus",Particle::EMinus)
+        .value("MuPlus",Particle::MuPlus)
+        .value("MuMinus",Particle::MuMinus)
+        .value("TauPlus",Particle::TauPlus)
+        .value("TauMinus",Particle::TauMinus)
+        .value("NuE",Particle::NuE)
+        .value("NuEBar",Particle::NuEBar)
+        .value("NuMuBar",Particle::NuMuBar)
+        .value("NuTau",Particle::NuTau)
+        .value("NuTauBar",Particle::NuTauBar)
+        .value("NuMu",Particle::NuMu)
+        .value("Hadrons",Particle::Hadrons)
     ;
    
     class_<MinimalInjectionConfiguration, std::shared_ptr<MinimalInjectionConfiguration>>("injector",
-	  init<unsigned int,ParticleType,ParticleType,std::string,std::string,bool>(
+	  init<unsigned int,Particle::ParticleType,Particle::ParticleType,std::string,std::string,bool>(
 	    (args("NEvents"),args("FinalType1"),args("FinalType2"),args("DoublyDifferentialCrossSectionFile"),args("TotalCrossSectionFile"),args("Ranged"))
 	  )
 	)

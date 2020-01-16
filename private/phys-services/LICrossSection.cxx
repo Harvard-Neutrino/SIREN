@@ -3,7 +3,7 @@
 #include <fstream>
 
 namespace{
-	double particleMass(LeptonInjector::ParticleType type){
+	double particleMass(LeptonInjector::Particle::ParticleType type){
 		LeptonInjector::Particle p(type);
 		if(!p.HasMass()){
 			//log_debug_stream("Treating particle of type " << p.GetTypeString()
@@ -41,7 +41,7 @@ namespace{
 
 I3CrossSection::finalStateRecord 
 I3CrossSection::sampleFinalState_DIS(double energy, 
-                               LeptonInjector::ParticleType scatteredType, 
+                               LeptonInjector::Particle::ParticleType scatteredType, 
                                std::shared_ptr<LeptonInjector::LI_random> random) const{
     // Uses Metropolis-Hastings Algorithm! 
     //      useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional 
@@ -179,7 +179,7 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 
 I3CrossSection::finalStateRecord
 I3CrossSection::sampleFinalState_GR(double energy,
-                                LeptonInjector::ParticleType scatteredType,
+                                LeptonInjector::Particle::ParticleType scatteredType,
                                 std::shared_ptr<LeptonInjector::LI_random> random) const{
     // this does the work for GR interactions.
     // should be like (log(E) vs log(Bjorken Y))
@@ -288,7 +288,7 @@ I3CrossSection::sampleFinalState_GR(double energy,
 
 I3CrossSection::finalStateRecord
 I3CrossSection::sampleFinalState(double energy,
-                                LeptonInjector::ParticleType scatteredType,
+                                LeptonInjector::Particle::ParticleType scatteredType,
                                 std::shared_ptr<LeptonInjector::LI_random> random) const{
     // calls the DIS function for DIS cases
     // calls the GR function  for GR  cases
@@ -306,7 +306,7 @@ I3CrossSection::sampleFinalState(double energy,
 
 
 double I3CrossSection::evaluateCrossSection(double energy, double x, double y,
-                                            LeptonInjector::ParticleType scatteredType) const{
+                                            LeptonInjector::Particle::ParticleType scatteredType) const{
 	double log_energy=log10(energy);
 	//check preconditions
 	if(log_energy<totalCrossSection.lower_extent(0)
@@ -378,11 +378,11 @@ void I3CrossSection::load(std::string dd_crossSectionFile, std::string total_cro
         // TODO: have it use the interaction type to set the masses as a backup instead of the dimensionality 
         if(crossSection.get_ndim()==3){
 		    //log_warn("Unable to read TARGETMASS key from cross section spline, using isoscalar mass");
-    		targetMass=(LeptonInjector::particleMass(LeptonInjector::ParticleType::PPlus)+
-		                LeptonInjector::particleMass(LeptonInjector::ParticleType::Neutron))/2;
+    		targetMass=(LeptonInjector::particleMass(LeptonInjector::Particle::ParticleType::PPlus)+
+		                LeptonInjector::particleMass(LeptonInjector::Particle::ParticleType::Neutron))/2;
         }else if(crossSection.get_ndim()==2){
             //log_warn("Unable to read TARGETMASS key from cross section spline, using electron mass");
-            targetMass=LeptonInjector::particleMass(LeptonInjector::ParticleType::EMinus);
+            targetMass=LeptonInjector::particleMass(LeptonInjector::Particle::ParticleType::EMinus);
         }else{
             throw("Logic error. This point should be unreachable!");
         }

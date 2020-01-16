@@ -104,7 +104,6 @@ namespace LeptonInjector {
 
         // first, construct the template injector configuration objects
         // with only those criteria shared between Configurations 
-        std::cout << "min e "<<this->minimumEnergy << std::endl;
         this->rangedConfig.energyMinimum = this->minimumEnergy; 
         this->rangedConfig.energyMaximum = this->maximumEnergy; 
         this->rangedConfig.powerlawIndex = this->powerlawIndex; 

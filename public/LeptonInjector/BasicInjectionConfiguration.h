@@ -27,9 +27,9 @@ namespace LeptonInjector {
 		///Maximum zenith angle at which to inject events
 		double zenithMaximum;
 		///Type of first particle to be injected in the final state
-		ParticleType finalType1;
+		Particle::ParticleType finalType1;
 		///Type of second particle to be injected in the final state
-		ParticleType finalType2;
+		Particle::ParticleType finalType2;
 
 		///Radius around the origin within which to target events
 		double injectionRadius;
