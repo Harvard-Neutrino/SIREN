@@ -67,7 +67,7 @@ namespace LeptonInjector{
 		if(this->config.zenithMinimum>this->config.zenithMaximum)
 			throw(": minimum zenith angle must be less than or equal to maximum zenith angle");
 		try{
-			ParticleType initialType=deduceInitialType(this->config.finalType1,this->config.finalType2);
+			Particle::ParticleType initialType=deduceInitialType(this->config.finalType1,this->config.finalType2);
 		}catch(std::runtime_error& re){
 			throw("Something bad happened while deducing the Initial particle type");
 		}

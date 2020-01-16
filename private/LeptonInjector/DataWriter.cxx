@@ -54,7 +54,7 @@ void DataWriter::OpenLICFile( std::string filename ){
         throw;
     }
 
-    MAKE_ENUM_VECTOR(type,Particle,Particle:::ParticleType,PARTICLE_H_Particle_ParticleType);
+    MAKE_ENUM_VECTOR(type,Particle,Particle::ParticleType,PARTICLE_H_Particle_ParticleType);
     writeEnumDefBlock(lic_file_output, "Particle::ParticleType", type);
 }
 
@@ -141,8 +141,8 @@ void DataWriter::writeRangedConfig( BasicInjectionConfiguration& config ){
     dataSize+=8; //azimuthMaximum
     dataSize+=8; //zenithMinimum
     dataSize+=8; //zenithMaximum
-    dataSize+=sizeof(ParticleType); //finalType1
-    dataSize+=sizeof(ParticleType); //finalType2
+    dataSize+=sizeof(Particle::ParticleType); //finalType1
+    dataSize+=sizeof(Particle::ParticleType); //finalType2
     dataSize+=sizeof(size_t); //crossSection size
     dataSize+=config.crossSectionBlob.size(); //crossSection
     dataSize+=sizeof(size_t);
@@ -183,8 +183,8 @@ void DataWriter::writeVolumeConfig( BasicInjectionConfiguration& config ){
     dataSize+=8; //azimuthMaximum
     dataSize+=8; //zenithMinimum
     dataSize+=8; //zenithMaximum
-    dataSize+=sizeof(ParticleType); //finalType1
-    dataSize+=sizeof(ParticleType); //finalType2
+    dataSize+=sizeof(Particle::ParticleType); //finalType1
+    dataSize+=sizeof(Particle::ParticleType); //finalType2
     dataSize+=sizeof(size_t); //crossSection size
     dataSize+=config.crossSectionBlob.size(); //crossSection
     dataSize+=sizeof(size_t);

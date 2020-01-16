@@ -61,18 +61,18 @@ public:
 	///\param scatteredType the type of the outgoing lepton
 	///\param random a source of random numbers
 	finalStateRecord sampleFinalState_DIS(double energy,
-	                                  LeptonInjector::ParticleType scatteredType,
+	                                  LeptonInjector::Particle::ParticleType scatteredType,
 	                                  std::shared_ptr<LeptonInjector::LI_random> random) const;
 
     
     // the GR sampler just returns X=1
     finalStateRecord sampleFinalState_GR(double energy,
-	                                  LeptonInjector::ParticleType scatteredType,
+	                                  LeptonInjector::Particle::ParticleType scatteredType,
 	                                  std::shared_ptr<LeptonInjector::LI_random> random) const;
 
     // this has been changed to mainly be a steering function to the other two samplers 
     finalStateRecord sampleFinalState(double energy,
-	                                  LeptonInjector::ParticleType scatteredType,
+	                                  LeptonInjector::Particle::ParticleType scatteredType,
 	                                  std::shared_ptr<LeptonInjector::LI_random> random) const;
 	
 	///Get the value of the doubly-differential cross section
@@ -82,7 +82,7 @@ public:
 	///\param scatteredType the type of the outgoing lepton
 	///\return the doubly-differntial cross section in square meters
 	double evaluateCrossSection(double energy, double x, double y, 
-	                            LeptonInjector::ParticleType scatteredType) const;
+	                            LeptonInjector::Particle::ParticleType scatteredType) const;
 	
 	///\param energy the neutrino energy in GeV
 	///\return the cross section in in square meters

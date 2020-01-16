@@ -31,7 +31,7 @@ namespace LeptonInjector{
 		// The below  puts in a constructor for the MinimalInjectionConfiguration. 
 		// you just pass the things in order and BAM
 		MinimalInjectionConfiguration(unsigned int events,
-		  ParticleType finalType1, ParticleType finalType2,
+		  Particle::ParticleType finalType1, Particle::ParticleType finalType2,
 		  const std::string& crossSectionPath, const std::string& totalCrossSectionPath,
 		  bool ranged):
 		events(events),finalType1(finalType1),finalType2(finalType2),
@@ -42,9 +42,9 @@ namespace LeptonInjector{
 		///Number of events the generator should/did generate
 		unsigned int events;
 		///Type of first particle to be injected in the final state
-		ParticleType finalType1;
+		Particle::ParticleType finalType1;
 		///Type of second particle to be injected in the final state
-		ParticleType finalType2;
+		Particle::ParticleType finalType2;
 		///
 		std::string crossSectionPath;
 		///
@@ -122,7 +122,7 @@ namespace LeptonInjector{
 		///The type of interacting neutrino this instance will produce.
 		///Note that in the presence of oscillations this may not be the type of
 		///the neutrino which arrived at the surface of the Earth.
-		ParticleType initialType;
+		Particle::ParticleType initialType;
 		
 		std::shared_ptr<LI_random> random;
 
