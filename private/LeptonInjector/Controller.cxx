@@ -76,6 +76,10 @@ namespace LeptonInjector {
         out_file = out_file_;
     }
 
+    void Controller::NameLicFile( std::string lic_file_ ){
+        this->lic_file = lic_file_;
+    }
+
     void Controller::Execute(){
         // setup the injectors! 
 
@@ -169,16 +173,17 @@ namespace LeptonInjector {
 
         // open the hdf5 file
 
+        this->datawriter->OpenLICFile( this->lic_file);
         this->datawriter->OpenFile(this->out_file);
 
         uint8_t n_gen = 0;
         while(true){
 
 
-            std::cout << "starting up generator" << std::endl;
+            std::cout << "Starting up "<< generators.back()->Name() << std::endl;
             generators.back()->writer_link = this->datawriter;
             this->datawriter->AddInjector( generators.back()->Name(), generators.back()->isRanged() );
-            generators.back()->Print_Configuration();
+            this->datawriter->WriteConfig( generators.back()->getConfig(), generators.back()->isRanged() );
 
             /*
             active->writer_link = this->datawriter;

@@ -1,4 +1,10 @@
-#include "DataWriter.h"
+#include <DataWriter.h>
+
+// From the IceCube tableio project 
+#define WRAP_ELEMENTS(R,DATA,ELEM) BOOST_PP_STRINGIZE(ELEM),DATA::ELEM
+#define MAKE_ENUM_VECTOR(VECTORNAME,CLASS,ENUM_TYPE,FIELDS)     \
+    std::vector< std::pair<std::string,CLASS::ENUM_TYPE> > VECTORNAME ; \
+    boost::assign::push_back(VECTORNAME) BOOST_PP_SEQ_TRANSFORM(WRAP_ELEMENTS,CLASS,FIELDS); \
 
 
 namespace LeptonInjector{
@@ -41,6 +47,16 @@ void DataWriter::OpenFile( std::string filename ){
 
 }
 
+void DataWriter::OpenLICFile( std::string filename ){
+    this->lic_file_output.open( filename );
+    if(!lic_file_output.good()){
+	    std::cout << "Failed to open " << filename << " for writing LIC file" << std::endl;
+        throw;
+    }
+
+    MAKE_ENUM_VECTOR(type,Particle,Particle:::ParticleType,PARTICLE_H_Particle_ParticleType);
+    writeEnumDefBlock(lic_file_output, "Particle::ParticleType", type);
+}
 
 
 void DataWriter::AddInjector( std::string injector_name , bool ranged){
@@ -103,7 +119,101 @@ void DataWriter::AddInjector( std::string injector_name , bool ranged){
     std::cout << "tried making second dataset" << std::endl;
 
     H5Sclose(file_space2);
+    
 }
+
+void DataWriter::WriteConfig( BasicInjectionConfiguration& config , bool ranged){
+    if (ranged) {
+        this->writeRangedConfig( config );
+    }else{
+        this->writeVolumeConfig( config );
+    }
+}
+
+void DataWriter::writeRangedConfig( BasicInjectionConfiguration& config ){
+    //compute data size
+    uint64_t dataSize=0;
+    dataSize+=4; //events
+    dataSize+=8; //energyMinimum
+    dataSize+=8; //energyMaximum
+    dataSize+=8; //powerlawIndex
+    dataSize+=8; //azimuthMinimum
+    dataSize+=8; //azimuthMaximum
+    dataSize+=8; //zenithMinimum
+    dataSize+=8; //zenithMaximum
+    dataSize+=sizeof(ParticleType); //finalType1
+    dataSize+=sizeof(ParticleType); //finalType2
+    dataSize+=sizeof(size_t); //crossSection size
+    dataSize+=config.crossSectionBlob.size(); //crossSection
+    dataSize+=sizeof(size_t);
+    dataSize+=config.totalCrossSectionBlob.size(); //crossSection
+    dataSize+=8; //injectionRadius
+    dataSize+=8; //endcapLength
+    //write header
+    writeBlockHeader(this->lic_file_output,dataSize,"RangedInjectionConfiguration",1);
+    //write data
+    this->lic_file_output << little_endian(config.events)
+    << little_endian(config.energyMinimum/Constants::GeV)
+    << little_endian(config.energyMaximum/Constants::GeV)
+    << little_endian(config.powerlawIndex)
+    << little_endian(config.azimuthMinimum/Constants::radian)
+    << little_endian(config.azimuthMaximum/Constants::radian)
+    << little_endian(config.zenithMinimum/Constants::radian)
+    << little_endian(config.zenithMaximum/Constants::radian)
+    << little_endian(config.finalType1)
+    << little_endian(config.finalType2)
+    << little_endian(config.crossSectionBlob)
+    << little_endian(config.totalCrossSectionBlob)
+    << little_endian(config.injectionRadius/Constants::meter)
+    << little_endian(config.endcapLength/Constants::meter);
+    if(!this->lic_file_output.good()){
+        std::cout << "Writing ranged injection config block failed" << std::endl;
+        throw;
+    }
+}
+
+void DataWriter::writeVolumeConfig( BasicInjectionConfiguration& config ){
+    //compute data size
+    uint64_t dataSize=0;
+    dataSize+=4; //events
+    dataSize+=8; //energyMinimum
+    dataSize+=8; //energyMaximum
+    dataSize+=8; //powerlawIndex
+    dataSize+=8; //azimuthMinimum
+    dataSize+=8; //azimuthMaximum
+    dataSize+=8; //zenithMinimum
+    dataSize+=8; //zenithMaximum
+    dataSize+=sizeof(ParticleType); //finalType1
+    dataSize+=sizeof(ParticleType); //finalType2
+    dataSize+=sizeof(size_t); //crossSection size
+    dataSize+=config.crossSectionBlob.size(); //crossSection
+    dataSize+=sizeof(size_t);
+    dataSize+=config.totalCrossSectionBlob.size(); //crossSection
+    dataSize+=8; //cylinderRadius
+    dataSize+=8; //cylinderHeight
+    //write header
+    writeBlockHeader(this->lic_file_output,dataSize,"VolumeInjectionConfiguration",1);
+    //write data
+    this->lic_file_output << little_endian(config.events)
+        << little_endian(config.energyMinimum/Constants::GeV)
+        << little_endian(config.energyMaximum/Constants::GeV)
+        << little_endian(config.powerlawIndex)
+        << little_endian(config.azimuthMinimum/Constants::radian)
+        << little_endian(config.azimuthMaximum/Constants::radian)
+        << little_endian(config.zenithMinimum/Constants::radian)
+        << little_endian(config.zenithMaximum/Constants::radian)
+        << little_endian(config.finalType1)
+        << little_endian(config.finalType2)
+        << little_endian(config.crossSectionBlob)
+        << little_endian(config.totalCrossSectionBlob)
+        << little_endian(config.cylinderRadius/Constants::meter)
+        << little_endian(config.cylinderHeight/Constants::meter);
+    if(!this->lic_file_output.good()){
+        std::cout << "Writing volume injection config block failed" << std::endl;
+        throw;
+    }
+}
+
 
 void DataWriter::WriteEvent( BasicEventProperties& props, h5Particle& part1, h5Particle& part2, h5Particle& part3 ){
     // std::cout << " writing an event" << std::endl;
@@ -218,4 +328,102 @@ void DataWriter::makeTables(){
 
 }
 
+
+// Commence the magic... Written by Chris Weaver for IceCube 
+
+template<typename T>
+struct endian_adapter{
+    const T& t;
+    endian_adapter(const T& t):t(t){}
+};
+	
+	template<typename T>
+	endian_adapter<T> little_endian(const T& t){ return(endian_adapter<T>(t)); }
+	
+	std::ostream& endianWrite(std::ostream& os, const char* data, size_t dataSize){
+#if defined(BOOST_LITTLE_ENDIAN)
+		//just write bytes
+		os.write(data,dataSize);
+#elif defined(BOOST_BIG_ENDIAN)
+		//write bytes in reverse order
+		for(size_t i=1; i<=dataSize; i++)
+			os.write(data+dataSize-i),1);
+#elif defined(BOOST_PDP_ENDIAN)
+		//complain bitterly
+		#error PDP-endian systems are not supported.
+#else
+		#error Unable to determine machine endianness!
+#endif
+		return(os);
+	}
+	
+	template<typename T>
+	std::ostream& operator<<(std::ostream& os, const endian_adapter<T>& e){
+		return(endianWrite(os,(char*)&e.t,sizeof(T)));
+	}
+	
+	//automatically write string's length before its data
+	std::ostream& operator<<(std::ostream& os, const endian_adapter<std::string>& e){
+		os << little_endian(e.t.size());
+		return(endianWrite(os,e.t.c_str(),e.t.size()));
+	}
+	
+	//same for vector<char>
+	std::ostream& operator<<(std::ostream& os, const endian_adapter<std::vector<char> >& e){
+		os << little_endian(e.t.size());
+		return(endianWrite(os,&e.t[0],e.t.size()));
+	}
+	
+	/*
+	 Base:
+	 uint64_t: block length
+	 size_t: name length
+	 char[name length]: block type name
+	 uint8_t: version number
+	 char[block length-17-name length]: block data
+	 */
+	void writeBlockHeader(std::ostream& os, uint64_t blockDataSize,
+						  const std::string& blockTypeName, uint8_t version){
+		size_t nameLen=blockTypeName.size();
+		uint64_t totalBlockSize=8+sizeof(nameLen)+nameLen+1+blockDataSize;
+		os << little_endian(totalBlockSize)
+		   << little_endian(blockTypeName)
+		   << little_endian(version);
+		if(!os.good()){
+			std::cout << "Writing block header failed" << std::endl;
+            throw;
+        }
+	}
+
+    template<typename Enum>
+	void writeEnumDefBlock(std::ostream& os, const std::string& enumName,
+						   const std::vector<std::pair<std::string,Enum> >& enumerators){
+		//compute data size
+		uint64_t dataSize=0;
+		size_t nameLen=enumName.size();
+		dataSize+=sizeof(nameLen);
+		dataSize+=nameLen;
+		if(enumerators.size()>=(1ULL<<32)){
+			std::cout << "Number of enumerators (" << enumerators.size()
+							 << ") too large" << std::endl;
+            throw;
+        }
+		uint32_t numEnum=enumerators.size();
+		dataSize+=sizeof(numEnum);
+		for(size_t i=0; i<numEnum; i++){
+			dataSize+=8+sizeof(size_t)+enumerators[i].first.size();
+		}
+		//write header
+		writeBlockHeader(os,dataSize,"EnumDef",1);
+		//write data
+		os << little_endian(enumName) << little_endian(numEnum);
+		for(size_t i=0; i<numEnum; i++){
+			os << little_endian((int64_t)enumerators[i].second)
+			   << little_endian(enumerators[i].first);
+		}
+		if(!os.good()){
+            std::cout << "bad problem writing enum block" << std::endl;
+            throw;
+        }
+    }
 } // end namespace LeptonInjector

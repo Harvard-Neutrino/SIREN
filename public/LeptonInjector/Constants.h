@@ -18,6 +18,7 @@ static const double degrees         = pi/180.; // converts degrees into radians.
 // This is used since the user will enter a number in degrees, while the c trigonometric functions
 // expect angles presented in radians. 
 static const double &deg            = degrees; // adding this in too... 
+static const double radian          = 1.;
 
 // meter
 static const double m               = 1.; 

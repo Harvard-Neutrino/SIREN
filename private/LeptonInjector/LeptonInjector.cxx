@@ -11,25 +11,7 @@ namespace LeptonInjector{
 		
 	//--------------
 	//Config objects
-	
-	BasicInjectionConfiguration::BasicInjectionConfiguration():
-	events(1),
-	energyMinimum(10*Constants::GeV),
-	energyMaximum((1e9)*Constants::GeV),
-	powerlawIndex(1.0),
-	azimuthMinimum(0),
-	azimuthMaximum(2*Constants::pi),
-	zenithMinimum(0),
-	zenithMaximum(Constants::pi),
-	finalType1(ParticleType::MuMinus),
-	finalType2(ParticleType::Hadrons),
-	injectionRadius(1200*LeptonInjector::Constants::m),
-	endcapLength(1200*LeptonInjector::Constants::m),
-	cylinderRadius(1200*LeptonInjector::Constants::m),
-	cylinderHeight(1200*LeptonInjector::Constants::m)
-	{}
-	
-	
+
 	
 
 	//-----------
@@ -99,6 +81,10 @@ namespace LeptonInjector{
 			throw(": TotalCrossSectionFile must be specified");
 		else
 			crossSection.load(basic.crossSectionPath,basic.totalCrossSectionPath);
+	}
+
+	BasicInjectionConfiguration& LeptonInjectorBase::getConfig(void){
+		return( this->config );
 	}
 
 	void LeptonInjectorBase::Print_Configuration(){

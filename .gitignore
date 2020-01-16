@@ -33,4 +33,4 @@
 
 # hdf5 datafiles
 *.h5
-
+*.hdf5
