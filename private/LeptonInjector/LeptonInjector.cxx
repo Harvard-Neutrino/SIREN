@@ -239,8 +239,6 @@ namespace LeptonInjector{
 	
 	RangedLeptonInjector::RangedLeptonInjector( BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModelService> earth_, std::shared_ptr<LI_random> random_){
 		config = config_;
-		std::cout << config.events << std::endl;
-		std::cout << config.energyMinimum << std::endl;
 		eventsGenerated = 0;
 		wroteConfigFrame = false;
 		suspendOnCompletion = true;
@@ -258,8 +256,6 @@ namespace LeptonInjector{
 	
 	
 	bool RangedLeptonInjector::Generate(){
-		//std::cout << "call to ranged generate" << std::endl;
-		//first, make sure configuration gets written once
 		
 		//Choose an energy
 		double energy=SampleEnergy();
@@ -282,23 +278,18 @@ namespace LeptonInjector{
 		+earthModel->GetColumnDepthInCGS(pca-config.endcapLength*dir,pca+config.endcapLength*dir);
 		//See whether that much column depth actually exists along the chosen path
 		{
-			//std::cout << "here we go" << std::endl;
 			double maxDist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth)-config.endcapLength;
-			//std::cout << "calcd the ditanceforcolumndepthtopoint" << std::endl;
 			double actualColumnDepth=earthModel->GetColumnDepthInCGS(pca+config.endcapLength*dir,pca-maxDist*dir);
-			//std::cout << " and now here" << std::endl;
 			if(actualColumnDepth<(totalColumnDepth-1)){ //if actually smaller, clip as needed, but for tiny differences we don't care
 				//log_debug_stream("Wanted column depth of " << totalColumnDepth << " but found only " << actualColumnDepth << " g/cm^2");
 				totalColumnDepth=actualColumnDepth;
 			}
 		}
-		//std::cout << "and the block thingy" << std::endl;
 		//Choose how much of the total column depth this event should have to traverse
 		double traversedColumnDepth=totalColumnDepth*random->Uniform();
 		//endcapLength is subtracted so that dist==0 corresponds to pca
 		double dist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth-traversedColumnDepth)-config.endcapLength;
 		
-		//std::cout << "earthmodel part two" << std::endl;
 		{ //ensure that the point we picked is inside the atmosphere
 			LI_Position atmoEntry, atmoExit;
 			int isect=GetIntersectionsWithSphere(earthModel->GetEarthCoordPosFromDetCoordPos(pca),
@@ -315,13 +306,11 @@ namespace LeptonInjector{
 		
 		//assemble the MCTree
 
-		//std::cout << "trying to fill in the tree thingies" << std::endl;
 		std::shared_ptr<RangedEventProperties> properties = std::make_shared<RangedEventProperties>();
 		std::shared_ptr< std::array<h5Particle, 3> > particle_tree = std::make_shared< std::array<h5Particle,3>>();
 
 		properties->impactParameter=(pca-LI_Position(0,0,0)).Magnitude();
 		properties->totalColumnDepth=totalColumnDepth;
-		//std::cout << "I bet this will be problematic" << std::endl;
 		FillTree(vertex,dir,energy, properties, particle_tree);
 		
 		//set subclass properties
@@ -350,7 +339,6 @@ namespace LeptonInjector{
 		suspendOnCompletion = true;
 		random = random_;
 		config = config_;
-		std::cout <<"config event to " << config.events << " from "<<config_.events <<std::endl;
 		if(config.cylinderRadius<0)
 			throw(": CylinderRadius must be non-negative");
 		if(config.cylinderHeight<0)
