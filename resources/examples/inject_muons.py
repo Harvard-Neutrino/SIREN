@@ -10,8 +10,6 @@ import pylepton_injector as LI
 from math import pi
 
 # define the injector 
-final_type1 = LI.Particle.MuPlus
-final_type2 = LI.Particle.Hadrons
 n_events    = 50000
 diff_xs     = "/home/benito/software/cross_sections/dsdxdy_nubar_CC_iso.fits"
 total_xs    = "/home/benito/software/cross_sections/sigma_nubar_CC_iso.fits"
@@ -20,7 +18,7 @@ is_ranged   = True
 # because the final state had a charged muon and hadrons, the event is the result of an antimuon neutrino undergoing a charged current interaction
 
 # create the injector list using the above parameters
-the_injector = LI.injector( n_events, final_type1, final_type2, diff_xs, total_xs, is_ranged)
+the_injector = LI.injector( n_events, LI.Particle.NuMuBar, LI.Particle.Hadrons, diff_xs, total_xs, is_ranged)
 
 
 diff_xs     = "/home/benito/software/cross_sections/dsdxdy_nubar_NC_iso.fits"
@@ -46,6 +44,7 @@ controller.AddInjector( the_next_injector )
 
 # specify the output
 controller.Output("./data_output.h5")
+controller.LICFile("./config.lic")
 
 # run the simulation
 controller.Execute()
