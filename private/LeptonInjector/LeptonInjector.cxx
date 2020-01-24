@@ -72,6 +72,8 @@ namespace LeptonInjector{
 			throw("Something bad happened while deducing the Initial particle type");
 		}
 
+		
+
 		// write the pointer to the RNG
 		if(!random)
 			throw("A random service is required");
@@ -81,6 +83,8 @@ namespace LeptonInjector{
 			throw(": TotalCrossSectionFile must be specified");
 		else
 			crossSection.load(basic.crossSectionPath,basic.totalCrossSectionPath);
+		
+		this->crossSection.insert_blobs( this->config );
 	}
 
 	BasicInjectionConfiguration& LeptonInjectorBase::getConfig(void){
@@ -349,20 +353,6 @@ namespace LeptonInjector{
 	
 	bool VolumeLeptonInjector::Generate(){
 
-		//first, make sure configuration gets written once
-		/*if(!wroteConfigFrame){
-			boost::shared_ptr<I3Frame> sframe(new I3Frame('S'));
-			boost::shared_ptr<VolumeInjectionConfiguration> sconfig(new VolumeInjectionConfiguration(config));
-			sconfig->setCrossSection(getCrossSection(),getTotalCrossSection());
-			sframe->Put("LeptonInjectorProperties",sconfig);
-			PushFrame(sframe);
-			wroteConfigFrame=true;
-		}
-		if(DoneGenerating()){
-			PushFrame(frame);
-			return;
-		}*/
-		
 		//Choose an energy
 		double energy=SampleEnergy();
 		

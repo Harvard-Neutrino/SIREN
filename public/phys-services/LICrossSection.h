@@ -5,6 +5,7 @@
 
 #include "Particle.h"
 #include "Random.h"
+#include <BasicInjectionConfiguration.h>
 
 #include <string>
 
@@ -55,6 +56,8 @@ public:
 		finalStateRecord(double x, double y):
 		x(x),y(y){}
 	};
+
+	void insert_blobs( LeptonInjector::BasicInjectionConfiguration config);
 
 	///Sample a final state
 	///\param energy the energy of the incoming neutrino
