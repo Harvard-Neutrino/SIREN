@@ -34,3 +34,6 @@
 # hdf5 datafiles
 *.h5
 *.hdf5
+
+# LIC files
+*.lic
