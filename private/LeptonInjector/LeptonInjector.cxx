@@ -44,6 +44,7 @@ namespace LeptonInjector{
 		config.events = basic.events;
 		config.finalType1 = basic.finalType1;
 		config.finalType2 = basic.finalType2;
+		
 		//std::cout << "wrote more" << std::endl;
 		
 		if(this->config.events==0)
@@ -71,9 +72,7 @@ namespace LeptonInjector{
 		}catch(std::runtime_error& re){
 			throw("Something bad happened while deducing the Initial particle type");
 		}
-
-		
-
+		this->initialType = initialType;
 		// write the pointer to the RNG
 		if(!random)
 			throw("A random service is required");
@@ -232,7 +231,8 @@ namespace LeptonInjector{
 		(*properties).finalType1= static_cast<int32_t>(config.finalType1);
 		(*properties).finalType2= static_cast<int32_t>(config.finalType2);
 		(*properties).initialType=static_cast<int32_t>(this->initialType);
-		
+		(*properties).interaction=getInteraction(config.finalType1, config.finalType2);
+
 	}
 	
 	//-----------------------

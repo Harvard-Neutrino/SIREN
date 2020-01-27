@@ -372,6 +372,7 @@ void DataWriter::makeTables(){
     dataSize += 8; // int32_t - finalType1 // yeah, this should be 4 bytes. BUT hdf5 is /really/ dumb about data sizes 
     dataSize += 8; // int32_t - finalType2
     dataSize += 8; // int32_t - initialType
+    dataSize += 8; // int8_t - interaction type 
     dataSize += 8; // double - impactParam OR radius
     dataSize += 8; // double - totalColumnDepth or z
     
@@ -382,6 +383,8 @@ void DataWriter::makeTables(){
     status = H5Tset_size( real_long, 4);
     hid_t real_bool = H5Tcopy( H5T_NATIVE_HBOOL);
     status = H5Tset_size( real_bool, 1);
+    hid_t real_little = H5Tcopy( H5T_NATIVE_UINT8 );
+    status = H5Tset_size(real_little, 1 );
 
     status = H5Tinsert(basicPropertiesTable, "totalEnergy", HOFFSET(BasicEventProperties, totalEnergy), H5T_NATIVE_DOUBLE);
     status = H5Tinsert(basicPropertiesTable, "zenith", HOFFSET(BasicEventProperties, zenith), H5T_NATIVE_DOUBLE); 
@@ -391,6 +394,7 @@ void DataWriter::makeTables(){
     status = H5Tinsert(basicPropertiesTable, "finalType1", HOFFSET(BasicEventProperties, finalType1) , real_long); 
     status = H5Tinsert(basicPropertiesTable, "finalType2", HOFFSET(BasicEventProperties, finalType2) , real_long);
     status = H5Tinsert(basicPropertiesTable, "initialType", HOFFSET(BasicEventProperties, initialType) , real_long); 
+    status = H5Tinsert(basicPropertiesTable, "interaction", HOFFSET(BasicEventProperties, interaction), real_little);
 
     // we want tables for volume and ranged, so let's copy that basic one and make the (slightly) different ones below
     rangedPropertiesTable = H5Tcopy( basicPropertiesTable );
@@ -418,13 +422,6 @@ void DataWriter::makeTables(){
     status = H5Tinsert(particleTable, "Direction",      HOFFSET(h5Particle, dir) , direction); 
     status = H5Tinsert(particleTable, "Energy",         HOFFSET(h5Particle, energy) , H5T_NATIVE_DOUBLE); 
 
-    /*
-    status = H5Tinsert(particleTable, "initial", offset, H5T_NATIVE_HBOOL); offset +=8;
-    status = H5Tinsert(particleTable, "ParticleType", offset,  H5T_NATIVE_LONG); offset += 8;
-    status = H5Tinsert(particleTable, "Position", offset , point3d); offset += 24;
-    status = H5Tinsert(particleTable, "Direction", offset , direction); offset += 16;
-    status = H5Tinsert(particleTable, "Energy", offset , H5T_NATIVE_DOUBLE); offset += 8;
-    */
 
 }
 
