@@ -39,8 +39,7 @@ namespace{
 	}
 }
 
-void I3CrossSection::insert_blobs(LeptonInjector::BasicInjectionConfiguration config){
-	std::cout << "Inserting blobs" << std::endl;
+void I3CrossSection::insert_blobs(LeptonInjector::BasicInjectionConfiguration& config){
 	config.setCrossSection( this->crossSection, this->totalCrossSection );
 }
 

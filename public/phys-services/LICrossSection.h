@@ -57,7 +57,7 @@ public:
 		x(x),y(y){}
 	};
 
-	void insert_blobs( LeptonInjector::BasicInjectionConfiguration config);
+	void insert_blobs( LeptonInjector::BasicInjectionConfiguration& config);
 
 	///Sample a final state
 	///\param energy the energy of the incoming neutrino
