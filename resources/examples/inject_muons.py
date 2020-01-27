@@ -2,9 +2,9 @@
 # benjamin.smithers@mavs.uta.edu
 
 # this example script ...
-#   + imports the Nuzooka libraries 
-#   + creates a muon Nuzooka, and its operator 
-#   + tells the operator to fire 
+#   + imports the LeptonInjector libraries 
+#   + creates two injectors, and their operator 
+#   + tells the operator to execute the process 
 
 import pylepton_injector as LI
 from math import pi
