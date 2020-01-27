@@ -1,4 +1,4 @@
-#include "../../public/phys-services/LICrossSection.h"
+#include <LICrossSection.h>
 #include <array>
 #include <fstream>
 
@@ -37,6 +37,10 @@ namespace{
 		double bd=sqrt(term*term-((m*m)/(E*E)));
 		return((ad-bd)<=d*y && d*y<=(ad+bd)); //Eq. 7
 	}
+}
+
+void I3CrossSection::insert_blobs(LeptonInjector::BasicInjectionConfiguration& config){
+	config.setCrossSection( this->crossSection, this->totalCrossSection );
 }
 
 I3CrossSection::finalStateRecord 

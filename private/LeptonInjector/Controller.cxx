@@ -65,6 +65,7 @@ namespace LeptonInjector {
 
 
     void Controller::AddInjector( MinimalInjectionConfiguration configs_received ){
+        std::cout << "Adding Injector." << std::endl;
         this->configs.push_back( configs_received );
     }
 
@@ -82,6 +83,7 @@ namespace LeptonInjector {
 
     void Controller::Execute(){
         // setup the injectors! 
+        std::cout << "Executing Injectors" << std::endl;
 
         bool hasRanged=false, hasVolume=false;
 		for(std::vector<MinimalInjectionConfiguration>::const_iterator genSet=this->configs.begin(), end=this->configs.end(); genSet!=end; genSet++){
@@ -125,12 +127,10 @@ namespace LeptonInjector {
         if(hasRanged){
             this->rangedConfig.injectionRadius = this->injectionRadius; 
             this->rangedConfig.endcapLength = this->endcapLength; 
-            // set pointer to earthmodel -- GetParameter("EarthModel",earthModelName);
             
             if(this->rangedConfig.injectionRadius<0){throw": InjectionRadius must be non-negative"; }
             if(this->rangedConfig.endcapLength<0){ throw ": EndcapLength must be non-negative"; }
-            //context_.Get<boost::shared_ptr<earthmodel::EarthModelService> >(earthmodelname);
-            //earthmodel::EarthModelService actual_model();
+
             
         }
         
@@ -152,16 +152,14 @@ namespace LeptonInjector {
             //LeptonInjectorBase* generator;
 
             if(genSet->ranged){
-                //log_debug_stream(" this is a ranged injector");
                 RangedLeptonInjector* generator  = new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->random);
                 generator->earthModel = this->earthModel;
-                generator->Configure( *genSet );//, this->random );
+                generator->Configure( *genSet );
                 generators.push_back(generator);
             }
             else{ //volume
-                //log_debug_stream(" this is a volume injector");
                 VolumeLeptonInjector* generator= new VolumeLeptonInjector(volumeConfig, random);
-                generator->Configure( *genSet );//, this->random );
+                generator->Configure( *genSet );
                 generators.push_back(generator);
             }
                             
@@ -184,21 +182,14 @@ namespace LeptonInjector {
             this->datawriter->AddInjector( generators.back()->Name(), generators.back()->isRanged() );
             this->datawriter->WriteConfig( generators.back()->getConfig(), generators.back()->isRanged() );
 
-            /*
-            active->writer_link = this->datawriter;
-            this->datawriter->AddInjector(active->Name(), active->isRanged() );
-            active->Print_Configuration();
-            
-            */
+
             // enters a generating loop. Keep calling generate until it returns FALSE 
             bool generating = true;
-            // std::cout << "running generator for "<< active->config.events << " events" <<std::endl;
             while( generating ){
                 generating = generators.back()->Generate();
             }
             
             // pop the generator, it's done! 
-            //active = nullptr; // clean that pointer 
             generators.pop_back();
             if (generators.empty()){ break; } // check if there's another generator, if there isn't, give up
         }

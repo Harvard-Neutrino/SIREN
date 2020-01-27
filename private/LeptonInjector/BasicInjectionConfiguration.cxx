@@ -21,33 +21,29 @@ namespace LeptonInjector{
 	cylinderHeight(1200*LeptonInjector::Constants::m)
 	{}
 
-	/*
+	
 	void BasicInjectionConfiguration::setCrossSection(const photospline::splinetable<>& crossSection, const photospline::splinetable<>& totalCrossSection){
+		// instantiate data buffer
 		splinetable_buffer buf;
 		buf.size=0;
-		//buf.mem_alloc=&malloc;
-		//buf.mem_realloc=&realloc;
-		int result=writesplinefitstable_mem(&buf, &crossSection );
-		if(result!=0){
-			free(buf.data);
-			std::cout << "photospline error while serializing cross section: " << result << std::endl;
-			throw;
-		}
+
+		// blob-ify the differential cross section 
+		auto result_obj = crossSection.write_fits_mem();
+		buf.data=result_obj.first;
+		buf.size=result_obj.second;
 		crossSectionBlob.resize(buf.size);
 		std::copy((char*)buf.data,(char*)buf.data+buf.size,&crossSectionBlob[0]);
 		free(buf.data);
 		
 		buf.size=0;
-		result=writesplinefitstable_mem(&buf, &totalCrossSection);
-		if(result!=0){
-			free(buf.data);
-			std::cout << "photospline error while serializing cross section: " << result << std::endl;
-			throw;
-		}
+		// now blob-ify the total cross section
+		result_obj = totalCrossSection.write_fits_mem();
+		buf.data = result_obj.first;
+		buf.size = result_obj.second;
 		totalCrossSectionBlob.resize(buf.size);
 		std::copy((char*)buf.data,(char*)buf.data+buf.size,&totalCrossSectionBlob[0]);
 		free(buf.data);
 	}
-*/
+
 
 } // end namespace LeptonInjector

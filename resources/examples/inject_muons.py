@@ -13,25 +13,31 @@ from math import pi
 n_events    = 50000
 diff_xs     = "/home/benito/software/cross_sections/dsdxdy_nubar_CC_iso.fits"
 total_xs    = "/home/benito/software/cross_sections/sigma_nubar_CC_iso.fits"
-is_ranged   = True
-#is_ranged   = True # use the ranged mode injection
-# because the final state had a charged muon and hadrons, the event is the result of an antimuon neutrino undergoing a charged current interaction
+is_ranged   = False
+final_1     = LI.Particle.NuEBar
+final_2     = LI.Particle.Hadrons
 
+# the above describes a NC interaction, so let's use Volume Mode
 # create the injector list using the above parameters
-the_injector = LI.injector( n_events, LI.Particle.NuMuBar, LI.Particle.Hadrons, diff_xs, total_xs, is_ranged)
+the_injector = LI.injector( n_events, final_1, final_2, diff_xs, total_xs, is_ranged)
 
-
+# Now, we'll make a new injector for muon tracks 
+n_events    = 55000
 diff_xs     = "/home/benito/software/cross_sections/dsdxdy_nubar_NC_iso.fits"
 total_xs    = "/home/benito/software/cross_sections/sigma_nubar_NC_iso.fits"
-the_next_injector = LI.injector( n_events , LI.Particle.NuEBar, LI.Particle.Hadrons, diff_xs, total_xs, True)
+is_ranged   = True
+final_1     = LI.Particle.MuMinus
+final_2     = LI.Particle.Hadrons
+the_next_injector = LI.injector( n_events , final_1, final_2, diff_xs, total_xs, is_ranged)
 
 
 
 deg = pi/180.
 
-minE        = 1000.
-maxE        = 100000.
-gamma       = 2. #unitless
+# define some defaults 
+minE        = 1000.     # [GeV]
+maxE        = 100000.   # [GeV]
+gamma       = 2. 
 minZenith   = 80.*deg
 maxZenith   = 180.*deg
 minAzimuth  = 0.*deg

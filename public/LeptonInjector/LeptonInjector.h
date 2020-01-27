@@ -126,9 +126,6 @@ namespace LeptonInjector{
 		
 		std::shared_ptr<LI_random> random;
 
-
-		const photospline::splinetable<>& getCrossSection() const{ return(crossSection.getCrossSection()); }
-		const photospline::splinetable<>& getTotalCrossSection() const{ return(crossSection.getTotalCrossSection()); }
 	private:
 		I3CrossSection crossSection;
 		
