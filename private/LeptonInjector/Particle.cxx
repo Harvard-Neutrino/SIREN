@@ -38,12 +38,11 @@ namespace LeptonInjector{
 	// atm, only implemented for the particles relevant to LeptonInjector 
 	std::string Particle::GetTypeString(){
 
-		// this is **BAD** and I should feel bad
 		// there is a way to do this better with boost preprocessor libraries, but I think that's a little unnecessary given the scope of what LI does. 
 
 		// this just casts the particle type to its pdg code, and uses a switch to grab the name
 		switch( static_cast<int32_t>(this->type) ){
-			case 0: return("Unknwon"); break;
+			case 0: return("Unknown"); break;
 			case 22: return("Gamma"); break;
 			case 11: return("EMinus"); break;
 			case -11: return("EPlus"); break;
@@ -120,7 +119,6 @@ namespace LeptonInjector{
     // returns true if the particle is either
     //        a charged lepton 
     //   (OR) a "hadrons" particle
-	// If passed a disallowed particle, throws a tempter tantrum 
 	bool isCharged(Particle::ParticleType p){
 		if( !(isLepton(p) || p==Particle::ParticleType::Hadrons) ){
 			throw "You should only be using Leptons or Hadrons!";
@@ -144,9 +142,6 @@ namespace LeptonInjector{
 	double particleMass(Particle::ParticleType type){
 		Particle p(type);
 		if(!p.HasMass()){
-            //  removed until new logging system implemented 
-			//log_debug_stream("Treating particle of type " << p.GetTypeString()
-			//				 << " with unknown mass as massless");
 			return(0);
 		}
 		return(p.GetMass());
@@ -156,8 +151,6 @@ namespace LeptonInjector{
 	double kineticEnergy(Particle::ParticleType type, double totalEnergy){
 		double mass=particleMass(type);
 		if(totalEnergy<mass){
-            // commented out until a new logging system is implemented 
-//			log_warn_stream("Negative kinetic energy (particle type = " << particleName(type) << ", mass = " << mass << ", total energy = " << totalEnergy << ')');
 			return(0.);
 		}
 		return(sqrt(totalEnergy*totalEnergy-mass*mass));
@@ -168,19 +161,13 @@ namespace LeptonInjector{
 	double particleSpeed(Particle::ParticleType type, double kineticEnergy){
 		Particle p=Particle(type);
 		if(!p.HasMass()){
-            // removing this until a new logging system is implemented... 
-//			log_debug_stream("Treating particle of type " << p.GetTypeString()
-//							 << " with unknown mass as massless");
 			return(Constants::c);
 		}
 		double mass=p.GetMass();
 		if(kineticEnergy<0){
-            // same as always 
-//			log_warn("Negative kinetic energy");
 			return(0.);
 		}
 
-        // these always confuse me, so I'm leaving a comment
         // IF mass>0 THEN return mass/(stuff) ... ELSE return 0
 		double r=(mass>0 ? mass/(kineticEnergy+mass) : 0.);
 		return(Constants::c*sqrt(1-r*r));
@@ -205,20 +192,34 @@ namespace LeptonInjector{
 		}
 	}
 
+	uint8_t getInteraction( Particle::ParticleType final_1 , Particle::ParticleType final_2){
+		// check for GR
+		if ((final_1==Particle::ParticleType::EMinus && final_2 == Particle::ParticleType::NuEBar)||
+		(final_1==Particle::ParticleType::MuMinus && final_2 == Particle::ParticleType::NuMuBar)||
+		(final_1==Particle::ParticleType::TauMinus && final_2 == Particle::ParticleType::NuTauBar)||
+		(final_1==Particle::ParticleType::Hadrons && final_2 == Particle::ParticleType::Hadrons)){
+			return( 2 ); // glashow resonance 
+		}else if( (final_2==Particle::ParticleType::Hadrons) and (
+			final_1==Particle::Particle::EPlus || final_1==Particle::Particle::EMinus ||
+			final_1==Particle::Particle::MuPlus || final_1==Particle::Particle::MuMinus ||
+			final_1==Particle::Particle::TauPlus || final_1==Particle::Particle::TauMinus )){
+			return( 0 ); // charged current
+		}else if( (final_2==Particle::ParticleType::Hadrons) and (
+			final_1==Particle::Particle::NuEBar || final_1==Particle::Particle::NuE ||
+			final_1==Particle::Particle::NuMuBar || final_1==Particle::Particle::NuMu ||
+			final_1==Particle::Particle::NuTauBar || final_1==Particle::Particle::NuTau )){
+			return( 1 ); // neutral current
+		}
+	}
+
     // This function returns the primary particle type given the final state particles
     // returns a particle type object    
 	Particle::ParticleType deduceInitialType(Particle::ParticleType pType1, Particle::ParticleType pType2){
 		//only accept certain particle types in general
 		if(!isLepton(pType1) && pType1!=Particle::ParticleType::Hadrons)
             throw "BadParticle"; //replace log
-//			log_fatal_stream("Unexpected particle type: "
-//							 << particleName(pType1)
-//							 << ";\nonly leptons and 'Hadrons' are supported");
 		if(!isLepton(pType2) && pType2!=Particle::ParticleType::Hadrons)
             throw "BadParticle";
-//			log_fatal_stream("Unexpected particle type: "
-//							 << particleName(pType2)
-//							 << ";\nonly leptons and 'Hadrons' are supported");
 		
 		bool c1=isCharged(pType1);
 		bool c2=isCharged(pType2);
@@ -228,10 +229,6 @@ namespace LeptonInjector{
 		//at least one particle should be charged
 		if(!c1 && !c2)
 			throw "Final state should have at least one charged particle";
-//			log_fatal_stream("Final state must contain at least one charged particle\n"
-//							 << "specified particles were " << particleName(pType1)
-//							 << " and " << particleName(pType2)); 
-		
 		//first particle is charged, second is not
 		if(c1 && !c2){
 			//valid cases are charged lepton + matching antineutrino for GR
@@ -244,24 +241,18 @@ namespace LeptonInjector{
 					 (pType1==Particle::ParticleType::TauMinus && pType2==Particle::ParticleType::NuTauBar) ||
 					 (pType1==Particle::ParticleType::TauPlus  && pType2==Particle::ParticleType::NuTau)))
                      throw "Final states with a charged lepton must have an anti-matching neutrino.";
-//    	  		     log_fatal_stream("Final states with a charged lepton must have an anti-matching neutrino.\n"
-//									 << "Specified particles were " << particleName(pType1) << " and " << particleName(pType2));
-				//log_info_stream(particleName(pType1) << ", " << particleName(pType2) << " identified as Glashow Resonance (leptonic)");
 				return(Particle::ParticleType::NuEBar);
 			}
             throw "BadFinal";
-//			log_fatal_stream("Unrecognized final state type: " << particleName(pType1) << " and " << particleName(pType2));
 		}
 		
 		//first particle is neutral, second is charged
 		if(!c1 && c2){
 			if(l1 && pType2==Particle::ParticleType::Hadrons){
 				//particle 1 is a neutral lepton, so it must be a neutrino
-//				log_info_stream(particleName(pType1) << ", " << particleName(pType2) << " identified as Neutral Current");
 				return(pType1); //the incoming neutrino type is the same as the outgoing
 			}
             throw "BadFinal";
-//			log_fatal_stream("Unrecognized final state type: " << particleName(pType1) << " and " << particleName(pType2));
 		}
 		
 		//have two charged particles
@@ -269,16 +260,10 @@ namespace LeptonInjector{
 			//no two charged lepton states
 			if(l1 && l2)
                 throw "BadFinal";
-//				log_fatal_stream("Two charged lepton final states are not allowed.\n"
-//								 << "Specified particles were " << particleName(pType1) << " and " << particleName(pType2));
 			//lepton should be given first
 			if(!l1 && l2)
                 throw "BadFinal";
-//				log_fatal_stream("Final states should specify charged leptons before 'Hadrons'.\n"
-//								 << "Specified particles were " << particleName(pType1) << " and " << particleName(pType2));
-			
 			if(l1 && !l2){ //valid: charged lepton + Hadrons for CC
-//				log_info_stream(particleName(pType1) << ", " << particleName(pType2) << " identified as Charged Current");
 				switch(pType1){
 					case Particle::ParticleType::EMinus: return(Particle::ParticleType::NuE);
 					case Particle::ParticleType::EPlus: return(Particle::ParticleType::NuEBar);
@@ -290,12 +275,10 @@ namespace LeptonInjector{
 				}
 			}
 			if(!l1 && !l2){ //valid: two hadrons (for GR)
-//				log_info_stream(particleName(pType1) << ", " << particleName(pType2) << " identified as Glashow Resonance (hadronic)");
 				return(Particle::ParticleType::NuEBar);
 			}
 		}
         throw "You must be a wizard: this point should be unreachable";
-        //log_fatal("Logic error; this point should be unreachable");
 	}
 
 

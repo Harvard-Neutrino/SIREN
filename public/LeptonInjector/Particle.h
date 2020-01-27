@@ -231,6 +231,7 @@ namespace LeptonInjector{
     double particleSpeed( Particle::ParticleType type, double kineticEnergy);
     Particle::ParticleShape decideShape(Particle::ParticleType t);
     Particle::ParticleType deduceInitialType( Particle::ParticleType pType1, Particle::ParticleType pType2);
+    uint8_t getInteraction( Particle::ParticleType final_1 , Particle::ParticleType final_2);
 
 }// end namespace LI_Particle
 
