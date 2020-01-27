@@ -23,28 +23,23 @@ namespace LeptonInjector{
 
 	
 	void BasicInjectionConfiguration::setCrossSection(const photospline::splinetable<>& crossSection, const photospline::splinetable<>& totalCrossSection){
+		// instantiate data buffer
 		splinetable_buffer buf;
 		buf.size=0;
-		//buf.mem_alloc=&malloc;
-		//buf.mem_realloc=&realloc;
 
-		// int result=writesplinefitstable_mem(&buf, &crossSection. );
-		// auto& real_table=*static_cast<photospline::splinetable<>*>(crossSection->data);
+		// blob-ify the differential cross section 
 		auto result_obj = crossSection.write_fits_mem();
 		buf.data=result_obj.first;
 		buf.size=result_obj.second;
-
-
 		crossSectionBlob.resize(buf.size);
 		std::copy((char*)buf.data,(char*)buf.data+buf.size,&crossSectionBlob[0]);
 		free(buf.data);
 		
 		buf.size=0;
+		// now blob-ify the total cross section
 		result_obj = totalCrossSection.write_fits_mem();
 		buf.data = result_obj.first;
 		buf.size = result_obj.second;
-		// result=writesplinefitstable_mem(&buf, &totalCrossSection);
-
 		totalCrossSectionBlob.resize(buf.size);
 		std::copy((char*)buf.data,(char*)buf.data+buf.size,&totalCrossSectionBlob[0]);
 		free(buf.data);
