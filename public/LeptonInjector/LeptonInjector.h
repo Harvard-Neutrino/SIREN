@@ -64,6 +64,7 @@ namespace LeptonInjector{
 		LeptonInjectorBase();
 		//LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> random_);
 		//No implementation of DAQ; this base class should be pure virtual
+
 		virtual bool Generate(){}
 		//Whether this module has generated as many events already as it was configured to
 		virtual std::string Name(){return("BasicInjector");}
@@ -108,7 +109,7 @@ namespace LeptonInjector{
 		///\param dir the direction of the interacting neutrino
 		///\param energy the energy of the interacting neutrino
 		///\param properties the associated structure where the event properties should be recorded
-		void FillTree(LI_Position vertex, LI_Direction dir, double energy, std::shared_ptr<BasicEventProperties> properties, std::shared_ptr<std::array<h5Particle,3>> particle_tree);
+		void FillTree(LI_Position vertex, LI_Direction dir, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree);
 		
 		///Random number source
 		///Configuration structure in which to store parameters
