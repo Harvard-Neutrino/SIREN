@@ -35,7 +35,7 @@ namespace LeptonInjector{
 	random(_random){
 	}
 */	
-	
+
 	
 	void LeptonInjectorBase::Configure(MinimalInjectionConfiguration basic){// , std::shared_ptr<LI_random> pass){
 		
@@ -89,6 +89,8 @@ namespace LeptonInjector{
 	BasicInjectionConfiguration& LeptonInjectorBase::getConfig(void){
 		return( this->config );
 	}
+
+	
 
 	void LeptonInjectorBase::Print_Configuration(){
 		std::cout << "    Events   : " << this->config.events << std::endl;
@@ -194,14 +196,14 @@ namespace LeptonInjector{
 	// So the zenith and azimuth are only what their names would suggest in the coordinate system where 
 	//		/base/ is the \hat{z} axis 
 	
-	void LeptonInjectorBase::FillTree(LI_Position vertex, LI_Direction dir, double energy, std::shared_ptr<BasicEventProperties> properties, std::shared_ptr<std::array<h5Particle,3>> particle_tree){
+	void LeptonInjectorBase::FillTree(LI_Position vertex, LI_Direction dir, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree){
 		const I3CrossSection::finalStateRecord& fs=crossSection.sampleFinalState(energy,config.finalType1,this->random);
 		
 		std::pair<double,double> relativeZeniths=computeFinalStateAngles(energy,fs.x,fs.y);
 		double azimuth1=this->random->Uniform(0,2*Constants::pi);
 		double azimuth2=azimuth1+(azimuth1<Constants::pi ? 1 : -1)*Constants::pi ;
 		
-		(*particle_tree)[0]=  h5Particle(true,
+		(particle_tree)[0]=  h5Particle(true,
 					static_cast<int32_t>(this->initialType),
 					vertex,
 					dir,
@@ -209,29 +211,29 @@ namespace LeptonInjector{
 		);
 
 		//Make the first final state particle
-		(*particle_tree)[1] = h5Particle( false, 
+		(particle_tree)[1] = h5Particle( false, 
 					static_cast<int32_t>(config.finalType1),
 					vertex,
 					rotateRelative(dir,relativeZeniths.first,azimuth1),
 					kineticEnergy(config.finalType1,(1-fs.y)*energy)
 		);
 
-		(*particle_tree)[2] = h5Particle(false,
+		(particle_tree)[2] = h5Particle(false,
 					static_cast<int32_t>(config.finalType2),
 					vertex,
 					rotateRelative(dir,relativeZeniths.second,azimuth2),
 					kineticEnergy(config.finalType2,fs.y*energy)
 		);
 
-		(*properties).totalEnergy=energy;
-		(*properties).zenith=dir.zenith;
-		(*properties).azimuth=dir.azimuth;
-		(*properties).finalStateX=fs.x;
-		(*properties).finalStateY=fs.y;
-		(*properties).finalType1= static_cast<int32_t>(config.finalType1);
-		(*properties).finalType2= static_cast<int32_t>(config.finalType2);
-		(*properties).initialType=static_cast<int32_t>(this->initialType);
-		(*properties).interaction=getInteraction(config.finalType1, config.finalType2);
+		properties.totalEnergy=energy;
+		properties.zenith=dir.zenith;
+		properties.azimuth=dir.azimuth;
+		properties.finalStateX=fs.x;
+		properties.finalStateY=fs.y;
+		properties.finalType1= static_cast<int32_t>(config.finalType1);
+		properties.finalType2= static_cast<int32_t>(config.finalType2);
+		properties.initialType=static_cast<int32_t>(this->initialType);
+		properties.interaction=getInteraction(config.finalType1, config.finalType2);
 
 	}
 	
@@ -310,21 +312,19 @@ namespace LeptonInjector{
 		
 		//assemble the MCTree
 
-		std::shared_ptr<RangedEventProperties> properties = std::make_shared<RangedEventProperties>();
-		std::shared_ptr< std::array<h5Particle, 3> > particle_tree = std::make_shared< std::array<h5Particle,3>>();
+		RangedEventProperties properties;
+		std::array<h5Particle, 3> particle_tree;
 
-		properties->impactParameter=(pca-LI_Position(0,0,0)).Magnitude();
-		properties->totalColumnDepth=totalColumnDepth;
+		properties.impactParameter=(pca-LI_Position(0,0,0)).Magnitude();
+		properties.totalColumnDepth=totalColumnDepth;
 		FillTree(vertex,dir,energy, properties, particle_tree);
-		
+
 		//set subclass properties
 		
 
 		//update event count and check for completion
 		eventsGenerated++;
-		
-		writer_link->WriteEvent( *properties, (*particle_tree)[0] , (*particle_tree)[1], (*particle_tree)[2]);
-
+		writer_link->WriteEvent( properties, particle_tree[0] , particle_tree[1], particle_tree[2]);
 
 		return(  (eventsGenerated < this->config.events)  );
 
@@ -368,12 +368,12 @@ namespace LeptonInjector{
 		//log_trace_stream("vtx=(" << vertex.GetX() << ',' << vertex.GetY() << ',' << vertex.GetZ() << ')');
 		
 		//assemble the MCTree
-		std::shared_ptr<VolumeEventProperties> properties = std::make_shared<VolumeEventProperties>();
-		std::shared_ptr< std::array<h5Particle, 3> > particle_tree = std::make_shared< std::array<h5Particle,3>>();
+		VolumeEventProperties properties;
+		std::array<h5Particle, 3> particle_tree;
 		
 		//set subclass properties
-		properties->radius=vertex.Magnitude();
-		properties->z=vertex.GetZ();
+		properties.radius=vertex.Magnitude();
+		properties.z=vertex.GetZ();
 
 		// write hdf5 file! 
 
@@ -383,8 +383,7 @@ namespace LeptonInjector{
 
 
 		//package up output and send it
-		writer_link->WriteEvent( *properties, (*particle_tree)[0] , (*particle_tree)[1], (*particle_tree)[2]);
-		
+		writer_link->WriteEvent( properties, particle_tree[0] , particle_tree[1], particle_tree[2]);
 		//update event count and check for completion
 		eventsGenerated++;
 
