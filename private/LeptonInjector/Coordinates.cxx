@@ -236,10 +236,10 @@ namespace LeptonInjector {
 	}
 
 	LI_Direction rotateRelative(LI_Direction base, double zenith, double azimuth){
-		LI_Direction result;
-		result.zenith += zenith*cos(azimuth);
-		result.azimuth+= zenith*sin(azimuth);
-		return(result);
+		LI_Position result(sin(zenith)*cos(azimuth), sin(zenith)*sin(azimuth), cos(zenith) );
+		result = RotateY( result, base.zenith );
+		result = RotateZ( result, base.azimuth );
+		return(LI_Direction( result ));
 	}
 
 } // end namespace LeptonInjector
