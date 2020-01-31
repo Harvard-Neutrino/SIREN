@@ -197,7 +197,7 @@ void DataWriter::AddInjector( std::string injector_name , bool ranged){
     final_1 = H5Dcreate(group_handle,final_1_name, particleTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT); 
     final_2 = H5Dcreate(group_handle,final_2_name, particleTable, file_space, H5P_DEFAULT, plist, H5P_DEFAULT); 
     H5Sclose(file_space);
-
+    H5Pclose(plist);
 
     const hsize_t ndims2 =1; 
     hsize_t dims2[ndims2] = {0};
@@ -219,6 +219,7 @@ void DataWriter::AddInjector( std::string injector_name , bool ranged){
     }
 
     H5Sclose(file_space2);
+    H5Pclose(plist2);
     
 }
 
@@ -338,20 +339,27 @@ void DataWriter::WriteEvent( BasicEventProperties& props, h5Particle& part1, h5P
 
     // h5Particle temp_data[3] = {part1, part2, part3};
     H5Dwrite(initials, particleTable, memspace, file_space, H5P_DEFAULT, &part1);
+    H5Sclose( file_space);
+
     file_space = H5Dget_space( final_1 );
     H5Sselect_hyperslab( file_space, H5S_SELECT_SET, start, NULL, count, NULL);
     H5Dwrite(final_1, particleTable, memspace, file_space, H5P_DEFAULT, &part2);
+    H5Sclose( file_space );
+
     file_space = H5Dget_space( final_2 );
     H5Sselect_hyperslab( file_space, H5S_SELECT_SET, start, NULL, count, NULL);
     H5Dwrite(final_2, particleTable, memspace, file_space, H5P_DEFAULT, &part3);
+    H5Sclose(file_space);
 
     file_space = H5Dget_space( properties );
     H5Sselect_hyperslab( file_space, H5S_SELECT_SET, start, NULL, count, NULL);
+    
     if (write_ranged){
         H5Dwrite(properties, rangedPropertiesTable, memspace, file_space, H5P_DEFAULT, &props);
     }else{
         H5Dwrite(properties, volumePropertiesTable, memspace, file_space, H5P_DEFAULT, &props);
     }
+    
 
     // delete(&temp_data);
 
