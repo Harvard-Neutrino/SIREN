@@ -54,13 +54,13 @@ namespace LeptonInjector {
 		this->zenith = dir.first;
 		this->azimuth = dir.second;
 	}
-	LI_Direction::LI_Direction(LI_Direction* old_one){
-		this->zenith = old_one->zenith;
-		this->azimuth = old_one->azimuth;
+	LI_Direction::LI_Direction(const LI_Direction& old_one){
+		this->zenith = old_one.zenith;
+		this->azimuth = old_one.azimuth;
 	}
 
 	// construct a direction for a given vector 
-	LI_Direction::LI_Direction( LI_Position vec){
+	LI_Direction::LI_Direction( const LI_Position& vec){
 		this->azimuth = atan( vec.at(1)/ vec.at(0) );
 		this->zenith  = acos( vec.at(2)/ vec.Magnitude() );
 	}
@@ -241,7 +241,7 @@ namespace LeptonInjector {
 		return(true);
 	}
 
-	LI_Direction rotateRelative(LI_Direction base, double zenith, double azimuth){
+	LI_Direction rotateRelative(const LI_Direction& base, double zenith, double azimuth){
 		LI_Position result(sin(zenith)*cos(azimuth), sin(zenith)*sin(azimuth), cos(zenith) );
 		result = RotateY( result, base.zenith );
 		result = RotateZ( result, base.azimuth );
