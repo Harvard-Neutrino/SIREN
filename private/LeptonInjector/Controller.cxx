@@ -1,5 +1,7 @@
 #include "Controller.h"
 
+
+
 // This is the "controller" of the whole thing
 // It is a reimplementation of the multileptoninjector 
 
@@ -143,13 +145,10 @@ namespace LeptonInjector {
             if(this->volumeConfig.cylinderHeight<0){ throw ": EndcapLength must be non-negative"; }
 
         }
-
         //construct all generators
         unsigned int i=0;
         for(std::vector<MinimalInjectionConfiguration>::const_iterator genSet=this->configs.begin(), end=this->configs.end(); genSet!=end; genSet++){
-            std::cout << std::endl;
-            //log_debug_stream("Configuring injector " << i << ":");
-            //LeptonInjectorBase* generator;
+
 
             if(genSet->ranged){
                 RangedLeptonInjector* generator  = new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->random);
@@ -162,9 +161,7 @@ namespace LeptonInjector {
                 generator->Configure( *genSet );
                 generators.push_back(generator);
             }
-                            
-            
-            
+  
         } // end for loop constructing generators 
         
 
