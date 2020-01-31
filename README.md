@@ -67,8 +67,11 @@ This tells cmake to install the shared objects in the `install` directory we jus
 
 to build the project and install the project. Now you need to set all the environmental variables so this actually works. You will be adding this to your .bashrc or .bash_profile. 
 
-`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/your/install/path/
-`export EARTH_PARAMS=/your/source/path/resources/earthparams/
+To allow python to find your install directory: 
+`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/your/install/path/`
+
+To allow the EarthModel to find details about the Earth:
+`export EARTH_PARAMS=/your/source/path/resources/earthparams/`
 
 # Structure
 The code base is divided into several files. 
