@@ -4,17 +4,23 @@
 namespace LeptonInjector {
 
 	LI_Position RotateX(LI_Position vector, double angle) {
-		LI_Position rotated(vector.at(0), vector.at(1)*cos(angle) +vector.at(2)*sin(angle), -1*vector.at(1)*sin(angle) + vector.at(2)*cos(angle) );
+		LI_Position rotated(vector.at(0), 
+				vector.at(1)*cos(angle) - vector.at(2)*sin(angle), 
+				vector.at(1)*sin(angle) + vector.at(2)*cos(angle) );
 		return(rotated);
 	}
 
 	LI_Position RotateY(LI_Position vector, double angle) {
-		LI_Position rotated(vector.at(0) * cos(angle) + -1 * vector.at(2) * sin(angle), vector.at(1) ,vector.at(0)*sin(angle) + vector.at(2)*cos(angle) );
+		LI_Position rotated(vector.at(0) * cos(angle) +  vector.at(2) * sin(angle), 
+				vector.at(1) ,
+				-1*vector.at(0)*sin(angle) + vector.at(2)*cos(angle) );
 		return(rotated);
 	}
 
 	LI_Position RotateZ(LI_Position vector, double angle) {
-		LI_Position rotated(vector.at(0)*cos(angle)+vector.at(1)*sin(angle), -1*vector.at(0)*sin(angle)+vector.at(1)*cos(angle), vector.at(2) );
+		LI_Position rotated(vector.at(0)*cos(angle)+ -1*vector.at(1)*sin(angle),
+				 vector.at(0)*sin(angle)+vector.at(1)*cos(angle), 
+				 vector.at(2) );
 		return(rotated);
 	}
 
