@@ -2,7 +2,7 @@
 #define LI_H5WRITE
 
 #include <BasicInjectionConfiguration.h>
-#include <hdf5.h> // all the data writing
+#include <hdf5/serial/hdf5.h> // all the data writing
 #include <fstream> // std::ostream 
 
 #include <string> // strings
