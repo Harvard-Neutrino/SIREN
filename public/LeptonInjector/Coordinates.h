@@ -61,8 +61,8 @@ namespace LeptonInjector {
 			LI_Direction( double theta, double phi);
 			LI_Direction( std::array<double, 2> dir);
 			LI_Direction( std::pair<double, double> dir);
-			LI_Direction( LI_Direction* old_one);
-			LI_Direction( LI_Position vec );  // get the direction of a vector 
+			LI_Direction( const LI_Direction& old_one);
+			LI_Direction( const LI_Position& vec );  // get the direction of a vector 
 
 			
 			double zenith;
@@ -93,7 +93,7 @@ namespace LeptonInjector {
 
 	bool operator == (LI_Position one, LI_Position two);
 
-	LI_Direction rotateRelative(LI_Direction base, double zenith, double azimuth);
+	LI_Direction rotateRelative(const LI_Direction& base, double zenith, double azimuth);
 
 } // end namespace LeptonInjector
 
