@@ -1,20 +1,22 @@
 # LeptonInjector
 
-LeptonInjector is a group of modules used to create events in IceCube. This code represents a standalone version of the original LeptonInjector which has been trimmed of the proprietary Icetray dependencies. It is currently a work in progress, and is *not* in a functional state! 
-
-The code is very nearly in a functional state and is in the final stages of debugging. Yes, it's pretty messy in its current state - but I'll clean it up before release! 
+LeptonInjector is a group of modules used to create events in IceCube. This code represents a standalone version of the original LeptonInjector which has been trimmed of the proprietary Icetray dependencies. It is currently fully functional and compatible with LeptonWeighter. 
 
 To use it, you will
 
-    1. Prepare a Injector object (or list of Injector objects). These are represented as `MinimalInjectionConfiguration` objects in the c++ code. 
+    1. Prepare a Injector object (or list of Injector objects).
 
     2. Use one injector object, along with several generation parameters, to create a Controller object. These were called MultiLeptonInjector in the original code. 
 
     3. Add more injectors to the controller object using the add injector function. Verify that the controller is properly configured.
+    
+    4. Specify the full paths and names of the destination output file and LeptonInjector Configuration (LIC) file.
 
-    4. Call Controller.Execute(). This will run the simulation. 
+    5. Call Controller.Execute(). This will run the simulation. 
 
 For an example of this in action, see $root/resources/example/inject_muons.py
+
+To learn about the LIC files and weighting, see https://github.com/IceCubeOpenSource/LeptonWeighter
 
 # Dependencies
 
@@ -28,7 +30,7 @@ For local installations, you need the following:
 
 * It also requires Photospline to create and to read cross sections. Read more about it, and its installation at https://github.com/IceCubeOpenSource/photospline. Note that Photospline has dependencies that you will need that are not listed here. 
 
-* Photospline requries `SuiteSparse`, which can be downloaded here http://faculty.cse.tamu.edu/davis/suitesparse.html
+* LeptonInjector requires Photospline's `SuiteSparse` capabilities, whose dependencies are available here http://faculty.cse.tamu.edu/davis/suitesparse.html
 
 For building py-bindings, 
 
@@ -39,7 +41,7 @@ For building py-bindings,
 
 # Included Dependencies
 
-These are not ostensibly a part of LeptonInjector, but are included for its functionality. 
+These are not ostensibly a part of LeptonInjector, but are included for its functionality. They were developed by the IceCube Collaboration and modified slightly to use the LeptonInjector datatypes instead of the IceCube proprietary ones. 
 
 * I3CrossSections: provies the tools for sampling DIS and GR cross sections. 
 
@@ -65,8 +67,11 @@ This tells cmake to install the shared objects in the `install` directory we jus
 
 to build the project and install the project. Now you need to set all the environmental variables so this actually works. You will be adding this to your .bashrc or .bash_profile. 
 
-`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/your/install/path/
-`export EARTH_PARAMS=/your/source/path/resources/earthparams/
+To allow python to find your install directory: 
+`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/your/install/path/`
+
+To allow the EarthModel to find details about the Earth:
+`export EARTH_PARAMS=/your/source/path/resources/earthparams/`
 
 # Structure
 The code base is divided into several files. 
@@ -81,3 +86,8 @@ The code base is divided into several files.
 
 # Cross Sections
 More to come on this front later. You will need cross sections, saved as fits files. Maybe we should upload examples XS to the repo?
+
+# Making Contributions
+If you would like to make contributions to this project, please create a branch off of the `master` branch and name it something following the template: `$YourLastName/$YourSubProject`. 
+Work on this branch until you have made the changes you wished to see and your branch is _stable._ 
+Then, pull from master, and create a pull request to merge your branch back into master. 
