@@ -39,12 +39,12 @@ namespace{
 	}
 }
 
-void I3CrossSection::insert_blobs(LeptonInjector::BasicInjectionConfiguration& config){
+void LICrossSection::insert_blobs(LeptonInjector::BasicInjectionConfiguration& config){
 	config.setCrossSection( this->crossSection, this->totalCrossSection );
 }
 
-I3CrossSection::finalStateRecord 
-I3CrossSection::sampleFinalState_DIS(double energy, 
+LICrossSection::finalStateRecord 
+LICrossSection::sampleFinalState_DIS(double energy, 
                                LeptonInjector::Particle::ParticleType scatteredType, 
                                std::shared_ptr<LeptonInjector::LI_random> random) const{
     // Uses Metropolis-Hastings Algorithm! 
@@ -181,8 +181,8 @@ I3CrossSection::sampleFinalState_DIS(double energy,
 	return(finalStateRecord(pow(10.,kin_vars[1]),pow(10.,kin_vars[2])));
 }
 
-I3CrossSection::finalStateRecord
-I3CrossSection::sampleFinalState_GR(double energy,
+LICrossSection::finalStateRecord
+LICrossSection::sampleFinalState_GR(double energy,
                                 LeptonInjector::Particle::ParticleType scatteredType,
                                 std::shared_ptr<LeptonInjector::LI_random> random) const{
     // this does the work for GR interactions.
@@ -290,8 +290,8 @@ I3CrossSection::sampleFinalState_GR(double energy,
 
 }
 
-I3CrossSection::finalStateRecord
-I3CrossSection::sampleFinalState(double energy,
+LICrossSection::finalStateRecord
+LICrossSection::sampleFinalState(double energy,
                                 LeptonInjector::Particle::ParticleType scatteredType,
                                 std::shared_ptr<LeptonInjector::LI_random> random) const{
     // calls the DIS function for DIS cases
@@ -299,9 +299,9 @@ I3CrossSection::sampleFinalState(double energy,
     // if it doesn't know what kind of interaction this is, give up
 
     if (interaction ==1 || interaction==2){
-        return( I3CrossSection::sampleFinalState_DIS( energy, scatteredType, random ) );
+        return( LICrossSection::sampleFinalState_DIS( energy, scatteredType, random ) );
     }else if(interaction==3){
-        return( I3CrossSection::sampleFinalState_GR(  energy, scatteredType, random ) );
+        return( LICrossSection::sampleFinalState_GR(  energy, scatteredType, random ) );
     }else{ //should be easy to modify this to support other interaction cross sections! 
         std::cout << "Unknown interaction number "+ std::to_string(interaction) + ". Your fits files are funky." << std::endl;
 		throw;
@@ -309,7 +309,7 @@ I3CrossSection::sampleFinalState(double energy,
 }
 
 
-double I3CrossSection::evaluateCrossSection(double energy, double x, double y,
+double LICrossSection::evaluateCrossSection(double energy, double x, double y,
                                             LeptonInjector::Particle::ParticleType scatteredType) const{
 	double log_energy=log10(energy);
 	//check preconditions
@@ -346,7 +346,7 @@ double I3CrossSection::evaluateCrossSection(double energy, double x, double y,
 	return(result);
 }
 
-double I3CrossSection::evaluateTotalCrossSection(double energy) const{
+double LICrossSection::evaluateTotalCrossSection(double energy) const{
 	double log_energy=log10(energy);
 	//check preconditions
 	if(log_energy<totalCrossSection.lower_extent(0)
@@ -361,7 +361,7 @@ double I3CrossSection::evaluateTotalCrossSection(double energy) const{
 	return(pow(10.,log_xs));
 }
 
-void I3CrossSection::load(std::string dd_crossSectionFile, std::string total_crossSectionFile){
+void LICrossSection::load(std::string dd_crossSectionFile, std::string total_crossSectionFile){
 	
 	crossSection = photospline::splinetable<>(dd_crossSectionFile.c_str());
 	
@@ -405,10 +405,10 @@ void I3CrossSection::load(std::string dd_crossSectionFile, std::string total_cro
 	}
 }
 
-double I3CrossSection::GetMinimumEnergy() const{
+double LICrossSection::GetMinimumEnergy() const{
 	return(pow(10.,totalCrossSection.lower_extent(0)));
 }
 
-double I3CrossSection::GetMaximumEnergy() const{
+double LICrossSection::GetMaximumEnergy() const{
 	return(pow(10.,totalCrossSection.upper_extent(0)));
 }

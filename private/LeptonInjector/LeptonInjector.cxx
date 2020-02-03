@@ -197,7 +197,7 @@ namespace LeptonInjector{
 	//		/base/ is the \hat{z} axis 
 	
 	void LeptonInjectorBase::FillTree(LI_Position vertex, LI_Direction dir, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree){
-		const I3CrossSection::finalStateRecord& fs=crossSection.sampleFinalState(energy,config.finalType1,this->random);
+		const LICrossSection::finalStateRecord& fs=crossSection.sampleFinalState(energy,config.finalType1,this->random);
 		
 		std::pair<double,double> relativeZeniths=computeFinalStateAngles(energy,fs.x,fs.y);
 		double azimuth1=this->random->Uniform(0,2*Constants::pi);
