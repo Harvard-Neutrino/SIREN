@@ -1,11 +1,16 @@
 #ifndef LI_CONTROLLER
 #define LI_CONTROLLER
 
-#include <LeptonInjector.h>
-#include <Constants.h>
-#include <Coordinates.h>
-#include <DataWriter.h>
-#include <iostream>
+#include <LeptonInjector.h> 
+#include <Constants.h> // pi, GeV, degrees, meters, ... 
+#include <DataWriter.h> // adds DataWriter class 
+#include <iostream> // cout 
+
+// Ben Smithers
+// benjamin.smithers@mavs.uta.edu
+
+// This defines the 'Controller' object that manages the overall process
+// I tried to mimic the UX of working with IceTrays 
 
 namespace LeptonInjector{
 
@@ -54,6 +59,7 @@ class Controller{
     public:
         // default constructor will just use some default minimal injection setup 
         Controller();
+
         // sending one will make a single little list... 
         Controller(MinimalInjectionConfiguration configs_received );
         // multilepton injector equivalent 

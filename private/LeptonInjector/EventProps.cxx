@@ -1,5 +1,6 @@
 #include <EventProps.h>
-#include <Particle.h>
+
+#include <Coordinates.h> // n_dimensions, Position, Direction
 
 namespace LeptonInjector {
 	//Event propery objects

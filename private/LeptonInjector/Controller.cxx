@@ -1,10 +1,6 @@
 #include "Controller.h"
 
 
-
-// This is the "controller" of the whole thing
-// It is a reimplementation of the multileptoninjector 
-
 namespace LeptonInjector {
 
     Controller::Controller(){

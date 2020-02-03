@@ -14,6 +14,8 @@ namespace LeptonInjector{
         generator           = std::uniform_real_distribution<double>( 0.0, 1.0); 
     }
 
+    // samples a number betwen the two specified values: (from, to)
+    //      defaults to ( 0, 1)
     double LI_random::Uniform( double from, double to ){
         if (to < from ){
             throw "'to' should be greater than 'from'";
@@ -23,6 +25,7 @@ namespace LeptonInjector{
         return( result );
     }
 
+    // reconfigures the generator with a new seed 
     void LI_random::set_seed( unsigned int new_seed) {
         this->configuration = std::default_random_engine(new_seed);
     }
