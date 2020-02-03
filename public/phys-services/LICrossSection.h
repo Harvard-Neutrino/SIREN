@@ -1,5 +1,5 @@
-#ifndef I3CROSSSECTION_H
-#define I3CROSSSECTION_H
+#ifndef LICrossSection_H
+#define LICrossSection_H
 
 #include <photospline/splinetable.h>
 
@@ -30,16 +30,16 @@
 ///The total spline must have one dimension, which is log10 of incoming neutrino
 ///energy in GeV. The value of the spline must be the log10 of the total cross
 ///section in square meters. 
-class I3CrossSection{
+class LICrossSection{
 public:
-	I3CrossSection(){
+	LICrossSection(){
 		memset(&crossSection,0,sizeof(photospline::splinetable<>));
 		memset(&totalCrossSection,0,sizeof(photospline::splinetable<>));
 	}
 	
 	///\param dd_crossSectionFile path to the doubly-differential cross section spline to load
 	///\param total_crossSectionFile path to the total cross section file to load
-	I3CrossSection(std::string dd_crossSectionFile, std::string total_crossSectionFile){
+	LICrossSection(std::string dd_crossSectionFile, std::string total_crossSectionFile){
 		memset(&crossSection,0,sizeof(photospline::splinetable<>));
 		memset(&totalCrossSection,0,sizeof(photospline::splinetable<>));
 		load(dd_crossSectionFile, total_crossSectionFile);
@@ -94,7 +94,7 @@ public:
 	const photospline::splinetable<>& getCrossSection() const{ return(crossSection); }
 	const photospline::splinetable<>& getTotalCrossSection() const{ return(totalCrossSection); }
 
-	~I3CrossSection(){
+	~LICrossSection(){
 		crossSection.~splinetable();
 		totalCrossSection.~splinetable();
 	}
@@ -130,4 +130,4 @@ private:
     int interaction;
 };
 
-#endif //I3CROSSSECTION_H
+#endif //LICrossSection_H

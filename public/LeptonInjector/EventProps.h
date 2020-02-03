@@ -1,13 +1,20 @@
 #ifndef LI_EVENT
 #define LI_EVENT
 
-#include <Coordinates.h>
+#include <Coordinates.h> // n_dimensions, Position, Direction
+
+
+// Ben Smithers
+// benjamin.smithers@mavs.uta.edu
+
+// These provide some interfaces between LI objects and ones used to write to hdf5 files.
 
 // TODO: add support to construct these from their related, complicated, data types! 
 
 namespace LeptonInjector {
     // Event property structures
 	
+	// basic struct for a particle
 	struct h5Particle{
 		h5Particle();
 		h5Particle(bool initial_, int32_t ptype_, LI_Position pos_, LI_Direction dir_, double energy_);
@@ -21,8 +28,7 @@ namespace LeptonInjector {
 	};
 
 
-	// one of these 
-	///Parameters common to events injected in all modes
+	// Properties describing a generated event that don't explicitly belong to a particle 
 	struct BasicEventProperties{
 		BasicEventProperties();
 		

@@ -4,32 +4,30 @@
 #include <array> // used for many of the constructors, and for the position
 #include <math.h> //sqrt, sin, cos, pow
 #include <exception> //allows throwing the out_of_range exception
-#include <Constants.h>
 #include <limits> //numeric limits
 #include <iostream>
-
-// Implements tools and classes for working with positions and directions
 
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
 
+// Implements tools and classes for working with positions and directions
+// Angles presumed to be in radians. 
+
 namespace LeptonInjector {
 
-	// how many linearly independent bases do we need to span our space ?
-	// this should always be 3
-	// but... maybe one day we want more dimensions, and don't want to have to rewrite all of this? 
+	// number of linearly independent bases are needed to span this physical space
+	// do not cchange
 	static const int n_dimensions = 3;
 
 	// Creating a "LI_Position" to mimic the I3_Position object
 	// this is more accurately described as a vector in cartesian coordinates
 	//
-	// **IMPORTANT** : member functions and operations are defined using **cartesian** coordinates.
-	// 					keep this in mind when working with these coordinates! 
+	// Assmued to be in cartesian for defined operations
 	class LI_Position{
 		public: 
 			LI_Position();
 
-			LI_Position(double ex, double why, double zee);
+			LI_Position(double x, double y, double z);
 			LI_Position(const LI_Position& old_one);
 			LI_Position(std::array<double, n_dimensions> pos);
 
@@ -76,24 +74,36 @@ namespace LeptonInjector {
 	LI_Position RotateX(LI_Position vector, double angle);
 	LI_Position RotateZ(LI_Position vector, double angle);
 
+	// defines scalar multiplication and its conjugation 
+	LI_Position operator * (const LI_Position& point, double scalar);
+	LI_Position operator * (double scalar,const LI_Position& point);
 
-	LI_Position operator * (LI_Position point, double scalar);
-	LI_Position operator * (double scalar, LI_Position point);
-	LI_Position operator * (LI_Direction  dir, double scalar);
-	LI_Position operator * (double scalar, LI_Direction dir);
-	double operator * (LI_Position  pos, LI_Direction  dir);
-	double operator * (LI_Direction  dir, LI_Position  pos);
-	double operator * (LI_Position  vec1, LI_Position  vec2);
-	LI_Position operator + (LI_Position  pos1, LI_Position pos2);
-	LI_Position operator - (LI_Position  pos1, LI_Position pos2);
+	// Defines multiplication of a unit-vector (or direction) by a scalar
+	LI_Position operator * (const LI_Direction&  dir, double scalar);
+	LI_Position operator * (double scalar,const LI_Direction& dir);
+
+	// returns the length of the projection of a vector along a direction
+	double operator * (const LI_Position&  pos,const LI_Direction&  dir);
+	double operator * (const LI_Direction&  dir,const LI_Position&  pos);
+
+	// Define the inner product of two positions by treating them as vectors
+	double operator * (const LI_Position& vec1,const LI_Position& vec2);
+
+	// Define addition, subtraction
+	LI_Position operator + (const LI_Position&  pos1,const LI_Position& pos2);
+	LI_Position operator - (const LI_Position&  pos1,const LI_Position& pos2);
 	LI_Position& operator += (LI_Position one, LI_Position two);
 	LI_Position& operator -= (LI_Position one, LI_Position two);
 	LI_Direction operator - (LI_Direction obj);
+
+	// Define string-casting of a position. Used often for error messages 
 	std::ostream & operator << (std::ostream& out, const LI_Position &dir);
 
 	bool operator == (LI_Position one, LI_Position two);
 
+	// Takes a direciton, rotates it about the Y-axis by the zenith amount, then about the Z axis by the azimuth amount
 	LI_Direction rotateRelative(const LI_Direction& base, double zenith, double azimuth);
+
 
 } // end namespace LeptonInjector
 

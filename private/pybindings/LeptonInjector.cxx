@@ -25,6 +25,7 @@ BOOST_PYTHON_MODULE(pylepton_injector){
         .def("AddInjector",&Controller::AddInjector)
         .def("Output",&Controller::NameOutfile)
         .def("LICFile",&Controller::NameLicFile)
+        .def("Seed",&Controller::setSeed)
      ;
 
     

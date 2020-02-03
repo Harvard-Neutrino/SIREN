@@ -21,7 +21,7 @@ namespace LeptonInjector{
 	cylinderHeight(1200*LeptonInjector::Constants::m)
 	{}
 
-	
+	// Fills the blobs of the BIC in order to transcribe these into the LIC files. 
 	void BasicInjectionConfiguration::setCrossSection(const photospline::splinetable<>& crossSection, const photospline::splinetable<>& totalCrossSection){
 		// instantiate data buffer
 		splinetable_buffer buf;

@@ -128,7 +128,7 @@ namespace LeptonInjector{
 		std::shared_ptr<LI_random> random;
 
 	private:
-		I3CrossSection crossSection;
+		LICrossSection crossSection;
 		
 	};
 	

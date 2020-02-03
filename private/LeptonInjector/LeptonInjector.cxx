@@ -197,7 +197,7 @@ namespace LeptonInjector{
 	//		/base/ is the \hat{z} axis 
 	
 	void LeptonInjectorBase::FillTree(LI_Position vertex, LI_Direction dir, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree){
-		const I3CrossSection::finalStateRecord& fs=crossSection.sampleFinalState(energy,config.finalType1,this->random);
+		const LICrossSection::finalStateRecord& fs=crossSection.sampleFinalState(energy,config.finalType1,this->random);
 		
 		std::pair<double,double> relativeZeniths=computeFinalStateAngles(energy,fs.x,fs.y);
 		double azimuth1=this->random->Uniform(0,2*Constants::pi);
@@ -280,12 +280,15 @@ namespace LeptonInjector{
 		//column depth for the fixed endcaps to ensure that the whole detector is
 		//covered
 		using namespace earthmodel::EarthModelCalculator;
-		double totalColumnDepth=MWEtoColumnDepthCGS(GetLeptonRange(energy))
-		+earthModel->GetColumnDepthInCGS(pca-config.endcapLength*dir,pca+config.endcapLength*dir);
+		bool isTau = (this->config.finalType1==Particle::ParticleType::TauMinus) || (this->config.finalType1==Particle::ParticleType::TauPlus); 
+
+		bool use_electron_density = getInteraction(this->config.finalType1, this->config.finalType2 ) == 2;
+		double totalColumnDepth=MWEtoColumnDepthCGS(GetLeptonRange(energy, isTau=isTau))
+		+earthModel->GetColumnDepthInCGS(pca-config.endcapLength*dir,pca+config.endcapLength*dir, use_electron_density);
 		//See whether that much column depth actually exists along the chosen path
 		{
-			double maxDist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth)-config.endcapLength;
-			double actualColumnDepth=earthModel->GetColumnDepthInCGS(pca+config.endcapLength*dir,pca-maxDist*dir);
+			double maxDist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth, use_electron_density)-config.endcapLength;
+			double actualColumnDepth=earthModel->GetColumnDepthInCGS(pca+config.endcapLength*dir,pca-maxDist*dir, use_electron_density);
 			if(actualColumnDepth<(totalColumnDepth-1)){ //if actually smaller, clip as needed, but for tiny differences we don't care
 				//log_debug_stream("Wanted column depth of " << totalColumnDepth << " but found only " << actualColumnDepth << " g/cm^2");
 				totalColumnDepth=actualColumnDepth;
@@ -294,7 +297,7 @@ namespace LeptonInjector{
 		//Choose how much of the total column depth this event should have to traverse
 		double traversedColumnDepth=totalColumnDepth*random->Uniform();
 		//endcapLength is subtracted so that dist==0 corresponds to pca
-		double dist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth-traversedColumnDepth)-config.endcapLength;
+		double dist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth-traversedColumnDepth, use_electron_density)-config.endcapLength;
 		
 		{ //ensure that the point we picked is inside the atmosphere
 			LI_Position atmoEntry, atmoExit;

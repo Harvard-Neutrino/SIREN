@@ -5,9 +5,12 @@
 #include <Particle.h>
 #include <photospline/splinetable.h>
 
+// Ben Smithers
+// benjamin.smithers@mavs.uta.edu
+
 namespace LeptonInjector {
 
-    	///Configuration parameters needed for all injection modes
+    ///Configuration parameters needed for all injection modes
 	struct BasicInjectionConfiguration{
 		BasicInjectionConfiguration();
 		///Number of events the generator should/did generate

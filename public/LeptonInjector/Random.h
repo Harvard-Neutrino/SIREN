@@ -5,9 +5,8 @@
 // benjamin.smithers@mavs.uta.edu
 
 // this implements a class to sample numbers just like in an i3 service
-// Essentially, this will act as a wrapper object to dictate random number sampling 
 
-#include <random>
+#include <random> // default_random_engine, uniform_real_distribution 
 
 namespace LeptonInjector {
 
