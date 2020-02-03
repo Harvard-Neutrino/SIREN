@@ -1,6 +1,9 @@
 #ifndef LI_EVENT
 #define LI_EVENT
 
+#include <Coordinates.h> // n_dimensions, Position, Direction
+
+
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
 
