@@ -1,30 +1,9 @@
 #include "Coordinates.h"
 #include <array>
+#include <Constants.h> // pi
+
 
 namespace LeptonInjector {
-
-	LI_Position RotateX(LI_Position vector, double angle) {
-		LI_Position rotated(vector.at(0), 
-				vector.at(1)*cos(angle) - vector.at(2)*sin(angle), 
-				vector.at(1)*sin(angle) + vector.at(2)*cos(angle) );
-		return(rotated);
-	}
-
-	LI_Position RotateY(LI_Position vector, double angle) {
-		LI_Position rotated(vector.at(0) * cos(angle) +  vector.at(2) * sin(angle), 
-				vector.at(1) ,
-				-1*vector.at(0)*sin(angle) + vector.at(2)*cos(angle) );
-		return(rotated);
-	}
-
-	LI_Position RotateZ(LI_Position vector, double angle) {
-		LI_Position rotated(vector.at(0)*cos(angle)+ -1*vector.at(1)*sin(angle),
-				 vector.at(0)*sin(angle)+vector.at(1)*cos(angle), 
-				 vector.at(2) );
-		return(rotated);
-	}
-
-
 
 	// create a "direction" object to use with some of the LI dependencies 
 
@@ -85,9 +64,9 @@ namespace LeptonInjector {
 			this->position[iter] = pos[iter];
 		}
 	}
-	LI_Position::LI_Position( double ex, double why, double z){
-		this->position[0] = ex;
-		this->position[1] = why;
+	LI_Position::LI_Position( double x, double y, double z){
+		this->position[0] = x;
+		this->position[1] = y;
 		this->position[2] = z;
 	}
 
@@ -123,36 +102,57 @@ namespace LeptonInjector {
 		return( sqrt(mag) ); //return the sum's root
 	}
 
-	
+	// rotates a position, as a vector, about the x-axis
+	LI_Position RotateX(LI_Position vector, double angle) {
+		LI_Position rotated(vector.at(0), 
+				vector.at(1)*cos(angle) - vector.at(2)*sin(angle), 
+				vector.at(1)*sin(angle) + vector.at(2)*cos(angle) );
+		return(rotated);
+	}
+
+	// rotates a position, as a vector, about the y-axis
+	LI_Position RotateY(LI_Position vector, double angle) {
+		LI_Position rotated(vector.at(0) * cos(angle) +  vector.at(2) * sin(angle), 
+				vector.at(1) ,
+				-1*vector.at(0)*sin(angle) + vector.at(2)*cos(angle) );
+		return(rotated);
+	}
+
+	// rotates a position, as a vector, about the z-axis
+	LI_Position RotateZ(LI_Position vector, double angle) {
+		LI_Position rotated(vector.at(0)*cos(angle)+ -1*vector.at(1)*sin(angle),
+				 vector.at(0)*sin(angle)+vector.at(1)*cos(angle), 
+				 vector.at(2) );
+		return(rotated);
+	}	
 
 	// need to overload some operations on the newly formed LI_Direction and LI_Position
 
-	// this one scales a position vector by a constant
-	LI_Position operator * ( LI_Position point, double scalar){
+	LI_Position operator * (const LI_Position& point, double scalar){
 		std::array<double, n_dimensions> new_one; 
 		for (uint8_t iter  = 0; iter<n_dimensions; iter++){
 			new_one[iter] = point.at(iter) * scalar;
 		}
 		return(LI_Position( new_one ));
 	} // and the commutation!
-	LI_Position operator * (double scalar, LI_Position const point){
+	LI_Position operator * (double scalar, const LI_Position& point){
 		return( point*scalar );
 	}
 
 	// when multiplying a direction by a scalar, you are left with a vector 
-	LI_Position operator * (LI_Direction const dir, double scalar){
+	LI_Position operator * (const LI_Direction& dir, double scalar){
 		// calculate the coordinates
-		double ex = scalar*cos(dir.azimuth)*sin(dir.zenith);
-		double why = scalar*sin(dir.zenith)*sin(dir.azimuth);
-		double zee = scalar*cos(dir.zenith);
-		return( LI_Position(ex, why, zee) );
+		double x = scalar*cos(dir.azimuth)*sin(dir.zenith);
+		double y = scalar*sin(dir.zenith)*sin(dir.azimuth);
+		double z = scalar*cos(dir.zenith);
+		return( LI_Position(x, y, z) );
 	} // commutation
-	LI_Position operator * (double scalar, LI_Direction const dir){
+	LI_Position operator * (double scalar, const LI_Direction& dir){
 		return( dir*scalar );
 	}
 
 	// define the dot product between a vector and a direction. The direction is first turned into a unit vector
-	double operator * (LI_Position  pos, LI_Direction  dir){
+	double operator * (const LI_Position& pos, const LI_Direction&  dir){
 		// construct effective position for a unit vector in the direction of dir
 		std::array<double,n_dimensions> new_dir = { cos(dir.azimuth)*sin(dir.zenith), sin(dir.azimuth)*sin(dir.zenith), cos(dir.zenith)};
 
@@ -163,12 +163,12 @@ namespace LeptonInjector {
 		}
 		return( projected );
 	}// commutation
-	double operator * (LI_Direction  dir, LI_Position  pos){
+	double operator * (const LI_Direction& dir,const LI_Position&  pos){
 		return( pos*dir );
 	}
 
 	// similar to above, this calculates the dot product of two position vectors 
-	double operator * (LI_Position  vec1, LI_Position  vec2){
+	double operator * (const LI_Position&  vec1,const LI_Position& vec2){
 		double dot_prod = 0;
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
 			dot_prod += vec1.at(iter)*vec2.at(iter);
@@ -177,14 +177,14 @@ namespace LeptonInjector {
 	}//commutation is implicitly already here... 
 
 	// implement adding and subtracting positions. Like vector addition! 
-	LI_Position operator + (LI_Position pos1, LI_Position pos2){
+	LI_Position operator + (const LI_Position& pos1,const LI_Position& pos2){
 		std::array<double, n_dimensions> new_one;
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
 			new_one[iter] = pos1.at(iter) + pos2.at(iter);
 		}
 		return( LI_Position( new_one ) );
 	}// commutation is implicitly implemented
-	LI_Position operator - (LI_Position pos1, LI_Position pos2){
+	LI_Position operator - (const LI_Position& pos1,const LI_Position& pos2){
 		std::array<double, n_dimensions> new_one;
 
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
@@ -216,7 +216,7 @@ namespace LeptonInjector {
 	}
 
 	std::ostream & operator << (std::ostream &out, const LI_Position &dir){
-		out << "LI_Point@";
+		out << "Point@";
 		out << "(";
 		for (uint8_t iter=0; iter<n_dimensions;iter++){
 			if (iter!=0){
