@@ -280,8 +280,7 @@ namespace LeptonInjector{
 		//column depth for the fixed endcaps to ensure that the whole detector is
 		//covered
 		using namespace earthmodel::EarthModelCalculator;
-		bool isTau = (this->initialType==Particle::ParticleType::TauMinus) || (this->initialType==Particle::ParticleType::TauPlus) 
-					|| (this->initialType==Particle::ParticleType::NuTau) || (this->initialType==Particle::ParticleType::NuTauBar);
+		bool isTau = (this->config.finalType1==Particle::ParticleType::TauMinus) || (this->config.finalType1==Particle::ParticleType::TauPlus); 
 
 		bool use_electron_density = getInteraction(this->config.finalType1, this->config.finalType2 ) == 2;
 		double totalColumnDepth=MWEtoColumnDepthCGS(GetLeptonRange(energy, isTau=isTau))
