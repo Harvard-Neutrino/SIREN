@@ -6,7 +6,7 @@
 #   + creates two injectors, and their operator 
 #   + tells the operator to execute the process 
 
-import pylepton_injector as LI
+import LeptonInjector as LI
 from math import pi
 
 # define the injector 

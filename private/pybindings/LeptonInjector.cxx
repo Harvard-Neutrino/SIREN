@@ -10,7 +10,7 @@
 
 using namespace boost::python;
 
-BOOST_PYTHON_MODULE(pylepton_injector){
+BOOST_PYTHON_MODULE(LeptonInjector){
 	using namespace LeptonInjector;
   
 
