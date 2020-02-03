@@ -146,6 +146,11 @@ void DataWriter::OpenFile( std::string filename ){
 
     event_count = 0;
 
+    if (fileHandle < 0 ){
+        std::cout << "Unable to create file! Error no " << fileHandle << std::endl;
+        throw;
+    }
+
 }
 
 void DataWriter::OpenLICFile( std::string filename ){
