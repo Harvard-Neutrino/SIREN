@@ -68,7 +68,7 @@ namespace LeptonInjector{
 		virtual bool Generate(){}
 		//Whether this module has generated as many events already as it was configured to
 		virtual std::string Name(){return("BasicInjector");}
-		bool isRanged(){ return(false);}
+		virtual bool isRanged(){ return(false); }
 
 		void Print_Configuration();
 		void Configure(MinimalInjectionConfiguration basic);//, std::shared_ptr<LI_random> pass);
@@ -138,7 +138,7 @@ namespace LeptonInjector{
 		RangedLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> random_);
 		bool Generate();
 		std::string Name() {return("RangedInjector");}
-		bool isRanged(){return(true);}
+		bool isRanged() override {return(true);}
 
 		// the earthmodel will just be a null poitner at instantiation
 		std::shared_ptr<earthmodel::EarthModelService> earthModel;
@@ -151,7 +151,7 @@ namespace LeptonInjector{
 		VolumeLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<LI_random> random_);
 		bool Generate();
 		std::string Name() {return("VolumeInjector");}
-		bool isRanged(){return(false);}
+		bool isRanged() override{return(false);}
 
 	};
 	
