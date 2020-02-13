@@ -1,5 +1,6 @@
 #include "Coordinates.h"
 #include <array>
+#include <tuple>
 #include <Constants.h> // pi
 
 
@@ -44,6 +45,9 @@ namespace LeptonInjector {
 		this->zenith  = acos( vec.at(2)/ vec.Magnitude() );
 	}
 
+	double LI_Direction::GetX() const{return( sin(zenith)*cos(azimuth) ); }
+	double LI_Direction::GetY() const{return( sin(zenith)*sin(azimuth) ); }
+	double LI_Direction::GetZ() const{return( cos(zenith) ); }
 
 
 	// define the LI_Position constructors and member functions 
@@ -247,5 +251,73 @@ namespace LeptonInjector {
 		result = RotateZ( result, base.azimuth );
 		return(LI_Direction( result ));
 	}
+
+    std::tuple<LI_Position, LI_Position> computeCylinderIntersections(const LI_Position& pos, const LI_Direction& dir, double radius, double z_min, double z_max) {
+        double x0 = pos.GetX();
+        double y0 = pos.GetY();
+        double z0 = pos.GetZ();
+        double nx = dir.GetX();
+        double ny = dir.GetY();
+        double nz = dir.GetZ();
+        double r = radius;
+        double cz1 = z_min;
+        double cz2 = z_max;
+        // cylinder centered at 0,0,0
+        // Assume that the position is within the cylinder
+        //     i.e. sqrt(x0**2+y0**2)<r and z<cz2 and z>cz1
+        // Assume sqrt(nx**2+ny**2+nz**2)==1
+        // x0,y0,z0: particle position relative to cylinder center
+        // nx,ny,nz: particle direction vector
+        // r: cylinder radius
+        // cz1,cz2: cylinder z caps
+
+        // Prep for the cylinder side intersection
+        double nx2 = nx*nx;
+        double ny2 = ny*ny;
+        double nr2 = nx2 + ny2;
+        double n_sum = -(nx*x0 + ny*y0);
+        double r0_2 = x0*x0 + y0*y0;
+
+        // Solving the quadratic
+        double root = sqrt(n_sum*n_sum - nr2 * (r0_2 - r*r));
+
+        // The two solutions
+        double sol_1 = (n_sum - root) / nr2;
+        double sol_2 = (n_sum + root) / nr2;
+
+        // Corresponding positions
+        double x1 = x0 + nx * sol_1;
+        double y1 = y0 + ny * sol_1;
+        double z1 = z0 + nz * sol_1;
+        double x2 = x0 + nx * sol_2;
+        double y2 = y0 + ny * sol_2;
+        double z2 = z0 + nz * sol_2;
+
+        // Check if the solutions are within the z boundaries
+        bool b1 = z1 < cz1;
+        bool b2 = z2 > cz2;
+        bool bb = b1 or b2;
+
+        // Replace with endcap intersections otherwise
+        if(bb) {
+            double nr = sqrt(nr2);
+            double r0 = sqrt(r0_2);
+            if(b1) {
+                double t1 = (cz1 - z0)/nz;
+                x1 = x0 + nx*t1;
+                y1 = y0 + ny*t1;
+                z1 = cz1;
+            }
+
+            if(b2) {
+                double t2 = (cz2 - z0)/nz;
+                x2 = x0 + nx*t2;
+                y2 = y0 + ny*t2;
+                z2 = cz2;
+            }
+        }
+
+        return std::tuple<LI_Position, LI_Position>(LI_Position(x1, y1, z1), LI_Position(x2, y2, z2));
+    }
 
 } // end namespace LeptonInjector

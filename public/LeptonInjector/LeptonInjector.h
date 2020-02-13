@@ -148,11 +148,13 @@ namespace LeptonInjector{
 	class VolumeLeptonInjector : public LeptonInjectorBase{
 	public:
 		VolumeLeptonInjector();
-		VolumeLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<LI_random> random_);
+		VolumeLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> random_);
 		bool Generate();
 		std::string Name() {return("VolumeInjector");}
 		bool isRanged() override{return(false);}
 
+		// the earthmodel will just be a null poitner at instantiation
+		std::shared_ptr<earthmodel::EarthModelService> earthModel;
 	};
 	
 	//----

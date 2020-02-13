@@ -340,16 +340,19 @@ namespace LeptonInjector{
 	VolumeLeptonInjector::VolumeLeptonInjector(){
 	}
 	
-	VolumeLeptonInjector::VolumeLeptonInjector(BasicInjectionConfiguration config_, std::shared_ptr<LI_random> random_){
+	VolumeLeptonInjector::VolumeLeptonInjector(BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModelService> earth_, std::shared_ptr<LI_random> random_){
 		eventsGenerated = 0;
 		wroteConfigFrame = false;
 		suspendOnCompletion = true;
 		random = random_;
 		config = config_;
+		earthModel = earth_;
 		if(config.cylinderRadius<0)
 			throw(": CylinderRadius must be non-negative");
 		if(config.cylinderHeight<0)
 			throw(": CylinderHeight must be non-negative");
+		if(!earthModel)
+			throw(": an Earth model service is required");
 	}
 	
 	
@@ -373,10 +376,16 @@ namespace LeptonInjector{
 		//assemble the MCTree
 		VolumeEventProperties properties;
 		std::array<h5Particle, 3> particle_tree;
+
+		bool use_electron_density = getInteraction(this->config.finalType1, this->config.finalType2 ) == 2;
 		
 		//set subclass properties
 		properties.radius=vertex.Magnitude();
 		properties.z=vertex.GetZ();
+        std::tuple<LI_Position, LI_Position> cylinder_intersections =
+            computeCylinderIntersections(vertex, dir, config.cylinderRadius, -config.cylinderHeight/2., config.cylinderHeight/2.);
+		properties.totalColumnDepth =
+            earthModel->GetColumnDepthInCGS(std::get<0>(cylinder_intersections), std::get<1>(cylinder_intersections), use_electron_density);
 
 		// write hdf5 file! 
 

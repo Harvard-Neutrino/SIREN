@@ -153,7 +153,8 @@ namespace LeptonInjector {
                 generators.push_back(generator);
             }
             else{ //volume
-                VolumeLeptonInjector* generator= new VolumeLeptonInjector(volumeConfig, random);
+                VolumeLeptonInjector* generator= new VolumeLeptonInjector(volumeConfig, earthModel, random);
+                generator->earthModel = earthModel;
                 generator->Configure( *genSet );
                 generators.push_back(generator);
             }

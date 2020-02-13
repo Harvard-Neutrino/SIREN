@@ -62,6 +62,9 @@ namespace LeptonInjector {
 			LI_Direction( const LI_Direction& old_one);
 			LI_Direction( const LI_Position& vec );  // get the direction of a vector 
 
+			double GetZ() const;
+			double GetY() const;
+			double GetX() const;
 			
 			double zenith;
 			double azimuth;
@@ -103,6 +106,8 @@ namespace LeptonInjector {
 
 	// Takes a direciton, rotates it about the Y-axis by the zenith amount, then about the Z axis by the azimuth amount
 	LI_Direction rotateRelative(const LI_Direction& base, double zenith, double azimuth);
+
+    std::tuple<LI_Position, LI_Position> computeCylinderIntersections(const LI_Position& pos, const LI_Direction& dir, double radius, double z_min, double z_max);
 
 
 } // end namespace LeptonInjector

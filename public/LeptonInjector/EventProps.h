@@ -79,6 +79,9 @@ namespace LeptonInjector {
 		double radius;
 		///Sampled vertical cylindrical coordinate of the interaction point
 		double z;
+		///The total column depth along the particle path within which the
+		///interaction is sampled
+		double totalColumnDepth;
 		
 	};
 

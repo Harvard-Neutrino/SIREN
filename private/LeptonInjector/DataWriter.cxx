@@ -417,6 +417,7 @@ void DataWriter::makeTables(){
     volumePropertiesTable = H5Tcopy( basicPropertiesTable );
     status = H5Tinsert(volumePropertiesTable, "radius", HOFFSET(VolumeEventProperties, radius) , H5T_NATIVE_DOUBLE); 
     status = H5Tinsert(volumePropertiesTable, "z", HOFFSET(VolumeEventProperties, z) , H5T_NATIVE_DOUBLE); 
+    status = H5Tinsert(rangedPropertiesTable, "totalColumnDepth", HOFFSET(VolumeEventProperties, totalColumnDepth) , H5T_NATIVE_DOUBLE); 
 
     H5Tclose( basicPropertiesTable );
 
