@@ -85,7 +85,7 @@ The code base is divided into several files.
 * Random: object for random number sampling.
 
 # Cross Sections
-More to come on this front later. You will need cross sections, saved as fits files. Maybe we should upload examples XS to the repo?
+For generating events you will need fits files of splines specifying the cross sections (total and differential cross sections). These should be made with photospline. 
 
 # Making Contributions
 If you would like to make contributions to this project, please create a branch off of the `master` branch and name it something following the template: `$YourLastName/$YourSubProject`. 
