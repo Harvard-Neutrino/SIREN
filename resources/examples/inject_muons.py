@@ -8,29 +8,23 @@
 
 import LeptonInjector as LI
 from math import pi
+import os 
 
-xs_folder = "/cvmfs/icecube.opensciencegrid.org/data/neutrino-generator/cross_section_data/csms_differential_v1.0"
+# use this if you are on the Cobalt testbed 
+#xs_folder = "/cvmfs/icecube.opensciencegrid.org/data/neutrino-generator/cross_section_data/csms_differential_v1.0"
 
-# define the injector 
-n_events    = 50000
-diff_xs     = xs_folder + "/dsdxdy_nubar_CC_iso.fits"
-total_xs    = xs_folder + "/sigma_nubar_CC_iso.fits"
-is_ranged   = False
-final_1     = LI.Particle.NuEBar
-final_2     = LI.Particle.Hadrons
-
-# the above describes a NC interaction, so let's use Volume Mode
-# create the injector list using the above parameters
-the_injector = LI.injector( n_events, final_1, final_2, diff_xs, total_xs, is_ranged)
+# for now, just use the example cross sections that come pre-installed. 
+# this looks in the parent folder to this file's containing folder 
+xs_folder = os.path.join( os.path.dirname(__file__), '..' )
 
 # Now, we'll make a new injector for muon tracks 
 n_events    = 55000
-diff_xs     = xs_folder + "/dsdxdy_nubar_NC_iso.fits"
-total_xs    = xs_folder + "/sigma_nubar_NC_iso.fits"
+diff_xs     = xs_folder + "/test_xs.fits"
+total_xs    = xs_folder + "/test_xs_total.fits"
 is_ranged   = True
 final_1     = LI.Particle.MuMinus
 final_2     = LI.Particle.Hadrons
-the_next_injector = LI.injector( n_events , final_1, final_2, diff_xs, total_xs, is_ranged)
+the_injector = LI.injector( n_events , final_1, final_2, diff_xs, total_xs, is_ranged)
 
 
 
@@ -47,8 +41,6 @@ maxAzimuth  = 180.*deg
 
 # construct the controller 
 controller  = LI.Controller( the_injector, minE, maxE, gamma, minAzimuth, maxAzimuth, minZenith, maxZenith)  
-controller.AddInjector( the_next_injector )
-# injection radius and endcap length are left as defaults
 
 # specify the output
 controller.Output("./data_output.h5")
