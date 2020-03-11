@@ -9,10 +9,12 @@
 import LeptonInjector as LI
 from math import pi
 
+xs_folder = "/cvmfs/icecube.opensciencegrid.org/data/neutrino-generator/cross_section_data/csms_differential_v1.0"
+
 # define the injector 
 n_events    = 50000
-diff_xs     = "/home/benito/software/cross_sections/dsdxdy_nubar_CC_iso.fits"
-total_xs    = "/home/benito/software/cross_sections/sigma_nubar_CC_iso.fits"
+diff_xs     = xs_folder + "/dsdxdy_nubar_CC_iso.fits"
+total_xs    = xs_folder + "/sigma_nubar_CC_iso.fits"
 is_ranged   = False
 final_1     = LI.Particle.NuEBar
 final_2     = LI.Particle.Hadrons
@@ -23,8 +25,8 @@ the_injector = LI.injector( n_events, final_1, final_2, diff_xs, total_xs, is_ra
 
 # Now, we'll make a new injector for muon tracks 
 n_events    = 55000
-diff_xs     = "/home/benito/software/cross_sections/dsdxdy_nubar_NC_iso.fits"
-total_xs    = "/home/benito/software/cross_sections/sigma_nubar_NC_iso.fits"
+diff_xs     = xs_folder + "/dsdxdy_nubar_NC_iso.fits"
+total_xs    = xs_folder + "/sigma_nubar_NC_iso.fits"
 is_ranged   = True
 final_1     = LI.Particle.MuMinus
 final_2     = LI.Particle.Hadrons
