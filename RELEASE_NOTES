@@ -10,3 +10,8 @@ trunk
 Jan 13, 2020 Ben Smithers
 --------------------------------------------------------------------
 * First functioning version of standalone LeptonInjector
+
+April 14, 2020 Ben Smithers
+--------------------------------------------------------------------
+* added user-option of appending to LIC files instead of overwriting them
+  * accessible via the "SetOverwrite" method of the Controller class 

@@ -79,6 +79,8 @@ class Controller{
         void NameOutfile( std::string out_file );
         // changes the name of the configuration file 
         void NameLicFile( std::string lic_file );
+        // changes whether or not to overwrite any preexisting LIC files or append to them
+        void Overwrite( bool overwrite );
         void setSeed( uint seedno ){this->seed = seedno ;}
         // executes the injector process with the configurated parameters 
         void Execute(); 

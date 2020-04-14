@@ -25,6 +25,7 @@ BOOST_PYTHON_MODULE(LeptonInjector){
         .def("AddInjector",&Controller::AddInjector)
         .def("Output",&Controller::NameOutfile)
         .def("LICFile",&Controller::NameLicFile)
+        .def("SetOverwrite",&Controller::Overwrite)
         .def("Seed",&Controller::setSeed)
      ;
 

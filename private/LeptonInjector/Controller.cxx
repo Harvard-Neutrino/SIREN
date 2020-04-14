@@ -79,6 +79,10 @@ namespace LeptonInjector {
         this->lic_file = lic_file_;
     }
 
+    void Controller::Overwrite( bool overwrite_){
+        this->datawriter->SetOverwrite( overwrite_ );
+    }
+
     void Controller::Execute(){
         // setup the injectors! 
         std::cout << "Executing Injectors" << std::endl;

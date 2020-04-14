@@ -153,15 +153,39 @@ void DataWriter::OpenFile( std::string filename ){
 
 }
 
+bool does_file_exist(const std::string filename){
+    std::ifstream infile(filename);
+    return infile.good();
+}
+
 void DataWriter::OpenLICFile( std::string filename ){
-    this->lic_file_output.open( filename );
+    /*
+    This opens up a binary final to write the LeptonInjector Configuration. 
+    */
+    bool skip_enum = false;
+    if (does_file_exist( filename.c_str())){
+        if(!this->overwrite){
+            skip_enum = true;
+            std::cout<< "Note: LIC file already exists, appending to end." <<std::endl;
+        }else{
+            std::cout<< "Note: LIC file already exists, overwriting."<<std::endl;
+        }
+    }
+
+    if(this->overwrite){
+        this->lic_file_output.open( filename, std::ofstream::out | std::ofstream::trunc );
+    }else{
+        this->lic_file_output.open( filename, std::ofstream::out | std::ofstream::app );
+    }
     if(!lic_file_output.good()){
 	    std::cout << "Failed to open " << filename << " for writing LIC file" << std::endl;
         throw;
     }
 
     MAKE_ENUM_VECTOR(type,Particle,Particle::ParticleType,PARTICLE_H_Particle_ParticleType);
-    writeEnumDefBlock(lic_file_output, "Particle::ParticleType", type);
+    if (!skip_enum){
+        writeEnumDefBlock(lic_file_output, "Particle::ParticleType", type);
+    }
 }
 
 
@@ -417,7 +441,7 @@ void DataWriter::makeTables(){
     volumePropertiesTable = H5Tcopy( basicPropertiesTable );
     status = H5Tinsert(volumePropertiesTable, "radius", HOFFSET(VolumeEventProperties, radius) , H5T_NATIVE_DOUBLE); 
     status = H5Tinsert(volumePropertiesTable, "z", HOFFSET(VolumeEventProperties, z) , H5T_NATIVE_DOUBLE); 
-    status = H5Tinsert(rangedPropertiesTable, "totalColumnDepth", HOFFSET(VolumeEventProperties, totalColumnDepth) , H5T_NATIVE_DOUBLE); 
+    status = H5Tinsert(volumePropertiesTable, "totalColumnDepth", HOFFSET(VolumeEventProperties, totalColumnDepth) , H5T_NATIVE_DOUBLE); 
 
     H5Tclose( basicPropertiesTable );
 

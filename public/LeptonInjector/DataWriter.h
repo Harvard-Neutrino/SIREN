@@ -29,6 +29,8 @@ namespace LeptonInjector{
 
             void OpenFile(std::string filename);
             void OpenLICFile( std::string filename);
+            void SetOverwrite( bool overwrite_ ){this->overwrite = overwrite_;}
+
 
             // close the active group and its sub-datasets
             // add a new group for the next injector 
@@ -38,6 +40,7 @@ namespace LeptonInjector{
 
         private:
             bool opened = false; 
+            bool overwrite = false;
             uint8_t name_iterator = 0;
             uint32_t event_count;
 
