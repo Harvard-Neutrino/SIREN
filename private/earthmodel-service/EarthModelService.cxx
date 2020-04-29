@@ -119,10 +119,14 @@ void EarthModelService::Init()
 {
    std::cout<<"Initializing Earth" << std::endl;
    if (fPath_ == "") {
-      string path(getenv("EARTH_PARAMS"));
-      if (path == "") {
-         path = "./";
-      } 
+      string path;
+      if (const char* env_p = getenv("EARTH_PARAMS")){
+        path = std::string( env_p );
+      }else{
+        std::cout << "Warn: EARTH_PARAMS environmental variable not set, assuming current directory." << std::endl;
+        path = "./";
+      }
+
       path += "resources/earthparams/";
       fPath_ = path;
    }
