@@ -197,13 +197,15 @@ namespace LeptonInjector {
 		return( LI_Position( new_one ) );
 	}// implicitly blah blah blah
 
-	LI_Position& operator += (LI_Position one, LI_Position two){
+	LI_Position& operator += (LI_Position& one, const LI_Position& two){
 		LI_Position newone = one + two;
-		return( newone );
+		one = newone;
+		return( one );
 	}
-	LI_Position& operator -= (LI_Position one, LI_Position two){
+	LI_Position& operator -= (LI_Position& one, const LI_Position& two){
 		LI_Position newone = one - two;
-		return( newone );
+		one = newone;
+		return( one );
 	}// same for those last two, too
 
 	// turns a direction around
