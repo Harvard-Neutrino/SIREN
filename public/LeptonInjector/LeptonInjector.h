@@ -65,10 +65,10 @@ namespace LeptonInjector{
 		//LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> random_);
 		//No implementation of DAQ; this base class should be pure virtual
 
-		virtual bool Generate(){}
+		virtual bool Generate()=0;
 		//Whether this module has generated as many events already as it was configured to
-		virtual std::string Name(){return("BasicInjector");}
-		virtual bool isRanged(){ return(false); }
+		virtual std::string Name() const{return("BasicInjector");}
+		virtual bool isRanged() const{ return(false); }
 
 		void Print_Configuration();
 		void Configure(MinimalInjectionConfiguration basic);//, std::shared_ptr<LI_random> pass);
@@ -136,9 +136,9 @@ namespace LeptonInjector{
 	public:
 		RangedLeptonInjector();
 		RangedLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> random_);
-		bool Generate();
-		std::string Name() {return("RangedInjector");}
-		bool isRanged() override {return(true);}
+		bool Generate() override;
+		std::string Name() const override {return("RangedInjector");}
+		bool isRanged() const override {return(true);}
 
 		// the earthmodel will just be a null poitner at instantiation
 		std::shared_ptr<earthmodel::EarthModelService> earthModel;
@@ -149,9 +149,9 @@ namespace LeptonInjector{
 	public:
 		VolumeLeptonInjector();
 		VolumeLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModelService> earth, std::shared_ptr<LI_random> random_);
-		bool Generate();
-		std::string Name() {return("VolumeInjector");}
-		bool isRanged() override{return(false);}
+		bool Generate() override;
+		std::string Name() const override {return("VolumeInjector");}
+		bool isRanged() const override{return(false);}
 
 		// the earthmodel will just be a null poitner at instantiation
 		std::shared_ptr<earthmodel::EarthModelService> earthModel;
