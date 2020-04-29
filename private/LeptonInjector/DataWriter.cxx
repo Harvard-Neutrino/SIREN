@@ -1,5 +1,6 @@
 #include <DataWriter.h>
-
+#include <boost/version.hpp>
+#include <boost/preprocessor/stringize.hpp>>
 // From the IceCube tableio project 
 #define WRAP_ELEMENTS(R,DATA,ELEM) BOOST_PP_STRINGIZE(ELEM),DATA::ELEM
 #define MAKE_ENUM_VECTOR(VECTORNAME,CLASS,ENUM_TYPE,FIELDS)     \
