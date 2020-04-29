@@ -210,6 +210,7 @@ namespace LeptonInjector{
 			final_1==Particle::Particle::NuTauBar || final_1==Particle::Particle::NuTau )){
 			return( 1 ); // neutral current
 		}
+		throw std::runtime_error("Interaction type not recognized");
 	}
 
     // This function returns the primary particle type given the final state particles

@@ -1258,8 +1258,7 @@ EarthModelService::GetDistanceFromEarthEntranceToDetector(double zenrad) const
          radius = fRockIceBoundary_;
          break;
       default :
-         throw("IceCapType %d is not supported", 
-                 int(fIceCapType_));
+         throw std::runtime_error("IceCapType "+std::to_string(int(fIceCapType_))+" is not supported");
    }
 
    // tollerance 0.5 degree
@@ -1570,9 +1569,8 @@ void EarthModelService::GetAZ(int pdg, int &np, int &nn)
    sprintf(buf, "%d", pdg); 
    int nread = sscanf(buf, "%3d%3d%3d%1d", &prefix, &np, &z, &suffix);
    if (nread != 4) {
-      throw("Failed to convert nuclear pdg to A and Z "
-                "prefix %d, A %d, Z %d, suffix %d",
-                prefix, np, z, suffix);
+      throw std::runtime_error("Failed to convert nuclear pdg to A and Z "
+                "prefix "+std::to_string(prefix)+", A "+std::to_string(np)+", Z "+std::to_string(z)+", suffix "+std::to_string(suffix));
    }
    nn = z - np;
 }
@@ -1739,7 +1737,7 @@ void EarthModelService::SetIceCapSimpleAngle(double cap_angle)
    }
 
    if (cap_angle < 0 || cap_angle > LeptonInjector::Constants::pi)  {
-      throw("angle is out of range ! %f ", cap_angle);              
+      throw std::runtime_error("angle is out of range ! "+std::to_string(cap_angle));              
    }
 
    // polar ice angle

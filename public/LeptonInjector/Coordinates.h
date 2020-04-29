@@ -95,8 +95,8 @@ namespace LeptonInjector {
 	// Define addition, subtraction
 	LI_Position operator + (const LI_Position&  pos1,const LI_Position& pos2);
 	LI_Position operator - (const LI_Position&  pos1,const LI_Position& pos2);
-	LI_Position& operator += (LI_Position one, LI_Position two);
-	LI_Position& operator -= (LI_Position one, LI_Position two);
+	LI_Position& operator += (LI_Position& one, const LI_Position& two);
+	LI_Position& operator -= (LI_Position& one, const LI_Position& two);
 	LI_Direction operator - (LI_Direction obj);
 
 	// Define string-casting of a position. Used often for error messages 
