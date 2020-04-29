@@ -14,17 +14,9 @@ SET(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_C_STANDARD 99)
 ## enable_language(cxx)
 
-find_package(PythonInterp 3)
-find_package(PythonLibs 3)
-set(PYTHON_FOUND PYTHONLIBS_FOUND AND PYTHONINTERP_FOUND)
-if(PYTHON_FOUND)
-    MESSAGE("-- Found python at ${PYTHON_INCLUDE_DIR}")
-    MESSAGE("-- Will build python!")
-else()
-    MESSAGE("!! Python Not Found !!")
-    MESSAGE("!! Skipping Python Module !!")
+if(DEFINED ENV{SROOT})
+    set(HDF5_ROOT ${SROOT})
 endif()
-
 find_package(HDF5 REQUIRED)
 if(HDF5_FOUND)
     MESSAGE("-- Found hdf5 at ${HDF5_INCLUDE_DIR}")
@@ -36,8 +28,7 @@ endif()
 set(Boost_USE_STATC_LIBS OFF)
 set(Boost_USE_MULTITHREADED OFF)
 set(Boost_USE_STATIC_RUNTIME OFF)
-#find_package(Boost 1.55.0 COMPONENTS python3)
-find_package(Boost COMPONENTS python3)
+find_package(Boost REQUIRED)
 if(Boost_FOUND)
     MESSAGE("-- Found Boost at ${Boost_INCLUDE_DIRS}")
     include_directories(${Boost_INCLUDE_DIRS})
@@ -76,7 +67,6 @@ target_include_directories(lepton_injector PUBLIC
     ${CMAKE_SOURCE_DIR}/public/earthmodel-service/
     ${CMAKE_SOURCE_DIR}/public/phys-services/ 
 )
-target_include_directories(lepton_injector PRIVATE ${PYTHON_INCLUDE_DIR})
 
 set_target_properties(lepton_injector PROPERTIES
     VERSION ${PROJECT_VERSION}
@@ -95,6 +85,22 @@ install(TARGETS lepton_injector
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # build and install pyhton module
+if(DEFINED ENV{SROOT})
+    set(Python_ROOT_DIR ${SROOT})
+endif()
+find_package(PythonInterp)
+find_package(PythonLibs)
+set(PYTHON_FOUND PYTHONLIBS_FOUND AND PYTHONINTERP_FOUND)
+find_package(Boost REQUIRED COMPONENTS python)
+if(PYTHON_FOUND)
+    MESSAGE("-- Found python at ${PYTHON_INCLUDE_DIR}")
+    MESSAGE("-- Will build python!")
+else()
+    MESSAGE("!! Python Not Found !!")
+    MESSAGE("!! Skipping Python Module !!")
+endif()
+
+
 
 IF(PYTHON_FOUND)
 
@@ -105,7 +111,8 @@ IF(PYTHON_FOUND)
     add_library( LeptonInjector SHARED ${python_private})
     set_target_properties( LeptonInjector PROPERTIES LINKER_LANGUAGE CXX OUTPUT_NAME "LeptonInjector" PREFIX "" SUFFIX ".so")
     target_include_directories( LeptonInjector PRIVATE ${PYTHON_INCLUDE_DIR})
-    target_link_libraries(LeptonInjector PRIVATE lepton_injector)
+    target_link_libraries(LeptonInjector PRIVATE lepton_injector ${Boost_LIBRARIES})
+    include_directories(${Boost_INCLUDE_DIRS})
     
     EXECUTE_PROCESS( COMMAND ${PYTHON_EXECUTABLE} -c
         "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix=''))"
