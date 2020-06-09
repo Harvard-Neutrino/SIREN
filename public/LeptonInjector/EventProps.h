@@ -51,8 +51,6 @@ namespace LeptonInjector {
 		///Type of the neutrino which interacted to produce this event
 		int32_t initialType;
 
-		// interaction type [0 - CC, 1 - NC, 2 - GR ]
-		uint8_t interaction;
 
         void fill_BasicEventProperties(double totalEnergy, double zenith, double azimuth, double finalStateX, double finalStateY,  int32_t finalType1, int32_t finalType2, int32_t initialType );
 		
