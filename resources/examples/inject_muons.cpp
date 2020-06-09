@@ -14,7 +14,7 @@ int main(void){
     LeptonInjector::Particle::ParticleType final_1 = LeptonInjector::Particle::MuMinus;
     LeptonInjector::Particle::ParticleType final_2 = LeptonInjector::Particle::Hadrons;
 
-    LeptonInjector::MinimalInjectionConfiguration the_injector( n_events, final_1, final_2, diff_xs, total_xs, is_ranged);
+    LeptonInjector::Injector the_injector( n_events, final_1, final_2, diff_xs, total_xs, is_ranged);
 
     // units come from Constants.h 
     double minE = 1000.*LeptonInjector::Constants::GeV;

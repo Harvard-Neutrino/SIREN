@@ -51,10 +51,10 @@ void ConfigureStandardParams(I3Module& inj){
 	if(inj.GetConfiguration().Has("EarthModel")) //RangedInjector
 		inj.GetConfiguration().Set("EarthModel",boost::python::object(earthModelName));
 	if(inj.GetConfiguration().Has("Generators")){ //MultiInjector
-		using LeptonInjector::MinimalInjectionConfiguration;
-		std::vector<MinimalInjectionConfiguration> generatorSettings;
-		generatorSettings.push_back(MinimalInjectionConfiguration(1,I3Particle::MuMinus,I3Particle::Hadrons,defaultCrosssectionPath,defaultTotalCrosssectionPath,true)); //CC
-		generatorSettings.push_back(MinimalInjectionConfiguration(1,I3Particle::NuMu,I3Particle::Hadrons,defaultCrosssectionPath,defaultTotalCrosssectionPath,false)); //NC
+		using LeptonInjector::Injector;
+		std::vector<Injector> generatorSettings;
+		generatorSettings.push_back(Injector(1,I3Particle::MuMinus,I3Particle::Hadrons,defaultCrosssectionPath,defaultTotalCrosssectionPath,true)); //CC
+		generatorSettings.push_back(Injector(1,I3Particle::NuMu,I3Particle::Hadrons,defaultCrosssectionPath,defaultTotalCrosssectionPath,false)); //NC
 		inj.GetConfiguration().Set("Generators",boost::python::object(generatorSettings));
 	}
 	if(inj.GetConfiguration().Has("SuspendOnCompletion"))

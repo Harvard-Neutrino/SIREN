@@ -27,10 +27,10 @@ namespace LeptonInjector{
 
 	
 	///Parameters for injectors placed within a MultiLeptonInjector
-	struct MinimalInjectionConfiguration{
-		// The below  puts in a constructor for the MinimalInjectionConfiguration. 
+	struct Injector{
+		// The below  puts in a constructor for the Injector. 
 		// you just pass the things in order and BAM
-		MinimalInjectionConfiguration(unsigned int events,
+		Injector(unsigned int events,
 		  Particle::ParticleType finalType1, Particle::ParticleType finalType2,
 		  const std::string& crossSectionPath, const std::string& totalCrossSectionPath,
 		  bool ranged):
@@ -52,7 +52,7 @@ namespace LeptonInjector{
 		///
 		bool ranged;
 	};
-	bool operator == (const MinimalInjectionConfiguration& one , const MinimalInjectionConfiguration& two);
+	bool operator == (const Injector& one , const Injector& two);
 	//----
 	
 	
@@ -71,7 +71,7 @@ namespace LeptonInjector{
 		virtual bool isRanged() const{ return(false); }
 
 		void Print_Configuration();
-		void Configure(MinimalInjectionConfiguration basic);//, std::shared_ptr<LI_random> pass);
+		void Configure(Injector basic);//, std::shared_ptr<LI_random> pass);
 
 		std::shared_ptr<DataWriter> writer_link;
 

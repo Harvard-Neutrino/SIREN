@@ -179,9 +179,9 @@ TEST(3_number_of_events){
 	const unsigned int nEvents=100;
 	const std::string filename=I3Test::testfile("Multi_NEvents_test.i3");
 	
-	std::vector<MinimalInjectionConfiguration> generatorSettings;
-	generatorSettings.push_back(MinimalInjectionConfiguration(nEvents,I3Particle::MuMinus,I3Particle::Hadrons,defaultCrosssectionPath,defaultTotalCrosssectionPath,true)); //CC
-	generatorSettings.push_back(MinimalInjectionConfiguration(nEvents,I3Particle::NuMu,I3Particle::Hadrons,defaultCrosssectionPath,defaultTotalCrosssectionPath,false)); //NC
+	std::vector<Injector> generatorSettings;
+	generatorSettings.push_back(Injector(nEvents,I3Particle::MuMinus,I3Particle::Hadrons,defaultCrosssectionPath,defaultTotalCrosssectionPath,true)); //CC
+	generatorSettings.push_back(Injector(nEvents,I3Particle::NuMu,I3Particle::Hadrons,defaultCrosssectionPath,defaultTotalCrosssectionPath,false)); //NC
 	
 	I3Tray tray;
 	tray.GetContext().Put(randomService);

@@ -18,15 +18,15 @@ BOOST_PYTHON_MODULE(LeptonInjector){
         .def("Uniform",&LI_random::Uniform)
     ;
 
-    class_<Controller>("Controller", init<MinimalInjectionConfiguration,double,double,double,double,double,double,double,double,double,double,double>(  
+    class_<Controller>("Controller", init<Injector,double,double,double,double,double,double,double,double,double,double,double>(  
         (args("injectors"),args("minimum energy"),args("maximum energy"),args("spectral index"),args("minimum azimuth"),args("maximum azimuth"),args("minimum zenith"),args("maximum zenith"),args("injection radius")=1200., args("endcap length")=1200., args("cylinder radius")=1200., args("cylinder height")=1200.))
         )
         .def("Execute",&Controller::Execute)
         .def("AddInjector",&Controller::AddInjector)
-        .def("Output",&Controller::NameOutfile)
-        .def("LICFile",&Controller::NameLicFile)
-        .def("SetOverwrite",&Controller::Overwrite)
-        .def("Seed",&Controller::setSeed)
+        .def("NameOutfile",&Controller::NameOutfile)
+        .def("NameLicFile",&Controller::NameLicFile)
+        .def("Overwrite",&Controller::Overwrite)
+        .def("setSeed",&Controller::setSeed)
      ;
 
     
@@ -46,16 +46,16 @@ BOOST_PYTHON_MODULE(LeptonInjector){
         .value("Hadrons",Particle::Hadrons)
     ;
    
-    class_<MinimalInjectionConfiguration, std::shared_ptr<MinimalInjectionConfiguration>>("injector",
+    class_<Injector, std::shared_ptr<Injector>>("Injector",
 	  init<unsigned int,Particle::ParticleType,Particle::ParticleType,std::string,std::string,bool>(
 	    (args("NEvents"),args("FinalType1"),args("FinalType2"),args("DoublyDifferentialCrossSectionFile"),args("TotalCrossSectionFile"),args("Ranged"))
 	  )
 	)
-	.def_readwrite("events",&MinimalInjectionConfiguration::events)
-	.def_readwrite("finalType1",&MinimalInjectionConfiguration::finalType1)
-	.def_readwrite("finalType2",&MinimalInjectionConfiguration::finalType2)
-	.def_readwrite("crossSectionPath",&MinimalInjectionConfiguration::crossSectionPath)
-	.def_readwrite("totalCrossSectionPath",&MinimalInjectionConfiguration::totalCrossSectionPath)
-	.def_readwrite("ranged",&MinimalInjectionConfiguration::ranged)
+	.def_readwrite("events",&Injector::events)
+	.def_readwrite("finalType1",&Injector::finalType1)
+	.def_readwrite("finalType2",&Injector::finalType2)
+	.def_readwrite("crossSectionPath",&Injector::crossSectionPath)
+	.def_readwrite("totalCrossSectionPath",&Injector::totalCrossSectionPath)
+	.def_readwrite("ranged",&Injector::ranged)
 	;
 }

@@ -21,7 +21,7 @@ class Controller{
         std::deque<LeptonInjectorBase*> generators;
         // prototypes of the above generators. When an injector is added, it is placed here. These all are later
         //      built with the default configurations to make the generators 
-        std::vector<MinimalInjectionConfiguration> configs; 
+        std::vector<Injector> configs; 
 
         // seeds the random number generator 
         uint seed = 100;
@@ -61,11 +61,11 @@ class Controller{
         Controller();
 
         // sending one will make a single little list... 
-        Controller(MinimalInjectionConfiguration configs_received );
+        Controller(Injector configs_received );
         // multilepton injector equivalent 
 
         // The BEST constructor
-        Controller(MinimalInjectionConfiguration configs_received, double minimumEnergy,
+        Controller(Injector configs_received, double minimumEnergy,
             double maximumEnergy, double powerlawIndex, double minimumAzimuth, 
             double maximumAzimuth, double minimumZenith, double maximumZenith,
             double injectionRadius=1200*Constants::m, double endcapLength=1200*Constants::m, 
@@ -74,7 +74,7 @@ class Controller{
         // changes the name used for the Earth
         void SetEarthModel( std::string new_name );
         // adds a new injector to be used in the process 
-        void AddInjector(MinimalInjectionConfiguration configs_received);
+        void AddInjector(Injector configs_received);
         // changes the name of the data file
         void NameOutfile( std::string out_file );
         // changes the name of the configuration file 

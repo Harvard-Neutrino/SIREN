@@ -37,7 +37,7 @@ namespace LeptonInjector{
 */	
 
 	
-	void LeptonInjectorBase::Configure(MinimalInjectionConfiguration basic){// , std::shared_ptr<LI_random> pass){
+	void LeptonInjectorBase::Configure(Injector basic){// , std::shared_ptr<LI_random> pass){
 		
 
 		//std::cout<<"configured the random thing" << std::endl;
@@ -401,7 +401,7 @@ namespace LeptonInjector{
 
 	}
 	
-	bool operator == (const MinimalInjectionConfiguration& one , const MinimalInjectionConfiguration& two){
+	bool operator == (const Injector& one , const Injector& two){
 		return( one.crossSectionPath == two.crossSectionPath
 			&& one.events == two.events
 			&& one.finalType1 == two.finalType2

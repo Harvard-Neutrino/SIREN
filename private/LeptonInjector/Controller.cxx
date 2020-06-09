@@ -20,7 +20,7 @@ namespace LeptonInjector {
     }
 
     // constructor if the user only provides one injector and no parameters
-    Controller::Controller(MinimalInjectionConfiguration configs_received){
+    Controller::Controller(Injector configs_received){
         std::cout << "Creating Controller" << std::endl;
         this->configs.push_back( configs_received );
         this->minimumEnergy   = 100*Constants::GeV ;
@@ -39,7 +39,7 @@ namespace LeptonInjector {
 
    
 
-    Controller::Controller(MinimalInjectionConfiguration configs_received, double minimumEnergy,
+    Controller::Controller(Injector configs_received, double minimumEnergy,
             double maximumEnergy, double powerlawIndex, double minimumAzimuth, 
             double maximumAzimuth, double minimumZenith, double maximumZenith,
             double injectionRadius, double endcapLength,
@@ -62,7 +62,7 @@ namespace LeptonInjector {
     }
 
 
-    void Controller::AddInjector( MinimalInjectionConfiguration configs_received ){
+    void Controller::AddInjector( Injector configs_received ){
         std::cout << "Adding Injector." << std::endl;
         this->configs.push_back( configs_received );
     }
@@ -88,7 +88,7 @@ namespace LeptonInjector {
         std::cout << "Executing Injectors" << std::endl;
 
         bool hasRanged=false, hasVolume=false;
-		for(std::vector<MinimalInjectionConfiguration>::const_iterator genSet=this->configs.begin(), end=this->configs.end(); genSet!=end; genSet++){
+		for(std::vector<Injector>::const_iterator genSet=this->configs.begin(), end=this->configs.end(); genSet!=end; genSet++){
 			hasRanged |= genSet->ranged;
 			hasVolume |= !genSet->ranged;
 		}
@@ -147,7 +147,7 @@ namespace LeptonInjector {
         }
         //construct all generators
         unsigned int i=0;
-        for(std::vector<MinimalInjectionConfiguration>::const_iterator genSet=this->configs.begin(), end=this->configs.end(); genSet!=end; genSet++){
+        for(std::vector<Injector>::const_iterator genSet=this->configs.begin(), end=this->configs.end(); genSet!=end; genSet++){
 
 
             if(genSet->ranged){

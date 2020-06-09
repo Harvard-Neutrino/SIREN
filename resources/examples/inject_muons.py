@@ -24,7 +24,7 @@ total_xs    = xs_folder + "/test_xs_total.fits"
 is_ranged   = True
 final_1     = LI.Particle.MuMinus
 final_2     = LI.Particle.Hadrons
-the_injector = LI.injector( n_events , final_1, final_2, diff_xs, total_xs, is_ranged)
+the_injector = LI.Injector( n_events , final_1, final_2, diff_xs, total_xs, is_ranged)
 
 
 
@@ -43,8 +43,8 @@ maxAzimuth  = 180.*deg
 controller  = LI.Controller( the_injector, minE, maxE, gamma, minAzimuth, maxAzimuth, minZenith, maxZenith)  
 
 # specify the output
-controller.Output("./data_output.h5")
-controller.LICFile("./config.lic")
+controller.NameOutfile("./data_output.h5")
+controller.NameLicFile("./config.lic")
 
 # run the simulation
 controller.Execute()
