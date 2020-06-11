@@ -109,6 +109,24 @@ install(TARGETS lepton_injector
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/public"
+    DESTINATION "include"
+    FILES_MATCHING PATTERN "*.h")
+
+# write and install pkg-config file
+file(WRITE "lepton_injector.pc" "prefix=${CMAKE_INSTALL_PREFIX}\n")
+file(APPEND "lepton_injector.pc" "libdir=${CMAKE_INSTALL_PREFIX}/lib\n")
+file(APPEND "lepton_injector.pc" "includedir=${CMAKE_INSTALL_PREFIX}/include\n")
+file(APPEND "lepton_injector.pc" "Name: lepton_injector\n")
+file(APPEND "lepton_injector.pc" "Description: Generates neutrino events for large volume cherenkov telescopes\n")
+file(APPEND "lepton_injector.pc" "URL: https://github.com/IceCubeOpenSource/LeptonInjector\n")
+file(APPEND "lepton_injector.pc" "Version: 1.0.0\n")
+file(APPEND "lepton_injector.pc" "Requires: photospline\n")
+file(APPEND "lepton_injector.pc" "Libs: -L${CMAKE_INSTALL_PREFIX}/lib\n")
+file(APPEND "lepton_injector.pc" "Cflags: -I${CMAKE_INSTALL_PREFIX}/include\n")
+  
+install(FILES "lepton_injector.pc" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
+
 # build and install pyhton module
 if(DEFINED ENV{SROOT})
     set(Python_ROOT_DIR ${SROOT})
