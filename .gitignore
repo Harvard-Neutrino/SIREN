@@ -37,3 +37,9 @@
 
 # LIC files
 *.lic
+
+# pkg-config files
+*.pc
+
+# IDE
+.vscode/
