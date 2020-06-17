@@ -2,7 +2,7 @@
 #include <array>
 #include <tuple>
 #include <Constants.h> // pi
-
+#include <assert.h> //assertions
 
 namespace LeptonInjector {
 
@@ -280,6 +280,16 @@ namespace LeptonInjector {
         double n_sum = -(nx*x0 + ny*y0);
         double r0_2 = x0*x0 + y0*y0;
 
+		// check for vertical
+		if (nx==0.0 && ny==0.0){
+			assert(nz!=0.0);
+			if (nz>0.0){
+				return std::tuple<LI_Position,LI_Position>(LI_Position(x0,y0,cz1), LI_Position(x0,y0,cz2));
+			}else{
+				return std::tuple<LI_Position,LI_Position>(LI_Position(x0,y0,cz2), LI_Position(x0,y0,cz1));
+			}
+		}
+
         // Solving the quadratic
         double root = sqrt(n_sum*n_sum - nr2 * (r0_2 - r*r));
 
@@ -296,27 +306,50 @@ namespace LeptonInjector {
         double z2 = z0 + nz * sol_2;
 
         // Check if the solutions are within the z boundaries
-        bool b1 = z1 < cz1;
-        bool b2 = z2 > cz2;
-        bool bb = b1 or b2;
+        bool b1_lower = z1<cz1;
+		bool b2_lower = z2<cz1;
+
+		bool b1_upper = z1 > cz2;
+		bool b2_upper = z2 > cz2;
+
+		bool bb_lower = b1_lower or b2_lower;
+		bool bb_upper = b1_upper or b2_upper;
+        bool bb = bb_lower or bb_upper;
 
         // Replace with endcap intersections otherwise
         if(bb) {
             double nr = sqrt(nr2);
             double r0 = sqrt(r0_2);
-            if(b1) {
-                double t1 = (cz1 - z0)/nz;
-                x1 = x0 + nx*t1;
-                y1 = y0 + ny*t1;
-                z1 = cz1;
-            }
-
-            if(b2) {
-                double t2 = (cz2 - z0)/nz;
-                x2 = x0 + nx*t2;
-                y2 = y0 + ny*t2;
-                z2 = cz2;
-            }
+			if (bb_lower){
+				double t1 = (cz1-z0)/nz;
+				double xx = x0+nx*t1;
+				double yy = y0+ny*t1;
+				double zz = cz1;
+				if (b1_lower){
+					x1=xx;
+					y1=yy;
+					z1=zz;
+				}else{
+					x2=xx;
+					y2=yy;
+					z2=zz;
+				}
+			}
+			if (bb_upper){
+				double t2= (cz2-z0)/nz;
+				double xx = x0+nx*t2;
+				double yy = y0+ny*t2;
+				double zz = cz2; 
+				if (b1_upper){
+					x1=xx;
+					y1=yy;
+					z1=zz;
+				}else{
+					x2=xx;
+					y2=yy;
+					z2=zz;
+				}
+			}
         }
 
         return std::tuple<LI_Position, LI_Position>(LI_Position(x1, y1, z1), LI_Position(x2, y2, z2));
