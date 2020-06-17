@@ -325,7 +325,7 @@ EarthModelService::GetEarthParam(const LeptonInjector::LI_Position & p_CE) const
 
    if (iter == fEarthParams_.end()) {
       --iter;
-      throw("radius " + std::to_string(r) + " is not defined in EarthParam, largest radius is " + std::to_string( iter->first ));
+      throw std::runtime_error("radius " + std::to_string(r) + " is not defined in EarthParam, largest radius is " + std::to_string( iter->first ));
    }
 
    const EarthParam& ep = iter->second;

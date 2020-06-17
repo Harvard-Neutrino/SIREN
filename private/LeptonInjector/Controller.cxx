@@ -130,8 +130,8 @@ namespace LeptonInjector {
             this->rangedConfig.injectionRadius = this->injectionRadius; 
             this->rangedConfig.endcapLength = this->endcapLength; 
             
-            if(this->rangedConfig.injectionRadius<0){throw": InjectionRadius must be non-negative"; }
-            if(this->rangedConfig.endcapLength<0){ throw ": EndcapLength must be non-negative"; }
+            if(this->rangedConfig.injectionRadius<0){throw std::runtime_error(": InjectionRadius must be non-negative"); }
+            if(this->rangedConfig.endcapLength<0){ throw std::runtime_error(": EndcapLength must be non-negative"); }
 
             
         }
@@ -141,8 +141,8 @@ namespace LeptonInjector {
             this->volumeConfig.cylinderRadius = this->cylinderRadius; 
             this->volumeConfig.cylinderHeight = this->cylinderHeight;
             
-            if(this->volumeConfig.cylinderRadius<0){throw": InjectionRadius must be non-negative"; }
-            if(this->volumeConfig.cylinderHeight<0){ throw ": EndcapLength must be non-negative"; }
+            if(this->volumeConfig.cylinderRadius<0){throw std::runtime_error(": InjectionRadius must be non-negative"); }
+            if(this->volumeConfig.cylinderHeight<0){ throw std::runtime_error(": EndcapLength must be non-negative"); }
 
         }
         //construct all generators
@@ -158,7 +158,7 @@ namespace LeptonInjector {
             }
             else{ //volume
                 VolumeLeptonInjector* generator= new VolumeLeptonInjector(volumeConfig, earthModel, random);
-                generator->earthModel = earthModel;
+                generator->earthModel = this->earthModel;
                 generator->Configure( *genSet );
                 generators.push_back(generator);
             }
@@ -179,7 +179,6 @@ namespace LeptonInjector {
             generators.back()->writer_link = this->datawriter;
             this->datawriter->AddInjector( generators.back()->Name(), generators.back()->isRanged() );
             this->datawriter->WriteConfig( generators.back()->getConfig(), generators.back()->isRanged() );
-
 
             // enters a generating loop. Keep calling generate until it returns FALSE 
             bool generating = true;

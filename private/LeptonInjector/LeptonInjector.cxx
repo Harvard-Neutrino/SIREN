@@ -146,7 +146,7 @@ namespace LeptonInjector{
 				//squared kinetic energy of final state particle 1:
 				double kE1sq=E1*E1 - m1*m1;
 				if(kE1sq<=0){
-                    throw "Negative kinetic energy. Not good";
+                    throw std::runtime_error("Negative kinetic energy. Not good");
                 }
 				cos_theta1=(E1 - x*y*M_N - m1*m1/(2*E_total))/sqrt(kE1sq);
 				kE1=sqrt(kE1sq);
@@ -154,7 +154,7 @@ namespace LeptonInjector{
 			else{ //leptonic GR
 				double m_e = Constants::electronMass;
 				
-				if(E1<=0){ throw "Bjorken Y > 1?"; }
+				if(E1<=0){ throw std::runtime_error("Bjorken Y > 1?"); }
                 
 				
 				cos_theta1=1 - (m_e*m_e + 2*m_e*E_total - m1*m1)/(2*E_total*E1);
@@ -249,11 +249,11 @@ namespace LeptonInjector{
 		random = random_;
 		earthModel = earth_;
 		if(config.injectionRadius<0)
-			throw(": InjectionRadius must be non-negative");
+			throw std::runtime_error(": InjectionRadius must be non-negative");
 		if(config.endcapLength<0)
-			throw(": EndcapLength must be non-negative");
+			throw std::runtime_error(": EndcapLength must be non-negative");
 		if(!earthModel)
-			throw(": an Earth model service is required");
+			throw std::runtime_error(": an Earth model service is required");
 	}
 	
 
@@ -303,7 +303,7 @@ namespace LeptonInjector{
 												 earthModel->GetEarthCoordDirFromDetCoordDir(dir),
 												 earthModel->GetAtmoRadius(),atmoEntry,atmoExit);
 			if(isect<2)
-				throw("PCA not inside atmosphere");
+				throw std::runtime_error("PCA not inside atmosphere");
 			atmoEntry=earthModel->GetDetCoordPosFromEarthCoordPos(atmoEntry);
 			double atmoDist=(pca-atmoEntry).Magnitude();
 			if(std::abs(dist-atmoDist)<100.0)
@@ -346,11 +346,11 @@ namespace LeptonInjector{
 		config = config_;
 		earthModel = earth_;
 		if(config.cylinderRadius<0)
-			throw(": CylinderRadius must be non-negative");
+			throw std::runtime_error(": CylinderRadius must be non-negative");
 		if(config.cylinderHeight<0)
-			throw(": CylinderHeight must be non-negative");
+			throw std::runtime_error(": CylinderHeight must be non-negative");
 		if(!earthModel)
-			throw(": an Earth model service is required");
+			throw std::runtime_error(": an Earth model service is required");
 	}
 	
 	
@@ -388,9 +388,6 @@ namespace LeptonInjector{
 		// write hdf5 file! 
 
 		FillTree(vertex,dir,energy, properties, particle_tree);
-		
-		
-
 
 		//package up output and send it
 		writer_link->WriteEvent( properties, particle_tree[0] , particle_tree[1], particle_tree[2]);

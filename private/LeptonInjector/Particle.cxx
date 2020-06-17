@@ -121,7 +121,7 @@ namespace LeptonInjector{
     //   (OR) a "hadrons" particle
 	bool isCharged(Particle::ParticleType p){
 		if( !(isLepton(p) || p==Particle::ParticleType::Hadrons) ){
-			throw "You should only be using Leptons or Hadrons!";
+			throw std::runtime_error("You should only be using Leptons or Hadrons!");
 		}
 		
 		// keeps this within scope. Shouldn't be getting some other kind of charged particle
@@ -210,6 +210,7 @@ namespace LeptonInjector{
 			final_1==Particle::Particle::NuTauBar || final_1==Particle::Particle::NuTau )){
 			return( 1 ); // neutral current
 		}
+		
 		throw std::runtime_error("Interaction type not recognized");
 	}
 
@@ -218,9 +219,9 @@ namespace LeptonInjector{
 	Particle::ParticleType deduceInitialType(Particle::ParticleType pType1, Particle::ParticleType pType2){
 		//only accept certain particle types in general
 		if(!isLepton(pType1) && pType1!=Particle::ParticleType::Hadrons)
-            throw "BadParticle"; //replace log
+            throw std::runtime_error("BadParticle"); 
 		if(!isLepton(pType2) && pType2!=Particle::ParticleType::Hadrons)
-            throw "BadParticle";
+            throw std::runtime_error("BadParticle");
 		
 		bool c1=isCharged(pType1);
 		bool c2=isCharged(pType2);
@@ -229,7 +230,7 @@ namespace LeptonInjector{
 		
 		//at least one particle should be charged
 		if(!c1 && !c2)
-			throw "Final state should have at least one charged particle";
+			throw std::runtime_error("Final state should have at least one charged particle");
 		//first particle is charged, second is not
 		if(c1 && !c2){
 			//valid cases are charged lepton + matching antineutrino for GR
@@ -241,10 +242,10 @@ namespace LeptonInjector{
 					 (pType1==Particle::ParticleType::MuPlus   && pType2==Particle::ParticleType::NuMu) ||
 					 (pType1==Particle::ParticleType::TauMinus && pType2==Particle::ParticleType::NuTauBar) ||
 					 (pType1==Particle::ParticleType::TauPlus  && pType2==Particle::ParticleType::NuTau)))
-                     throw "Final states with a charged lepton must have an anti-matching neutrino.";
+                     throw std::runtime_error("Final states with a charged lepton must have an anti-matching neutrino.");
 				return(Particle::ParticleType::NuEBar);
 			}
-            throw "BadFinal";
+            throw std::runtime_error("BadFinal");
 		}
 		
 		//first particle is neutral, second is charged
@@ -253,17 +254,17 @@ namespace LeptonInjector{
 				//particle 1 is a neutral lepton, so it must be a neutrino
 				return(pType1); //the incoming neutrino type is the same as the outgoing
 			}
-            throw "BadFinal";
+            throw std::runtime_error("BadFinal");
 		}
 		
 		//have two charged particles
 		if(c1 && c2){
 			//no two charged lepton states
 			if(l1 && l2)
-                throw "BadFinal";
+                throw std::runtime_error("BadFinal");
 			//lepton should be given first
 			if(!l1 && l2)
-                throw "BadFinal";
+                throw std::runtime_error("BadFinal");
 			if(l1 && !l2){ //valid: charged lepton + Hadrons for CC
 				switch(pType1){
 					case Particle::ParticleType::EMinus: return(Particle::ParticleType::NuE);
@@ -279,7 +280,7 @@ namespace LeptonInjector{
 				return(Particle::ParticleType::NuEBar);
 			}
 		}
-        throw "You must be a wizard: this point should be unreachable";
+        throw std::runtime_error("You must be a wizard: this point should be unreachable");
 	}
 
 
