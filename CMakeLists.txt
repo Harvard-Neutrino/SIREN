@@ -165,7 +165,7 @@ IF(PYTHON_FOUND)
     add_library( LeptonInjector SHARED ${python_private})
     set_target_properties( LeptonInjector PROPERTIES LINKER_LANGUAGE CXX OUTPUT_NAME "LeptonInjector" PREFIX "" SUFFIX ".so")
     target_include_directories( LeptonInjector PRIVATE ${PYTHON_INCLUDE_DIR})
-    target_link_libraries(LeptonInjector PRIVATE lepton_injector ${Boost_LIBRARIES})
+    target_link_libraries(LeptonInjector PRIVATE lepton_injector ${Boost_LIBRARIES} ${Python_LIBRARIES})
     include_directories(${Boost_INCLUDE_DIRS})
     
     EXECUTE_PROCESS( COMMAND ${PYTHON_EXECUTABLE} -c
