@@ -392,14 +392,14 @@ void LICrossSection::load(std::string dd_crossSectionFile, std::string total_cro
         }
 	}
     err=crossSection.read_key("INTERACTION", interaction);
-    if(err){
+    if(!err){
         // assume DIS to preserve compatability with previous versions!
         //log_warn("Unable to read INTERACTION key from cross section spline, assuming DIS");
         interaction=1;
     }
 
 	err=crossSection.read_key("Q2MIN", Q2Min);
-	if(err){
+	if(!err){
 		//log_warn("Unable to read Q2Min key from cross section spline; assuming 1 GeV^2");
 		Q2Min=1;
 	}
