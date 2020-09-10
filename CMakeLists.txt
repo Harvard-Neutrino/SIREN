@@ -13,6 +13,11 @@ project(lepton_injector VERSION 1.0.0 LANGUAGES CXX C)
 SET(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_C_STANDARD 99)
 ## enable_language(cxx)
+SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
+                       ${CMAKE_SOURCE_DIR}/cmake/Packages)
+
+INCLUDE (SuiteSparse)
+INCLUDE (Python)
 
 if(CMAKE_VERSION VERSION_LESS 3.12.0)
     if(Python_ROOT_DIR)
@@ -88,9 +93,7 @@ LIST (APPEND core_SOURCES
 
 add_library( lepton_injector SHARED ${core_SOURCES} )
 target_include_directories(lepton_injector PUBLIC
-    ${CMAKE_SOURCE_DIR}/public/LeptonInjector/
-    ${CMAKE_SOURCE_DIR}/public/earthmodel-service/
-    ${CMAKE_SOURCE_DIR}/public/phys-services/ 
+    ${CMAKE_SOURCE_DIR}/public/
 )
 
 set_target_properties(lepton_injector PROPERTIES
@@ -109,7 +112,7 @@ install(TARGETS lepton_injector
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/public"
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/public/"
     DESTINATION "include"
     FILES_MATCHING PATTERN "*.h")
 

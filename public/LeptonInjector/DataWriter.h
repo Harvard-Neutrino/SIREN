@@ -1,7 +1,7 @@
 #ifndef LI_H5WRITE
 #define LI_H5WRITE
 
-#include <BasicInjectionConfiguration.h>
+#include <LeptonInjector/BasicInjectionConfiguration.h>
 #include <hdf5.h> // all the data writing
 #include <fstream> // std::ostream 
 
@@ -9,7 +9,7 @@
 #include <vector> //MAKE_ENUM_VECTOR
 
 #include <iostream> // std::cout 
-#include <EventProps.h>
+#include <LeptonInjector/EventProps.h>
 #include <array>
 
 #include <boost/detail/endian.hpp>

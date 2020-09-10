@@ -1,7 +1,7 @@
 #ifndef LI_EVENT
 #define LI_EVENT
 
-#include <Coordinates.h> // n_dimensions, Position, Direction
+#include <LeptonInjector/Coordinates.h> // n_dimensions, Position, Direction
 
 
 // Ben Smithers

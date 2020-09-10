@@ -1,7 +1,7 @@
-#include "Coordinates.h"
+#include <LeptonInjector/Coordinates.h>
 #include <array>
 #include <tuple>
-#include <Constants.h> // pi
+#include <LeptonInjector/Constants.h> // pi
 #include <assert.h> //assertions
 
 namespace LeptonInjector {

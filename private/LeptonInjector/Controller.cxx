@@ -1,4 +1,4 @@
-#include "Controller.h"
+#include <LeptonInjector/Controller.h>
 
 
 namespace LeptonInjector {

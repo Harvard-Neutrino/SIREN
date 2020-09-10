@@ -1,9 +1,9 @@
 #ifndef LI_CONTROLLER
 #define LI_CONTROLLER
 
-#include <LeptonInjector.h> 
-#include <Constants.h> // pi, GeV, degrees, meters, ... 
-#include <DataWriter.h> // adds DataWriter class 
+#include <LeptonInjector/LeptonInjector.h> 
+#include <LeptonInjector/Constants.h> // pi, GeV, degrees, meters, ... 
+#include <LeptonInjector/DataWriter.h> // adds DataWriter class 
 #include <iostream> // cout 
 
 // Ben Smithers

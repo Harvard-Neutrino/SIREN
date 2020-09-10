@@ -1,4 +1,4 @@
-#include <DataWriter.h>
+#include <LeptonInjector/DataWriter.h>
 #include <boost/version.hpp>
 #include <boost/preprocessor/stringize.hpp>>
 // From the IceCube tableio project 
