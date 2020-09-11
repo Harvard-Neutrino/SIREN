@@ -1,5 +1,5 @@
 #include <math.h> // adds sqrt, power functions
-#include <Particle.h>
+#include <LeptonInjector/Particle.h>
 #include <assert.h>
 #include <map>
 

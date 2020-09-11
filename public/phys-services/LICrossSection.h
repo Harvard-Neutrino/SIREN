@@ -3,9 +3,9 @@
 
 #include <photospline/splinetable.h>
 
-#include "Particle.h"
-#include "Random.h"
-#include <BasicInjectionConfiguration.h>
+#include <LeptonInjector/Particle.h>
+#include <LeptonInjector/Random.h>
+#include <LeptonInjector/BasicInjectionConfiguration.h>
 
 #include <string>
 

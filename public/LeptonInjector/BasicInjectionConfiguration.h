@@ -2,7 +2,7 @@
 #define LI_BIC_H
 
 #include <vector>
-#include <Particle.h>
+#include <LeptonInjector/Particle.h>
 #include <photospline/splinetable.h>
 
 // Ben Smithers

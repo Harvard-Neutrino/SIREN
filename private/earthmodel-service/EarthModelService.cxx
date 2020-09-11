@@ -15,7 +15,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
-#include <EarthModelService.h>
+#include <earthmodel-service/EarthModelService.h>
 //  #include "earthmodel-service/EarthModelService.h"
 
 using namespace std;

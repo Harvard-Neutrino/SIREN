@@ -1,7 +1,7 @@
-#include <LeptonInjector.h>
-#include <Controller.h>
-#include <Random.h>
-#include <Constants.h>
+#include <LeptonInjector/LeptonInjector.h>
+#include <LeptonInjector/Controller.h>
+#include <LeptonInjector/Random.h>
+#include <LeptonInjector/Constants.h>
 
 
 // #include <converter/LeptonInjectionConfigurationConverter.h>

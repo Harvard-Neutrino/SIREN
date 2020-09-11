@@ -13,8 +13,8 @@
 #define EarthModelCalculator_h
 
 #include <cmath>
-#include <Coordinates.h>
-#include <Constants.h>
+#include <LeptonInjector/Coordinates.h>
+#include <LeptonInjector/Constants.h>
 #include <vector>
 #include <cassert>
 
