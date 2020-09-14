@@ -39,7 +39,7 @@ class Controller{
         std::string earthmodelname = "Earth";
 
         // Shared pointer refering to the Earth model used. 
-        std::shared_ptr<earthmodel::EarthModelService> earthModel = std::make_shared<earthmodel::EarthModelService>();
+        std::shared_ptr<earthmodel::EarthModelService> earthModel;
         // Shared pointer refering to the random number generator.
         const std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
 
