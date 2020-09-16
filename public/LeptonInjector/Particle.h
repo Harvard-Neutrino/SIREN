@@ -202,7 +202,7 @@ namespace LeptonInjector{
 
             Particle();
 
-            Particle(ParticleType type = ParticleType::unknown);
+            Particle(ParticleType type);
 
             
             // what kind of particle is this (see below)
