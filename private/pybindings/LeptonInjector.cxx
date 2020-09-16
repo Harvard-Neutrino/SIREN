@@ -1,3 +1,7 @@
+#include <string>
+#include <vector>
+#include <utility>
+
 #include <LeptonInjector/LeptonInjector.h>
 #include <LeptonInjector/Controller.h>
 #include <LeptonInjector/Random.h>
@@ -7,6 +11,8 @@
 // #include <converter/LeptonInjectionConfigurationConverter.h>
 #include <boost/python.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+#include "array_ref.h"
+#include "array_indexing_suite.h"
 
 using namespace boost::python;
 
@@ -17,13 +23,21 @@ namespace LeptonInjector{
 
 BOOST_PYTHON_MODULE(LeptonInjector){
 	using namespace LeptonInjector;
-  
+
+    class_<array_ref<double>>( "double_array" )
+        .def( array_indexing_suite<array_ref<double>>() )
+    ;
+
+    class_<std::pair<double, double> >("DoublePair")
+    	.def_readwrite("first", &std::pair<double, double>::first)
+    	.def_readwrite("second", &std::pair<double, double>::second)
+	;
 
     class_<LI_random>("RNG",init<unsigned int>(args("seed")=1))
         .def("Uniform",&LI_random::Uniform)
     ;
 
-    class_<Controller>("Controller", init<Injector,double,double,double,double,double,double,double,double,double,double,double>(  
+    class_<Controller>("Controller", init<Injector,double,double,double,double,double,double,double,double,double,double,double>(
         (args("injectors"),args("minimum energy"),args("maximum energy"),args("spectral index"),args("minimum azimuth"),args("maximum azimuth"),args("minimum zenith"),args("maximum zenith"),args("injection radius")=1200., args("endcap length")=1200., args("cylinder radius")=1200., args("cylinder height")=1200.))
         )
         .def("Execute",&Controller::Execute)
@@ -34,8 +48,22 @@ BOOST_PYTHON_MODULE(LeptonInjector){
         .def("setSeed",&Controller::setSeed)
      ;
 
-    
-    enum_<Particle::ParticleType>("Particle")
+
+    {
+    scope particle = class_<Particle>("Particle", init<>())
+        .def_readwrite("type", &Particle::type)
+        .def_readwrite("energy", &Particle::energy)
+        .def_readwrite("direction", &Particle::direction)
+        .add_property( "position",
+                +[](Particle *obj) {
+                    return array_ref<double>( obj->position );
+                })
+        .def("GetMass", &Particle::GetMass)
+        .def("HasMass", &Particle::HasMass)
+        .def("GetTypeString", &Particle::GetTypeString)
+        ;
+
+    enum_<Particle::ParticleType>("ParticleType")
         .value("EPlus",Particle::EPlus)
         .value("EMinus",Particle::EMinus)
         .value("MuPlus",Particle::MuPlus)
@@ -50,7 +78,18 @@ BOOST_PYTHON_MODULE(LeptonInjector){
         .value("NuMu",Particle::NuMu)
         .value("Hadrons",Particle::Hadrons)
     ;
-   
+    }
+
+    def("isLepton", &isLepton);
+    def("isCharged", &isCharged);
+    def("particleName", &particleName);
+    def("particleMass", &particleMass);
+    def("kineticEnergy", &kineticEnergy);
+    def("particleSpeed", &particleSpeed);
+    def("decideShape", &decideShape);
+    def("deduceInitialType", &deduceInitialType);
+    def("getInteraction", &getInteraction);
+
     class_<Injector, std::shared_ptr<Injector>>("Injector",
 	  init<unsigned int,Particle::ParticleType,Particle::ParticleType,std::string,std::string,bool>(
 	    (args("NEvents"),args("FinalType1"),args("FinalType2"),args("DoublyDifferentialCrossSectionFile"),args("TotalCrossSectionFile"),args("Ranged"))
