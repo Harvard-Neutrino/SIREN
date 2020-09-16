@@ -10,6 +10,11 @@
 
 using namespace boost::python;
 
+namespace LeptonInjector{
+    struct LIConstants {
+    };
+}
+
 BOOST_PYTHON_MODULE(LeptonInjector){
 	using namespace LeptonInjector;
   
@@ -58,4 +63,50 @@ BOOST_PYTHON_MODULE(LeptonInjector){
 	.def_readwrite("totalCrossSectionPath",&Injector::totalCrossSectionPath)
 	.def_readwrite("ranged",&Injector::ranged)
 	;
+
+    scope constants = class_<LIConstants>("Constants");
+
+    constants.attr("pi") = Constants::pi;
+	constants.attr("tau") = Constants::tau;
+	constants.attr("degrees") = Constants::degrees;
+	constants.attr("deg") = Constants::deg;
+	constants.attr("radian") = Constants::radian;
+	constants.attr("m") = Constants::m;
+	constants.attr("meter") = Constants::meter;
+	constants.attr("cm") = Constants::cm;
+	constants.attr("centimeter") = Constants::centimeter;
+	constants.attr("second") = Constants::second;
+	constants.attr("c") = Constants::c;
+	constants.attr("protonMass") = Constants::protonMass;
+	constants.attr("neutronMass") = Constants::neutronMass;
+	constants.attr("isoscalarMass") = Constants::isoscalarMass;
+	constants.attr("electronMass") = Constants::electronMass;
+	constants.attr("muonMass") = Constants::muonMass;
+	constants.attr("tauMass") = Constants::tauMass;
+	constants.attr("s") = Constants::s;
+	constants.attr("tauLifeTime") = Constants::tauLifeTime;
+	constants.attr("MuonLifeTime") = Constants::MuonLifeTime;
+	constants.attr("wMass") = Constants::wMass;
+	constants.attr("wWidth") = Constants::wWidth;
+	constants.attr("zMass") = Constants::zMass;
+	constants.attr("WBranchE") = Constants::WBranchE;
+	constants.attr("WBranchMuon") = Constants::WBranchMuon;
+	constants.attr("WBranchTau") = Constants::WBranchTau;
+	constants.attr("WBranchHadronic") = Constants::WBranchHadronic;
+	constants.attr("nuEMass") = Constants::nuEMass;
+	constants.attr("nuMuMass") = Constants::nuMuMass;
+	constants.attr("nuTauMass") = Constants::nuTauMass;
+	constants.attr("GeV") = Constants::GeV;
+	constants.attr("EeV") = Constants::EeV;
+	constants.attr("PeV") = Constants::PeV;
+	constants.attr("TeV") = Constants::TeV;
+	constants.attr("MeV") = Constants::MeV;
+	constants.attr("keV") = Constants::keV;
+	constants.attr("eV") = Constants::eV;
+	constants.attr("Joule") = Constants::Joule;
+	constants.attr("FermiConstant") = Constants::FermiConstant;
+	constants.attr("avogadro") = Constants::avogadro;
+	constants.attr("thetaWeinberg") = Constants::thetaWeinberg;
+	constants.attr("gravConstant") = Constants::gravConstant;
+	constants.attr("fineStructure") = Constants::fineStructure;
 }
