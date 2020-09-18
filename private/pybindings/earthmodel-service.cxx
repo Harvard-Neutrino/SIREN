@@ -1,6 +1,8 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <utility>
+#include <tuple>
 
 #include <LeptonInjector/LeptonInjector.h>
 #include <LeptonInjector/Coordinates.h>
@@ -29,6 +31,20 @@ struct VecToList
 		boost::python::list* l = new boost::python::list();
 		for(size_t i =0; i < vec.size(); i++)
 			(*l).append(vec[i]);
+
+		return l->ptr();
+	}
+};
+
+
+template<typename T, typename U, typename P>
+struct ThreeTupleToPyTuple
+{
+	static PyObject* convert(const std::tuple<T,U,P>& tup){
+		boost::python::list* l = new boost::python::list();
+		(*l).append(std::get<0>(tup));
+		(*l).append(std::get<1>(tup));
+		(*l).append(std::get<2>(tup));
 
 		return l->ptr();
 	}
@@ -96,6 +112,7 @@ BOOST_PYTHON_MODULE(EarthModelService){
 		// .def("GetEarthDensityInCGS",GetEarthDensityInCGS)
 		// .def("GetLayerDensityInCGS",GetLayerDensityInCGS)
 		.def("GetColumnDepthInCGS",&EarthModelService::GetColumnDepthInCGS)
+        .def("GetEarthDensitySegments",&EarthModelService::GetEarthDensitySegments)
 		// .def("IntegrateDensityInCGS",&EarthModelService::IntegrateDensityInCGS)
 		.def("DistanceForColumnDepthToPoint",&EarthModelService::DistanceForColumnDepthToPoint)
 		// .def("DistanceForColumnDepthFromPoint",&EarthModelService::DistanceForColumnDepthFromPoint)
@@ -107,7 +124,7 @@ BOOST_PYTHON_MODULE(EarthModelService){
 		//.def("GetMediumMatRatioMap",GetMediumMatRatioMap)
 		// .def("GetMatRatio",&EarthModelService::GetMatRatio)
 		//.def("GetPNERatioMap",&EarthModelService::GetPNERatioMap)
-		// .def("GetPNERatio",&EarthModelService::GetPNERatio)
+		.def("GetPNERatio",&EarthModelService::GetPNERatio)
 		// .def("GetDistanceFromEarthEntranceToDetector",&EarthModelService::GetDistanceFromEarthEntranceToDetector)
 		// .def("GetDistanceFromSphereSurfaceToDetector",&EarthModelService::GetDistanceFromSphereSurfaceToDetector)
 		// .def("PrintEarthParams",&EarthModelService::PrintEarthParams)
@@ -161,10 +178,19 @@ BOOST_PYTHON_MODULE(EarthModelService){
 	using namespace scitbx::boost_python::container_conversions;
 	from_python_sequence< std::vector<double>, variable_capacity_policy >();
 	to_python_converter< std::vector<double, class std::allocator<double> >, VecToList<double> > ();
+
+    //from_python_sequence< std::tuple<double,double,double>, variable_capacity_policy >();
+	to_python_converter< std::tuple<double, double,double>, ThreeTupleToPyTuple<double,double,double> > ();
+
+	from_python_sequence< std::vector<std::tuple<double,double,double>>, variable_capacity_policy >();
+	to_python_converter< std::vector<std::tuple<double,double,double>, class std::allocator<std::tuple<double,double,double>> >, VecToList<std::tuple<double,double,double>> > ();
+
 	from_python_sequence< std::vector<int>, variable_capacity_policy >();
 	to_python_converter< std::vector<int, class std::allocator<int> >, VecToList<int> > ();
+
 	from_python_sequence< std::vector<unsigned int>, variable_capacity_policy >();
 	to_python_converter< std::vector<unsigned int, class std::allocator<unsigned int> >, VecToList<unsigned int> > ();
+
 	from_python_sequence< std::vector<std::string>, variable_capacity_policy >();
 	to_python_converter< std::vector<std::string, class std::allocator<std::string> >, VecToList<std::string> > ();
 }
