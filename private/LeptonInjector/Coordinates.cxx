@@ -236,7 +236,7 @@ namespace LeptonInjector {
 
 	// check if two points are identical
 	// 		maybe use a different epsilon? Not sure. 
-	bool operator == (LI_Position& one, LI_Position& two){
+	bool operator == (LI_Position const & one, LI_Position const & two){
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
 			// check if the difference between each comonent isless than the minimum expressible distance between doubles
 			//		this, as opposed to using '==' is to avoid floating point errors 
