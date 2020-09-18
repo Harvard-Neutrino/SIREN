@@ -15,6 +15,9 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <numeric>
+#include <algorithm>
+#include <functional>
 #include <earthmodel-service/EarthModelService.h>
 //  #include "earthmodel-service/EarthModelService.h"
 
@@ -707,6 +710,249 @@ const double EarthModelService::IntegrateDensityInCGS(
    
    //log_trace_stream(" Len error: " << len-x);
    return(depth);
+}
+
+const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthDensitySegments(
+                 const  LeptonInjector::LI_Position &from_posCE,
+                 const  LeptonInjector::LI_Position &to_posCE,
+                 const bool use_electron_density) const
+{
+   std::cout << "Getting earth density segments!" << std::endl;
+
+   LeptonInjector::LI_Position pos(from_posCE);
+   LeptonInjector::LI_Position to_CE(to_posCE);
+
+   LeptonInjector::LI_Direction dirCE(to_CE - pos);
+   double len = (to_CE - pos).Magnitude();
+   
+   const double tinyStepSize=.01 * LeptonInjector::Constants::m;
+   
+   double x=0; //distance traversed so far
+   bool willLeaveAtmosphere=false;
+   
+   typedef std::tuple<double,double,double> Segment;
+   std::vector<Segment> segments;
+
+   // calculate distance to next boundary
+   double distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
+
+   // get current medium and density
+   EarthParam curMedium=GetEarthParam(pos);
+
+   // only used for GR events' column depth calculations
+   //       the interaction probability should be based off electron number density instead of isoscalar, so we use this 
+   //       offset to approximate that effect 
+   double density_offset;
+   if (use_electron_density){
+        density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
+   }else{
+        density_offset = 1.0;
+   }
+
+   double density=GetEarthDensityInCGS(curMedium,pos)*density_offset; //the current density == d(depth)/dx 
+
+   //log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
+   //log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
+   //log_trace_stream("  Distance to next layer is " << distToNext << " meters");
+   
+   unsigned int iterations=0;
+   //unsigned int maxIterations=1e6; //if we try to take more steps than this something is horribly wrong
+   unsigned int maxIterations=1000; //if we try to take more steps than this something is horribly wrong
+
+   LeptonInjector::LI_Position lastpos(pos);
+   bool approachingGoal=false;
+
+   while(true){
+      if(++iterations>maxIterations){
+         std::cout << "584 Exceeded iteration count limit. Something is horribly wrong" << std::endl;
+         throw;
+      }
+      
+      //if the density is constant, take a shortcut
+      if(curMedium.fParams_.size()==1){
+
+         //log_trace_stream(" Evaluating constant density material");
+
+         density = GetEarthDensityInCGS(pos)*density_offset; //the current density == d(depth)/dx [g/cm3]
+         approachingGoal = false;
+         if(x+distToNext >= len){
+            //log_trace_stream("  Linearly interpolating remaining distance");
+            distToNext = len-x;
+            approachingGoal = true;
+         }
+
+         //log_trace_stream("  Adding remaining column depth and advancing to next layer");
+         lastpos = pos;
+         x += distToNext;
+         pos = pos + (distToNext * dirCE);
+
+         if (approachingGoal) {
+            //log_trace(" this is final step, exit loop");
+            // leave the loop immediately (and return depth)
+            segments.push_back(Segment(density/density_offset, density, distToNext));
+            break;
+         }
+
+         if(willLeaveAtmosphere){ //we have now done so; there's nothing more to integrate
+            //log_trace_stream(" Stopping at atmosphere boundary");
+
+            // leave the loop immediately (and return depth)
+            segments.push_back(Segment(density/density_offset, density, distToNext));
+            break;
+         }
+
+         std::string oldLayerName=curMedium.fBoundaryName_;
+         //make sure that we actually get into the next layer
+         while(curMedium.fBoundaryName_== oldLayerName){
+            //log_trace_stream("   Taking tiny step toward next layer");
+
+            lastpos = pos;
+            pos = pos + (tinyStepSize * dirCE);
+            distToNext += tinyStepSize;
+
+            x+=tinyStepSize;
+
+            curMedium=GetEarthParam(pos);
+            if(++iterations>maxIterations){
+               std::cout << "Exceeded iteration count limit" << std::endl;
+               throw;
+            }
+         };
+         std::cout << "Pushing constant density segment!" << std::endl;
+         segments.push_back(Segment(density/density_offset, density, distToNext));
+         if (use_electron_density){
+             density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
+         }else{
+             density_offset = 1.0;
+         }
+         density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
+         distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
+         assert(distToNext>0);
+         
+         //log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
+         //log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
+         //log_trace_stream("  Distance to next layer is " << distToNext << " meters");
+         
+         continue;
+      }
+      
+      //otherwise do the integral approximately
+      double h=distToNext;
+      approachingGoal=false;
+      if(x+h>len){
+         //log_trace_stream("   Reducing step size to avoid overshooting target distance");
+         h=len-x;
+         approachingGoal=true;
+      }
+
+      std::vector<double> entries;
+      std::vector<double> distances;
+      unsigned int initial_divisions = 5;
+
+      std::cout << "Initializing distance entries!" << std::endl;
+      for(unsigned int i=0; i<initial_divisions; ++i) {
+          distances.push_back(h/(initial_divisions-1)*i);
+          entries.push_back(GetEarthDensityInCGS(curMedium,pos+distances.back()*dirCE)*density_offset);
+      }
+
+      std::function<double()> max_reldiff = [&] ()->double {
+          std::vector<double> diff(entries.size()-1);
+          std::cout << "entries.size() = " << entries.size() << std::endl;
+          std::adjacent_difference(entries.begin(), entries.end(), diff.begin());
+          std::cout << "diff.size() = " << diff.size() << std::endl;
+          for(unsigned int i=0; i<diff.size(); ++i) {
+              std::cout << entries[i] << " " << entries[i+1] << " " << diff[i] << std::endl;
+              double reldiff = std::fabs(diff[i]) / ((entries[i] + entries[i+1])/2.0);
+              std::cout << "reldiff " << reldiff << std::endl;
+              diff[i] = reldiff;
+          }
+          double max = *std::max_element(diff.begin()+1, diff.end());
+          std::cout << "Max = " << max << std::endl;
+          return max;
+      };
+
+      std::cout << "Making distance entries to tolerance!" << std::endl;
+      double segment_tol = 0.001;
+      while(max_reldiff() > segment_tol) {
+          assert(entries.size() < 100);
+          std::cout << "Making finer distance entries!" << std::endl;
+          std::vector<double> new_entries;
+          std::vector<double> new_distances;
+          for(unsigned i=0; i<(entries.size()-1); ++i) {
+              new_entries.push_back(entries[i]);
+              new_distances.push_back(distances[i]);
+              new_distances.push_back((distances[i] + distances[i+1])/2.0);
+              new_entries.push_back(GetEarthDensityInCGS(curMedium,pos+new_distances.back()*dirCE)*density_offset);
+          }
+          new_entries.push_back(entries.back());
+          new_distances.push_back(distances.back());
+          entries.swap(new_entries);
+          distances.swap(new_distances);
+      }
+      std::cout << "Got " << entries.size()-1 << " fine segments!" << std::endl;
+      for(unsigned int i=0; i<entries.size()-1; ++i) {
+          double segment_density = (entries[i]+entries[i+1])/2.0;
+          double segment_distance = distances[i+1]-distances[i];
+          std::cout << "Adding fine segment!" << std::endl;
+          segments.push_back(Segment(segment_density/density_offset, segment_density, segment_distance));
+      }
+
+      x+=h;
+      pos= pos + (distToNext*dirCE);
+      
+      if(willLeaveAtmosphere){ //we have now done so; there's nothing more to integrate
+         //log_trace_stream(" Stopping at atmosphere boundary");
+         break;
+      }
+      if(approachingGoal) //done
+         break;
+      
+      std::string oldLayerName=curMedium.fBoundaryName_;
+      //make sure that we actually get into the next layer
+      entries.clear();
+      distances.clear();
+      distToNext = 0;
+      while(curMedium.fBoundaryName_==oldLayerName){
+         //log_trace_stream("   Taking tiny step toward next layer");
+
+         lastpos = pos;
+         density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
+         pos += tinyStepSize * dirCE;
+         distToNext += tinyStepSize;
+         entries.push_back(density/density_offset);
+         distances.push_back(density);
+
+         x+=tinyStepSize;
+         if (use_electron_density){
+                density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
+         }else{
+                density_offset = 1.0;
+         }
+         curMedium=GetEarthParam(pos);
+         if(++iterations>maxIterations){
+            std::cout << "Exceeded iteration count limit" << std::endl;
+            throw;
+         }
+      };
+      std::cout << "Adding buffer segment!" << std::endl;
+      segments.push_back(
+              Segment(
+                  std::accumulate(entries.begin(), entries.end(), 0)/entries.size(),
+                  std::accumulate(distances.begin(), distances.end(), 0)/distances.size(),
+                  distToNext));
+      density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
+      distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
+      assert(distToNext>0);
+      
+      //log_trace_stream(" Now at " << pos << " having traversed " << x << " meters with " << depth << " gm/cm^2");
+      //log_trace_stream("  Current layer is " << curMedium.fBoundaryName_ << " with current density " << density);
+      //log_trace_stream("  Distance to next layer is " << distToNext << " meters");
+
+   } // while loop end
+   
+   //log_trace_stream(" Len error: " << len-x);
+   std::cout << "Got " << segments.size() << " earth density segments!" << std::endl;
+   return(segments);
 }
 
 //________________________________________________________________
