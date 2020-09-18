@@ -37,6 +37,52 @@ BOOST_PYTHON_MODULE(LeptonInjector){
         .def("Uniform",&LI_random::Uniform)
     ;
 
+    class_<LI_Position>("LI_Position", init<>())
+        .def(init<double, double, double>())
+        .def(init<const LI_Position&>())
+        .def(init<std::array<double,LeptonInjector::n_dimensions>>())
+        .def("at",&LI_Position::at)
+        .def("Magnitude",&LI_Position::Magnitude)
+        .def("GetZ",&LI_Position::GetZ)
+        .def("GetY",&LI_Position::GetY)
+        .def("GetX",&LI_Position::GetX)
+        .def("SetZ",&LI_Position::SetZ)
+        .def("SetY",&LI_Position::SetY)
+        .def("SetX",&LI_Position::SetX)
+        .def(self + self)
+        .def(self - self)
+        .def(self += self)
+        .def(self == self)
+        .def(self * double())
+        .def(double() * self)
+        .def(self * LI_Direction())
+        .def(self * self)
+        ;
+
+    class_<LI_Direction>("LI_Direction", init<>())
+        .def(init<double, double>())
+        .def(init<std::array<double, 2>>())
+        .def(init<std::pair<double, double>>())
+        .def(init<const LI_Direction&>())
+        .def(init<const LI_Position&>())
+        .def("GetZ",&LI_Direction::GetZ)
+        .def("GetY",&LI_Direction::GetY)
+        .def("GetX",&LI_Direction::GetX)
+        .def_readwrite("zenith", &LI_Direction::zenith)
+        .def_readwrite("azimuth", &LI_Direction::azimuth)
+        .def(-self)
+        .def(self * double())
+        .def(double() * self)
+        .def(self * LI_Position())
+        ;
+
+    def("RotateX", &RotateX);
+    def("RotateY", &RotateY);
+    def("RotateZ", &RotateZ);
+    def("rotateRelative", &rotateRelative);
+    def("computeCylinderIntersections", &computeCylinderIntersections);
+
+
     class_<Controller>("Controller", init<Injector,double,double,double,double,double,double,double,double,double,double,double>(
         (args("injectors"),args("minimum energy"),args("maximum energy"),args("spectral index"),args("minimum azimuth"),args("maximum azimuth"),args("minimum zenith"),args("maximum zenith"),args("injection radius")=1200., args("endcap length")=1200., args("cylinder radius")=1200., args("cylinder height")=1200.))
         )
