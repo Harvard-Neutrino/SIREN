@@ -120,6 +120,18 @@ class EarthModelService
          return den;
       }  
 
+      const double GetDensityGrad(double x) const
+      {
+         unsigned int n = fParams_.size() -1;
+         double den = fParams_[n];
+         double res = 0;
+         while (n>1) {
+             den = den * x + fParams_[--n];
+             res += den;
+         }
+         return res;
+      }  
+
       /**
        * print density in density file format
        */
@@ -256,6 +268,12 @@ class EarthModelService
                     const  LeptonInjector::LI_Position &to_posCE, 
                     IntegType intg_type = PATH,
                     const  bool use_electron_density = false) const;
+
+
+    const std::vector<std::tuple<double,double,double>> GetEarthDensitySegments(
+                 const  LeptonInjector::LI_Position &from_posCE,
+                 const  LeptonInjector::LI_Position &to_posCE,
+                 const bool use_electron_density) const;
  
    
    /**
