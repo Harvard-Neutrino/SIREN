@@ -102,7 +102,7 @@ namespace LeptonInjector {
 	// Define string-casting of a position. Used often for error messages 
 	std::ostream & operator << (std::ostream& out, const LI_Position &dir);
 
-	bool operator == (LI_Position one, LI_Position two);
+	bool operator == (LI_Position const & one, LI_Position const & two);
 
 	// Takes a direciton, rotates it about the Y-axis by the zenith amount, then about the Z axis by the azimuth amount
 	LI_Direction rotateRelative(const LI_Direction& base, double zenith, double azimuth);
