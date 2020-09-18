@@ -165,7 +165,7 @@ namespace LeptonInjector{
 	///\param base the existing base direction
 	///\param zenith the angle of the new direction with respect to the base
 	///\param azimuth the rotation of the new direction about the base
-	std::pair<double,double> rotateRelative(std::pair<double,double> base, double zenith, double azimuth);
+	//std::pair<double,double> rotateRelative(std::pair<double,double> base, double zenith, double azimuth);
 	
 	
 		
