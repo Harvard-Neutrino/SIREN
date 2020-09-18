@@ -41,7 +41,7 @@ namespace LeptonInjector {
 
 	// construct a direction for a given vector 
 	LI_Direction::LI_Direction( const LI_Position& vec){
-		this->azimuth = atan( vec.at(1)/ vec.at(0) );
+		this->azimuth = atan2( vec.at(1), vec.at(0) );
 		this->zenith  = acos( vec.at(2)/ vec.Magnitude() );
 	}
 
