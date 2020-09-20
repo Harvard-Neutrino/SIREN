@@ -18,11 +18,13 @@
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
 #include <boost/python/overloads.hpp>
+#include <boost/python/copy_const_reference.hpp>
+#include <boost/python/return_value_policy.hpp>
+
 
 #include "container_conversions.h"
 
 using namespace boost::python;
-
 
 template<class T>
 struct VecToList
@@ -108,9 +110,9 @@ BOOST_PYTHON_MODULE(EarthModelService){
 	class_<EarthModelService>("EarthModelService", init<const std::string&, const std::string&, const std::vector<std::string>&, const std::vector<std::string>&, const std::string&, double, double>())
 		// .def("GetMediumTypeString",&EarthModelService::GetMediumTypeString)
 		// .def("ConvertMediumTypeString",&EarthModelService::ConvertMediumTypeString)
-		// .def("GetEarthParam",&EarthModelService::GetEarthParam)
-		// .def("GetEarthDensityInCGS",GetEarthDensityInCGS)
-		// .def("GetLayerDensityInCGS",GetLayerDensityInCGS)
+		.def("GetEarthParam",&EarthModelService::GetEarthParam, return_value_policy<copy_const_reference>())
+		.def("GetEarthDensityInCGS",GetEarthDensityInCGS)
+		.def("GetLayerDensityInCGS",GetLayerDensityInCGS)
 		.def("GetColumnDepthInCGS",&EarthModelService::GetColumnDepthInCGS)
         .def("GetEarthDensitySegments",&EarthModelService::GetEarthDensitySegments)
 		// .def("IntegrateDensityInCGS",&EarthModelService::IntegrateDensityInCGS)
