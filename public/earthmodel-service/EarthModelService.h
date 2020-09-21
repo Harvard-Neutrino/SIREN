@@ -272,8 +272,7 @@ class EarthModelService
 
     const std::vector<std::tuple<double,double,double>> GetEarthDensitySegments(
                  const  LeptonInjector::LI_Position &from_posCE,
-                 const  LeptonInjector::LI_Position &to_posCE,
-                 const bool use_electron_density) const;
+                 const  LeptonInjector::LI_Position &to_posCE) const;
  
    
    /**
