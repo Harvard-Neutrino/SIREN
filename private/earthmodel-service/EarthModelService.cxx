@@ -714,9 +714,9 @@ const double EarthModelService::IntegrateDensityInCGS(
 
 const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthDensitySegments(
                  const  LeptonInjector::LI_Position &from_posCE,
-                 const  LeptonInjector::LI_Position &to_posCE,
-                 const bool use_electron_density) const
+                 const  LeptonInjector::LI_Position &to_posCE) const
 {
+   bool use_electron_density = true;
    std::cout << "Getting earth density segments!" << std::endl;
 
    LeptonInjector::LI_Position pos(from_posCE);
