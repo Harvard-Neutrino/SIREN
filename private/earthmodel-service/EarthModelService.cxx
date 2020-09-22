@@ -712,12 +712,22 @@ const double EarthModelService::IntegrateDensityInCGS(
    return(depth);
 }
 
+const std::vector<std::tuple<double,double,double>> EarthModelService::GetDensitySegments(
+                 const  LeptonInjector::LI_Position &from_posI3,
+                 const  LeptonInjector::LI_Position &to_posI3) const
+{
+  LeptonInjector::LI_Position from_pos=GetEarthCoordPosFromDetCoordPos(from_posI3);
+  LeptonInjector::LI_Position to_pos=GetEarthCoordPosFromDetCoordPos(to_posI3); 
+
+  return GetEarthDensitySegments(from_pos, to_pos);
+}
+
 const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthDensitySegments(
                  const  LeptonInjector::LI_Position &from_posCE,
                  const  LeptonInjector::LI_Position &to_posCE) const
 {
    bool use_electron_density = true;
-   std::cout << "Getting earth density segments!" << std::endl;
+   //std::cout << "Getting earth density segments!" << std::endl;
 
    LeptonInjector::LI_Position pos(from_posCE);
    LeptonInjector::LI_Position to_CE(to_posCE);
@@ -818,7 +828,7 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
                throw;
             }
          };
-         std::cout << "Pushing constant density segment!" << std::endl;
+         //std::cout << "Pushing constant density segment!" << std::endl;
          segments.push_back(Segment(density/density_offset, density, distToNext));
          if (use_electron_density){
              density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
@@ -849,7 +859,7 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
       std::vector<double> distances;
       unsigned int initial_divisions = 5;
 
-      std::cout << "Initializing distance entries!" << std::endl;
+      //std::cout << "Initializing distance entries!" << std::endl;
       for(unsigned int i=0; i<initial_divisions; ++i) {
           distances.push_back(h/(initial_divisions-1)*i);
           entries.push_back(GetEarthDensityInCGS(curMedium,pos+distances.back()*dirCE)*density_offset);
@@ -857,25 +867,25 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
 
       std::function<double()> max_reldiff = [&] ()->double {
           std::vector<double> diff(entries.size()-1);
-          std::cout << "entries.size() = " << entries.size() << std::endl;
+          //std::cout << "entries.size() = " << entries.size() << std::endl;
           std::adjacent_difference(entries.begin(), entries.end(), diff.begin());
-          std::cout << "diff.size() = " << diff.size() << std::endl;
+          //std::cout << "diff.size() = " << diff.size() << std::endl;
           for(unsigned int i=0; i<diff.size(); ++i) {
-              std::cout << entries[i] << " " << entries[i+1] << " " << diff[i] << std::endl;
+              //std::cout << entries[i] << " " << entries[i+1] << " " << diff[i] << std::endl;
               double reldiff = std::fabs(diff[i]) / ((entries[i] + entries[i+1])/2.0);
-              std::cout << "reldiff " << reldiff << std::endl;
+              //std::cout << "reldiff " << reldiff << std::endl;
               diff[i] = reldiff;
           }
           double max = *std::max_element(diff.begin()+1, diff.end());
-          std::cout << "Max = " << max << std::endl;
+          //std::cout << "Max = " << max << std::endl;
           return max;
       };
 
-      std::cout << "Making distance entries to tolerance!" << std::endl;
+      //std::cout << "Making distance entries to tolerance!" << std::endl;
       double segment_tol = 0.001;
       while(max_reldiff() > segment_tol) {
           assert(entries.size() < 100);
-          std::cout << "Making finer distance entries!" << std::endl;
+          //std::cout << "Making finer distance entries!" << std::endl;
           std::vector<double> new_entries;
           std::vector<double> new_distances;
           for(unsigned i=0; i<(entries.size()-1); ++i) {
@@ -889,11 +899,11 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
           entries.swap(new_entries);
           distances.swap(new_distances);
       }
-      std::cout << "Got " << entries.size()-1 << " fine segments!" << std::endl;
+      //std::cout << "Got " << entries.size()-1 << " fine segments!" << std::endl;
       for(unsigned int i=0; i<entries.size()-1; ++i) {
           double segment_density = (entries[i]+entries[i+1])/2.0;
           double segment_distance = distances[i+1]-distances[i];
-          std::cout << "Adding fine segment!" << std::endl;
+          //std::cout << "Adding fine segment!" << std::endl;
           segments.push_back(Segment(segment_density/density_offset, segment_density, segment_distance));
       }
 
@@ -934,7 +944,7 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
             throw;
          }
       };
-      std::cout << "Adding buffer segment!" << std::endl;
+      //std::cout << "Adding buffer segment!" << std::endl;
       segments.push_back(
               Segment(
                   std::accumulate(entries.begin(), entries.end(), 0)/entries.size(),
@@ -951,7 +961,7 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
    } // while loop end
    
    //log_trace_stream(" Len error: " << len-x);
-   std::cout << "Got " << segments.size() << " earth density segments!" << std::endl;
+   //std::cout << "Got " << segments.size() << " earth density segments!" << std::endl;
    return(segments);
 }
 

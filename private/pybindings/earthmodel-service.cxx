@@ -115,6 +115,7 @@ BOOST_PYTHON_MODULE(EarthModelService){
 		.def("GetLayerDensityInCGS",GetLayerDensityInCGS)
 		.def("GetColumnDepthInCGS",&EarthModelService::GetColumnDepthInCGS)
         .def("GetEarthDensitySegments",&EarthModelService::GetEarthDensitySegments)
+        .def("GetDensitySegments",&EarthModelService::GetDensitySegments)
 		// .def("IntegrateDensityInCGS",&EarthModelService::IntegrateDensityInCGS)
 		.def("DistanceForColumnDepthToPoint",&EarthModelService::DistanceForColumnDepthToPoint)
 		// .def("DistanceForColumnDepthFromPoint",&EarthModelService::DistanceForColumnDepthFromPoint)
