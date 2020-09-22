@@ -410,8 +410,10 @@ void DataWriter::makeTables(){
     dataSize += 8; // int32_t - finalType1 // yeah, this should be 4 bytes. BUT hdf5 is /really/ dumb about data sizes 
     dataSize += 8; // int32_t - finalType2
     dataSize += 8; // int32_t - initialType
-    dataSize += 8; // double - impactParam OR radius
-    dataSize += 8; // double - totalColumnDepth or z
+    dataSize += 8; // double - x
+    dataSize += 8; // double - y
+    dataSize += 8; // double - z
+    dataSize += 8; // double - totalColumnDepth
     
     herr_t status; // hdf5 error type. 
     hid_t basicPropertiesTable = H5Tcreate(H5T_COMPOUND, dataSize);
@@ -431,16 +433,15 @@ void DataWriter::makeTables(){
     status = H5Tinsert(basicPropertiesTable, "finalType1", HOFFSET(BasicEventProperties, finalType1) , real_long); 
     status = H5Tinsert(basicPropertiesTable, "finalType2", HOFFSET(BasicEventProperties, finalType2) , real_long);
     status = H5Tinsert(basicPropertiesTable, "initialType", HOFFSET(BasicEventProperties, initialType) , real_long); 
+    status = H5Tinsert(basicPropertiesTable, "x", HOFFSET(BasicEventProperties, x) , H5T_NATIVE_DOUBLE); 
+    status = H5Tinsert(basicPropertiesTable, "y", HOFFSET(BasicEventProperties, y) , H5T_NATIVE_DOUBLE); 
+    status = H5Tinsert(basicPropertiesTable, "z", HOFFSET(BasicEventProperties, z) , H5T_NATIVE_DOUBLE); 
+    status = H5Tinsert(basicPropertiesTable, "totalColumnDepth", HOFFSET(BasicEventProperties, totalColumnDepth) , H5T_NATIVE_DOUBLE); 
 
     // we want tables for volume and ranged, so let's copy that basic one and make the (slightly) different ones below
     rangedPropertiesTable = H5Tcopy( basicPropertiesTable );
-    status = H5Tinsert(rangedPropertiesTable, "impactParameter", HOFFSET(RangedEventProperties, impactParameter) , H5T_NATIVE_DOUBLE); 
-    status = H5Tinsert(rangedPropertiesTable, "totalColumnDepth", HOFFSET(RangedEventProperties, totalColumnDepth) , H5T_NATIVE_DOUBLE); 
 
     volumePropertiesTable = H5Tcopy( basicPropertiesTable );
-    status = H5Tinsert(volumePropertiesTable, "radius", HOFFSET(VolumeEventProperties, radius) , H5T_NATIVE_DOUBLE); 
-    status = H5Tinsert(volumePropertiesTable, "z", HOFFSET(VolumeEventProperties, z) , H5T_NATIVE_DOUBLE); 
-    status = H5Tinsert(volumePropertiesTable, "totalColumnDepth", HOFFSET(VolumeEventProperties, totalColumnDepth) , H5T_NATIVE_DOUBLE); 
 
     H5Tclose( basicPropertiesTable );
 

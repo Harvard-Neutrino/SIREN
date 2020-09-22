@@ -233,6 +233,9 @@ namespace LeptonInjector{
 		properties.finalType1= static_cast<int32_t>(config.finalType1);
 		properties.finalType2= static_cast<int32_t>(config.finalType2);
 		properties.initialType=static_cast<int32_t>(deduceInitialType(config.finalType1, config.finalType2));
+        properties.x = vertex.GetX();
+        properties.y = vertex.GetY();
+        properties.z = vertex.GetZ();
 	}
 	
 	//-----------------------
@@ -316,7 +319,6 @@ namespace LeptonInjector{
 		RangedEventProperties properties;
 		std::array<h5Particle, 3> particle_tree;
 
-		properties.impactParameter=(pca-LI_Position(0,0,0)).Magnitude();
 		properties.totalColumnDepth=totalColumnDepth;
 		FillTree(vertex,dir,energy, properties, particle_tree);
 
@@ -378,8 +380,6 @@ namespace LeptonInjector{
 		bool use_electron_density = getInteraction(this->config.finalType1, this->config.finalType2 ) == 2;
 		
 		//set subclass properties
-		properties.radius=vertex.Magnitude();
-		properties.z=vertex.GetZ();
         std::tuple<LI_Position, LI_Position> cylinder_intersections =
             computeCylinderIntersections(vertex, dir, config.cylinderRadius, -config.cylinderHeight/2., config.cylinderHeight/2.);
 		properties.totalColumnDepth =
