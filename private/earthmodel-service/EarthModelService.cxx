@@ -38,8 +38,8 @@ static const double CM_TO_M = (LeptonInjector::Constants::cm / LeptonInjector::C
 EarthModelService::EarthModelService() 
   : fPath_(""),
     fMohoBoundary_(-1),
-    fRockIceBoundary_(-1),
-    fIceAirBoundary_(-1),
+    fOutermostRockBoundary_(-1),
+    fEarthAirBoundary_(-1),
     fAtmoRadius_(-1),
     fDetDepth_(1948.0 * LeptonInjector::Constants::m),
     fIceCapTypeString_("SimpleIceCap"),
@@ -100,8 +100,8 @@ EarthModelService::EarthModelService(
       fEarthModelStrings_(earthmodels),
       fMatRatioStrings_(materialmodels),
       fMohoBoundary_(-1),
-      fRockIceBoundary_(-1),
-      fIceAirBoundary_(-1),
+      fOutermostRockBoundary_(-1),
+      fEarthAirBoundary_(-1),
       fAtmoRadius_(-1),
       fDetDepth_(detectordepth),
       fIceCapTypeString_(icecapname),
@@ -153,8 +153,8 @@ void EarthModelService::Init()
    // default values set above may be modified
    // depends on which crust model you choose.
    //
-   SetEarthModel(fEarthModelStrings_);
    SetMaterialModel(fMatRatioStrings_);
+   SetEarthModel(fEarthModelStrings_);
 
    //-----------------------------------------
    // following setting must be done after 
@@ -200,6 +200,10 @@ string EarthModelService::GetMediumTypeString(EarthModelService::MediumType t)
    else if (t == ICE) stype = "ICE";
    else if (t == AIR) stype = "AIR";
    else if (t == VACUUM) stype = "VACUUM";
+   else if (t == WATER) stype = "WATER";
+   else if (t == LOWERMANTLE) stype = "LOWERMANTLE";
+   else if (t == UPPERMANTLE) stype = "UPPERMANTLE";
+   else if (t == LLSVP) stype = "LLSVP";
    return stype;
 }
 
@@ -214,6 +218,11 @@ EarthModelService::ConvertMediumTypeString(const string &s)
    else if (s == "ROCK") t = ROCK;
    else if (s == "ICE") t = ICE;
    else if (s == "AIR") t = AIR;
+   else if (s == "VACUUM") t = VACUUM;
+   else if (s == "WATER") t = WATER;
+   else if (s == "LOWERMANTLE") t = LOWERMANTLE;
+   else if (s == "UPPERMANTLE") t = UPPERMANTLE;
+   else if (s == "LLSVP") t = LLSVP;
    return t;
 }
 
@@ -271,8 +280,8 @@ string EarthModelService::PrintEarthParams() const
            << RadiusToCosZen(i->first) << endl;
    }
    os << "*MohoBoundary      " << fMohoBoundary_ << endl;
-   os << "*RockIceBoundary   " << fRockIceBoundary_ << endl;
-   os << "*IceAirBoundary    " << fIceAirBoundary_ << endl;
+   os << "*RockIceBoundary   " << fOutermostRockBoundary_ << endl;
+   os << "*IceAirBoundary    " << fEarthAirBoundary_ << endl;
    os << "*AtmoRadius        " << fAtmoRadius_ << endl;
    os << "*DetectorDepth     " << fDetDepth_ << endl;
    os << "*IceCapType        " << fIceCapTypeString_ << endl;
@@ -333,7 +342,7 @@ EarthModelService::GetEarthParam(const LeptonInjector::LI_Position & p_CE) const
 
    const EarthParam& ep = iter->second;
    
-   if (r < fRockIceBoundary_) //below all ice everything is simple
+   if (r < fOutermostRockBoundary_) //within rock everything is simple
       return ep;
    
    if (fIceCapType_ != EarthModelService::SIMPLEICECAP) {
@@ -1015,7 +1024,7 @@ bool EarthModelService::CheckIntersectionWithLayer(
    }
    
    if(isect>=1){
-      // update the given crosestDist
+      // update the given closestDist
       //log_trace_stream("     dist=" << dist);
       if(dist<closestDist){
          closestDist=dist;
@@ -1049,7 +1058,7 @@ double EarthModelService::DistanceToNextBoundaryCrossing(
       CheckIntersectionWithLayer(pos,dir,it,closestBoundary1,closestDist,willExit);
       
       //if we're not inside an ice, air, or vacuum layer, there can be no ice further down
-      ignoreIce=!(it->second.fMediumType_==ICE || it->second.fMediumType_==AIR || it->second.fMediumType_==VACUUM);
+      ignoreIce=!(it->second.fMediumType_==WATER || it->second.fMediumType_==ICE || it->second.fMediumType_==AIR || it->second.fMediumType_==VACUUM);
       if(ignoreIce)
          //log_trace_stream("    Inside medium type " << it->second.fMediumType_ << ", ignoring ice");
       
@@ -1084,12 +1093,8 @@ double EarthModelService::DistanceToNextBoundaryCrossing(
       }
    }
    
-   //
-   // test outermost layer of the Earth (should be air)
-   //
-   it=fEarthParams_.end();
-   it--;
-   exitsAtmosphere=(willExit && closestDist==dist1 && closestBoundary1==it);
+   // check for leaving the atmosphere
+   exitsAtmosphere=(willExit && closestDist==dist1 && closestBoundary1->first==fAtmoRadius_);
    return(closestDist);
 }
 
@@ -1495,7 +1500,7 @@ EarthModelService::GetDistanceFromEarthEntranceToDetector(double zenrad) const
 //
    if (zenrad > LeptonInjector::Constants::pi) throw("zenrad exceeds pi!");
    if (zenrad < 0) throw("zenrad is negative!");
-   if (fIceCapType_ == NOICE && fDetPos_.GetZ() > fRockIceBoundary_) {
+   if (fIceCapType_ == NOICE && fDetPos_.GetZ() > fOutermostRockBoundary_) {
       //log_notice("Detector Center is outside of Ice/Rock. return 0.");
       return 0.;
    }
@@ -1505,13 +1510,13 @@ EarthModelService::GetDistanceFromEarthEntranceToDetector(double zenrad) const
    double radius = -1;
    switch (fIceCapType_) {
       case EarthModelService::NOICE :
-         radius = fRockIceBoundary_;
+         radius = fOutermostRockBoundary_;
          break;
       case EarthModelService::ICESHEET :
-         radius = fIceAirBoundary_;
+         radius = fEarthAirBoundary_;
          break;
       case EarthModelService::SIMPLEICECAP :
-         radius = fRockIceBoundary_;
+         radius = fOutermostRockBoundary_;
          break;
       default :
          throw std::runtime_error("IceCapType "+std::to_string(int(fIceCapType_))+" is not supported");
@@ -1658,13 +1663,28 @@ EarthModelService::GetDistanceFromSphereSurfaceToDetector(
 //__________________________________________________________
 void EarthModelService::SetEarthModel(const vector<string> & s)
 {
+   auto isLithosphere=[](MediumType med){
+       return(med==INNERCORE || med==OUTERCORE || med==MANTLE || med==ROCK
+               || med==LOWERMANTLE || med==UPPERMANTLE || med==LLSVP);
+   };
+   auto isHydrosphere=[](MediumType med){
+       return(med==WATER || med==ICE);
+   };
+   //vacuum gets to count with the atmosphere as stuff that needs to go on the
+   //outside of the model
+   auto isAtmosphere=[](MediumType med){
+       return(med==AIR || med==VACUUM);
+   };
+   //we require that the planet be contructed from the center outwards as a
+   //lithosphere, hydrosphere, then an atmosphere
+   bool reachedHydrosphere=false, reachedAtmosphere=false;
 
    // clear params
    fEarthParams_.clear();
    fIceParams_.clear();
    fMohoBoundary_ = -1;
-   fRockIceBoundary_ = -1;
-   fIceAirBoundary_ = -1;
+   fOutermostRockBoundary_ = -1;
+   fEarthAirBoundary_ = -1;
    fAtmoRadius_ = -1;
 
    for (unsigned int i = 0; i<s.size(); ++i) {
@@ -1675,7 +1695,7 @@ void EarthModelService::SetEarthModel(const vector<string> & s)
       // 
       // check earthmodel file
       //
-      string fname1 = fPath_ + "densities/" + earth_model;
+      string fname1 = (earth_model.find('/')==std::string::npos ? fPath_ + "densities/" + earth_model : earth_model);
       ifstream in(fname1.c_str());
 
       // if the earthmodel file doesn't exist, stop simulation 
@@ -1692,7 +1712,6 @@ void EarthModelService::SetEarthModel(const vector<string> & s)
       string label, medtype;
       double radius, param;
       int  nparams;
-      bool reachedIce=false, reachedAir=false;
 
       while(getline(in,buf)) {
          {
@@ -1719,7 +1738,12 @@ void EarthModelService::SetEarthModel(const vector<string> & s)
          ep.fUpperRadius_ = radius;
          ep.fZOffset_ = 0;
          ep.fBoundaryName_ = label;
-         ep.fMediumType_ = ConvertMediumTypeString(medtype); 
+         ep.fMediumType_ = ConvertMediumTypeString(medtype);
+         if(fMatRatioMap_.find(ep.fMediumType_)==fMatRatioMap_.end()) {
+             std::stringstream ss;
+             ss << "Earth model uses undefined material " << medtype;
+             throw(ss.str());
+         }
          for (int i=0; i<nparams; ++i) {
             ss >> param;
             ep.fParams_.push_back(param);
@@ -1728,34 +1752,33 @@ void EarthModelService::SetEarthModel(const vector<string> & s)
          // set static params
          if (label == "moho_boundary") {
             fMohoBoundary_ = radius;
-         } else if (label == "rockice_boundary") {
-            fRockIceBoundary_ = radius;
-         } else if (label == "iceair_boundary") {
-            fIceAirBoundary_ = radius;
-         } else if (label == "atmo_radius") {
-            fAtmoRadius_ = radius;
          }
-         
+
          //stop the process if layering assumptions are violated
-         switch(ep.fMediumType_){
-            case ICE:
-               if(reachedAir)
-                  throw("No ice layers can be specified after an air layer has been specified");
-               reachedIce=true;
-               break;
-            case AIR:
-               reachedAir=true;
-               break;
-            case VACUUM:
-               throw("Explicit vacuum layers are not supported\n"
-                         "(Note that beyond the last specified layer vacuum will be assumed implicitly)");
-               break;
-            default:
-               if(reachedIce)
-                  throw("Only ice and air layers may be specified after the first ice layer");
-               if(reachedAir)
-                  throw("Only air layers may be specified after the first air layer");
-         }
+		 if(isLithosphere(ep.fMediumType_)){
+		   //std::cout << "Layer " << label << " is part of the lithosphere" << std::endl;
+		   if(reachedHydrosphere || reachedAtmosphere)
+		 	 throw("No rock layers can be specified after an air/water/ice layer has been specified");
+		 	 fOutermostRockBoundary_ = radius; //set or update
+		 	 fEarthAirBoundary_ = radius; //set or update
+		 }
+		 else if(isHydrosphere(ep.fMediumType_)){
+		   //std::cout << "Layer " << label << " is part of the hydrosphere" << std::endl;
+		   if(reachedAtmosphere)
+		 	 throw("No water/ice layers can be specified after an air layer has been specified");
+		   if(!reachedHydrosphere)
+		 	 reachedHydrosphere=true;
+		   fEarthAirBoundary_ = radius; //set or update
+		 }
+		 else if(isAtmosphere(ep.fMediumType_)){
+		   //std::cout << "Layer " << label << " is part of the atmosphere" << std::endl;
+		   if(!reachedAtmosphere)
+		 	 reachedAtmosphere=true;
+		   fAtmoRadius_ = radius; //set or update
+		 }
+		 else{
+		   throw("Unexpected layer type");
+		 }
 
          // put params in map
          // earth_radius does not describe a physical boundary, so it does not go in the map
@@ -1773,21 +1796,36 @@ void EarthModelService::SetEarthModel(const vector<string> & s)
       in.close();
    }
 
-   if (fEarthParams_.size()<1) {
-      throw("Failed to fill crust params!");
-   }
+   if(fEarthParams_.empty() && fIceParams_.empty())
+      throw("Earth model has no material layers!");
 
    if (fMohoBoundary_ < 0) {
-      throw("Failed to fill moho_boundary! check data file");
+	  throw("Model has no moho_boundary");
    }
-   if (fRockIceBoundary_ < 0) {
-      throw("Failed to fill rockice_boundary! check data file");
+   if (fOutermostRockBoundary_ < 0) {
+      fOutermostRockBoundary_ = 0;
    }
-   if (fIceAirBoundary_ < 0) {
-      throw("Failed to fill iceair_boundary! check data file");
+   if (fEarthAirBoundary_ < 0) {
+      fEarthAirBoundary_ = 0;
+      //log_warn("fEarthAirBoundary_ not set; model appears to have no dense layers?");
    }
    if (fAtmoRadius_ < 0) {
-      throw("Failed to fill atmo_radius! check data file");
+     //log_info("Model has no atmosphere, using the radius of the outermost material layer as fAtmoRadius_");
+     if(!fIceParams_.empty())
+        fAtmoRadius_ = fIceParams_.rbegin()->first;
+     else if(!fEarthParams_.empty())
+        fAtmoRadius_ = fEarthParams_.rbegin()->first;
+   }
+   //add a sentinal layer of vacuum surrounding everything else
+   {
+        double infinity=std::numeric_limits<double>::infinity();
+        EarthParam ep;
+        ep.fUpperRadius_=infinity;
+        ep.fZOffset_=0;
+        ep.fBoundaryName_="space";
+        ep.fMediumType_=VACUUM; //SetMaterialModel ensures that this is always defined
+        ep.fParams_={0};
+        fEarthParams_[infinity]=ep;
    }
 
    //
@@ -1845,7 +1883,7 @@ void EarthModelService::SetMaterialModel(const vector<string>& s)
       // 
       // check earthmodel file
       //
-      string fname1 = fPath_ + "materials/" + matratio;
+	  string fname1 = (matratio.find('/')==std::string::npos ? fPath_ + "materials/" + matratio : matratio);
       ifstream in(fname1.c_str());
 
       if (in.fail())
@@ -1906,6 +1944,10 @@ void EarthModelService::SetMaterialModel(const vector<string>& s)
       in.close();
    }
 
+   //make sure that vacuum is always defined
+   if(!fMatRatioMap_.count(VACUUM))
+      fMatRatioMap_[VACUUM]={};
+
    //
    // calculate P, N, E ratio
    //
@@ -1925,6 +1967,8 @@ void EarthModelService::SetMaterialModel(const vector<string>& s)
          tot_nn += nn;
       }
       int tot_z = tot_np + tot_nn;
+	  if(tot_z==0)
+	     tot_z=1; //avoid division by zero
       double nw_proton = tot_np / tot_z;
       double nw_neutron = tot_nn / tot_z;
       map<int, double> number_weights;
@@ -2004,7 +2048,7 @@ void EarthModelService::SetIceCapSimpleAngle(double cap_angle)
    //double sintheta = sqrt((1-costheta)*(1+costheta));
 
    // get largest depth of ice
-   double h = fIceAirBoundary_ - fRockIceBoundary_ ;
+   double h = fEarthAirBoundary_ - fOutermostRockBoundary_ ;
    // h : max depth of ice at south pole
    // d + h = radius of icecap
    // r = bed_rock radius
@@ -2014,7 +2058,7 @@ void EarthModelService::SetIceCapSimpleAngle(double cap_angle)
    //                     - 2*r*(r-d)*costheta
    // d = (r^2*(1-costheta) - 0.5*h^2) / (h + r*(1-costheta))
    //
-   double r = fRockIceBoundary_;
+   double r = fOutermostRockBoundary_;
    double d = (r*r*(1 - costheta) - 0.5*h*h) / (h + r*(1 - costheta));
    
    fIceCapSimpleRadius_ = d + h; // radius of sphere of icecap
@@ -2041,7 +2085,7 @@ void EarthModelService::SetIceCapSimpleAngle(double cap_angle)
    //log_info("Icecap Angle %f[deg], Icecap Radius %f [m], BedRock radius %f [m], Zshift %f [m] are set",
    //          fIceCapSimpleAngle_/LeptonInjector::Constants::deg,
    //          fIceCapSimpleRadius_/LeptonInjector::Constants::m,
-   //          fRockIceBoundary_/LeptonInjector::Constants::m,
+   //          fOutermostRockBoundary_/LeptonInjector::Constants::m,
    //          fIceCapSimpleZshift_/LeptonInjector::Constants::m);
 }
 
@@ -2049,7 +2093,7 @@ void EarthModelService::SetIceCapSimpleAngle(double cap_angle)
 void EarthModelService::SetDetectorDepth(double d)
 {          
    fDetDepth_ = d;
-   fDetPos_.SetZ(fIceAirBoundary_ - d);
+   fDetPos_.SetZ(fEarthAirBoundary_ - d);
 }
 
 //__________________________________________________________
