@@ -51,8 +51,13 @@ namespace LeptonInjector {
 		///Type of the neutrino which interacted to produce this event
 		int32_t initialType;
 
+        double x;
+        double y;
+        double z;
+        double totalColumnDepth;
 
-        void fill_BasicEventProperties(double totalEnergy, double zenith, double azimuth, double finalStateX, double finalStateY,  int32_t finalType1, int32_t finalType2, int32_t initialType );
+
+        void fill_BasicEventProperties(double totalEnergy, double zenith, double azimuth, double finalStateX, double finalStateY,  int32_t finalType1, int32_t finalType2, int32_t initialType, double x, double y, double z, double totalColumnDepth);
 		
 	};
 	
@@ -62,10 +67,10 @@ namespace LeptonInjector {
 		
 		///Sampled distance of the closest approach of the particle path to the
 		///origin of the coordinate system
-		double impactParameter;
+		//double impactParameter;
 		///The total column depth along the particle path within which the
 		///interaction is sampled
-		double totalColumnDepth;
+		//double totalColumnDepth;
 		
 	};
 	
@@ -74,12 +79,12 @@ namespace LeptonInjector {
 		VolumeEventProperties();
 		
 		///Sampled radial cylindrical coordinate of the interaction point
-		double radius;
+		//double radius;
 		///Sampled vertical cylindrical coordinate of the interaction point
-		double z;
+		//double z;
 		///The total column depth along the particle path within which the
 		///interaction is sampled
-		double totalColumnDepth;
+		//double totalColumnDepth;
 		
 	};
 
