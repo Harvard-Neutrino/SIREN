@@ -83,6 +83,7 @@ BOOST_PYTHON_MODULE(EarthModelService){
 		.value("MANTLE", EarthModelService::MANTLE)
 		.value("ROCK", EarthModelService::ROCK)
 		.value("ICE", EarthModelService::ICE)
+		.value("WATER", EarthModelService::WATER)
 		.value("AIR", EarthModelService::AIR)
 		.value("VACUUM", EarthModelService::VACUUM)
 		.value("LOWERMANTLE", EarthModelService::LOWERMANTLE)

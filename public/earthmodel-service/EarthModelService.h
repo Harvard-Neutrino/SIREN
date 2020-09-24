@@ -57,9 +57,10 @@ class EarthModelService
                     ICE=5, 
                     AIR=6, 
                     VACUUM=7, 
+                    WATER=8,
                     LOWERMANTLE = 31,
                     UPPERMANTLE = 32,
-                    LLSVP = 33  // Large Low Shear Velosity Provinces
+                    LLSVP = 33  // Large Low Shear Velocity Provinces
                     };
 
    enum IceCapType {NOICE, ICESHEET, SIMPLEICECAP};
@@ -563,20 +564,37 @@ class EarthModelService
 
    /**
     * Get MohoBoundary [m]
+    * This may be -1 if the model has no moho boundary
     */
    const double GetMohoBoundary() const { return fMohoBoundary_; }
 
    /**
     * Get Rock-Ice boundary [m]
+    * This will be the outer radius of the uppermost layer of rock if no ice is present
     */
-   const double GetRockIceBoundary() const { return fRockIceBoundary_; }
+   const double GetRockIceBoundary() const { return fOutermostRockBoundary_; }
+
+   /**
+    * Get the outer radius of the uppermost layer of rock [m]
+    * This may be 0 if the model has no rock.
+    */
+   double GetOutermostRockBoundary() const { return fOutermostRockBoundary_; }
+
 
    /**
     * Get Ice-Air boundary [m]
     * If you have simple cap ice, this value is most far Ice-Air boundary
     * from the center of the Earth.
+    * If there is no ice, this is the outer radius of the uppermost layer
+    * which is not part of the atmosphere [m]
     */
-   const double GetIceAirBoundary() const { return fIceAirBoundary_; }
+   const double GetIceAirBoundary() const { return fEarthAirBoundary_; }
+
+   /**
+    * Get the outer radius of the uppermost layer which is not part of the atmosphere [m]
+    * This may be 0 if the model has no layers denser than air.
+    */
+   double GetEarthAirBoundary() const { return fEarthAirBoundary_; }
 
    /**
     * Get Radius of atmosphare [m]
@@ -647,7 +665,7 @@ class EarthModelService
    /**
     * @brief A dummy variable used as a sink for ignored results.
     *
-    * THis variable's value should be considered undefined and it should never be read.
+    * This variable's value should be considered undefined and it should never be read.
     */
    static bool ignored_bool;
 
@@ -669,9 +687,9 @@ class EarthModelService
    /**
     @brief name of EarthModel data file
     */
-   double fMohoBoundary_;    // [m], boundary between mantle and crust
-   double fRockIceBoundary_;  // [m], boundary between rock and ice
-   double fIceAirBoundary_;   // [m], boundary between ice and air
+   double fMohoBoundary_;           // [m], boundary between mantle and crust
+   double fOutermostRockBoundary_;  // [m], boundary between rock and ice
+   double fEarthAirBoundary_;       // [m], boundary between dense material and air
    double fAtmoRadius_;       // [m], Atmosphere radius
 
    double fDetDepth_;   // [m] depth of I3 origin from ice surface
