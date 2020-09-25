@@ -26,7 +26,7 @@ namespace LeptonInjector {
     VolumeEventProperties::VolumeEventProperties(){
     }
 
-    // non-default constructors to add everything
+    // method to fill data fields
     void BasicEventProperties::fill_BasicEventProperties(double totalEnergy, double zenith, double azimuth, double finalStateX, double finalStateY,  int32_t finalType1, int32_t finalType2, int32_t initialType, double x, double y, double z, double totalColumnDepth){
         this->totalEnergy = totalEnergy;
 		this->zenith = zenith;
