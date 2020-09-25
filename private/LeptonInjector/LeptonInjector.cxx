@@ -233,9 +233,9 @@ namespace LeptonInjector{
 		properties.finalType1= static_cast<int32_t>(config.finalType1);
 		properties.finalType2= static_cast<int32_t>(config.finalType2);
 		properties.initialType=static_cast<int32_t>(deduceInitialType(config.finalType1, config.finalType2));
-        properties.x = vertex.GetX();
-        properties.y = vertex.GetY();
-        properties.z = vertex.GetZ();
+		properties.x = vertex.GetX();
+		properties.y = vertex.GetY();
+		properties.z = vertex.GetZ();
 	}
 	
 	//-----------------------
