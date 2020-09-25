@@ -376,6 +376,26 @@ const EarthModelService::MediumType EarthModelService::GetMedium(
 }
 
 //__________________________________________________________
+const double EarthModelService::GetDensityInCGS(const EarthParam& ep, const LeptonInjector::LI_Position &posi3)
+{
+   LeptonInjector::LI_Position pos=GetEarthCoordPosFromDetCoordPos(posi3);
+   double r = (pos-LeptonInjector::LI_Position(0,0,ep.fZOffset_)).Magnitude(); 
+   return ep.GetDensity(r);
+}
+
+//__________________________________________________________
+const double EarthModelService::GetDensityInCGS(const LeptonInjector::LI_Position &posi3) const
+{
+// 
+// CAUTION !
+// This function returns density in g/cm3!!
+//
+   LeptonInjector::LI_Position pos=GetEarthCoordPosFromDetCoordPos(posi3);
+   const EarthParam& ep = EarthModelService::GetEarthParam(pos);
+   return GetEarthDensityInCGS(ep, pos);
+}
+
+//__________________________________________________________
 double EarthModelService::GetEarthDensityInCGS(const EarthParam& ep, const LeptonInjector::LI_Position &p_CE)
 {
    double r = (p_CE-LeptonInjector::LI_Position(0,0,ep.fZOffset_)).Magnitude(); 
@@ -490,7 +510,7 @@ const double EarthModelService::GetColumnDepthInCGS(
                  const  bool use_electron_density) const
 {
   LeptonInjector::LI_Position from_pos=GetEarthCoordPosFromDetCoordPos(from_posI3);
-  LeptonInjector::LI_Position to_pos=GetEarthCoordPosFromDetCoordPos(to_posI3); 
+  LeptonInjector::LI_Position to_pos=GetEarthCoordPosFromDetCoordPos(to_posI3);
 
   return IntegrateDensityInCGS(from_pos, to_pos, PATH, use_electron_density);
 }

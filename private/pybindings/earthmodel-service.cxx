@@ -102,7 +102,10 @@ BOOST_PYTHON_MODULE(EarthModelService){
 		;
 
 	const double (EarthModelService::*GetEarthDensityInCGS)(const LeptonInjector::LI_Position&) const = &EarthModelService::GetEarthDensityInCGS;
-	double (*GetLayerDensityInCGS)(const EarthModelService::EarthParam&, const LeptonInjector::LI_Position&) = &EarthModelService::GetEarthDensityInCGS;
+	double (*GetEarthLayerDensityInCGS)(const EarthModelService::EarthParam&, const LeptonInjector::LI_Position&) = &EarthModelService::GetEarthDensityInCGS;
+
+	const double (EarthModelService::*GetDensityInCGS)(const LeptonInjector::LI_Position&) const = &EarthModelService::GetDensityInCGS;
+	const double (EarthModelService::*GetLayerDensityInCGS)(const EarthModelService::EarthParam&, const LeptonInjector::LI_Position&) = &EarthModelService::GetDensityInCGS;
 
 
 	const EarthModelService::MatRatioMap (EarthModelService::*GetMatRatioMap)() const = &EarthModelService::GetMatRatioMap;
@@ -113,6 +116,8 @@ BOOST_PYTHON_MODULE(EarthModelService){
 		// .def("ConvertMediumTypeString",&EarthModelService::ConvertMediumTypeString)
 		.def("GetEarthParam",&EarthModelService::GetEarthParam, return_value_policy<copy_const_reference>())
 		.def("GetEarthDensityInCGS",GetEarthDensityInCGS)
+		.def("GetEarthLayerDensityInCGS",GetEarthLayerDensityInCGS)
+		.def("GetDensityInCGS",GetDensityInCGS)
 		.def("GetLayerDensityInCGS",GetLayerDensityInCGS)
 		.def("GetColumnDepthInCGS",&EarthModelService::GetColumnDepthInCGS)
         .def("GetEarthDensitySegments",&EarthModelService::GetEarthDensitySegments)
