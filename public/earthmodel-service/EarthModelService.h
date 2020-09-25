@@ -207,6 +207,32 @@ class EarthModelService
     */
    const EarthParam& GetEarthParam(const LeptonInjector::LI_Position& p_CE) const;
 
+
+   /**
+    * @brief Computes the material density in the given layer. 
+    * 
+    * This function is useful when multiple density queries are needed which 
+    * are known to all be within the same layer, since the layer can be cached 
+    * and reused for each query. It is the user's responsibility to ensure that 
+    * ep is actually the correct material layer for p_CE (most likey by ensuring 
+    * that it is the result of a call to `GetEarthParam(p_CE)`).
+    *
+    * @param ep the material layer in which the density should be computed
+    * @param posi3 the position at which the density is to be evaluated. 
+    *             This must be in detector-centered coordinates.
+    * @return the density in g/cm^3
+    */
+   const double GetDensityInCGS(const EarthParam& , const LeptonInjector::LI_Position &);
+
+   /**
+    * @brief Computes the material density at the given point.
+    *
+    * @param posi3 the position at which the density is to be evaluated.
+    *             This must be in detector-centered coordinates.
+    * @return the density in g/cm^3
+    */
+   const double GetDensityInCGS(const LeptonInjector::LI_Position &posi3) const;
+
    /**
     * @brief Computes the material density at the given point.
     *
