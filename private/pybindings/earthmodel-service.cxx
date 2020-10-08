@@ -136,7 +136,7 @@ BOOST_PYTHON_MODULE(EarthModelService){
 		.def("GetPNERatio",&EarthModelService::GetPNERatio)
 		// .def("GetDistanceFromEarthEntranceToDetector",&EarthModelService::GetDistanceFromEarthEntranceToDetector)
 		// .def("GetDistanceFromSphereSurfaceToDetector",&EarthModelService::GetDistanceFromSphereSurfaceToDetector)
-		// .def("PrintEarthParams",&EarthModelService::PrintEarthParams)
+		.def("PrintEarthParams",&EarthModelService::PrintEarthParams)
 		// .def("GetPREM",&EarthModelService::GetPREM)
 		.def("GetEarthCoordPosFromDetCoordPos",&EarthModelService::GetEarthCoordPosFromDetCoordPos)
 		.def("GetDetCoordPosFromEarthCoordPos",&EarthModelService::GetDetCoordPosFromEarthCoordPos)
