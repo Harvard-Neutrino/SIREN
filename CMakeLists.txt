@@ -15,6 +15,7 @@ SET(CMAKE_C_STANDARD 99)
 ## enable_language(cxx)
 SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
                        ${CMAKE_SOURCE_DIR}/cmake/Packages)
+set(CMAKE_BUILD_TYPE Debug)
 
 INCLUDE (SuiteSparse)
 INCLUDE (Python)
@@ -167,11 +168,18 @@ IF(PYTHON_FOUND)
     LIST( APPEND python_private
         ${CMAKE_SOURCE_DIR}/private/pybindings/LeptonInjector.cxx
     )
+    LIST( APPEND earth_python_private
+        ${CMAKE_SOURCE_DIR}/private/pybindings/earthmodel-service.cxx
+    )
 
     add_library( LeptonInjector SHARED ${python_private})
+    add_library( EarthModelService SHARED ${earth_python_private})
     set_target_properties( LeptonInjector PROPERTIES LINKER_LANGUAGE CXX OUTPUT_NAME "LeptonInjector" PREFIX "" SUFFIX ".so")
+    set_target_properties( EarthModelService PROPERTIES LINKER_LANGUAGE CXX OUTPUT_NAME "EarthModelService" PREFIX "" SUFFIX ".so")
     target_include_directories( LeptonInjector PRIVATE ${PYTHON_INCLUDE_DIR})
+    target_include_directories( EarthModelService PRIVATE ${PYTHON_INCLUDE_DIR})
     target_link_libraries(LeptonInjector PRIVATE lepton_injector ${Boost_LIBRARIES} ${Python_LIBRARIES})
+    target_link_libraries(EarthModelService PRIVATE lepton_injector ${Boost_LIBRARIES} ${Python_LIBRARIES})
     include_directories(${Boost_INCLUDE_DIRS})
     
     EXECUTE_PROCESS( COMMAND ${PYTHON_EXECUTABLE} -c
@@ -180,8 +188,10 @@ IF(PYTHON_FOUND)
         OUTPUT_STRIP_TRAILING_WHITESPACE)
     if(PYTHON_MODULE_DIR)
         INSTALL(TARGETS LeptonInjector LIBRARY DESTINATION ${PYTHON_MODULE_DIR})
+        INSTALL(TARGETS EarthModelService LIBRARY DESTINATION ${PYTHON_MODULE_DIR})
     elseif(Python_SITELIB)
         INSTALL(TARGETS LeptonInjector LIBRARY DESTINATION ${Python_SITELIB})
+        INSTALL(TARGETS EarthModelService LIBRARY DESTINATION ${Python_SITELIB})
     endif()
 ELSE(NOT PYTHON FOUND)
     MESSAGE("-- no python. skipping")
