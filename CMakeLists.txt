@@ -19,6 +19,8 @@ SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
 INCLUDE (SuiteSparse)
 INCLUDE (Python)
 
+set(CMAKE_CXX_FLAGS_DEBUG  "-g -O0")
+
 if(CMAKE_VERSION VERSION_LESS 3.12.0)
     if(Python_ROOT_DIR)
         MESSAGE(WARNING "Python_ROOT_DIR is set but will be ignored by this version of CMake; set PYTHON_EXECUTABLE instead")
