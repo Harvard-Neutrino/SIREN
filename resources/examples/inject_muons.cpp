@@ -1,7 +1,7 @@
-#include <Controller.h>
-#include <Particle.h>
-#include <LeptonInjector.h>
-#include <Constants.h>
+#include <LeptonInjector/Controller.h>
+#include <LeptonInjector/Particle.h>
+#include <LeptonInjector/LeptonInjector.h>
+#include <LeptonInjector/Constants.h>
 #include <string>
 
 /*
