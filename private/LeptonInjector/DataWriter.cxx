@@ -22,14 +22,14 @@ template<typename T>
 endian_adapter<T> little_endian(const T& t){ return(endian_adapter<T>(t)); }
 
 std::ostream& endianWrite(std::ostream& os, const char* data, size_t dataSize){
-#if defined(BOOST_LITTLE_ENDIAN)
+#if BYTE_ORDER == LITTLE_ENDIAN
     //just write bytes
     os.write(data,dataSize);
-#elif defined(BOOST_BIG_ENDIAN)
+#elif BYTE_ORDER == BIG_ENDIAN
     //write bytes in reverse order
     for(size_t i=1; i<=dataSize; i++)
         os.write(data+dataSize-i),1);
-#elif defined(BOOST_PDP_ENDIAN)
+#elif BYTE_ORDER == PDP_ENDIAN
     //complain bitterly
     #error PDP-endian systems are not supported.
 #else
