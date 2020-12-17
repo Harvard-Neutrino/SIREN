@@ -230,20 +230,17 @@ LICrossSection::sampleFinalState_GR(double energy,
 	do{
 		//rejection sample a point which is kinematically allowed by calculation limits
 		double trialQ;
-		
-        // all values of Y and energy  are valid, we won't find an incompatible option here
-	    kin_vars[1]=random->Uniform(logYMin,logYMax);
-	    	
-        
+    // all values of Y and energy  are valid, we won't find an incompatible option here
+	  kin_vars[1]=random->Uniform(logYMin,logYMax);
 		accept=true;
         //only one dimension to ckeck in this case
 		if(kin_vars[1]<crossSection.lower_extent(1)
 		   || kin_vars[1]>crossSection.upper_extent(1))
 			accept=false;	
 
-		if(accept)
-			crossSection.ndsplineeval(kin_vars.data(), spline_table_center.data(),0);
-			accept=crossSection.searchcenters(kin_vars.data(),spline_table_center.data());
+    accept=crossSection.searchcenters(kin_vars.data(),spline_table_center.data());
+		//if(accept)
+		//	crossSection.ndsplineeval(kin_vars.data(), spline_table_center.data(),0);
 	} while(!accept);
 
 	//TODO: better proposal distribution?
