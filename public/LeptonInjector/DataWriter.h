@@ -12,7 +12,10 @@
 #include <LeptonInjector/EventProps.h>
 #include <array>
 
-#include <boost/detail/endian.hpp>
+#include <boost/endian.hpp>
+//#include <boost/version>
+//#include <boost/detail/endian.hpp>
+
 #include <boost/assign/list_inserter.hpp>
 #include <boost/preprocessor/seq/transform.hpp>
 
