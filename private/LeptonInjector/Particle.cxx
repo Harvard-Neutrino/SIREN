@@ -68,7 +68,7 @@ namespace LeptonInjector{
                this->type == ParticleType::NuE   || this->type==ParticleType::NuEBar   ||
                this->type == ParticleType::NuMu  || this->type==ParticleType::NuMuBar  ||
                this->type == ParticleType::NuTau || this->type==ParticleType::NuTauBar ||
-			   this->type == ParticleType::PPlus || this->type==ParticleType::Neutron) );
+               this->type == ParticleType::Hadrons) );
     }
 
     // only implemented for the charged leptons to stay within scope
