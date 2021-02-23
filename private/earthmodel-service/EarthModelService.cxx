@@ -638,7 +638,9 @@ const double EarthModelService::IntegrateDensityInCGS(
          //log_trace_stream("  Adding remaining column depth and advancing to next layer");
          lastpos = pos;
          x += distToNext;
-         pos = pos + (distToNext * dirCE);
+         pos = from_posCE + (x * dirCE);
+         x = (pos - from_posCE).Magnitude();
+         distToNext = (pos - lastpos).Magnitude();
 
          depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
 
@@ -657,27 +659,33 @@ const double EarthModelService::IntegrateDensityInCGS(
             break;
          }
 
+         lastpos = pos;
          std::string oldLayerName=curMedium.fBoundaryName_;
+         curMedium=GetEarthParam(pos);
+         if (use_electron_density){
+            density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
+         }else{
+            density_offset = 1.0;
+         }
+         density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
          //make sure that we actually get into the next layer
          while(curMedium.fBoundaryName_== oldLayerName){
-            //log_trace_stream("   Taking tiny step toward next layer");
-
-            lastpos = pos;
-            pos = pos + (tinyStepSize * dirCE);
-            depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
-            //log_trace("   depth updated to %e, tinyStepSize is %e, boundary name %s",  depth, tinyStepSize, oldLayerName.c_str());
-            x+=tinyStepSize;
+            x += tinyStepSize;
+            pos = from_posCE + (x * dirCE);
             curMedium=GetEarthParam(pos);
-            if (use_electron_density){
-                density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
-            }else{
-                density_offset = 1.0;
-            }
             if(++iterations>maxIterations){
                std::cout << "Exceeded iteration count limit" << std::endl;
                throw;
             }
          };
+         x = (pos - from_posCE).Magnitude();
+         distToNext = (pos - lastpos).Magnitude();
+         depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
+         if (use_electron_density){
+            density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
+         }else{
+            density_offset = 1.0;
+         }
          density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
          distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
          assert(distToNext>0);
@@ -690,21 +698,23 @@ const double EarthModelService::IntegrateDensityInCGS(
       }
       
       //otherwise do the integral approximately
-      double h=distToNext;
       approachingGoal=false;
-      if(x+h>len){
+      if(x+distToNext>len){
          //log_trace_stream("   Reducing step size to avoid overshooting target distance");
-         h=len-x;
+         distToNext=len-x;
          approachingGoal=true;
       }
       //log_trace_stream("  Integrating density over next " << h << " meters");
       densityPathIntegrand integrand(curMedium,pos,dirCE, intg_type);
-      double dDepth = M_TO_CM * Integration::rombergIntegrate(integrand,0,h,1e-6);
+      double dDepth = M_TO_CM * Integration::rombergIntegrate(integrand,0,distToNext,1e-6);
       //log_trace_stream("   Integrated column depth is " << dDepth << " g/cm^2");
       
-      x+=h;
-      depth+=dDepth;
-      pos= pos + (distToNext*dirCE);
+      lastpos = pos;
+      x += distToNext;
+      depth += dDepth;
+      pos = from_posCE + (x * dirCE);
+      x = (pos - from_posCE).Magnitude();
+      distToNext = (pos - lastpos).Magnitude();
       
       if(willLeaveAtmosphere){ //we have now done so; there's nothing more to integrate
          //log_trace_stream(" Stopping at atmosphere boundary");
@@ -713,28 +723,33 @@ const double EarthModelService::IntegrateDensityInCGS(
       if(approachingGoal) //done
          break;
       
+      lastpos = pos;
       std::string oldLayerName=curMedium.fBoundaryName_;
+      curMedium=GetEarthParam(pos);
+      if (use_electron_density){
+         density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
+      }else{
+         density_offset = 1.0;
+      }
+      density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
       //make sure that we actually get into the next layer
       while(curMedium.fBoundaryName_==oldLayerName){
-         //log_trace_stream("   Taking tiny step toward next layer");
-
-         lastpos = pos;
-         pos += tinyStepSize * dirCE;
-         // because this is so tiny step I assume it's flat density
-         depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
-         //log_trace("   depth updated to %e, tinyStepSize is %e, boundary name %s",  depth, tinyStepSize, oldLayerName.c_str());
-         x+=tinyStepSize;
-         if (use_electron_density){
-                density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
-         }else{
-                density_offset = 1.0;
-         }
+         x += tinyStepSize;
+         pos = from_posCE + (x * dirCE);
          curMedium=GetEarthParam(pos);
          if(++iterations>maxIterations){
             std::cout << "Exceeded iteration count limit" << std::endl;
             throw;
          }
       };
+      x = (pos - from_posCE).Magnitude();
+      distToNext = (pos - lastpos).Magnitude();
+      depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
+      if (use_electron_density){
+         density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
+      }else{
+         density_offset = 1.0;
+      }
       density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
       distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
       assert(distToNext>0);
@@ -854,14 +869,18 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
          lastpos = pos;
          std::string oldLayerName=curMedium.fBoundaryName_;
          curMedium=GetEarthParam(pos);
+         if (use_electron_density) {
+             density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
+         } else {
+             density_offset = 1.0;
+         }
+         density = GetEarthDensityInCGS(curMedium,pos)*density_offset;
          //make sure that we actually get into the next layer
          while(curMedium.fBoundaryName_== oldLayerName){
             //log_trace_stream("   Taking tiny step toward next layer");
 
             x += tinyStepSize;
             pos = from_posCE + (x * dirCE);
-            x = (pos - from_posCE).Magnitude();
-            distToNext = (pos - lastpos).Magnitude();
 
             curMedium = GetEarthParam(pos);
 
@@ -870,6 +889,8 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
                throw;
             }
          };
+         x = (pos - from_posCE).Magnitude();
+         distToNext = (pos - lastpos).Magnitude();
 
          segments.push_back(Segment(density/density_offset, density, distToNext));
 
@@ -956,56 +977,34 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
       }
       if(approachingGoal) //done
          break;
-      
+
+      lastpos = pos;
       std::string oldLayerName=curMedium.fBoundaryName_;
       curMedium=GetEarthParam(pos);
-      //make sure that we actually get into the next layer
+      density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
       if (use_electron_density){
              density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212);
       } else {
              density_offset = 1.0;
       }
-      distToNext = 0;
-      LeptonInjector::LI_Position pre_pos(pos);
-      std::vector<double> other_entries;
-      double total_col = 0.0;
-      double total_col_other = 0.0;
-      double last_density = density;
-      double last_density_offset = density_offset;
-      while(curMedium.fBoundaryName_==oldLayerName){
+      //make sure that we actually get into the next layer
+      while(curMedium.fBoundaryName_== oldLayerName){
          //log_trace_stream("   Taking tiny step toward next layer");
-         //
-         lastpos = pos;
+
          x += tinyStepSize;
          pos = from_posCE + (x * dirCE);
-         x = (pos - from_posCE).Magnitude();
-         distToNext = (pos - lastpos).Magnitude();
 
          curMedium = GetEarthParam(pos);
-         if (use_electron_density){
-                density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212);
-         } else {
-                density_offset = 1.0;
-         }
-
-         density = GetEarthDensityInCGS(curMedium,pos)*density_offset;
-         total_col += (density/density_offset + last_density/last_density_offset)/2.0*distToNext;
-         total_col_other += (density + last_density)/2.0 * distToNext;
-
-         last_density = density;
-         last_density_offset = density_offset;
 
          if(++iterations>maxIterations){
             std::cout << "Exceeded iteration count limit" << std::endl;
             throw;
          }
       };
-      if(distToNext > 0) {
-         lastpos = pre_pos;
-         x = (pos - from_posCE).Magnitude();
-         distToNext = (pos - lastpos).Magnitude();
-         segments.push_back(Segment(total_col/distToNext, total_col_other/distToNext, distToNext));
-      }
+      x = (pos - from_posCE).Magnitude();
+      distToNext = (pos - lastpos).Magnitude();
+
+      segments.push_back(Segment(density/density_offset, density, distToNext));
 
       density=GetEarthDensityInCGS(curMedium,pos)*density_offset;
       distToNext=DistanceToNextBoundaryCrossing(pos,dirCE,willLeaveAtmosphere);
