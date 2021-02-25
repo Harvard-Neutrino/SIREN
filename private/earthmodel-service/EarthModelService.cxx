@@ -1237,7 +1237,7 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
          //otherwise add on the full depth from this layer and jump to the next layer
          depth+=totalDepthRemaining;
          x+=distToNext;
-         pos = from_posCE + (x * dirCE);
+         pos = endCE + (x * dirCE);
          
          //std::cout << "  Position is now " << pos << " with radius " << pos.Magnitude() << std::endl;
          
@@ -1251,7 +1251,7 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
             //"   Taking tiny step toward next layer");
             depth += tinyStepSize * M_TO_CM * density;
             x += tinyStepSize;
-            pos = from_posCE + (x * dirCE);
+            pos = endCE + (x * dirCE);
             curMedium=GetEarthParam(pos);
             if (use_electron_density){
                 density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
