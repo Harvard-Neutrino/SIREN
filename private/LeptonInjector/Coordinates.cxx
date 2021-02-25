@@ -49,6 +49,38 @@ namespace LeptonInjector {
 	double LI_Direction::GetY() const{return( sin(zenith)*sin(azimuth) ); }
 	double LI_Direction::GetZ() const{return( cos(zenith) ); }
 
+    void LI_Direction::swap(LI_Direction& direction)
+    {
+        using std::swap;
+
+        swap(azimuth, direction.azimuth);
+        swap(zenith, direction.zenith);
+    }
+
+    LI_Direction& LI_Direction::operator=(const LI_Direction& direction)
+    {
+        if (this != &direction)
+        {
+            LI_Direction tmp(direction);
+            swap(tmp);
+        }
+        return *this;
+    }
+
+    bool LI_Direction::operator==(const LI_Direction& other) const
+    {
+        if (zenith != other.zenith)
+            return false;
+        else if (azimuth != other.azimuth)
+            return false;
+        return true;
+    }
+
+    bool LI_Direction::operator!=(const LI_Direction& other) const
+    {
+        return !(*this == other);
+    }
+
 
 	// define the LI_Position constructors and member functions 
 
@@ -93,6 +125,30 @@ namespace LeptonInjector {
 	void LI_Position::SetX(double amt){this->position[0]= amt; }
 	void LI_Position::SetY(double amt){this->position[1]= amt; }
 	void LI_Position::SetZ(double amt){this->position[2]= amt; }
+
+    void LI_Position::swap(LI_Position& other)
+    {
+        using std::swap;
+
+        swap(this->position[0], other.position[0]);
+        swap(this->position[1], other.position[1]);
+        swap(this->position[2], other.position[2]);
+    }
+
+    LI_Position& LI_Position::operator=(const LI_Position& position)
+    {
+        if (this != &position)
+        {
+            LI_Position tmp(position);
+            swap(tmp);
+        }
+        return *this;
+    }
+
+    bool LI_Position::operator!=(const LI_Position& other) const
+    {
+        return !(*this == other);
+    }
 
 
 	// returns the magnitude of the position vector

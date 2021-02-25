@@ -45,6 +45,9 @@ namespace LeptonInjector {
 			void SetZ(double amt);
 			void SetY(double amt);
 			void SetX(double amt);
+            void swap(LI_Position& position);
+            LI_Position& operator=(const LI_Position& other);
+            bool operator!=(const LI_Position& other) const;
 
 		private:
 			std::array<double, n_dimensions> position;
@@ -65,6 +68,10 @@ namespace LeptonInjector {
 			double GetZ() const;
 			double GetY() const;
 			double GetX() const;
+            void swap(LI_Direction& direction);
+            LI_Direction& operator=(const LI_Direction& other);
+            bool operator==(const LI_Direction& other) const;
+            bool operator!=(const LI_Direction& other) const;
 			
 			double zenith;
 			double azimuth;
