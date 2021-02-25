@@ -639,7 +639,7 @@ const double EarthModelService::IntegrateDensityInCGS(
          lastpos = pos;
          x += distToNext;
          pos = from_posCE + (x * dirCE);
-         x = (pos - from_posCE).Magnitude();
+         //x = (pos - from_posCE).Magnitude();
          distToNext = (pos - lastpos).Magnitude();
 
          depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
@@ -678,7 +678,7 @@ const double EarthModelService::IntegrateDensityInCGS(
                throw;
             }
          };
-         x = (pos - from_posCE).Magnitude();
+         //x = (pos - from_posCE).Magnitude();
          distToNext = (pos - lastpos).Magnitude();
          depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
          if (use_electron_density){
@@ -713,7 +713,7 @@ const double EarthModelService::IntegrateDensityInCGS(
       x += distToNext;
       depth += dDepth;
       pos = from_posCE + (x * dirCE);
-      x = (pos - from_posCE).Magnitude();
+      //x = (pos - from_posCE).Magnitude();
       distToNext = (pos - lastpos).Magnitude();
       
       if(willLeaveAtmosphere){ //we have now done so; there's nothing more to integrate
@@ -742,7 +742,7 @@ const double EarthModelService::IntegrateDensityInCGS(
             throw;
          }
       };
-      x = (pos - from_posCE).Magnitude();
+      //x = (pos - from_posCE).Magnitude();
       distToNext = (pos - lastpos).Magnitude();
       depth += FlatDepthCalculator(lastpos, pos, density, intg_type); 
       if (use_electron_density){
@@ -847,7 +847,7 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
          lastpos = pos;
          x += distToNext;
          pos = from_posCE + (x * dirCE);
-         x = (pos - from_posCE).Magnitude();
+         //x = (pos - from_posCE).Magnitude();
          distToNext = (pos - lastpos).Magnitude();
 
          if (approachingGoal) {
@@ -889,7 +889,7 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
                throw;
             }
          };
-         x = (pos - from_posCE).Magnitude();
+         //x = (pos - from_posCE).Magnitude();
          distToNext = (pos - lastpos).Magnitude();
 
          segments.push_back(Segment(density/density_offset, density, distToNext));
@@ -968,7 +968,7 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
       lastpos = pos;
       x += distToNext;
       pos = from_posCE + (x * dirCE);
-      x = (pos - from_posCE).Magnitude();
+      //x = (pos - from_posCE).Magnitude();
       distToNext = (pos - lastpos).Magnitude();
       
       if(willLeaveAtmosphere){ //we have now done so; there's nothing more to integrate
@@ -1001,7 +1001,7 @@ const std::vector<std::tuple<double,double,double>> EarthModelService::GetEarthD
             throw;
          }
       };
-      x = (pos - from_posCE).Magnitude();
+      //x = (pos - from_posCE).Magnitude();
       distToNext = (pos - lastpos).Magnitude();
 
       segments.push_back(Segment(density/density_offset, density, distToNext));
@@ -1237,7 +1237,7 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
          //otherwise add on the full depth from this layer and jump to the next layer
          depth+=totalDepthRemaining;
          x+=distToNext;
-         pos= pos + distToNext*dirCE;
+         pos = from_posCE + (x * dirCE);
          
          //std::cout << "  Position is now " << pos << " with radius " << pos.Magnitude() << std::endl;
          
@@ -1250,8 +1250,8 @@ double EarthModelService::DistanceForColumnDepthFromPoint(
          while(curMedium.fBoundaryName_==oldLayerName){
             //"   Taking tiny step toward next layer");
             depth += tinyStepSize * M_TO_CM * density;
-            x+=tinyStepSize;
-            pos = pos + tinyStepSize*dirCE;
+            x += tinyStepSize;
+            pos = from_posCE + (x * dirCE);
             curMedium=GetEarthParam(pos);
             if (use_electron_density){
                 density_offset =  GetPNERatio(curMedium.fMediumType_ , 2212); 
