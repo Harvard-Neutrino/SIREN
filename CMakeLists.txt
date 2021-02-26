@@ -90,6 +90,10 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Random.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/EarthModelCalculator.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/EarthModelService.cxx
+    ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Geometry.cxx
+    ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Vector3D.cxx
+    ${CMAKE_SOURCE_DIR}/private/earthmodel-service/DensityDist.cxx
+    ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Polynomial.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/LICrossSection.cxx
 )
 
