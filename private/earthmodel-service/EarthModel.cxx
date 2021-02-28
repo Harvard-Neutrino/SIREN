@@ -52,22 +52,22 @@ double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & end_point, Vec
 }
 
 Vector3D EarthModel::GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const {
-
+    point + detector_origin_;
 }
 
 Vector3D EarthModel::GetEarthCoordDirFromDetCoordDir(Vector3D const & direction) const {
-
+    return direction;
 }
 
 Vector3D EarthModel::GetDetCoordPosFromEarthCoordPos(Vector3D const & point) const {
-
+    return point - detector_origin_;
 }
 
 Vector3D EarthModel::GetDetCoordDirFromEarthCoordDir(Vector3D const & direction) const {
-
+   return direction;
 }
 
-void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double ice_cap_angle) {
+void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_cap_angle) {
     sectors_.clear();
 
     if(fname.find(".dat") == std::string::npos)
@@ -156,12 +156,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double ic
     sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
     sector.density = Density_homogeneous(1e-25).create(); // Use the universe_mean_density from GEANT4
 
-
-    // Setup the ice cap
-    if(ice_cap_angle < 0 || ice_cap_angle > LeptonInjector::Constants::pi)  {
-        throw std::runtime_error("angle is out of range ! "+std::to_string(ice_cap_angle));
-    }
-
+    // Examine the ice
     double earth_radius = 0;
     double ice_radius = 0;
     std::vector<int> ice_layers;
@@ -172,11 +167,13 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double ic
         string_to_lower(name);
 
         bool in_ice = name == "ice";
+        bool solid = (name != "air") and (name != "atmosphere") and (name != "vacuum");
         saw_ice |= in_ice;
 
         if(not saw_ice) {
             // In the Earth, keep increasing the radius
-            earth_radius = ((Sphere *)(sector.geo.get()))->GetRadius();
+            if(solid)
+                earth_radius = ((Sphere *)(sector.geo.get()))->GetRadius();
         }
         else if(in_ice) {
             // In the ice, keep increasing the radius
@@ -189,31 +186,43 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double ic
         }
     }
 
-    // calculate radius
-    double costheta = cos(ice_cap_angle);
-    //double sintheta = sqrt((1-costheta)*(1+costheta));
+    // Set the detector origin
+    // Depth is defined relative to the top solid layer
+    detector_origin_ = Vector3D(0,0,std::max(earth_radius, ice_radius)-detector_depth);
 
-    // get largest depth of ice
-    double h = ice_radius - earth_radius;
-    // h : max depth of ice at south pole
-    // d + h = radius of icecap
-    // r = bed_rock radius
-    // r - d : z-position of center of icecap sphere
-    //
-    // (d + h)^2 = (r - d)^2 + r^2
-    //                     - 2*r*(r-d)*costheta
-    // d = (r^2*(1-costheta) - 0.5*h^2) / (h + r*(1-costheta))
-    //
-    double r = earth_radius;
-    double d = (r*r*(1 - costheta) - 0.5*h*h) / (h + r*(1 - costheta));
+    if(ice_cap_angle < 0 || ice_cap_angle > LeptonInjector::Constants::pi) {
+        // Leave any ice as is
+    }
+    else { // Setup the ice cap
 
-    ice_radius = d + h; // radius of sphere of icecap
-    double ice_offset = r - d; // z-pos of center of sphere of icecap
+        if(ice_layers.size() > 0) {
+            // calculate radius
+            double costheta = cos(ice_cap_angle);
+            //double sintheta = sqrt((1-costheta)*(1+costheta));
 
-    for(auto const & i : ice_layers) {
-        Sphere const * geo = dynamic_cast<Sphere const *>(sectors_[i].geo.get());
-        sector.geo = Sphere(Vector3D(0,0,ice_offset), geo->GetRadius()-ice_offset, 0).create();
-        //geo->SetRadius(geo->GetRadius()-ice_offset);
-        //geo->SetPosition(Vector3D(0,0,ice_offset));
+            // get largest depth of ice
+            double h = ice_radius - earth_radius;
+            // h : max depth of ice at south pole
+            // d + h = radius of icecap
+            // r = bed_rock radius
+            // r - d : z-position of center of icecap sphere
+            //
+            // (d + h)^2 = (r - d)^2 + r^2
+            //                     - 2*r*(r-d)*costheta
+            // d = (r^2*(1-costheta) - 0.5*h^2) / (h + r*(1-costheta))
+            //
+            double r = earth_radius;
+            double d = (r*r*(1 - costheta) - 0.5*h*h) / (h + r*(1 - costheta));
+
+            ice_radius = d + h; // radius of sphere of icecap
+            double ice_offset = r - d; // z-pos of center of sphere of icecap
+
+            for(auto const & i : ice_layers) {
+                Sphere const * geo = dynamic_cast<Sphere const *>(sectors_[i].geo.get());
+                sector.geo = Sphere(Vector3D(0,0,ice_offset), geo->GetRadius()-ice_offset, 0).create();
+                //geo->SetRadius(geo->GetRadius()-ice_offset);
+                //geo->SetPosition(Vector3D(0,0,ice_offset));
+            }
+        }
     }
 }

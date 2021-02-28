@@ -43,7 +43,7 @@ public:
     Vector3D GetDetCoordDirFromEarthCoordDir(Vector3D const & direction) const;
 private:
     void LoadDefaultMaterials();
-    void LoadConcentricShellsFromLegacyFile(std::string fname, double ice_angle);
+    void LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_angle=-1);
 };
 
 }; // namespace earthmodel
