@@ -95,6 +95,7 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/DensityDist.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Polynomial.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/MaterialModel.cxx
+    ${CMAKE_SOURCE_DIR}/private/earthmodel-service/EarthModel.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/LICrossSection.cxx
 )
 
