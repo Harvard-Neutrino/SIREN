@@ -24,12 +24,16 @@ public:
     MaterialModel(std::string const & path, std::vector<std::string> const & matratios);
 
     void SetPath(std::string const & path);
+    void AddMaterial(std::string const & name, int matpdg, std::map<int, double> matratios);
+    void AddMaterial(std::string const & name, double pne_ratio, std::map<int, double> matratios);
     void AddModelFiles(std::vector<std::string> const & matratios);
     void AddModelFile(std::string matratio);
 
     double GetPNERatio(int id);
     std::string GetMaterialName(int id);
     int GetMaterialId(std::string const & name);
+    bool HasMaterial(std::string const & name);
+    bool HasMaterial(int);
 private:
     double ComputePNERatio(int id);
 public:

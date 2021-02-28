@@ -29,6 +29,7 @@
 #include <exception>
 #include <functional>
 #include <string>
+#include <memory>
 #include <earthmodel-service/Vector3D.h>
 #include <earthmodel-service/Polynomial.h>
 
@@ -45,6 +46,7 @@ class Axis {
     bool operator!=(const Axis& axis) const;
 
     virtual Axis* clone() const = 0;
+    virtual std::shared_ptr<const Axis> create() const = 0;
 
     virtual double GetDepth(const Vector3D& xi) const = 0;
     virtual double GetEffectiveDistance(const Vector3D& xi,
@@ -64,6 +66,9 @@ class RadialAxis : public Axis {
     RadialAxis(const Vector3D& fAxis, const Vector3D& fp0);
 
     Axis* clone() const override { return new RadialAxis(*this); };
+    virtual std::shared_ptr<const Axis> create() const override {
+        return std::shared_ptr<const Axis>(new RadialAxis(*this));
+    };
     ~RadialAxis() {};
 
     double GetDepth(const Vector3D& xi) const override;
@@ -77,6 +82,9 @@ class CartesianAxis : public Axis {
     ~CartesianAxis() {};
 
     Axis* clone() const override { return new CartesianAxis(*this); };
+    virtual std::shared_ptr<const Axis> create() const override {
+        return std::shared_ptr<const Axis>(new CartesianAxis(*this));
+    };
 
     double GetDepth(const Vector3D& xi) const override;
     double GetEffectiveDistance(const Vector3D& xi, const Vector3D& direction) const override;
@@ -105,6 +113,7 @@ class Density_distr {
 
 
     virtual Density_distr* clone() const = 0;
+    virtual std::shared_ptr<const Density_distr> create() const = 0;
 
     virtual double Correct(const Vector3D& xi,
                            const Vector3D& direction,
@@ -138,6 +147,10 @@ class Density_homogeneous : public Density_distr {
         return new Density_homogeneous(*this);
     };
 
+    std::shared_ptr<const Density_distr> create() const override {
+        return std::shared_ptr<const Density_distr>(new Density_homogeneous(*this));
+    };
+
     double Correct(const Vector3D& xi,
                    const Vector3D& direction,
                    double res,
@@ -167,6 +180,7 @@ class Density_polynomial : public Density_distr {
     Density_distr* clone() const override {
         return new Density_polynomial(*this);
     };
+    std::shared_ptr<const Density_distr> create() const override { return std::shared_ptr<const Density_distr>( new Density_polynomial(*this) ); };
 
     double Correct(const Vector3D& xi,
                    const Vector3D& direction,
@@ -206,6 +220,7 @@ class Density_exponential : public Density_distr {
     Density_distr* clone() const override {
         return new Density_exponential(*this);
     };
+    std::shared_ptr<const Density_distr> create() const override { return std::shared_ptr<const Density_distr>( new Density_exponential(*this) ); };
 
     double Integrate(const Vector3D& xi,
                      const Vector3D& direction,

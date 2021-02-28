@@ -25,6 +25,18 @@ void MaterialModel::SetPath(std::string const & path) {
     path_ = path;
 }
 
+void MaterialModel::AddMaterial(std::string const & name, int matpdg, std::map<int, double> matratios) {
+    AddMaterial(name, ComputePNERatio(matpdg), matratios);
+}
+
+void MaterialModel::AddMaterial(std::string const & name, double pne_ratio, std::map<int, double> matratios) {
+    int id = material_names_.size();
+    material_ids_.insert({name, id});
+    material_names_.push_back(name);
+    material_maps_.insert({id, matratios});
+    pne_ratios_.insert({id, pne_ratio});
+}
+
 void MaterialModel::AddModelFiles(std::vector<std::string> const & matratios) {
     for(auto matratio : matratios)
         AddModelFile(matratio);
@@ -82,11 +94,7 @@ void MaterialModel::AddModelFile(std::string matratio) {
                     matratio[matpdg] = weight;
                 }
             }
-            int id = material_names_.size();
-            material_ids_.insert({medtype, id});
-            material_names_.push_back(medtype);
-            material_maps_.insert({id, matratio});
-            pne_ratios_.insert({id, ComputePNERatio(id)});
+            AddMaterial(medtype, matpdg, matratio);
         }
 
     } // end of the while loop
@@ -104,8 +112,8 @@ double MaterialModel::ComputePNERatio(int id) {
     for(auto const & it : mats) {
         int pdg = it.first;
         GetAZ(pdg, np, nn);
-        tot_np += np;
-        tot_nn += nn;
+        tot_np += np*it.second;
+        tot_nn += nn*it.second;
     }
 
     int tot_z = tot_np + tot_nn;
@@ -129,6 +137,14 @@ std::string MaterialModel::GetMaterialName(int id) {
 
 int MaterialModel::GetMaterialId(std::string const & name) {
     return material_ids_[name];
+}
+
+bool MaterialModel::HasMaterial(std::string const & name) {
+    return material_ids_.count(name) > 0;
+}
+
+bool MaterialModel::HasMaterial(int id) {
+    return material_names_.size() > id;
 }
 
 void MaterialModel::GetAZ(int code, int & np, int & nn) {
