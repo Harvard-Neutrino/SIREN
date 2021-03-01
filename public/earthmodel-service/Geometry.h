@@ -45,7 +45,12 @@ public:
     struct ParticleLocation {
         enum Enum { InfrontGeometry= 0, InsideGeometry, BehindGeometry };
     };
-
+    struct Intersection {
+        double distance;
+        unsigned int hierarchy;
+        Vector3D position;
+        bool entering;
+    };
 public:
     Geometry(const std::string);
     Geometry(const std::string, const Vector3D position);
@@ -91,6 +96,12 @@ public:
      * Distances smaller then GEOMETRY_PRECISION (1e-9) are also set to -1
      */
     virtual std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const = 0;
+
+
+    /*!
+     * Calculates the intersections of a ray with the geometry surface
+     */
+    virtual std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const = 0;
 
     /*!
      * Calculates the distance to the closest approch to the geometry center
@@ -145,6 +156,7 @@ public:
 
     // Methods
     std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
+    std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const override;
 
     // Getter & Setter
     double GetX() const { return x_; }
@@ -182,6 +194,7 @@ public:
 
     // Methods
     std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
+    std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const override;
 
     // Getter & Setter
     double GetInnerRadius() const { return inner_radius_; }
@@ -220,6 +233,7 @@ public:
 
     // Methods
     std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
+    std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const override;
 
     // Getter & Setter
     double GetInnerRadius() const { return inner_radius_; }

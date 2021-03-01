@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <vector>
+#include <functional>
 #include <earthmodel-service/Vector3D.h>
 #include <earthmodel-service/Geometry.h>
 
@@ -281,8 +282,7 @@ void Box::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Box::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const
-{
+std::vector<Geometry::Intersection> Box::Intersections(Vector3D const & position, Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the box
     // Surface of the box is defined by six planes:
     // E1: x1   =   position.GetX() + 0.5*x
@@ -301,13 +301,22 @@ std::pair<double, double> Box::DistanceToBorder(const Vector3D& position, const 
     double dir_vec_y = direction.GetY();
     double dir_vec_z = direction.GetZ();
 
-    std::pair<double, double> distance;
     double t;
     double intersection_x;
     double intersection_y;
     double intersection_z;
+    bool entering;
 
-    std::vector<double> dist;
+    std::vector<Intersection> dist;
+
+    std::function<void()> save = [&](){
+        Intersection i;
+        i.position = Vector3D(intersection_x,intersection_y,intersection_z);
+        i.distance = t;
+        i.hierarchy = hierarchy_;
+        i.entering = entering;
+        dist.push_back(i);
+    };
 
     double x_calc_pos = position_.GetX() + 0.5 * x_;
     double x_calc_neg = position_.GetX() - 0.5 * x_;
@@ -325,16 +334,15 @@ std::pair<double, double> Box::DistanceToBorder(const Vector3D& position, const 
         if (t > 0 && t < GEOMETRY_PRECISION)
             t = 0;
 
-        if (t > 0) // Interection is in particle trajectory direction
+        // Check if intersection is inside the box borders
+        intersection_y = position.GetY() + t * dir_vec_y;
+        intersection_z = position.GetZ() + t * dir_vec_z;
+        if (intersection_y >= y_calc_neg && intersection_y <= y_calc_pos && intersection_z >= z_calc_neg &&
+            intersection_z <= z_calc_pos)
         {
-            // Check if intersection is inside the box borders
-            intersection_y = position.GetY() + t * dir_vec_y;
-            intersection_z = position.GetZ() + t * dir_vec_z;
-            if (intersection_y >= y_calc_neg && intersection_y <= y_calc_pos && intersection_z >= z_calc_neg &&
-                intersection_z <= z_calc_pos)
-            {
-                dist.push_back(t);
-            }
+            intersection_x = position.GetX() + t * dir_vec_x;
+            entering = direction.GetX() < 0;
+            save();
         }
     }
 
@@ -347,16 +355,15 @@ std::pair<double, double> Box::DistanceToBorder(const Vector3D& position, const 
         if (t > 0 && t < GEOMETRY_PRECISION)
             t = 0;
 
-        if (t > 0) // Interection is in particle trajectory direction
+        // Check if intersection is inside the box borders
+        intersection_y = position.GetY() + t * dir_vec_y;
+        intersection_z = position.GetZ() + t * dir_vec_z;
+        if (intersection_y >= y_calc_neg && intersection_y <= y_calc_pos && intersection_z >= z_calc_neg &&
+            intersection_z <= z_calc_pos)
         {
-            // Check if intersection is inside the box borders
-            intersection_y = position.GetY() + t * dir_vec_y;
-            intersection_z = position.GetZ() + t * dir_vec_z;
-            if (intersection_y >= y_calc_neg && intersection_y <= y_calc_pos && intersection_z >= z_calc_neg &&
-                intersection_z <= z_calc_pos)
-            {
-                dist.push_back(t);
-            }
+            intersection_x = position.GetX() + t * dir_vec_x;
+            entering = direction.GetX() > 0;
+            save();
         }
     }
 
@@ -369,16 +376,15 @@ std::pair<double, double> Box::DistanceToBorder(const Vector3D& position, const 
         if (t > 0 && t < GEOMETRY_PRECISION)
             t = 0;
 
-        if (t > 0) // Interection is in particle trajectory direction
+        // Check if intersection is inside the box borders
+        intersection_x = position.GetX() + t * dir_vec_x;
+        intersection_z = position.GetZ() + t * dir_vec_z;
+        if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_z >= z_calc_neg &&
+            intersection_z <= z_calc_pos)
         {
-            // Check if intersection is inside the box borders
-            intersection_x = position.GetX() + t * dir_vec_x;
-            intersection_z = position.GetZ() + t * dir_vec_z;
-            if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_z >= z_calc_neg &&
-                intersection_z <= z_calc_pos)
-            {
-                dist.push_back(t);
-            }
+            intersection_y = position.GetY() + t * dir_vec_y;
+            entering = direction.GetY() < 0;
+            save();
         }
     }
 
@@ -391,16 +397,15 @@ std::pair<double, double> Box::DistanceToBorder(const Vector3D& position, const 
         if (t > 0 && t < GEOMETRY_PRECISION)
             t = 0;
 
-        if (t > 0) // Interection is in particle trajectory direction
+        // Check if intersection is inside the box borders
+        intersection_x = position.GetX() + t * dir_vec_x;
+        intersection_z = position.GetZ() + t * dir_vec_z;
+        if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_z >= z_calc_neg &&
+            intersection_z <= z_calc_pos)
         {
-            // Check if intersection is inside the box borders
-            intersection_x = position.GetX() + t * dir_vec_x;
-            intersection_z = position.GetZ() + t * dir_vec_z;
-            if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_z >= z_calc_neg &&
-                intersection_z <= z_calc_pos)
-            {
-                dist.push_back(t);
-            }
+            intersection_y = position.GetY() + t * dir_vec_y;
+            entering = direction.GetY() > 0;
+            save();
         }
     }
 
@@ -410,19 +415,18 @@ std::pair<double, double> Box::DistanceToBorder(const Vector3D& position, const 
         t = (z_calc_pos - position.GetZ()) / dir_vec_z;
 
         // Computer precision controll
-        if (t > 0 && t < GEOMETRY_PRECISION)
+        if (std::fabs(t) < GEOMETRY_PRECISION)
             t = 0;
 
-        if (t > 0) // Interection is in particle trajectory direction
+        // Check if intersection is inside the box borders
+        intersection_x = position.GetX() + t * dir_vec_x;
+        intersection_y = position.GetY() + t * dir_vec_y;
+        if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_y >= y_calc_neg &&
+            intersection_y <= y_calc_pos)
         {
-            // Check if intersection is inside the box borders
-            intersection_x = position.GetX() + t * dir_vec_x;
-            intersection_y = position.GetY() + t * dir_vec_y;
-            if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_y >= y_calc_neg &&
-                intersection_y <= y_calc_pos)
-            {
-                dist.push_back(t);
-            }
+            intersection_z = position.GetZ() + t * dir_vec_z;
+            entering = direction.GetZ() < 0;
+            save();
         }
     }
 
@@ -435,18 +439,33 @@ std::pair<double, double> Box::DistanceToBorder(const Vector3D& position, const 
         if (t > 0 && t < GEOMETRY_PRECISION)
             t = 0;
 
-        if (t > 0) // Interection is in particle trajectory direction
+        // Check if intersection is inside the box borders
+        intersection_x = position.GetX() + t * dir_vec_x;
+        intersection_y = position.GetY() + t * dir_vec_y;
+        if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_y >= y_calc_neg &&
+            intersection_y <= y_calc_pos)
         {
-            // Check if intersection is inside the box borders
-            intersection_x = position.GetX() + t * dir_vec_x;
-            intersection_y = position.GetY() + t * dir_vec_y;
-            if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_y >= y_calc_neg &&
-                intersection_y <= y_calc_pos)
-            {
-                dist.push_back(t);
-            }
+            intersection_z = position.GetZ() + t * dir_vec_z;
+            entering = direction.GetZ() > 0;
+            save();
         }
     }
+    return dist;
+}
+
+// ------------------------------------------------------------------------- //
+std::pair<double, double> Box::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+{
+    // Compute the surface intersections
+    std::vector<Intersection> intersections = Intersections(position, direction);
+    std::vector<double> dist;
+    for(unsigned int i=0; i<intersections.size(); ++i) {
+        if(intersections[i].distance > 0) {
+            dist.push_back(intersections[i].distance);
+        }
+    }
+
+    std::pair<double, double> distance;
 
     if (dist.size() < 1) // No intersection with the box
     {
