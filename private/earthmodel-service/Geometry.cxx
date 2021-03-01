@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <vector>
+#include <algorithm>
 #include <functional>
 #include <earthmodel-service/Vector3D.h>
 #include <earthmodel-service/Geometry.h>
@@ -619,8 +620,7 @@ void Cylinder::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Cylinder::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const
-{
+std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & position, Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the cylinder
     // cylinder barrel (x1 + x0)^2 + (x2 + y0)^2  = radius^2 [ z0_-0.5*z_ <
     // particle->z <z0_ - 0.5*z_ ]
@@ -650,10 +650,26 @@ std::pair<double, double> Cylinder::DistanceToBorder(const Vector3D& position, c
     double intersection_x;
     double intersection_y;
     double intersection_z;
+    bool entering;
 
-    std::vector<double> dist;
+    std::vector<Intersection> dist;
 
-    std::pair<double, double> distance;
+    std::function<void(double, bool)> save = [&](double t, bool entering){
+        Intersection i;
+        i.position = Vector3D(intersection_x,intersection_y,intersection_z);
+        i.distance = t;
+        i.hierarchy = hierarchy_;
+        i.entering = entering;
+        dist.push_back(i);
+    };
+
+    std::function<bool()> entering_radial = [&]() {
+        return Vector3D(intersection_x, intersection_y, 0) * direction < 0;
+    };
+
+    std::function<bool()> exiting_radial = [&]() {
+        return Vector3D(intersection_x, intersection_y, 0) * direction > 0;
+    };
 
     double z_calc_pos = position_.GetZ() + 0.5 * z_;
     double z_calc_neg = position_.GetZ() - 0.5 * z_;
@@ -687,24 +703,22 @@ std::pair<double, double> Cylinder::DistanceToBorder(const Vector3D& position, c
             if (t2 > 0 && t2 < GEOMETRY_PRECISION)
                 t2 = 0;
 
-            if (t1 > 0)
+            intersection_z = position.GetZ() + t1 * dir_vec_z;
+            // is inside the borders
+            if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
             {
-                intersection_z = position.GetZ() + t1 * dir_vec_z;
-                // is inside the borders
-                if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                {
-                    dist.push_back(t1);
-                }
+                intersection_x = position.GetX() + t1 * dir_vec_x;
+                intersection_y = position.GetY() + t1 * dir_vec_y;
+                save(t1, entering_radial());
             }
 
-            if (t2 > 0)
+            intersection_z = position.GetZ() + t2 * dir_vec_z;
+            // is inside the borders
+            if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
             {
-                intersection_z = position.GetZ() + t2 * dir_vec_z;
-                // is inside the borders
-                if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                {
-                    dist.push_back(t2);
-                }
+                intersection_x = position.GetX() + t2 * dir_vec_x;
+                intersection_y = position.GetY() + t2 * dir_vec_y;
+                save(t2, entering_radial());
             }
         }
     }
@@ -723,20 +737,18 @@ std::pair<double, double> Cylinder::DistanceToBorder(const Vector3D& position, c
             if (t > 0 && t < GEOMETRY_PRECISION)
                 t = 0;
 
-            if (t > 0) // Interection is in particle trajectory direction
-            {
-                intersection_x = position.GetX() + t * dir_vec_x;
-                intersection_y = position.GetY() + t * dir_vec_y;
+            intersection_x = position.GetX() + t * dir_vec_x;
+            intersection_y = position.GetY() + t * dir_vec_y;
 
-                if (std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-                    std::pow((intersection_y - position_.GetY()), 2)) <=
-                        radius_ &&
-                    std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-                    std::pow((intersection_y - position_.GetY()), 2)) >=
-                        inner_radius_)
-                {
-                    dist.push_back(t);
-                }
+            if (std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
+                std::pow((intersection_y - position_.GetY()), 2)) <=
+                    radius_ &&
+                std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
+                std::pow((intersection_y - position_.GetY()), 2)) >=
+                    inner_radius_)
+            {
+                intersection_z = position.GetZ() + t * dir_vec_z;
+                save(t, direction.GetZ() < 0);
             }
         }
 
@@ -750,48 +762,22 @@ std::pair<double, double> Cylinder::DistanceToBorder(const Vector3D& position, c
             if (t > 0 && t < GEOMETRY_PRECISION)
                 t = 0;
 
-            if (t > 0) // Interection is in particle trajectory direction
-            {
-                intersection_x = position.GetX() + t * dir_vec_x;
-                intersection_y = position.GetY() + t * dir_vec_y;
+            intersection_x = position.GetX() + t * dir_vec_x;
+            intersection_y = position.GetY() + t * dir_vec_y;
 
-                if (std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-                    std::pow((intersection_y - position_.GetY()), 2)) <=
-                        radius_ &&
-                    std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-                    std::pow((intersection_y - position_.GetY()), 2)) >=
-                        inner_radius_)
-                {
-                    dist.push_back(t);
-                }
+            if (std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
+                std::pow((intersection_y - position_.GetY()), 2)) <=
+                    radius_ &&
+                std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
+                std::pow((intersection_y - position_.GetY()), 2)) >=
+                    inner_radius_)
+            {
+                intersection_z = position.GetZ() + t * dir_vec_z;
+                save(t, direction.GetZ() > 0);
             }
         }
     }
-    // No intersection with the outer cylinder
-    if (dist.size() < 1)
-    {
-        distance.first  = -1;
-        distance.second = -1;
-        //    return distance;
-    } else if (dist.size() == 1) // particle is inside the cylinder
-    {
-        distance.first  = dist.at(0);
-        distance.second = -1;
 
-    } else if (dist.size() == 2) // cylinder is infront of the particle
-    {
-        distance.first  = dist.at(0);
-        distance.second = dist.at(1);
-
-        if (distance.second < distance.first)
-        {
-            std::swap(distance.first, distance.second);
-        }
-
-    } else
-    {
-        //log_error("This point should never be reached");
-    }
     // This cylinder might be hollow and we have to check if the inner border is
     // reached before.
     // So we caluculate the intersection with the inner cylinder.
@@ -828,236 +814,90 @@ std::pair<double, double> Cylinder::DistanceToBorder(const Vector3D& position, c
 
                 // Ok we have a intersection with the inner cylinder
 
-                // If distance.first and distance.second are positive this means
-                // the cylinder is infornt of the particle. So the first
-                // distance
-                // ( intersection with the outer border) does not change
-                // but the second distance has to be updated (intersection with
-                // the inner border)
-                if (distance.first > 0 && distance.second > 0)
+                intersection_z = position.GetZ() + t1 * dir_vec_z;
+                // is inside the borders
+                if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
                 {
-                    if (t1 > 0)
-                    {
-                        intersection_z = position.GetZ() + t1 * dir_vec_z;
-                        // is inside the borders
-                        if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                        {
-                            if (t1 < distance.second)
-                                distance.second = t1;
-                        }
-                    }
-
-                    if (t2 > 0)
-                    {
-                        intersection_z = position.GetZ() + t2 * dir_vec_z;
-                        // is inside the borders
-                        if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                        {
-                            if (t2 < distance.second)
-                                distance.second = t2;
-                        }
-                    }
+                    intersection_x = position.GetX() + t1 * dir_vec_x;
+                    intersection_y = position.GetY() + t1 * dir_vec_y;
+                    save(t1, exiting_radial());
                 }
-                // The particle trajectory hits the inner cylinder first
-                // (particle flys through the hole and hits inner cylinder
-                // barrel first)
-                //  ___  ^     ___
-                // |   |  \   |   |
-                // |   |   \  |   |
-                // |   |    \ |   |
-                // |   |     \|   |
-                // |   |      *   |
-                // |   |      |\  |
-                // |   |      | x |
-                // |   |      |   |
-                // |___|      |___|
-                else if (distance.first < 0 && distance.second < 0)
-                {
-                    if (t1 > 0)
-                    {
-                        intersection_z = position.GetZ() + t1 * dir_vec_z;
-                        // is inside the borders
-                        if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                        {
-                            distance.first = t1;
-                        }
-                    }
-                    if (t2 > 0)
-                    {
-                        intersection_z = position.GetZ() + t2 * dir_vec_z;
-                        // is inside the borders
-                        if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                        {
-                            distance.first = t2;
-                        }
-                    }
-                }
-                // The particle is inside the outer cylinder
-                // or particle hits bottom or top surface and then hits
-                // the inner cylinder barrel
-                else
-                {
-                    // The inner cylinder is infront of the particle trajectory
-                    // distance.first has to be updated
-                    if (t1 > 0 && t2 > 0)
-                    {
-                        //  _____        _____
-                        // |     |      |     |
-                        // |     |      |     |
-                        // |     |      |     |
-                        // |     |      |     |
-                        // |     |      |     |
-                        // | x---*----->|     |
-                        // |     |      |     |
-                        // |     |      |     |
-                        // |_____|      |_____|
-                        //
-                        if (position.GetZ() >= z_calc_neg && position.GetZ() <= z_calc_pos &&
-                            std::sqrt(std::pow((position.GetX() - position_.GetX()), 2) +
-                            std::pow((position.GetY() - position_.GetY()), 2)) <=
-                                radius_ + GEOMETRY_PRECISION &&
-                            std::sqrt(std::pow((position.GetX() - position_.GetX()), 2) +
-                            std::pow((position.GetY() - position_.GetY()), 2)) >=
-                                inner_radius_ - GEOMETRY_PRECISION)
-                        {
-                            if (t1 < distance.first)
-                            {
-                                intersection_z = position.GetZ() + t1 * dir_vec_z;
-                                // is inside the borders
-                                if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                                {
-                                    // This case means particle is inside in
-                                    // hits
-                                    // inner cylinder first
-                                    distance.first = t1;
-                                }
-                            }
-                            if (t2 < distance.first)
-                            {
-                                intersection_z = position.GetZ() + t2 * dir_vec_z;
-                                // is inside the borders
-                                if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                                {
-                                    // This case means particle is inside in
-                                    // hits
-                                    // inner cylinder first
-                                    distance.first = t2;
-                                }
-                            }
-                        }
-                        //               ^
-                        //  _____       / _____
-                        // |     |     / |     |
-                        // |     |    /  |     |
-                        // |     |   /   |     |
-                        // |     |  /    |     |
-                        // |     | /     |     |
-                        // |     |/      |     |
-                        // |     *       |     |
-                        // |    /|       |     |
-                        // |___/_|       |_____|
-                        //    *
-                        //   x
-                        else
-                        {
-                            intersection_z = position.GetZ() + t1 * dir_vec_z;
-                            // is inside the borders
-                            if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                            {
-                                // This case means particle is inside in hits
-                                // inner cylinder first
-                                distance.second = t1;
-                            }
 
-                            if (distance.second < 0)
-                            {
-                                intersection_z = position.GetZ() + t2 * dir_vec_z;
-                                // is inside the borders
-                                if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                                {
-                                    // This case means particle is inside in
-                                    // hits
-                                    // inner cylinder first
-                                    distance.second = t2;
-                                }
-                            }
-                        }
-                    }
-                    // The particle is inside the inner cylinder
-                    // this means distance.second becomes distanc.first
-                    // and distance.first beomces distance to intersection with
-                    // the inner cylinder in direction of the particle
-                    // trajectory
-                    //  _____        _____
-                    // |     |      |     |
-                    // |     |      |     |
-                    // |     |      |     |
-                    // |     |      |     |
-                    // |     |      |     |
-                    // |     |  x---*-----*------->
-                    // |     |      |     |
-                    // |     |      |     |
-                    // |_____|      |_____|
-                    //
-                    if ((t1 > 0 && t2 < 0) || (t2 > 0 && t1 < 0))
-                    {
-                        if (t1 > 0)
-                        {
-                            intersection_z = position.GetZ() + t1 * dir_vec_z;
-                            // is inside the borders
-                            if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                            {
-                                std::swap(distance.first, distance.second);
-                                distance.first = t1;
-                            }
-                        } else
-                        {
-                            intersection_z = position.GetZ() + t2 * dir_vec_z;
-                            // is inside the borders
-                            if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                            {
-                                std::swap(distance.first, distance.second);
-                                distance.first = t2;
-                            }
-                        }
-                    }
-                    // Now we have to check if the particle is on the border of
-                    // the inner sphere
-                    if (t1 == 0)
-                    {
-                        // The particle is moving into the inner cylinder
-                        if (t2 > 0)
-                        {
-                            intersection_z = position.GetZ() + t2 * dir_vec_z;
-                            // is inside the borders
-                            if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                            {
-                                std::swap(distance.first, distance.second);
-                                distance.first = t2;
-                            }
-                        }
-                        // if not we don't have to update distance.first
-                    }
-                    if (t2 == 0)
-                    {
-                        // The particle is moving into the inner sphere
-                        if (t1 > 0)
-                        {
-                            intersection_z = position.GetZ() + t1 * dir_vec_z;
-                            // is inside the borders
-                            if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                            {
-                                std::swap(distance.first, distance.second);
-                                distance.first = t1;
-                            }
-                        }
-                        // if not we don't have to update distance.first
-                    }
+                intersection_z = position.GetZ() + t2 * dir_vec_z;
+                // is inside the borders
+                if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
+                {
+                    intersection_x = position.GetX() + t2 * dir_vec_x;
+                    intersection_y = position.GetY() + t2 * dir_vec_y;
+                    save(t2, exiting_radial());
+                }
+            }
+        }
+    }
+    std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
+    return a.distance < b.distance;
+    };
+
+    std::sort(dist.begin(), dist.end(), comp);
+    return dist;
+}
+
+// ------------------------------------------------------------------------- //
+std::pair<double, double> Cylinder::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+{
+    // Compute the surface intersections
+    std::vector<Intersection> intersections = Intersections(position, direction);
+    std::vector<double> dist;
+    bool first = true;
+    for(unsigned int i=0; i<intersections.size(); ++i) {
+        Intersection const & obj = intersections[i];
+        if(obj.distance > 0) {
+            if(first) {
+                first = false;
+                dist.push_back(obj.distance);
+                if(not obj.entering) {
+                    break;
+                }
+            }
+            else {
+                if(not obj.entering) {
+                    dist.push_back(obj.distance);
+                    break;
+                }
+                else {
+                    throw("There should never be two \"entering\" intersections in a row!");
                 }
             }
         }
     }
 
+    std::pair<double, double> distance;
+
+    // No intersection with the outer cylinder
+    if (dist.size() < 1)
+    {
+        distance.first  = -1;
+        distance.second = -1;
+        //    return distance;
+    } else if (dist.size() == 1) // particle is inside the cylinder
+    {
+        distance.first  = dist.at(0);
+        distance.second = -1;
+
+    } else if (dist.size() == 2) // cylinder is infront of the particle
+    {
+        distance.first  = dist.at(0);
+        distance.second = dist.at(1);
+
+        if (distance.second < distance.first)
+        {
+            std::swap(distance.first, distance.second);
+        }
+
+    } else
+    {
+        //log_error("This point should never be reached");
+    }
     // Make a computer precision controll!
     // This is necessary cause due to numerical effects it meight be happen
     // that a particle which is located on a gemoetry border is treated as
