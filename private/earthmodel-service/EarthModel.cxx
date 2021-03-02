@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <iterator>
 #include <algorithm>
 
 #include <earthmodel-service/EarthModel.h>
@@ -44,7 +45,84 @@ void EarthModel::LoadMaterialModel(MaterialModel const & material_model) {
 }
 
 double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const {
+    Vector3D direction = p1 - p0;
+    double distance = direction.magnitude();
+    direction.normalise();
+    std::vector<Geometry::Intersection> intersections;
 
+    for(auto const & sector : sectors_) {
+        std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
+        intersections.reserve(intersections.size() + std::distance(i.begin(), i.end()));
+        intersections.insert(intersections.end(), i.begin(), i.end());
+    }
+
+    std::function<bool(Geometry::Intersection const &, Geometry::Intersection const &)> comp = [](Geometry::Intersection const & a, Geometry::Intersection const & b){
+		bool a_enter = a.entering;
+		bool b_enter = b.entering;
+        if(a.distance < b.distance)
+            return true;
+        else if(a.distance == b.distance) {
+            bool low_high = a.hierarchy < b.hierarchy;
+            if(a_enter) {
+                if(b_enter)
+                    return not low_high;
+                else
+                    return false;
+            }
+            else {
+                if(b_enter)
+                    return true;
+                else
+                    return low_high;
+            }
+        }
+        else
+            return false;
+    };
+
+    std::sort(intersections.begin(), intersections.end(), comp);
+
+    double column_depth = 0;
+
+    std::map<unsigned int, Geometry::Intersection const *> stack;
+    Geometry::Intersection const * current_intersection = &intersections[0];
+    stack.insert({intersections[0].hierarchy, current_intersection});
+    for(unsigned int i=1; i<intersections.size(); ++i) {
+        Geometry::Intersection const & intersection = intersections[i];
+        if(intersection.entering) {
+            stack.insert({intersection.hierarchy, &intersection});
+            if(intersection.hierarchy > current_intersection->hierarchy) {
+                if(intersection.distance > 0) {
+                    // Store integral between current_intersection and new intersection
+                    double segment_length = std::min(intersection.distance, distance)-current_intersection->distance;
+                    column_depth += sectors_[current_intersection->hierarchy].density->Integrate(p0+current_intersection->distance*direction, direction, segment_length);
+                    if(intersection.distance >= distance) {
+                        break;
+                    }
+                }
+                current_intersection = &intersection;
+            }
+        }
+        else {
+            if(intersection.hierarchy <= current_intersection->hierarchy) {
+                stack.erase(intersection.hierarchy);
+                if(intersection.distance > 0) {
+                    // Store integral between current_intersection and new intersection
+                    double segment_length = std::min(intersection.distance, distance)-current_intersection->distance;
+                    column_depth += sectors_[current_intersection->hierarchy].density->Integrate(p0+current_intersection->distance*direction, direction, segment_length);
+                    if(intersection.distance >= distance) {
+                        break;
+                    }
+                }
+                current_intersection = stack.lower_bound(intersection.hierarchy)->second;
+            }
+            else {
+                throw("Cannot exit a level that we have not entered!");
+            }
+        }
+    }
+
+    return column_depth;
 }
 
 double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density) const {
