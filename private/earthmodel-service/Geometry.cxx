@@ -451,6 +451,12 @@ std::vector<Geometry::Intersection> Box::Intersections(Vector3D const & position
             save();
         }
     }
+
+    std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
+    return a.distance < b.distance;
+    };
+
+    std::sort(dist.begin(), dist.end(), comp);
     return dist;
 }
 
@@ -834,6 +840,7 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
             }
         }
     }
+
     std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
     return a.distance < b.distance;
     };
