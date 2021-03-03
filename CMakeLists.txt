@@ -203,6 +203,7 @@ ELSE(NOT PYTHON FOUND)
     MESSAGE("-- no python. skipping")
 ENDIF(PYTHON_FOUND)
 
+add_subdirectory(tests)
 
 MESSAGE("")
 MESSAGE("Done!")
