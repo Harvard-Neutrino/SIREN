@@ -22,7 +22,7 @@ endmacro()
 ENABLE_TESTING()
 
 #package_add_test(UnitTest_Medium Medium_TEST.cxx)
-#package_add_test(UnitTest_Geometry Geometry_TEST.cxx)
+package_add_test(UnitTest_Geometry Geometry_TEST.cxx)
 package_add_test(UnitTest_Vector3D Vector3D_TEST.cxx)
 #package_add_test(UnitTest_Sector Sector_TEST.cxx)
 #package_add_test(UnitTest_MathMethods MathMethods_TEST.cxx)

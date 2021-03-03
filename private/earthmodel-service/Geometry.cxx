@@ -670,11 +670,7 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
     };
 
     std::function<bool()> entering_radial = [&]() {
-        return Vector3D(intersection_x, intersection_y, 0) * direction < 0;
-    };
-
-    std::function<bool()> exiting_radial = [&]() {
-        return Vector3D(intersection_x, intersection_y, 0) * direction > 0;
+        return Vector3D(intersection_x-position_.GetX(), intersection_y-position_.GetY(), 0) * direction < 0;
     };
 
     double z_calc_pos = position_.GetZ() + 0.5 * z_;
@@ -729,58 +725,52 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
         }
     }
 
-    // if we have found already to intersections we don't have to check for
-    // intersections
-    // with top or bottom surface
-    if (dist.size() < 2)
+    // intersection with E1
+    if (dir_vec_z != 0) // if dir_vec == 0 particle trajectory is parallel
+                        // to E1 (Should not happen)
     {
-        // intersection with E1
-        if (dir_vec_z != 0) // if dir_vec == 0 particle trajectory is parallel
-                            // to E1 (Should not happen)
+        t = (z_calc_pos - position.GetZ()) / dir_vec_z;
+        // Computer precision controll
+        if (t > 0 && t < GEOMETRY_PRECISION)
+            t = 0;
+
+        intersection_x = position.GetX() + t * dir_vec_x;
+        intersection_y = position.GetY() + t * dir_vec_y;
+
+        if (std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
+            std::pow((intersection_y - position_.GetY()), 2)) <=
+                radius_ &&
+            std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
+            std::pow((intersection_y - position_.GetY()), 2)) >=
+                inner_radius_)
         {
-            t = (z_calc_pos - position.GetZ()) / dir_vec_z;
-            // Computer precision controll
-            if (t > 0 && t < GEOMETRY_PRECISION)
-                t = 0;
-
-            intersection_x = position.GetX() + t * dir_vec_x;
-            intersection_y = position.GetY() + t * dir_vec_y;
-
-            if (std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-                std::pow((intersection_y - position_.GetY()), 2)) <=
-                    radius_ &&
-                std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-                std::pow((intersection_y - position_.GetY()), 2)) >=
-                    inner_radius_)
-            {
-                intersection_z = position.GetZ() + t * dir_vec_z;
-                save(t, direction.GetZ() < 0);
-            }
+            intersection_z = position.GetZ() + t * dir_vec_z;
+            save(t, direction.GetZ() < 0);
         }
+    }
 
-        // intersection with E2
-        if (dir_vec_z != 0) // if dir_vec == 0 particle trajectory is parallel
-                            // to E2 (Should not happen)
+    // intersection with E2
+    if (dir_vec_z != 0) // if dir_vec == 0 particle trajectory is parallel
+                        // to E2 (Should not happen)
+    {
+        t = (z_calc_neg - position.GetZ()) / dir_vec_z;
+
+        // Computer precision controll
+        if (t > 0 && t < GEOMETRY_PRECISION)
+            t = 0;
+
+        intersection_x = position.GetX() + t * dir_vec_x;
+        intersection_y = position.GetY() + t * dir_vec_y;
+
+        if (std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
+            std::pow((intersection_y - position_.GetY()), 2)) <=
+                radius_ &&
+            std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
+            std::pow((intersection_y - position_.GetY()), 2)) >=
+                inner_radius_)
         {
-            t = (z_calc_neg - position.GetZ()) / dir_vec_z;
-
-            // Computer precision controll
-            if (t > 0 && t < GEOMETRY_PRECISION)
-                t = 0;
-
-            intersection_x = position.GetX() + t * dir_vec_x;
-            intersection_y = position.GetY() + t * dir_vec_y;
-
-            if (std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-                std::pow((intersection_y - position_.GetY()), 2)) <=
-                    radius_ &&
-                std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-                std::pow((intersection_y - position_.GetY()), 2)) >=
-                    inner_radius_)
-            {
-                intersection_z = position.GetZ() + t * dir_vec_z;
-                save(t, direction.GetZ() > 0);
-            }
+            intersection_z = position.GetZ() + t * dir_vec_z;
+            save(t, direction.GetZ() > 0);
         }
     }
 
@@ -826,7 +816,7 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
                 {
                     intersection_x = position.GetX() + t1 * dir_vec_x;
                     intersection_y = position.GetY() + t1 * dir_vec_y;
-                    save(t1, exiting_radial());
+                    save(t1, not entering_radial());
                 }
 
                 intersection_z = position.GetZ() + t2 * dir_vec_z;
@@ -835,14 +825,14 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
                 {
                     intersection_x = position.GetX() + t2 * dir_vec_x;
                     intersection_y = position.GetY() + t2 * dir_vec_y;
-                    save(t2, exiting_radial());
+                    save(t2, not entering_radial());
                 }
             }
         }
     }
 
     std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
-    return a.distance < b.distance;
+        return a.distance < b.distance;
     };
 
     std::sort(dist.begin(), dist.end(), comp);
@@ -872,6 +862,7 @@ std::pair<double, double> Cylinder::DistanceToBorder(const Vector3D& position, c
                     break;
                 }
                 else {
+                    std::cout << "There should never be two \"entering\" intersections in a row!" << std::endl;
                     throw("There should never be two \"entering\" intersections in a row!");
                 }
             }
@@ -1132,6 +1123,7 @@ std::pair<double, double> Sphere::DistanceToBorder(const Vector3D& position, con
                     break;
                 }
                 else {
+                    std::cout << "There should never be two \"entering\" intersections in a row!" << std::endl;
                     throw("There should never be two \"entering\" intersections in a row!");
                 }
             }
