@@ -406,7 +406,7 @@ TEST(IsInside, Cylinder)
 
         // The values are divided by 100 to convert the units...
         // Init functions expects m but here everthing is in cm
-        Cylinder A(0.01 * position_geometry, radius / 100, inner_radius / 100, height / 100);
+        Cylinder A(position_geometry, radius, inner_radius, height);
 
         volumia_ratio =
             height * M_PI * (pow(radius, 2) - pow(inner_radius, 2)) / (big_width_x * big_width_y * big_height);
@@ -455,7 +455,7 @@ TEST(IsInside, Cylinder)
 
     // The values are divided by 100 to convert the units...
     // Init functions expects m but here everthing is in cm
-    Sphere B(Vector3D(0, 0, 0), radius / 100, 0);
+    Sphere B(Vector3D(0, 0, 0), radius, 0);
 
     double cos;
 
@@ -490,7 +490,7 @@ TEST(IsInside, Cylinder)
 
     // The values are divided by 100 to convert the units...
     // Init functions expects m but here everthing is in cm
-    Cylinder C(Vector3D(0, 0, 0), radius / 100, 0, height / 100);
+    Cylinder C(Vector3D(0, 0, 0), radius, 0, height);
 
     for (int i = 0; i < 1e4; i++)
     {
@@ -534,7 +534,7 @@ TEST(IsInside, Cylinder)
 
     // The values are divided by 100 to convert the units...
     // Init functions expects m but here everthing is in cm
-    Cylinder A(Vector3D(0, 0, 0), radius / 100, inner_radius / 100, height / 100);
+    Cylinder A(Vector3D(0, 0, 0), radius, inner_radius, height);
 
     excluded = 0;
 
@@ -615,7 +615,7 @@ TEST(IsInside, Sphere)
 
         // The values are divided by 100 to convert the units...
         // Init functions expects m but here everthing is in cm
-        Sphere A(0.01 * position_geometry, radius / 100, inner_radius / 100);
+        Sphere A(position_geometry, radius, inner_radius);
 
         volumia_ratio =
             (4. / 3. * M_PI * (pow(radius, 3) - pow(inner_radius, 3))) / (big_width_x * big_width_y * big_height);
@@ -658,7 +658,7 @@ TEST(IsInside, Sphere)
 
     // The values are divided by 100 to convert the units...
     // Init functions expects m but here everthing is in cm
-    Sphere A(Vector3D(0, 0, 0), radius / 100, 0);
+    Sphere A(Vector3D(0, 0, 0), radius, 0);
 
     double cos;
 
@@ -689,7 +689,7 @@ TEST(IsInside, Sphere)
 
     // The values are divided by 100 to convert the units...
     // Init functions expects m but here everthing is in cm
-    Sphere B(Vector3D(0, 0, 0), radius / 100, inner_radius / 100);
+    Sphere B(Vector3D(0, 0, 0), radius, inner_radius);
 
     excluded = 0;
 
@@ -748,7 +748,7 @@ TEST(DistanceTo, Sphere)
 
             // The values are divided by 100 to convert the units...
             // Init functions expects m but here everthing is in cm
-            Sphere A(Vector3D(0, 0, 0), radius / 100, inner_radius / 100);
+            Sphere A(Vector3D(0, 0, 0), radius, inner_radius);
 
             rnd_phi   = RandomDouble();
             rnd_theta = RandomDouble();
@@ -843,7 +843,7 @@ TEST(DistanceTo, Cylinder)
 
             // The values are divided by 100 to convert the units...
             // Init functions expects m but here everthing is in cm
-            Cylinder A(Vector3D(0, 0, 0), radius / 100, inner_radius / 100, height / 100);
+            Cylinder A(Vector3D(0, 0, 0), radius, inner_radius, height);
 
             rnd_phi = RandomDouble();
 
@@ -910,7 +910,7 @@ TEST(DistanceTo, Cylinder)
 
     // The values are divided by 100 to convert the units...
     // Init functions expects m but here everthing is in cm
-    Cylinder B(Vector3D(0, 0, 0), radius / 100, inner_radius / 100, height / 100);
+    Cylinder B(Vector3D(0, 0, 0), radius, inner_radius, height);
 
     // Chose particle location and angle
 
@@ -933,7 +933,7 @@ TEST(DistanceTo, Cylinder)
 
     // The values are divided by 100 to convert the units...
     // Init functions expects m but here everthing is in cm
-    Cylinder A(Vector3D(0, 0, 0), radius / 100, inner_radius / 100, height / 100);
+    Cylinder A(Vector3D(0, 0, 0), radius, inner_radius, height);
 
     for (int j = 0; j < number_particles; j++)
     {
@@ -1070,7 +1070,7 @@ TEST(DistanceTo, Box)
 
         // The values are divided by 100 to convert the units...
         // Init functions expects m but here everthing is in cm
-        Box A(Vector3D(0, 0, 0), width / 100, width / 100, height / 100);
+        Box A(Vector3D(0, 0, 0), width, width, height);
 
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, 0.5 * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
@@ -1128,7 +1128,7 @@ TEST(DistanceTo, Box)
         }
     }
 
-    Box A(Vector3D(0, 0, 0), width / 100, width / 100, height / 100);
+    Box A(Vector3D(0, 0, 0), width, width, height);
 
     for (int i = 0; i < number_particles; i++)
     {
