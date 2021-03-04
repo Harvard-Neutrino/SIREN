@@ -862,7 +862,6 @@ std::pair<double, double> Cylinder::DistanceToBorder(const Vector3D& position, c
                     break;
                 }
                 else {
-                    std::cout << "There should never be two \"entering\" intersections in a row!" << std::endl;
                     throw("There should never be two \"entering\" intersections in a row!");
                 }
             }
@@ -1034,17 +1033,14 @@ std::vector<Geometry::Intersection> Sphere::Intersections(Vector3D const & posit
 
     std::vector<Intersection> dist;
 
-    std::function<void(double, bool)> save = [&](double t, bool inner){
+    Vector3D intersection;
+
+    std::function<void(double, bool)> save = [&](double t, bool entering){
         Intersection i;
-        i.position = position + t*direction;
+        i.position = intersection;
         i.distance = t;
         i.hierarchy = hierarchy_;
-        if(inner) {
-            i.entering = i.position * direction > 0;
-        }
-        else {
-            i.entering = i.position * direction < 0;
-        }
+        i.entering = entering;
         dist.push_back(i);
     };
 
@@ -1066,7 +1062,14 @@ std::vector<Geometry::Intersection> Sphere::Intersections(Vector3D const & posit
         if (t2 > 0 && t2 < GEOMETRY_PRECISION)
             t2 = 0;
 
-        save(t1, false);
+        if (t2 < t1)
+        {
+            std::swap(t1, t2);
+        }
+
+        intersection = position + t1*direction;
+        save(t1, true);
+        intersection = position + t2*direction;
         save(t2, false);
 
         if (inner_radius_ > 0)
@@ -1086,14 +1089,21 @@ std::vector<Geometry::Intersection> Sphere::Intersections(Vector3D const & posit
                 if (t2 > 0 && t2 < GEOMETRY_PRECISION)
                     t2 = 0;
 
-                save(t1, true);
+                if (t2 < t1)
+                {
+                    std::swap(t1, t2);
+                }
+
+                intersection = position + t1*direction;
+                save(t1, false);
+                intersection = position + t2*direction;
                 save(t2, true);
             }
         }
     }
 
     std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
-    return a.distance < b.distance;
+        return a.distance < b.distance;
     };
 
     std::sort(dist.begin(), dist.end(), comp);
@@ -1123,7 +1133,6 @@ std::pair<double, double> Sphere::DistanceToBorder(const Vector3D& position, con
                     break;
                 }
                 else {
-                    std::cout << "There should never be two \"entering\" intersections in a row!" << std::endl;
                     throw("There should never be two \"entering\" intersections in a row!");
                 }
             }
