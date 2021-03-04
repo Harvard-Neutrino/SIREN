@@ -37,7 +37,7 @@ namespace earthmodel {
 class Axis {
    public:
     Axis();
-    Axis(const Vector3D& fp0, const Vector3D& fAxis);
+    Axis(const Vector3D& fAxis, const Vector3D& fp0);
     Axis(const Axis&);
 
     virtual ~Axis() {};
