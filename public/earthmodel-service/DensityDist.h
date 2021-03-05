@@ -88,7 +88,7 @@ public:
 class ConstantDistribution1D : Distribution1D {
 public:
     ConstantDistribution1D(const ConstantDistribution1D&);
-    ConstantDistribution1D(double);
+    ConstantDistribution1D(double val);
     bool compare(const Distribution1D& dist) const override;
     double Derivative(double x) const override;
     double AntiDerivative(double x) const override;
@@ -110,6 +110,18 @@ protected:
     Polynom polynom_;
     Polynom Ipolynom_;
     Polynom dpolynom_;
+};
+
+class ExponentialDistribution1D : Distribution1D {
+public:
+    ExponentialDistribution1D(const ExponentialDistribution1D&);
+    ExponentialDistribution1D(double sigma);
+    bool compare(const Distribution1D& dist) const override;
+    double Derivative(double x) const override;
+    double AntiDerivative(double x) const override;
+    double Evaluate(double x) const override;
+protected:
+    double sigma_;
 };
 
 class Axis1D {
