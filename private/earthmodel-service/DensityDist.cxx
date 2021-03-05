@@ -92,6 +92,35 @@ double CartesianAxis1D::GetdX(const Vector3D& xi, const Vector3D& direction) con
 // %%%%%%%%%%%%%%%%%% Homogeneous-Density %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+ConstantDistribution1D::ConstantDistribution1D(const ConstantDistribution1D& dist)
+    : val_(dist.val_) {}
+
+ConstantDistribution1D::ConstantDistribution1D(double val)
+    : val_(val) {}
+
+bool ConstantDistribution1D::compare(const Distribution1D& dist) const {
+    const ConstantDistribution1D* dist_const = dynamic_cast<const ConstantDistribution1D*>(&dist);
+    if(!dist_const)
+        return false;
+    if(val_ != dist_const->val_)
+        return false;
+    return true;
+}
+
+double ConstantDistribution1D::Derivative(double x) const {
+    (void)x;
+    return 0.0;
+}
+
+double ConstantDistribution1D::AntiDerivative(double x) const {
+    return x*val_;
+}
+
+double ConstantDistribution1D::Evaluate(double x) const {
+    (void)x;
+    return val_;
+}
+
 Density_homogeneous::Density_homogeneous()
     : DensityDistribution(), correction_factor_(1.0) {}
 
