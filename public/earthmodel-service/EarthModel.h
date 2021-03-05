@@ -18,7 +18,7 @@ struct EarthSector {
     int material_id;
     int level;
     std::shared_ptr<const Geometry> geo;
-    std::shared_ptr<const Density_distr> density;
+    std::shared_ptr<const DensityDistribution> density;
 };
 
 class EarthModel {

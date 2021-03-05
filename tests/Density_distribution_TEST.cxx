@@ -20,12 +20,12 @@ TEST(Comparison, Comparison_equal)
     CartesianAxis ax_E;
     EXPECT_TRUE(ax_E == ax_D);
 
-    Density_distr* A = new Density_homogeneous(0.3);
-    Density_distr* B = new Density_homogeneous(0.3);
+    DensityDistribution* A = new Density_homogeneous(0.3);
+    DensityDistribution* B = new Density_homogeneous(0.3);
     EXPECT_TRUE(*A == *B);
 
     double sigma = 1.;
-    Density_distr* C = new Density_exponential(ax_D, sigma);
+    DensityDistribution* C = new Density_exponential(ax_D, sigma);
     Density_exponential D(ax_D, sigma);
     EXPECT_TRUE(D == *C);
 
@@ -57,9 +57,9 @@ TEST(Comparison, Comparison_not_equal)
     Axis* ax_E = new RadialAxis();
     EXPECT_TRUE(*ax_D != *ax_E);
 
-    Density_distr* A = new Density_homogeneous();
-    Density_distr* B = new Density_exponential(ax_A, 1);
-    Density_distr* D = new Density_exponential(ax_A, 2);
+    DensityDistribution* A = new Density_homogeneous();
+    DensityDistribution* B = new Density_exponential(ax_A, 1);
+    DensityDistribution* D = new Density_exponential(ax_A, 2);
     EXPECT_TRUE(*A != *B);
     EXPECT_TRUE(*B != *D);
 

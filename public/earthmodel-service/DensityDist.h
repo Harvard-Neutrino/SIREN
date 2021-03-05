@@ -99,21 +99,21 @@ class DensityException : public std::exception {
     std::string message_;
 };
 
-class Density_distr {
+class DensityDistribution {
    public:
-    Density_distr();
-    Density_distr(const Axis& axis);
-    Density_distr(const Density_distr&);
+    DensityDistribution();
+    DensityDistribution(const Axis& axis);
+    DensityDistribution(const DensityDistribution&);
 
-    virtual ~Density_distr() { delete axis_; };
+    virtual ~DensityDistribution() { delete axis_; };
 
-    virtual bool operator==(const Density_distr& dens_distr) const;
-    virtual bool operator!=(const Density_distr& dens_distr) const;
-    virtual bool compare(const Density_distr& dens_distr) const = 0;
+    virtual bool operator==(const DensityDistribution& dens_distr) const;
+    virtual bool operator!=(const DensityDistribution& dens_distr) const;
+    virtual bool compare(const DensityDistribution& dens_distr) const = 0;
 
 
-    virtual Density_distr* clone() const = 0;
-    virtual std::shared_ptr<const Density_distr> create() const = 0;
+    virtual DensityDistribution* clone() const = 0;
+    virtual std::shared_ptr<const DensityDistribution> create() const = 0;
 
     virtual double Correct(const Vector3D& xi,
                            const Vector3D& direction,
@@ -133,7 +133,7 @@ class Density_distr {
     Axis* axis_;
 };
 
-class Density_homogeneous : public Density_distr {
+class Density_homogeneous : public DensityDistribution {
    public:
     Density_homogeneous();
     Density_homogeneous(const Density_homogeneous&);
@@ -141,14 +141,14 @@ class Density_homogeneous : public Density_distr {
 
     // ~Density_homogeneous(){};
 
-    bool compare(const Density_distr& dens_distr) const override;
+    bool compare(const DensityDistribution& dens_distr) const override;
 
-    Density_distr* clone() const override {
+    DensityDistribution* clone() const override {
         return new Density_homogeneous(*this);
     };
 
-    std::shared_ptr<const Density_distr> create() const override {
-        return std::shared_ptr<const Density_distr>(new Density_homogeneous(*this));
+    std::shared_ptr<const DensityDistribution> create() const override {
+        return std::shared_ptr<const DensityDistribution>(new Density_homogeneous(*this));
     };
 
     double Correct(const Vector3D& xi,
@@ -169,18 +169,18 @@ class Density_homogeneous : public Density_distr {
     double correction_factor_;
 };
 
-class Density_polynomial : public Density_distr {
+class Density_polynomial : public DensityDistribution {
    public:
     Density_polynomial(const Axis&, const Polynom&);
     Density_polynomial(const Density_polynomial&);
     ~Density_polynomial();
 
-    bool compare(const Density_distr& dens_distr) const override;
+    bool compare(const DensityDistribution& dens_distr) const override;
 
-    Density_distr* clone() const override {
+    DensityDistribution* clone() const override {
         return new Density_polynomial(*this);
     };
-    std::shared_ptr<const Density_distr> create() const override { return std::shared_ptr<const Density_distr>( new Density_polynomial(*this) ); };
+    std::shared_ptr<const DensityDistribution> create() const override { return std::shared_ptr<const DensityDistribution>( new Density_polynomial(*this) ); };
 
     double Correct(const Vector3D& xi,
                    const Vector3D& direction,
@@ -209,18 +209,18 @@ class Density_polynomial : public Density_distr {
     std::function<double(double)> antiderived_density_distribution;
 };
 
-class Density_exponential : public Density_distr {
+class Density_exponential : public DensityDistribution {
    public:
     Density_exponential(const Axis& axis, double sigma);
 
     ~Density_exponential(){};
 
-    bool compare(const Density_distr& dens_distr) const override;
+    bool compare(const DensityDistribution& dens_distr) const override;
 
-    Density_distr* clone() const override {
+    DensityDistribution* clone() const override {
         return new Density_exponential(*this);
     };
-    std::shared_ptr<const Density_distr> create() const override { return std::shared_ptr<const Density_distr>( new Density_exponential(*this) ); };
+    std::shared_ptr<const DensityDistribution> create() const override { return std::shared_ptr<const DensityDistribution>( new Density_exponential(*this) ); };
 
     double Integrate(const Vector3D& xi,
                      const Vector3D& direction,

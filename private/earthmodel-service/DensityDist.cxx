@@ -7,14 +7,14 @@
 
 using namespace earthmodel;
 
-Density_distr::Density_distr() : axis_(CartesianAxis().clone()) {}
+DensityDistribution::DensityDistribution() : axis_(CartesianAxis().clone()) {}
 
-Density_distr::Density_distr(const Density_distr& density_distr)
+DensityDistribution::DensityDistribution(const DensityDistribution& density_distr)
     : axis_(density_distr.axis_->clone()) {}
 
-Density_distr::Density_distr(const Axis& axis) : axis_(axis.clone()) {}
+DensityDistribution::DensityDistribution(const Axis& axis) : axis_(axis.clone()) {}
 
-bool Density_distr::operator==(const Density_distr& dens_distr) const
+bool DensityDistribution::operator==(const DensityDistribution& dens_distr) const
 {
     if (*axis_ != *dens_distr.axis_)
         return false;
@@ -24,7 +24,7 @@ bool Density_distr::operator==(const Density_distr& dens_distr) const
 }
 
 
-bool Density_distr::operator!=(const Density_distr& dens_distr) const {
+bool DensityDistribution::operator!=(const DensityDistribution& dens_distr) const {
     return !(*this == dens_distr);
 }
 
@@ -99,17 +99,17 @@ double CartesianAxis::GetEffectiveDistance(const Vector3D& xi,
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Density_homogeneous::Density_homogeneous()
-    : Density_distr(), correction_factor_(1.0) {}
+    : DensityDistribution(), correction_factor_(1.0) {}
 
 Density_homogeneous::Density_homogeneous(double correction_factor)
-    : Density_distr(), correction_factor_(correction_factor) {}
+    : DensityDistribution(), correction_factor_(correction_factor) {}
 
 Density_homogeneous::Density_homogeneous(const Density_homogeneous& dens_distr)
-    : Density_distr(dens_distr),
+    : DensityDistribution(dens_distr),
       correction_factor_(dens_distr.correction_factor_) {}
 
 
-bool Density_homogeneous::compare(const Density_distr& dens_distr) const {
+bool Density_homogeneous::compare(const DensityDistribution& dens_distr) const {
     const Density_homogeneous* dens_homogen = dynamic_cast<const Density_homogeneous*>(&dens_distr);
     if(!dens_homogen)
         return false;
@@ -155,14 +155,14 @@ double Density_homogeneous::Evaluate(const Vector3D& xi) const {
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Density_polynomial::Density_polynomial(const Axis& axis, const Polynom& polynom)
-    : Density_distr(axis),
+    : DensityDistribution(axis),
       polynom_(polynom),
       Polynom_(polynom_.GetAntiderivative(0)),
       density_distribution(polynom_.GetFunction()),
       antiderived_density_distribution(Polynom_.GetFunction()) {}
 
 Density_polynomial::Density_polynomial(const Density_polynomial& dens)
-    : Density_distr(dens),
+    : DensityDistribution(dens),
       polynom_(dens.polynom_),
       Polynom_(dens.Polynom_),
       density_distribution(polynom_.GetFunction()),
@@ -170,7 +170,7 @@ Density_polynomial::Density_polynomial(const Density_polynomial& dens)
 
 Density_polynomial::~Density_polynomial() {}
 
-bool Density_polynomial::compare(const Density_distr& dens_distr) const {
+bool Density_polynomial::compare(const DensityDistribution& dens_distr) const {
     const Density_polynomial* dens_poly = dynamic_cast<const Density_polynomial*>(&dens_distr);
     if(!dens_poly)
         return false;
@@ -244,13 +244,13 @@ double Density_polynomial::Evaluate(const Vector3D& xi) const {
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Density_exponential::Density_exponential(const Axis& axis, double sigma)
-    : Density_distr(axis), sigma_(sigma) {}
+    : DensityDistribution(axis), sigma_(sigma) {}
 
 double Density_exponential::GetDepth(const Vector3D& xi) const {
     return axis_->GetDepth(xi) / sigma_;
 }
 
-bool Density_exponential::compare(const Density_distr& dens_distr) const {
+bool Density_exponential::compare(const DensityDistribution& dens_distr) const {
     const Density_exponential* dens_exp = dynamic_cast<const Density_exponential*>(&dens_distr);
     if(!dens_exp)
         return false;
