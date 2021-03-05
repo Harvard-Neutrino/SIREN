@@ -27,13 +27,13 @@ bool DensityDistribution::operator!=(const DensityDistribution& dens_distr) cons
 // %%%%%%%%%%%%%%%%%%%        Axis        %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Axis::Axis() {}
+Axis1D::Axis1D() {}
 
-Axis::Axis(const Vector3D& fAxis, const Vector3D& fp0) : fAxis_(fAxis), fp0_(fp0) {}
+Axis1D::Axis1D(const Vector3D& fAxis, const Vector3D& fp0) : fAxis_(fAxis), fp0_(fp0) {}
 
-Axis::Axis(const Axis& axis) : fAxis_(axis.fAxis_), fp0_(axis.fp0_) {}
+Axis1D::Axis1D(const Axis1D& axis) : fAxis_(axis.fAxis_), fp0_(axis.fp0_) {}
 
-bool Axis::operator==(const Axis& axis) const {
+bool Axis1D::operator==(const Axis1D& axis) const {
     if(fAxis_ != axis.fAxis_)
         return false;
     if(fp0_ != axis.fp0_)
@@ -41,7 +41,7 @@ bool Axis::operator==(const Axis& axis) const {
     return true;
 }
 
-bool Axis::operator!=(const Axis& axis) const {
+bool Axis1D::operator!=(const Axis1D& axis) const {
     return !(*this == axis);
 }
 
@@ -49,41 +49,40 @@ bool Axis::operator!=(const Axis& axis) const {
 // %%%%%%%%%%%%%%%%%%%       Radial       %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-RadialAxis::RadialAxis() : Axis() {
+RadialAxis1D::RadialAxis1D() : Axis1D() {
     fp0_.SetCartesianCoordinates(0, 0, 0);
     fAxis_.SetSphericalCoordinates(1, 0, 0);
 }
 
-RadialAxis::RadialAxis(const Vector3D& fAxis, const Vector3D& fp0) : Axis(fAxis, fp0) {}
+RadialAxis1D::RadialAxis1D(const Vector3D& fAxis, const Vector3D& fp0) : Axis1D(fAxis, fp0) {}
 
-double RadialAxis::GetDepth(const Vector3D& xi) const {
+double RadialAxis1D::GetX(const Vector3D& xi) const {
     return (xi - fp0_).magnitude();
 }
 
-double RadialAxis::GetEffectiveDistance(const Vector3D& xi, const Vector3D& direction) const {
+double RadialAxis1D::GetdX(const Vector3D& xi, const Vector3D& direction) const {
     Vector3D aux{xi - fp0_};
     aux.normalise();
 
-    return -aux * direction;
+    return aux * direction;
 }
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%      Cartesian     %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-CartesianAxis::CartesianAxis() : Axis() {
+CartesianAxis1D::CartesianAxis1D() : Axis1D() {
     fAxis_.SetCartesianCoordinates(1, 0, 0);
     fp0_.SetCartesianCoordinates(0, 0, 0);
 }
 
-CartesianAxis::CartesianAxis(const Vector3D& fAxis, const Vector3D& fp0) : Axis(fAxis, fp0) {}
+CartesianAxis1D::CartesianAxis1D(const Vector3D& fAxis, const Vector3D& fp0) : Axis1D(fAxis, fp0) {}
 
-double CartesianAxis::GetDepth(const Vector3D& xi) const {
+double CartesianAxis1D::GetX(const Vector3D& xi) const {
     return fAxis_ * (xi - fp0_);
 }
 
-double CartesianAxis::GetEffectiveDistance(const Vector3D& xi,
-                                           const Vector3D& direction) const {
+double CartesianAxis1D::GetdX(const Vector3D& xi, const Vector3D& direction) const {
     (void)xi;
 
     return fAxis_ * direction;
@@ -148,7 +147,7 @@ double Density_homogeneous::Evaluate(const Vector3D& xi) const {
 // %%%%%%%%%%%%%%%%%%% Polynomial-Density %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Density_polynomial::Density_polynomial(const Axis& axis, const Polynom& polynom)
+Density_polynomial::Density_polynomial(const Axis1D& axis, const Polynom& polynom)
     : polynom_(polynom),
       Polynom_(polynom_.GetAntiderivative(0)),
       density_distribution(polynom_.GetFunction()),
@@ -224,18 +223,18 @@ double Density_polynomial::Integral(const Vector3D& xi,
 }
 
 double Density_polynomial::Evaluate(const Vector3D& xi) const {
-    return density_distribution(axis_->GetDepth(xi));
+    return density_distribution(axis_->GetX(xi));
 }
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%% Exponential-Density %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Density_exponential::Density_exponential(const Axis& axis, double sigma)
+Density_exponential::Density_exponential(const Axis1D& axis, double sigma)
     : sigma_(sigma) {}
 
 double Density_exponential::GetDepth(const Vector3D& xi) const {
-    return axis_->GetDepth(xi) / sigma_;
+    return axis_->GetX(xi) / sigma_;
 }
 
 bool Density_exponential::compare(const DensityDistribution& dens_distr) const {
@@ -249,7 +248,7 @@ bool Density_exponential::compare(const DensityDistribution& dens_distr) const {
 
 double Density_exponential::GetEffectiveDistance(const Vector3D& xi,
                                                  const Vector3D& direction) const {
-    return axis_->GetEffectiveDistance(xi, direction) / sigma_;
+    return axis_->GetdX(xi, direction) / sigma_;
 }
 
 double Density_exponential::InverseIntegral(const Vector3D& xi,

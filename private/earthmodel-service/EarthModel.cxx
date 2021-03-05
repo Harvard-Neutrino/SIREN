@@ -211,8 +211,8 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double de
                 ss >> param;
                 params.push_back(param);
             }
-            RadialAxis radial_ax;
-            Axis const & ax = radial_ax;
+            RadialAxis1D radial_ax;
+            Axis1D const & ax = radial_ax;
             Polynom poly(params);
             sector.density = Density_polynomial(ax, poly).create();
         }

@@ -34,61 +34,6 @@
 #include <earthmodel-service/Polynomial.h>
 
 namespace earthmodel {
-class Axis {
-   public:
-    Axis();
-    Axis(const Vector3D& fAxis, const Vector3D& fp0);
-    Axis(const Axis&);
-
-    virtual ~Axis() {};
-
-    bool operator==(const Axis& axis) const;
-    bool operator!=(const Axis& axis) const;
-
-    virtual Axis* clone() const = 0;
-    virtual std::shared_ptr<const Axis> create() const = 0;
-
-    virtual double GetDepth(const Vector3D& xi) const = 0;
-    virtual double GetEffectiveDistance(const Vector3D& xi,
-                                        const Vector3D& direction) const = 0;
-
-    Vector3D GetAxis() const { return fAxis_; };
-    Vector3D GetFp0() const { return fp0_; };
-
-   protected:
-    Vector3D fAxis_;
-    Vector3D fp0_;
-};
-
-class RadialAxis : public Axis {
-   public:
-    RadialAxis();
-    RadialAxis(const Vector3D& fAxis, const Vector3D& fp0);
-
-    Axis* clone() const override { return new RadialAxis(*this); };
-    virtual std::shared_ptr<const Axis> create() const override {
-        return std::shared_ptr<const Axis>(new RadialAxis(*this));
-    };
-    ~RadialAxis() {};
-
-    double GetDepth(const Vector3D& xi) const override;
-    double GetEffectiveDistance(const Vector3D& xi, const Vector3D& direction) const override;
-};
-
-class CartesianAxis : public Axis {
-   public:
-    CartesianAxis();
-    CartesianAxis(const Vector3D& fAxis, const Vector3D& fp0);
-    ~CartesianAxis() {};
-
-    Axis* clone() const override { return new CartesianAxis(*this); };
-    virtual std::shared_ptr<const Axis> create() const override {
-        return std::shared_ptr<const Axis>(new CartesianAxis(*this));
-    };
-
-    double GetDepth(const Vector3D& xi) const override;
-    double GetEffectiveDistance(const Vector3D& xi, const Vector3D& direction) const override;
-};
 
 class DensityException : public std::exception {
    public:
@@ -126,6 +71,73 @@ class DensityDistribution {
                                    double integral,
                                    double max_distance) const =0;
     virtual double Evaluate(const Vector3D& xi) const = 0;
+};
+
+class Distribution1D {
+public:
+    Distribution1D();
+    Distribution1D(const Distribution1D&);
+    virtual bool operator==(const Distribution1D& dist) const;
+    virtual bool operator!=(const Distribution1D& dist) const;
+    virtual bool compare(const Distribution1D& dist) const = 0;
+    virtual double Derivative(double x) const = 0;
+    virtual double AntiDerivative(double x) const = 0;
+    virtual double Evaluate(double x) const = 0;
+};
+
+class Axis1D {
+   public:
+    Axis1D();
+    Axis1D(const Vector3D& fAxis, const Vector3D& fp0);
+    Axis1D(const Axis1D&);
+
+    virtual ~Axis1D() {};
+
+    bool operator==(const Axis1D& axis) const;
+    bool operator!=(const Axis1D& axis) const;
+
+    virtual Axis1D* clone() const = 0;
+    virtual std::shared_ptr<const Axis1D> create() const = 0;
+
+    virtual double GetX(const Vector3D& xi) const = 0;
+    virtual double GetdX(const Vector3D& xi, const Vector3D& direction) const = 0;
+
+    Vector3D GetAxis() const { return fAxis_; };
+    Vector3D GetFp0() const { return fp0_; };
+
+   protected:
+    Vector3D fAxis_;
+    Vector3D fp0_;
+};
+
+class RadialAxis1D : public Axis1D {
+   public:
+    RadialAxis1D();
+    RadialAxis1D(const Vector3D& fAxis, const Vector3D& fp0);
+
+    Axis1D* clone() const override { return new RadialAxis1D(*this); };
+    virtual std::shared_ptr<const Axis1D> create() const override {
+        return std::shared_ptr<const Axis1D>(new RadialAxis1D(*this));
+    };
+    ~RadialAxis1D() {};
+
+    double GetX(const Vector3D& xi) const override;
+    double GetdX(const Vector3D& xi, const Vector3D& direction) const override;
+};
+
+class CartesianAxis1D : public Axis1D {
+   public:
+    CartesianAxis1D();
+    CartesianAxis1D(const Vector3D& fAxis, const Vector3D& fp0);
+    ~CartesianAxis1D() {};
+
+    Axis1D* clone() const override { return new CartesianAxis1D(*this); };
+    virtual std::shared_ptr<const Axis1D> create() const override {
+        return std::shared_ptr<const Axis1D>(new CartesianAxis1D(*this));
+    };
+
+    double GetX(const Vector3D& xi) const override;
+    double GetdX(const Vector3D& xi, const Vector3D& direction) const override;
 };
 
 class Density_homogeneous : public DensityDistribution {
@@ -166,12 +178,12 @@ class Density_homogeneous : public DensityDistribution {
    private:
     double correction_factor_;
    protected:
-    Axis* axis_;
+    Axis1D* axis_;
 };
 
 class Density_polynomial : public DensityDistribution {
    public:
-    Density_polynomial(const Axis&, const Polynom&);
+    Density_polynomial(const Axis1D&, const Polynom&);
     Density_polynomial(const Density_polynomial&);
     ~Density_polynomial();
 
@@ -213,12 +225,12 @@ class Density_polynomial : public DensityDistribution {
     std::function<double(double)> density_distribution;
     std::function<double(double)> antiderived_density_distribution;
    protected:
-    Axis* axis_;
+    Axis1D* axis_;
 };
 
 class Density_exponential : public DensityDistribution {
    public:
-    Density_exponential(const Axis& axis, double sigma);
+    Density_exponential(const Axis1D& axis, double sigma);
 
     ~Density_exponential(){};
 
@@ -250,7 +262,7 @@ class Density_exponential : public DensityDistribution {
    private:
     double sigma_;
    protected:
-    Axis* axis_;
+    Axis1D* axis_;
 };
 
 }  // namespace earthmodel

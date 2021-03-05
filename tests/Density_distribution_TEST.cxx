@@ -9,15 +9,15 @@ using namespace earthmodel;
 
 TEST(Comparison, Comparison_equal)
 {
-    Axis* ax_A = new RadialAxis();
-    Axis* ax_B = new RadialAxis();
+    Axis1D* ax_A = new RadialAxis1D();
+    Axis1D* ax_B = new RadialAxis1D();
     EXPECT_TRUE(*ax_A == *ax_B);
 
-    Axis* ax_C = new CartesianAxis();
-    CartesianAxis ax_D;
+    Axis1D* ax_C = new CartesianAxis1D();
+    CartesianAxis1D ax_D;
     EXPECT_TRUE(*ax_C == ax_D);
 
-    CartesianAxis ax_E;
+    CartesianAxis1D ax_E;
     EXPECT_TRUE(ax_E == ax_D);
 
     DensityDistribution* A = new Density_homogeneous(0.3);
@@ -47,14 +47,14 @@ TEST(Comparison, Comparison_not_equal)
     Vector3D faxis_new(0,1,0);
     Vector3D fp0_default(0,0,0);
     Vector3D fp0_new(1,1,1);
-    CartesianAxis ax_A;
-    CartesianAxis ax_B(faxis_default, fp0_new);
-    CartesianAxis ax_C(faxis_new, fp0_default);
+    CartesianAxis1D ax_A;
+    CartesianAxis1D ax_B(faxis_default, fp0_new);
+    CartesianAxis1D ax_C(faxis_new, fp0_default);
     EXPECT_TRUE(ax_A != ax_B);
     EXPECT_TRUE(ax_A != ax_C);
 
-    Axis* ax_D = new CartesianAxis();
-    Axis* ax_E = new RadialAxis();
+    Axis1D* ax_D = new CartesianAxis1D();
+    Axis1D* ax_E = new RadialAxis1D();
     EXPECT_TRUE(*ax_D != *ax_E);
 
     DensityDistribution* A = new Density_homogeneous();
@@ -82,9 +82,9 @@ TEST(Comparison, Comparison_not_equal)
 
 TEST(Assignment, Copyconstructor)
 {
-    CartesianAxis ax_A;
-    CartesianAxis ax_B = ax_A;
-    CartesianAxis ax_C(ax_A);
+    CartesianAxis1D ax_A;
+    CartesianAxis1D ax_B = ax_A;
+    CartesianAxis1D ax_C(ax_A);
     EXPECT_TRUE(ax_A == ax_B);
     EXPECT_TRUE(ax_A == ax_C);
 
