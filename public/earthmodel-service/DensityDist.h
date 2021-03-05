@@ -102,7 +102,6 @@ class DensityException : public std::exception {
 class DensityDistribution {
    public:
     DensityDistribution();
-    DensityDistribution(const Axis& axis);
     DensityDistribution(const DensityDistribution&);
 
     virtual ~DensityDistribution() { delete axis_; };
@@ -115,22 +114,20 @@ class DensityDistribution {
     virtual DensityDistribution* clone() const = 0;
     virtual std::shared_ptr<const DensityDistribution> create() const = 0;
 
-    virtual double Correct(const Vector3D& xi,
-                           const Vector3D& direction,
-                           double res,
-                           double distance_to_border) const = 0;
-    virtual double Integrate(const Vector3D& xi,
-                             const Vector3D& direction,
-                             double l) const = 0;
-    virtual double Calculate(const Vector3D& xi,
-                             const Vector3D& direction,
-                             double distance) const = 0;
+    virtual double Derivative(const Vector3D& xi,
+                              const Vector3D& direction) const = 0;
+    virtual double AntiDerivative(const Vector3D& xi,
+                                  const Vector3D& direction) const = 0;
+    virtual double Integral(const Vector3D& xi,
+                            const Vector3D& direction,
+                            double distance) const = 0;
+    virtual double Integral(const Vector3D& xi,
+                            const Vector3D& xj) const = 0;
+    virtual double InverseIntegral(const Vector3D& xi,
+                                   const Vector3D& direction,
+                                   double integral,
+                                   double max_distance) const =0;
     virtual double Evaluate(const Vector3D& xi) const = 0;
-
-    const Axis& GetAxis() const { return *axis_; }
-
-   protected:
-    Axis* axis_;
 };
 
 class Density_homogeneous : public DensityDistribution {
