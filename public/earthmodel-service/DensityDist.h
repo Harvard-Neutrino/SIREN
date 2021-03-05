@@ -156,7 +156,7 @@ class RadialAxis1D : public Axis1D {
     RadialAxis1D(const Vector3D& fAxis, const Vector3D& fp0);
 
     Axis1D* clone() const override { return new RadialAxis1D(*this); };
-    virtual std::shared_ptr<const Axis1D> create() const override {
+    std::shared_ptr<const Axis1D> create() const override {
         return std::shared_ptr<const Axis1D>(new RadialAxis1D(*this));
     };
     ~RadialAxis1D() {};
@@ -172,7 +172,7 @@ class CartesianAxis1D : public Axis1D {
     ~CartesianAxis1D() {};
 
     Axis1D* clone() const override { return new CartesianAxis1D(*this); };
-    virtual std::shared_ptr<const Axis1D> create() const override {
+    std::shared_ptr<const Axis1D> create() const override {
         return std::shared_ptr<const Axis1D>(new CartesianAxis1D(*this));
     };
 
@@ -189,11 +189,16 @@ template<class T>
 struct enable_if_and<true, true, T> {typedef T type;};
 }
 
-template <typename AxisT, typename DistributionT, typename
-    enable_if_and<std::is_base_of<Axis1D, AxisT>::value,
-    std::is_base_of<Distribution1D, DistributionT>::value>::type
-    >
-class DensityDistribution1D : DensityDistribution {
+//template <typename AxisT, typename DistributionT, bool E = std::enable_if<std::is_base_of<Axis1D, AxisT>::value>::value>
+//class DensityDistribution1D : DensityDistribution {};
+
+//template <typename AxisT, typename DistributionT>
+//class DensityDistribution1D<AxisT, DistributionT, std::enable_if<std::is_base_of<Axis1D, AxisT>::value && std::is_base_of<Distribution1D, DistributionT>::value>::type>
+template <typename AxisT, typename DistributionT, class E = typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value && std::is_base_of<Distribution1D, DistributionT>::value>::type>
+class DensityDistribution1D
+    : DensityDistribution {
+    //using T = DensityDistribution1D<AxisT, DistributionT, std::enable_if<true>::type>;
+    using T = decltype(DensityDistribution1D());
    private:
     AxisT axis;
     DistributionT dist;
@@ -213,8 +218,10 @@ class DensityDistribution1D : DensityDistribution {
         return true;
     };
 
-    DensityDistribution* clone() const override;
-    std::shared_ptr<const DensityDistribution> create() const override;
+    DensityDistribution* clone() const override { return new T(*this); };
+    std::shared_ptr<const DensityDistribution> create() const override {
+        return std::shared_ptr<const DensityDistribution>(new T(*this));
+    };
 
     double Derivative(const Vector3D& xi,
                       const Vector3D& direction) const override {
@@ -265,6 +272,81 @@ class DensityDistribution1D : DensityDistribution {
 
     double Evaluate(const Vector3D& xi) const override {
         return dist.Evaluate(axis.GetX(xi));
+    };
+};
+
+typedef DensityDistribution1D<RadialAxis1D, ExponentialDistribution1D> A;
+
+template<typename AxisT>
+class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value>::type> : DensityDistribution {
+    using DistributionT = ConstantDistribution1D;
+    using T = DensityDistribution1D<AxisT, ConstantDistribution1D>;
+   private:
+    AxisT axis;
+    ConstantDistribution1D dist;
+   public:
+    DensityDistribution1D();
+    DensityDistribution1D(const AxisT& axis, const ConstantDistribution1D& dist)
+        : axis(axis), dist(dist) {};
+    DensityDistribution1D(const AxisT& axis, double val)
+        : axis(axis), dist(val) {};
+    DensityDistribution1D(double val)
+        : axis(), dist(val) {};
+    DensityDistribution1D(const DensityDistribution1D& other)
+        : axis(other.axis), dist(other.dist) {};
+
+    bool compare(const DensityDistribution& d) const override {
+        const T* d_1d = dynamic_cast<const T*>(&d);
+        if(!d_1d)
+            return false;
+        if(axis != d_1d->axis or dist != d_1d->dist)
+            return false;
+        return true;
+    };
+
+    DensityDistribution* clone() const override { return new T(*this); };
+    std::shared_ptr<const DensityDistribution> create() const override {
+        return std::shared_ptr<const DensityDistribution>(new T(*this));
+    };
+
+    double Derivative(const Vector3D& xi,
+                      const Vector3D& direction) const override {
+        return 0;
+    };
+
+    double AntiDerivative(const Vector3D& xi,
+                          const Vector3D& direction) const override {
+        return Integral(axis.GetFp0(), xi, direction);
+    };
+
+    double Integral(const Vector3D& xi,
+                    const Vector3D& direction,
+                    double distance) const override {
+        (void)direction;
+        return distance*dist.Evaluate(0);
+    }
+
+    double Integral(const Vector3D& xi,
+                    const Vector3D& xj) const override {
+        double distance = (xj-xi).magnitude();
+        return distance*dist.Evaluate(0);
+    };
+
+    double InverseIntegral(const Vector3D& xi,
+                           const Vector3D& direction,
+                           double integral,
+                           double max_distance) const override {
+        (void)direction;
+        double distance = integral / dist.Evaluate(0);
+        if(distance > max_distance) {
+            throw DensityException("");
+        }
+        return distance;
+    };
+
+    double Evaluate(const Vector3D& xi) const override {
+        (void)xi;
+        return dist.Evaluate(0);
     };
 };
 
