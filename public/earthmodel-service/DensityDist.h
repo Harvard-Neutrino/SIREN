@@ -85,6 +85,21 @@ public:
     virtual double Evaluate(double x) const = 0;
 };
 
+class PolynomialDistribution1D : Distribution1D{
+public:
+    PolynomialDistribution1D(const PolynomialDistribution1D&);
+    PolynomialDistribution1D(const Polynom&);
+    PolynomialDistribution1D(const std::vector<double>&);
+    bool compare(const Distribution1D& dist) const override;
+    double Derivative(double x) const override;
+    double AntiDerivative(double x) const override;
+    double Evaluate(double x) const override;
+protected:
+    Polynom polynom_;
+    Polynom Ipolynom_;
+    Polynom dpolynom_;
+};
+
 class Axis1D {
    public:
     Axis1D();

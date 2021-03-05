@@ -11,7 +11,7 @@
 
 using namespace earthmodel;
 
-Polynom::Polynom(std::vector<double> coefficients) : N_(coefficients.size()) {
+Polynom::Polynom(const std::vector<double>& coefficients) : N_(coefficients.size()) {
     coeff_ = new double[N_];
 
     std::copy(coefficients.begin(), coefficients.end(), coeff_);
@@ -33,7 +33,7 @@ bool Polynom::operator!=(const Polynom& polynom) const {
     return !(*this == polynom);
 }
 
-double Polynom::evaluate(double x) {
+double Polynom::evaluate(double x) const {
     double aux = coeff_[N_ - 1];
 
     for (int i = N_ - 2; i >= 0; --i)
@@ -69,7 +69,7 @@ void Polynom::shift(double x) {
     }
 }
 
-Polynom Polynom::GetDerivative() {
+Polynom Polynom::GetDerivative() const {
     std::vector<double> derivative_coeff_;
 
     for (auto i = 1; i < N_; ++i)
@@ -78,7 +78,7 @@ Polynom Polynom::GetDerivative() {
     return Polynom(derivative_coeff_);
 }
 
-Polynom Polynom::GetAntiderivative(double constant) {
+Polynom Polynom::GetAntiderivative(double constant) const {
     std::vector<double> derivative_coeff_{constant};
 
     for (auto i = 0; i < N_; ++i)
