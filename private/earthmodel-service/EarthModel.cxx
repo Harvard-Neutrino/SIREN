@@ -47,7 +47,7 @@ void EarthModel::LoadMaterialModel(MaterialModel const & material_model) {
 double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const {
     Vector3D direction = p1 - p0;
     double distance = direction.magnitude();
-    direction.normalise();
+    direction.normalize();
     std::vector<Geometry::Intersection> intersections;
 
     for(auto const & sector : sectors_) {

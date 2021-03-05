@@ -62,7 +62,7 @@ double RadialAxis1D::GetX(const Vector3D& xi) const {
 
 double RadialAxis1D::GetdX(const Vector3D& xi, const Vector3D& direction) const {
     Vector3D aux{xi - fp0_};
-    aux.normalise();
+    aux.normalize();
 
     return aux * direction;
 }
@@ -294,7 +294,7 @@ double Density_polynomial::Evaluate(const Vector3D& xi) const {
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%% Exponential-Density %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//
+
 ExponentialDistribution1D::ExponentialDistribution1D(const ExponentialDistribution1D& dist)
     : sigma_(dist.sigma_) {}
 

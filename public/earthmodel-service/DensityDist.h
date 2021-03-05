@@ -32,6 +32,7 @@
 #include <memory>
 #include <earthmodel-service/Vector3D.h>
 #include <earthmodel-service/Polynomial.h>
+#include <earthmodel-service/EarthModelCalculator.h>
 
 namespace earthmodel {
 
@@ -69,7 +70,7 @@ class DensityDistribution {
     virtual double InverseIntegral(const Vector3D& xi,
                                    const Vector3D& direction,
                                    double integral,
-                                   double max_distance) const =0;
+                                   double max_distance) const = 0;
     virtual double Evaluate(const Vector3D& xi) const = 0;
 };
 
@@ -177,6 +178,94 @@ class CartesianAxis1D : public Axis1D {
 
     double GetX(const Vector3D& xi) const override;
     double GetdX(const Vector3D& xi, const Vector3D& direction) const override;
+};
+
+
+namespace {
+template<bool A, bool B, class T = void>
+struct enable_if_and {};
+
+template<class T>
+struct enable_if_and<true, true, T> {typedef T type;};
+}
+
+template <typename AxisT, typename DistributionT, typename
+    enable_if_and<std::is_base_of<Axis1D, AxisT>::value,
+    std::is_base_of<Distribution1D, DistributionT>::value>::type
+    >
+class DensityDistribution1D : DensityDistribution {
+   private:
+    AxisT axis;
+    DistributionT dist;
+   public:
+    DensityDistribution1D();
+    DensityDistribution1D(const AxisT& axis, const DistributionT& dist)
+        : axis(axis), dist(dist) {};
+    DensityDistribution1D(const DensityDistribution1D& other)
+        : axis(other.axis), dist(other.dist) {};
+
+    bool compare(const DensityDistribution& d) const override {
+        const DensityDistribution1D* d_1d = dynamic_cast<const DensityDistribution1D*>(&d);
+        if(!d_1d)
+            return false;
+        if(axis != d_1d->axis or dist != d_1d->dist)
+            return false;
+        return true;
+    };
+
+    DensityDistribution* clone() const override;
+    std::shared_ptr<const DensityDistribution> create() const override;
+
+    double Derivative(const Vector3D& xi,
+                      const Vector3D& direction) const override {
+        return dist.Derivative(xi)*axis.GetdX(xi, direction);
+    };
+
+    double AntiDerivative(const Vector3D& xi,
+                          const Vector3D& direction) const override {
+        return Integral(axis.GetFp0(), xi, direction);
+    };
+
+    double Integral(const Vector3D& xi,
+                    const Vector3D& direction,
+                    double distance) const override {
+        std::function<double(double)> f = [&](double x)->double {
+            return Evaluate(xi+x*direction);
+        };
+        return Integration::rombergIntegrate(f, 0, distance, 1e-6);
+    }
+
+    double Integral(const Vector3D& xi,
+                    const Vector3D& xj) const override {
+        Vector3D direction = xj-xi;
+        double distance = direction.magnitude();
+        direction.normalize();
+        return Integral(xi, direction, distance);
+    };
+
+    double InverseIntegral(const Vector3D& xi,
+                           const Vector3D& direction,
+                           double integral,
+                           double max_distance) const override {
+        std::function<double(double)> F = [&](double x)->double {
+            return Integral(xi, direction, x) - integral;
+        };
+
+        std::function<double(double)> dF = [&](double x)->double {
+            return Evaluate(xi+direction*x);
+        };
+
+        double res;
+        try {
+            res = NewtonRaphson(F, dF, 0, max_distance, max_distance/2);
+        } catch(MathException& e) {
+            throw DensityException("");
+        }
+    };
+
+    double Evaluate(const Vector3D& xi) const override {
+        return dist.Evaluate(axis.GetX(xi));
+    };
 };
 
 class Density_homogeneous : public DensityDistribution {

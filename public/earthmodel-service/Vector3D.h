@@ -63,7 +63,7 @@ public:
     friend Vector3D vector_product(const Vector3D& vec1, const Vector3D& vec2);
     Vector3D operator-() const;
     double magnitude() const;
-    void normalise();
+    void normalize();
     void deflect(const double , const double);
 
     struct CartesianCoordinates {

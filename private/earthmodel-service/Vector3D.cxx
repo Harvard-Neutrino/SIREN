@@ -214,7 +214,7 @@ double Vector3D::magnitude() const
     return std::sqrt(cartesian_.x_ * cartesian_.x_ + cartesian_.y_ * cartesian_.y_ + cartesian_.z_ * cartesian_.z_);
 }
 
-void Vector3D::normalise()
+void Vector3D::normalize()
 {
     double length   = std::sqrt(cartesian_.x_ * cartesian_.x_ + cartesian_.y_ * cartesian_.y_ + cartesian_.z_ * cartesian_.z_);
     cartesian_.x_              = cartesian_.x_ / length;

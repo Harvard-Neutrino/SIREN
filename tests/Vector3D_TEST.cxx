@@ -173,7 +173,7 @@ TEST(Magnitude, Operator)
     EXPECT_TRUE(result != sum);
 }
 
-TEST(Normalise, Operator)
+TEST(Normalize, Operator)
 {
     Vector3D A;
     Vector3D B;
@@ -183,10 +183,10 @@ TEST(Normalise, Operator)
     C.SetCartesianCoordinates(1, 0, 0);
     EXPECT_TRUE(A != C);
     EXPECT_TRUE(B != C);
-    A.normalise();
+    A.normalize();
     C.SetSphericalCoordinates(1,0,0);
     EXPECT_TRUE(A == C);
-    B.normalise();
+    B.normalize();
     EXPECT_TRUE(B != C);
 }
 
