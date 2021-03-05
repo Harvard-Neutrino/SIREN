@@ -7,17 +7,12 @@
 
 using namespace earthmodel;
 
-DensityDistribution::DensityDistribution() : axis_(CartesianAxis().clone()) {}
+DensityDistribution::DensityDistribution() {}
 
-DensityDistribution::DensityDistribution(const DensityDistribution& density_distr)
-    : axis_(density_distr.axis_->clone()) {}
-
-DensityDistribution::DensityDistribution(const Axis& axis) : axis_(axis.clone()) {}
+DensityDistribution::DensityDistribution(const DensityDistribution& density_distr) {}
 
 bool DensityDistribution::operator==(const DensityDistribution& dens_distr) const
 {
-    if (*axis_ != *dens_distr.axis_)
-        return false;
     if (!this->compare(dens_distr) )
         return false;
     return true;
@@ -118,10 +113,10 @@ bool Density_homogeneous::compare(const DensityDistribution& dens_distr) const {
     return true;
 }
 
-double Density_homogeneous::Correct(const Vector3D& xi,
-                                    const Vector3D& direction,
-                                    double res,
-                                    double distance_to_border) const {
+double Density_homogeneous::InverseIntegral(const Vector3D& xi,
+                                            const Vector3D& direction,
+                                            double res,
+                                            double distance_to_border) const {
     (void)xi;
     (void)direction;
     (void)distance_to_border;
@@ -129,19 +124,18 @@ double Density_homogeneous::Correct(const Vector3D& xi,
     return res / correction_factor_;
 }
 
-double Density_homogeneous::Integrate(const Vector3D& xi,
-                                      const Vector3D& direction,
-                                      double l) const {
+double Density_homogeneous::AntiDerivative(const Vector3D& xi,
+                                           const Vector3D& direction) const {
     (void)xi;
     (void)direction;
 
-    return correction_factor_ * l;
+    return correction_factor_;
 }
 
-double Density_homogeneous::Calculate(const Vector3D& xi,
-                                      const Vector3D& direction,
-                                      double distance) const {
-    return Integrate(xi, direction, distance) - Integrate(xi, direction, 0);
+double Density_homogeneous::Integral(const Vector3D& xi,
+                                     const Vector3D& direction,
+                                     double distance) const {
+    return AntiDerivative(xi+direction*distance, direction) - AntiDerivative(xi, direction);
 }
 
 double Density_homogeneous::Evaluate(const Vector3D& xi) const {
@@ -155,15 +149,13 @@ double Density_homogeneous::Evaluate(const Vector3D& xi) const {
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Density_polynomial::Density_polynomial(const Axis& axis, const Polynom& polynom)
-    : DensityDistribution(axis),
-      polynom_(polynom),
+    : polynom_(polynom),
       Polynom_(polynom_.GetAntiderivative(0)),
       density_distribution(polynom_.GetFunction()),
       antiderived_density_distribution(Polynom_.GetFunction()) {}
 
 Density_polynomial::Density_polynomial(const Density_polynomial& dens)
-    : DensityDistribution(dens),
-      polynom_(dens.polynom_),
+    : polynom_(dens.polynom_),
       Polynom_(dens.Polynom_),
       density_distribution(polynom_.GetFunction()),
       antiderived_density_distribution(Polynom_.GetFunction()) {}
@@ -183,7 +175,7 @@ double Density_polynomial::Helper_function(const Vector3D& xi,
                                            const Vector3D& direction,
                                            double res,
                                            double l) const {
-    return Integrate(xi, direction, 0) - Integrate(xi, direction, l) + res;
+    return AntiDerivative(xi, direction) - AntiDerivative(xi + direction*l, direction) + res;
 }
 
 double Density_polynomial::helper_function(const Vector3D& xi,
@@ -195,10 +187,10 @@ double Density_polynomial::helper_function(const Vector3D& xi,
     return Evaluate(xi) - Evaluate(xi + l * direction);
 }
 
-double Density_polynomial::Correct(const Vector3D& xi,
-                                   const Vector3D& direction,
-                                   double res,
-                                   double distance_to_border) const {
+double Density_polynomial::InverseIntegral(const Vector3D& xi,
+                                           const Vector3D& direction,
+                                           double res,
+                                           double distance_to_border) const {
     std::function<double(double)> F =
         std::bind(&Density_polynomial::Helper_function, this, xi, direction,
                   res, std::placeholders::_1);
@@ -220,19 +212,15 @@ double Density_polynomial::Correct(const Vector3D& xi,
     return res;
 }
 
-double Density_polynomial::Integrate(const Vector3D& xi,
-                                     const Vector3D& direction,
-                                     double l) const {
-    double delta = axis_->GetEffectiveDistance(xi, direction);
-
-    return antiderived_density_distribution(axis_->GetDepth(xi) + l * delta) /
-           (delta * delta);
+double Density_polynomial::AntiDerivative(const Vector3D& xi,
+                                          const Vector3D& direction) const {
+    return 0.0;
 }
 
-double Density_polynomial::Calculate(const Vector3D& xi,
-                                     const Vector3D& direction,
-                                     double distance) const {
-    return Integrate(xi, direction, distance) - Integrate(xi, direction, 0);
+double Density_polynomial::Integral(const Vector3D& xi,
+                                    const Vector3D& direction,
+                                    double distance) const {
+    return AntiDerivative(xi+direction*distance, direction) - AntiDerivative(xi, direction);
 }
 
 double Density_polynomial::Evaluate(const Vector3D& xi) const {
@@ -244,7 +232,7 @@ double Density_polynomial::Evaluate(const Vector3D& xi) const {
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Density_exponential::Density_exponential(const Axis& axis, double sigma)
-    : DensityDistribution(axis), sigma_(sigma) {}
+    : sigma_(sigma) {}
 
 double Density_exponential::GetDepth(const Vector3D& xi) const {
     return axis_->GetDepth(xi) / sigma_;
@@ -264,10 +252,10 @@ double Density_exponential::GetEffectiveDistance(const Vector3D& xi,
     return axis_->GetEffectiveDistance(xi, direction) / sigma_;
 }
 
-double Density_exponential::Correct(const Vector3D& xi,
-                                    const Vector3D& direction,
-                                    double res,
-                                    double distance_to_border) const {
+double Density_exponential::InverseIntegral(const Vector3D& xi,
+                                            const Vector3D& direction,
+                                            double res,
+                                            double distance_to_border) const {
     (void)distance_to_border;
 
     double phi = GetDepth(xi);
@@ -281,18 +269,15 @@ double Density_exponential::Correct(const Vector3D& xi,
     return aux;
 }
 
-double Density_exponential::Integrate(const Vector3D& xi,
-                                      const Vector3D& direction,
-                                      double l) const {
-    double delta = GetEffectiveDistance(xi, direction);
-
-    return std::exp(GetDepth(xi) + l * delta) / delta;
+double Density_exponential::AntiDerivative(const Vector3D& xi,
+                                           const Vector3D& direction) const {
+    return 0.0;
 }
 
-double Density_exponential::Calculate(const Vector3D& xi,
+double Density_exponential::Integral(const Vector3D& xi,
                                       const Vector3D& direction,
                                       double distance) const {
-    return Integrate(xi, direction, distance) - Integrate(xi, direction, 0);
+    return AntiDerivative(xi+direction*distance, direction) - AntiDerivative(xi, direction);
 }
 
 double Density_exponential::Evaluate(const Vector3D& xi) const {

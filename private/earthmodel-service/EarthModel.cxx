@@ -95,7 +95,7 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
                 if(intersection.distance > 0) {
                     // Store integral between current_intersection and new intersection
                     double segment_length = std::min(intersection.distance, distance)-current_intersection->distance;
-                    column_depth += sectors_[current_intersection->hierarchy].density->Integrate(p0+current_intersection->distance*direction, direction, segment_length);
+                    column_depth += sectors_[current_intersection->hierarchy].density->Integral(p0+current_intersection->distance*direction, direction, segment_length);
                     if(intersection.distance >= distance) {
                         break;
                     }
@@ -109,7 +109,7 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
                 if(intersection.distance > 0) {
                     // Store integral between current_intersection and new intersection
                     double segment_length = std::min(intersection.distance, distance)-current_intersection->distance;
-                    column_depth += sectors_[current_intersection->hierarchy].density->Integrate(p0+current_intersection->distance*direction, direction, segment_length);
+                    column_depth += sectors_[current_intersection->hierarchy].density->Integral(p0+current_intersection->distance*direction, direction, segment_length);
                     if(intersection.distance >= distance) {
                         break;
                     }

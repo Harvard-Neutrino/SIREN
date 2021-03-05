@@ -104,8 +104,6 @@ class DensityDistribution {
     DensityDistribution();
     DensityDistribution(const DensityDistribution&);
 
-    virtual ~DensityDistribution() { delete axis_; };
-
     virtual bool operator==(const DensityDistribution& dens_distr) const;
     virtual bool operator!=(const DensityDistribution& dens_distr) const;
     virtual bool compare(const DensityDistribution& dens_distr) const = 0;
@@ -148,22 +146,27 @@ class Density_homogeneous : public DensityDistribution {
         return std::shared_ptr<const DensityDistribution>(new Density_homogeneous(*this));
     };
 
-    double Correct(const Vector3D& xi,
-                   const Vector3D& direction,
-                   double res,
-                   double distance_to_border) const override;
-    double Integrate(const Vector3D& xi,
-                     const Vector3D& direction,
-                     double res) const override;
-    double Calculate(const Vector3D& xi,
-                     const Vector3D& direction,
-                     double distance) const override;
+    double Derivative(const Vector3D& xi,
+                      const Vector3D& direction) const override;
+    double AntiDerivative(const Vector3D& xi,
+                          const Vector3D& direction) const override;
+    double Integral(const Vector3D& xi,
+                    const Vector3D& direction,
+                    double distance) const override;
+    double Integral(const Vector3D& xi,
+                    const Vector3D& xj) const override;
+    double InverseIntegral(const Vector3D& xi,
+                           const Vector3D& direction,
+                           double integral,
+                           double max_distance) const override;
     double Evaluate(const Vector3D& xi) const override;
 
-    double GetCorrectionfactor() const { return correction_factor_; }
+    double GetInverseIntegralionfactor() const { return correction_factor_; }
 
    private:
     double correction_factor_;
+   protected:
+    Axis* axis_;
 };
 
 class Density_polynomial : public DensityDistribution {
@@ -179,15 +182,20 @@ class Density_polynomial : public DensityDistribution {
     };
     std::shared_ptr<const DensityDistribution> create() const override { return std::shared_ptr<const DensityDistribution>( new Density_polynomial(*this) ); };
 
-    double Correct(const Vector3D& xi,
-                   const Vector3D& direction,
-                   double res,
-                   double distance_to_border) const override;
-    double Integrate(const Vector3D& xi, const Vector3D& direction, double l) const override;
+    double Derivative(const Vector3D& xi,
+                      const Vector3D& direction) const override;
+    double AntiDerivative(const Vector3D& xi,
+                          const Vector3D& direction) const override;
+    double Integral(const Vector3D& xi,
+                    const Vector3D& direction,
+                    double distance) const override;
+    double Integral(const Vector3D& xi,
+                    const Vector3D& xj) const override;
+    double InverseIntegral(const Vector3D& xi,
+                           const Vector3D& direction,
+                           double integral,
+                           double max_distance) const override;
     double Evaluate(const Vector3D& xi) const override;
-    double Calculate(const Vector3D& xi,
-                     const Vector3D& direction,
-                     double distance) const override;
 
     double Helper_function(const Vector3D& xi,
                            const Vector3D& direction,
@@ -204,6 +212,8 @@ class Density_polynomial : public DensityDistribution {
 
     std::function<double(double)> density_distribution;
     std::function<double(double)> antiderived_density_distribution;
+   protected:
+    Axis* axis_;
 };
 
 class Density_exponential : public DensityDistribution {
@@ -219,17 +229,19 @@ class Density_exponential : public DensityDistribution {
     };
     std::shared_ptr<const DensityDistribution> create() const override { return std::shared_ptr<const DensityDistribution>( new Density_exponential(*this) ); };
 
-    double Integrate(const Vector3D& xi,
-                     const Vector3D& direction,
-                     double res) const override;
-    double Correct(const Vector3D& xi,
-                   const Vector3D& direction,
-                   double res,
-                   double distance_to_border) const override;
-
-    double Calculate(const Vector3D& xi,
-                     const Vector3D& direction,
-                     double distance) const override;
+    double Derivative(const Vector3D& xi,
+                      const Vector3D& direction) const override;
+    double AntiDerivative(const Vector3D& xi,
+                          const Vector3D& direction) const override;
+    double Integral(const Vector3D& xi,
+                    const Vector3D& direction,
+                    double distance) const override;
+    double Integral(const Vector3D& xi,
+                    const Vector3D& xj) const override;
+    double InverseIntegral(const Vector3D& xi,
+                           const Vector3D& direction,
+                           double integral,
+                           double max_distance) const override;
     double Evaluate(const Vector3D& xi) const override;
 
     double GetDepth(const Vector3D& xi) const;
@@ -237,6 +249,8 @@ class Density_exponential : public DensityDistribution {
 
    private:
     double sigma_;
+   protected:
+    Axis* axis_;
 };
 
 }  // namespace earthmodel
