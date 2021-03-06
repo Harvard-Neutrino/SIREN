@@ -180,24 +180,9 @@ class CartesianAxis1D : public Axis1D {
     double GetdX(const Vector3D& xi, const Vector3D& direction) const override;
 };
 
-
-namespace {
-template<bool A, bool B, class T = void>
-struct enable_if_and {};
-
-template<class T>
-struct enable_if_and<true, true, T> {typedef T type;};
-}
-
-//template <typename AxisT, typename DistributionT, bool E = std::enable_if<std::is_base_of<Axis1D, AxisT>::value>::value>
-//class DensityDistribution1D : DensityDistribution {};
-
-//template <typename AxisT, typename DistributionT>
-//class DensityDistribution1D<AxisT, DistributionT, std::enable_if<std::is_base_of<Axis1D, AxisT>::value && std::is_base_of<Distribution1D, DistributionT>::value>::type>
 template <typename AxisT, typename DistributionT, class E = typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value && std::is_base_of<Distribution1D, DistributionT>::value>::type>
 class DensityDistribution1D
     : DensityDistribution {
-    //using T = DensityDistribution1D<AxisT, DistributionT, std::enable_if<true>::type>;
     using T = decltype(DensityDistribution1D());
    private:
     AxisT axis;
@@ -268,14 +253,13 @@ class DensityDistribution1D
         } catch(MathException& e) {
             throw DensityException("");
         }
+        return res;
     };
 
     double Evaluate(const Vector3D& xi) const override {
         return dist.Evaluate(axis.GetX(xi));
     };
 };
-
-typedef DensityDistribution1D<RadialAxis1D, ExponentialDistribution1D> A;
 
 template<typename AxisT>
 class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value>::type> : DensityDistribution {
@@ -347,6 +331,99 @@ class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_
     double Evaluate(const Vector3D& xi) const override {
         (void)xi;
         return dist.Evaluate(0);
+    };
+};
+
+template<typename DistributionT>
+class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable_if<std::is_base_of<Distribution1D, DistributionT>::value && !std::is_same<ConstantDistribution1D,DistributionT>::value>::type> : DensityDistribution {
+    using AxisT = CartesianAxis1D;
+    using T = DensityDistribution1D<CartesianAxis1D, DistributionT>;
+   private:
+    AxisT axis;
+    DistributionT dist;
+   public:
+    DensityDistribution1D();
+    DensityDistribution1D(const AxisT& axis, const DistributionT& dist)
+        : axis(axis), dist(dist) {};
+    DensityDistribution1D(const DensityDistribution1D& other)
+        : axis(other.axis), dist(other.dist) {};
+
+    bool compare(const DensityDistribution& d) const override {
+        const T* d_1d = dynamic_cast<const T*>(&d);
+        if(!d_1d)
+            return false;
+        if(axis != d_1d->axis or dist != d_1d->dist)
+            return false;
+        return true;
+    };
+
+    DensityDistribution* clone() const override { return new T(*this); };
+    std::shared_ptr<const DensityDistribution> create() const override {
+        return std::shared_ptr<const DensityDistribution>(new T(*this));
+    };
+
+    double Derivative(const Vector3D& xi,
+                      const Vector3D& direction) const override {
+        return dist.Derivative(xi)*axis.GetdX(xi, direction);
+    };
+
+    double AntiDerivative(const Vector3D& xi,
+                          const Vector3D& direction) const override {
+        double a = 0;
+        double b = axis.GetX(xi);
+        double dxdt = axis.GetdX(xi, direction);
+        return (dist.AntiDerivative(b) - dist.AntiDerivative(a)) / dxdt;
+    };
+
+    double Integral(const Vector3D& xi,
+                    const Vector3D& direction,
+                    double distance) const override {
+        double a = axis.GetX(xi);
+        Vector3D xj = xi + direction*distance;
+        double b = axis.GetX(xj);
+        double dxdt = axis.GetdX(xi, direction);
+        return (dist.AntiDerivative(b) - dist.AntiDerivative(a)) / dxdt;
+    }
+
+    double Integral(const Vector3D& xi,
+                    const Vector3D& xj) const override {
+        double a = axis.GetX(xi);
+        double b = axis.GetX(xj);
+        Vector3D direction = xj-xi;
+        double dxdt = axis.GetdX(xi, direction);
+        return (dist.AntiDerivative(b) - dist.AntiDerivative(a)) / dxdt;
+    };
+
+    double InverseIntegral(const Vector3D& xi,
+                           const Vector3D& direction,
+                           double integral,
+                           double max_distance) const override {
+        double a = axis.GetX(xi);
+        double dxdt = axis.GetdX(xi, direction);
+
+        double dist_integral = integral * dxdt;
+
+        double Ia = dist.AntiDerivative(a);
+        std::function<double(double)> F = [&](double b)->double {
+            return (dist.AntiDerivative(b) - Ia) - dist_integral;
+        };
+
+        std::function<double(double)> dF = [&](double b)->double {
+            return dist.Evaluate(b);
+        };
+
+        double b;
+        try {
+            b = NewtonRaphson(F, dF, a, max_distance*dxdt, max_distance*dxdt/2);
+        } catch(MathException& e) {
+            throw DensityException("");
+        }
+
+        return (b - a)/dxdt;
+    };
+
+    double Evaluate(const Vector3D& xi) const override {
+        return dist.Evaluate(axis.GetX(xi));
     };
 };
 
