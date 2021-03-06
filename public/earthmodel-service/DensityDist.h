@@ -50,8 +50,8 @@ class DensityDistribution {
     DensityDistribution();
     DensityDistribution(const DensityDistribution&);
 
-    virtual bool operator==(const DensityDistribution& dens_distr) const;
-    virtual bool operator!=(const DensityDistribution& dens_distr) const;
+    bool operator==(const DensityDistribution& dens_distr) const;
+    bool operator!=(const DensityDistribution& dens_distr) const;
     virtual bool compare(const DensityDistribution& dens_distr) const = 0;
 
 
@@ -86,7 +86,7 @@ public:
     virtual double Evaluate(double x) const = 0;
 };
 
-class ConstantDistribution1D : Distribution1D {
+class ConstantDistribution1D : public Distribution1D {
 public:
     ConstantDistribution1D(const ConstantDistribution1D&);
     ConstantDistribution1D(double val);
@@ -98,7 +98,7 @@ protected:
     double val_;
 };
 
-class PolynomialDistribution1D : Distribution1D {
+class PolynomialDistribution1D : public Distribution1D {
 public:
     PolynomialDistribution1D(const PolynomialDistribution1D&);
     PolynomialDistribution1D(const Polynom&);
@@ -113,7 +113,7 @@ protected:
     Polynom dpolynom_;
 };
 
-class ExponentialDistribution1D : Distribution1D {
+class ExponentialDistribution1D : public Distribution1D {
 public:
     ExponentialDistribution1D(const ExponentialDistribution1D&);
     ExponentialDistribution1D(double sigma);
@@ -182,7 +182,7 @@ class CartesianAxis1D : public Axis1D {
 
 template <typename AxisT, typename DistributionT, class E = typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value && std::is_base_of<Distribution1D, DistributionT>::value>::type>
 class DensityDistribution1D
-    : DensityDistribution {
+    : public DensityDistribution {
     using T = decltype(DensityDistribution1D());
    private:
     AxisT axis;
@@ -262,7 +262,7 @@ class DensityDistribution1D
 };
 
 template<typename AxisT>
-class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value>::type> : DensityDistribution {
+class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value>::type> : public DensityDistribution {
     using DistributionT = ConstantDistribution1D;
     using T = DensityDistribution1D<AxisT, ConstantDistribution1D>;
    private:
@@ -300,7 +300,8 @@ class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_
 
     double AntiDerivative(const Vector3D& xi,
                           const Vector3D& direction) const override {
-        return Integral(axis.GetFp0(), xi, direction);
+        Vector3D proj_fp0 = ((xi-axis.GetFp0())*axis.GetAxis())*direction;
+        return Integral(proj_fp0, xi, direction);
     };
 
     double Integral(const Vector3D& xi,
@@ -335,7 +336,7 @@ class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_
 };
 
 template<typename DistributionT>
-class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable_if<std::is_base_of<Distribution1D, DistributionT>::value && !std::is_same<ConstantDistribution1D,DistributionT>::value>::type> : DensityDistribution {
+class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable_if<std::is_base_of<Distribution1D, DistributionT>::value && !std::is_same<ConstantDistribution1D,DistributionT>::value>::type> : public DensityDistribution {
     using AxisT = CartesianAxis1D;
     using T = DensityDistribution1D<CartesianAxis1D, DistributionT>;
    private:
@@ -420,6 +421,93 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
         }
 
         return (b - a)/dxdt;
+    };
+
+    double Evaluate(const Vector3D& xi) const override {
+        return dist.Evaluate(axis.GetX(xi));
+    };
+};
+
+template <>
+class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
+    : public DensityDistribution {
+    using AxisT = RadialAxis1D;
+    using DistributionT = PolynomialDistribution1D;
+    using T = DensityDistribution1D<AxisT,DistributionT>;
+   private:
+    AxisT axis;
+    DistributionT dist;
+   public:
+    DensityDistribution1D();
+    DensityDistribution1D(const AxisT& axis, const DistributionT& dist)
+        : axis(axis), dist(dist) {};
+    DensityDistribution1D(const T& other)
+        : axis(other.axis), dist(other.dist) {};
+
+    bool compare(const DensityDistribution& d) const override {
+        const DensityDistribution1D* d_1d = dynamic_cast<const DensityDistribution1D*>(&d);
+        if(!d_1d)
+            return false;
+        if(axis != d_1d->axis or dist != d_1d->dist)
+            return false;
+        return true;
+    };
+
+    DensityDistribution* clone() const override { return new DensityDistribution1D(*this); };
+    std::shared_ptr<const DensityDistribution> create() const override {
+        return std::shared_ptr<const DensityDistribution>(new DensityDistribution1D(*this));
+    };
+
+    double Derivative(const Vector3D& xi,
+                      const Vector3D& direction) const override {
+        return dist.Derivative(axis.GetX(xi))*axis.GetdX(xi, direction);
+    };
+
+    double AntiDerivative(const Vector3D& xi,
+                          const Vector3D& direction) const override {
+        Vector3D proj_fp0 = ((xi-axis.GetFp0())*axis.GetAxis())*direction;
+        return Integral(proj_fp0, xi);
+    };
+
+    double Integral(const Vector3D& xi,
+                    const Vector3D& direction,
+                    double distance) const override {
+        // TODO implement analytic integral
+        std::function<double(double)> f = [&](double x)->double {
+            return Evaluate(xi+x*direction);
+        };
+        return Integration::rombergIntegrate(f, 0, distance, 1e-6);
+    }
+
+    double Integral(const Vector3D& xi,
+                    const Vector3D& xj) const override {
+        // TODO implement analytic integral
+        Vector3D direction = xj-xi;
+        double distance = direction.magnitude();
+        direction.normalize();
+        return Integral(xi, direction, distance);
+    };
+
+    double InverseIntegral(const Vector3D& xi,
+                           const Vector3D& direction,
+                           double integral,
+                           double max_distance) const override {
+        // TODO implement analytic integral
+        std::function<double(double)> F = [&](double x)->double {
+            return Integral(xi, direction, x) - integral;
+        };
+
+        std::function<double(double)> dF = [&](double x)->double {
+            return Evaluate(xi+direction*x);
+        };
+
+        double res;
+        try {
+            res = NewtonRaphson(F, dF, 0, max_distance, max_distance/2);
+        } catch(MathException& e) {
+            throw DensityException("");
+        }
+        return res;
     };
 
     double Evaluate(const Vector3D& xi) const override {
