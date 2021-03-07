@@ -197,20 +197,19 @@ TEST(Comparison, Comparison_not_equal)
 
 TEST(Assignment, Copyconstructor)
 {
-    CartesianAxis1D ax_A;
-    CartesianAxis1D ax_B = ax_A;
-    CartesianAxis1D ax_C(ax_A);
-    EXPECT_TRUE(ax_A == ax_B);
-    EXPECT_TRUE(ax_A == ax_C);
+    CartesianAxis1D c_ax_A(Vector3D(0,0,1),Vector3D(1,1,1));
+    CartesianAxis1D c_ax_B = c_ax_A;
+    CartesianAxis1D c_ax_C(c_ax_A);
+    EXPECT_TRUE(c_ax_A == c_ax_B);
+    EXPECT_TRUE(c_ax_A == c_ax_C);
 
-    std::vector<double> vecA = {1,2};
-    Polynom poly_A(vecA);
-    DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D> A(ax_A, poly_A);
-    DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D> B = A;
-    DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D> C(A);
-    EXPECT_TRUE(A == B);
-    EXPECT_TRUE(A == C);
+    RadialAxis1D r_ax_A(Vector3D(0,0,1),Vector3D(1,1,1));
+    RadialAxis1D r_ax_B = r_ax_A;
+    RadialAxis1D r_ax_C(r_ax_A);
+    EXPECT_TRUE(r_ax_A == r_ax_B);
+    EXPECT_TRUE(r_ax_A == r_ax_C);
 }
+
 
 int main(int argc, char** argv)
 {
