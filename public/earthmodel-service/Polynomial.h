@@ -1,3 +1,5 @@
+#ifndef LI_Polynomial_H
+#define LI_Polynomial_H
 
 /******************************************************************************
  *                                                                            *
@@ -25,9 +27,6 @@
  *         "https://github.com/tudo-astroparticlephysics/PROPOSAL"            *
  *                                                                            *
  ******************************************************************************/
-
-
-#pragma once
 
 #include <functional>
 #include <vector>
@@ -91,3 +90,5 @@ double NewtonRaphson(std::function<double(double)> f, std::function<double(doubl
         double xinit, int MAX_STEPS = 101, double xacc = 1.e-6);
 
 }  // namespace earthmodel
+
+#endif // LI_Polynomial_H
