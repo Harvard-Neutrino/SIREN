@@ -203,7 +203,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double de
         sector.geo = Sphere(Vector3D(0,0,0), radius, 0).create();
         if(nparams == 1) {
             ss >> param;
-            sector.density = Density_homogeneous(param).create();
+            sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(param).create();
         }
         else {
             std::vector<double> params;
@@ -212,9 +212,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double de
                 params.push_back(param);
             }
             RadialAxis1D radial_ax;
-            Axis1D const & ax = radial_ax;
-            Polynom poly(params);
-            sector.density = Density_polynomial(ax, poly).create();
+            sector.density = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(radial_ax, params).create();
         }
 
         // stop the process if layering assumptions are violated
@@ -232,7 +230,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double de
     sector.level = level;
     level += 1;
     sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
-    sector.density = Density_homogeneous(1e-25).create(); // Use the universe_mean_density from GEANT4
+    sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
 
     // Examine the ice
     double earth_radius = 0;

@@ -20,17 +20,17 @@ TEST(Comparison, Comparison_equal)
     CartesianAxis1D ax_E;
     EXPECT_TRUE(ax_E == ax_D);
 
-    DensityDistribution* A = new Density_homogeneous(0.3);
-    DensityDistribution* B = new Density_homogeneous(0.3);
+    DensityDistribution* A = new DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(0.3);
+    DensityDistribution* B = new DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(0.3);
     EXPECT_TRUE(*A == *B);
 
     double sigma = 1.;
-    DensityDistribution* C = new Density_exponential(ax_D, sigma);
-    Density_exponential D(ax_D, sigma);
+    DensityDistribution* C = new DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D>(ax_D, sigma);
+    DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D> D(ax_D, sigma);
     EXPECT_TRUE(D == *C);
 
-    Density_homogeneous G;
-    Density_homogeneous H;
+    DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> G;
+    DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> H;
     EXPECT_TRUE(G == H);
 
     delete A;
@@ -57,9 +57,9 @@ TEST(Comparison, Comparison_not_equal)
     Axis1D* ax_E = new RadialAxis1D();
     EXPECT_TRUE(*ax_D != *ax_E);
 
-    DensityDistribution* A = new Density_homogeneous();
-    DensityDistribution* B = new Density_exponential(ax_A, 1);
-    DensityDistribution* D = new Density_exponential(ax_A, 2);
+    DensityDistribution* A = new DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>();
+    DensityDistribution* B = new DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D>(ax_A, 1);
+    DensityDistribution* D = new DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D>(ax_A, 2);
     EXPECT_TRUE(*A != *B);
     EXPECT_TRUE(*B != *D);
 
@@ -67,9 +67,9 @@ TEST(Comparison, Comparison_not_equal)
     std::vector<double> vecB = {2,3};
     Polynom poly_A(vecA);
     Polynom poly_B(vecB);
-    Density_polynomial E(ax_A, poly_A);
-    Density_polynomial F(ax_B, poly_A);
-    Density_polynomial G(ax_A, poly_B);
+    DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D> E(ax_A, poly_A);
+    DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D> F(ax_B, poly_A);
+    DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D> G(ax_A, poly_B);
     EXPECT_TRUE(E != F);
     EXPECT_TRUE(E != G);
 
@@ -90,9 +90,9 @@ TEST(Assignment, Copyconstructor)
 
     std::vector<double> vecA = {1,2};
     Polynom poly_A(vecA);
-    Density_polynomial A(ax_A, poly_A);
-    Density_polynomial B = A;
-    Density_polynomial C(A);
+    DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D> A(ax_A, poly_A);
+    DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D> B = A;
+    DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D> C(A);
     EXPECT_TRUE(A == B);
     EXPECT_TRUE(A == C);
 }
