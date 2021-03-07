@@ -134,6 +134,7 @@ class Axis1D {
 
     bool operator==(const Axis1D& axis) const;
     bool operator!=(const Axis1D& axis) const;
+    virtual bool compare(const Axis1D& dens_distr) const = 0;
 
     virtual Axis1D* clone() const = 0;
     virtual std::shared_ptr<const Axis1D> create() const = 0;
@@ -153,12 +154,14 @@ class RadialAxis1D : public Axis1D {
    public:
     RadialAxis1D();
     RadialAxis1D(const Vector3D& fAxis, const Vector3D& fp0);
+    ~RadialAxis1D() {};
+
+    bool compare(const Axis1D& dens_distr) const override;
 
     Axis1D* clone() const override { return new RadialAxis1D(*this); };
     std::shared_ptr<const Axis1D> create() const override {
         return std::shared_ptr<const Axis1D>(new RadialAxis1D(*this));
     };
-    ~RadialAxis1D() {};
 
     double GetX(const Vector3D& xi) const override;
     double GetdX(const Vector3D& xi, const Vector3D& direction) const override;
@@ -169,6 +172,8 @@ class CartesianAxis1D : public Axis1D {
     CartesianAxis1D();
     CartesianAxis1D(const Vector3D& fAxis, const Vector3D& fp0);
     ~CartesianAxis1D() {};
+
+    bool compare(const Axis1D& dens_distr) const override;
 
     Axis1D* clone() const override { return new CartesianAxis1D(*this); };
     std::shared_ptr<const Axis1D> create() const override {

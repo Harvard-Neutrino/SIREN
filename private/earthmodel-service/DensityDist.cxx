@@ -34,9 +34,7 @@ Axis1D::Axis1D(const Vector3D& fAxis, const Vector3D& fp0) : fAxis_(fAxis), fp0_
 Axis1D::Axis1D(const Axis1D& axis) : fAxis_(axis.fAxis_), fp0_(axis.fp0_) {}
 
 bool Axis1D::operator==(const Axis1D& axis) const {
-    if(fAxis_ != axis.fAxis_)
-        return false;
-    if(fp0_ != axis.fp0_)
+    if (!this->compare(axis) )
         return false;
     return true;
 }
@@ -68,6 +66,15 @@ RadialAxis1D::RadialAxis1D() : Axis1D() {
     fAxis_.SetSphericalCoordinates(1, 0, 0);
 }
 
+bool RadialAxis1D::compare(const Axis1D& ax) const {
+    const RadialAxis1D* r_ax = dynamic_cast<const RadialAxis1D*>(&ax);
+    if(!r_ax)
+        return false;
+    if(fp0_ != r_ax->fp0_)
+        return false;
+    return true;
+}
+
 RadialAxis1D::RadialAxis1D(const Vector3D& fAxis, const Vector3D& fp0) : Axis1D(fAxis, fp0) {}
 
 double RadialAxis1D::GetX(const Vector3D& xi) const {
@@ -91,6 +98,17 @@ CartesianAxis1D::CartesianAxis1D() : Axis1D() {
 }
 
 CartesianAxis1D::CartesianAxis1D(const Vector3D& fAxis, const Vector3D& fp0) : Axis1D(fAxis, fp0) {}
+
+bool CartesianAxis1D::compare(const Axis1D& ax) const {
+    const CartesianAxis1D* c_ax = dynamic_cast<const CartesianAxis1D*>(&ax);
+    if(!c_ax)
+        return false;
+    if(fp0_ != c_ax->fp0_)
+        return false;
+    if(fAxis_ != c_ax->fAxis_)
+        return false;
+    return true;
+}
 
 double CartesianAxis1D::GetX(const Vector3D& xi) const {
     return fAxis_ * (xi - fp0_);
