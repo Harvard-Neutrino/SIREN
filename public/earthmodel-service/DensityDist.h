@@ -202,7 +202,7 @@ class CartesianAxis1D : public Axis1D {
 template <typename AxisT, typename DistributionT, class E = typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value && std::is_base_of<Distribution1D, DistributionT>::value>::type>
 class DensityDistribution1D
     : public DensityDistribution {
-    using T = decltype(DensityDistribution1D());
+    using T = DensityDistribution1D<AxisT,DistributionT>;
    private:
     AxisT axis;
     DistributionT dist;
@@ -229,7 +229,7 @@ class DensityDistribution1D
 
     double Derivative(const Vector3D& xi,
                       const Vector3D& direction) const override {
-        return dist.Derivative(xi)*axis.GetdX(xi, direction);
+        return dist.Derivative(axis.GetX(xi))*axis.GetdX(xi, direction);
     };
 
     double AntiDerivative(const Vector3D& xi,
@@ -363,7 +363,6 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
     AxisT axis;
     DistributionT dist;
    public:
-    DensityDistribution1D() : axis(), dist() {};
     DensityDistribution1D(const AxisT& axis, const DistributionT& dist)
         : axis(axis), dist(dist) {};
     DensityDistribution1D(const DensityDistribution1D& other)
@@ -458,7 +457,6 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
     AxisT axis;
     DistributionT dist;
    public:
-    DensityDistribution1D();
     DensityDistribution1D(const AxisT& axis, const DistributionT& dist)
         : axis(axis), dist(dist) {};
     DensityDistribution1D(const AxisT& axis, const Polynom& poly)
