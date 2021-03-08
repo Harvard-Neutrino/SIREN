@@ -34,6 +34,9 @@ bool Polynom::operator!=(const Polynom& polynom) const {
 }
 
 double Polynom::evaluate(double x) const {
+    if(N_ == 0) {
+        return 0.0;
+    }
     double aux = coeff_[N_ - 1];
 
     for (int i = N_ - 2; i >= 0; --i)

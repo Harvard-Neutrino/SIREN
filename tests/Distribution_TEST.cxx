@@ -268,6 +268,262 @@ TEST(Copy, create)
     EXPECT_TRUE((B == C) == (*Bp == *Cp));
 }
 
+TEST(Evaluate, Constant)
+{
+    unsigned int N_RAND = 100;
+    double default_val = 1e-25;
+    double val = 2.0;
+    ConstantDistribution1D A;
+    ConstantDistribution1D B(val);
+    ConstantDistribution1D C(B);
+
+    for(unsigned int i=0; i<N_RAND; ++i) {
+        double x = RandomDouble()*40-20;
+        EXPECT_DOUBLE_EQ(A.Evaluate(x), default_val);
+        EXPECT_DOUBLE_EQ(B.Evaluate(x), val);
+        EXPECT_DOUBLE_EQ(C.Evaluate(x), val);
+    }
+}
+
+TEST(Evaluate, Polynomial)
+{
+    unsigned int N_RAND = 100;
+    double default_val = 0;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        unsigned int n = (int)(RandomDouble()*10+2);
+
+        std::vector<double> params;
+        for(unsigned int i=1; i<(n+1); ++i) {
+            params.push_back(RandomDouble()*20-10);
+        }
+        ASSERT_TRUE(params.size() == n);
+        assert(params.size() == n);
+
+        Polynom poly(params);
+
+        PolynomialDistribution1D A({});
+        PolynomialDistribution1D B(poly);
+        PolynomialDistribution1D C(params);
+        PolynomialDistribution1D D(A);
+        PolynomialDistribution1D E(B);
+        PolynomialDistribution1D F(C);
+
+        std::function<double(double)> eval = [&](double x)->double {
+            double res = params[n-1];
+            for(int i=n-2; i>=0; --i) {
+                res = res*x + params[i];
+            }
+            return res;
+        };
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            double x = RandomDouble()*40-20;
+            double res = eval(x);
+            EXPECT_DOUBLE_EQ(A.Evaluate(x), default_val);
+            EXPECT_DOUBLE_EQ(B.Evaluate(x), res);
+            EXPECT_DOUBLE_EQ(C.Evaluate(x), res);
+            EXPECT_DOUBLE_EQ(D.Evaluate(x), default_val);
+            EXPECT_DOUBLE_EQ(E.Evaluate(x), res);
+            EXPECT_DOUBLE_EQ(F.Evaluate(x), res);
+        }
+    }
+}
+
+TEST(Evaluate, Exponential)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        double sigma = RandomDouble()*6-3;
+
+        ExponentialDistribution1D A(sigma);
+        ExponentialDistribution1D B(A);
+
+        std::function<double(double)> eval = [&](double x)->double {
+            return exp(sigma*x);
+        };
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            double x = RandomDouble()*10-5;
+            double res = eval(x);
+            EXPECT_DOUBLE_EQ(A.Evaluate(x), res);
+            EXPECT_DOUBLE_EQ(B.Evaluate(x), res);
+        }
+    }
+}
+
+TEST(Derivative, Constant)
+{
+    unsigned int N_RAND = 100;
+    double default_val = 1e-25;
+    double val = 2.0;
+    ConstantDistribution1D A;
+    ConstantDistribution1D B(val);
+    ConstantDistribution1D C(B);
+
+    for(unsigned int i=0; i<N_RAND; ++i) {
+        double x = RandomDouble()*40-20;
+        EXPECT_DOUBLE_EQ(A.Derivative(x), 0.0);
+        EXPECT_DOUBLE_EQ(B.Derivative(x), 0.0);
+        EXPECT_DOUBLE_EQ(C.Derivative(x), 0.0);
+    }
+}
+
+TEST(Derivative, Polynomial)
+{
+    unsigned int N_RAND = 100;
+    double default_val = 0;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        unsigned int n = (int)(RandomDouble()*10+2);
+
+        std::vector<double> params;
+        for(unsigned int i=1; i<(n+1); ++i) {
+            params.push_back(RandomDouble()*20-10);
+        }
+        ASSERT_TRUE(params.size() == n);
+        assert(params.size() == n);
+
+        Polynom poly(params);
+
+        PolynomialDistribution1D A({});
+        PolynomialDistribution1D B(poly);
+        PolynomialDistribution1D C(params);
+        PolynomialDistribution1D D(A);
+        PolynomialDistribution1D E(B);
+        PolynomialDistribution1D F(C);
+
+        std::function<double(double)> eval = [&](double x)->double {
+            double res = params[n-1]*(n-1);
+            for(int i=n-2; i>=1; --i) {
+                res = res*x + params[i]*i;
+            }
+            return res;
+        };
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            double x = RandomDouble()*40-20;
+            double res = eval(x);
+            EXPECT_DOUBLE_EQ(A.Derivative(x), default_val);
+            EXPECT_DOUBLE_EQ(B.Derivative(x), res);
+            EXPECT_DOUBLE_EQ(C.Derivative(x), res);
+            EXPECT_DOUBLE_EQ(D.Derivative(x), default_val);
+            EXPECT_DOUBLE_EQ(E.Derivative(x), res);
+            EXPECT_DOUBLE_EQ(F.Derivative(x), res);
+        }
+    }
+}
+
+TEST(Derivative, Exponential)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        double sigma = RandomDouble()*6-3;
+
+        ExponentialDistribution1D A(sigma);
+        ExponentialDistribution1D B(A);
+
+        std::function<double(double)> eval = [&](double x)->double {
+            return sigma*exp(sigma*x);
+        };
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            double x = RandomDouble()*10-5;
+            double res = eval(x);
+            EXPECT_DOUBLE_EQ(A.Derivative(x), res);
+            EXPECT_DOUBLE_EQ(B.Derivative(x), res);
+        }
+    }
+}
+
+TEST(AntiDerivative, Constant)
+{
+    unsigned int N_RAND = 100;
+    double default_val = 1e-25;
+    double val = 2.0;
+    ConstantDistribution1D A;
+    ConstantDistribution1D B(val);
+    ConstantDistribution1D C(B);
+
+    for(unsigned int i=0; i<N_RAND; ++i) {
+        double x = RandomDouble()*40-20;
+        EXPECT_DOUBLE_EQ(A.AntiDerivative(x), default_val*x);
+        EXPECT_DOUBLE_EQ(B.AntiDerivative(x), val*x);
+        EXPECT_DOUBLE_EQ(C.AntiDerivative(x), val*x);
+    }
+}
+
+TEST(AntiDerivative, Polynomial)
+{
+    unsigned int N_RAND = 100;
+    double default_val = 0;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        unsigned int n = (int)(RandomDouble()*10+2);
+
+        std::vector<double> params;
+        for(unsigned int i=1; i<(n+1); ++i) {
+            params.push_back(RandomDouble()*20-10);
+        }
+        ASSERT_TRUE(params.size() == n);
+        assert(params.size() == n);
+
+        Polynom poly(params);
+
+        PolynomialDistribution1D A({});
+        PolynomialDistribution1D B(poly);
+        PolynomialDistribution1D C(params);
+        PolynomialDistribution1D D(A);
+        PolynomialDistribution1D E(B);
+        PolynomialDistribution1D F(C);
+
+        std::function<double(double)> eval = [&](double x)->double {
+            double res = params[n-1]/(n);
+            for(int i=n-2; i>=0; --i) {
+                res = res*x + params[i]/(i+1);
+            }
+            res *= x;
+            return res;
+        };
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            double x = RandomDouble()*40-20;
+            double res = eval(x);
+            EXPECT_DOUBLE_EQ(A.AntiDerivative(x), default_val);
+            EXPECT_DOUBLE_EQ(B.AntiDerivative(x), res);
+            EXPECT_DOUBLE_EQ(C.AntiDerivative(x), res);
+            EXPECT_DOUBLE_EQ(D.AntiDerivative(x), default_val);
+            EXPECT_DOUBLE_EQ(E.AntiDerivative(x), res);
+            EXPECT_DOUBLE_EQ(F.AntiDerivative(x), res);
+        }
+    }
+}
+
+TEST(AntiDerivative, Exponential)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        double sigma = RandomDouble()*6-3;
+
+        ExponentialDistribution1D A(sigma);
+        ExponentialDistribution1D B(A);
+
+        std::function<double(double)> eval = [&](double x)->double {
+            return exp(sigma*x)/sigma;
+        };
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            double x = RandomDouble()*10-5;
+            double res = eval(x);
+            EXPECT_DOUBLE_EQ(A.AntiDerivative(x), res);
+            EXPECT_DOUBLE_EQ(B.AntiDerivative(x), res);
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
