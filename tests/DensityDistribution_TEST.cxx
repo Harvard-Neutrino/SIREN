@@ -571,6 +571,7 @@ TEST(Evaluate, ConstantDistribution)
         for(unsigned int i=0; i<N_RAND; ++i) {
             Vector3D position = RandomVector();
             EXPECT_DOUBLE_EQ(A.Evaluate(position), val);
+            EXPECT_DOUBLE_EQ(B.Evaluate(position), val);
         }
     }
 }
@@ -638,6 +639,143 @@ TEST(Evaluate, RadialPolynomial)
             double x = (position - center).magnitude();
             double res = eval(x);
             EXPECT_DOUBLE_EQ(A.Evaluate(position), res);
+        }
+    }
+
+}
+
+TEST(Derivative, Axis_to_Distribution_connection)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        unsigned int n = (int)(RandomDouble()*10+2);
+        std::vector<double> params;
+        for(unsigned int i=1; i<(n+1); ++i) {
+            params.push_back(RandomDouble()*20-10);
+        }
+
+        CartesianAxis1D ax_A(RandomDirection(), RandomVector());
+        RadialAxis1D ax_B(RandomVector());
+
+        ConstantDistribution1D dist_A(RandomDouble()*10);
+        PolynomialDistribution1D dist_B(params);
+        ExponentialDistribution1D dist_C(RandomDouble()*4-2);
+
+        auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);
+        auto B = DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D>(ax_A, dist_B);
+        auto C = DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D>(ax_A, dist_C);
+        auto D = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(ax_B, dist_A);
+        auto E = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(ax_B, dist_B);
+        auto F = DensityDistribution1D<RadialAxis1D,ExponentialDistribution1D>(ax_B, dist_C);
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            Vector3D position = RandomVector();
+            Vector3D direction = RandomDirection();
+            double x_A = ax_A.GetX(position);
+            double x_B = ax_B.GetX(position);
+            double dxdt_A = ax_A.GetdX(position, direction);
+            double dxdt_B = ax_B.GetdX(position, direction);
+            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), dist_A.Derivative(x_A)*dxdt_A);
+            EXPECT_DOUBLE_EQ(B.Derivative(position, direction), dist_B.Derivative(x_A)*dxdt_A);
+            EXPECT_DOUBLE_EQ(C.Derivative(position, direction), dist_C.Derivative(x_A)*dxdt_A);
+            EXPECT_DOUBLE_EQ(D.Derivative(position, direction), dist_A.Derivative(x_B)*dxdt_B);
+            EXPECT_DOUBLE_EQ(E.Derivative(position, direction), dist_B.Derivative(x_B)*dxdt_B);
+            EXPECT_DOUBLE_EQ(F.Derivative(position, direction), dist_C.Derivative(x_B)*dxdt_B);
+        }
+    }
+}
+
+TEST(Derivative, ConstantDistribution)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        CartesianAxis1D ax_A(RandomDirection(), RandomVector());
+        RadialAxis1D ax_B(RandomVector());
+
+        double val = RandomDouble()*10;
+        ConstantDistribution1D dist_A(val);
+
+        auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);
+        auto B = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(ax_B, dist_A);
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            Vector3D position = RandomVector();
+            Vector3D direction = RandomDirection();
+            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), 0.0);
+            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), 0.0);
+        }
+    }
+}
+
+TEST(Derivative, CartesianDistribution)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        unsigned int n = (int)(RandomDouble()*10+2);
+        std::vector<double> params;
+        for(unsigned int i=1; i<(n+1); ++i) {
+            params.push_back(RandomDouble()*20-10);
+        }
+        Vector3D axis = RandomDirection();
+        Vector3D center = RandomVector();
+        CartesianAxis1D ax_A(axis, center);
+
+        ConstantDistribution1D dist_A(RandomDouble()*10);
+        PolynomialDistribution1D dist_B(params);
+        ExponentialDistribution1D dist_C(RandomDouble()*4-2);
+
+        auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);
+        auto B = DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D>(ax_A, dist_B);
+        auto C = DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D>(ax_A, dist_C);
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            Vector3D position = RandomVector();
+            Vector3D direction = RandomDirection();
+            double alpha = axis*direction;
+            double x = (position - center)*axis;
+            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), dist_A.Derivative(x)*alpha);
+            EXPECT_DOUBLE_EQ(B.Derivative(position, direction), dist_B.Derivative(x)*alpha);
+            EXPECT_DOUBLE_EQ(C.Derivative(position, direction), dist_C.Derivative(x)*alpha);
+        }
+    }
+}
+
+TEST(Derivative, RadialPolynomial)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        unsigned int n = (int)(RandomDouble()*10+2);
+        std::vector<double> params;
+        for(unsigned int i=1; i<(n+1); ++i) {
+            params.push_back(RandomDouble()*20-10);
+        }
+
+        std::function<double(double)> eval = [&](double x)->double {
+            double res = params[n-1]*(n-1);
+            for(int i=n-2; i>=1; --i) {
+                res = res*x + params[i]*i;
+            }
+            return res;
+        };
+
+        Vector3D center = RandomVector();
+        RadialAxis1D ax_A(center);
+
+        PolynomialDistribution1D dist_A(params);
+
+        auto A = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(ax_A, dist_A);
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            Vector3D position = RandomVector();
+            Vector3D direction = RandomDirection();
+            double x = (position - center).magnitude();
+            Vector3D r = (position - center);
+            r.normalize();
+            double dxdt = direction*r;
+            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), eval(x)*dxdt);
         }
     }
 
