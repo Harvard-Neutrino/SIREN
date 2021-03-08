@@ -410,6 +410,7 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
         double a = axis.GetX(xi);
         double b = axis.GetX(xj);
         Vector3D direction = xj-xi;
+        direction.normalize();
         double dxdt = axis.GetdX(xi, direction);
         return (dist.AntiDerivative(b) - dist.AntiDerivative(a)) / dxdt;
     };

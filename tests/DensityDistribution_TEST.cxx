@@ -778,8 +778,275 @@ TEST(Derivative, RadialPolynomial)
             EXPECT_DOUBLE_EQ(A.Derivative(position, direction), eval(x)*dxdt);
         }
     }
-
 }
+
+struct Quadrature
+{
+   //Abstract base class for elementary quadrature algorithms.
+   int n; // Current level of refinement.
+
+   virtual double next() = 0;
+   //Returns the value of the integral at the nth stage of refinement.
+   //The function next() must be defined in the derived class.
+};
+
+template<class T>
+struct Trapzd: Quadrature
+{
+    double a, b, s; // Limits of integration and current value of integral.
+    T &func;
+
+    Trapzd() { };
+
+    // func is function or functor to be integrated between limits: a and b
+    Trapzd(T &funcc, const double aa, const double bb)
+        : func(funcc), a(aa), b(bb)
+    {
+        n = 0;
+    }
+
+    // Returns the nth stage of refinement of the extended trapezoidal rule.
+    // On the first call (n = 1), the routine returns the crudest estimate
+    // of integral of f x / dx in [a,b]. Subsequent calls set n=2,3,... and
+    // improve the accuracy by adding 2n - 2 additional interior points.
+    double next()
+    {
+        double x, tnm, sum, del;
+        int it, j;
+        n++;
+
+        if (n == 1)
+        {
+            return (s = 0.5 * (b-a) * (func(a) + func(b)));
+        }
+        else
+        {
+            for (it = 1, j = 1; j < n - 1; j++)
+            {
+                it <<= 1;
+            }
+            tnm = it;
+            // This is the spacing of the points to be added.
+            del = (b - a) / tnm;
+            x = a + 0.5 * del;
+
+            for (sum = 0.0,j = 0; j < it; j++, x += del)
+            {
+                sum += func(x);
+            }
+            // This replaces s by its refined value.
+            s = 0.5 * (s + (b - a) * sum / tnm);
+            return s;
+        }
+    }
+};
+
+template<class T>
+double qtrap(T &func, const double a, const double b, const double eps = 1.0e-8)
+{
+    // Returns the integral of the function or functor func from a to b.
+    // The constants EPS can be set to the desired fractional accuracy and
+    // JMAX so that 2 to the power JMAX-1 is the maximum allowed number of
+    // steps. integration is performed by the trapezoidal rule.
+
+    const int JMAX = 25;
+    double s, olds = 0.0; // Initial value of olds is arbitrary.
+
+    Trapzd<T> t(func, a, b);
+
+    for (int j = 0; j < JMAX; j++)
+    {
+        s = t.next();
+
+        if (j > 5) // Avoid spurious early convergence.
+        {
+            if (abs(s - olds) < eps * abs(olds) || (s == 0.0 && olds == 0.0))
+            {
+                return s;
+            }
+        }
+        olds = s;
+    }
+    throw("Too many steps in routine qtrap");
+}
+
+TEST(Integral, Axis_to_Distribution_connection)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        unsigned int n = (int)(RandomDouble()*5+2);
+        std::vector<double> params;
+        for(unsigned int i=1; i<(n+1); ++i) {
+            params.push_back(RandomDouble()*5);
+        }
+
+        CartesianAxis1D ax_A(RandomDirection(), RandomVector());
+        RadialAxis1D ax_B(RandomVector());
+
+        ConstantDistribution1D dist_A(RandomDouble()*10);
+        PolynomialDistribution1D dist_B(params);
+        ExponentialDistribution1D dist_C(RandomDouble()*1-0.5);
+
+        auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);
+        auto B = DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D>(ax_A, dist_B);
+        auto C = DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D>(ax_A, dist_C);
+        auto D = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(ax_B, dist_A);
+        auto E = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(ax_B, dist_B);
+        auto F = DensityDistribution1D<RadialAxis1D,ExponentialDistribution1D>(ax_B, dist_C);
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            Vector3D p0 = RandomVector()*0.25;
+            Vector3D p1 = RandomVector()*0.25;
+            Vector3D direction = p1 - p0;
+            double R = direction.magnitude();
+            direction.normalize();
+            double x0_A = ax_A.GetX(p0);
+            double x0_B = ax_B.GetX(p0);
+            double x1_A = ax_A.GetX(p1);
+            double x1_B = ax_B.GetX(p1);
+            std::function<double(double)> fA = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_A.Evaluate(ax_A.GetX(pos));
+            };
+            std::function<double(double)> fB = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_B.Evaluate(ax_A.GetX(pos));
+            };
+            std::function<double(double)> fC = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_C.Evaluate(ax_A.GetX(pos));
+            };
+            std::function<double(double)> fD = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_A.Evaluate(ax_B.GetX(pos));
+            };
+            std::function<double(double)> fE = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_B.Evaluate(ax_B.GetX(pos));
+            };
+            std::function<double(double)> fF = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_C.Evaluate(ax_B.GetX(pos));
+            };
+            double A_res = qtrap(fA, 0, R);
+            double B_res = qtrap(fB, 0, R);
+            double C_res = qtrap(fC, 0, R);
+            double D_res = qtrap(fD, 0, R);
+            double E_res = qtrap(fE, 0, R);
+            double F_res = qtrap(fF, 0, R);
+            EXPECT_NEAR(A.Integral(p0, p1), A_res, std::abs(A_res)*1e-8);
+            EXPECT_NEAR(B.Integral(p0, p1), B_res, std::abs(B_res)*1e-8);
+            EXPECT_NEAR(C.Integral(p0, p1), C_res, std::abs(C_res)*1e-8);
+            EXPECT_NEAR(D.Integral(p0, p1), D_res, std::abs(D_res)*1e-8);
+            EXPECT_NEAR(E.Integral(p0, p1), E_res, std::abs(E_res)*1e-4);
+            EXPECT_NEAR(F.Integral(p0, p1), F_res, std::abs(F_res)*1e-4);
+
+            EXPECT_NEAR(A.Integral(p0, direction, R), A_res, std::abs(A_res)*1e-8);
+            EXPECT_NEAR(B.Integral(p0, direction, R), B_res, std::abs(B_res)*1e-8);
+            EXPECT_NEAR(C.Integral(p0, direction, R), C_res, std::abs(C_res)*1e-8);
+            EXPECT_NEAR(D.Integral(p0, direction, R), D_res, std::abs(D_res)*1e-8);
+            EXPECT_NEAR(E.Integral(p0, direction, R), E_res, std::abs(E_res)*1e-4);
+            EXPECT_NEAR(F.Integral(p0, direction, R), F_res, std::abs(F_res)*1e-4);
+        }
+    }
+}
+
+/*
+TEST(Integral, ConstantDistribution)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        CartesianAxis1D ax_A(RandomDirection(), RandomVector());
+        RadialAxis1D ax_B(RandomVector());
+
+        double val = RandomDouble()*10;
+        ConstantDistribution1D dist_A(val);
+
+        auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);
+        auto B = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(ax_B, dist_A);
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            Vector3D position = RandomVector();
+            Vector3D direction = RandomDirection();
+            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), 0.0);
+            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), 0.0);
+        }
+    }
+}
+
+TEST(Integral, CartesianDistribution)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        unsigned int n = (int)(RandomDouble()*10+2);
+        std::vector<double> params;
+        for(unsigned int i=1; i<(n+1); ++i) {
+            params.push_back(RandomDouble()*20-10);
+        }
+        Vector3D axis = RandomDirection();
+        Vector3D center = RandomVector();
+        CartesianAxis1D ax_A(axis, center);
+
+        ConstantDistribution1D dist_A(RandomDouble()*10);
+        PolynomialDistribution1D dist_B(params);
+        ExponentialDistribution1D dist_C(RandomDouble()*4-2);
+
+        auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);
+        auto B = DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D>(ax_A, dist_B);
+        auto C = DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D>(ax_A, dist_C);
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            Vector3D position = RandomVector();
+            Vector3D direction = RandomDirection();
+            double alpha = axis*direction;
+            double x = (position - center)*axis;
+            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), dist_A.Derivative(x)*alpha);
+            EXPECT_DOUBLE_EQ(B.Derivative(position, direction), dist_B.Derivative(x)*alpha);
+            EXPECT_DOUBLE_EQ(C.Derivative(position, direction), dist_C.Derivative(x)*alpha);
+        }
+    }
+}
+
+TEST(Integral, RadialPolynomial)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        unsigned int n = (int)(RandomDouble()*10+2);
+        std::vector<double> params;
+        for(unsigned int i=1; i<(n+1); ++i) {
+            params.push_back(RandomDouble()*20-10);
+        }
+
+        std::function<double(double)> eval = [&](double x)->double {
+            double res = params[n-1]*(n-1);
+            for(int i=n-2; i>=1; --i) {
+                res = res*x + params[i]*i;
+            }
+            return res;
+        };
+
+        Vector3D center = RandomVector();
+        RadialAxis1D ax_A(center);
+
+        PolynomialDistribution1D dist_A(params);
+
+        auto A = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(ax_A, dist_A);
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            Vector3D position = RandomVector();
+            Vector3D direction = RandomDirection();
+            double x = (position - center).magnitude();
+            Vector3D r = (position - center);
+            r.normalize();
+            double dxdt = direction*r;
+            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), eval(x)*dxdt);
+        }
+    }
+}
+*/
 
 int main(int argc, char** argv)
 {
