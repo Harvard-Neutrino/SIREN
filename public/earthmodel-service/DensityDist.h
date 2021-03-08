@@ -154,6 +154,7 @@ class RadialAxis1D : public Axis1D {
    public:
     RadialAxis1D();
     RadialAxis1D(const Vector3D& fAxis, const Vector3D& fp0);
+    RadialAxis1D(const Vector3D& fp0);
     ~RadialAxis1D() {};
 
     bool compare(const Axis1D& dens_distr) const override;

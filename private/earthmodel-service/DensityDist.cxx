@@ -77,6 +77,8 @@ bool RadialAxis1D::compare(const Axis1D& ax) const {
 
 RadialAxis1D::RadialAxis1D(const Vector3D& fAxis, const Vector3D& fp0) : Axis1D(fAxis, fp0) {}
 
+RadialAxis1D::RadialAxis1D(const Vector3D& fp0) : Axis1D(Vector3D(), fp0) {}
+
 double RadialAxis1D::GetX(const Vector3D& xi) const {
     return (xi - fp0_).magnitude();
 }

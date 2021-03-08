@@ -312,6 +312,62 @@ TEST(Evaluation, Cartesian)
     }
 }
 
+TEST(Evaluation, Radial)
+{
+    unsigned int N_RAND = 100;
+    for(unsigned int i=0; i<N_RAND; ++i) {
+        Vector3D center = RandomVector();
+        RadialAxis1D rax(center);
+        Axis1D* ax = &rax;
+
+        // Center is zero
+        EXPECT_DOUBLE_EQ(ax->GetX(center), 0.0);
+        for(unsigned int j=0; j<N_RAND; ++j) {
+            // works along line
+            Vector3D direction = RandomDirection();
+            for(unsigned int k=0; k<N_RAND; ++k) {
+                double distance = RandomDouble()*20-10;
+                EXPECT_NEAR(ax->GetX(center + distance*direction), std::abs(distance), std::abs(distance)*1e-8);
+            }
+        }
+
+        // Constant wrt sphere surface
+        for(unsigned int j=0; j<N_RAND; ++j) {
+            double distance = RandomDouble()*20-10;
+            for(unsigned int k=0; k<N_RAND; ++k) {
+                Vector3D direction = RandomDirection();
+                EXPECT_NEAR(ax->GetX(center + distance*direction), std::abs(distance), std::abs(distance)*1e-8);
+            }
+        }
+
+        for(unsigned int j=0; j<N_RAND; ++j) {
+            Vector3D point = RandomVector();
+            Vector3D direction = RandomDirection();
+            Vector3D r = (point-center);
+            double R = r.magnitude();
+            r.normalize();
+            double dX = r*direction;
+
+            // Check dX
+            EXPECT_DOUBLE_EQ(ax->GetdX(point, direction), dX);
+
+            // dX inverts
+            EXPECT_NEAR(ax->GetdX(point - 2*R*r, direction), -dX, std::abs(dX)*1e-8);
+
+            // dX constant along line
+            for(unsigned int k=0; k<N_RAND; ++k) {
+                double delta = (RandomDouble()*4-3)*R;
+                Vector3D new_point = point+r*delta;
+                if(delta > -R)
+                    EXPECT_NEAR(ax->GetdX(new_point, direction), dX, std::abs(dX)*1e-8);
+                else
+                    EXPECT_NEAR(ax->GetdX(new_point, direction), -dX, std::abs(dX)*1e-8);
+            }
+        }
+    }
+
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
