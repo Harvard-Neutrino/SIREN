@@ -79,6 +79,8 @@ public:
     bool operator==(const Distribution1D& dist) const;
     bool operator!=(const Distribution1D& dist) const;
     virtual bool compare(const Distribution1D& dist) const = 0;
+    virtual Distribution1D* clone() const = 0;
+    virtual std::shared_ptr<const Distribution1D> create() const = 0;
     virtual double Derivative(double x) const = 0;
     virtual double AntiDerivative(double x) const = 0;
     virtual double Evaluate(double x) const = 0;
@@ -90,6 +92,10 @@ public:
     ConstantDistribution1D(const ConstantDistribution1D&);
     ConstantDistribution1D(double val);
     bool compare(const Distribution1D& dist) const override;
+    Distribution1D* clone() const override { return new ConstantDistribution1D(*this); };
+    std::shared_ptr<const Distribution1D> create() const override {
+        return std::shared_ptr<const Distribution1D>(new ConstantDistribution1D(*this));
+    };
     double Derivative(double x) const override;
     double AntiDerivative(double x) const override;
     double Evaluate(double x) const override;
@@ -103,6 +109,10 @@ public:
     PolynomialDistribution1D(const Polynom&);
     PolynomialDistribution1D(const std::vector<double>&);
     bool compare(const Distribution1D& dist) const override;
+    Distribution1D* clone() const override { return new PolynomialDistribution1D(*this); };
+    std::shared_ptr<const Distribution1D> create() const override {
+        return std::shared_ptr<const Distribution1D>(new PolynomialDistribution1D(*this));
+    };
     double Derivative(double x) const override;
     double AntiDerivative(double x) const override;
     double Evaluate(double x) const override;
@@ -117,6 +127,10 @@ public:
     ExponentialDistribution1D(const ExponentialDistribution1D&);
     ExponentialDistribution1D(double sigma);
     bool compare(const Distribution1D& dist) const override;
+    Distribution1D* clone() const override { return new ExponentialDistribution1D(*this); };
+    std::shared_ptr<const Distribution1D> create() const override {
+        return std::shared_ptr<const Distribution1D>(new ExponentialDistribution1D(*this));
+    };
     double Derivative(double x) const override;
     double AntiDerivative(double x) const override;
     double Evaluate(double x) const override;
