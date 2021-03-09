@@ -703,7 +703,7 @@ TEST(Derivative, ConstantDistribution)
             Vector3D position = RandomVector();
             Vector3D direction = RandomDirection();
             EXPECT_DOUBLE_EQ(A.Derivative(position, direction), 0.0);
-            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), 0.0);
+            EXPECT_DOUBLE_EQ(B.Derivative(position, direction), 0.0);
         }
     }
 }
@@ -948,11 +948,17 @@ TEST(Integral, Axis_to_Distribution_connection)
             EXPECT_NEAR(D.Integral(p0, direction, R), D_res, std::abs(D_res)*1e-8);
             EXPECT_NEAR(E.Integral(p0, direction, R), E_res, std::abs(E_res)*1e-4);
             EXPECT_NEAR(F.Integral(p0, direction, R), F_res, std::abs(F_res)*1e-4);
+
+            EXPECT_NEAR(A.AntiDerivative(p1, direction)-A.AntiDerivative(p0, direction), A_res, std::abs(A_res)*1e-8);
+            EXPECT_NEAR(B.AntiDerivative(p1, direction)-B.AntiDerivative(p0, direction), B_res, std::abs(B_res)*1e-8);
+            EXPECT_NEAR(C.AntiDerivative(p1, direction)-C.AntiDerivative(p0, direction), C_res, std::abs(C_res)*1e-8);
+            EXPECT_NEAR(D.AntiDerivative(p1, direction)-D.AntiDerivative(p0, direction), D_res, std::abs(D_res)*1e-8);
+            EXPECT_NEAR(E.AntiDerivative(p1, direction)-E.AntiDerivative(p0, direction), E_res, std::abs(E_res)*1e-4);
+            EXPECT_NEAR(F.AntiDerivative(p1, direction)-F.AntiDerivative(p0, direction), F_res, std::abs(F_res)*1e-4);
         }
     }
 }
 
-/*
 TEST(Integral, ConstantDistribution)
 {
     unsigned int N_RAND = 100;
@@ -967,14 +973,24 @@ TEST(Integral, ConstantDistribution)
         auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);
         auto B = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(ax_B, dist_A);
         for(unsigned int i=0; i<N_RAND; ++i) {
-            Vector3D position = RandomVector();
-            Vector3D direction = RandomDirection();
-            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), 0.0);
-            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), 0.0);
+            Vector3D p0 = RandomVector();
+            Vector3D p1 = RandomVector();
+            Vector3D direction = p1 - p0;
+            double R = direction.magnitude();
+            direction.normalize();
+            EXPECT_DOUBLE_EQ(A.Integral(p0, p1), R*val);
+            EXPECT_DOUBLE_EQ(B.Integral(p0, p1), R*val);
+
+            EXPECT_DOUBLE_EQ(A.Integral(p0, direction, R), R*val);
+            EXPECT_DOUBLE_EQ(B.Integral(p0, direction, R), R*val);
+
+            EXPECT_DOUBLE_EQ(A.AntiDerivative(p1, direction)-A.AntiDerivative(p0, direction), R*val);
+            EXPECT_DOUBLE_EQ(B.AntiDerivative(p1, direction)-B.AntiDerivative(p0, direction), R*val);
         }
     }
 }
 
+/*
 TEST(Integral, CartesianDistribution)
 {
     unsigned int N_RAND = 100;

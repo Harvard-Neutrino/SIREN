@@ -234,8 +234,8 @@ class DensityDistribution1D
 
     double AntiDerivative(const Vector3D& xi,
                           const Vector3D& direction) const override {
-        Vector3D proj_fp0 = ((xi-axis.GetFp0())*axis.GetAxis())*direction;
-        return Integral(proj_fp0, xi);
+        Vector3D cap = xi - (xi*direction)*direction;
+        return Integral(cap, direction, xi*direction);
     };
 
     double Integral(const Vector3D& xi,
@@ -320,8 +320,8 @@ class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_
 
     double AntiDerivative(const Vector3D& xi,
                           const Vector3D& direction) const override {
-        Vector3D proj_fp0 = ((xi-axis.GetFp0())*axis.GetAxis())*direction;
-        return Integral(proj_fp0, xi);
+        //return (xi*axis.GetAxis())/(direction*axis.GetAxis()) * dist.Evaluate;
+        return (xi*direction)*dist.Evaluate(0);
     };
 
     double Integral(const Vector3D& xi,
