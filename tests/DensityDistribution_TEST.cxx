@@ -977,15 +977,17 @@ TEST(Integral, ConstantDistribution)
             Vector3D p1 = RandomVector();
             Vector3D direction = p1 - p0;
             double R = direction.magnitude();
+            double res = R*val;
+            double eps = std::abs(R*val)*1e-8;
             direction.normalize();
-            EXPECT_DOUBLE_EQ(A.Integral(p0, p1), R*val);
-            EXPECT_DOUBLE_EQ(B.Integral(p0, p1), R*val);
+            EXPECT_NEAR(A.Integral(p0, p1), res, eps);
+            EXPECT_NEAR(B.Integral(p0, p1), res, eps);
 
-            EXPECT_DOUBLE_EQ(A.Integral(p0, direction, R), R*val);
-            EXPECT_DOUBLE_EQ(B.Integral(p0, direction, R), R*val);
+            EXPECT_NEAR(A.Integral(p0, direction, R), res, eps);
+            EXPECT_NEAR(B.Integral(p0, direction, R), res, eps);
 
-            EXPECT_DOUBLE_EQ(A.AntiDerivative(p1, direction)-A.AntiDerivative(p0, direction), R*val);
-            EXPECT_DOUBLE_EQ(B.AntiDerivative(p1, direction)-B.AntiDerivative(p0, direction), R*val);
+            EXPECT_NEAR(A.AntiDerivative(p1, direction)-A.AntiDerivative(p0, direction), res, eps);
+            EXPECT_NEAR(B.AntiDerivative(p1, direction)-B.AntiDerivative(p0, direction), res, eps);
         }
     }
 }
