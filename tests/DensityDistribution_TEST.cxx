@@ -867,7 +867,7 @@ double qtrap(T &func, const double a, const double b, const double eps = 1.0e-8)
         }
         olds = s;
     }
-    throw("Too many steps in routine qtrap");
+    EXPECT_TRUE(false) << "Too many steps in routine qtrap";
 }
 
 TEST(Integral, Axis_to_Distribution_connection)
@@ -1262,7 +1262,7 @@ TEST(InverseIntegral, Axis_to_Distribution_connection)
         unsigned int n = (int)(RandomDouble()*5+2);
         std::vector<double> params;
         for(unsigned int i=1; i<(n+1); ++i) {
-            params.push_back(RandomDouble()*5);
+            params.push_back(RandomDouble()*5/i);
         }
 
         CartesianAxis1D ax_A(RandomDirection(), RandomVector());
@@ -1284,7 +1284,13 @@ TEST(InverseIntegral, Axis_to_Distribution_connection)
             Vector3D p1 = RandomVector()*0.25;
             Vector3D direction = p1 - p0;
             double R = direction.magnitude();
-            double integral = RandomDouble()*5;
+            double int_fraction = RandomDouble()*(1.5-0.25);
+            double A_int = A.Integral(p0, p1)*int_fraction;
+            double B_int = B.Integral(p0, p1)*int_fraction;
+            double C_int = C.Integral(p0, p1)*int_fraction;
+            double D_int = D.Integral(p0, p1)*int_fraction;
+            double E_int = E.Integral(p0, p1)*int_fraction;
+            double F_int = F.Integral(p0, p1)*int_fraction;
             direction.normalize();
             double x0_A = ax_A.GetX(p0);
             double x0_B = ax_B.GetX(p0);
@@ -1316,22 +1322,22 @@ TEST(InverseIntegral, Axis_to_Distribution_connection)
             };
 
             std::function<double(double)> FA = [&](double x)->double {
-                return qtrap(fA, 0, x) - integral;
+                return qtrap(fA, 0, x) - A_int;
             };
             std::function<double(double)> FB = [&](double x)->double {
-                return qtrap(fB, 0, x) - integral;
+                return qtrap(fB, 0, x) - B_int;
             };
             std::function<double(double)> FC = [&](double x)->double {
-                return qtrap(fC, 0, x) - integral;
+                return qtrap(fC, 0, x) - C_int;
             };
             std::function<double(double)> FD = [&](double x)->double {
-                return qtrap(fD, 0, x) - integral;
+                return qtrap(fD, 0, x) - D_int;
             };
             std::function<double(double)> FE = [&](double x)->double {
-                return qtrap(fE, 0, x) - integral;
+                return qtrap(fE, 0, x) - E_int;
             };
             std::function<double(double)> FF = [&](double x)->double {
-                return qtrap(fF, 0, x) - integral;
+                return qtrap(fF, 0, x) - F_int;
             };
 
             double A_res;
@@ -1371,12 +1377,12 @@ TEST(InverseIntegral, Axis_to_Distribution_connection)
                 F_res = -1;
             }
 
-            EXPECT_NEAR(A.InverseIntegral(p0, direction, integral, R), A_res, std::abs(A_res)*1e-8);
-            EXPECT_NEAR(B.InverseIntegral(p0, direction, integral, R), B_res, std::abs(B_res)*1e-8);
-            EXPECT_NEAR(C.InverseIntegral(p0, direction, integral, R), C_res, std::abs(C_res)*1e-8);
-            EXPECT_NEAR(D.InverseIntegral(p0, direction, integral, R), D_res, std::abs(D_res)*1e-8);
-            EXPECT_NEAR(E.InverseIntegral(p0, direction, integral, R), E_res, std::abs(E_res)*1e-8);
-            EXPECT_NEAR(F.InverseIntegral(p0, direction, integral, R), F_res, std::abs(F_res)*1e-8);
+            EXPECT_NEAR(A.InverseIntegral(p0, direction, A_int, R), A_res, std::abs(A_res)*1e-8);
+            EXPECT_NEAR(B.InverseIntegral(p0, direction, B_int, R), B_res, std::abs(B_res)*1e-7);
+            EXPECT_NEAR(C.InverseIntegral(p0, direction, C_int, R), C_res, std::abs(C_res)*1e-8);
+            EXPECT_NEAR(D.InverseIntegral(p0, direction, D_int, R), D_res, std::abs(D_res)*1e-8);
+            EXPECT_NEAR(E.InverseIntegral(p0, direction, E_int, R), E_res, std::abs(E_res)*1e-8);
+            EXPECT_NEAR(F.InverseIntegral(p0, direction, F_int, R), F_res, std::abs(F_res)*1e-8);
         }
     }
 }
