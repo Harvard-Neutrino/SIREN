@@ -488,8 +488,8 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
 
     double AntiDerivative(const Vector3D& xi,
                           const Vector3D& direction) const override {
-        Vector3D proj_fp0 = ((xi-axis.GetFp0())*axis.GetAxis())*direction;
-        return Integral(proj_fp0, xi);
+        Vector3D cap = xi - (xi*direction)*direction;
+        return Integral(cap, direction, xi*direction);
     };
 
     double Integral(const Vector3D& xi,
