@@ -992,7 +992,6 @@ TEST(Integral, ConstantDistribution)
     }
 }
 
-/*
 TEST(Integral, CartesianDistribution)
 {
     unsigned int N_RAND = 100;
@@ -1016,15 +1015,202 @@ TEST(Integral, CartesianDistribution)
         auto C = DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D>(ax_A, dist_C);
 
         for(unsigned int i=0; i<N_RAND; ++i) {
-            Vector3D position = RandomVector();
-            Vector3D direction = RandomDirection();
+            Vector3D p0 = RandomVector();
+            Vector3D p1 = RandomVector();
+            Vector3D direction = p1-p0;
+            double R = direction.magnitude();
+            direction.normalize();
             double alpha = axis*direction;
-            double x = (position - center)*axis;
-            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), dist_A.Derivative(x)*alpha);
-            EXPECT_DOUBLE_EQ(B.Derivative(position, direction), dist_B.Derivative(x)*alpha);
-            EXPECT_DOUBLE_EQ(C.Derivative(position, direction), dist_C.Derivative(x)*alpha);
+            double a = (p0 - center)*axis;
+            double b = (p1 - center)*axis;
+
+            double int_A = (dist_A.AntiDerivative(b) - dist_A.AntiDerivative(a))/alpha;
+            double int_B = (dist_B.AntiDerivative(b) - dist_B.AntiDerivative(a))/alpha;
+            double int_C = (dist_C.AntiDerivative(b) - dist_C.AntiDerivative(a))/alpha;
+            EXPECT_NEAR(A.Integral(p0, p1), int_A, std::abs(int_A)*1e-8);
+            EXPECT_NEAR(B.Integral(p0, p1), int_B, std::abs(int_B)*1e-8);
+            EXPECT_NEAR(C.Integral(p0, p1), int_C, std::abs(int_C)*1e-8);
+
+            EXPECT_NEAR(A.Integral(p0, direction, R), int_A, std::abs(int_A)*1e-8);
+            EXPECT_NEAR(B.Integral(p0, direction, R), int_B, std::abs(int_B)*1e-8);
+            EXPECT_NEAR(C.Integral(p0, direction, R), int_C, std::abs(int_C)*1e-8);
+
+            EXPECT_NEAR(A.AntiDerivative(p1, direction)-A.AntiDerivative(p0, direction), int_A, std::abs(int_A)*1e-8);
+            EXPECT_NEAR(B.AntiDerivative(p1, direction)-B.AntiDerivative(p0, direction), int_B, std::abs(int_B)*1e-8);
+            EXPECT_NEAR(C.AntiDerivative(p1, direction)-C.AntiDerivative(p0, direction), int_C, std::abs(int_C)*1e-8);
         }
     }
+}
+
+double impact_parameter(Vector3D const & position, Vector3D const & direction, Vector3D const & center) {
+    Vector3D cap = position - (position*direction)*direction;
+    double b = (cap-center).magnitude();
+    return b;
+}
+
+namespace {
+double poly_0(double r, double b) {
+    return sqrt(-std::pow(b,2) + std::pow(r,2));
+}
+double poly_1(double r, double b) {
+    return (r*sqrt(-std::pow(b,2) + std::pow(r,2)))/2. + (std::pow(b,2)*atanh(r/sqrt(-std::pow(b,2) + std::pow(r,2))))/2.;
+}
+double poly_2(double r, double b) {
+    return (sqrt(-std::pow(b,2) + std::pow(r,2))*(2*std::pow(b,2) + std::pow(r,2)))/3.;
+}
+double poly_3(double r, double b) {
+    return (r*sqrt(-std::pow(b,2) + std::pow(r,2))*(3*std::pow(b,2) + 2*std::pow(r,2)) + 3*std::pow(b,4)*atanh(r/sqrt(-std::pow(b,2) + std::pow(r,2))))/8.;
+}
+double poly_4(double r, double b) {
+    return (sqrt(-std::pow(b,2) + std::pow(r,2))*(8*std::pow(b,4) + 4*std::pow(b,2)*std::pow(r,2) + 3*std::pow(r,4)))/15.;
+}
+double poly_5(double r, double b) {
+    return (r*sqrt(-std::pow(b,2) + std::pow(r,2))*(15*std::pow(b,4) + 10*std::pow(b,2)*std::pow(r,2) + 8*std::pow(r,4)) + 15*std::pow(b,6)*atanh(r/sqrt(-std::pow(b,2) + std::pow(r,2))))/48.;
+}
+double poly_6(double r, double b) {
+    return (sqrt(-std::pow(b,2) + std::pow(r,2))*(16*std::pow(b,6) + 8*std::pow(b,4)*std::pow(r,2) + 6*std::pow(b,2)*std::pow(r,4) + 5*std::pow(r,6)))/35.;
+}
+double poly_7(double r, double b) {
+    return (r*sqrt(-std::pow(b,2) + std::pow(r,2))*(105*std::pow(b,6) + 70*std::pow(b,4)*std::pow(r,2) + 56*std::pow(b,2)*std::pow(r,4) + 48*std::pow(r,6)) + 105*std::pow(b,8)*atanh(r/sqrt(-std::pow(b,2) + std::pow(r,2))))/384.;
+}
+double poly_8(double r, double b) {
+    return (sqrt(-std::pow(b,2) + std::pow(r,2))*(128*std::pow(b,8) + 64*std::pow(b,6)*std::pow(r,2) + 48*std::pow(b,4)*std::pow(r,4) + 40*std::pow(b,2)*std::pow(r,6) + 35*std::pow(r,8)))/315.;
+}
+double poly_9(double r, double b) {
+    return (r*sqrt(-std::pow(b,2) + std::pow(r,2))*(315*std::pow(b,8) + 210*std::pow(b,6)*std::pow(r,2) + 168*std::pow(b,4)*std::pow(r,4) + 144*std::pow(b,2)*std::pow(r,6) + 128*std::pow(r,8)) + 315*std::pow(b,10)*atanh(r/sqrt(-std::pow(b,2) + std::pow(r,2))))/1280.;
+}
+double poly_10(double r, double b) {
+    return (sqrt(-std::pow(b,2) + std::pow(r,2))*(256*std::pow(b,10) + 128*std::pow(b,8)*std::pow(r,2) + 96*std::pow(b,6)*std::pow(r,4) + 80*std::pow(b,4)*std::pow(r,6) + 70*std::pow(b,2)*std::pow(r,8) + 63*std::pow(r,10)))/693.;
+}
+double poly_11(double r, double b) {
+    return (r*sqrt(-std::pow(b,2) + std::pow(r,2))*(3465*std::pow(b,10) + 2310*std::pow(b,8)*std::pow(r,2) + 1848*std::pow(b,6)*std::pow(r,4) + 1584*std::pow(b,4)*std::pow(r,6) + 1408*std::pow(b,2)*std::pow(r,8) + 1280*std::pow(r,10)) + 3465*std::pow(b,12)*atanh(r/sqrt(-std::pow(b,2) + std::pow(r,2))))/15360.;
+}
+double poly_12(double r, double b) {
+    return (sqrt(-std::pow(b,2) + std::pow(r,2))*(1024*std::pow(b,12) + 512*std::pow(b,10)*std::pow(r,2) + 384*std::pow(b,8)*std::pow(r,4) + 320*std::pow(b,6)*std::pow(r,6) + 280*std::pow(b,4)*std::pow(r,8) + 252*std::pow(b,2)*std::pow(r,10) + 231*std::pow(r,12)))/3003.;
+}
+
+template <typename T> inline constexpr
+int signum(T x, std::false_type is_signed) {
+    return T(0) < x;
+}
+
+template <typename T> inline constexpr
+int signum(T x, std::true_type is_signed) {
+    return (T(0) < x) - (x < T(0));
+}
+
+template <typename T> inline constexpr
+int signum(T x) {
+    return signum(x, std::is_signed<T>());
+}
+
+double poly_int(std::vector<double> const & params, Vector3D const & p0, Vector3D const & p1, Vector3D const & center) {
+    Vector3D direction = p1-p0;
+    double R = direction.magnitude();
+    direction.normalize();
+
+    Vector3D cap = ((p0-center) - ((p0-center)*direction)*direction + (p1-center) - ((p1-center)*direction)*direction)*0.5 + center;
+    double b = (cap-center).magnitude();
+
+    EXPECT_NEAR((cap-center)*(p0-cap), 0.0, 1e-8);
+    EXPECT_NEAR((cap-center)*(p1-cap), 0.0, 1e-8);
+    EXPECT_NEAR((cap-center)*(p1-p0), 0.0, 1e-8);
+
+    double t0 = (p0 - cap)*direction;
+    double t1 = (p1 - cap)*direction;
+    assert(t1 >= t0);
+
+    double r0 = sqrt(t0*t0 + b*b);
+    double r1 = sqrt(t1*t1 + b*b);
+
+    EXPECT_NEAR(r0, (p0-center).magnitude(), (p0-center).magnitude()*1e-8);
+    EXPECT_NEAR(r1, (p1-center).magnitude(), (p1-center).magnitude()*1e-8);
+    EXPECT_DOUBLE_EQ(b, (cap-center).magnitude());
+    EXPECT_TRUE(t1 >= t0);
+
+    std::vector<std::pair<double,double>> r_points;
+
+    if(signum(t0) == signum(t1)) {
+        if(t0 > 0) {
+            r_points.push_back({r1, 1});
+            r_points.push_back({r0, -1});
+        }
+        else {
+            r_points.push_back({r1, -1});
+            r_points.push_back({r0, 1});
+        }
+    }
+    else {
+        if(t0 == 0) {
+            r_points.push_back({r1, 1});
+            r_points.push_back({r0, -1});
+        }
+        else if(t1 == 0) {
+            r_points.push_back({r1, -1});
+            r_points.push_back({r0, 1});
+        }
+        else {
+            assert(t0 < 0 and t1 > 0);
+            r_points.push_back({r0, 1});
+            r_points.push_back({r1, 1});
+            r_points.push_back({b, -2});
+        }
+    }
+
+    std::vector<std::function<double(double,double)>> poly_ints{poly_0, poly_1, poly_2, poly_3, poly_4, poly_5, poly_6, poly_7, poly_8, poly_9, poly_10, poly_11, poly_12};
+
+    assert(params.size() <= poly_ints.size());
+
+    std::vector<double> terms;
+    for(unsigned int i=0; i<params.size(); ++i) {
+        for(unsigned int j=0; j<r_points.size(); ++j) {
+            terms.push_back(params[i]*r_points[j].second*poly_ints[i](r_points[j].first, b));
+        }
+    }
+    assert(terms.size() == 2*params.size() or terms.size() == 3*params.size());
+
+    auto print = [&]() {
+        std::stringstream s;
+        s << "R " << R << "\n";
+        s << "t0 " << t0 << "\n";
+        s << "t1 " << t1 << "\n";
+        s << "r0 " << r0 << "\n";
+        s << "r1 " << r1 << "\n";
+        s << "params ";
+        for (auto a : params) {
+            s << a << ' ';
+        }
+        s << "\n";
+        s << "terms ";
+        for (auto a : terms) {
+            s << a << ' ';
+        }
+        return s.str();
+    };
+
+    if(r_points.size() == 2) {
+        double res = terms[0] + terms[1];
+        EXPECT_NEAR(res, R*params[0], std::abs(R*params[0])*1e-8) << print();
+    }
+    else {
+        double res = terms[0] + terms[1] + terms[2];
+        EXPECT_NEAR(res, R*params[0], std::abs(R*params[0])*1e-8) << print();
+    }
+
+    std::function<bool(double, double)> comp = [](double a, double b)->bool {
+        return std::abs(a) < std::abs(b);
+    };
+
+    std::sort(terms.begin(), terms.end(), comp);
+
+    double res = 0.0;
+    for(unsigned int i=0; i<terms.size(); ++i) {
+        res += terms[i];
+    }
+
+    return res;
+}
+
 }
 
 TEST(Integral, RadialPolynomial)
@@ -1032,7 +1218,8 @@ TEST(Integral, RadialPolynomial)
     unsigned int N_RAND = 100;
 
     for(unsigned int p=0; p<N_RAND; ++p) {
-        unsigned int n = (int)(RandomDouble()*10+2);
+        //unsigned int n = (int)(RandomDouble()*10+2);
+        unsigned int n = 1;
         std::vector<double> params;
         for(unsigned int i=1; i<(n+1); ++i) {
             params.push_back(RandomDouble()*20-10);
@@ -1054,17 +1241,18 @@ TEST(Integral, RadialPolynomial)
         auto A = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(ax_A, dist_A);
 
         for(unsigned int i=0; i<N_RAND; ++i) {
-            Vector3D position = RandomVector();
-            Vector3D direction = RandomDirection();
-            double x = (position - center).magnitude();
-            Vector3D r = (position - center);
-            r.normalize();
-            double dxdt = direction*r;
-            EXPECT_DOUBLE_EQ(A.Derivative(position, direction), eval(x)*dxdt);
+            Vector3D p0 = RandomVector();
+            Vector3D p1 = RandomVector();
+            Vector3D direction = p1-p0;
+            double R = direction.magnitude();
+            direction.normalize();
+            double res = poly_int(params, p0, p1, center);
+            EXPECT_NEAR(A.Integral(p0, p1), res, std::abs(res)*1e-8);
+            EXPECT_NEAR(A.Integral(p0, direction, R), res, std::abs(res)*1e-8);
+            EXPECT_NEAR(A.AntiDerivative(p1, direction) - A.AntiDerivative(p0, direction), res, std::abs(res)*1e-8);
         }
     }
 }
-*/
 
 int main(int argc, char** argv)
 {
