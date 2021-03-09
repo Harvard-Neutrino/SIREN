@@ -271,7 +271,7 @@ class DensityDistribution1D
         try {
             res = NewtonRaphson(F, dF, 0, max_distance, max_distance/2);
         } catch(MathException& e) {
-            throw DensityException("");
+            res = -1;
         }
         return res;
     };
@@ -344,7 +344,7 @@ class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_
         (void)direction;
         double distance = integral / dist.Evaluate(0);
         if(distance > max_distance) {
-            throw DensityException("");
+            distance = -1;
         }
         return distance;
     };
@@ -420,27 +420,27 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
                            double integral,
                            double max_distance) const override {
         double a = axis.GetX(xi);
+        double b = axis.GetX(xi + direction*max_distance);
         double dxdt = axis.GetdX(xi, direction);
 
         double dist_integral = integral * dxdt;
 
         double Ia = dist.AntiDerivative(a);
-        std::function<double(double)> F = [&](double b)->double {
-            return (dist.AntiDerivative(b) - Ia) - dist_integral;
+        std::function<double(double)> F = [&](double x)->double {
+            return (dist.AntiDerivative(x) - Ia) - dist_integral;
         };
 
-        std::function<double(double)> dF = [&](double b)->double {
-            return dist.Evaluate(b);
+        std::function<double(double)> dF = [&](double x)->double {
+            return dist.Evaluate(x);
         };
 
-        double b;
         try {
-            b = NewtonRaphson(F, dF, a, max_distance*dxdt, max_distance*dxdt/2);
+            double b_res = NewtonRaphson(F, dF, a, b, (a+b)/2.0);
+            return (b_res - a)/dxdt;
         } catch(MathException& e) {
-            throw DensityException("");
+            return -1;
         }
 
-        return (b - a)/dxdt;
     };
 
     double Evaluate(const Vector3D& xi) const override {
@@ -528,7 +528,7 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
         try {
             res = NewtonRaphson(F, dF, 0, max_distance, max_distance/2);
         } catch(MathException& e) {
-            throw DensityException("");
+            res = -1;
         }
         return res;
     };

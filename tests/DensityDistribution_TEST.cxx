@@ -1254,6 +1254,133 @@ TEST(Integral, RadialPolynomial)
     }
 }
 
+TEST(InverseIntegral, Axis_to_Distribution_connection)
+{
+    unsigned int N_RAND = 100;
+
+    for(unsigned int p=0; p<N_RAND; ++p) {
+        unsigned int n = (int)(RandomDouble()*5+2);
+        std::vector<double> params;
+        for(unsigned int i=1; i<(n+1); ++i) {
+            params.push_back(RandomDouble()*5);
+        }
+
+        CartesianAxis1D ax_A(RandomDirection(), RandomVector());
+        RadialAxis1D ax_B(RandomVector());
+
+        ConstantDistribution1D dist_A(RandomDouble()*10);
+        PolynomialDistribution1D dist_B(params);
+        ExponentialDistribution1D dist_C(RandomDouble()*1-0.5);
+
+        auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);
+        auto B = DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D>(ax_A, dist_B);
+        auto C = DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D>(ax_A, dist_C);
+        auto D = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(ax_B, dist_A);
+        auto E = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(ax_B, dist_B);
+        auto F = DensityDistribution1D<RadialAxis1D,ExponentialDistribution1D>(ax_B, dist_C);
+
+        for(unsigned int i=0; i<N_RAND; ++i) {
+            Vector3D p0 = RandomVector()*0.25;
+            Vector3D p1 = RandomVector()*0.25;
+            Vector3D direction = p1 - p0;
+            double R = direction.magnitude();
+            double integral = RandomDouble()*5;
+            direction.normalize();
+            double x0_A = ax_A.GetX(p0);
+            double x0_B = ax_B.GetX(p0);
+            double x1_A = ax_A.GetX(p1);
+            double x1_B = ax_B.GetX(p1);
+            std::function<double(double)> fA = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_A.Evaluate(ax_A.GetX(pos));
+            };
+            std::function<double(double)> fB = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_B.Evaluate(ax_A.GetX(pos));
+            };
+            std::function<double(double)> fC = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_C.Evaluate(ax_A.GetX(pos));
+            };
+            std::function<double(double)> fD = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_A.Evaluate(ax_B.GetX(pos));
+            };
+            std::function<double(double)> fE = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_B.Evaluate(ax_B.GetX(pos));
+            };
+            std::function<double(double)> fF = [&](double x)->double {
+                Vector3D pos = p0 + direction*x;
+                return dist_C.Evaluate(ax_B.GetX(pos));
+            };
+
+            std::function<double(double)> FA = [&](double x)->double {
+                return qtrap(fA, 0, x) - integral;
+            };
+            std::function<double(double)> FB = [&](double x)->double {
+                return qtrap(fB, 0, x) - integral;
+            };
+            std::function<double(double)> FC = [&](double x)->double {
+                return qtrap(fC, 0, x) - integral;
+            };
+            std::function<double(double)> FD = [&](double x)->double {
+                return qtrap(fD, 0, x) - integral;
+            };
+            std::function<double(double)> FE = [&](double x)->double {
+                return qtrap(fE, 0, x) - integral;
+            };
+            std::function<double(double)> FF = [&](double x)->double {
+                return qtrap(fF, 0, x) - integral;
+            };
+
+            double A_res;
+            try {
+                A_res = NewtonRaphson(FA, fA, 0, R, R/2);
+            } catch(MathException& e) {
+                A_res = -1;
+            }
+            double B_res;
+            try {
+                B_res = NewtonRaphson(FB, fB, 0, R, R/2);
+            } catch(MathException& e) {
+                B_res = -1;
+            }
+            double C_res;
+            try {
+                C_res = NewtonRaphson(FC, fC, 0, R, R/2);
+            } catch(MathException& e) {
+                C_res = -1;
+            }
+            double D_res;
+            try {
+                D_res = NewtonRaphson(FD, fD, 0, R, R/2);
+            } catch(MathException& e) {
+                D_res = -1;
+            }
+            double E_res;
+            try {
+                E_res = NewtonRaphson(FE, fE, 0, R, R/2);
+            } catch(MathException& e) {
+                E_res = -1;
+            }
+            double F_res;
+            try {
+                F_res = NewtonRaphson(FF, fF, 0, R, R/2);
+            } catch(MathException& e) {
+                F_res = -1;
+            }
+
+            EXPECT_NEAR(A.InverseIntegral(p0, direction, integral, R), A_res, std::abs(A_res)*1e-8);
+            EXPECT_NEAR(B.InverseIntegral(p0, direction, integral, R), B_res, std::abs(B_res)*1e-8);
+            EXPECT_NEAR(C.InverseIntegral(p0, direction, integral, R), C_res, std::abs(C_res)*1e-8);
+            EXPECT_NEAR(D.InverseIntegral(p0, direction, integral, R), D_res, std::abs(D_res)*1e-8);
+            EXPECT_NEAR(E.InverseIntegral(p0, direction, integral, R), E_res, std::abs(E_res)*1e-8);
+            EXPECT_NEAR(F.InverseIntegral(p0, direction, integral, R), F_res, std::abs(F_res)*1e-8);
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
