@@ -42,6 +42,14 @@ void MaterialModel::AddModelFiles(std::vector<std::string> const & matratios) {
         AddModelFile(matratio);
 }
 
+namespace {
+bool fexists(const char *filename)
+{
+    std::ifstream ifile(filename);
+    return ifile;
+}
+}
+
 void MaterialModel::AddModelFile(std::string matratio) {
     if (matratio.find(".dat") == std::string::npos)
         matratio += ".dat";
