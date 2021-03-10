@@ -247,17 +247,25 @@ TEST(Constructor, Default)
 
 TEST_F(MaterialTest, FileConstructor)
 {
+    ASSERT_NO_THROW(MaterialModel(materials_file));
+    MaterialModel A(materials_file);
     ASSERT_NO_THROW(MaterialModel("", materials_file));
-    MaterialModel A("", materials_file);
+    MaterialModel B("", materials_file);
 }
 
 TEST_F(MaterialTest, DuplicateFile)
 {
-    ASSERT_NO_THROW(MaterialModel("", materials_file));
-    MaterialModel A("", materials_file);
+    ASSERT_NO_THROW(MaterialModel(materials_file));
+    MaterialModel A(materials_file);
     ASSERT_NO_THROW(A.AddModelFile(materials_file));
-    ASSERT_NO_THROW(MaterialModel("", {materials_file, materials_file}));
+    ASSERT_NO_THROW(MaterialModel(std::vector<std::string>{materials_file, materials_file}));
     ASSERT_NO_THROW(A.HasMaterial(0));
+
+    ASSERT_NO_THROW(MaterialModel("", materials_file));
+    MaterialModel B("", materials_file);
+    ASSERT_NO_THROW(B.AddModelFile(materials_file));
+    ASSERT_NO_THROW(MaterialModel("", {materials_file, materials_file}));
+    ASSERT_NO_THROW(B.HasMaterial(0));
 }
 
 std::string print_v(std::vector<std::string> v) {
@@ -294,7 +302,7 @@ TEST_F(MaterialTest, MaterialCount)
     for(unsigned int i=0; i<N_RAND; ++i) {
         clear();
         create_file();
-        MaterialModel A("", materials_file);
+        MaterialModel A(materials_file);
 
         int material_count = 0;
         std::vector<std::string> names;
@@ -312,13 +320,13 @@ TEST_F(MaterialTest, MaterialCount)
 
 TEST_F(MaterialTest, DuplicateFileMaterialCount)
 {
-    ASSERT_NO_THROW(MaterialModel("", materials_file));
+    ASSERT_NO_THROW(MaterialModel(materials_file));
 
     unsigned int N_RAND = 1000;
     for(unsigned int i=0; i<N_RAND; ++i) {
         clear();
         create_file();
-        MaterialModel A("", materials_file);
+        MaterialModel A(materials_file);
 
         int material_count = 0;
         std::vector<std::string> names;
@@ -350,13 +358,13 @@ TEST_F(MaterialTest, DuplicateFileMaterialCount)
 
 TEST_F(MaterialTest, MaterialId)
 {
-    ASSERT_NO_THROW(MaterialModel("", materials_file));
+    ASSERT_NO_THROW(MaterialModel(materials_file));
 
     unsigned int N_RAND = 100;
     for(unsigned int i=0; i<N_RAND; ++i) {
         clear();
         create_file();
-        MaterialModel A("", materials_file);
+        MaterialModel A(materials_file);
 
         for(unsigned int i=0; i<material_names_.size(); ++i) {
             std::string name = material_names_[i];
@@ -370,13 +378,13 @@ TEST_F(MaterialTest, MaterialId)
 
 TEST_F(MaterialTest, MaterialPNE)
 {
-    ASSERT_NO_THROW(MaterialModel("", materials_file));
+    ASSERT_NO_THROW(MaterialModel(materials_file));
 
     unsigned int N_RAND = 100;
     for(unsigned int i=0; i<N_RAND; ++i) {
         clear();
         create_file();
-        MaterialModel A("", materials_file);
+        MaterialModel A(materials_file);
 
         for(unsigned int i=0; i<material_names_.size(); ++i) {
             std::string name = material_names_[i];

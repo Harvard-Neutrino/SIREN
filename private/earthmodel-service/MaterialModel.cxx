@@ -11,14 +11,20 @@ using namespace earthmodel;
 
 MaterialModel::MaterialModel() {}
 
-MaterialModel::MaterialModel(std::string const & path) : path_(path) {}
-
-MaterialModel::MaterialModel(std::string const & path, std::string const & matratio) : path_(path) {
-    AddModelFile(matratio);
+MaterialModel::MaterialModel(std::string const & file) {
+    AddModelFile(file);
 }
 
-MaterialModel::MaterialModel(std::string const & path, std::vector<std::string> const & matratios) : path_(path) {
-    AddModelFiles(matratios);
+MaterialModel::MaterialModel(std::string const & path, std::string const & file) : path_(path) {
+    AddModelFile(file);
+}
+
+MaterialModel::MaterialModel(std::vector<std::string> const & files) {
+    AddModelFiles(files);
+}
+
+MaterialModel::MaterialModel(std::string const & path, std::vector<std::string> const & files) : path_(path) {
+    AddModelFiles(files);
 }
 
 void MaterialModel::SetPath(std::string const & path) {

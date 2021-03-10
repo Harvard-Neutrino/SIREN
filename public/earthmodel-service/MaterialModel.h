@@ -19,9 +19,10 @@ private:
     std::map<int, double> pne_ratios_;
 public:
     MaterialModel();
-    MaterialModel(std::string const & path);
-    MaterialModel(std::string const & path, std::string const & matratio);
-    MaterialModel(std::string const & path, std::vector<std::string> const & matratios);
+    MaterialModel(std::string const & file);
+    MaterialModel(std::string const & path, std::string const & file);
+    MaterialModel(std::vector<std::string> const & files);
+    MaterialModel(std::string const & path, std::vector<std::string> const & files);
 
     void SetPath(std::string const & path);
     void AddMaterial(std::string const & name, std::map<int, double> matratios);
