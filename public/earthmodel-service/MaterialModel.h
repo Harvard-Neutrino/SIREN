@@ -34,6 +34,7 @@ public:
     int GetMaterialId(std::string const & name);
     bool HasMaterial(std::string const & name);
     bool HasMaterial(int);
+    std::map<int, double> GetMaterialMap(int id);
 private:
     double ComputePNERatio(int id);
 public:

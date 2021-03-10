@@ -30,11 +30,18 @@ void MaterialModel::AddMaterial(std::string const & name, int matpdg, std::map<i
 }
 
 void MaterialModel::AddMaterial(std::string const & name, double pne_ratio, std::map<int, double> matratios) {
-    int id = material_names_.size();
-    material_ids_.insert({name, id});
-    material_names_.push_back(name);
-    material_maps_.insert({id, matratios});
-    pne_ratios_.insert({id, pne_ratio});
+    if(material_ids_.find(name) == material_ids_.end()) {
+        int id = material_names_.size();
+        material_ids_.insert({name, id});
+        material_names_.push_back(name);
+        material_maps_.insert({id, matratios});
+        pne_ratios_.insert({id, pne_ratio});
+    }
+    else {
+        int id = material_ids_[name];
+        material_maps_[id] = matratios;
+        pne_ratios_[id] = pne_ratio;
+    }
 }
 
 void MaterialModel::AddModelFiles(std::vector<std::string> const & matratios) {
@@ -46,24 +53,48 @@ namespace {
 bool fexists(const char *filename)
 {
     std::ifstream ifile(filename);
-    return ifile;
+    return (bool)ifile;
+}
+bool fexists(const std::string filename)
+{
+    std::ifstream ifile(filename.c_str());
+    return (bool)ifile;
 }
 }
 
 void MaterialModel::AddModelFile(std::string matratio) {
-    if (matratio.find(".dat") == std::string::npos)
-        matratio += ".dat";
+    std::string fname;
+
+    if(fexists(matratio)) {
+        fname = matratio;
+    }
+    else if(fexists(matratio + ".dat")) {
+        fname = matratio + ".dat";
+    }
+    else if(fexists(path_ + "/materials/" + matratio)) {
+        fname = path_ + "/materials/" + matratio;
+    }
+    else if(fexists(path_ + "/materials/" + matratio + ".dat")) {
+        fname = path_ + "/materials/" + matratio + ".dat";
+    }
+    else if(fexists(path_ + "/" + matratio)) {
+        fname = path_ + "/" + matratio;
+    }
+    else if(fexists(path_ + "/" + matratio + ".dat")) {
+        fname = path_ + "/" + matratio + ".dat";
+    }
+    else {
+        throw("Cannot open matratio file!");
+    }
 
     // check earthmodel file
-    std::string fname = (matratio.find('/')==std::string::npos ? path_ + "materials/" + matratio : matratio);
     std::ifstream in(fname.c_str(), std::ifstream::in);
 
     if (in.fail())
         throw("failed to open " + fname + ". Set correct path.");
 
     // read the file
-    const int bufsize = CHAR_BUF_SIZE;
-    char buf[bufsize];
+    std::string buf;
     std::string medtype;
     int matpdg, nmats;
     double weight;
@@ -71,13 +102,10 @@ void MaterialModel::AddModelFile(std::string matratio) {
 
     while(!in.eof()) {
 
-        in.getline(buf, bufsize);
-        nread = in.gcount();
+        std::getline(in, buf);
+        nread = buf.size();
 
-        if(nread == -1) {
-            throw("getline failed");
-
-        } else if(nread == 1 || buf[0] == ' ' || buf[0] == '#') {
+        if(nread == 0 || buf[0] == ' ' || buf[0] == '\t' || buf[0] == '#') {
             // new line, start from white space, or comment line.
             continue;
         } else {
@@ -88,11 +116,9 @@ void MaterialModel::AddModelFile(std::string matratio) {
 
             std::map<int, double> matratio;
             for(int i=0; i<nmats; ++i) {
-                in.getline(buf, bufsize);
-                nread = in.gcount();
-                if(nread == -1) {
-                    throw("getline failed");
-                } else if(nread == 1 || buf[0] == ' ' || buf[0] == '#') {
+                std::getline(in, buf);
+                nread = buf.size();
+                if(nread == 0 || buf[0] == ' ' || buf[0] == '\t' || buf[0] == '#') {
                     // new line, start from white space, or comment line.
                     --i;
                     continue;
@@ -153,6 +179,10 @@ bool MaterialModel::HasMaterial(std::string const & name) {
 
 bool MaterialModel::HasMaterial(int id) {
     return material_names_.size() > id;
+}
+
+std::map<int, double> MaterialModel::GetMaterialMap(int id) {
+    return material_maps_[id];
 }
 
 void MaterialModel::GetAZ(int code, int & np, int & nn) {
