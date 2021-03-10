@@ -13,8 +13,6 @@
 
 using namespace earthmodel;
 
-
-
 class MaterialTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -34,12 +32,11 @@ protected:
             remove_file();
         }
         uniform_distribution = std::uniform_real_distribution<double>(0.0, 1.0);
-        blank_chars = " ";
+        blank_chars = " \t";
         comment_str = "#";
         line_break = "\n";
         name_char_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
         cruft_char_set = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
-        cruft_char_set = " ";
         materials_file = std::tmpnam(nullptr);
 
         unsigned int n_materials = RandomDouble()*23+1;
@@ -243,7 +240,7 @@ TEST_F(MaterialTest, MaterialCount)
 {
     ASSERT_NO_THROW(MaterialModel("", materials_file));
 
-    unsigned int N_RAND = 100;
+    unsigned int N_RAND = 1000;
     for(unsigned int i=0; i<N_RAND; ++i) {
         clear();
         create_file();
