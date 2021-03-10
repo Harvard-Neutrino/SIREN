@@ -24,8 +24,8 @@ public:
     MaterialModel(std::string const & path, std::vector<std::string> const & matratios);
 
     void SetPath(std::string const & path);
-    void AddMaterial(std::string const & name, int matpdg, std::map<int, double> matratios);
-    void AddMaterial(std::string const & name, double pne_ratio, std::map<int, double> matratios);
+    void AddMaterial(std::string const & name, std::map<int, double> matratios);
+    //void AddMaterial(std::string const & name, double pne_ratio);
     void AddModelFiles(std::vector<std::string> const & matratios);
     void AddModelFile(std::string matratio);
 
@@ -36,7 +36,7 @@ public:
     bool HasMaterial(int);
     std::map<int, double> GetMaterialMap(int id);
 private:
-    double ComputePNERatio(int id);
+    double ComputePNERatio(std::map<int, double> const & matratios);
 public:
     static void GetAZ(int code, int & np, int & nn);
 };

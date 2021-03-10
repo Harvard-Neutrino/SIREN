@@ -32,7 +32,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
 }
 
 void EarthModel::LoadDefaultMaterials() {
-    materials_.AddMaterial("VACUUM", 7.0/(1.0 + 7.0), std::map<int, double>({{1000070080,1.0},})); // Assume there are 1 neutrons for every 7 protons in the universe
+    materials_.AddMaterial("VACUUM", std::map<int, double>({{1000070080,1.0},})); // Assume there are 1 neutrons for every 7 protons in the universe
 }
 
 void EarthModel::LoadMaterialModel(std::string const & material_model) {

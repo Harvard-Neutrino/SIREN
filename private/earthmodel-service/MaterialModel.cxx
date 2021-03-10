@@ -25,11 +25,8 @@ void MaterialModel::SetPath(std::string const & path) {
     path_ = path;
 }
 
-void MaterialModel::AddMaterial(std::string const & name, int matpdg, std::map<int, double> matratios) {
-    AddMaterial(name, ComputePNERatio(matpdg), matratios);
-}
-
-void MaterialModel::AddMaterial(std::string const & name, double pne_ratio, std::map<int, double> matratios) {
+void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> matratios) {
+    double pne_ratio = ComputePNERatio(matratios);
     if(material_ids_.find(name) == material_ids_.end()) {
         int id = material_names_.size();
         material_ids_.insert({name, id});
@@ -128,7 +125,7 @@ void MaterialModel::AddModelFile(std::string matratio) {
                     matratio[matpdg] = weight;
                 }
             }
-            AddMaterial(medtype, matpdg, matratio);
+            AddMaterial(medtype, matratio);
         }
 
     } // end of the while loop
@@ -137,9 +134,8 @@ void MaterialModel::AddModelFile(std::string matratio) {
     in.close();
 }
 
-double MaterialModel::ComputePNERatio(int id) {
+double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) {
     // calculate P, N, E ratio
-    std::map<int, double> &mats = material_maps_[id];
     double tot_np = 0;
     double tot_nn = 0;
     int np, nn;
@@ -150,11 +146,11 @@ double MaterialModel::ComputePNERatio(int id) {
         tot_nn += nn*it.second;
     }
 
-    int tot_z = tot_np + tot_nn;
-    if(tot_z==0)
-        tot_z=1; //avoid division by zero
+    double tot_A = tot_np + tot_nn;
+    if(tot_A==0)
+        tot_A=1; //avoid division by zero
 
-    double nw_proton = tot_np / tot_z;
+    double nw_proton = tot_np / tot_A;
     double nw_electron = nw_proton;
     //double nw_neutron = tot_nn / tot_z;
 

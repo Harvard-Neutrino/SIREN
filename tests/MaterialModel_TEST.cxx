@@ -95,8 +95,8 @@ protected:
 
     std::string random_pdg_code() {
         unsigned int L = 0;
-        unsigned int Z = RandomDouble()*1000;
-        unsigned int A = RandomDouble()*1000;
+        unsigned int A = RandomDouble()*998 + 2;
+        unsigned int Z = RandomDouble()*A;
         unsigned int I = 0;
         return pdg_code(L, Z, A, I);
     }
@@ -141,12 +141,41 @@ protected:
         unsigned int n_components = RandomDouble()*11;
         double component_total = 0.0;
         std::vector<std::pair<std::string, double>> components;
+        double Z_tot = 0.0;
+        double A_tot = 0.0;
+        std::set<std::string> pdg_codes;
         for(unsigned int i=0; i<n_components; ++i) {
             double amount = RandomDouble() * ((unsigned int)(RandomDouble()*46));
             std::string pdg = random_pdg_code();
+            while(pdg_codes.find(pdg) != pdg_codes.end()) {
+                pdg = random_pdg_code();
+            }
+            pdg_codes.insert(pdg);
+            std::stringstream ss;
+            std::string s;
+            ss << pdg[3] << pdg[4] << pdg[5];
+            s = ss.str();
+            ss = std::stringstream(s);
+            int Z;
+            ss >> Z;
+            ss.clear();
+            ss = std::stringstream();
+            ss << pdg[6] << pdg[7] << pdg[8];
+            s = ss.str();
+            ss = std::stringstream(s);
+            int A;
+            ss >> A;
+            ss.clear();
+            Z_tot += Z*amount;
+            A_tot += A*amount;
             component_total += amount;
             components.push_back({pdg, amount});
         }
+        if(A_tot == 0) {
+            A_tot = 1;
+        }
+        double pne_ratio = Z_tot / A_tot;
+        pne_ratios_.push_back(pne_ratio);
 
         bool normalize = RandomDouble() > 0.5;
         bool add_cruft = RandomDouble() > 0.5;
@@ -164,7 +193,7 @@ protected:
                 components[i].second /= component_total;
             }
             double amount = components[i].second;
-            out << pdg << random_blank_cruft() << amount;
+            out << pdg << random_blank_cruft() << std::setprecision(16) << amount;
             if(add_cruft)
                 out << random_blank_cruft() << comment_str << random_blank_cruft() << random_cruft();
             out << line_break;
@@ -189,6 +218,7 @@ protected:
         material_ids_.clear();
         material_names_.clear();
         material_components_.clear();
+        pne_ratios_.clear();
     }
 
     bool file_exists;
@@ -204,9 +234,11 @@ protected:
     std::string file_contents;
 
     std::vector<std::string> material_names_;
+    std::vector<double> pne_ratios_;
     std::map<std::string, int> material_ids_;
     std::map<std::string, std::vector<std::pair<std::string, double>>> material_components_;
 };
+
 
 TEST(Constructor, Default)
 {
@@ -236,6 +268,24 @@ std::string print_v(std::vector<std::string> v) {
     return s.str();
 }
 
+template <typename T, typename U>
+std::string print_m(std::map<T, U> v) {
+    std::stringstream s;
+    for(auto ss : v) {
+        s << ss.first << ", " << ss.second << std::endl;;
+    }
+    return s.str();
+}
+
+template <typename T, typename U>
+std::string print_vp(std::vector<std::pair<T, U>> v) {
+    std::stringstream s;
+    for(auto ss : v) {
+        s << ss.first << ", " << ss.second << std::endl;;
+    }
+    return s.str();
+}
+
 TEST_F(MaterialTest, MaterialCount)
 {
     ASSERT_NO_THROW(MaterialModel("", materials_file));
@@ -250,12 +300,90 @@ TEST_F(MaterialTest, MaterialCount)
         std::vector<std::string> names;
         while(A.HasMaterial(material_count)) {
             names.push_back(A.GetMaterialName(material_count));
+            ASSERT_LT(material_count, material_names_.size());
+            EXPECT_EQ(std::string(names.back()), std::string(material_names_[material_count])) << file_contents;
+            EXPECT_EQ(A.GetMaterialMap(material_count).size(), material_components_[material_names_[material_count]].size()) << A.GetMaterialName(material_count) << " " << material_names_[material_count] << std::endl << print_m(A.GetMaterialMap(material_count)) << std::endl << std::endl << print_vp(material_components_[material_names_[material_count]]);
+            material_count += 1;
+        }
+
+        ASSERT_EQ(material_count, material_names_.size()) << file_contents;
+    }
+}
+
+TEST_F(MaterialTest, DuplicateFileMaterialCount)
+{
+    ASSERT_NO_THROW(MaterialModel("", materials_file));
+
+    unsigned int N_RAND = 1000;
+    for(unsigned int i=0; i<N_RAND; ++i) {
+        clear();
+        create_file();
+        MaterialModel A("", materials_file);
+
+        int material_count = 0;
+        std::vector<std::string> names;
+        while(A.HasMaterial(material_count)) {
+            names.push_back(A.GetMaterialName(material_count));
+            ASSERT_LT(material_count, material_names_.size());
             EXPECT_EQ(std::string(names.back()), std::string(material_names_[material_count])) << file_contents;
             EXPECT_EQ(A.GetMaterialMap(material_count).size(), material_components_[material_names_[material_count]].size()) << file_contents;
             material_count += 1;
         }
 
-        ASSERT_EQ(material_count, material_names_.size()) << file_contents;
+        int first_material_count = material_count;
+        A.AddModelFile(materials_file);
+
+        material_count = 0;
+        names.clear();
+        while(A.HasMaterial(material_count)) {
+            names.push_back(A.GetMaterialName(material_count));
+            ASSERT_LT(material_count, material_names_.size());
+            EXPECT_EQ(std::string(names.back()), std::string(material_names_[material_count]));
+            EXPECT_EQ(A.GetMaterialMap(material_count).size(), material_components_[material_names_[material_count]].size());
+            material_count += 1;
+        }
+
+        EXPECT_EQ(material_count, material_names_.size()) << file_contents;
+        EXPECT_EQ(material_count, first_material_count) << file_contents;
+    }
+}
+
+TEST_F(MaterialTest, MaterialId)
+{
+    ASSERT_NO_THROW(MaterialModel("", materials_file));
+
+    unsigned int N_RAND = 100;
+    for(unsigned int i=0; i<N_RAND; ++i) {
+        clear();
+        create_file();
+        MaterialModel A("", materials_file);
+
+        for(unsigned int i=0; i<material_names_.size(); ++i) {
+            std::string name = material_names_[i];
+            ASSERT_TRUE(A.HasMaterial(name));
+            ASSERT_TRUE(A.HasMaterial(i));
+            EXPECT_EQ(A.GetMaterialName(i), name);
+            EXPECT_EQ(A.GetMaterialId(name), i);
+        }
+    }
+}
+
+TEST_F(MaterialTest, MaterialPNE)
+{
+    ASSERT_NO_THROW(MaterialModel("", materials_file));
+
+    unsigned int N_RAND = 100;
+    for(unsigned int i=0; i<N_RAND; ++i) {
+        clear();
+        create_file();
+        MaterialModel A("", materials_file);
+
+        for(unsigned int i=0; i<material_names_.size(); ++i) {
+            std::string name = material_names_[i];
+            ASSERT_TRUE(A.HasMaterial(name));
+            ASSERT_TRUE(A.HasMaterial(i));
+            EXPECT_DOUBLE_EQ(A.GetPNERatio(i), pne_ratios_[i]);
+        }
     }
 }
 
