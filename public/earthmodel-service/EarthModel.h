@@ -29,6 +29,7 @@ private:
     Vector3D detector_origin_;
 public:
     EarthModel();
+    EarthModel(std::string const & earth_model, std::string const & material_model);
     EarthModel(std::string const & path, std::string const & earth_model, std::string const & material_model);
 
     void LoadEarthModel(std::string const & earth_model);
@@ -43,6 +44,7 @@ public:
     Vector3D GetDetCoordDirFromEarthCoordDir(Vector3D const & direction) const;
 private:
     void LoadDefaultMaterials();
+    void LoadDefaultSectors();
     void LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_angle=-1);
 };
 

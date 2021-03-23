@@ -20,9 +20,9 @@ TEST(Constructor, Default)
     EarthModel A;
 }
 
-TEST_F(MaterialTest, EarthModelConstructor)
+TEST_F(MaterialTest, EarthModelConstructorEmptyPathEmptyModel)
 {
-    EarthModel A("", "", materials_file);
+    EXPECT_NO_THROW(EarthModel A("", "", materials_file));
 }
 
 int main(int argc, char** argv)

@@ -21,7 +21,13 @@ EarthModel::EarthModel() {
     LoadDefaultMaterials();
 }
 
-EarthModel::EarthModel(std::string const & path, std::string const & earth_model, std::string const & material_model) {
+EarthModel::EarthModel(std::string const & earth_model, std::string const & material_model) {
+    LoadDefaultMaterials();
+    LoadMaterialModel(material_model);
+    LoadEarthModel(earth_model);
+}
+
+EarthModel::EarthModel(std::string const & path, std::string const & earth_model, std::string const & material_model) : path_(path) {
     LoadDefaultMaterials();
     LoadMaterialModel(material_model);
     LoadEarthModel(earth_model);
@@ -33,6 +39,15 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
 
 void EarthModel::LoadDefaultMaterials() {
     materials_.AddMaterial("VACUUM", std::map<int, double>({{1000070080,1.0},})); // Assume there are 1 neutrons for every 7 protons in the universe
+}
+
+void EarthModel::LoadDefaultSectors() {
+    EarthSector sector;
+    sector.material_id = materials_.GetMaterialId("VACUUM");
+    sector.level = sectors_.size();
+    sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
+    sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
+    sectors_.push_back(sector);
 }
 
 void EarthModel::LoadMaterialModel(std::string const & material_model) {
@@ -147,6 +162,7 @@ Vector3D EarthModel::GetDetCoordDirFromEarthCoordDir(Vector3D const & direction)
 
 void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_cap_angle) {
     sectors_.clear();
+    LoadDefaultSectors();
 
     if(fname.find(".dat") == std::string::npos)
         fname += ".dat";
@@ -167,7 +183,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double de
     double radius, param;
     int nparams;
 
-    int level = 0;
+    int level = sectors_.size();
     double max_radius = 0;
     while(getline(in,buf)) {
         {
@@ -223,14 +239,6 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double de
         sectors_.push_back(sector);
     } // end of the while loop
     in.close();
-
-    // Add the vacuum layer
-    EarthSector sector;
-    sector.material_id = materials_.GetMaterialId("VACUUM");
-    sector.level = level;
-    level += 1;
-    sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
-    sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
 
     // Examine the ice
     double earth_radius = 0;
@@ -294,7 +302,8 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double de
             double ice_offset = r - d; // z-pos of center of sphere of icecap
 
             for(auto const & i : ice_layers) {
-                Sphere const * geo = dynamic_cast<Sphere const *>(sectors_[i].geo.get());
+                EarthSector & sector = sectors_[i];
+                Sphere const * geo = dynamic_cast<Sphere const *>(sector.geo.get());
                 sector.geo = Sphere(Vector3D(0,0,ice_offset), geo->GetRadius()-ice_offset, 0).create();
                 //geo->SetRadius(geo->GetRadius()-ice_offset);
                 //geo->SetPosition(Vector3D(0,0,ice_offset));
