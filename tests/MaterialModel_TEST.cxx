@@ -27,6 +27,11 @@ TEST_F(MaterialTest, FileConstructor)
     MaterialModel B("", materials_file);
 }
 
+TEST(Constructor, EmptyFile)
+{
+    MaterialModel A("");
+}
+
 TEST_F(MaterialTest, DuplicateFile)
 {
     ASSERT_NO_THROW(MaterialModel(materials_file));

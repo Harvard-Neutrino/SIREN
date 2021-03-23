@@ -21,7 +21,7 @@ TEST(Constructor, Default)
 
 TEST_F(MaterialTest, EarthModelConstructor)
 {
-    EarthModel A("", materials_file, "");
+    EarthModel A("", "", materials_file);
 }
 
 int main(int argc, char** argv)

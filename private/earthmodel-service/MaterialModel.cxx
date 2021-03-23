@@ -68,6 +68,9 @@ bool fexists(const std::string filename)
 void MaterialModel::AddModelFile(std::string matratio) {
     std::string fname;
 
+    if(matratio.empty())
+        throw("Received empty matratio filename!")
+
     if(fexists(matratio)) {
         fname = matratio;
     }
@@ -103,7 +106,7 @@ void MaterialModel::AddModelFile(std::string matratio) {
     double weight;
     int nread = 0;
 
-    while(!in.eof()) {
+    while(not (in.eof() or in.fail())) {
 
         std::getline(in, buf);
         nread = buf.size();
