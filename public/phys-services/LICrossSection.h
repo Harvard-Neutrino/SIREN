@@ -1,14 +1,13 @@
-#ifndef LICrossSection_H
-#define LICrossSection_H
-
-#include <photospline/splinetable.h>
-
-#include <LeptonInjector/Particle.h>
-#include <LeptonInjector/Random.h>
-#include <LeptonInjector/BasicInjectionConfiguration.h>
+#ifndef LI_CrossSection_H
+#define LI_CrossSection_H
 
 #include <string>
 
+#include <photospline/splinetable.h>
+
+#include "LeptonInjector/Random.h"
+#include "LeptonInjector/Particle.h"
+#include "LeptonInjector/BasicInjectionConfiguration.h"
 
 ///Encapsulates cross section information for one physical process with a
 ///two-body final state.
@@ -130,4 +129,5 @@ private:
     int interaction;
 };
 
-#endif //LICrossSection_H
+#endif // LI_CrossSection_H
+

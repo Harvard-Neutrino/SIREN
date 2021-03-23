@@ -1,14 +1,11 @@
-
 #include <iostream>
 #include <stdlib.h>
 #include <random>
 #include <math.h>
-// #include <string>
-// #include <cmath>
 
 #include <gtest/gtest.h>
 
-#include <earthmodel-service/Geometry.h>
+#include "earthmodel-service/Geometry.h"
 
 using namespace earthmodel;
 
@@ -1275,3 +1272,4 @@ int main(int argc, char** argv)
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
+

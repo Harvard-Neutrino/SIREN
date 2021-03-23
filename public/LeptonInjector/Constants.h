@@ -1,5 +1,5 @@
-#ifndef LI_CONSTANTS
-#define LI_CONSTANTS
+#ifndef LI_Constants_H
+#define LI_Constants_H
 
 #include <math.h> // pow function
 
@@ -85,4 +85,6 @@ static const double fineStructure   = 1.0/137.0; // dimensionless
 
 } // namespace Constants
 } // namespace LeptonInjector
-#endif
+
+#endif // LI_Constants_H
+

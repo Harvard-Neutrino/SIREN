@@ -9,8 +9,8 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
-#include <earthmodel-service/Vector3D.h>
-#include <earthmodel-service/Geometry.h>
+#include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/Geometry.h"
 
 using namespace earthmodel;
 

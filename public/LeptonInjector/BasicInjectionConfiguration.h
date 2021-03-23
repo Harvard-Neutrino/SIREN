@@ -1,9 +1,9 @@
-#ifndef LI_BIC_H
-#define LI_BIC_H
+#ifndef LI_BasicInjectionConfiguration_H
+#define LI_BasicInjectionConfiguration_H
 
 #include <vector>
-#include <LeptonInjector/Particle.h>
 #include <photospline/splinetable.h>
+#include "LeptonInjector/Particle.h"
 
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
@@ -52,4 +52,5 @@ namespace LeptonInjector {
 
 }// end namespace LeptonInjector
 
-#endif 
+#endif // LI_BasicInjectionConfiguration_H
+

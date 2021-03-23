@@ -92,3 +92,4 @@ double NewtonRaphson(std::function<double(double)> f, std::function<double(doubl
 }  // namespace earthmodel
 
 #endif // LI_Polynomial_H
+

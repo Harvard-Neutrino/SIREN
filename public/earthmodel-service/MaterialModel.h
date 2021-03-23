@@ -45,3 +45,4 @@ public:
 } // namespace earthmodel
 
 # endif // LI_MaterialModel_H
+

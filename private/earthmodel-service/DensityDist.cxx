@@ -1,9 +1,9 @@
 
 #include <iostream>
 #include <cmath>
-#include <earthmodel-service/Vector3D.h>
-#include <earthmodel-service/DensityDist.h>
-#include <earthmodel-service/Polynomial.h>
+#include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/DensityDist.h"
+#include "earthmodel-service/Polynomial.h"
 
 using namespace earthmodel;
 

@@ -1,5 +1,5 @@
-#ifndef LI_PARTICLE
-#define LI_PARTICLE
+#ifndef LI_Particle_H
+#define LI_Particle_H
 
 // Used to define the Particle class
 // Partiles have a type, energy, position, and direction
@@ -8,10 +8,10 @@
 // At the moment, only leptons (charged + uncharged) and hadrons are fully supported 
 
 #include <string>
-#include <exception>
 #include <utility> // std::pair
+#include <exception>
 
-#include <LeptonInjector/Constants.h>
+#include "LeptonInjector/Constants.h"
 
 // positions are in Cartesian, centered in the middle of IceCube
 
@@ -262,4 +262,5 @@ namespace LeptonInjector{
     (Hadrons)(ContinuousEnergyLoss)(FiberLaser)(N2Laser)(YAGLaser)                \
 
 
-#endif
+#endif // LI_Particle_H
+

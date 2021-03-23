@@ -1,11 +1,11 @@
-#ifndef LI_COORDS
-#define LI_COORDS
+#ifndef LI_Coordinates_H
+#define LI_Coordinates_H
 
 #include <array> // used for many of the constructors, and for the position
-#include <math.h> //sqrt, sin, cos, pow
-#include <exception> //allows throwing the out_of_range exception
 #include <limits> //numeric limits
+#include <math.h> //sqrt, sin, cos, pow
 #include <iostream>
+#include <exception> //allows throwing the out_of_range exception
 
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
@@ -119,4 +119,5 @@ namespace LeptonInjector {
 
 } // end namespace LeptonInjector
 
-#endif
+#endif // LI_Coordinates_H
+

@@ -1,6 +1,6 @@
-#include <phys-services/LICrossSection.h>
 #include <array>
 #include <fstream>
+#include "phys-services/LICrossSection.h"
 
 namespace{
 	double particleMass(LeptonInjector::Particle::ParticleType type){

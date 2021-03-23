@@ -6,8 +6,8 @@
 #include <iterator>
 #include <algorithm>
 
-#include <earthmodel-service/EarthModel.h>
-#include <earthmodel-service/Vector3D.h>
+#include "earthmodel-service/EarthModel.h"
+#include "earthmodel-service/Vector3D.h"
 
 using namespace earthmodel;
 

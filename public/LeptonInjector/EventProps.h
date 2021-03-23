@@ -1,8 +1,7 @@
-#ifndef LI_EVENT
-#define LI_EVENT
+#ifndef LI_EventProps_H
+#define LI_EventProps_H
 
-#include <LeptonInjector/Coordinates.h> // n_dimensions, Position, Direction
-
+#include "LeptonInjector/Coordinates.h" // n_dimensions, Position, Direction
 
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
@@ -93,4 +92,5 @@ namespace LeptonInjector {
 
 }// end namespace LeptonInjector
 
-#endif
+#endif // LI_EventProps_H
+

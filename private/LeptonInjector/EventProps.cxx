@@ -1,4 +1,4 @@
-#include <LeptonInjector/EventProps.h>
+#include "LeptonInjector/EventProps.h"
 
 namespace LeptonInjector {
 	//Event propery objects

@@ -5,7 +5,7 @@
 #include <sstream>
 #include <iostream>
 
-#include <earthmodel-service/MaterialModel.h>
+#include "earthmodel-service/MaterialModel.h"
 
 using namespace earthmodel;
 

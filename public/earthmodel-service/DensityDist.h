@@ -25,14 +25,15 @@
  *                                                                            *
  ******************************************************************************/
 
-#pragma once
+#ifndef LI_DensityDist_H
+#define LI_DensityDist_H
+#include <memory>
+#include <string>
 #include <exception>
 #include <functional>
-#include <string>
-#include <memory>
-#include <earthmodel-service/Vector3D.h>
-#include <earthmodel-service/Polynomial.h>
-#include <earthmodel-service/EarthModelCalculator.h>
+#include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/Polynomial.h"
+#include "earthmodel-service/EarthModelCalculator.h"
 
 namespace earthmodel {
 
@@ -539,3 +540,6 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
 };
 
 }  // namespace earthmodel
+
+#endif // LI_DensityDist_H
+

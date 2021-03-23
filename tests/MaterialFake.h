@@ -1,4 +1,3 @@
-
 #include <cmath>
 #include <math.h>
 #include <cstdio>
@@ -8,8 +7,6 @@
 #include <iostream>
 
 #include <gtest/gtest.h>
-
-#include <earthmodel-service/MaterialModel.h>
 
 using namespace earthmodel;
 

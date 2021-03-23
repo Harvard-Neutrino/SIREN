@@ -1,6 +1,6 @@
 
-#include <LeptonInjector/BasicInjectionConfiguration.h>
 #include <photospline/cinter/splinetable.h>
+#include "LeptonInjector/BasicInjectionConfiguration.h"
 
 namespace LeptonInjector{
 

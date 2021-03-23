@@ -2,7 +2,7 @@
 #include <cmath>
 #include <iostream>
 
-#include <earthmodel-service/Vector3D.h>
+#include "earthmodel-service/Vector3D.h"
 
 using namespace earthmodel;
 

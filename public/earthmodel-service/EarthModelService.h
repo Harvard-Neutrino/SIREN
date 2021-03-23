@@ -27,9 +27,6 @@
  *
  */
 
-// include custom LI headers
-#include <LeptonInjector/Constants.h>
-#include <LeptonInjector/Coordinates.h>
 
 // some standard lib headers
 #include <sstream>
@@ -39,8 +36,12 @@
 #include <map>
 #include <iostream>
 
+// include custom LI headers
+#include "LeptonInjector/Constants.h"
+#include "LeptonInjector/Coordinates.h"
+
 // earthmodel! 
-#include <earthmodel-service/EarthModelCalculator.h>
+#include "earthmodel-service/EarthModelCalculator.h"
 
 namespace earthmodel {
 

@@ -1,7 +1,7 @@
-#include <math.h> // adds sqrt, power functions
-#include <LeptonInjector/Particle.h>
-#include <assert.h>
 #include <map>
+#include <math.h> // adds sqrt, power functions
+#include <assert.h>
+#include "LeptonInjector/Particle.h"
 
 namespace LeptonInjector{
     Particle::Particle(void){

@@ -1,25 +1,24 @@
-#ifndef LEPTONINJECTOR_H_INCLUDED
-#define LEPTONINJECTOR_H_INCLUDED
+#ifndef LI_LeptonInjector_H
+#define LI_LeptonInjector_H
 
 #include <queue>
-#include <LeptonInjector/DataWriter.h>
-#include <earthmodel-service/EarthModelService.h>
-#include <phys-services/LICrossSection.h>
+#include <memory> // adds shared pointer
+#include <iostream>
 
+#include <photospline/bspline.h>
 #include <photospline/splinetable.h>
 #include <photospline/cinter/splinetable.h>
-#include <photospline/bspline.h>
 
-#include <iostream>
-#include <memory> // adds shared pointer 
+#include "LeptonInjector/Random.h"
+#include "LeptonInjector/Particle.h"
+#include "LeptonInjector/Constants.h"
+#include "LeptonInjector/DataWriter.h"
+#include "LeptonInjector/EventProps.h"
+#include "LeptonInjector/Coordinates.h"
+#include "LeptonInjector/BasicInjectionConfiguration.h"
 
-#include <LeptonInjector/Coordinates.h>
-#include <LeptonInjector/Constants.h>
-#include <LeptonInjector/Particle.h>
-#include <LeptonInjector/Random.h>
-#include <LeptonInjector/EventProps.h>
-#include <LeptonInjector/BasicInjectionConfiguration.h>
-
+#include "phys-services/LICrossSection.h"
+#include "earthmodel-service/EarthModelService.h"
 
 namespace LeptonInjector{
 	
@@ -172,4 +171,5 @@ namespace LeptonInjector{
 	
 } //namespace LeptonInjector
 
-#endif
+#endif // LI_LeptonInjector_H
+

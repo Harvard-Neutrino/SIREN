@@ -1,5 +1,5 @@
-#ifndef LI_RANDOM
-#define LI_RANDOM
+#ifndef LI_Random_H
+#define LI_Random_H
 
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
@@ -28,4 +28,5 @@ namespace LeptonInjector {
 
 } //end namespace LeptonInjector
 
-#endif
+#endif // LI_Random_H
+

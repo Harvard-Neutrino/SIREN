@@ -26,15 +26,14 @@
  *                                                                            *
  ******************************************************************************/
 
-
-#pragma once
+#ifndef LI_Geometry_H
+#define LI_Geometry_H
 
 #include <iostream>
 #include <map>
 #include <memory>
 
-#include <earthmodel-service/Vector3D.h>
-
+#include "earthmodel-service/Vector3D.h"
 
 namespace earthmodel {
 
@@ -259,3 +258,6 @@ namespace earthmodel {
 namespace earthmodel {
     const std::array<std::string, 3>  Geometry_Name = { "sphere", "box", "cylinder" };
 } // namespace earthmodel
+
+#endif // LI_Geometry_H
+

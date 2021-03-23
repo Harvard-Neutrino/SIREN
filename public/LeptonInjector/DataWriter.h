@@ -1,20 +1,18 @@
-#ifndef LI_H5WRITE
-#define LI_H5WRITE
+#ifndef LI_DataWriter_H
+#define LI_DataWriter_H
 
-#include <LeptonInjector/BasicInjectionConfiguration.h>
-#include <hdf5.h> // all the data writing
-#include <fstream> // std::ostream 
-
+#include <array>
 #include <string> // strings
 #include <vector> //MAKE_ENUM_VECTOR
-
+#include <fstream> // std::ostream 
 #include <iostream> // std::cout 
-#include <LeptonInjector/EventProps.h>
-#include <array>
 
+#include <hdf5.h> // all the data writing
 #include <boost/assign/list_inserter.hpp>
 #include <boost/preprocessor/seq/transform.hpp>
 
+#include "LeptonInjector/EventProps.h"
+#include "LeptonInjector/BasicInjectionConfiguration.h"
 
 // See https://portal.hdfgroup.org/display/HDF5/HDF5
 // for hdf5 documentation! 
@@ -74,4 +72,5 @@ namespace LeptonInjector{
 
 }// end namespace LeptonInjector
 
-#endif 
+#endif // LI_DataWriter_H
+

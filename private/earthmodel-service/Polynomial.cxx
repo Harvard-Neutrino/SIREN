@@ -1,9 +1,10 @@
-#include <earthmodel-service/Polynomial.h>
-#include <earthmodel-service/Geometry.h>
 #include <algorithm>
 #include <cmath>
 #include <functional>
 #include <iostream>
+
+#include "earthmodel-service/Polynomial.h"
+#include "earthmodel-service/Geometry.h"
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%       Polynom      %%%%%%%%%%%%%%%%%%%%

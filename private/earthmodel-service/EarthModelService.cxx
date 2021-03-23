@@ -18,8 +18,7 @@
 #include <numeric>
 #include <algorithm>
 #include <functional>
-#include <earthmodel-service/EarthModelService.h>
-//  #include "earthmodel-service/EarthModelService.h"
+#include "earthmodel-service/EarthModelService.h"
 
 using namespace std;
 using namespace earthmodel;

@@ -27,7 +27,8 @@
  ******************************************************************************/
 
 
-#pragma once
+#ifndef LI_Vector3D_H
+#define LI_Vector3D_H
 
 #include <sstream>
 
@@ -130,3 +131,6 @@ private:
 };
 
 } // namespace earthmodel
+
+#endif // LI_Vector3D_H
+

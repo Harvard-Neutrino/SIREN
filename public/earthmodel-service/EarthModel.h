@@ -5,12 +5,12 @@
 #include <string>
 #include <vector>
 
-#include <earthmodel-service/Vector3D.h>
-#include <earthmodel-service/Geometry.h>
-#include <earthmodel-service/DensityDist.h>
-#include <earthmodel-service/MaterialModel.h>
+#include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/Geometry.h"
+#include "earthmodel-service/DensityDist.h"
+#include "earthmodel-service/MaterialModel.h"
 
-#include <LeptonInjector/Constants.h>
+#include "LeptonInjector/Constants.h"
 
 namespace earthmodel {
 

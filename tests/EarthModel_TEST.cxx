@@ -9,7 +9,8 @@
 
 #include <gtest/gtest.h>
 
-#include <earthmodel-service/EarthModel.h>
+#include "earthmodel-service/EarthModel.h"
+
 #include "MaterialFake.h"
 
 using namespace earthmodel;
@@ -29,3 +30,4 @@ int main(int argc, char** argv)
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
+

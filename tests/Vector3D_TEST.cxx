@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <earthmodel-service/Vector3D.h>
+#include "earthmodel-service/Vector3D.h"
 
 using namespace earthmodel;
 
@@ -224,3 +224,4 @@ int main(int argc, char** argv)
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
+
