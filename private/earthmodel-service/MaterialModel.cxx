@@ -69,7 +69,7 @@ void MaterialModel::AddModelFile(std::string matratio) {
     std::string fname;
 
     if(matratio.empty())
-        throw("Received empty matratio filename!")
+        throw("Received empty matratio filename!");
 
     if(fexists(matratio)) {
         fname = matratio;

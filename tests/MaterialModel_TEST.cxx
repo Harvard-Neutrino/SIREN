@@ -29,7 +29,12 @@ TEST_F(MaterialTest, FileConstructor)
 
 TEST(Constructor, EmptyFile)
 {
-    MaterialModel A("");
+    EXPECT_THROW(MaterialModel A(""), char const *);
+}
+
+TEST(Constructor, BadFile)
+{
+    EXPECT_THROW(MaterialModel A(std::tmpnam(nullptr)), char const *);
 }
 
 TEST_F(MaterialTest, DuplicateFile)
