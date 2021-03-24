@@ -10,15 +10,26 @@
 
 using namespace earthmodel;
 
-class MaterialTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        file_exists = false;
-        create_file();
-    }
-    void TearDown() override {
-        remove_file();
-    }
+
+class FakeMaterialModelFile {
+public:
+    bool file_exists;
+    std::mt19937 rng_;
+    std::string blank_chars;
+    std::string comment_str;
+    std::string line_break;
+    std::string name_char_set;
+    std::string cruft_char_set;
+    std::uniform_real_distribution<double> uniform_distribution;
+    std::string materials_file;
+
+    std::string file_contents;
+
+    std::vector<std::string> material_names_;
+    std::vector<double> pne_ratios_;
+    std::map<std::string, int> material_ids_;
+    std::map<std::string, std::vector<std::pair<std::string, double>>> material_components_;
+
     void remove_file() {
         if(file_exists) {
             std::remove(materials_file.c_str());
@@ -218,21 +229,16 @@ protected:
         pne_ratios_.clear();
     }
 
-    bool file_exists;
-    std::mt19937 rng_;
-    std::string blank_chars;
-    std::string comment_str;
-    std::string line_break;
-    std::string name_char_set;
-    std::string cruft_char_set;
-    std::uniform_real_distribution<double> uniform_distribution;
-    std::string materials_file;
+};
 
-    std::string file_contents;
-
-    std::vector<std::string> material_names_;
-    std::vector<double> pne_ratios_;
-    std::map<std::string, int> material_ids_;
-    std::map<std::string, std::vector<std::pair<std::string, double>>> material_components_;
+class FakeMaterialModelTest : public FakeMaterialModelFile, public ::testing::Test {
+protected:
+    void SetUp() override {
+        FakeMaterialModelFile::file_exists = false;
+        FakeMaterialModelFile::create_file();
+    }
+    void TearDown() override {
+        FakeMaterialModelFile::remove_file();
+    }
 };
 

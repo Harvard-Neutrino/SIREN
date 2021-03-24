@@ -20,12 +20,12 @@ TEST(Constructor, Default)
     EXPECT_NO_THROW(EarthModel A);
 }
 
-TEST_F(MaterialTest, EarthModelConstructorEmptyPathEmptyModel)
+TEST_F(FakeMaterialModelTest, EarthModelConstructorEmptyPathEmptyModel)
 {
     EXPECT_THROW(EarthModel A("", "", materials_file), char const *);
 }
 
-TEST_F(MaterialTest, EarthModelConstructorEmptyPathEmptyModelEmptyMaterials)
+TEST_F(FakeMaterialModelTest, EarthModelConstructorEmptyPathEmptyModelEmptyMaterials)
 {
     EXPECT_THROW(EarthModel A("", "", ""), char const *);
 }

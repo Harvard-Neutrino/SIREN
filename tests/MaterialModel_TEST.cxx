@@ -20,7 +20,7 @@ TEST(Constructor, Default)
     MaterialModel A;
 }
 
-TEST_F(MaterialTest, FileConstructor)
+TEST_F(FakeMaterialModelTest, FileConstructor)
 {
     ASSERT_NO_THROW(MaterialModel(materials_file));
     MaterialModel A(materials_file);
@@ -38,7 +38,7 @@ TEST(Constructor, BadFile)
     EXPECT_THROW(MaterialModel A(std::tmpnam(nullptr)), char const *);
 }
 
-TEST_F(MaterialTest, DuplicateFile)
+TEST_F(FakeMaterialModelTest, DuplicateFile)
 {
     ASSERT_NO_THROW(MaterialModel(materials_file));
     MaterialModel A(materials_file);
@@ -79,7 +79,7 @@ std::string print_vp(std::vector<std::pair<T, U>> v) {
     return s.str();
 }
 
-TEST_F(MaterialTest, MaterialCount)
+TEST_F(FakeMaterialModelTest, MaterialCount)
 {
     ASSERT_NO_THROW(MaterialModel("", materials_file));
 
@@ -103,7 +103,7 @@ TEST_F(MaterialTest, MaterialCount)
     }
 }
 
-TEST_F(MaterialTest, DuplicateFileMaterialCount)
+TEST_F(FakeMaterialModelTest, DuplicateFileMaterialCount)
 {
     ASSERT_NO_THROW(MaterialModel(materials_file));
 
@@ -141,7 +141,7 @@ TEST_F(MaterialTest, DuplicateFileMaterialCount)
     }
 }
 
-TEST_F(MaterialTest, MaterialId)
+TEST_F(FakeMaterialModelTest, MaterialId)
 {
     ASSERT_NO_THROW(MaterialModel(materials_file));
 
@@ -161,7 +161,7 @@ TEST_F(MaterialTest, MaterialId)
     }
 }
 
-TEST_F(MaterialTest, MaterialPNE)
+TEST_F(FakeMaterialModelTest, MaterialPNE)
 {
     ASSERT_NO_THROW(MaterialModel(materials_file));
 
