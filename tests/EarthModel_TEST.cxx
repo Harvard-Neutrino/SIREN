@@ -11,7 +11,7 @@
 
 #include "earthmodel-service/EarthModel.h"
 
-#include "MaterialFake.h"
+#include "FakeMaterialModel.h"
 
 using namespace earthmodel;
 
