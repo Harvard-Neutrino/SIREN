@@ -17,12 +17,17 @@ using namespace earthmodel;
 
 TEST(Constructor, Default)
 {
-    EarthModel A;
+    EXPECT_NO_THROW(EarthModel A);
 }
 
 TEST_F(MaterialTest, EarthModelConstructorEmptyPathEmptyModel)
 {
-    EXPECT_NO_THROW(EarthModel A("", "", materials_file));
+    EXPECT_THROW(EarthModel A("", "", materials_file), char const *);
+}
+
+TEST_F(MaterialTest, EarthModelConstructorEmptyPathEmptyModelEmptyMaterials)
+{
+    EXPECT_THROW(EarthModel A("", "", ""), char const *);
 }
 
 int main(int argc, char** argv)

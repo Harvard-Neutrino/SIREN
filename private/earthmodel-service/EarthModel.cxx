@@ -19,22 +19,26 @@ void string_to_lower(std::string & data) {
 
 EarthModel::EarthModel() {
     LoadDefaultMaterials();
+    LoadDefaultSectors();
 }
 
 EarthModel::EarthModel(std::string const & earth_model, std::string const & material_model) {
     LoadDefaultMaterials();
+    LoadDefaultSectors();
     LoadMaterialModel(material_model);
     LoadEarthModel(earth_model);
 }
 
 EarthModel::EarthModel(std::string const & path, std::string const & earth_model, std::string const & material_model) : path_(path) {
     LoadDefaultMaterials();
+    LoadDefaultSectors();
     LoadMaterialModel(material_model);
     LoadEarthModel(earth_model);
 }
 
 void EarthModel::LoadEarthModel(std::string const & earth_model) {
-
+    if(earth_model.empty())
+        throw("Received empty earth model filename!");
 }
 
 void EarthModel::LoadDefaultMaterials() {
