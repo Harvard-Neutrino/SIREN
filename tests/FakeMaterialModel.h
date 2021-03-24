@@ -1,3 +1,6 @@
+#ifndef LI_TEST_FakeMaterialModel_H
+#define LI_TEST_FakeMaterialModel_H
+
 #include <cmath>
 #include <math.h>
 #include <cstdio>
@@ -241,4 +244,6 @@ protected:
         FakeMaterialModelFile::remove_file();
     }
 };
+
+#endif // LI_TEST_FakeMaterialModel_H
 

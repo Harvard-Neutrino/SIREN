@@ -12,6 +12,7 @@
 #include "earthmodel-service/EarthModel.h"
 
 #include "FakeMaterialModel.h"
+#include "FakeEarthModel.h"
 
 using namespace earthmodel;
 
@@ -20,12 +21,12 @@ TEST(Constructor, Default)
     EXPECT_NO_THROW(EarthModel A);
 }
 
-TEST_F(FakeMaterialModelTest, EarthModelConstructorEmptyPathEmptyModel)
+TEST_F(FakeLegacyEarthModelTest, EarthModelConstructorEmptyPathEmptyModel)
 {
     EXPECT_THROW(EarthModel A("", "", materials_file), char const *);
 }
 
-TEST_F(FakeMaterialModelTest, EarthModelConstructorEmptyPathEmptyModelEmptyMaterials)
+TEST_F(FakeLegacyEarthModelTest, EarthModelConstructorEmptyPathEmptyModelEmptyMaterials)
 {
     EXPECT_THROW(EarthModel A("", "", ""), char const *);
 }

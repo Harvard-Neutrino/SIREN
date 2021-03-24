@@ -70,6 +70,15 @@ void Polynom::shift(double x) {
         for (int i = 0; i <= n - 1; ++i) {
             coeff_[i] = t[n][i + 1] / std::pow(x, i);
         }
+
+        for (int count = 0; count < N_; ++count)
+            delete t[count];
+    }
+}
+
+void Polynom::scale(double x) {
+    for(int i = 0; i<N_; ++i) {
+        coeff_[i] *= std::pow(x, i);
     }
 }
 

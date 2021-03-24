@@ -53,6 +53,7 @@ class Polynom {
 
     double evaluate(double x) const;
     void shift(double x);
+    void scale(double x);
 
     Polynom GetDerivative() const;
     Polynom GetAntiderivative(double constant) const;
