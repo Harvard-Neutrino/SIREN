@@ -15,6 +15,15 @@
 
 using namespace earthmodel;
 
+template <typename T>
+std::string str(std::vector<T> v) {
+    std::stringstream ss;
+    for(auto const & s : v) {
+        ss << s << " ";
+    }
+    return ss.str();
+}
+
 class FakeLegacyEarthModelFile {
 protected:
     bool file_exists;
@@ -29,6 +38,13 @@ protected:
 
     std::string file_contents;
 
+    std::vector<std::string> layer_names;
+    std::vector<double> layer_thicknesses;
+    std::vector<double> layer_radii;
+    std::vector<Polynom> layer_densities;
+    std::vector<std::string> layer_materials;
+    std::vector<std::string> layer_types;
+
     std::vector<std::string> material_names;
 
     void set_material_names(std::vector<std::string> const & names) {
@@ -38,13 +54,16 @@ protected:
     void remove_file() {
         if(file_exists) {
             std::remove(model_file.c_str());
+            clear();
         }
+        file_exists = false;
     }
 
-    void create_file() {
+    void create_file(std::vector<std::string> mat_names) {
         if(file_exists) {
             remove_file();
         }
+        set_material_names(mat_names);
         uniform_distribution = std::uniform_real_distribution<double>(0.0, 1.0);
         blank_chars = " \t";
         comment_str = "#";
@@ -61,7 +80,7 @@ protected:
         unsigned int lines = 0;
         unsigned int layers = 0;
         double max_radius = 0;
-        while(lines < n_lines and layers < n_layers) {
+        while((lines < n_lines) or (layers < n_layers)) {
             unsigned int type = RandomDouble()*3;
             if(type == 0) {
                 ss << blank_line();
@@ -77,6 +96,7 @@ protected:
         }
         file_contents = ss.str();
         out << file_contents;
+        file_exists = true;
     }
 
     std::string blank_line() {
@@ -136,14 +156,19 @@ protected:
         std::vector<double> parameters;
 
         name = random_name();
+        layer_names.push_back(name);
 
         double layer_thickness = RandomDouble()*1e6;
+        layer_thicknesses.push_back(layer_thickness);
         radius = prev_radius + layer_thickness;
+        layer_radii.push_back(radius);
 
+        assert(material_names.size() > 0);
         int material_id = RandomDouble()*material_names.size();
         material_name = material_names[material_id];
+        layer_materials.push_back(material_name);
 
-        bool is_homogenous = RandomDouble()*2;
+        int is_homogenous = RandomDouble()*2;
         if(is_homogenous) {
             n_parameters = 1;
         } else {
@@ -151,8 +176,19 @@ protected:
         }
 
         double parameter_sum = 0.0;
+        double starting_max = 15;
+        double starting_min = 0.0;
+        double upper_bound;
+        double lower_bound;
         for(unsigned int i=0; i<n_parameters; ++i) {
-            double parameter_value = (RandomDouble()*(parameter_sum + 15) - parameter_sum);
+            if(i>0) {
+                upper_bound = std::min(std::abs(parameter_sum), std::pow(starting_max, 1.0/(10*i))/(std::pow(i, 10)));
+                lower_bound = std::max(std::min(parameter_sum, starting_min), -upper_bound);
+            } else {
+                upper_bound = starting_max;
+                lower_bound = starting_min;
+            }
+            double parameter_value = (RandomDouble()*(upper_bound - lower_bound) + lower_bound);
             parameters.push_back(parameter_value);
             parameter_sum += parameter_value;
             if(parameter_sum < 0)
@@ -160,9 +196,17 @@ protected:
         }
         Polynom poly(parameters);
         poly.scale(1.0/layer_thickness);
-        poly.shift(-prev_radius/layer_thickness);
-        EXPECT_TRUE(poly.evaluate(prev_radius) >= 0);
-        EXPECT_TRUE(poly.evaluate(radius) >= 0);
+        poly.shift(-prev_radius);
+        bool poly_positive;
+        poly_positive = poly.evaluate(prev_radius) >= 0;
+        assert(poly_positive);
+        for(unsigned int i=0; i<1000; ++i) {
+            poly_positive = poly.evaluate(RandomDouble()*layer_thickness + prev_radius) >= 0;
+            assert(poly_positive);
+        }
+        poly_positive = poly.evaluate(radius) >= 0;
+        assert(poly_positive);
+        layer_densities.push_back(poly);
 
         parameters = poly.GetCoefficient();
 
@@ -185,6 +229,20 @@ protected:
         return out.str();
     }
 
+    void clear() {
+        file_contents.clear();
+
+        layer_names.clear();
+        layer_thicknesses.clear();
+        layer_radii.clear();
+        layer_densities.clear();
+        layer_materials.clear();
+        layer_types.clear();
+
+        material_names.clear();
+        model_file = "";
+    }
+
     double RandomDouble() {
         return uniform_distribution(rng_);
     }
@@ -192,16 +250,23 @@ protected:
 
 class FakeLegacyEarthModelTest : public FakeLegacyEarthModelFile, public FakeMaterialModelFile, public ::testing::Test {
 protected:
+    void setup() {
+        FakeMaterialModelFile::create_file(std::vector<std::string>{"air", "atmosphere", "ice"}, 6);
+        FakeLegacyEarthModelFile::create_file(FakeMaterialModelFile::material_names_);
+    }
+    void reset() {
+        setup();
+    }
     void SetUp() override {
         FakeMaterialModelFile::file_exists = false;
-        FakeMaterialModelFile::create_file();
-        FakeLegacyEarthModelFile::set_material_names(FakeMaterialModelFile::material_names_);
         FakeLegacyEarthModelFile::file_exists = false;
-        FakeLegacyEarthModelFile::create_file();
+        setup();
     }
     void TearDown() override {
-        FakeMaterialModelFile::remove_file();
-        FakeLegacyEarthModelFile::remove_file();
+        //FakeMaterialModelFile::remove_file();
+        //FakeLegacyEarthModelFile::remove_file();
+        FakeMaterialModelFile::clear();
+        FakeLegacyEarthModelFile::clear();
     }
 };
 

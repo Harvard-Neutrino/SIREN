@@ -25,6 +25,7 @@ public:
     std::string cruft_char_set;
     std::uniform_real_distribution<double> uniform_distribution;
     std::string materials_file;
+    std::vector<std::string> possible_material_names;
 
     std::string file_contents;
 
@@ -32,16 +33,28 @@ public:
     std::vector<double> pne_ratios_;
     std::map<std::string, int> material_ids_;
     std::map<std::string, std::vector<std::pair<std::string, double>>> material_components_;
+    unsigned int n_materials_added_ = 0;
+
+    void set_possible_material_names(std::vector<std::string> names, unsigned int n_random_names) {
+        possible_material_names = names;
+        for(unsigned int i=0; i<n_random_names; ++i) {
+            possible_material_names.push_back(random_name());
+        }
+    }
 
     void remove_file() {
         if(file_exists) {
             std::remove(materials_file.c_str());
+            clear();
         }
+        file_exists = false;
     }
-    void create_file() {
+    void create_file(std::vector<std::string> names, unsigned int n_random_names) {
         if(file_exists) {
             remove_file();
         }
+        set_possible_material_names(names, n_random_names);
+        assert(material_names_.size() == 0);
         uniform_distribution = std::uniform_real_distribution<double>(0.0, 1.0);
         blank_chars = " \t";
         comment_str = "#";
@@ -57,7 +70,7 @@ public:
 
         unsigned int lines = 0;
         unsigned int materials = 0;
-        while(lines < n_lines and materials < n_materials) {
+        while((lines < n_lines) or (materials < n_materials)) {
             unsigned int type = RandomDouble()*3;
             if(type == 0) {
                 ss << blank_line();
@@ -73,6 +86,9 @@ public:
         }
         file_contents = ss.str();
         out << file_contents;
+        file_exists = true;
+        assert(n_materials_added_ > 0);
+        assert(material_names_.size() > 0);
     }
 
     std::string blank_line() {
@@ -116,7 +132,7 @@ public:
         unsigned int n_chars = RandomDouble()*46 + 1;
         std::stringstream s;
         for(unsigned int i=0; i<n_chars; ++i)
-            s << name_char_set[(unsigned int)(RandomDouble()*name_char_set.size())];
+            s << name_char_set[(int)(RandomDouble()*name_char_set.size())];
         return s.str();
     }
 
@@ -124,7 +140,7 @@ public:
         unsigned int n_chars = RandomDouble()*46;
         std::stringstream s;
         for(unsigned int i=0; i<n_chars; ++i)
-            s << cruft_char_set[(unsigned int)(RandomDouble()*cruft_char_set.size())];
+            s << cruft_char_set[(int)(RandomDouble()*cruft_char_set.size())];
         return s.str();
     }
 
@@ -133,20 +149,29 @@ public:
         std::stringstream s;
         s << ' ';
         for(unsigned int i=0; i<n_chars; ++i) {
-            s << blank_chars[(unsigned int)(RandomDouble()*blank_chars.size())];;
+            s << blank_chars[(int)(RandomDouble()*blank_chars.size())];;
         }
         return s.str();
     }
 
     std::string add_material() {
+        n_materials_added_ += 1;
         std::stringstream out;
-        std::string name = random_name();
+        std::string name;
+        if(possible_material_names.size() > 0) {
+            int material_name_index = RandomDouble()*possible_material_names.size();
+            name = possible_material_names[material_name_index];
+            possible_material_names.erase(possible_material_names.begin()+material_name_index);
+        } else {
+            name = random_name();
+        }
         int id;
         if(material_ids_.find(name) == material_ids_.end()) {
             id = material_names_.size();
             material_ids_.insert({name, id});
             material_names_.push_back(name);
         } else {
+            assert(material_names_.size() > 0);
             id = material_ids_[name];
         }
         unsigned int n_components = RandomDouble()*11;
@@ -230,6 +255,8 @@ public:
         material_names_.clear();
         material_components_.clear();
         pne_ratios_.clear();
+        materials_file = "";
+        n_materials_added_ = 0;
     }
 
 };
@@ -238,7 +265,7 @@ class FakeMaterialModelTest : public FakeMaterialModelFile, public ::testing::Te
 protected:
     void SetUp() override {
         FakeMaterialModelFile::file_exists = false;
-        FakeMaterialModelFile::create_file();
+        FakeMaterialModelFile::create_file({}, 12);
     }
     void TearDown() override {
         FakeMaterialModelFile::remove_file();

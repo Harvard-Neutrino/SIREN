@@ -56,11 +56,49 @@ TEST_F(FakeMaterialModelTest, EarthModelConstructorBadModelEmptyMaterial)
     EXPECT_THROW(EarthModel(std::tmpnam(nullptr), ""), char const *);
 }
 
-TEST_F(FakeLegacyEarthModelTest, LoadConcentricShellsFromLegacyFile)
+TEST_F(FakeLegacyEarthModelTest, LegacyFileLoadWithNoIce)
 {
-    EarthModel A;
-    ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
-    EXPECT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, 1000, -1));
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        EXPECT_NO_THROW(reset());
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle);
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, LegacyFileLoadWithIce)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        EXPECT_NO_THROW(reset());
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        EXPECT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, LegacyFileLoadCheckNamesWithNoIce)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        EXPECT_NO_THROW(reset());
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        EXPECT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+    }
 }
 
 int main(int argc, char** argv)

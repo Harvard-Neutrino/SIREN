@@ -86,7 +86,7 @@ TEST_F(FakeMaterialModelTest, MaterialCount)
     unsigned int N_RAND = 1000;
     for(unsigned int i=0; i<N_RAND; ++i) {
         clear();
-        create_file();
+        create_file({}, 12);
         MaterialModel A(materials_file);
 
         int material_count = 0;
@@ -110,7 +110,7 @@ TEST_F(FakeMaterialModelTest, DuplicateFileMaterialCount)
     unsigned int N_RAND = 1000;
     for(unsigned int i=0; i<N_RAND; ++i) {
         clear();
-        create_file();
+        create_file({}, 12);
         MaterialModel A(materials_file);
 
         int material_count = 0;
@@ -148,7 +148,7 @@ TEST_F(FakeMaterialModelTest, MaterialId)
     unsigned int N_RAND = 100;
     for(unsigned int i=0; i<N_RAND; ++i) {
         clear();
-        create_file();
+        create_file({}, 12);
         MaterialModel A(materials_file);
 
         for(unsigned int i=0; i<material_names_.size(); ++i) {
@@ -168,7 +168,7 @@ TEST_F(FakeMaterialModelTest, MaterialPNE)
     unsigned int N_RAND = 100;
     for(unsigned int i=0; i<N_RAND; ++i) {
         clear();
-        create_file();
+        create_file({}, 12);
         MaterialModel A(materials_file);
 
         for(unsigned int i=0; i<material_names_.size(); ++i) {

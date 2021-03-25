@@ -13,9 +13,7 @@
 using namespace earthmodel;
 
 Polynom::Polynom(const std::vector<double>& coefficients) : N_(coefficients.size()) {
-    coeff_ = new double[N_];
-
-    std::copy(coefficients.begin(), coefficients.end(), coeff_);
+    coeff_ = coefficients;
 }
 
 Polynom::Polynom(const Polynom& poly) : N_(poly.N_), coeff_(poly.coeff_) {}
@@ -50,6 +48,9 @@ void Polynom::shift(double x) {
     // Shaw and Traub method for the Taylor shift
     // https://planetcalc.com/7726/#fnref1:shaw
 
+    std::function<int(int)> rev = [=] (int i) -> int {
+        return N_-1 - i;
+    };
     if (std::fabs(x) > Geometry::GEOMETRY_PRECISION) {
         int n = N_ - 1;
         double** t = new double*[N_];
@@ -61,13 +62,13 @@ void Polynom::shift(double x) {
             t[i][i + 1] = coeff_[n] * std::pow(x, n);
         }
 
-        for (int j = 0; j <= n - 1; ++j) {
+        for (int j = 0; j < n; ++j) {
             for (int i = j + 1; i <= n; ++i) {
                 t[i][j + 1] = t[i - 1][j] + t[i - 1][j + 1];
             }
         }
 
-        for (int i = 0; i <= n - 1; ++i) {
+        for (int i = 0; i < n; ++i) {
             coeff_[i] = t[n][i + 1] / std::pow(x, i);
         }
 
@@ -101,8 +102,7 @@ Polynom Polynom::GetAntiderivative(double constant) const {
 }
 
 std::vector<double> Polynom::GetCoefficient() const {
-    std::vector<double> v(coeff_, coeff_ + N_);
-    return v;
+    return coeff_;
 }
 
 std::function<double(double)> Polynom::GetFunction() {

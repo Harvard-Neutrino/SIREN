@@ -65,7 +65,7 @@ class Polynom {
 
    protected:
     int N_;
-    double* coeff_;
+    std::vector<double> coeff_;
 };
 
 class MathException: public std::exception {
