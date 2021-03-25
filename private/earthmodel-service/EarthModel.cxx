@@ -36,9 +36,52 @@ EarthModel::EarthModel(std::string const & path, std::string const & earth_model
     LoadEarthModel(earth_model);
 }
 
+namespace {
+bool fexists(const char *filename)
+{
+    std::ifstream ifile(filename);
+    return (bool)ifile;
+}
+bool fexists(const std::string filename)
+{
+    std::ifstream ifile(filename.c_str());
+    return (bool)ifile;
+}
+}
+
 void EarthModel::LoadEarthModel(std::string const & earth_model) {
     if(earth_model.empty())
         throw("Received empty earth model filename!");
+
+    std::string fname;
+
+    if(fexists(earth_model)) {
+        fname = earth_model;
+    }
+    else if(fexists(earth_model + ".dat")) {
+        fname = earth_model + ".dat";
+    }
+    else if(fexists(path_ + "/densities/" + earth_model)) {
+        fname = path_ + "/densities/" + earth_model;
+    }
+    else if(fexists(path_ + "/densities/" + earth_model + ".dat")) {
+        fname = path_ + "/densities/" + earth_model + ".dat";
+    }
+    else if(fexists(path_ + "/earthparams/" + earth_model)) {
+        fname = path_ + "/earthparams/" + earth_model;
+    }
+    else if(fexists(path_ + "/earthparams/" + earth_model + ".dat")) {
+        fname = path_ + "/earthparams/" + earth_model + ".dat";
+    }
+    else if(fexists(path_ + "/" + earth_model)) {
+        fname = path_ + "/" + earth_model;
+    }
+    else if(fexists(path_ + "/" + earth_model + ".dat")) {
+        fname = path_ + "/" + earth_model + ".dat";
+    }
+    else {
+        throw("Cannot open earth model file!");
+    }
 }
 
 void EarthModel::LoadDefaultMaterials() {
@@ -164,22 +207,49 @@ Vector3D EarthModel::GetDetCoordDirFromEarthCoordDir(Vector3D const & direction)
    return direction;
 }
 
-void EarthModel::LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_cap_angle) {
-    sectors_.clear();
-    LoadDefaultSectors();
+void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, double detector_depth, double ice_cap_angle) {
+    if(model_fname.empty())
+        throw("Received empty earth model filename!");
 
-    if(fname.find(".dat") == std::string::npos)
-        fname += ".dat";
+    std::string fname;
 
-    // check earthmodel file
-    fname = (fname.find('/') == std::string::npos ? path_ + "densities/" + fname : fname);
+    if(fexists(model_fname)) {
+        fname = model_fname;
+    }
+    else if(fexists(model_fname + ".dat")) {
+        fname = model_fname + ".dat";
+    }
+    else if(fexists(path_ + "/densities/" + model_fname)) {
+        fname = path_ + "/densities/" + model_fname;
+    }
+    else if(fexists(path_ + "/densities/" + model_fname + ".dat")) {
+        fname = path_ + "/densities/" + model_fname + ".dat";
+    }
+    else if(fexists(path_ + "/earthparams/" + model_fname)) {
+        fname = path_ + "/earthparams/" + model_fname;
+    }
+    else if(fexists(path_ + "/earthparams/" + model_fname + ".dat")) {
+        fname = path_ + "/earthparams/" + model_fname + ".dat";
+    }
+    else if(fexists(path_ + "/" + model_fname)) {
+        fname = path_ + "/" + model_fname;
+    }
+    else if(fexists(path_ + "/" + model_fname + ".dat")) {
+        fname = path_ + "/" + model_fname + ".dat";
+    }
+    else {
+        throw("Cannot open earth model file!");
+    }
+
     std::ifstream in(fname.c_str());
 
     // if the earthmodel file doesn't exist, stop simulation
     if(in.fail()){
-        std::cout << "failed to open " << fname << " Set correct EarthParamsPath." << std::endl;
-        throw;
+        throw("Failed to open " + fname + " Set correct EarthParamsPath.");
     }
+
+    sectors_.clear();
+    LoadDefaultSectors();
 
     // read the file
     std::string buf;

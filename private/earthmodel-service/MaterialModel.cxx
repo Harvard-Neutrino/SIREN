@@ -97,7 +97,7 @@ void MaterialModel::AddModelFile(std::string matratio) {
     std::ifstream in(fname.c_str(), std::ifstream::in);
 
     if (in.fail())
-        throw("failed to open " + fname + ". Set correct path.");
+        throw("Failed to open " + fname + ". Set correct path.");
 
     // read the file
     std::string buf;

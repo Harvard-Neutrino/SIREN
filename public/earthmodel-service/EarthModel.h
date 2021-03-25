@@ -45,6 +45,7 @@ public:
 private:
     void LoadDefaultMaterials();
     void LoadDefaultSectors();
+public:
     void LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_angle=-1);
 };
 
