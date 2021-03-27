@@ -59,6 +59,13 @@ protected:
     }
 
     void create_file(std::vector<std::string> mat_names) {
+        unsigned int n_layers = RandomDouble()*23+1;
+        unsigned int n_lines = RandomDouble()*40+1;
+        int poly_max = 6;
+        create_file(mat_names, n_layers, n_lines, poly_max);
+    }
+
+    void create_file(std::vector<std::string> mat_names, unsigned int n_layers, unsigned int n_lines, int poly_max) {
         if(file_exists) {
             remove_file();
         }
@@ -71,8 +78,6 @@ protected:
         cruft_char_set = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
         model_file = std::tmpnam(nullptr);
 
-        unsigned int n_layers = RandomDouble()*23+1;
-        unsigned int n_lines = RandomDouble()*40+1;
         std::ofstream out(model_file.c_str(), std::ofstream::out);
         std::stringstream ss;
 
@@ -88,7 +93,7 @@ protected:
                 ss << comment_line();
             }
             else if(type == 2) {
-                ss << add_layer(max_radius);
+                ss << add_layer(max_radius, poly_max);
                 layers += 1;
             }
             lines += 1;
@@ -145,7 +150,7 @@ protected:
         return s.str();
     }
 
-    std::string add_layer(double & prev_radius) {
+    std::string add_layer(double & prev_radius, int poly_max) {
         std::stringstream out;
 
         double radius;
@@ -168,10 +173,10 @@ protected:
         layer_materials.push_back(material_name);
 
         int is_homogenous = RandomDouble()*2;
-        if(is_homogenous) {
+        if(is_homogenous or poly_max <= 1) {
             n_parameters = 1;
         } else {
-            n_parameters = RandomDouble()*6+1;
+            n_parameters = RandomDouble()*std::max(0, poly_max-1)+1;
         }
 
         double parameter_sum = 0.0;
@@ -244,6 +249,15 @@ protected:
     double RandomDouble() {
         return uniform_distribution(rng_);
     }
+
+    Vector3D RandomVector(double max_radius, double min_radius=0.0) {
+        double radius = RandomDouble()*(max_radius-min_radius) + min_radius;
+        double theta = RandomDouble()*M_PI;
+        double phi = RandomDouble()*2.0*M_PI;
+        Vector3D result;
+        result.SetSphericalCoordinates(radius, phi, theta);
+        return result;
+    }
 };
 
 class FakeLegacyEarthModelTest : public FakeLegacyEarthModelFile, public FakeMaterialModelFile, public ::testing::Test {
@@ -252,8 +266,15 @@ protected:
         FakeMaterialModelFile::create_file(std::vector<std::string>{"air", "atmosphere", "ice"}, 6);
         FakeLegacyEarthModelFile::create_file(FakeMaterialModelFile::material_names_);
     }
+    void setup(unsigned int n_layers, int poly_max) {
+        FakeMaterialModelFile::create_file(std::vector<std::string>{"air", "atmosphere", "ice"}, 6);
+        FakeLegacyEarthModelFile::create_file(FakeMaterialModelFile::material_names_, n_layers, 0, poly_max);
+    }
     void reset() {
         setup();
+    }
+    void reset(unsigned int n_layers, int poly_max) {
+        setup(n_layers, poly_max);
     }
     void SetUp() override {
         FakeMaterialModelFile::file_exists = false;

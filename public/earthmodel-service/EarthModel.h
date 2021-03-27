@@ -27,6 +27,7 @@ private:
     std::string path_;
     MaterialModel materials_;
     std::vector<EarthSector> sectors_;
+    std::map<int, unsigned int> sector_map_;
     Vector3D detector_origin_;
 public:
     EarthModel();
@@ -54,6 +55,11 @@ public:
 
     Vector3D GetDetectorOrigin() const;
     void SetDetectorOrigin(Vector3D const & detector_origin);
+
+    void AddSector(EarthSector sector);
+    EarthSector GetSector(int level) const;
+
+    void ClearSectors();
 
 private:
     void LoadDefaultMaterials();

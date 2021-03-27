@@ -65,7 +65,7 @@ TEST(DefaultSectors, VacuumOnly)
     EarthSector sector = sectors[0];
     EXPECT_EQ(0, sector.material_id);
     EXPECT_EQ(std::numeric_limits<int>::min(), sector.level);
-    Sphere geo(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0);
+    Sphere geo(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0, std::numeric_limits<int>::min());
     DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> density;
     EXPECT_EQ(geo, *sector.geo);
     EXPECT_EQ(density, *sector.density);
@@ -250,6 +250,36 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileSectorTypes)
             }
             origin = sphere->GetPosition();
         }
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralInternal)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(1, 1));
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A.GetSectors();
+        ASSERT_EQ(2, sectors.size());
+        EarthSector sector = sectors[1];
+        Sphere geo(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0);
+        Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
+        ASSERT_TRUE(sphere);
+        double max_radius = sphere->GetRadius();
+        double min_radius = sphere->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        ASSERT_TRUE(density);
+        double rho = density->Evaluate(Vector3D());
+        double sum = A.GetColumnDepthInCGS(p0, p1);
+        EXPECT_DOUBLE_EQ((p1 - p0).magnitude()*rho, sum);
     }
 }
 

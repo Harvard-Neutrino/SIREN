@@ -68,6 +68,25 @@ void EarthModel::SetDetectorOrigin(Vector3D const & detector_origin) {
     detector_origin_ = detector_origin;
 }
 
+void EarthModel::AddSector(EarthSector sector) {
+    if(sector_map_.count(sector.level) > 0) {
+        throw("Already have a sector of that heirarchy!");
+    }
+    else {
+        sector_map_[sector.level] = sectors_.size();
+        sectors_.push_back(sector);
+    }
+}
+
+EarthSector EarthModel::GetSector(int heirarchy) const {
+    return sectors_[sector_map_.find(heirarchy)->second];
+}
+
+void EarthModel::ClearSectors() {
+    sectors_.clear();
+    sector_map_.clear();
+}
+
 namespace {
 bool fexists(const char *filename)
 {
@@ -124,9 +143,9 @@ void EarthModel::LoadDefaultSectors() {
     EarthSector sector;
     sector.material_id = materials_.GetMaterialId("VACUUM");
     sector.level = std::numeric_limits<int>::min();
-    sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
+    sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0, sector.level).create();
     sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
-    sectors_.push_back(sector);
+    AddSector(sector);
 }
 
 void EarthModel::LoadMaterialModel(std::string const & material_model) {
@@ -145,6 +164,9 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
         intersections.reserve(intersections.size() + std::distance(i.begin(), i.end()));
         intersections.insert(intersections.end(), i.begin(), i.end());
     }
+
+    assert(intersections.size() > 0);
+    assert(distance > 0);
 
     std::function<bool(Geometry::Intersection const &, Geometry::Intersection const &)> comp = [](Geometry::Intersection const & a, Geometry::Intersection const & b){
 		bool a_enter = a.entering;
@@ -184,8 +206,11 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
             if(intersection.hierarchy > current_intersection->hierarchy) {
                 if(intersection.distance > 0) {
                     // Store integral between current_intersection and new intersection
-                    double segment_length = std::min(intersection.distance, distance)-current_intersection->distance;
-                    column_depth += sectors_[current_intersection->hierarchy].density->Integral(p0+current_intersection->distance*direction, direction, segment_length);
+                    double end_point = std::min(intersection.distance, distance);
+                    double start_point = std::max(current_intersection->distance, 0.0);
+                    double segment_length = end_point - start_point;
+                    double integral = GetSector(current_intersection->hierarchy).density->Integral(p0+start_point*direction, direction, segment_length);
+                    column_depth += integral;
                     if(intersection.distance >= distance) {
                         break;
                     }
@@ -198,8 +223,11 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
                 stack.erase(intersection.hierarchy);
                 if(intersection.distance > 0) {
                     // Store integral between current_intersection and new intersection
-                    double segment_length = std::min(intersection.distance, distance)-current_intersection->distance;
-                    column_depth += sectors_[current_intersection->hierarchy].density->Integral(p0+current_intersection->distance*direction, direction, segment_length);
+                    double end_point = std::min(intersection.distance, distance);
+                    double start_point = std::max(current_intersection->distance, 0.0);
+                    double segment_length = end_point - start_point;
+                    double integral = GetSector(current_intersection->hierarchy).density->Integral(p0+start_point*direction, direction, segment_length);
+                    column_depth += integral;
                     if(intersection.distance >= distance) {
                         break;
                     }
@@ -211,7 +239,6 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
             }
         }
     }
-
     return column_depth;
 }
 
@@ -276,7 +303,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
         throw("Failed to open " + fname + " Set correct EarthParamsPath.");
     }
 
-    sectors_.clear();
+    ClearSectors();
     LoadDefaultSectors();
 
     // read the file
@@ -318,8 +345,8 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
         sector.material_id = materials_.GetMaterialId(medtype);
         sector.level = level;
         sector.name = label;
+        sector.geo = Sphere(Vector3D(0,0,0), radius, 0, level).create();
         level -= 1;
-        sector.geo = Sphere(Vector3D(0,0,0), radius, 0).create();
         if(nparams == 1) {
             ss >> param;
             sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(param).create();
@@ -339,7 +366,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
             throw("Layers must be radially ordered in file!");
         }
         max_radius = radius;
-        sectors_.push_back(sector);
+        AddSector(sector);
     } // end of the while loop
     in.close();
 
@@ -348,7 +375,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
     double ice_radius = 0;
     std::vector<int> ice_layers;
     bool saw_ice = false;
-    for(unsigned int i=0; i<sectors_.size(); ++i) {
+    for(unsigned int i=1; i<sectors_.size(); ++i) {
         EarthSector const & sector = sectors_[i];
         std::string name = materials_.GetMaterialName(sector.material_id);
         string_to_lower(name);

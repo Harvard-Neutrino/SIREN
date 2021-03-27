@@ -57,6 +57,13 @@ Geometry::Geometry(const std::string name, const Vector3D position)
 {
 }
 
+Geometry::Geometry(const std::string name, const Vector3D position, int hierarchy)
+    : position_(position)
+    , name_(name)
+    , hierarchy_(hierarchy)
+{
+}
+
 Geometry::Geometry(const Geometry& geometry)
     : position_(geometry.position_)
     , name_(geometry.name_)
@@ -189,6 +196,15 @@ Box::Box()
 
 Box::Box(const Vector3D position, double x, double y, double z)
     : Geometry("Box", position)
+    , x_(x)
+    , y_(y)
+    , z_(z)
+{
+    // Do nothing here
+}
+
+Box::Box(const Vector3D position, double x, double y, double z, int hierarchy)
+    : Geometry("Box", position, hierarchy)
     , x_(x)
     , y_(y)
     , z_(z)
@@ -529,6 +545,23 @@ Cylinder::Cylinder()
 
 Cylinder::Cylinder(const Vector3D position, double radius, double inner_radius, double z)
     : Geometry("Cylinder", position)
+    , radius_(radius)
+    , inner_radius_(inner_radius)
+    , z_(z)
+{
+    if (inner_radius_ > radius_)
+    {
+        //log_error("Inner radius %f is greater then radius %f (will be swaped)", inner_radius_, radius_);
+        std::swap(inner_radius_, radius_);
+    }
+    if (inner_radius_ == radius_)
+    {
+        //log_error("Warning: Inner radius %f == radius %f (Volume is 0)", inner_radius_, radius_);
+    }
+}
+
+Cylinder::Cylinder(const Vector3D position, double radius, double inner_radius, double z, int hierarchy)
+    : Geometry("Cylinder", position, hierarchy)
     , radius_(radius)
     , inner_radius_(inner_radius)
     , z_(z)
@@ -921,6 +954,22 @@ Sphere::Sphere()
 
 Sphere::Sphere(const Vector3D position, double radius, double inner_radius)
     : Geometry("Sphere", position)
+    , radius_(radius)
+    , inner_radius_(inner_radius)
+{
+    if (inner_radius_ > radius_)
+    {
+        //log_error("Inner radius %f is greater then radius %f (will be swaped)", inner_radius_, radius_);
+        std::swap(inner_radius_, radius_);
+    }
+    if (inner_radius_ == radius_)
+    {
+        //log_error("Warning: Inner radius %f == radius %f (Volume is 0)", inner_radius_, radius_);
+    }
+}
+
+Sphere::Sphere(const Vector3D position, double radius, double inner_radius, int hierarchy)
+    : Geometry("Sphere", position, hierarchy)
     , radius_(radius)
     , inner_radius_(inner_radius)
 {

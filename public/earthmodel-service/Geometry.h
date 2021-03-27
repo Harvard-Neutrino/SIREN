@@ -46,13 +46,14 @@ public:
     };
     struct Intersection {
         double distance;
-        unsigned int hierarchy;
+        int hierarchy;
         Vector3D position;
         bool entering;
     };
 public:
     Geometry(const std::string);
     Geometry(const std::string, const Vector3D position);
+    Geometry(const std::string, const Vector3D position, int hierarchy);
     Geometry(const Geometry&);
     //Geometry(const nlohmann::json&);
 
@@ -142,6 +143,7 @@ class Box : public Geometry
 public:
     Box();
     Box(const Vector3D position, double x, double y, double z);
+    Box(const Vector3D position, double x, double y, double z, int hierarchy);
     Box(const Box&);
     //Box(const nlohmann::json& config);
 
@@ -180,6 +182,7 @@ class Cylinder : public Geometry
 public:
     Cylinder();
     Cylinder(const Vector3D position, double radius, double inner_radius, double z);
+    Cylinder(const Vector3D position, double radius, double inner_radius, double z, int hierarchy);
     Cylinder(const Cylinder&);
     //Cylinder(const nlohmann::json& config);
 
@@ -218,6 +221,7 @@ class Sphere : public Geometry
 public:
     Sphere();
     Sphere(const Vector3D position, double radius, double inner_radius);
+    Sphere(const Vector3D position, double radius, double inner_radius, int hierarchy);
     Sphere(const Sphere&);
     //Sphere(const nlohmann::json& config);
 
