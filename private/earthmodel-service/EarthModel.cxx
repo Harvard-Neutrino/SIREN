@@ -36,6 +36,38 @@ EarthModel::EarthModel(std::string const & path, std::string const & earth_model
     LoadEarthModel(earth_model);
 }
 
+std::string EarthModel::GetPath() const {
+    return path_;
+}
+
+void EarthModel::SetPath(std::string const & path) {
+    path_ = path;
+}
+
+MaterialModel const & EarthModel::GetMaterials() const {
+    return materials_;
+}
+
+void EarthModel::SetMaterials(MaterialModel const & materials) {
+    materials_ = materials;
+}
+
+std::vector<EarthSector> const & EarthModel::GetSectors() const {
+    return sectors_;
+}
+
+void EarthModel::SetSectors(std::vector<EarthSector> const & sectors) {
+    sectors_ = sectors;
+}
+
+Vector3D EarthModel::GetDetectorOrigin() const {
+    return detector_origin_;
+}
+
+void EarthModel::SetDetectorOrigin(Vector3D const & detector_origin) {
+    detector_origin_ = detector_origin;
+}
+
 namespace {
 bool fexists(const char *filename)
 {
@@ -100,10 +132,6 @@ void EarthModel::LoadDefaultSectors() {
 void EarthModel::LoadMaterialModel(std::string const & material_model) {
     materials_.SetPath(path_);
     materials_.AddModelFile(material_model);
-}
-
-void EarthModel::LoadMaterialModel(MaterialModel const & material_model) {
-    materials_ = material_model;
 }
 
 double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const {
@@ -289,6 +317,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
         EarthSector sector;
         sector.material_id = materials_.GetMaterialId(medtype);
         sector.level = level;
+        sector.name = label;
         level += 1;
         sector.geo = Sphere(Vector3D(0,0,0), radius, 0).create();
         if(nparams == 1) {

@@ -15,6 +15,7 @@
 namespace earthmodel {
 
 struct EarthSector {
+    std::string name;
     int material_id;
     int level;
     std::shared_ptr<const Geometry> geo;
@@ -34,7 +35,6 @@ public:
 
     void LoadEarthModel(std::string const & earth_model);
     void LoadMaterialModel(std::string const & material_model);
-    void LoadMaterialModel(MaterialModel const & material_model);
 
     double GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const;
     double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
@@ -42,6 +42,19 @@ public:
     Vector3D GetEarthCoordDirFromDetCoordDir(Vector3D const & direction) const;
     Vector3D GetDetCoordPosFromEarthCoordPos(Vector3D const & point) const;
     Vector3D GetDetCoordDirFromEarthCoordDir(Vector3D const & direction) const;
+
+    std::string GetPath() const;
+    void SetPath(std::string const & path);
+
+    MaterialModel const & GetMaterials() const;
+    void SetMaterials(MaterialModel const & materials);
+
+    std::vector<EarthSector> const & GetSectors() const;
+    void SetSectors(std::vector<EarthSector> const & sectors);
+
+    Vector3D GetDetectorOrigin() const;
+    void SetDetectorOrigin(Vector3D const & detector_origin);
+
 private:
     void LoadDefaultMaterials();
     void LoadDefaultSectors();
