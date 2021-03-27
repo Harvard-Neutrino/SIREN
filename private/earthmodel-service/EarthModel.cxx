@@ -123,7 +123,7 @@ void EarthModel::LoadDefaultMaterials() {
 void EarthModel::LoadDefaultSectors() {
     EarthSector sector;
     sector.material_id = materials_.GetMaterialId("VACUUM");
-    sector.level = sectors_.size();
+    sector.level = std::numeric_limits<int>::min();
     sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
     sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
     sectors_.push_back(sector);
@@ -285,7 +285,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
     double radius, param;
     int nparams;
 
-    int level = sectors_.size();
+    int level = -sectors_.size();
     double max_radius = 0;
     while(getline(in,buf)) {
         {
@@ -318,7 +318,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
         sector.material_id = materials_.GetMaterialId(medtype);
         sector.level = level;
         sector.name = label;
-        level += 1;
+        level -= 1;
         sector.geo = Sphere(Vector3D(0,0,0), radius, 0).create();
         if(nparams == 1) {
             ss >> param;

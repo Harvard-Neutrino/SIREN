@@ -64,7 +64,7 @@ TEST(DefaultSectors, VacuumOnly)
     ASSERT_EQ(1, sectors.size());
     EarthSector sector = sectors[0];
     EXPECT_EQ(0, sector.material_id);
-    EXPECT_EQ(0, sector.level);
+    EXPECT_EQ(std::numeric_limits<int>::min(), sector.level);
     Sphere geo(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0);
     DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> density;
     EXPECT_EQ(geo, *sector.geo);
@@ -163,12 +163,94 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileLayerNames)
     std::vector<double> layer_radii;
     std::vector<Polynom> layer_densities;
     std::vector<std::string> layer_materials;
-    std::vector<std::string> layer_types;
+struct EarthSector {
+    std::string name;
+    int material_id;
+    int level;
+    std::shared_ptr<const Geometry> geo;
+    std::shared_ptr<const DensityDistribution> density;
+};
 */
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileLayerThickness)
+TEST_F(FakeLegacyEarthModelTest, LegacyFileLayerMaterials)
 {
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset());
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A.GetSectors();
+        EXPECT_EQ(layer_materials.size(), sectors.size() - 1);
+        unsigned int n_layers = std::min(layer_materials.size(), sectors.size() - 1);
+        MaterialModel materials = A.GetMaterials();
+        for(unsigned int j=0; j<n_layers; ++j) {
+            EXPECT_EQ(layer_materials[j], materials.GetMaterialName(sectors[j+1].material_id));
+        }
+    }
+}
 
+TEST_F(FakeLegacyEarthModelTest, LegacyFileSectorTypes)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset());
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A.GetSectors();
+        unsigned int n_layers = sectors.size()-1;
+        ASSERT_EQ(n_layers, layer_thicknesses.size());
+        double max_radius = 0.0;
+        Vector3D origin;
+        for(unsigned int j=0; j<n_layers; ++j) {
+            unsigned int sector_index = j+1;
+            unsigned int layer_index = j;
+            std::shared_ptr<const Geometry> geo = sectors[sector_index].geo;
+            Sphere const* sphere = dynamic_cast<Sphere const*>(geo.get());
+            ASSERT_TRUE(sphere);
+            double ice_offset = sphere->GetPosition().magnitude();
+
+            if(ice_offset == 0.0) {
+                EXPECT_GT(sphere->GetRadius(), max_radius);
+                EXPECT_LE(sphere->GetInnerRadius(), max_radius);
+            }
+            else {
+                EXPECT_GT(sphere->GetRadius()+ice_offset, max_radius);
+                if(sphere->GetInnerRadius() > 0)
+                    EXPECT_LE(sphere->GetInnerRadius()+ice_offset, max_radius);
+            }
+            double layer_thickness = layer_thicknesses[layer_index];
+            double layer_radius = layer_radii[layer_index];
+            if(ice_offset == 0.0) {
+                ASSERT_DOUBLE_EQ(layer_radius, sphere->GetRadius());
+            }
+            else {
+                ASSERT_DOUBLE_EQ(layer_radius, sphere->GetRadius() + ice_offset);
+            }
+            if(ice_offset == 0.0) {
+                EXPECT_NEAR(layer_thickness, sphere->GetRadius() - max_radius, std::max(std::abs(layer_thickness), std::abs(sphere->GetRadius() - max_radius))*1e-6);
+            }
+            else {
+                EXPECT_NEAR(layer_thickness, sphere->GetRadius() - max_radius + ice_offset, std::max(std::abs(layer_thickness), std::abs(sphere->GetRadius() - max_radius + ice_offset))*1e-6);
+            }
+            if(ice_offset == 0.0) {
+                max_radius = sphere->GetRadius();
+            }
+            else {
+                max_radius = sphere->GetRadius() + ice_offset;
+            }
+            origin = sphere->GetPosition();
+        }
+    }
 }
 
 int main(int argc, char** argv)

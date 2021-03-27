@@ -43,7 +43,6 @@ protected:
     std::vector<double> layer_radii;
     std::vector<Polynom> layer_densities;
     std::vector<std::string> layer_materials;
-    std::vector<std::string> layer_types;
 
     std::vector<std::string> material_names;
 
@@ -211,7 +210,7 @@ protected:
         parameters = poly.GetCoefficient();
 
         out << random_blank_cruft();
-        out << radius;
+        out << std::setprecision(16) << radius;
         out << random_blank_cruft();
         out << name;
         out << random_blank_cruft();
@@ -220,7 +219,7 @@ protected:
         out << n_parameters;
         for(unsigned int i=0; i<n_parameters; ++i) {
             out << random_blank_cruft();
-            out << parameters[i];
+            out << std::setprecision(16) << parameters[i];
         }
 
         out << line_break;
@@ -237,7 +236,6 @@ protected:
         layer_radii.clear();
         layer_densities.clear();
         layer_materials.clear();
-        layer_types.clear();
 
         material_names.clear();
         model_file = "";
