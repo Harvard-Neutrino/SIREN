@@ -127,7 +127,7 @@ double CartesianAxis1D::GetdX(const Vector3D& xi, const Vector3D& direction) con
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 ConstantDistribution1D::ConstantDistribution1D()
-    : val_(1e-25) {}
+    : val_(1e-25) {} // universe_mean_density from GEANT4
 
 ConstantDistribution1D::ConstantDistribution1D(const ConstantDistribution1D& dist)
     : val_(dist.val_) {}

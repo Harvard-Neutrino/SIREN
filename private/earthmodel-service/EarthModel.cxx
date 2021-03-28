@@ -154,20 +154,28 @@ void EarthModel::LoadMaterialModel(std::string const & material_model) {
 }
 
 double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const {
+    if(p0 == p1) {
+        return 0.0;
+    }
     Vector3D direction = p1 - p0;
     double distance = direction.magnitude();
+    if(distance == 0.0) {
+        return 0.0;
+    }
     direction.normalize();
     std::vector<Geometry::Intersection> intersections;
 
+    // Obtain the intersections with each sector geometry
     for(auto const & sector : sectors_) {
         std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
         intersections.reserve(intersections.size() + std::distance(i.begin(), i.end()));
         intersections.insert(intersections.end(), i.begin(), i.end());
     }
 
+    // There should at least be intersections with the vacuum sphere
     assert(intersections.size() > 0);
-    assert(distance > 0);
 
+    // Intersections should be sorted according to distance and then hierarchy
     std::function<bool(Geometry::Intersection const &, Geometry::Intersection const &)> comp = [](Geometry::Intersection const & a, Geometry::Intersection const & b){
 		bool a_enter = a.entering;
 		bool b_enter = b.entering;
@@ -194,22 +202,35 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
 
     std::sort(intersections.begin(), intersections.end(), comp);
 
+    // Keep track of accumulates column depth
     double column_depth = 0;
+
+    // Keep track of the integral progress
     double last_point = 0;
 
+    // Keep track of the sectors our integrand is inside
     std::map<int, std::vector<Geometry::Intersection>::iterator> stack;
+
+    // Keep track of the entry point to the relevant sector
     std::vector<Geometry::Intersection>::iterator current_intersection = intersections.begin();
+
+    // Integration only begins once we are inside a sector
     stack.insert({current_intersection->hierarchy, current_intersection});
+
     for(unsigned int i=1; i<intersections.size(); ++i) {
+        // The transition point into the next sector
         std::vector<Geometry::Intersection>::iterator intersection = intersections.begin() + i;
         if(intersection == intersections.end())
             throw("Reached end of intersections! Should never reach this point!");
         if(intersection->entering) {
+            // Entering a sector means it is added to the stack
             stack.insert({intersection->hierarchy, intersection});
+            // A sector transition only occurs if the intersection is with a sector of larger hierarchy
             if(intersection->hierarchy > current_intersection->hierarchy) {
                 if(intersection->distance > 0) {
-                    // Store integral between current_intersection and new intersection
+                    // The local integration is bounded on the upper end by the intersection and the global integral boundary
                     double end_point = std::min(intersection->distance, distance);
+                    // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
                     double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
                     double segment_length = end_point - start_point;
                     double integral = GetSector(current_intersection->hierarchy).density->Integral(p0+start_point*direction, direction, segment_length);
@@ -224,24 +245,35 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
         }
         else {
             if(intersection->hierarchy <= current_intersection->hierarchy) {
+                // Exiting a sector means we remove it from the stack
                 stack.erase(intersection->hierarchy);
-                if(intersection->distance > 0) {
-                    // Store integral between current_intersection and new intersection
-                    double end_point = std::min(intersection->distance, distance);
-                    double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
-                    double segment_length = end_point - start_point;
-                    double integral = GetSector(current_intersection->hierarchy).density->Integral(p0+start_point*direction, direction, segment_length);
-                    column_depth += integral;
-                    last_point = end_point;
-                    if(intersection->distance >= distance) {
-                        break;
+                // If the intersection boundary is from the same hierarchy, we perform the integral
+                if(intersection->hierarchy == current_intersection->hierarchy) {
+                    if(intersection->distance > 0) {
+                        // The local integration is bounded on the upper end by the intersection and the global integral boundary
+                        double end_point = std::min(intersection->distance, distance);
+                        // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
+                        double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
+                        double segment_length = end_point - start_point;
+                        double integral = GetSector(current_intersection->hierarchy).density->Integral(p0+start_point*direction, direction, segment_length);
+                        column_depth += integral;
+                        last_point = end_point;
+                        if(intersection->distance >= distance) {
+                            break;
+                        }
                     }
+                    // Exiting the current sector means we need to move one level down and grab the entry to that sector
+                    auto lb = --stack.lower_bound(intersection->hierarchy);
+                    assert(lb != stack.end());
+                    current_intersection = lb->second;
                 }
-                auto lb = --stack.lower_bound(intersection->hierarchy);
-                assert(lb != stack.end());
-                current_intersection = lb->second;
+                // If the intersection boundary is from a lower hierarchy,
+                // then we can wait to perform the integration,
+                // since this intersection does not represent a physical transition to a different sector
             }
             else {
+                // If we are exiting a sector with larger hierarchy the current_intersection should have been set to match that sector.
+                // Thus, we would not reach this point.
                 throw("Cannot exit a level that we have not entered!");
             }
         }
