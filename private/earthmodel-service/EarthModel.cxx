@@ -195,44 +195,51 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
     std::sort(intersections.begin(), intersections.end(), comp);
 
     double column_depth = 0;
+    double last_point = 0;
 
-    std::map<unsigned int, Geometry::Intersection const *> stack;
-    Geometry::Intersection const * current_intersection = &intersections[0];
-    stack.insert({intersections[0].hierarchy, current_intersection});
+    std::map<int, std::vector<Geometry::Intersection>::iterator> stack;
+    std::vector<Geometry::Intersection>::iterator current_intersection = intersections.begin();
+    stack.insert({current_intersection->hierarchy, current_intersection});
     for(unsigned int i=1; i<intersections.size(); ++i) {
-        Geometry::Intersection const & intersection = intersections[i];
-        if(intersection.entering) {
-            stack.insert({intersection.hierarchy, &intersection});
-            if(intersection.hierarchy > current_intersection->hierarchy) {
-                if(intersection.distance > 0) {
+        std::vector<Geometry::Intersection>::iterator intersection = intersections.begin() + i;
+        if(intersection == intersections.end())
+            throw("Reached end of intersections! Should never reach this point!");
+        if(intersection->entering) {
+            stack.insert({intersection->hierarchy, intersection});
+            if(intersection->hierarchy > current_intersection->hierarchy) {
+                if(intersection->distance > 0) {
                     // Store integral between current_intersection and new intersection
-                    double end_point = std::min(intersection.distance, distance);
-                    double start_point = std::max(current_intersection->distance, 0.0);
+                    double end_point = std::min(intersection->distance, distance);
+                    double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
                     double segment_length = end_point - start_point;
                     double integral = GetSector(current_intersection->hierarchy).density->Integral(p0+start_point*direction, direction, segment_length);
                     column_depth += integral;
-                    if(intersection.distance >= distance) {
+                    last_point = end_point;
+                    if(intersection->distance >= distance) {
                         break;
                     }
                 }
-                current_intersection = &intersection;
+                current_intersection = intersection;
             }
         }
         else {
-            if(intersection.hierarchy <= current_intersection->hierarchy) {
-                stack.erase(intersection.hierarchy);
-                if(intersection.distance > 0) {
+            if(intersection->hierarchy <= current_intersection->hierarchy) {
+                stack.erase(intersection->hierarchy);
+                if(intersection->distance > 0) {
                     // Store integral between current_intersection and new intersection
-                    double end_point = std::min(intersection.distance, distance);
-                    double start_point = std::max(current_intersection->distance, 0.0);
+                    double end_point = std::min(intersection->distance, distance);
+                    double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
                     double segment_length = end_point - start_point;
                     double integral = GetSector(current_intersection->hierarchy).density->Integral(p0+start_point*direction, direction, segment_length);
                     column_depth += integral;
-                    if(intersection.distance >= distance) {
+                    last_point = end_point;
+                    if(intersection->distance >= distance) {
                         break;
                     }
                 }
-                current_intersection = stack.lower_bound(intersection.hierarchy)->second;
+                auto lb = --stack.lower_bound(intersection->hierarchy);
+                assert(lb != stack.end());
+                current_intersection = lb->second;
             }
             else {
                 throw("Cannot exit a level that we have not entered!");

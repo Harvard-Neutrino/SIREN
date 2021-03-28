@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include "earthmodel-service/EarthModel.h"
+#include "earthmodel-service/Geometry.h"
 
 #include "FakeMaterialModel.h"
 #include "FakeEarthModel.h"
@@ -268,7 +269,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralInternal)
         std::vector<EarthSector> sectors = A.GetSectors();
         ASSERT_EQ(2, sectors.size());
         EarthSector sector = sectors[1];
-        Sphere geo(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0);
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -280,6 +280,107 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralInternal)
         double rho = density->Evaluate(Vector3D());
         double sum = A.GetColumnDepthInCGS(p0, p1);
         EXPECT_DOUBLE_EQ((p1 - p0).magnitude()*rho, sum);
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(2, 1));
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A.GetSectors();
+        ASSERT_EQ(3, sectors.size());
+        EarthSector sector_0 = sectors[1];
+        EarthSector sector_1 = sectors[2];
+        Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
+        Sphere const * sphere_1 = dynamic_cast<Sphere const *>(sector_1.geo.get());
+        ASSERT_TRUE(sphere_0);
+        ASSERT_TRUE(sphere_1);
+        EXPECT_GE(sphere_1->GetRadius(), sphere_0->GetRadius());
+        double max_radius = sphere_1->GetRadius();
+        double min_radius = sphere_0->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        double distance = (p1-p0).magnitude();
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        ASSERT_TRUE(density_0);
+        ASSERT_TRUE(density_1);
+        double rho_0 = density_0->Evaluate(Vector3D());
+        double rho_1 = density_1->Evaluate(Vector3D());
+        ASSERT_LE(p0.magnitude(), max_radius);
+        ASSERT_LE(p1.magnitude(), max_radius);
+        bool in_0 = p0.magnitude() <= sphere_0->GetRadius();
+        bool in_1 = p1.magnitude() <= sphere_0->GetRadius();
+        double integral = 0.0;
+        double sum = A.GetColumnDepthInCGS(p0, p1);
+        if(in_0 and in_1) {
+            integral = rho_0 * (p1-p0).magnitude();
+            ASSERT_DOUBLE_EQ(integral, sum);
+        }
+        else {
+            Vector3D direction = p1 - p0;
+            direction.normalize();
+            std::vector<Geometry::Intersection> intersections = sphere_0->Intersections(p0, direction);
+            if(intersections.size() > 1) {
+                double dist_0 = intersections[0].distance;
+                double dist_1 = intersections[1].distance;
+                if(dist_0 > 0 and dist_1 > 0) {
+                    double near = std::min(dist_0, dist_1);
+                    if((not in_0) and in_1) {
+                        integral += rho_1*near;
+                        integral += rho_0*((p1-p0).magnitude() - near);
+                        ASSERT_DOUBLE_EQ(integral, sum);
+                    } else if(in_0 and not in_1) {
+                        integral += rho_0*near;
+                        integral += rho_1*((p1-p0).magnitude() - near);
+                        ASSERT_DOUBLE_EQ(integral, sum);
+                    } else if((not in_0) and (not in_1)) {
+                        double far = std::max(std::max(dist_0, 0.0), std::max(dist_1, 0.0));
+                        if(near < distance) {
+                            integral += rho_1*near;
+                            if(far < distance) {
+                                integral += rho_0*(far-near);
+                                integral += rho_1*(distance-far);
+                            } else {
+                                integral += rho_0*(distance - near);
+                            }
+                        } else {
+                            integral += rho_1*distance;
+                        }
+                        ASSERT_DOUBLE_EQ(integral, sum);
+                    }
+                }
+                else if (dist_0 <= 0 and dist_1 <= 0) {
+                    integral = rho_1 * (p1-p0).magnitude();
+                    ASSERT_DOUBLE_EQ(integral, sum);
+                }
+                else {
+                    double dist = std::max(dist_0, dist_1);
+                    if((not in_0) and in_1) {
+                        assert(false);
+                    } else if(in_0 and not in_1) {
+                        integral += rho_0*dist;
+                        integral += rho_1*((p1-p0).magnitude() - dist);
+                        ASSERT_DOUBLE_EQ(integral, sum);
+                    } else if((not in_0) and (not in_1)) {
+                        assert(false);
+                    }
+                }
+            }
+            else {
+                integral = rho_1 * (p1-p0).magnitude();
+                ASSERT_DOUBLE_EQ(integral, sum);
+            }
+        }
+        ASSERT_DOUBLE_EQ(integral, sum);
     }
 }
 
