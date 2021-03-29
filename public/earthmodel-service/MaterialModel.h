@@ -30,14 +30,14 @@ public:
     void AddModelFiles(std::vector<std::string> const & matratios);
     void AddModelFile(std::string matratio);
 
-    double GetPNERatio(int id);
-    std::string GetMaterialName(int id);
-    int GetMaterialId(std::string const & name);
-    bool HasMaterial(std::string const & name);
-    bool HasMaterial(int);
-    std::map<int, double> GetMaterialMap(int id);
+    double GetPNERatio(int id) const;
+    std::string GetMaterialName(int id) const;
+    int GetMaterialId(std::string const & name) const;
+    bool HasMaterial(std::string const & name) const;
+    bool HasMaterial(int) const;
+    std::map<int, double> GetMaterialMap(int id) const;
 private:
-    double ComputePNERatio(std::map<int, double> const & matratios);
+    double ComputePNERatio(std::map<int, double> const & matratios) const;
 public:
     static void GetAZ(int code, int & np, int & nn);
 };

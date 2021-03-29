@@ -153,7 +153,7 @@ void EarthModel::LoadMaterialModel(std::string const & material_model) {
     materials_.AddModelFile(material_model);
 }
 
-double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const {
+double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1, bool use_electron_density) const {
     if(p0 == p1) {
         return 0.0;
     }
@@ -233,7 +233,10 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
                     // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
                     double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
                     double segment_length = end_point - start_point;
-                    double integral = GetSector(current_intersection->hierarchy).density->Integral(p0+start_point*direction, direction, segment_length);
+                    EarthSector sector = GetSector(current_intersection->hierarchy);
+                    double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
+                    if(use_electron_density)
+                        integral *= materials_.GetPNERatio(sector.material_id);
                     column_depth += integral;
                     last_point = end_point;
                     if(intersection->distance >= distance) {
@@ -255,7 +258,10 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
                         // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
                         double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
                         double segment_length = end_point - start_point;
-                        double integral = GetSector(current_intersection->hierarchy).density->Integral(p0+start_point*direction, direction, segment_length);
+                        EarthSector sector = GetSector(current_intersection->hierarchy);
+                        double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
+                        if(use_electron_density)
+                            integral *= materials_.GetPNERatio(sector.material_id);
                         column_depth += integral;
                         last_point = end_point;
                         if(intersection->distance >= distance) {

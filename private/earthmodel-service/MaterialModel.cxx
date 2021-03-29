@@ -143,7 +143,7 @@ void MaterialModel::AddModelFile(std::string matratio) {
     in.close();
 }
 
-double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) {
+double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) const {
     // calculate P, N, E ratio
     double tot_np = 0;
     double tot_nn = 0;
@@ -166,28 +166,28 @@ double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) {
     return nw_electron;
 }
 
-double MaterialModel::GetPNERatio(int id) {
-    return pne_ratios_[id];
+double MaterialModel::GetPNERatio(int id) const {
+    return pne_ratios_.at(id);
 }
 
-std::string MaterialModel::GetMaterialName(int id) {
-    return material_names_[id];
+std::string MaterialModel::GetMaterialName(int id) const {
+    return material_names_.at(id);
 }
 
-int MaterialModel::GetMaterialId(std::string const & name) {
-    return material_ids_[name];
+int MaterialModel::GetMaterialId(std::string const & name) const {
+    return material_ids_.at(name);
 }
 
-bool MaterialModel::HasMaterial(std::string const & name) {
+bool MaterialModel::HasMaterial(std::string const & name) const {
     return material_ids_.count(name) > 0;
 }
 
-bool MaterialModel::HasMaterial(int id) {
+bool MaterialModel::HasMaterial(int id) const {
     return material_names_.size() > id;
 }
 
-std::map<int, double> MaterialModel::GetMaterialMap(int id) {
-    return material_maps_[id];
+std::map<int, double> MaterialModel::GetMaterialMap(int id) const {
+    return material_maps_.at(id);
 }
 
 void MaterialModel::GetAZ(int code, int & np, int & nn) {
