@@ -64,6 +64,9 @@ public:
 private:
     void LoadDefaultMaterials();
     void LoadDefaultSectors();
+    std::vector<Geometry::Intersection> GetIntersections(Vector3D const & p0, Vector3D const & direction) const;
+    static void SortIntersections(std::vector<Geometry::Intersection> & intersections);
+    void SectorLoop(Vector3D const & p0, Vector3D const & direction, std::function<bool(std::vector<Geometry::Intersection>::iterator, std::vector<Geometry::Intersection>::iterator, double)> callback, std::vector<Geometry::Intersection> & sorted_intersections) const;
 public:
     void LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_angle=-1);
 };

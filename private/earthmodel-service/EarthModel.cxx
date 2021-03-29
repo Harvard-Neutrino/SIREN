@@ -163,6 +163,35 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1,
         return 0.0;
     }
     direction.normalize();
+
+    double column_depth = 0.0;
+
+    std::function<bool(std::vector<Geometry::Intersection>::iterator, std::vector<Geometry::Intersection>::iterator, double)> callback =
+        [&] (std::vector<Geometry::Intersection>::iterator current_intersection, std::vector<Geometry::Intersection>::iterator intersection, double last_point) {
+        // The local integration is bounded on the upper end by the intersection and the global integral boundary
+        double end_point = std::min(intersection->distance, distance);
+        // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
+        double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
+        double segment_length = end_point - start_point;
+        EarthSector sector = GetSector(current_intersection->hierarchy);
+        double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
+        if(use_electron_density)
+            integral *= materials_.GetPNERatio(sector.material_id);
+        column_depth += integral;
+        last_point = end_point;
+        bool done = intersection->distance >= distance;
+        return done;
+    };
+
+    std::vector<Geometry::Intersection> intersections = GetIntersections(p0, direction);
+    SortIntersections(intersections);
+
+    SectorLoop(p0, direction, callback, intersections);
+
+    return column_depth;
+}
+
+std::vector<Geometry::Intersection> EarthModel::GetIntersections(Vector3D const & p0, Vector3D const & direction) const {
     std::vector<Geometry::Intersection> intersections;
 
     // Obtain the intersections with each sector geometry
@@ -172,9 +201,10 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1,
         intersections.insert(intersections.end(), i.begin(), i.end());
     }
 
-    // There should at least be intersections with the vacuum sphere
-    assert(intersections.size() > 0);
+    return intersections;
+}
 
+void EarthModel::SortIntersections(std::vector<Geometry::Intersection> & intersections) {
     // Intersections should be sorted according to distance and then hierarchy
     std::function<bool(Geometry::Intersection const &, Geometry::Intersection const &)> comp = [](Geometry::Intersection const & a, Geometry::Intersection const & b){
 		bool a_enter = a.entering;
@@ -199,12 +229,10 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1,
         else
             return false;
     };
-
     std::sort(intersections.begin(), intersections.end(), comp);
+}
 
-    // Keep track of accumulates column depth
-    double column_depth = 0;
-
+void EarthModel::SectorLoop(Vector3D const & p0, Vector3D const & direction, std::function<bool(std::vector<Geometry::Intersection>::iterator, std::vector<Geometry::Intersection>::iterator, double)> callback, std::vector<Geometry::Intersection> & intersections) const {
     // Keep track of the integral progress
     double last_point = 0;
 
@@ -228,18 +256,9 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1,
             // A sector transition only occurs if the intersection is with a sector of larger hierarchy
             if(intersection->hierarchy > current_intersection->hierarchy) {
                 if(intersection->distance > 0) {
-                    // The local integration is bounded on the upper end by the intersection and the global integral boundary
-                    double end_point = std::min(intersection->distance, distance);
-                    // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
-                    double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
-                    double segment_length = end_point - start_point;
-                    EarthSector sector = GetSector(current_intersection->hierarchy);
-                    double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
-                    if(use_electron_density)
-                        integral *= materials_.GetPNERatio(sector.material_id);
-                    column_depth += integral;
-                    last_point = end_point;
-                    if(intersection->distance >= distance) {
+                    bool done = callback(current_intersection, intersection, last_point);
+                    last_point = intersection->distance;
+                    if(done) {
                         break;
                     }
                 }
@@ -253,18 +272,9 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1,
                 // If the intersection boundary is from the same hierarchy, we perform the integral
                 if(intersection->hierarchy == current_intersection->hierarchy) {
                     if(intersection->distance > 0) {
-                        // The local integration is bounded on the upper end by the intersection and the global integral boundary
-                        double end_point = std::min(intersection->distance, distance);
-                        // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
-                        double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
-                        double segment_length = end_point - start_point;
-                        EarthSector sector = GetSector(current_intersection->hierarchy);
-                        double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
-                        if(use_electron_density)
-                            integral *= materials_.GetPNERatio(sector.material_id);
-                        column_depth += integral;
-                        last_point = end_point;
-                        if(intersection->distance >= distance) {
+                        bool done = callback(current_intersection, intersection, last_point);
+                        last_point = intersection->distance;
+                        if(done) {
                             break;
                         }
                     }
@@ -284,7 +294,6 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1,
             }
         }
     }
-    return column_depth;
 }
 
 double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density) const {
