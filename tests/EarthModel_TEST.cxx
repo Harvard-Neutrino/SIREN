@@ -384,6 +384,300 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
     }
 }
 
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        MaterialModel materials = A.GetMaterials();
+        int material_count = 0;
+        while(materials.HasMaterial(material_count)) {
+            material_count += 1;
+        }
+        double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
+        double ice_angle = -1;
+
+        EarthSector upper_sector;
+        Vector3D upper_center(-radius/4.0,0,0);
+        upper_sector.name = "upper";
+        upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        upper_sector.level = -1;
+        upper_sector.geo = Sphere(upper_center, radius, 0, upper_sector.level).create();
+        upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+
+        EarthSector lower_sector;
+        Vector3D lower_center(radius/4.0,0,0);
+        lower_sector.name = "lower";
+        lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        lower_sector.level = -2;
+        lower_sector.geo = Sphere(lower_center, radius, 0, lower_sector.level).create();
+        lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+
+        A.AddSector(lower_sector);
+        A.AddSector(upper_sector);
+
+        std::vector<EarthSector> sectors = A.GetSectors();
+        ASSERT_EQ(3, sectors.size());
+        EarthSector sector_vacuum = sectors[0];
+        EarthSector sector_0 = sectors[1];
+        EarthSector sector_1 = sectors[2];
+        ASSERT_EQ(lower_sector.name, sector_0.name);
+        ASSERT_EQ(upper_sector.name, sector_1.name);
+        Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
+        Sphere const * sphere_1 = dynamic_cast<Sphere const *>(sector_1.geo.get());
+        ASSERT_TRUE(sphere_0);
+        ASSERT_TRUE(sphere_1);
+
+        Vector3D p0 = RandomVector(0, radius*2.0);
+        Vector3D p1 = RandomVector(0, radius*2.0);
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        ASSERT_TRUE(density_vacuum);
+        ASSERT_TRUE(density_0);
+        ASSERT_TRUE(density_1);
+        double rho_vacuum = density_vacuum->Evaluate(Vector3D());
+        double rho_lower = density_0->Evaluate(lower_center);
+        double rho_upper = density_1->Evaluate(upper_center);
+
+        double integral = 0.0;
+        double sum = A.GetColumnDepthInCGS(p0, p1);
+
+        std::vector<Geometry::Intersection> lower_intersections = sphere_0->Intersections(p0, direction);
+        std::vector<Geometry::Intersection> upper_intersections = sphere_1->Intersections(p0, direction);
+
+        bool p0_in_lower = (p0-lower_center).magnitude() < radius;
+        bool p0_in_upper = (p0-upper_center).magnitude() < radius;
+        bool p1_in_lower = (p1-lower_center).magnitude() < radius;
+        bool p1_in_upper = (p1-upper_center).magnitude() < radius;
+
+        if(p0_in_upper) { // Start in the full sphere
+            if(p1_in_upper) { // End in full sphere
+                integral += rho_upper*distance;
+            } else if(p1_in_lower) { // End in the partial sphere
+                int upper_exit_index = 0;
+                if(upper_intersections[0].distance < upper_intersections[1].distance) {
+                    upper_exit_index = 1;
+                }
+                double dist_in_upper = upper_intersections[upper_exit_index].distance;
+                integral += rho_upper*dist_in_upper;
+                if((upper_intersections[upper_exit_index].position - lower_center).magnitude() < radius) { // Transition directly between sectors
+                    double dist_in_lower = distance - dist_in_upper;
+                    integral += dist_in_lower*rho_lower;
+                } else { // Go through vacuum to transition between sectors
+                    int lower_entry_index = 0;
+                    if(lower_intersections[0].distance > lower_intersections[1].distance) {
+                        lower_entry_index = 1;
+                    }
+                    double dist_in_lower = (p1 - lower_intersections[lower_entry_index].position).magnitude();
+                    integral += rho_lower*dist_in_lower;
+                    double dist_in_vacuum = (distance - (dist_in_upper + dist_in_lower));
+                    integral += rho_vacuum*dist_in_vacuum;
+                }
+
+            } else { // End in vacuum
+                int upper_exit_index = 0;
+                if(upper_intersections[0].distance < upper_intersections[1].distance) {
+                    upper_exit_index = 1;
+                }
+                double dist_in_upper = upper_intersections[upper_exit_index].distance;
+                integral += rho_upper*dist_in_upper;
+                if((upper_intersections[upper_exit_index].position - lower_center).magnitude() < radius) { // Transition first to partial sphere
+                    int lower_exit_index = 0;
+                    if(lower_intersections[0].distance < lower_intersections[1].distance) {
+                        lower_exit_index = 1;
+                    }
+                    double dist_in_lower = (lower_intersections[lower_exit_index].distance - dist_in_upper);
+                    integral += rho_lower*dist_in_lower;
+                    double dist_in_vacuum = distance - (dist_in_upper - dist_in_lower);
+                    integral += rho_vacuum*dist_in_vacuum;
+                } else { // Go straight to vacuum
+                    double dist_in_vacuum = distance - dist_in_upper;
+                    integral += rho_vacuum*dist_in_vacuum;
+                }
+            }
+        } else if(p0_in_lower) { // Start in the partial sphere
+            if(p1_in_lower and not p1_in_upper) { // End in the partial sphere
+                double u_dist_0 = upper_intersections.size() > 1 ? upper_intersections[0].distance : 0.0;
+                double u_dist_1 = upper_intersections.size() > 1 ? upper_intersections[1].distance : 0.0;
+                if((u_dist_0 > 0 and u_dist_0 < distance) or (u_dist_1 > 0 and u_dist_1 < distance)) { // Passes through full sphere
+                    double distance_in_upper = std::abs(u_dist_0 - u_dist_1);
+                    double distance_in_lower = distance - distance_in_upper;
+                    integral += rho_lower*distance_in_lower;
+                    integral += rho_upper*distance_in_upper;
+                } else { // Entire path in partial sphere
+                    integral += rho_lower*distance;
+                }
+
+            } else if(p1_in_upper) { // End in the full sphere
+                int upper_entry_index = 0;
+                if(upper_intersections[0].distance > upper_intersections[1].distance) {
+                    upper_entry_index = 1;
+                }
+                if((upper_intersections[upper_entry_index].position - lower_center).magnitude() < radius) { // Transition straight to full sphere
+                    double dist_in_lower = upper_intersections[upper_entry_index].distance;
+                    double dist_in_upper = distance - dist_in_lower;
+                    integral += rho_lower*dist_in_lower;
+                    integral += rho_upper*dist_in_upper;
+                } else { // Go through vacuum to transition between sectors
+                    double dist_in_upper = distance - upper_intersections[upper_entry_index].distance;
+                    integral += rho_upper*dist_in_upper;
+                    int lower_exit_index = 0;
+                    if(lower_intersections[0].distance < lower_intersections[1].distance) {
+                        lower_exit_index = 1;
+                    }
+                    double dist_in_lower = lower_intersections[lower_exit_index].distance;
+                    integral += rho_lower*dist_in_lower;
+                    double dist_in_vacuum = (distance - (dist_in_upper + dist_in_lower));
+                    integral += rho_vacuum*dist_in_vacuum;
+                }
+            } else { // End in vacuum
+                double u_dist_0 = upper_intersections.size() > 1 ? upper_intersections[0].distance : 0.0;
+                double u_dist_1 = upper_intersections.size() > 1 ? upper_intersections[1].distance : 0.0;
+                if((u_dist_0 > 0 and u_dist_0 < distance) or (u_dist_1 > 0 and u_dist_1 < distance)) { // Passes through full sphere
+                    double distance_in_upper = std::abs(u_dist_0 - u_dist_1);
+                    double lower_exit_distance = std::max(lower_intersections[0].distance, lower_intersections[1].distance);
+                    double distance_in_lower = std::min(u_dist_0, u_dist_1);
+                    if(lower_exit_distance > u_dist_0 and lower_exit_distance > u_dist_1) {
+                        distance_in_lower = lower_exit_distance - distance_in_upper;
+                    }
+                    double distance_in_vacuum = distance - (distance_in_lower + distance_in_upper);
+                    integral += rho_lower*distance_in_lower;
+                    integral += rho_upper*distance_in_upper;
+                    integral += rho_vacuum*distance_in_vacuum;
+                } else { // Goes straight to vacuum
+                    double dist_in_lower = std::max(lower_intersections[0].distance, lower_intersections[1].distance);
+                    double dist_in_vacuum = distance - dist_in_vacuum;
+                    integral += rho_lower*dist_in_lower;
+                    integral += rho_vacuum*dist_in_vacuum;
+                }
+
+            }
+        } else { // Start in vacuum
+            double u_dist_0 = upper_intersections.size() > 1 ? upper_intersections[0].distance : 0.0;
+            double u_dist_1 = upper_intersections.size() > 1 ? upper_intersections[1].distance : 0.0;
+            double l_dist_0 = lower_intersections.size() > 1 ? lower_intersections[0].distance : 0.0;
+            double l_dist_1 = lower_intersections.size() > 1 ? lower_intersections[1].distance : 0.0;
+            bool hits_upper = (u_dist_0 > 0 and u_dist_0 < distance) or (u_dist_1 > 0 and u_dist_1 < distance);
+            bool hits_lower = (l_dist_0 > 0 and l_dist_0 < distance) or (l_dist_1 > 0 and l_dist_1 < distance);
+            if((not p1_in_upper) and (not p1_in_lower)) { // End in vacuum
+                if((not hits_upper) and (not hits_lower)) { // Full path is in vacuum
+                    integral += rho_vacuum*distance;
+                } else if(hits_upper and (not hits_lower)) {
+                    double dist_in_upper = std::abs(u_dist_1 - u_dist_0);
+                    double dist_in_vacuum = distance - dist_in_upper;
+                    integral += rho_vacuum*dist_in_vacuum;
+                    integral += rho_upper*dist_in_upper;
+                } else if(hits_lower and (not hits_upper)) {
+                    double dist_in_lower = std::abs(l_dist_1 - l_dist_0);
+                    double dist_in_vacuum = distance - dist_in_lower;
+                    integral += rho_vacuum*dist_in_vacuum;
+                    integral += rho_lower*dist_in_lower;
+                } else if(hits_upper and hits_lower) {
+                    double lower_min = std::min(l_dist_0, l_dist_1);
+                    double lower_max = std::max(l_dist_0, l_dist_1);
+                    double upper_min = std::min(u_dist_0, u_dist_1);
+                    double upper_max = std::max(u_dist_0, u_dist_1);
+                    if(lower_min < upper_min and upper_min < lower_max and lower_max < upper_max) {
+                        // l (L) u (U) \l u
+                        integral += rho_vacuum*lower_min;
+                        integral += rho_lower*(upper_min - lower_min);
+                        integral += rho_upper*(upper_max - upper_min);
+                        integral += rho_vacuum*(distance - upper_max);
+                    } else if(upper_min < lower_min and lower_min < upper_max and upper_max < lower_max) {
+                        // u (U) \l u (L) l
+                        integral += rho_vacuum*upper_min;
+                        integral += rho_upper*(upper_max - upper_min);
+                        integral += rho_lower*(lower_max - upper_max);
+                        integral += rho_vacuum*(distance - lower_max);
+
+                    } else if (upper_min < lower_min and lower_max < upper_max) {
+                        // u \l (U) \l u
+                        integral += rho_vacuum*upper_min;
+                        integral += rho_upper*(upper_max - upper_min);
+                        integral += rho_vacuum*(distance - upper_max);
+                    } else if (lower_min < upper_min and upper_max < lower_max) {
+                        // l u u l
+                        integral += rho_vacuum*lower_min;
+                        integral += rho_lower*(upper_min - lower_min);
+                        integral += rho_upper*(upper_max - upper_min);
+                        integral += rho_lower*(lower_max - upper_max);
+                        integral += rho_vacuum*(distance - lower_max);
+                    }
+                }
+            } else if(p1_in_upper) { // Ends in full sphere
+                if((not hits_upper) and (not hits_lower)) { // Full path is in vacuum
+                    assert(false);
+                } else if(hits_upper and (not hits_lower)) {
+                    double dist_in_vacuum = std::min(u_dist_0, u_dist_1);
+                    double dist_in_upper = distance - dist_in_vacuum;
+                    integral += rho_vacuum*dist_in_vacuum;
+                    integral += rho_upper*dist_in_upper;
+                } else if(hits_lower and (not hits_upper)) {
+                    assert(false);
+                } else if(hits_upper and hits_lower) {
+                    double lower_min = std::min(l_dist_0, l_dist_1);
+                    double lower_max = std::max(l_dist_0, l_dist_1);
+                    double upper_min = std::min(u_dist_0, u_dist_1);
+                    if(lower_min < upper_min and upper_min < lower_max) {
+                        // l (L) u (U) \l u
+                        integral += rho_vacuum*lower_min;
+                        integral += rho_lower*(upper_min - lower_min);
+                        integral += rho_upper*(distance - upper_min);
+                    } else if(upper_min < lower_min) {
+                        integral += rho_vacuum*upper_min;
+                        integral += rho_upper*(distance - upper_min);
+                    } else if (lower_min < upper_min) {
+                        // l u u l
+                        integral += rho_vacuum*lower_min;
+                        integral += rho_lower*(upper_min - lower_min);
+                        integral += rho_upper*(distance - upper_min);
+                    }
+                }
+            } else if(p1_in_lower) { // Ends in partial sphere
+                if((not hits_upper) and (not hits_lower)) { // Full path is in vacuum
+                    assert(false);
+                } else if(hits_upper and (not hits_lower)) {
+                    assert(false);
+                } else if(hits_lower and (not hits_upper)) {
+                    double dist_in_vacuum = std::min(l_dist_0, l_dist_1);
+                    double dist_in_lower = distance - dist_in_vacuum;
+                    integral += rho_vacuum*dist_in_vacuum;
+                    integral += rho_lower*dist_in_lower;
+                } else if(hits_upper and hits_lower) {
+                    double lower_min = std::min(l_dist_0, l_dist_1);
+                    double lower_max = std::max(l_dist_0, l_dist_1);
+                    double upper_min = std::min(u_dist_0, u_dist_1);
+                    double upper_max = std::max(u_dist_0, u_dist_1);
+                    if(lower_min < upper_min and upper_min < lower_max and lower_max < upper_max) {
+                        assert(false);
+                    } else if(upper_min < lower_min and lower_min < upper_max and upper_max < lower_max) {
+                        // u (U) \l u (L) l
+                        integral += rho_vacuum*upper_min;
+                        integral += rho_upper*(upper_max - upper_min);
+                        integral += rho_lower*(distance - upper_max);
+
+                    } else if (upper_min < lower_min and lower_max < upper_max) {
+                        // u \l (U) \l u
+                        assert(false);
+                    } else if (lower_min < upper_min and upper_max < lower_max) {
+                        // l u u l
+                        integral += rho_vacuum*lower_min;
+                        integral += rho_lower*(upper_min - lower_min);
+                        integral += rho_upper*(upper_max - upper_min);
+                        integral += rho_lower*(distance - upper_max);
+                    }
+                }
+            }
+        }
+        EXPECT_DOUBLE_EQ(integral, sum);
+    }
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
