@@ -296,8 +296,41 @@ void EarthModel::SectorLoop(Vector3D const & p0, Vector3D const & direction, std
     }
 }
 
-double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density) const {
+double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & p0, Vector3D const & direction, double column_depth, bool use_electron_density) const {
+    double total_column_depth = 0.0;
+    double total_distance = -1;
+    std::function<bool(std::vector<Geometry::Intersection>::iterator, std::vector<Geometry::Intersection>::iterator, double)> callback =
+        [&] (std::vector<Geometry::Intersection>::iterator current_intersection, std::vector<Geometry::Intersection>::iterator intersection, double last_point) {
+        // The local integration is bounded on the upper end by the intersection and the global integral boundary
+        double end_point = intersection->distance;
+        // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
+        double start_point = std::max(std::max(current_intersection->distance, 0.0), last_point);
+        double segment_length = end_point - start_point;
+        EarthSector sector = GetSector(current_intersection->hierarchy);
+        double target = column_depth - total_column_depth;
+        if(use_electron_density)
+            target /= materials_.GetPNERatio(sector.material_id);
+        double distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
+        bool done = distance >= 0;
 
+        double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
+        if(use_electron_density)
+            integral *= materials_.GetPNERatio(sector.material_id);
+        total_column_depth += integral;
+
+        if(done) {
+            total_distance = start_point + distance;
+        }
+        last_point = end_point;
+        return done;
+    };
+
+    std::vector<Geometry::Intersection> intersections = GetIntersections(p0, direction);
+    SortIntersections(intersections);
+
+    SectorLoop(p0, direction, callback, intersections);
+
+    return total_distance;
 }
 
 Vector3D EarthModel::GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const {

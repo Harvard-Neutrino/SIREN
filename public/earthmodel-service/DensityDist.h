@@ -270,7 +270,11 @@ class DensityDistribution1D
 
         double res;
         try {
-            res = NewtonRaphson(F, dF, 0, max_distance, max_distance/2);
+            double init = max_distance / 2.0;
+            if(std::isinf(init)) {
+                init = dF(0.0);
+            }
+            res = NewtonRaphson(F, dF, 0, max_distance, init);
         } catch(MathException& e) {
             res = -1;
         }
@@ -527,7 +531,11 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
 
         double res;
         try {
-            res = NewtonRaphson(F, dF, 0, max_distance, max_distance/2);
+            double init = max_distance / 2.0;
+            if(std::isinf(init)) {
+                init = dF(0.0);
+            }
+            res = NewtonRaphson(F, dF, 0, max_distance, init);
         } catch(MathException& e) {
             res = -1;
         }
