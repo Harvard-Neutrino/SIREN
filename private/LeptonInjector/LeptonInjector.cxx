@@ -244,7 +244,7 @@ namespace LeptonInjector{
 	RangedLeptonInjector::RangedLeptonInjector(){
 	}
 	
-	RangedLeptonInjector::RangedLeptonInjector( BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModelService> earth_, std::shared_ptr<LI_random> random_){
+	RangedLeptonInjector::RangedLeptonInjector( BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<LI_random> random_){
 		config = config_;
 		eventsGenerated = 0;
 		wroteConfigFrame = false;
@@ -300,7 +300,7 @@ namespace LeptonInjector{
 		//endcapLength is subtracted so that dist==0 corresponds to pca
 		double dist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth-traversedColumnDepth, use_electron_density)-config.endcapLength;
 		
-		{ //ensure that the point we picked is inside the atmosphere
+		/* { //ensure that the point we picked is inside the atmosphere
 			LI_Position atmoEntry, atmoExit;
 			int isect=GetIntersectionsWithSphere(earthModel->GetEarthCoordPosFromDetCoordPos(pca),
 												 earthModel->GetEarthCoordDirFromDetCoordDir(dir),
@@ -311,7 +311,7 @@ namespace LeptonInjector{
 			double atmoDist=(pca-atmoEntry).Magnitude();
 			if(std::abs(dist-atmoDist)<100.0)
 				dist=std::min(dist,atmoDist);
-		}
+		} */
 		LI_Position vertex=pca-(dist*dir);
 		
 		//assemble the MCTree
@@ -340,7 +340,7 @@ namespace LeptonInjector{
 	VolumeLeptonInjector::VolumeLeptonInjector(){
 	}
 	
-	VolumeLeptonInjector::VolumeLeptonInjector(BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModelService> earth_, std::shared_ptr<LI_random> random_){
+	VolumeLeptonInjector::VolumeLeptonInjector(BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<LI_random> random_){
 		eventsGenerated = 0;
 		wroteConfigFrame = false;
 		suspendOnCompletion = true;

@@ -3,6 +3,7 @@
 #include <assert.h> //assertions
 #include "LeptonInjector/Constants.h" // pi
 #include "LeptonInjector/Coordinates.h"
+#include "earthmodel-service/Vector3D.h"
 
 namespace LeptonInjector {
 
@@ -44,6 +45,19 @@ namespace LeptonInjector {
 		this->azimuth = atan2( vec.at(1), vec.at(0) );
 		this->zenith  = acos( vec.at(2)/ vec.Magnitude() );
 	}
+
+    LI_Direction::LI_Direction(earthmodel::Vector3D v) {
+        v.CalculateCartesianFromSpherical();
+        this->azimuth = v.GetPhi();
+        this->zenith = v.GetTheta();
+    }
+
+    LI_Direction::operator earthmodel::Vector3D() const {
+        earthmodel::Vector3D v;
+        v.SetSphericalCoordinates(1.0, this->azimuth, this->zenith);
+        v.CalculateCartesianFromSpherical();
+        return v;
+    }
 
 	double LI_Direction::GetX() const{return( sin(zenith)*cos(azimuth) ); }
 	double LI_Direction::GetY() const{return( sin(zenith)*sin(azimuth) ); }
@@ -105,6 +119,16 @@ namespace LeptonInjector {
 		this->position[1] = y;
 		this->position[2] = z;
 	}
+
+    LI_Position::LI_Position(earthmodel::Vector3D const & v) {
+        this->position[0] = v.GetX();
+        this->position[1] = v.GetY();
+        this->position[2] = v.GetZ();
+    }
+
+    LI_Position::operator earthmodel::Vector3D() const {
+        return earthmodel::Vector3D(this->position[0], this->position[1], this->position[2]);
+    }
 
 	// returns the value of a specified component 
 	double LI_Position::at( uint8_t component) const{

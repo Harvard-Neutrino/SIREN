@@ -256,6 +256,7 @@ protected:
         double phi = RandomDouble()*2.0*M_PI;
         Vector3D result;
         result.SetSphericalCoordinates(radius, phi, theta);
+        result.CalculateCartesianFromSpherical();
         return result;
     }
 };

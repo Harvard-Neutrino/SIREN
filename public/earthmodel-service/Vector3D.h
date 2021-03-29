@@ -103,7 +103,6 @@ public:
         spherical_.radius_  = radius;
         spherical_.azimuth_ = azimuth;
         spherical_.zenith_  = zenith;
-        CalculateCartesianFromSpherical();
     }
     // void SetCylindricalCoordinates(const double radius, const double azimuth, const double height)
     // {

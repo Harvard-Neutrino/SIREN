@@ -67,7 +67,7 @@ namespace LeptonInjector {
         this->configs.push_back( configs_received );
     }
 
-    void Controller::SetEarthModel(std::shared_ptr<earthmodel::EarthModelService> earthModel_){
+    void Controller::SetEarthModel(std::shared_ptr<earthmodel::EarthModel> earthModel_){
         this->earthModel = earthModel_;
     }
 

@@ -199,7 +199,14 @@ TEST(CalculateSphericalCoordinates, Conversion)
     A.CalculateSphericalCoordinates();
     EXPECT_TRUE(A != B);
     B.SetSphericalCoordinates(3, std::atan2(2., 1.), std::acos(2. / 3.));
-    EXPECT_TRUE(B == A);
+    double epsilon = std::numeric_limits<double>::epsilon();
+    double error_factor = 2.;
+    bool test_x = std::abs(A.GetX() - B.GetX()) < std::max(std::abs(A.GetX()), std::abs(B.GetX())) * epsilon * error_factor;
+    bool test_y = std::abs(A.GetY() - B.GetY()) < std::max(std::abs(A.GetY()), std::abs(B.GetY())) * epsilon * error_factor;
+    bool test_z = std::abs(A.GetZ() - B.GetZ()) < std::max(std::abs(A.GetZ()), std::abs(B.GetZ())) * epsilon * error_factor;
+    bool test_theta = std::abs(A.GetTheta() - B.GetTheta()) < std::max(std::abs(A.GetTheta()), std::abs(B.GetTheta())) * epsilon * error_factor;
+    bool test_phi = std::abs(A.GetPhi() - B.GetPhi()) < std::max(std::abs(A.GetPhi()), std::abs(B.GetPhi())) * epsilon * error_factor;
+    EXPECT_TRUE(B == A || (test_x && test_y && test_z));
 }
 
 TEST(CalculateCartesianFromSpherical, Conversion)
@@ -212,11 +219,11 @@ TEST(CalculateCartesianFromSpherical, Conversion)
     B.CalculateCartesianFromSpherical();
     EXPECT_TRUE(A != B);
     B.SetSphericalCoordinates(0, 0, 0);
-    double error_factor = 2.;
-    bool test_x = std::abs(A.GetX() - B.GetX()) < std::abs(std::min(A.GetX(), B.GetX())) * epsilon * error_factor;
-    bool test_y = std::abs(A.GetY() - B.GetY()) < std::abs(std::min(A.GetY(), B.GetY())) * epsilon * error_factor;
-    bool test_z = std::abs(A.GetZ() - B.GetZ()) < std::abs(std::min(A.GetZ(), B.GetZ())) * epsilon * error_factor;
-    EXPECT_TRUE(A == B || test_x && test_y && test_z);
+    double error_factor = 10.;
+    bool test_x = std::abs(A.GetX() - B.GetX()) < std::max(std::abs(A.GetX()), std::abs(B.GetX())) * epsilon * error_factor;
+    bool test_y = std::abs(A.GetY() - B.GetY()) < std::max(std::abs(A.GetY()), std::abs(B.GetY())) * epsilon * error_factor;
+    bool test_z = std::abs(A.GetZ() - B.GetZ()) < std::max(std::abs(A.GetZ()), std::abs(B.GetZ())) * epsilon * error_factor;
+    EXPECT_TRUE(A == B || (test_x && test_y && test_z)) << A << B;
 }
 
 int main(int argc, char** argv)
