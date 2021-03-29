@@ -287,6 +287,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
+        reset();
         ASSERT_NO_THROW(reset(2, 1));
         EarthModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
@@ -388,6 +389,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
+        reset();
         EarthModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         MaterialModel materials = A.GetMaterials();
