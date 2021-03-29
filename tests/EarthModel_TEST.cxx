@@ -680,6 +680,111 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
     }
 }
 
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        reset();
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        MaterialModel materials = A.GetMaterials();
+        int material_count = 0;
+        while(materials.HasMaterial(material_count)) {
+            material_count += 1;
+        }
+        double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
+        double ice_angle = -1;
+
+        EarthSector upper_sector;
+        Vector3D upper_center(0,0,0);
+        upper_sector.name = "upper";
+        upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        upper_sector.level = -1;
+        upper_sector.geo = Sphere(upper_center, radius, 0, upper_sector.level).create();
+        upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+
+        EarthSector lower_sector;
+        Vector3D lower_center(0,0,0);
+        lower_sector.name = "lower";
+        lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        lower_sector.level = -2;
+        lower_sector.geo = Sphere(lower_center, radius/2.0, 0, lower_sector.level).create();
+        lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+
+        A.AddSector(lower_sector);
+        A.AddSector(upper_sector);
+
+        std::vector<EarthSector> sectors = A.GetSectors();
+        ASSERT_EQ(3, sectors.size());
+        EarthSector sector_vacuum = sectors[0];
+        EarthSector sector_0 = sectors[1];
+        EarthSector sector_1 = sectors[2];
+        ASSERT_EQ(lower_sector.name, sector_0.name);
+        ASSERT_EQ(upper_sector.name, sector_1.name);
+        Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
+        Sphere const * sphere_1 = dynamic_cast<Sphere const *>(sector_1.geo.get());
+        ASSERT_TRUE(sphere_0);
+        ASSERT_TRUE(sphere_1);
+
+        Vector3D p0 = RandomVector(0, radius*2.0);
+        Vector3D p1 = RandomVector(0, radius*2.0);
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        ASSERT_TRUE(density_vacuum);
+        ASSERT_TRUE(density_0);
+        ASSERT_TRUE(density_1);
+        double rho_vacuum = density_vacuum->Evaluate(Vector3D());
+        double rho_lower = density_0->Evaluate(lower_center);
+        double rho_upper = density_1->Evaluate(upper_center);
+
+        std::vector<Geometry::Intersection> intersections = sphere_1->Intersections(p0, direction);
+
+        bool p0_in_upper = (p0 - upper_center).magnitude() < radius;
+        bool p1_in_upper = (p1 - upper_center).magnitude() < radius;
+
+        double sum = A.GetColumnDepthInCGS(p0, p1);
+        double integral = 0.0;
+        if(p0_in_upper) {
+            if(p1_in_upper) {
+                integral += rho_upper*distance;
+                ASSERT_DOUBLE_EQ(integral, sum) << sum << " " << rho_upper*distance << " " << rho_lower*distance;
+            } else {
+                double dist_in_upper = std::max(intersections[0].distance, intersections[1].distance);
+                integral += rho_upper*dist_in_upper;
+                integral += rho_vacuum*(distance - dist_in_upper);
+                ASSERT_DOUBLE_EQ(integral, sum);
+            }
+        } else {
+            if(p1_in_upper) {
+                double dist_in_vacuum = std::min(intersections[0].distance, intersections[1].distance);
+                integral += rho_vacuum*dist_in_vacuum;
+                integral += rho_upper*(distance - dist_in_vacuum);
+                    ASSERT_DOUBLE_EQ(integral, sum);
+            } else {
+                if(intersections.size() > 1) {
+                    if(intersections[0].distance > 0 and intersections[1].distance > 0 and distance > std::max(intersections[0].distance, intersections[1].distance)) {
+                        double dist_in_upper = std::abs(intersections[1].distance - intersections[0].distance);
+                        integral += rho_upper*dist_in_upper;
+                        integral += rho_vacuum*(distance - dist_in_upper);
+                        ASSERT_DOUBLE_EQ(integral, sum);
+                    } else {
+                        integral += rho_vacuum*distance;
+                        ASSERT_DOUBLE_EQ(integral, sum);
+                    }
+                } else {
+                    integral += rho_vacuum*distance;
+                    ASSERT_DOUBLE_EQ(integral, sum);
+                }
+            }
+        }
+        EXPECT_DOUBLE_EQ(integral, sum);
+    }
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
