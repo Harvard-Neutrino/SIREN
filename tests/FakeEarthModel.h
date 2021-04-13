@@ -290,5 +290,34 @@ protected:
     }
 };
 
+class FakeEarthModelTest : public FakeLegacyEarthModelFile, public FakeMaterialModelFile, public ::testing::Test {
+protected:
+    void setup() {
+        FakeMaterialModelFile::create_file(std::vector<std::string>{"air", "atmosphere", "ice"}, 6);
+        FakeLegacyEarthModelFile::create_file(FakeMaterialModelFile::material_names_);
+    }
+    void setup(unsigned int n_layers, int poly_max) {
+        FakeMaterialModelFile::create_file(std::vector<std::string>{"air", "atmosphere", "ice"}, 6);
+        FakeLegacyEarthModelFile::create_file(FakeMaterialModelFile::material_names_, n_layers, 0, poly_max);
+    }
+    void reset() {
+        setup();
+    }
+    void reset(unsigned int n_layers, int poly_max) {
+        setup(n_layers, poly_max);
+    }
+    void SetUp() override {
+        FakeMaterialModelFile::file_exists = false;
+        FakeLegacyEarthModelFile::file_exists = false;
+        setup();
+    }
+    void TearDown() override {
+        //FakeMaterialModelFile::remove_file();
+        //FakeLegacyEarthModelFile::remove_file();
+        FakeMaterialModelFile::clear();
+        FakeLegacyEarthModelFile::clear();
+    }
+};
+
 #endif // LI_TEST_FakeEarthModel_H
 

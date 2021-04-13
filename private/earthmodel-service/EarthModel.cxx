@@ -133,6 +133,135 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
     else {
         throw("Cannot open earth model file!");
     }
+
+    std::ifstream in(fname.c_str());
+
+    // if the earthmodel file doesn't exist, stop simulation
+    if(in.fail()){
+        throw("Failed to open " + fname + " Set correct EarthParamsPath.");
+    }
+
+    sectors_.clear();
+
+    // read the file
+    std::string buf;
+    std::string type, shape, label, medtype;
+    double x0, y0, z0; // Coordinates of the center of the detector
+    double xc, yc, zc; // Coordinates of the center of the shape
+    double radius; // For Sphere shapes
+    double dx, dy, dz; // For Box shapes
+    double param;
+    int nparams;
+
+    int level = 0;
+    double max_radius = 0;
+
+    while(getline(in,buf)) {
+        {
+            size_t pos;
+            // eliminate data after first #
+            if((pos=buf.find('#'))!=std::string::npos)
+                buf.erase(pos);
+            // trim whitespace
+            const char* whitespace=" \n\r\t\v";
+            if((pos=buf.find_first_not_of(whitespace))!=0)
+                // if there are no non-whitespace characters pos==std::string::npos, so the entire line is erased
+                buf.erase(0,pos);
+            if(!buf.empty() && (pos=buf.find_last_not_of(whitespace))!=buf.size()-1)
+                buf.erase(pos+1);
+            if(buf.empty())
+                continue;
+        }
+
+        // density data
+        std::stringstream ss(buf);
+		ss >> type;
+
+		if(type.find("detector")!=std::string::npos) ss >> type >> x0 >> y0 >> z0;
+		else{
+			ss >> type >> shape;
+
+        	if(shape.find("sphere")!=std::string::npos) ss >> type >> shape >> radius >> label >> medtype >> nparams;
+        	else if(shape.find("rectangle")!=std::string::npos) ss >> type >> shape >> xc >> yc >> zc >> dx >> dy >> dz >> label >> medtype >> nparams;
+        	else throw("Shape not recognized!");
+
+        	if(not materials_.HasMaterial(medtype)) {
+        	    std::stringstream ss;
+        	    ss << "Earth model uses undefined material " << medtype;
+        	    throw(ss.str());
+        	}
+
+        	EarthSector sector;
+        	sector.material_id = materials_.GetMaterialId(medtype);
+        	sector.level = level;
+        	level += 1;
+        	if(shape.find("sphere")!=std::string::npos) sector.geo = Sphere(Vector3D(0,0,0), radius, 0).create();
+        	else if(shape.find("rectangle")!=std::string::npos) sector.geo = Box(Vector3D(xc,yc,zc), dx, dy, dz).create();
+        	if(nparams == 1) {
+        	    ss >> param;
+        	    sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(param).create();
+        	}
+        	else {
+        	    std::vector<double> params;
+        	    for(int i=0; i<nparams; ++i) {
+        	        ss >> param;
+        	        params.push_back(param);
+        	    }
+        	    RadialAxis1D radial_ax;
+        	    sector.density = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(radial_ax, params).create();
+        	}
+
+        	// stop the process if layering assumptions are violated
+        	if(radius < max_radius) {
+        	    throw("Layers must be radially ordered in file!");
+        	}
+        	max_radius = radius;
+        	sectors_.push_back(sector);
+		}
+    } // end of the while loop
+    in.close();
+
+    // Add the vacuum layer
+    EarthSector sector;
+    sector.material_id = materials_.GetMaterialId("VACUUM");
+    sector.level = level;
+    level += 1;
+    sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
+    sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
+
+    // Examine the ice
+    double earth_radius = 0;
+    double ice_radius = 0;
+    std::vector<int> ice_layers;
+    bool saw_ice = false;
+    for(unsigned int i=0; i<sectors_.size(); ++i) {
+        EarthSector const & sector = sectors_[i];
+        std::string name = materials_.GetMaterialName(sector.material_id);
+        string_to_lower(name);
+
+        bool in_ice = name == "ice";
+        bool solid = (name != "air") and (name != "atmosphere") and (name != "vacuum");
+        saw_ice |= in_ice;
+
+        if(not saw_ice) {
+            // In the Earth, keep increasing the radius
+            if(solid)
+                earth_radius = ((Sphere *)(sector.geo.get()))->GetRadius();
+        }
+        else if(in_ice) {
+            // In the ice, keep increasing the radius
+            ice_radius = ((Sphere *)(sector.geo.get()))->GetRadius();
+            ice_layers.push_back(i);
+        }
+        else {
+            // Out of the ice, stop counting layers
+            break;
+        }
+    }
+
+    // Set the detector origin
+    // Depth is defined relative to the top solid layer
+    detector_origin_ = Vector3D(x0,y0,z0);
 }
 
 void EarthModel::LoadDefaultMaterials() {
