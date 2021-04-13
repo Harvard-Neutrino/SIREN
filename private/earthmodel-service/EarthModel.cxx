@@ -141,20 +141,12 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
         throw("Failed to open " + fname + " Set correct EarthParamsPath.");
     }
 
-    sectors_.clear();
+    ClearSectors();
+    LoadDefaultSectors();
 
     // read the file
-    std::string buf;
-    std::string type, shape, label, medtype;
-    double x0, y0, z0; // Coordinates of the center of the detector
-    double xc, yc, zc; // Coordinates of the center of the shape
-    double radius; // For Sphere shapes
-    double dx, dy, dz; // For Box shapes
-    double param;
-    int nparams;
-
+    std::string buf, type;
     int level = 0;
-    double max_radius = 0;
 
     while(getline(in,buf)) {
         {
@@ -177,91 +169,94 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
         std::stringstream ss(buf);
 		ss >> type;
 
-		if(type.find("detector")!=std::string::npos) ss >> type >> x0 >> y0 >> z0;
-		else{
-			ss >> type >> shape;
+        if(type.find("object") != std::string::npos) {
+            EarthSector sector;
+            sector.level = level;
+            level += 1;
+            double xc, yc, zc; // Coordinates of the center of the shape
 
-        	if(shape.find("sphere")!=std::string::npos) ss >> type >> shape >> radius >> label >> medtype >> nparams;
-        	else if(shape.find("rectangle")!=std::string::npos) ss >> type >> shape >> xc >> yc >> zc >> dx >> dy >> dz >> label >> medtype >> nparams;
-        	else throw("Shape not recognized!");
+            std::string shape;
+            ss >> shape;
+            ss >> xc >> yc >> zc;
 
-        	if(not materials_.HasMaterial(medtype)) {
-        	    std::stringstream ss;
-        	    ss << "Earth model uses undefined material " << medtype;
-        	    throw(ss.str());
-        	}
+            if(shape.find("sphere")!=std::string::npos) {
+                double radius; // For Sphere shapes
+                ss >> radius;
+                sector.geo = Sphere(Vector3D(xc, yc, zc), radius, 0).create();
+            }
+            else if(shape.find("box")!=std::string::npos) {
+                double dx, dy, dz; // For Box shapes
+                ss >> dx >> dy >> dz;
+                sector.geo = Box(Vector3D(xc, yc, zc), dx, dy, dz).create();
+            }
+            else {
+                std::stringstream ss_err;
+                ss_err
+                    << "Shape \""
+                    << shape
+                    << "\" not recognized on line:\n"
+                    << ss.str();
+                throw(ss_err.str());
+            }
 
-        	EarthSector sector;
-        	sector.material_id = materials_.GetMaterialId(medtype);
-        	sector.level = level;
-        	level += 1;
-        	if(shape.find("sphere")!=std::string::npos) sector.geo = Sphere(Vector3D(0,0,0), radius, 0).create();
-        	else if(shape.find("rectangle")!=std::string::npos) sector.geo = Box(Vector3D(xc,yc,zc), dx, dy, dz).create();
-        	if(nparams == 1) {
-        	    ss >> param;
-        	    sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(param).create();
-        	}
-        	else {
-        	    std::vector<double> params;
-        	    for(int i=0; i<nparams; ++i) {
-        	        ss >> param;
-        	        params.push_back(param);
-        	    }
-        	    RadialAxis1D radial_ax;
-        	    sector.density = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(radial_ax, params).create();
-        	}
+            std::string label, medtype;
+            ss >> label >> medtype;
 
-        	// stop the process if layering assumptions are violated
-        	if(radius < max_radius) {
-        	    throw("Layers must be radially ordered in file!");
-        	}
-        	max_radius = radius;
-        	sectors_.push_back(sector);
-		}
+            if(not materials_.HasMaterial(medtype)) {
+                std::stringstream ss_err;
+                ss_err
+                    << "Earth model uses undefined material \""
+                    << medtype
+                    << "\" on line:\n"
+                    << ss.str();
+                throw(ss_err.str());
+            }
+
+            sector.material_id = materials_.GetMaterialId(medtype);
+
+            std::string distribution_type;
+            ss >> distribution_type;
+
+            if(distribution_type.find("constant") != std::string::npos) {
+                double param;
+                ss >> param;
+                sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(param).create();
+            } else if (distribution_type.find("radial_polynomial") != std::string::npos) {
+                double xc, yc, zc;
+                ss >> xc, yc, zc;
+                Vector3D center(xc, yc, zc);
+                RadialAxis1D radial_ax(center);
+
+                int nparams;
+                ss >> nparams;
+
+                double param;
+                std::vector<double> params;
+                for(int i=0; i<nparams; ++i) {
+                    ss >> param;
+                    params.push_back(param);
+                }
+                sector.density = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(radial_ax, params).create();
+            } else {
+                std::stringstream ss_err;
+                ss_err
+                    << "Density distribution \""
+                    << distribution_type
+                    << "\" not recognized on line:\n"
+                    << ss.str();
+                throw(ss_err.str());
+            }
+
+            sectors_.push_back(sector);
+        }
+        else if(type.find("detector") != std::string::npos) {
+            double x0, y0, z0; // Coordinates of the center of the detector
+            ss >> x0 >> y0 >> z0;
+            // Set the detector origin
+            detector_origin_ = Vector3D(x0, y0, z0);
+        }
     } // end of the while loop
     in.close();
-
-    // Add the vacuum layer
-    EarthSector sector;
-    sector.material_id = materials_.GetMaterialId("VACUUM");
-    sector.level = level;
-    level += 1;
-    sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
-    sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
-
-    // Examine the ice
-    double earth_radius = 0;
-    double ice_radius = 0;
-    std::vector<int> ice_layers;
-    bool saw_ice = false;
-    for(unsigned int i=0; i<sectors_.size(); ++i) {
-        EarthSector const & sector = sectors_[i];
-        std::string name = materials_.GetMaterialName(sector.material_id);
-        string_to_lower(name);
-
-        bool in_ice = name == "ice";
-        bool solid = (name != "air") and (name != "atmosphere") and (name != "vacuum");
-        saw_ice |= in_ice;
-
-        if(not saw_ice) {
-            // In the Earth, keep increasing the radius
-            if(solid)
-                earth_radius = ((Sphere *)(sector.geo.get()))->GetRadius();
-        }
-        else if(in_ice) {
-            // In the ice, keep increasing the radius
-            ice_radius = ((Sphere *)(sector.geo.get()))->GetRadius();
-            ice_layers.push_back(i);
-        }
-        else {
-            // Out of the ice, stop counting layers
-            break;
-        }
-    }
-
-    // Set the detector origin
-    // Depth is defined relative to the top solid layer
-    detector_origin_ = Vector3D(x0,y0,z0);
 }
 
 void EarthModel::LoadDefaultMaterials() {
