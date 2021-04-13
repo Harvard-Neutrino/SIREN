@@ -20,6 +20,9 @@ struct EarthSector {
     int level;
     std::shared_ptr<const Geometry> geo;
     std::shared_ptr<const DensityDistribution> density;
+    bool operator==(EarthSector const & o) const {
+        return name == o.name and material_id == o.material_id and level == o.level and geo == o.geo and density == o.density;
+    }
 };
 
 class EarthModel {

@@ -152,6 +152,14 @@ Vector3D operator+(const Vector3D& vec1, const Vector3D& vec2)
     return vector_sum;
 }
 
+Vector3D& operator+=(Vector3D& vec1, const Vector3D& vec2)
+{
+    vec1.cartesian_.x_ += vec2.cartesian_.x_;
+    vec1.cartesian_.y_ += vec2.cartesian_.y_;
+    vec1.cartesian_.z_ += vec2.cartesian_.z_;
+    return vec1;
+}
+
 Vector3D operator-(const Vector3D& vec1, const Vector3D& vec2)
 {
     Vector3D vector_diff;

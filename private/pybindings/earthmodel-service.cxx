@@ -10,7 +10,7 @@
 #include <LeptonInjector/Random.h>
 #include <LeptonInjector/Constants.h>
 #include <earthmodel-service/EarthModelCalculator.h>
-#include <earthmodel-service/EarthModelService.h>
+#include <earthmodel-service/EarthModel.h>
 
 // #include <converter/LeptonInjectionConfigurationConverter.h>
 #include <boost/python.hpp>
@@ -76,101 +76,72 @@ namespace earthmodel{
 
 BOOST_PYTHON_MODULE(EarthModelService){
 	using namespace earthmodel;
+    typedef std::vector<EarthSector> Sectors;
 
-	enum_<EarthModelService::MediumType>("MediumType")
-		.value("INNERCORE", EarthModelService::INNERCORE)
-		.value("OUTERCORE", EarthModelService::OUTERCORE)
-		.value("MANTLE", EarthModelService::MANTLE)
-		.value("ROCK", EarthModelService::ROCK)
-		.value("ICE", EarthModelService::ICE)
-		.value("WATER", EarthModelService::WATER)
-		.value("AIR", EarthModelService::AIR)
-		.value("VACUUM", EarthModelService::VACUUM)
-		.value("LOWERMANTLE", EarthModelService::LOWERMANTLE)
-		.value("UPPERMANTLE", EarthModelService::UPPERMANTLE)
-		.value("LLSVP", EarthModelService::LLSVP)
+    class_<Sectors>("Sectors")
+        .def(vector_indexing_suite<Sectors>());
+
+    class_<Vector3D>("Vector3D", init<>())
+        .def(init<const double, const double, const double>())
+        .def(init<const Vector3D&>())
+        .def("magnitude",&Vector3D::magnitude)
+        .def("normalize",&Vector3D::normalize)
+        .def("deflect",&Vector3D::deflect)
+        .def("GetZ",&Vector3D::GetZ)
+        .def("GetY",&Vector3D::GetY)
+        .def("GetX",&Vector3D::GetX)
+        .def("GetRadius",&Vector3D::GetRadius)
+        .def("GetPhi",&Vector3D::GetPhi)
+        .def("GetTheta",&Vector3D::GetTheta)
+        .def(self + self)
+        .def(self - self)
+        .def(self += self)
+        .def(self == self)
+        .def(self * double())
+        .def(double() * self)
+        .def(self * self)
+        .def("CalculateCartesianFromSpherical",&Vector3D::CalculateCartesianFromSpherical)
+        .def("CalculateSphericalCoordinates",&Vector3D::CalculateSphericalCoordinates)
+        .def("GetCartesianCoordinates",&Vector3D::GetCartesianCoordinates)
+        .def("GetSphericalCoordinates",&Vector3D::GetSphericalCoordinates)
+        .def("SetCartesianCoordinates",&Vector3D::SetCartesianCoordinates)
+        .def("SetSphericalCoordinates",&Vector3D::SetSphericalCoordinates)
+        ;
+
+	class_<EarthSector>("EarthSector", init<>())
+        .def_readwrite("name", &EarthSector::name)
+        .def_readwrite("material_id", &EarthSector::material_id)
+        .def_readwrite("level", &EarthSector::level)
+        .def_readwrite("geo", &EarthSector::geo)
+        .def_readwrite("density", &EarthSector::density)
 		;
 
-	class_<EarthModelService::EarthParam>("EarthParam", init<>())
-		.def_readwrite("fUpperRadius_",&EarthModelService::EarthParam::fUpperRadius_)
-		.def_readwrite("fZOffset_",&EarthModelService::EarthParam::fZOffset_)
-		.def_readwrite("fBoundaryName_",&EarthModelService::EarthParam::fBoundaryName_)
-		.def_readwrite("fMediumType_",&EarthModelService::EarthParam::fMediumType_)
-		.def_readwrite("fParams_",&EarthModelService::EarthParam::fParams_)
-		.def("GetDensity",&EarthModelService::EarthParam::GetDensity)
-		.def("PrintDensity",&EarthModelService::EarthParam::PrintDensity)
-		;
-
-	const double (EarthModelService::*GetEarthDensityInCGS)(const LeptonInjector::LI_Position&) const = &EarthModelService::GetEarthDensityInCGS;
-	double (*GetEarthLayerDensityInCGS)(const EarthModelService::EarthParam&, const LeptonInjector::LI_Position&) = &EarthModelService::GetEarthDensityInCGS;
-
-	const double (EarthModelService::*GetDensityInCGS)(const LeptonInjector::LI_Position&) const = &EarthModelService::GetDensityInCGS;
-	const double (EarthModelService::*GetLayerDensityInCGS)(const EarthModelService::EarthParam&, const LeptonInjector::LI_Position&) = &EarthModelService::GetDensityInCGS;
-
-
-	const EarthModelService::MatRatioMap (EarthModelService::*GetMatRatioMap)() const = &EarthModelService::GetMatRatioMap;
-	const std::map<int, double>& (EarthModelService::*GetMediumMatRatioMap)(EarthModelService::MediumType) const = &EarthModelService::GetMatRatioMap;
-
-	class_<EarthModelService>("EarthModelService", init<const std::string&, const std::string&, const std::vector<std::string>&, const std::vector<std::string>&, const std::string&, double, double>())
-		// .def("GetMediumTypeString",&EarthModelService::GetMediumTypeString)
-		// .def("ConvertMediumTypeString",&EarthModelService::ConvertMediumTypeString)
-		.def("GetEarthParam",&EarthModelService::GetEarthParam, return_value_policy<copy_const_reference>())
-		.def("GetEarthDensityInCGS",GetEarthDensityInCGS)
-		.def("GetEarthLayerDensityInCGS",GetEarthLayerDensityInCGS)
-		.def("GetDensityInCGS",GetDensityInCGS)
-		.def("GetLayerDensityInCGS",GetLayerDensityInCGS)
-		.def("GetColumnDepthInCGS",&EarthModelService::GetColumnDepthInCGS)
-        .def("GetEarthDensitySegments",&EarthModelService::GetEarthDensitySegments)
-        .def("GetDensitySegments",&EarthModelService::GetDensitySegments)
-		// .def("IntegrateDensityInCGS",&EarthModelService::IntegrateDensityInCGS)
-		.def("DistanceForColumnDepthToPoint",&EarthModelService::DistanceForColumnDepthToPoint)
-		// .def("DistanceForColumnDepthFromPoint",&EarthModelService::DistanceForColumnDepthFromPoint)
-		// .def("GetLeptonRangeInMeterFrom",&EarthModelService::GetLeptonRangeInMeterFrom)
-		// .def("GetLeptonRangeInMeterTo",&EarthModelService::GetLeptonRangeInMeterTo)
-		// .def("DistanceToNextBoundaryCrossing",&EarthModelService::DistanceToNextBoundaryCrossing)
-		// .def("GetMedium",&EarthModelService::GetMedium)
-		//.def("GetMatRatioMap",GetMatRatioMap)
-		//.def("GetMediumMatRatioMap",GetMediumMatRatioMap)
-		// .def("GetMatRatio",&EarthModelService::GetMatRatio)
-		//.def("GetPNERatioMap",&EarthModelService::GetPNERatioMap)
-		.def("GetPNERatio",&EarthModelService::GetPNERatio)
-		// .def("GetDistanceFromEarthEntranceToDetector",&EarthModelService::GetDistanceFromEarthEntranceToDetector)
-		// .def("GetDistanceFromSphereSurfaceToDetector",&EarthModelService::GetDistanceFromSphereSurfaceToDetector)
-		.def("PrintEarthParams",&EarthModelService::PrintEarthParams)
-		// .def("GetPREM",&EarthModelService::GetPREM)
-		.def("GetEarthCoordPosFromDetCoordPos",&EarthModelService::GetEarthCoordPosFromDetCoordPos)
-		.def("GetDetCoordPosFromEarthCoordPos",&EarthModelService::GetDetCoordPosFromEarthCoordPos)
-		.def("GetEarthCoordDirFromDetCoordDir",&EarthModelService::GetEarthCoordDirFromDetCoordDir)
-		// .def("GetDetCoordDirFromEarthCoordDir",&EarthModelService::GetDetCoordDirFromEarthCoordDir)
-		// .def("SetPath",&EarthModelService::SetPath)
-		// .def("SetEarthModel",&EarthModelService::SetEarthModel)
-		// .def("SetMaterialModel",&EarthModelService::SetMaterialModel)
-		// .def("SetIceCapTypeString",&EarthModelService::SetIceCapTypeString)
-		// .def("SetIceCapSimpleAngle",&EarthModelService::SetIceCapSimpleAngle)
-		// .def("SetDetectorDepth",&EarthModelService::SetDetectorDepth)
-		// .def("SetDetectorXY",&EarthModelService::SetDetectorXY)
-		// .def("GetDetectorDepth",&EarthModelService::GetDetectorDepth)
-		// .def("GetDetectorPosInEarthCoord",&EarthModelService::GetDetectorPosInEarthCoord)
-		// .def("GetPath",&EarthModelService::GetPath)
-		// .def("GetIceCapTypeString",&EarthModelService::GetIceCapTypeString)
-		// .def("GetIceCapSimpleAngle",&EarthModelService::GetIceCapSimpleAngle)
-		// .def("GetBoundary",&EarthModelService::GetBoundary)
-		// .def("GetMohoBoundary",&EarthModelService::GetMohoBoundary)
-		// .def("GetRockIceBoundary",&EarthModelService::GetRockIceBoundary)
-		// .def("GetIceAirBoundary",&EarthModelService::GetIceAirBoundary)
-		.def("GetAtmoRadius",&EarthModelService::GetAtmoRadius)
-		// .def("RadiusToCosZen",&EarthModelService::RadiusToCosZen)
-		// .def("Init",&EarthModelService::Init)
-		;
+	class_<EarthModel>("EarthModel", init<>())
+        .def(init<const std::string&, const std::string&>())
+        .def(init<const std::string &, const std::string &, const std::string &>())
+        .def("LoadEarthModel",&EarthModel::LoadEarthModel)
+        .def("LoadMaterialModel",&EarthModel::LoadMaterialModel)
+        .def("GetColumnDepthInCGS",&EarthModel::GetColumnDepthInCGS)
+        .def("DistanceForColumnDepthToPoint",&EarthModel::DistanceForColumnDepthToPoint)
+        .def("GetEarthCoordPosFromDetCoordPos",&EarthModel::GetEarthCoordPosFromDetCoordPos)
+        .def("GetEarthCoordDirFromDetCoordDir",&EarthModel::GetEarthCoordDirFromDetCoordDir)
+        .def("GetDetCoordPosFromEarthCoordPos",&EarthModel::GetDetCoordPosFromEarthCoordPos)
+        .def("GetDetCoordDirFromEarthCoordDir",&EarthModel::GetDetCoordDirFromEarthCoordDir)
+        .def("GetPath",&EarthModel::GetPath)
+        .def("SetPath",&EarthModel::SetPath)
+        .def("GetMaterials",&EarthModel::GetMaterials, return_value_policy<copy_const_reference>())
+        .def("SetMaterials",&EarthModel::SetMaterials)
+        .def("GetSectors",&EarthModel::GetSectors, return_value_policy<copy_const_reference>())
+        .def("SetSectors",&EarthModel::SetSectors)
+        .def("GetDetectorOrigin",&EarthModel::GetDetectorOrigin)
+        .def("SetDetectorOrigin",&EarthModel::SetDetectorOrigin)
+        .def("AddSector",&EarthModel::AddSector)
+        .def("GetSector",&EarthModel::GetSector)
+        .def("ClearSectors",&EarthModel::ClearSectors)
+        ;
 
 	{
 		scope earthmodel = class_<LIEarthModelCalculator>("EarthModelCalculator");
-
-		enum_<EarthModelCalculator::LeptonRangeOption>("LeptonRangeOption")
-			.value("DEFAULT", EarthModelCalculator::DEFAULT)
-			.value("LEGACY", EarthModelCalculator::LEGACY)
-			.value("NUSIM", EarthModelCalculator::NUSIM)
-			;
 
 		def("GetImpactParameter", &EarthModelCalculator::GetImpactParameter);
 		def("GetIntersectionsWithSphere", &EarthModelCalculator::GetIntersectionsWithSphere);
@@ -178,10 +149,6 @@ BOOST_PYTHON_MODULE(EarthModelService){
 		def("GetLeptonRange", &EarthModelCalculator::GetLeptonRange);
 		def("ColumnDepthCGStoMWE",&EarthModelCalculator::ColumnDepthCGStoMWE);
 		def("MWEtoColumnDepthCGS",&EarthModelCalculator::MWEtoColumnDepthCGS);
-	}
-
-	{
-		scope integration = class_<LIEarthModelCalculator>("Integration");
 	}
 
 	using namespace scitbx::boost_python::container_conversions;
