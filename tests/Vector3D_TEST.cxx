@@ -87,6 +87,22 @@ TEST(Addition, Operator)
     EXPECT_TRUE(D == C);
 }
 
+TEST(AdditionAssignment, Operator)
+{
+    Vector3D A;
+    Vector3D B;
+    Vector3D C;
+    A.SetCartesianCoordinates(1, 2, 3);
+    B.SetCartesianCoordinates(2, 4, 6);
+    C.SetCartesianCoordinates(3, 6, 9);
+    A += B;
+    EXPECT_TRUE(C == A);
+    A.SetCartesianCoordinates(1, 2, 3);
+    EXPECT_TRUE(A != C);
+    B += A;
+    EXPECT_TRUE(B == C);
+}
+
 TEST(Subtraction, Operator)
 {
     Vector3D A;
@@ -120,6 +136,18 @@ TEST(Scaling, Operator)
     EXPECT_TRUE(C != B);
     C = factor1 * A;
     EXPECT_TRUE(C == B);
+}
+
+TEST(ScalingAssignment, Operator)
+{
+    Vector3D A;
+    Vector3D B;
+    double factor1 = 2.;
+    A.SetCartesianCoordinates(1, 2, 3);
+    B.SetCartesianCoordinates(2, 4, 6);
+    A *= factor1;
+    EXPECT_TRUE(A == B);
+    A.SetCartesianCoordinates(1, 2, 3);
 }
 
 TEST(ScalarProduct, Operator)

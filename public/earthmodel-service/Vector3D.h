@@ -60,6 +60,8 @@ public:
     friend Vector3D operator-(const Vector3D& vec1, const Vector3D& vec2);
     friend Vector3D operator*(const double factor1, const Vector3D& vec1);
     friend Vector3D operator*(const Vector3D& vec1, const double factor1);
+    friend Vector3D& operator*=(const double factor1, Vector3D& vec1);
+    friend Vector3D& operator*=(Vector3D& vec1, const double factor1);
     friend double operator*(const Vector3D& vec1, const Vector3D& vec2);
     friend double scalar_product(const Vector3D& vec1, const Vector3D& vec2);
     friend Vector3D vector_product(const Vector3D& vec1, const Vector3D& vec2);
