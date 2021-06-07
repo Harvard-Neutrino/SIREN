@@ -40,7 +40,11 @@ public:
     void LoadEarthModel(std::string const & earth_model);
     void LoadMaterialModel(std::string const & material_model);
 
+    double GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, bool use_electron_density=false) const;
+    double GetDensity(Vector3D const & p0, bool use_electron_density=false) const;
+    double GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1, bool use_electron_density=false) const;
     double GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1, bool use_electron_density=false) const;
+    double DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
     double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
     Vector3D GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const;
     Vector3D GetEarthCoordDirFromDetCoordDir(Vector3D const & direction) const;
@@ -64,12 +68,14 @@ public:
 
     void ClearSectors();
 
+    Geometry::IntersectionList GetIntersections(Vector3D const & p0, Vector3D const & direction) const;
+    static void SortIntersections(Geometry::IntersectionList & intersections);
+    static void SortIntersections(std::vector<Geometry::Intersection> & intersections);
+    void SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections) const;
+
 private:
     void LoadDefaultMaterials();
     void LoadDefaultSectors();
-    std::vector<Geometry::Intersection> GetIntersections(Vector3D const & p0, Vector3D const & direction) const;
-    static void SortIntersections(std::vector<Geometry::Intersection> & intersections);
-    void SectorLoop(Vector3D const & p0, Vector3D const & direction, std::function<bool(std::vector<Geometry::Intersection>::iterator, std::vector<Geometry::Intersection>::iterator, double)> callback, std::vector<Geometry::Intersection> & sorted_intersections) const;
 public:
     void LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_angle=-1);
 };

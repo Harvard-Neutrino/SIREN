@@ -14,6 +14,8 @@
 
 // #include <converter/LeptonInjectionConfigurationConverter.h>
 #include <boost/python.hpp>
+#include <boost/python/class.hpp>
+#include <boost/python/return_internal_reference.hpp>
 #include <boost/python/to_python_converter.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
@@ -116,13 +118,26 @@ BOOST_PYTHON_MODULE(EarthModelService){
         .def_readwrite("density", &EarthSector::density)
 		;
 
+    double (EarthModel::*GetDensity_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0, bool use_electron_density) const = &EarthModel::GetDensity;
+    double (EarthModel::*GetDensity)(Vector3D const & p0, bool use_electron_density) const = &EarthModel::GetDensity;
+
+    double (EarthModel::*GetColumnDepthInCGS_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1, bool use_electron_density) const = &EarthModel::GetColumnDepthInCGS;
+    double (EarthModel::*GetColumnDepthInCGS)(Vector3D const & p0, Vector3D const & p1, bool use_electron_density) const = &EarthModel::GetColumnDepthInCGS;
+
+    double (EarthModel::*DistanceForColumnDepthToPoint_cached)(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density) const = &EarthModel::DistanceForColumnDepthToPoint;
+    double (EarthModel::*DistanceForColumnDepthToPoint)(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density) const = &EarthModel::DistanceForColumnDepthToPoint;
+
+
 	class_<EarthModel>("EarthModel", init<>())
         .def(init<const std::string&, const std::string&>())
         .def(init<const std::string &, const std::string &, const std::string &>())
         .def("LoadEarthModel",&EarthModel::LoadEarthModel)
         .def("LoadMaterialModel",&EarthModel::LoadMaterialModel)
-        .def("GetColumnDepthInCGS",&EarthModel::GetColumnDepthInCGS)
-        .def("DistanceForColumnDepthToPoint",&EarthModel::DistanceForColumnDepthToPoint)
+        //.def("GetColumnDepthInCGS",&EarthModel::GetColumnDepthInCGS)
+        .def("GetColumnDepthInCGS", GetDensity)
+        .def("GetColumnDepthInCGS", GetDensity_cached)
+        .def("DistanceForColumnDepthToPoint", DistanceForColumnDepthToPoint)
+        .def("DistanceForColumnDepthToPoint", DistanceForColumnDepthToPoint_cached)
         .def("GetEarthCoordPosFromDetCoordPos",&EarthModel::GetEarthCoordPosFromDetCoordPos)
         .def("GetEarthCoordDirFromDetCoordDir",&EarthModel::GetEarthCoordDirFromDetCoordDir)
         .def("GetDetCoordPosFromEarthCoordPos",&EarthModel::GetDetCoordPosFromEarthCoordPos)

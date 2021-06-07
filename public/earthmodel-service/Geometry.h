@@ -50,6 +50,11 @@ public:
         Vector3D position;
         bool entering;
     };
+    struct IntersectionList {
+        Vector3D position;
+        Vector3D direction;
+        std::vector<Geometry::Intersection> intersections;
+    };
 public:
     Geometry(const std::string);
     Geometry(const std::string, const Vector3D position);
