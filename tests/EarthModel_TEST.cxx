@@ -848,7 +848,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralInternal)
         double distance = direction.magnitude();
         direction.normalize();
 
-        double found_distance = A.DistanceForColumnDepthToPoint(p0, direction, sum);
+        double found_distance = A.DistanceForColumnDepthFromPoint(p0, direction, sum);
 
         EXPECT_NEAR(distance, found_distance, std::max(std::abs(distance), std::abs(found_distance))*1e-12);
     }
@@ -925,7 +925,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
 
         double integral = A.GetColumnDepthInCGS(p0, p1);
 
-        double found_distance = A.DistanceForColumnDepthToPoint(p0, direction, integral);
+        double found_distance = A.DistanceForColumnDepthFromPoint(p0, direction, integral);
         EXPECT_NEAR(distance, found_distance, std::max(std::abs(distance), std::abs(found_distance))*1e-12);
     }
 }
@@ -1002,7 +1002,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
 
         double integral = A.GetColumnDepthInCGS(p0, p1);
 
-        double found_distance = A.DistanceForColumnDepthToPoint(p0, direction, integral);
+        double found_distance = A.DistanceForColumnDepthFromPoint(p0, direction, integral);
         EXPECT_NEAR(distance, found_distance, std::max(std::abs(distance), std::abs(found_distance))*1e-12);
     }
 }
@@ -1067,7 +1067,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralNested)
         bool in_1 = p1.magnitude() <= sphere_0->GetRadius();
         double integral = A.GetColumnDepthInCGS(p0, p1);
 
-        double found_distance = A.DistanceForColumnDepthToPoint(p0, direction, integral);
+        double found_distance = A.DistanceForColumnDepthFromPoint(p0, direction, integral);
         EXPECT_NEAR(distance, found_distance, std::max(std::abs(distance), std::abs(found_distance))*1e-12);
     }
 }

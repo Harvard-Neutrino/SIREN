@@ -44,6 +44,8 @@ public:
     double GetDensity(Vector3D const & p0, bool use_electron_density=false) const;
     double GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1, bool use_electron_density=false) const;
     double GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1, bool use_electron_density=false) const;
+    double DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
+    double DistanceForColumnDepthFromPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
     double DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
     double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
     Vector3D GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const;
@@ -71,7 +73,7 @@ public:
     Geometry::IntersectionList GetIntersections(Vector3D const & p0, Vector3D const & direction) const;
     static void SortIntersections(Geometry::IntersectionList & intersections);
     static void SortIntersections(std::vector<Geometry::Intersection> & intersections);
-    void SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections) const;
+    void SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections, bool reverse=false) const;
 
 private:
     void LoadDefaultMaterials();

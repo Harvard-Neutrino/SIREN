@@ -277,7 +277,6 @@ void EarthModel::LoadMaterialModel(std::string const & material_model) {
     materials_.AddModelFile(material_model);
 }
 
-inline
 double EarthModel::GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, bool use_electron_density) const {
     double density = -1.0;
 
@@ -311,7 +310,6 @@ double EarthModel::GetDensity(Vector3D const & p0, bool use_electron_density) co
     return GetDensity(intersections, p0, use_electron_density);
 }
 
-inline
 double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1, bool use_electron_density) const {
     if(p0 == p1) {
         return 0.0;
@@ -421,7 +419,7 @@ void EarthModel::SortIntersections(std::vector<Geometry::Intersection> & interse
     std::sort(intersections.begin(), intersections.end(), comp);
 }
 
-void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections) const {
+void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections, bool reverse) const {
     // Keep track of the integral progress
     double last_point = 0;
 
@@ -431,15 +429,30 @@ void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersectio
     // Keep track of the entry point to the relevant sector
     std::vector<Geometry::Intersection>::const_iterator current_intersection = intersections.intersections.begin();
 
+    int start_index;
+    int end_index;
+    int increment;
+    if(reverse) {
+        end_index = -1;
+        start_index = std::max(int(intersections.intersections.size()-2), int(end_index));
+        increment = -1;
+        current_intersection = intersections.intersections.begin() + start_index + 1;
+    } else {
+        end_index = intersections.intersections.size();
+        start_index = std::min(int(1), int(end_index));
+        increment = 1;
+        current_intersection = intersections.intersections.begin() + start_index - 1;
+    }
+
     // Integration only begins once we are inside a sector
     stack.insert({current_intersection->hierarchy, current_intersection});
 
-    for(unsigned int i=1; i<intersections.intersections.size(); ++i) {
+    for(unsigned int i=start_index; i!=end_index; i += increment) {
         // The transition point into the next sector
         std::vector<Geometry::Intersection>::const_iterator intersection = intersections.intersections.begin() + i;
         if(intersection == intersections.intersections.end())
             throw("Reached end of intersections! Should never reach this point!");
-        if(intersection->entering) {
+        if(intersection->entering ^ reverse) {
             // Entering a sector means it is added to the stack
             stack.insert({intersection->hierarchy, intersection});
             // A sector transition only occurs if the intersection is with a sector of larger hierarchy
@@ -485,8 +498,7 @@ void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersectio
     }
 }
 
-inline
-double EarthModel::DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double column_depth, bool use_electron_density) const {
+double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double column_depth, bool use_electron_density) const {
     double dot = intersections.direction * direction;
     assert(std::abs(1.0 - std::abs(dot)) < 1e-6);
     double offset = (intersections.position - p0) * direction;
@@ -531,9 +543,17 @@ double EarthModel::DistanceForColumnDepthToPoint(Geometry::IntersectionList cons
     return total_distance;
 }
 
-double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & p0, Vector3D const & direction, double column_depth, bool use_electron_density) const {
+double EarthModel::DistanceForColumnDepthFromPoint(Vector3D const & p0, Vector3D const & direction, double column_depth, bool use_electron_density) const {
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
-    return DistanceForColumnDepthToPoint(intersections, p0, direction, column_depth, use_electron_density);
+    return DistanceForColumnDepthFromPoint(intersections, p0, direction, column_depth, use_electron_density);
+}
+
+double EarthModel::DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double column_depth, bool use_electron_density) const {
+    return DistanceForColumnDepthFromPoint(intersections, p0, -direction, column_depth, use_electron_density);
+}
+
+double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & p0, Vector3D const & direction, double column_depth, bool use_electron_density) const {
+    return DistanceForColumnDepthFromPoint(p0, -direction, column_depth, use_electron_density);
 }
 
 Vector3D EarthModel::GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const {
