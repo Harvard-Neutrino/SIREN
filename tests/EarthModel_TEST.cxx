@@ -315,6 +315,34 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralInternal)
     }
 }
 
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityInternal)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(1, 1));
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A.GetSectors();
+        ASSERT_EQ(2, sectors.size());
+        EarthSector sector = sectors[1];
+        Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
+        ASSERT_TRUE(sphere);
+        double max_radius = sphere->GetRadius();
+        double min_radius = sphere->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_dist = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        ASSERT_TRUE(density_dist);
+        double rho = density_dist->Evaluate(Vector3D());
+        double density = A.GetDensity(p0);
+        EXPECT_DOUBLE_EQ(density, rho);
+    }
+}
+
 TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
 {
     unsigned int N_rand = 1000;
@@ -414,6 +442,51 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
             }
         }
         ASSERT_DOUBLE_EQ(integral, sum);
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityNested)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        reset();
+        ASSERT_NO_THROW(reset(2, 1));
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A.GetSectors();
+        ASSERT_EQ(3, sectors.size());
+        EarthSector sector_0 = sectors[1];
+        EarthSector sector_1 = sectors[2];
+        Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
+        Sphere const * sphere_1 = dynamic_cast<Sphere const *>(sector_1.geo.get());
+        ASSERT_TRUE(sphere_0);
+        ASSERT_TRUE(sphere_1);
+        EXPECT_GE(sphere_1->GetRadius(), sphere_0->GetRadius());
+        double max_radius = sphere_1->GetRadius();
+        double min_radius = sphere_0->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        double distance = (p1-p0).magnitude();
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        ASSERT_TRUE(density_0);
+        ASSERT_TRUE(density_1);
+        double rho_0 = density_0->Evaluate(Vector3D());
+        double rho_1 = density_1->Evaluate(Vector3D());
+        ASSERT_LE(p0.magnitude(), max_radius);
+        bool in_0 = p0.magnitude() <= sphere_0->GetRadius();
+        double density = A.GetDensity(p0);
+        if(in_0) {
+            ASSERT_DOUBLE_EQ(density, rho_0);
+        }
+        else {
+            ASSERT_DOUBLE_EQ(density, rho_1);
+        }
     }
 }
 
@@ -712,6 +785,78 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
     }
 }
 
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityIntersecting)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        reset();
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        MaterialModel materials = A.GetMaterials();
+        int material_count = 0;
+        while(materials.HasMaterial(material_count)) {
+            material_count += 1;
+        }
+        double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
+        double ice_angle = -1;
+
+        EarthSector upper_sector;
+        Vector3D upper_center(-radius/4.0,0,0);
+        upper_sector.name = "upper";
+        upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        upper_sector.level = -1;
+        upper_sector.geo = Sphere(upper_center, radius, 0, upper_sector.level).create();
+        upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+
+        EarthSector lower_sector;
+        Vector3D lower_center(radius/4.0,0,0);
+        lower_sector.name = "lower";
+        lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        lower_sector.level = -2;
+        lower_sector.geo = Sphere(lower_center, radius, 0, lower_sector.level).create();
+        lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+
+        A.AddSector(lower_sector);
+        A.AddSector(upper_sector);
+
+        std::vector<EarthSector> sectors = A.GetSectors();
+        ASSERT_EQ(3, sectors.size());
+        EarthSector sector_vacuum = sectors[0];
+        EarthSector sector_0 = sectors[1];
+        EarthSector sector_1 = sectors[2];
+        ASSERT_EQ(lower_sector.name, sector_0.name);
+        ASSERT_EQ(upper_sector.name, sector_1.name);
+        Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
+        Sphere const * sphere_1 = dynamic_cast<Sphere const *>(sector_1.geo.get());
+        ASSERT_TRUE(sphere_0);
+        ASSERT_TRUE(sphere_1);
+
+        Vector3D p0 = RandomVector(0, radius*2.0);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        ASSERT_TRUE(density_vacuum);
+        ASSERT_TRUE(density_0);
+        ASSERT_TRUE(density_1);
+        double rho_vacuum = density_vacuum->Evaluate(Vector3D());
+        double rho_lower = density_0->Evaluate(lower_center);
+        double rho_upper = density_1->Evaluate(upper_center);
+
+        double density = A.GetDensity(p0);
+
+        bool p0_in_lower = (p0-lower_center).magnitude() < radius;
+        bool p0_in_upper = (p0-upper_center).magnitude() < radius;
+
+        if(p0_in_upper) { // Start in the full sphere
+            EXPECT_DOUBLE_EQ(density, rho_upper);
+        } else if(p0_in_lower) { // Start in the partial sphere
+            EXPECT_DOUBLE_EQ(density, rho_lower);
+        } else { // Start in vacuum
+            EXPECT_DOUBLE_EQ(density, rho_vacuum);
+        }
+    }
+}
+
 TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
 {
     unsigned int N_rand = 1000;
@@ -814,6 +959,74 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
             }
         }
         EXPECT_DOUBLE_EQ(integral, sum);
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityHidden)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        reset();
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        MaterialModel materials = A.GetMaterials();
+        int material_count = 0;
+        while(materials.HasMaterial(material_count)) {
+            material_count += 1;
+        }
+        double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
+        double ice_angle = -1;
+
+        EarthSector upper_sector;
+        Vector3D upper_center(0,0,0);
+        upper_sector.name = "upper";
+        upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        upper_sector.level = -1;
+        upper_sector.geo = Sphere(upper_center, radius, 0, upper_sector.level).create();
+        upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+
+        EarthSector lower_sector;
+        Vector3D lower_center(0,0,0);
+        lower_sector.name = "lower";
+        lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        lower_sector.level = -2;
+        lower_sector.geo = Sphere(lower_center, radius/2.0, 0, lower_sector.level).create();
+        lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+
+        A.AddSector(lower_sector);
+        A.AddSector(upper_sector);
+
+        std::vector<EarthSector> sectors = A.GetSectors();
+        ASSERT_EQ(3, sectors.size());
+        EarthSector sector_vacuum = sectors[0];
+        EarthSector sector_0 = sectors[1];
+        EarthSector sector_1 = sectors[2];
+        ASSERT_EQ(lower_sector.name, sector_0.name);
+        ASSERT_EQ(upper_sector.name, sector_1.name);
+        Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
+        Sphere const * sphere_1 = dynamic_cast<Sphere const *>(sector_1.geo.get());
+        ASSERT_TRUE(sphere_0);
+        ASSERT_TRUE(sphere_1);
+
+        Vector3D p0 = RandomVector(0, radius*2.0);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        ASSERT_TRUE(density_vacuum);
+        ASSERT_TRUE(density_0);
+        ASSERT_TRUE(density_1);
+        double rho_vacuum = density_vacuum->Evaluate(Vector3D());
+        double rho_lower = density_0->Evaluate(lower_center);
+        double rho_upper = density_1->Evaluate(upper_center);
+
+        bool p0_in_upper = (p0 - upper_center).magnitude() < radius;
+
+        double density = A.GetDensity(p0);
+        if(p0_in_upper) {
+            EXPECT_DOUBLE_EQ(density, rho_upper);
+        } else {
+            EXPECT_DOUBLE_EQ(density, rho_vacuum);
+        }
     }
 }
 
