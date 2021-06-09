@@ -278,8 +278,6 @@ void EarthModel::LoadMaterialModel(std::string const & material_model) {
 }
 
 double EarthModel::GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, bool use_electron_density) const {
-    std::cerr << "p0: " << p0.GetX() << " " << p0.GetY() << " " << p0.GetZ() << std::endl;
-    std::cerr << "intersections.position: " << intersections.position.GetX() << " " << intersections.position.GetY() << " " << intersections.position.GetZ() << std::endl;
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -289,8 +287,6 @@ double EarthModel::GetDensity(Geometry::IntersectionList const & intersections, 
     double dot = direction * intersections.direction;
     assert(std::abs(1.0 - std::abs(dot)) < 1e-6);
     double offset = (intersections.position - p0) * direction;
-
-    std::cerr << "dot, offset = (" << dot << ", " << offset << ")" << std::endl;
 
     if(dot < 0) {
         dot = -1;
@@ -305,7 +301,6 @@ double EarthModel::GetDensity(Geometry::IntersectionList const & intersections, 
         double end_point = offset + dot * intersection->distance;
         // whereas the lower end is bounded by the end of the last line segment, and the entry into the sector
         double start_point = std::max(offset + dot * current_intersection->distance, offset + dot * last_point);
-        std::cerr << "bounds: " << start_point << " " << end_point << std::endl;
         if(start_point <= 0 and end_point >= 0) {
             EarthSector sector = GetSector(current_intersection->hierarchy);
             density = sector.density->Evaluate(p0);
@@ -317,10 +312,7 @@ double EarthModel::GetDensity(Geometry::IntersectionList const & intersections, 
         }
     };
 
-    std::cerr << "Begin loop" << std::endl;
     SectorLoop(callback, intersections, dot < 0);
-    std::cerr << "End loop" << std::endl;
-    std::cerr << std::endl;
 
     assert(density >= 0);
 
@@ -541,7 +533,6 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
         dot = 1;
     }
 
-
     double total_column_depth = 0.0;
     double total_distance = -1;
     std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
@@ -571,7 +562,7 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
         return done;
     };
 
-    SectorLoop(callback, intersections);
+    SectorLoop(callback, intersections, dot < 0);
 
     return total_distance;
 }
