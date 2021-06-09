@@ -190,21 +190,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileLayerNames)
     }
 }
 
-/*
-    std::vector<std::string> layer_names;
-    std::vector<double> layer_thicknesses;
-    std::vector<double> layer_radii;
-    std::vector<Polynom> layer_densities;
-    std::vector<std::string> layer_materials;
-struct EarthSector {
-    std::string name;
-    int material_id;
-    int level;
-    std::shared_ptr<const Geometry> geo;
-    std::shared_ptr<const DensityDistribution> density;
-};
-*/
-
 TEST_F(FakeLegacyEarthModelTest, LegacyFileLayerMaterials)
 {
     unsigned int N_rand = 1000;
@@ -283,6 +268,31 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileSectorTypes)
             }
             origin = sphere->GetPosition();
         }
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, LegacyFileCachedIntersections)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset());
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        double max_radius = *std::max_element(layer_radii.begin(), layer_radii.end());
+        max_depth = std::min(max_depth, max_radius);
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        Vector3D p0 = RandomVector(max_radius);
+        // Vector3D direction = RandomVector(1.0);
+        Vector3D direction(1,0,0);
+        direction.normalize();
+        Geometry::IntersectionList intersections = A.GetIntersections(p0, direction);
+        Vector3D p1 = p0 + direction * (FakeLegacyEarthModelFile::RandomDouble()*max_radius*2 - max_radius);
+        double density = A.GetDensity(intersections, p1);
+        double expect = A.GetDensity(p1);
+        EXPECT_EQ(density, expect) << i;
     }
 }
 
