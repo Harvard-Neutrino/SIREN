@@ -1079,8 +1079,6 @@ TEST_F(FakeEarthModelTest, FileLoad)
         ASSERT_NO_THROW(reset());
         EarthModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
-        double max_depth = 5000;
-        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
         EXPECT_NO_THROW(A.LoadEarthModel(model_file));
     }
 }
