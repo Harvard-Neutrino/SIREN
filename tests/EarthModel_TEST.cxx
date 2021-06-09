@@ -271,7 +271,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileSectorTypes)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileCachedIntersections)
+TEST_F(FakeLegacyEarthModelTest, LegacyFileGetDensityCachedIntersections)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
@@ -285,14 +285,15 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileCachedIntersections)
         double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
         Vector3D p0 = RandomVector(max_radius);
-        // Vector3D direction = RandomVector(1.0);
-        Vector3D direction(1,0,0);
+        Vector3D direction = RandomVector(1.0);
         direction.normalize();
         Geometry::IntersectionList intersections = A.GetIntersections(p0, direction);
-        Vector3D p1 = p0 + direction * (FakeLegacyEarthModelFile::RandomDouble()*max_radius*2 - max_radius);
-        double density = A.GetDensity(intersections, p1);
-        double expect = A.GetDensity(p1);
-        EXPECT_EQ(density, expect) << i;
+        for(unsigned int j=0; j<10; ++j) {
+            Vector3D p1 = p0 + direction * (FakeLegacyEarthModelFile::RandomDouble()*max_radius*2 - max_radius);
+            double expect = A.GetDensity(p1);
+            double density = A.GetDensity(intersections, p1);
+            EXPECT_DOUBLE_EQ(density, expect) << i << " " << j;
+        }
     }
 }
 
