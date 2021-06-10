@@ -348,6 +348,71 @@ TEST(PointManipulation, ExtendFromStartByDistance) {
     EXPECT_EQ(0, A.GetDistance());
 }
 
+TEST(PointManipulation, ShrinkFromEndByDistance) {
+    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    Vector3D B(1,2,3);
+    Vector3D C(4,6,8);
+    Vector3D direction = C - B;
+    double distance = direction.magnitude();
+    direction.normalize();
+
+    Path A(EMp, B, C);
+
+    double extra_distance = -101;
+    A.ShrinkFromEndByDistance(extra_distance);
+
+    Vector3D end = C - direction * extra_distance;
+    EXPECT_EQ(end, A.GetLastPoint());
+    EXPECT_EQ(distance - extra_distance, A.GetDistance());
+
+    A = Path(EMp, B, C);
+    extra_distance = 1;
+    end = C - direction * extra_distance;
+    A.ShrinkFromEndByDistance(extra_distance);
+    EXPECT_EQ(end, A.GetLastPoint());
+    EXPECT_EQ(distance - extra_distance, A.GetDistance());
+
+    A = Path(EMp, B, C);
+    extra_distance = 101;
+    end = C - direction * extra_distance;
+    A.ShrinkFromEndByDistance(extra_distance);
+    EXPECT_EQ(B, A.GetLastPoint());
+    EXPECT_EQ(0, A.GetDistance());
+}
+
+TEST(PointManipulation, ShrinkFromStartByDistance) {
+    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    Vector3D B(1,2,3);
+    Vector3D C(4,6,8);
+    Vector3D direction = C - B;
+    double distance = direction.magnitude();
+    Vector3D reverse = -direction;
+    direction.normalize();
+    reverse.normalize();
+
+    Path A(EMp, B, C);
+
+    double extra_distance = -101;
+    A.ShrinkFromStartByDistance(extra_distance);
+    Vector3D end = B - reverse * extra_distance;
+    EXPECT_EQ(end, A.GetFirstPoint());
+    EXPECT_EQ(distance - extra_distance, A.GetDistance());
+
+    A = Path(EMp, B, C);
+    extra_distance = 1;
+    end = B - reverse * extra_distance;
+    A.ShrinkFromStartByDistance(extra_distance);
+    EXPECT_EQ(end, A.GetFirstPoint());
+    EXPECT_EQ(distance - extra_distance, A.GetDistance());
+
+    A = Path(EMp, B, C);
+    extra_distance = 101;
+    end = B - reverse * extra_distance;
+    A.ShrinkFromStartByDistance(extra_distance);
+    EXPECT_EQ(C, A.GetFirstPoint());
+    EXPECT_EQ(0, A.GetDistance());
+}
+
 // TEST()
 
 int main(int argc, char** argv)
