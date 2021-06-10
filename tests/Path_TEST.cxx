@@ -239,11 +239,113 @@ TEST(EnsureIntersections, NoThrow) {
     A.SetPointsWithRay(B, direction, distance);
     EXPECT_NO_THROW(A.EnsureIntersections());
 
+    A = Path(EMp);
+    A.SetPoints(B, C);
+    EXPECT_NO_THROW(A.EnsureIntersections());
+
+    A = Path(EMp);
+    A.SetPointsWithRay(B, direction, distance);
+    EXPECT_NO_THROW(A.EnsureIntersections());
+
     A = Path(EMp, B, C);
     EXPECT_NO_THROW(A.EnsureIntersections());
 
     A = Path(EMp, B, direction, distance);
     EXPECT_NO_THROW(A.EnsureIntersections());
+}
+
+TEST(PointManipulation, Flip) {
+    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    Vector3D B(1,2,3);
+    Vector3D C(4,6,8);
+    Vector3D direction = C - B;
+    Vector3D reverse = -direction;
+    double distance = direction.magnitude();
+    direction.normalize();
+    reverse.normalize();
+
+    Path A(EMp, B, C);
+    EXPECT_EQ(B, A.GetFirstPoint());
+    EXPECT_EQ(C, A.GetLastPoint());
+    EXPECT_EQ(direction, A.GetDirection());
+    EXPECT_EQ(distance, A.GetDistance());
+
+    A.Flip();
+    EXPECT_EQ(C, A.GetFirstPoint());
+    EXPECT_EQ(B, A.GetLastPoint());
+    EXPECT_EQ(reverse, A.GetDirection());
+    EXPECT_EQ(distance, A.GetDistance());
+
+    A.Flip();
+    EXPECT_EQ(B, A.GetFirstPoint());
+    EXPECT_EQ(C, A.GetLastPoint());
+    EXPECT_EQ(direction, A.GetDirection());
+    EXPECT_EQ(distance, A.GetDistance());
+}
+
+TEST(PointManipulation, ExtendFromEndByDistance) {
+    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    Vector3D B(1,2,3);
+    Vector3D C(4,6,8);
+    Vector3D direction = C - B;
+    double distance = direction.magnitude();
+    direction.normalize();
+
+    Path A(EMp, B, C);
+
+    double extra_distance = 101;
+    A.ExtendFromEndByDistance(extra_distance);
+
+    Vector3D end = C + direction * extra_distance;
+    EXPECT_EQ(end, A.GetLastPoint());
+    EXPECT_EQ(distance + extra_distance, A.GetDistance());
+
+    A = Path(EMp, B, C);
+    extra_distance = -1;
+    end = C + direction * extra_distance;
+    A.ExtendFromEndByDistance(extra_distance);
+    EXPECT_EQ(end, A.GetLastPoint());
+    EXPECT_EQ(distance + extra_distance, A.GetDistance());
+
+    A = Path(EMp, B, C);
+    extra_distance = -101;
+    end = C + direction * extra_distance;
+    A.ExtendFromEndByDistance(extra_distance);
+    EXPECT_EQ(B, A.GetLastPoint());
+    EXPECT_EQ(0, A.GetDistance());
+}
+
+TEST(PointManipulation, ExtendFromStartByDistance) {
+    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    Vector3D B(1,2,3);
+    Vector3D C(4,6,8);
+    Vector3D direction = C - B;
+    double distance = direction.magnitude();
+    Vector3D reverse = -direction;
+    direction.normalize();
+    reverse.normalize();
+
+    Path A(EMp, B, C);
+
+    double extra_distance = 101;
+    A.ExtendFromStartByDistance(extra_distance);
+    Vector3D end = B + reverse * extra_distance;
+    EXPECT_EQ(end, A.GetFirstPoint());
+    EXPECT_EQ(distance + extra_distance, A.GetDistance());
+
+    A = Path(EMp, B, C);
+    extra_distance = -1;
+    end = B + reverse * extra_distance;
+    A.ExtendFromStartByDistance(extra_distance);
+    EXPECT_EQ(end, A.GetFirstPoint());
+    EXPECT_EQ(distance + extra_distance, A.GetDistance());
+
+    A = Path(EMp, B, C);
+    extra_distance = -101;
+    end = B + reverse * extra_distance;
+    A.ExtendFromStartByDistance(extra_distance);
+    EXPECT_EQ(C, A.GetFirstPoint());
+    EXPECT_EQ(0, A.GetDistance());
 }
 
 // TEST()

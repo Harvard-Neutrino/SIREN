@@ -142,8 +142,8 @@ void Path::Flip() {
 void Path::ExtendFromEndByDistance(double distance) {
     distance_ += distance;
     last_point_ += direction_ * distance;
-    if(distance < 0) {
-        distance = 0;
+    if(distance_ < 0) {
+        distance_ = 0;
         last_point_ = first_point_;
     }
     set_column_depth_nucleon_ = false;
@@ -156,10 +156,10 @@ void Path::ExtendFromEndByColumnDepth(double column_depth, bool use_electron_den
 }
 
 void Path::ExtendFromStartByDistance(double distance) {
-    distance_ -= distance;
+    distance_ += distance;
     first_point_ += direction_ * -distance;
-    if(distance < 0) {
-        distance = 0;
+    if(distance_ < 0) {
+        distance_ = 0;
         first_point_ = last_point_;
     }
     set_column_depth_nucleon_ = false;
