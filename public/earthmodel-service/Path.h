@@ -14,11 +14,11 @@ private:
     Vector3D first_point_;
     Vector3D last_point_;
     Vector3D direction_;
-    double distance_;
+    double distance_ = 0;
     bool set_points_ = false;
 
-    double column_depth_nucleon_;
-    double column_depth_electron_;
+    double column_depth_nucleon_ = 0;
+    double column_depth_electron_ = 0;
     bool set_column_depth_nucleon_ = false;
     bool set_column_depth_electron_ = false;
 
@@ -27,6 +27,21 @@ private:
 public:
     Path();
     Path(std::shared_ptr<const EarthModel> earth_model);
+    Path(std::shared_ptr<const EarthModel> earth_model, Vector3D const & first_point, Vector3D const & last_point);
+    Path(std::shared_ptr<const EarthModel> earth_model, Vector3D const & first_point, Vector3D const & direction, double distance);
+
+    bool HasEarthModel();
+    bool HasPoints();
+    bool HasIntersections();
+    bool HasNucleonColumnDepth();
+    bool HasElectronColumnDepth();
+
+    std::shared_ptr<const EarthModel> GetEarthModel();
+    Vector3D GetFirstPoint();
+    Vector3D GetLastPoint();
+    Vector3D GetDirection();
+    double GetDistance();
+    Geometry::IntersectionList GetIntersections();
 
     void SetEarthModel(std::shared_ptr<const EarthModel> earth_model);
     void EnsureEarthModel();

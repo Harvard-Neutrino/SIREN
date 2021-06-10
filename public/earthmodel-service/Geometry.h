@@ -49,11 +49,17 @@ public:
         int hierarchy;
         Vector3D position;
         bool entering;
+        bool operator==(Intersection const & other) const {
+            return other.distance == distance and other.hierarchy == hierarchy and other.position == position and other.entering == entering;
+        }
     };
     struct IntersectionList {
         Vector3D position;
         Vector3D direction;
         std::vector<Geometry::Intersection> intersections;
+        bool operator==(IntersectionList const & other) const {
+            return other.position == position and other.direction == direction and other.intersections == intersections;
+        }
     };
 public:
     Geometry(const std::string);

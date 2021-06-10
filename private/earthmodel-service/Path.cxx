@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "earthmodel-service/Path.h"
+#include "earthmodel-service/Geometry.h"
 
 using namespace earthmodel;
 
@@ -18,13 +19,69 @@ Path::Path(std::shared_ptr<const EarthModel> earth_model) {
     SetEarthModel(earth_model);
 }
 
+Path::Path(std::shared_ptr<const EarthModel> earth_model, Vector3D const & first_point, Vector3D const & last_point) {
+    SetEarthModel(earth_model);
+    SetPoints(first_point, last_point);
+}
+
+Path::Path(std::shared_ptr<const EarthModel> earth_model, Vector3D const & first_point, Vector3D const & direction, double distance) {
+    SetEarthModel(earth_model);
+    SetPointsWithRay(first_point, direction, distance);
+}
+
+bool Path::HasEarthModel() {
+    return set_earth_model_;
+}
+
+bool Path::HasPoints() {
+    return set_points_;
+}
+
+bool Path::HasIntersections() {
+    return set_intersections_;
+}
+
+bool Path::HasNucleonColumnDepth() {
+    return set_column_depth_nucleon_;
+}
+
+bool Path::HasElectronColumnDepth() {
+    return set_column_depth_electron_;
+}
+
+std::shared_ptr<const EarthModel> Path::GetEarthModel() {
+    return earth_model_;
+}
+
+Vector3D Path::GetFirstPoint() {
+    return first_point_;
+}
+
+Vector3D Path::GetLastPoint() {
+    return last_point_;
+}
+
+Vector3D Path::GetDirection() {
+    return direction_;
+}
+
+double Path::GetDistance() {
+    return distance_;
+}
+
+Geometry::IntersectionList Path::GetIntersections() {
+    return intersections_;
+}
+
 void Path::SetEarthModel(std::shared_ptr<const EarthModel> earth_model) {
     earth_model_ = earth_model;
     set_earth_model_ = true;
 }
 
 void Path::EnsureEarthModel() {
-    assert(set_earth_model_);
+    if(not set_earth_model_) {
+        throw("Earth model not set!");
+    }
 }
 
 void Path::SetPoints(Vector3D first_point, Vector3D last_point) {
@@ -34,21 +91,28 @@ void Path::SetPoints(Vector3D first_point, Vector3D last_point) {
     distance_ = direction_.magnitude();
     direction_.normalize();
     set_points_ = true;
+    set_intersections_ = false;
+    set_column_depth_nucleon_ = false;
+    set_column_depth_electron_ = false;
 }
 
 void Path::SetPointsWithRay(Vector3D first_point, Vector3D direction, double distance) {
     first_point_ = first_point;
     direction_ = direction;
     direction_.normalize();
-    assert(direction_.magnitude() == direction.magnitude());
+    assert(std::abs(direction_.magnitude() - direction.magnitude()) / std::max(direction_.magnitude(), direction.magnitude()) < 1e-12);
     distance_ = distance;
     last_point_ = first_point + direction * distance;
-    distance_ = direction.magnitude();
     set_points_ = true;
+    set_intersections_ = false;
+    set_column_depth_nucleon_ = false;
+    set_column_depth_electron_ = false;
 }
 
 void Path::EnsurePoints() {
-    assert(set_points_);
+    if(not set_points_) {
+        throw("Points not set!");
+    }
 }
 
 void Path::SetIntersections(Geometry::IntersectionList const & intersections) {
