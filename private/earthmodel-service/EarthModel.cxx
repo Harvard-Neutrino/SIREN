@@ -352,9 +352,9 @@ double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & inters
         [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
         // The local integration is bounded on the upper end by the intersection and the global integral boundary
         double end_point = std::min(offset + dot * intersection->distance, distance);
+        // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
+        double start_point = std::max(std::max(offset + dot * current_intersection->distance, 0.0), offset + dot * last_point);
         if(end_point > 0) {
-            // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
-            double start_point = std::max(std::max(offset + dot * current_intersection->distance, 0.0), offset + dot * last_point);
             double segment_length = end_point - start_point;
             EarthSector sector = GetSector(current_intersection->hierarchy);
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
@@ -768,7 +768,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
             for(auto const & i : ice_layers) {
                 EarthSector & sector = sectors_[i];
                 Sphere const * geo = dynamic_cast<Sphere const *>(sector.geo.get());
-                sector.geo = Sphere(Vector3D(0,0,ice_offset), geo->GetRadius()-ice_offset, 0).create();
+                sector.geo = Sphere(Vector3D(0,0,ice_offset), geo->GetRadius()-ice_offset, 0, geo->GetHierarchy()).create();
                 //geo->SetRadius(geo->GetRadius()-ice_offset);
                 //geo->SetPosition(Vector3D(0,0,ice_offset));
             }

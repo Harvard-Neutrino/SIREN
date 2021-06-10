@@ -324,6 +324,33 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileIntegralCachedIntersections)
     }
 }
 
+TEST_F(FakeLegacyEarthModelTest, LegacyFileInverseIntegralCachedIntersections)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset());
+        EarthModel A;
+        ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        double max_radius = *std::max_element(layer_radii.begin(), layer_radii.end());
+        max_depth = std::min(max_depth, max_radius);
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        Vector3D p0 = RandomVector(max_radius);
+        Vector3D p1 = RandomVector(max_radius);
+        Vector3D direction = p1 - p0;
+        direction.normalize();
+        double integral = A.GetColumnDepthInCGS(p0, p1);
+        Geometry::IntersectionList intersections = A.GetIntersections(p0, direction);
+        for(unsigned int j=0; j<10; ++j) {
+            double expect = A.DistanceForColumnDepthFromPoint(p0, direction, integral);
+            double distance = A.DistanceForColumnDepthFromPoint(intersections, p0, direction, integral);
+            EXPECT_NEAR(distance, expect, std::max(std::abs(distance), std::abs(expect))*1e-8);
+        }
+    }
+}
+
 TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralInternal)
 {
     unsigned int N_rand = 1000;
