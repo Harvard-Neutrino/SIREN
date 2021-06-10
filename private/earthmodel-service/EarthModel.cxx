@@ -267,7 +267,7 @@ void EarthModel::LoadDefaultSectors() {
     EarthSector sector;
     sector.material_id = materials_.GetMaterialId("VACUUM");
     sector.level = std::numeric_limits<int>::min();
-    sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0, sector.level).create();
+    sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
     sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
     AddSector(sector);
 }
@@ -397,6 +397,9 @@ Geometry::IntersectionList EarthModel::GetIntersections(Vector3D const & p0, Vec
         std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
         intersections.intersections.reserve(intersections.intersections.size() + std::distance(i.begin(), i.end()));
         intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
+        for(unsigned int j=intersections.intersections.size(); j>intersections.intersections.size()-i.size(); --j) {
+            intersections.intersections[j-1].hierarchy = sector.level;
+        }
     }
 
     SortIntersections(intersections);
@@ -679,7 +682,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
         sector.material_id = materials_.GetMaterialId(medtype);
         sector.level = level;
         sector.name = label;
-        sector.geo = Sphere(Vector3D(0,0,0), radius, 0, level).create();
+        sector.geo = Sphere(Vector3D(0,0,0), radius, 0).create();
         level -= 1;
         if(nparams == 1) {
             ss >> param;
@@ -768,7 +771,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
             for(auto const & i : ice_layers) {
                 EarthSector & sector = sectors_[i];
                 Sphere const * geo = dynamic_cast<Sphere const *>(sector.geo.get());
-                sector.geo = Sphere(Vector3D(0,0,ice_offset), geo->GetRadius()-ice_offset, 0, geo->GetHierarchy()).create();
+                sector.geo = Sphere(Vector3D(0,0,ice_offset), geo->GetRadius()-ice_offset, 0).create();
                 //geo->SetRadius(geo->GetRadius()-ice_offset);
                 //geo->SetPosition(Vector3D(0,0,ice_offset));
             }

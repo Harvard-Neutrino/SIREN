@@ -58,7 +58,6 @@ public:
 public:
     Geometry(const std::string);
     Geometry(const std::string, const Vector3D position);
-    Geometry(const std::string, const Vector3D position, int hierarchy);
     Geometry(const Geometry&);
     //Geometry(const nlohmann::json&);
 
@@ -125,11 +124,7 @@ public:
 
     std::string GetName() const { return name_; }
 
-    unsigned int GetHierarchy() const { return hierarchy_; }
-
     void SetPosition(const Vector3D& position) { position_ = position; };
-
-    void SetHierarchy(unsigned int hierarchy) { hierarchy_ = hierarchy; };
 
 protected:
     // Implemented in child classes to be able to use equality operator
@@ -139,8 +134,6 @@ protected:
     Vector3D position_; //!< x,y,z-coordinate of origin ( center of box, cylinder, sphere)
 
     std::string name_; //!< "box" , "cylinder" , "sphere" (sphere and cylinder might be hollow)
-
-    unsigned int hierarchy_; //!< adds a hierarchy of geometry objects to allow crossing geometries
 };
 
 class Box : public Geometry
@@ -148,7 +141,6 @@ class Box : public Geometry
 public:
     Box();
     Box(const Vector3D position, double x, double y, double z);
-    Box(const Vector3D position, double x, double y, double z, int hierarchy);
     Box(const Box&);
     //Box(const nlohmann::json& config);
 
@@ -187,7 +179,6 @@ class Cylinder : public Geometry
 public:
     Cylinder();
     Cylinder(const Vector3D position, double radius, double inner_radius, double z);
-    Cylinder(const Vector3D position, double radius, double inner_radius, double z, int hierarchy);
     Cylinder(const Cylinder&);
     //Cylinder(const nlohmann::json& config);
 
@@ -226,7 +217,6 @@ class Sphere : public Geometry
 public:
     Sphere();
     Sphere(const Vector3D position, double radius, double inner_radius);
-    Sphere(const Vector3D position, double radius, double inner_radius, int hierarchy);
     Sphere(const Sphere&);
     //Sphere(const nlohmann::json& config);
 

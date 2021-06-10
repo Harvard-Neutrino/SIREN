@@ -28,7 +28,6 @@ std::ostream& operator<<(std::ostream& os, Geometry const& geometry)
 
     os << geometry.name_ << std::endl;
     os << "Position:\n" << geometry.position_ << '\n';
-    os << "Hierarchy:\t" << geometry.hierarchy_ << '\n';
 
     geometry.print(os);
 
@@ -46,28 +45,18 @@ std::ostream& operator<<(std::ostream& os, Geometry const& geometry)
 Geometry::Geometry(const std::string name)
     : position_(Vector3D())
     , name_(name)
-    , hierarchy_(0)
 {
 }
 
 Geometry::Geometry(const std::string name, const Vector3D position)
     : position_(position)
     , name_(name)
-    , hierarchy_(0)
-{
-}
-
-Geometry::Geometry(const std::string name, const Vector3D position, int hierarchy)
-    : position_(position)
-    , name_(name)
-    , hierarchy_(hierarchy)
 {
 }
 
 Geometry::Geometry(const Geometry& geometry)
     : position_(geometry.position_)
     , name_(geometry.name_)
-    , hierarchy_(geometry.hierarchy_)
 {
 }
 
@@ -76,7 +65,6 @@ Geometry::Geometry(const Geometry& geometry)
     if(not config.is_object()) throw std::invalid_argument("No json object found.");
 
     name_ = config.value("shape", "unknown");
-    hierarchy_ = config.value("hierarchy", 0);
 
     if(not config.contains("origin"))
         throw std::invalid_argument("No geometry originfound.");
@@ -88,7 +76,6 @@ void Geometry::swap(Geometry& geometry)
 {
     position_.swap(geometry.position_);
     name_.swap(geometry.name_);
-    std::swap(hierarchy_, geometry.hierarchy_);
 }
 
 
@@ -100,7 +87,6 @@ Geometry& Geometry::operator=(const Geometry& geometry)
     {
         position_ = geometry.position_;
         name_     = geometry.name_;
-        hierarchy_ = geometry.hierarchy_;
     }
 
     return *this;
@@ -112,8 +98,6 @@ bool Geometry::operator==(const Geometry& geometry) const
     if (position_ != geometry.position_)
         return false;
     else if (name_.compare(geometry.name_) != 0)
-        return false;
-    else if (hierarchy_ != geometry.hierarchy_)
         return false;
     else
         return this->compare(geometry);
@@ -196,15 +180,6 @@ Box::Box()
 
 Box::Box(const Vector3D position, double x, double y, double z)
     : Geometry("Box", position)
-    , x_(x)
-    , y_(y)
-    , z_(z)
-{
-    // Do nothing here
-}
-
-Box::Box(const Vector3D position, double x, double y, double z, int hierarchy)
-    : Geometry("Box", position, hierarchy)
     , x_(x)
     , y_(y)
     , z_(z)
@@ -330,7 +305,7 @@ std::vector<Geometry::Intersection> Box::Intersections(Vector3D const & position
         Intersection i;
         i.position = Vector3D(intersection_x,intersection_y,intersection_z);
         i.distance = t;
-        i.hierarchy = hierarchy_;
+        i.hierarchy = 0;
         i.entering = entering;
         dist.push_back(i);
     };
@@ -560,23 +535,6 @@ Cylinder::Cylinder(const Vector3D position, double radius, double inner_radius, 
     }
 }
 
-Cylinder::Cylinder(const Vector3D position, double radius, double inner_radius, double z, int hierarchy)
-    : Geometry("Cylinder", position, hierarchy)
-    , radius_(radius)
-    , inner_radius_(inner_radius)
-    , z_(z)
-{
-    if (inner_radius_ > radius_)
-    {
-        //log_error("Inner radius %f is greater then radius %f (will be swaped)", inner_radius_, radius_);
-        std::swap(inner_radius_, radius_);
-    }
-    if (inner_radius_ == radius_)
-    {
-        //log_error("Warning: Inner radius %f == radius %f (Volume is 0)", inner_radius_, radius_);
-    }
-}
-
 Cylinder::Cylinder(const Cylinder& cylinder)
     : Geometry(cylinder)
     , radius_(cylinder.radius_)
@@ -697,7 +655,7 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
         Intersection i;
         i.position = Vector3D(intersection_x,intersection_y,intersection_z);
         i.distance = t;
-        i.hierarchy = hierarchy_;
+        i.hierarchy = 0;
         i.entering = entering;
         dist.push_back(i);
     };
@@ -968,22 +926,6 @@ Sphere::Sphere(const Vector3D position, double radius, double inner_radius)
     }
 }
 
-Sphere::Sphere(const Vector3D position, double radius, double inner_radius, int hierarchy)
-    : Geometry("Sphere", position, hierarchy)
-    , radius_(radius)
-    , inner_radius_(inner_radius)
-{
-    if (inner_radius_ > radius_)
-    {
-        //log_error("Inner radius %f is greater then radius %f (will be swaped)", inner_radius_, radius_);
-        std::swap(inner_radius_, radius_);
-    }
-    if (inner_radius_ == radius_)
-    {
-        //log_error("Warning: Inner radius %f == radius %f (Volume is 0)", inner_radius_, radius_);
-    }
-}
-
 Sphere::Sphere(const Sphere& sphere)
     : Geometry(sphere)
     , radius_(sphere.radius_)
@@ -1088,7 +1030,7 @@ std::vector<Geometry::Intersection> Sphere::Intersections(Vector3D const & posit
         Intersection i;
         i.position = intersection;
         i.distance = t;
-        i.hierarchy = hierarchy_;
+        i.hierarchy = 0;
         i.entering = entering;
         dist.push_back(i);
     };
