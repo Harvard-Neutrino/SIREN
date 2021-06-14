@@ -525,9 +525,12 @@ void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersectio
     }
 }
 
-double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double column_depth, bool use_electron_density) const {
+double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & dir, double column_depth, bool use_electron_density) const {
+    Vector3D direction = dir;
+    bool flip = column_depth < 0;
     if(column_depth < 0) {
-        throw("Cannot accept negative column depth!");
+        column_depth *= -1;
+        direction = -direction;
     }
 
     double dot = intersections.direction * direction;
@@ -570,6 +573,10 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
     };
 
     SectorLoop(callback, intersections, dot < 0);
+
+    if(flip) {
+        total_distance *= -1;
+    }
 
     return total_distance;
 }
