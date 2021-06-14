@@ -66,13 +66,24 @@ Vector3D::~Vector3D() {}
 //-----------------------operator functions and swap--------------------//
 //----------------------------------------------------------------------//
 
-Vector3D& Vector3D::operator=(const Vector3D& vector_3d)
-{
+Vector3D& Vector3D::operator=(Vector3D const & vector_3d) {
     if (this != &vector_3d)
     {
         Vector3D tmp(vector_3d);
         swap(tmp);
     }
+    return *this;
+}
+
+Vector3D& Vector3D::operator=(Vector3D && other) {
+    cartesian_ = std::move(other.cartesian_);
+    spherical_ = std::move(other.spherical_);
+    return *this;
+}
+
+Vector3D& Vector3D::operator=(Vector3D const && other) {
+    cartesian_ = other.cartesian_;
+    spherical_ = other.spherical_;
     return *this;
 }
 

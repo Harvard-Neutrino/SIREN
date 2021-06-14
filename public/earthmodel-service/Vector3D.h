@@ -47,7 +47,9 @@ public:
 
     //-------------------------------------//
     // operator functions and swap
-    Vector3D& operator=(const Vector3D& vector_3d);
+    Vector3D& operator=(Vector3D const & vector_3d);
+    Vector3D& operator=(Vector3D const && vector_3d);
+    Vector3D& operator=(Vector3D && vector_3d);
     bool operator==(const Vector3D& vector_3d) const;
     bool operator!=(const Vector3D& vector_3d) const;
     void swap(Vector3D& vector_3d);
