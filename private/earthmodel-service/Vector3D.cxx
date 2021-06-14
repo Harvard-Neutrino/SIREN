@@ -187,12 +187,13 @@ Vector3D operator*(const Vector3D& vec1, const double factor1)
     return product;
 }
 
-Vector3D& operator*=(const double factor1, Vector3D& vec1)
+Vector3D operator/(const Vector3D& vec1, const double factor1)
 {
-    vec1.cartesian_.x_ *= factor1;
-    vec1.cartesian_.y_ *= factor1;
-    vec1.cartesian_.z_ *= factor1;
-    return vec1;
+    Vector3D product;
+    product.cartesian_.x_ = vec1.cartesian_.x_ / factor1;
+    product.cartesian_.y_ = vec1.cartesian_.y_ / factor1;
+    product.cartesian_.z_ = vec1.cartesian_.z_ / factor1;
+    return product;
 }
 
 Vector3D& operator*=(Vector3D& vec1, const double factor1)
@@ -200,6 +201,14 @@ Vector3D& operator*=(Vector3D& vec1, const double factor1)
     vec1.cartesian_.x_ *= factor1;
     vec1.cartesian_.y_ *= factor1;
     vec1.cartesian_.z_ *= factor1;
+    return vec1;
+}
+
+Vector3D& operator/=(Vector3D& vec1, const double factor1)
+{
+    vec1.cartesian_.x_ /= factor1;
+    vec1.cartesian_.y_ /= factor1;
+    vec1.cartesian_.z_ /= factor1;
     return vec1;
 }
 
