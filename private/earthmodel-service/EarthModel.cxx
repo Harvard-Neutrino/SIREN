@@ -584,7 +584,7 @@ double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & p0, Vector3D c
 }
 
 Vector3D EarthModel::GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const {
-    point + detector_origin_;
+    return point + detector_origin_;
 }
 
 Vector3D EarthModel::GetEarthCoordDirFromDetCoordDir(Vector3D const & direction) const {
