@@ -4,6 +4,8 @@
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/EventProps.h"
 
+#include "earthmodel-service/Path.h"
+
 // namespace constants = boost::math::constants;
 
 namespace LeptonInjector{
@@ -284,8 +286,11 @@ namespace LeptonInjector{
 		bool isTau = (this->config.finalType1==Particle::ParticleType::TauMinus) || (this->config.finalType1==Particle::ParticleType::TauPlus); 
 
 		bool use_electron_density = getInteraction(this->config.finalType1, this->config.finalType2 ) == 2;
+        earthmodel::Path path(earthModel, pca-config.endcapLength*dir, dir, config.endcapLength*2);
 		double totalColumnDepth=MWEtoColumnDepthCGS(GetLeptonRange(energy, isTau=isTau))
 		+earthModel->GetColumnDepthInCGS(pca-config.endcapLength*dir,pca+config.endcapLength*dir, use_electron_density);
+        path.ExtendFromStartByColumnDepth(MWEtoColumnDepthCGS(GetLeptonRange(energy, isTau=isTau)), use_electron_density);
+        totalColumnDepth = path.GetColumnDepthInBounds(use_electron_density);
 		//See whether that much column depth actually exists along the chosen path
 		{
 			double maxDist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth, use_electron_density)-config.endcapLength;
@@ -299,6 +304,7 @@ namespace LeptonInjector{
 		double traversedColumnDepth=totalColumnDepth*random->Uniform();
 		//endcapLength is subtracted so that dist==0 corresponds to pca
 		double dist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth-traversedColumnDepth, use_electron_density)-config.endcapLength;
+        dist = path.GetDistanceFromStartAlongPath(traversedColumnDepth);
 		
 		/* { //ensure that the point we picked is inside the atmosphere
 			LI_Position atmoEntry, atmoExit;
@@ -313,6 +319,7 @@ namespace LeptonInjector{
 				dist=std::min(dist,atmoDist);
 		} */
 		LI_Position vertex=pca-(dist*dir);
+        vertex = path.GetFirstPoint() + path.GetDistanceFromStartAlongPath(traversedColumnDepth) * path.GetDirection();
 		
 		//assemble the MCTree
 
