@@ -439,6 +439,29 @@ void EarthModel::SortIntersections(std::vector<Geometry::Intersection> & interse
     std::sort(intersections.begin(), intersections.end(), comp);
 }
 
+Geometry::IntersectionList GetOuterBounds(Geometry::IntersectionList const & intersections) {
+    Geometry::IntersectionList result;
+    result.position = intersections.position;
+    result.direction = intersections.direction;
+    int hierarchy = intersections[0].hierarchy;
+    for(unsigned int i=1; i<intersections.intersections.size(); ++i) {
+        if(intersections.intersections[i].hierarchy != hierarchy) {
+            result.intersections.push_back(intersections.intersections[i]);
+        }
+    }
+    for(unsigned int i=intersections.intersections.size()-1; i>=0; --i) {
+        if(intersections.intersections[i].hierarchy != hierarchy) {
+            result.intersections.push_back(intersections.intersections[i]);
+        }
+    }
+    return result;
+}
+
+Geometry::IntersectionList GetOuterBounds(Vector3D const & p0, Vector3D const & direction) {
+    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    return GetVacuumBounds(intersections);
+}
+
 void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections, bool reverse) const {
     // Keep track of the integral progress
     double last_point;

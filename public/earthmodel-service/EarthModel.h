@@ -75,6 +75,9 @@ public:
     static void SortIntersections(std::vector<Geometry::Intersection> & intersections);
     void SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections, bool reverse=false) const;
 
+    Geometry::IntersectionList GetOuterBounds(Geometry::IntersectionList const & intersections);
+    Geometry::IntersectionList GetOuterBounds(Vector3D const & p0, Vector3D const & direction);
+
 private:
     void LoadDefaultMaterials();
     void LoadDefaultSectors();
