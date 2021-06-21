@@ -369,7 +369,7 @@ double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & inters
 
     SectorLoop(callback, intersections, dot < 0);
 
-    return column_depth;
+    return column_depth * 100;
 }
 
 double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1, bool use_electron_density) const {
@@ -443,15 +443,19 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Geometry::IntersectionList
     Geometry::IntersectionList result;
     result.position = intersections.position;
     result.direction = intersections.direction;
-    int hierarchy = intersections.intersections[0].hierarchy;
-    for(unsigned int i=1; i<intersections.intersections.size(); ++i) {
-        if(intersections.intersections[i].hierarchy != hierarchy) {
+    int min_hierarchy = std::numeric_limits<int>::min();
+    int min_index = 0;
+    for(unsigned int i=0; i<intersections.intersections.size(); ++i) {
+        if(intersections.intersections[i].hierarchy > min_hierarchy) {
             result.intersections.push_back(intersections.intersections[i]);
+            min_index = i;
+            break;
         }
     }
-    for(unsigned int i=intersections.intersections.size()-1; i>=0; --i) {
-        if(intersections.intersections[i].hierarchy != hierarchy) {
+    for(unsigned int i=intersections.intersections.size()-1; (i >= 0 and i > min_index); --i) {
+        if(intersections.intersections[i].hierarchy > min_hierarchy) {
             result.intersections.push_back(intersections.intersections[i]);
+            break;
         }
     }
     return result;
@@ -462,7 +466,7 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Vector3D const & p0, Vecto
     return GetOuterBounds(intersections);
 }
 
-void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections, bool reverse) const {
+void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections, bool reverse) {
     // Keep track of the integral progress
     double last_point;
 
@@ -550,6 +554,7 @@ void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersectio
 
 double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & dir, double column_depth, bool use_electron_density) const {
     Vector3D direction = dir;
+    column_depth /= 100;
     bool flip = column_depth < 0;
     if(column_depth < 0) {
         column_depth *= -1;
