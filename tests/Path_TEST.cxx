@@ -355,15 +355,15 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndByColumnDepth) {
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude()*rho, sum);
+        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude() * rho * 100, sum);
         P = Path(A, p0, p1);
         sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((p1 - p0).magnitude()*rho, sum);
+        ASSERT_DOUBLE_EQ((p1 - p0).magnitude() * rho * 100, sum);
 
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         double extra_distance = distance/3.0;
-        double extra_column_depth = extra_distance * rho;
+        double extra_column_depth = extra_distance * rho * 100;
         P.ExtendFromEndByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p1, direction, extra_column_depth);
         EXPECT_DOUBLE_EQ(distance/3.0, extra_distance);
@@ -374,7 +374,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndByColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance/3.0;
-        extra_column_depth = extra_distance * rho;
+        extra_column_depth = extra_distance * rho * 100;
         P.ExtendFromEndByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p1, direction, extra_column_depth);
         EXPECT_DOUBLE_EQ(-distance/3.0, extra_distance);
@@ -385,7 +385,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndByColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance*1.5;
-        extra_column_depth = extra_distance * rho;
+        extra_column_depth = extra_distance * rho * 100;
         P.ExtendFromEndByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p1, direction, extra_column_depth);
         EXPECT_DOUBLE_EQ(-distance*1.5, extra_distance);
@@ -465,15 +465,15 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromStartByColumnDepth) {
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude()*rho, sum);
+        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude() * rho * 100, sum);
         P = Path(A, p0, p1);
         sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((p1 - p0).magnitude()*rho, sum);
+        ASSERT_DOUBLE_EQ((p1 - p0).magnitude() * rho * 100, sum);
 
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         double extra_distance = distance/3.0;
-        double extra_column_depth = extra_distance * rho;
+        double extra_column_depth = extra_distance * rho * 100;
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p0, -direction, extra_column_depth);
         ASSERT_DOUBLE_EQ(distance/3.0, extra_distance);
         ASSERT_DOUBLE_EQ(A->DistanceForColumnDepthFromPoint(P.GetFirstPoint(), -direction, extra_column_depth), A->DistanceForColumnDepthFromPoint(P.GetIntersections(), P.GetFirstPoint(), -direction, extra_column_depth));
@@ -486,7 +486,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromStartByColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance/3.0;
-        extra_column_depth = extra_distance * rho;
+        extra_column_depth = extra_distance * rho * 100;
         P.ExtendFromStartByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p0, -direction, extra_column_depth);
         EXPECT_DOUBLE_EQ(-distance/3.0, extra_distance);
@@ -497,7 +497,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromStartByColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance*1.5;
-        extra_column_depth = extra_distance * rho;
+        extra_column_depth = extra_distance * rho * 100;
         P.ExtendFromStartByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p0, -direction, extra_column_depth);
         EXPECT_DOUBLE_EQ(-distance*1.5, extra_distance);
@@ -576,15 +576,15 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromEndByColumnDepth) {
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude()*rho, sum);
+        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude() * rho * 100, sum);
         P = Path(A, p0, p1);
         sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((p1 - p0).magnitude()*rho, sum);
+        ASSERT_DOUBLE_EQ((p1 - p0).magnitude() * rho * 100, sum);
 
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         double extra_distance = distance/3.0;
-        double extra_column_depth = extra_distance * rho;
+        double extra_column_depth = extra_distance * rho * 100;
         P.ShrinkFromEndByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p1, -direction, extra_column_depth);
         EXPECT_DOUBLE_EQ(distance/3.0, extra_distance);
@@ -595,7 +595,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromEndByColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance/3.0;
-        extra_column_depth = extra_distance * rho;
+        extra_column_depth = extra_distance * rho * 100;
         P.ShrinkFromEndByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p1, -direction, extra_column_depth);
         EXPECT_DOUBLE_EQ(-distance/3.0, extra_distance);
@@ -606,7 +606,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromEndByColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = distance*1.5;
-        extra_column_depth = extra_distance * rho;
+        extra_column_depth = extra_distance * rho * 100;
         P.ShrinkFromEndByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p1, -direction, extra_column_depth);
         EXPECT_DOUBLE_EQ(distance*1.5, extra_distance);
@@ -686,15 +686,15 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromStartByColumnDepth) {
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude()*rho, sum);
+        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude() * rho * 100, sum);
         P = Path(A, p0, p1);
         sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((p1 - p0).magnitude()*rho, sum);
+        ASSERT_DOUBLE_EQ((p1 - p0).magnitude() * rho * 100, sum);
 
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         double extra_distance = distance/3.0;
-        double extra_column_depth = extra_distance * rho;
+        double extra_column_depth = extra_distance * rho * 100;
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p0, direction, extra_column_depth);
         ASSERT_DOUBLE_EQ(distance/3.0, extra_distance);
         ASSERT_DOUBLE_EQ(extra_distance, P.GetDistanceFromStartInReverse(extra_column_depth));
@@ -706,7 +706,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromStartByColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance/3.0;
-        extra_column_depth = extra_distance * rho;
+        extra_column_depth = extra_distance * rho * 100;
         P.ShrinkFromStartByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p0, direction, extra_column_depth);
         EXPECT_DOUBLE_EQ(-distance/3.0, extra_distance);
@@ -717,7 +717,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromStartByColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = distance*1.5;
-        extra_column_depth = extra_distance * rho;
+        extra_column_depth = extra_distance * rho * 100;
         P.ShrinkFromStartByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(inner_p0, direction, extra_column_depth);
         EXPECT_DOUBLE_EQ(distance*1.5, extra_distance);
@@ -799,17 +799,17 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndToColumnDepth) {
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude()*rho, sum);
+        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude() * rho * 100, sum);
         P = Path(A, p0, p1);
         sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((p1 - p0).magnitude()*rho, sum);
+        ASSERT_DOUBLE_EQ((p1 - p0).magnitude() * rho * 100, sum);
 
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         double extra_distance = distance/3.0;
-        double extra_column_depth = extra_distance * rho;
+        double extra_column_depth = extra_distance * rho * 100;
         double target_distance = distance + extra_distance;
-        double target_column_depth = target_distance * rho;
+        double target_column_depth = target_distance * rho * 100;
         target_distance = A->DistanceForColumnDepthFromPoint(inner_p0, direction, target_column_depth);
         ASSERT_DOUBLE_EQ(distance + distance/3.0, target_distance);
         ASSERT_DOUBLE_EQ(target_distance, P.GetDistanceFromStartAlongPath(target_column_depth));
@@ -821,9 +821,9 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndToColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance/3.0;
-        extra_column_depth = extra_distance * rho;
+        extra_column_depth = extra_distance * rho * 100;
         target_distance = distance + extra_distance;
-        target_column_depth = target_distance * rho;
+        target_column_depth = target_distance * rho * 100;
         target_distance = A->DistanceForColumnDepthFromPoint(inner_p0, direction, target_column_depth);
         P.ExtendFromEndToColumnDepth(target_column_depth);
         ASSERT_DOUBLE_EQ(distance - distance/3.0, target_distance);
@@ -835,9 +835,9 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndToColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance*1.5;
-        extra_column_depth = extra_distance * rho;
+        extra_column_depth = extra_distance * rho * 100;
         target_distance = distance + extra_distance;
-        target_column_depth = target_distance * rho;
+        target_column_depth = target_distance * rho * 100;
         target_distance = A->DistanceForColumnDepthFromPoint(inner_p0, direction, target_column_depth);
         P.ExtendFromEndToColumnDepth(target_column_depth);
         ASSERT_DOUBLE_EQ(distance - distance*1.5, target_distance);
@@ -883,6 +883,94 @@ TEST(PointManipulation, ExtendFromStartToDistance) {
     A.ExtendFromStartToDistance(target_distance);
     EXPECT_EQ(B, A.GetFirstPoint());
     EXPECT_EQ(distance, A.GetDistance());
+}
+
+TEST_F(FakeLegacyEarthModelTest, ExtendFromStartToColumnDepth) {
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(1, 1));
+        std::shared_ptr<EarthModel> A(new EarthModel());
+        ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A->GetSectors();
+        ASSERT_EQ(2, sectors.size());
+        EarthSector sector = sectors[1];
+        Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
+        ASSERT_TRUE(sphere);
+        double max_radius = sphere->GetRadius();
+        double min_radius = sphere->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        Vector3D inner_p0 = p0 + direction * distance / 4.0;
+        Vector3D inner_p1 = p1 - direction * distance / 4.0;
+        ASSERT_TRUE(p0.magnitude() < max_radius);
+        ASSERT_TRUE(p1.magnitude() < max_radius);
+        ASSERT_TRUE(inner_p0.magnitude() < max_radius);
+        ASSERT_TRUE(inner_p1.magnitude() < max_radius);
+        direction = inner_p1 - inner_p0;
+        distance = direction.magnitude();
+        direction.normalize();
+        Path P(A, inner_p0, inner_p1);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        ASSERT_TRUE(density);
+        double rho = density->Evaluate(Vector3D());
+        double sum = P.GetColumnDepthInBounds();
+        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude() * rho * 100, sum);
+        P = Path(A, p0, p1);
+        sum = P.GetColumnDepthInBounds();
+        ASSERT_DOUBLE_EQ((p1 - p0).magnitude() * rho * 100, sum);
+
+        P = Path(A, inner_p0, inner_p1);
+        P.EnsureIntersections();
+        double extra_distance = distance/3.0;
+        double extra_column_depth = extra_distance * rho * 100;
+        double target_distance = distance + extra_distance;
+        double target_column_depth = target_distance * rho * 100;
+        target_distance = A->DistanceForColumnDepthFromPoint(inner_p1, -direction, target_column_depth);
+        ASSERT_DOUBLE_EQ(distance + distance/3.0, target_distance);
+        ASSERT_DOUBLE_EQ(target_distance, P.GetDistanceFromEndInReverse(target_column_depth));
+        P.ExtendFromStartToColumnDepth(target_column_depth);
+        sum = P.GetColumnDepthInBounds();
+        ASSERT_DOUBLE_EQ(target_column_depth, sum);
+        Vector3D end = inner_p1 - direction * target_distance;
+        ASSERT_DOUBLE_EQ(target_distance, P.GetDistance());
+        ASSERT_TRUE((end - P.GetFirstPoint()).magnitude() < 1e-6 * std::max(end.magnitude(), P.GetFirstPoint().magnitude()));
+
+        P = Path(A, inner_p0, inner_p1);
+        P.EnsureIntersections();
+        extra_distance = -distance/3.0;
+        extra_column_depth = extra_distance * rho * 100;
+        target_distance = distance + extra_distance;
+        target_column_depth = target_distance * rho * 100;
+        target_distance = A->DistanceForColumnDepthFromPoint(inner_p1, -direction, target_column_depth);
+        P.ExtendFromStartToColumnDepth(target_column_depth);
+        ASSERT_DOUBLE_EQ(distance - distance/3.0, target_distance);
+        ASSERT_DOUBLE_EQ(target_distance, P.GetDistanceFromEndInReverse(target_column_depth));
+        end = inner_p1 - direction * target_distance;
+        ASSERT_EQ(inner_p0, P.GetFirstPoint());
+        ASSERT_DOUBLE_EQ(distance, P.GetDistance());
+
+        P = Path(A, inner_p0, inner_p1);
+        P.EnsureIntersections();
+        extra_distance = -distance*1.5;
+        extra_column_depth = extra_distance * rho * 100;
+        target_distance = distance + extra_distance;
+        target_column_depth = target_distance * rho * 100;
+        target_distance = A->DistanceForColumnDepthFromPoint(inner_p1, -direction, target_column_depth);
+        P.ExtendFromStartToColumnDepth(target_column_depth);
+        ASSERT_DOUBLE_EQ(distance - distance*1.5, target_distance);
+        ASSERT_DOUBLE_EQ(target_distance, P.GetDistanceFromEndAlongPath(target_column_depth));
+        end = inner_p1 - direction * target_distance;
+        ASSERT_EQ(inner_p0, P.GetFirstPoint());
+        ASSERT_DOUBLE_EQ(distance, P.GetDistance());
+    }
 }
 
 TEST(PointManipulation, ShrinkFromEndToDistance) {
@@ -956,6 +1044,90 @@ TEST(PointManipulation, ShrinkFromStartToDistance) {
     EXPECT_EQ(0, A.GetDistance());
 }
 
+TEST_F(FakeLegacyEarthModelTest, ShrinkFromStartToColumnDepth) {
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(1, 1));
+        std::shared_ptr<EarthModel> A(new EarthModel());
+        ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A->GetSectors();
+        ASSERT_EQ(2, sectors.size());
+        EarthSector sector = sectors[1];
+        Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
+        ASSERT_TRUE(sphere);
+        double max_radius = sphere->GetRadius();
+        double min_radius = sphere->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        Vector3D inner_p0 = p0 + direction * distance / 4.0;
+        Vector3D inner_p1 = p1 - direction * distance / 4.0;
+        ASSERT_TRUE(p0.magnitude() < max_radius);
+        ASSERT_TRUE(p1.magnitude() < max_radius);
+        ASSERT_TRUE(inner_p0.magnitude() < max_radius);
+        ASSERT_TRUE(inner_p1.magnitude() < max_radius);
+        direction = inner_p1 - inner_p0;
+        distance = direction.magnitude();
+        direction.normalize();
+        Path P(A, inner_p0, inner_p1);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        ASSERT_TRUE(density);
+        double rho = density->Evaluate(Vector3D());
+        double sum = P.GetColumnDepthInBounds();
+        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude() * rho * 100, sum);
+        P = Path(A, p0, p1);
+        sum = P.GetColumnDepthInBounds();
+        ASSERT_DOUBLE_EQ((p1 - p0).magnitude() * rho * 100, sum);
+
+        P = Path(A, inner_p0, inner_p1);
+        P.EnsureIntersections();
+        double extra_distance = distance/3.0;
+        double target_distance = distance + extra_distance;
+        double extra_column_depth = extra_distance * rho * 100;
+        double target_column_depth = target_distance * rho * 100;
+        extra_distance = A->DistanceForColumnDepthFromPoint(inner_p0, -direction, extra_column_depth);
+        ASSERT_DOUBLE_EQ(distance/3.0, extra_distance);
+        ASSERT_DOUBLE_EQ(extra_distance, P.GetDistanceFromStartInReverse(extra_column_depth));
+        P.ShrinkFromStartToColumnDepth(target_column_depth);
+        Vector3D end = inner_p0 + direction * extra_distance;
+        ASSERT_EQ(inner_p0, P.GetFirstPoint());
+        ASSERT_EQ(distance, P.GetDistance());
+
+        P = Path(A, inner_p0, inner_p1);
+        P.EnsureIntersections();
+        extra_distance = -distance/3.0;
+        target_distance = distance + extra_distance;
+        extra_column_depth = extra_distance * rho * 100;
+        target_column_depth = target_distance * rho * 100;
+        P.ShrinkFromStartToColumnDepth(target_column_depth);
+        extra_distance = A->DistanceForColumnDepthFromPoint(inner_p0, -direction, extra_column_depth);
+        EXPECT_DOUBLE_EQ(-distance/3.0, extra_distance);
+        end = inner_p0 - direction * extra_distance;
+        ASSERT_TRUE((end - P.GetFirstPoint()).magnitude() < 1e-6 * std::max(end.magnitude(), P.GetFirstPoint().magnitude()));
+        EXPECT_DOUBLE_EQ(distance + extra_distance, P.GetDistance());
+
+        P = Path(A, inner_p0, inner_p1);
+        P.EnsureIntersections();
+        extra_distance = distance*1.5;
+        target_distance = distance + extra_distance;
+        extra_column_depth = extra_distance * rho * 100;
+        target_column_depth = target_distance * rho * 100;
+        P.ShrinkFromStartToColumnDepth(target_column_depth);
+        extra_distance = A->DistanceForColumnDepthFromPoint(inner_p0, direction, extra_column_depth);
+        EXPECT_DOUBLE_EQ(distance*1.5, extra_distance);
+        end = inner_p0 + direction * extra_distance;
+        ASSERT_TRUE((inner_p0 - P.GetFirstPoint()).magnitude() < 1e-6 * std::max(inner_p0.magnitude(), P.GetFirstPoint().magnitude()));
+        EXPECT_EQ(distance, P.GetDistance());
+    }
+}
+
 TEST_F(FakeLegacyEarthModelTest, GetColumnDepthInBounds)
 {
     unsigned int N_rand = 1000;
@@ -987,7 +1159,7 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthInBounds)
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
-        EXPECT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude()*rho, sum);
+        EXPECT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude() * rho * 100, sum);
     }
 }
 
