@@ -133,6 +133,45 @@ void Path::EnsureIntersections() {
     }
 }
 
+void Path::ClipToOuterBounds() {
+    EnsureIntersections();
+    EnsurePoints();
+    Geometry::IntersectionList bounds = EarthModel::GetOuterBounds(intersections_);
+    if(bounds.intersections.size() > 0) {
+        assert(bounds.intersections.size() == 2);
+        Vector3D p0 = bounds.intersections[0].position;
+        Vector3D p1 = bounds.intersections[1].position;
+        std::cerr << p0.magnitude() << " " << p1.magnitude() << std::endl;
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        double dot = direction_ * direction;
+        assert(std::abs(1.0 - std::abs(dot)) < 1e-6);
+        if(dot < 0) {
+            p0.swap(p1);
+        }
+        bool clip_0 = (p0 - first_point_) * direction_ > 0;
+        bool clip_1 = (p1 - last_point_) * direction_ < 0;
+        bool clip = clip_0 or clip_1;
+        if(clip_0) {
+            first_point_ = p0;
+            std::cout << "Replace first point" << std::endl;
+        }
+        if(clip_1) {
+            last_point_ = p1;
+            std::cout << "Replace last point" << std::endl;
+        }
+        if(clip) {
+            distance_ = (last_point_ - first_point_).magnitude();
+            set_column_depth_nucleon_ = false;
+            set_column_depth_electron_ = false;
+        }
+    } else {
+        std::cerr << "No bounds" << std::endl;
+        return;
+    }
+}
+
 void Path::Flip() {
     EnsurePoints();
     std::swap(first_point_, last_point_);
@@ -213,7 +252,7 @@ void Path::ExtendFromStartToDistance(double distance) {
 void Path::ExtendFromStartToColumnDepth(double column_depth, bool use_electron_density) {
     double shift = column_depth - GetColumnDepthInBounds(use_electron_density);
     if(shift > 0) {
-        ExtendFromStartByDistance(shift);
+        ExtendFromStartByColumnDepth(shift);
     }
 }
 
@@ -241,7 +280,7 @@ void Path::ShrinkFromStartToDistance(double distance) {
 void Path::ShrinkFromStartToColumnDepth(double column_depth, bool use_electron_density) {
     double shift = GetColumnDepthInBounds(use_electron_density) - column_depth;
     if(shift > 0) {
-        ShrinkFromStartByDistance(shift);
+        ShrinkFromStartByColumnDepth(shift);
     }
 }
 

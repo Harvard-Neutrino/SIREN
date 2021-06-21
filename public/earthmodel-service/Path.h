@@ -54,6 +54,8 @@ public:
     void ComputeIntersections();
     void EnsureIntersections();
 
+    void ClipToOuterBounds();
+
     void Flip();
     void ExtendFromEndByDistance(double distance);
     void ExtendFromEndByColumnDepth(double column_depth, bool use_electron_density=false);
