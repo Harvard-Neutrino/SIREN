@@ -304,6 +304,8 @@ double Path::GetColumnDepthInBounds(bool use_electron_density) {
 double Path::GetColumnDepthFromStartInBounds(double distance, bool use_electron_density) {
     if(distance > distance_) {
         distance = distance_;
+    } else if(distance <= 0) {
+        return 0.0;
     }
     EnsureIntersections();
     return earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, use_electron_density);
@@ -312,6 +314,8 @@ double Path::GetColumnDepthFromStartInBounds(double distance, bool use_electron_
 double Path::GetColumnDepthFromEndInBounds(double distance, bool use_electron_density) {
     if(distance > distance_) {
         distance = distance_;
+    } else if(distance <= 0) {
+        return 0.0;
     }
     EnsureIntersections();
     return earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, use_electron_density);
@@ -342,6 +346,8 @@ double Path::GetDistanceFromStartInBounds(double column_depth, bool use_electron
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth, use_electron_density);
     if(distance > distance_) {
         distance = distance_;
+    } else if(column_depth <= 0) {
+        return 0.0;
     }
     return distance;
 }
@@ -351,6 +357,8 @@ double Path::GetDistanceFromEndInBounds(double column_depth, bool use_electron_d
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth, use_electron_density);
     if(distance > distance_) {
         distance = distance_;
+    } else if(column_depth <= 0) {
+        return 0.0;
     }
     return distance;
 }
