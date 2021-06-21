@@ -376,7 +376,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralInternal)
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = A.GetColumnDepthInCGS(p0, p1);
-        EXPECT_DOUBLE_EQ((p1 - p0).magnitude()*rho, sum);
+        EXPECT_DOUBLE_EQ((p1 - p0).magnitude() * 100 * rho, sum);
     }
 }
 
@@ -449,7 +449,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
         double sum = A.GetColumnDepthInCGS(p0, p1);
         if(in_0 and in_1) {
             integral = rho_0 * (p1-p0).magnitude();
-            ASSERT_DOUBLE_EQ(integral, sum);
+            ASSERT_DOUBLE_EQ(integral * 100, sum);
         }
         else {
             Vector3D direction = p1 - p0;
@@ -463,11 +463,11 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
                     if((not in_0) and in_1) {
                         integral += rho_1*near;
                         integral += rho_0*((p1-p0).magnitude() - near);
-                        ASSERT_DOUBLE_EQ(integral, sum);
+                        ASSERT_DOUBLE_EQ(integral * 100, sum);
                     } else if(in_0 and not in_1) {
                         integral += rho_0*near;
                         integral += rho_1*((p1-p0).magnitude() - near);
-                        ASSERT_DOUBLE_EQ(integral, sum);
+                        ASSERT_DOUBLE_EQ(integral * 100, sum);
                     } else if((not in_0) and (not in_1)) {
                         double far = std::max(std::max(dist_0, 0.0), std::max(dist_1, 0.0));
                         if(near < distance) {
@@ -481,12 +481,12 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
                         } else {
                             integral += rho_1*distance;
                         }
-                        ASSERT_DOUBLE_EQ(integral, sum);
+                        ASSERT_DOUBLE_EQ(integral * 100, sum);
                     }
                 }
                 else if (dist_0 <= 0 and dist_1 <= 0) {
                     integral = rho_1 * (p1-p0).magnitude();
-                    ASSERT_DOUBLE_EQ(integral, sum);
+                    ASSERT_DOUBLE_EQ(integral * 100, sum);
                 }
                 else {
                     double dist = std::max(dist_0, dist_1);
@@ -495,7 +495,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
                     } else if(in_0 and not in_1) {
                         integral += rho_0*dist;
                         integral += rho_1*((p1-p0).magnitude() - dist);
-                        ASSERT_DOUBLE_EQ(integral, sum);
+                        ASSERT_DOUBLE_EQ(integral * 100, sum);
                     } else if((not in_0) and (not in_1)) {
                         assert(false);
                     }
@@ -503,10 +503,10 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
             }
             else {
                 integral = rho_1 * (p1-p0).magnitude();
-                ASSERT_DOUBLE_EQ(integral, sum);
+                ASSERT_DOUBLE_EQ(integral * 100, sum);
             }
         }
-        ASSERT_DOUBLE_EQ(integral, sum);
+        ASSERT_DOUBLE_EQ(integral * 100, sum);
     }
 }
 
@@ -846,7 +846,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
                 }
             }
         }
-        EXPECT_DOUBLE_EQ(integral, sum);
+        EXPECT_DOUBLE_EQ(integral * 100, sum);
     }
 }
 
@@ -993,37 +993,37 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
         if(p0_in_upper) {
             if(p1_in_upper) {
                 integral += rho_upper*distance;
-                ASSERT_DOUBLE_EQ(integral, sum) << sum << " " << rho_upper*distance << " " << rho_lower*distance;
+                ASSERT_DOUBLE_EQ(integral * 100, sum) << sum << " " << rho_upper*distance << " " << rho_lower*distance;
             } else {
                 double dist_in_upper = std::max(intersections[0].distance, intersections[1].distance);
                 integral += rho_upper*dist_in_upper;
                 integral += rho_vacuum*(distance - dist_in_upper);
-                ASSERT_DOUBLE_EQ(integral, sum);
+                ASSERT_DOUBLE_EQ(integral * 100, sum);
             }
         } else {
             if(p1_in_upper) {
                 double dist_in_vacuum = std::min(intersections[0].distance, intersections[1].distance);
                 integral += rho_vacuum*dist_in_vacuum;
                 integral += rho_upper*(distance - dist_in_vacuum);
-                    ASSERT_DOUBLE_EQ(integral, sum);
+                    ASSERT_DOUBLE_EQ(integral * 100, sum);
             } else {
                 if(intersections.size() > 1) {
                     if(intersections[0].distance > 0 and intersections[1].distance > 0 and distance > std::max(intersections[0].distance, intersections[1].distance)) {
                         double dist_in_upper = std::abs(intersections[1].distance - intersections[0].distance);
                         integral += rho_upper*dist_in_upper;
                         integral += rho_vacuum*(distance - dist_in_upper);
-                        ASSERT_DOUBLE_EQ(integral, sum);
+                        ASSERT_DOUBLE_EQ(integral * 100, sum);
                     } else {
                         integral += rho_vacuum*distance;
-                        ASSERT_DOUBLE_EQ(integral, sum);
+                        ASSERT_DOUBLE_EQ(integral * 100, sum);
                     }
                 } else {
                     integral += rho_vacuum*distance;
-                    ASSERT_DOUBLE_EQ(integral, sum);
+                    ASSERT_DOUBLE_EQ(integral * 100, sum);
                 }
             }
         }
-        EXPECT_DOUBLE_EQ(integral, sum);
+        EXPECT_DOUBLE_EQ(integral * 100, sum);
     }
 }
 
@@ -1197,9 +1197,9 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
         ASSERT_TRUE(density_vacuum);
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
-        double rho_vacuum = density_vacuum->Evaluate(Vector3D());
-        double rho_lower = density_0->Evaluate(lower_center);
-        double rho_upper = density_1->Evaluate(upper_center);
+        double rho_vacuum = 100 * density_vacuum->Evaluate(Vector3D());
+        double rho_lower = 100 * density_0->Evaluate(lower_center);
+        double rho_upper = 100 * density_1->Evaluate(upper_center);
 
         double integral = A.GetColumnDepthInCGS(p0, p1);
 
