@@ -323,22 +323,22 @@ double Path::GetColumnDepthFromEndInBounds(double distance, bool use_electron_de
 
 double Path::GetColumnDepthFromStartAlongPath(double distance, bool use_electron_density) {
     EnsureIntersections();
-    return earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, use_electron_density);
+    return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, use_electron_density), distance);
 }
 
 double Path::GetColumnDepthFromEndAlongPath(double distance, bool use_electron_density) {
     EnsureIntersections();
-    return earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance, use_electron_density);
+    return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance, use_electron_density), distance);
 }
 
 double Path::GetColumnDepthFromStartInReverse(double distance, bool use_electron_density) {
     EnsureIntersections();
-    return earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance, use_electron_density);
+    return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance, use_electron_density), distance);
 }
 
 double Path::GetColumnDepthFromEndInReverse(double distance, bool use_electron_density) {
     EnsureIntersections();
-    return earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, use_electron_density);
+    return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, use_electron_density), distance);
 }
 
 double Path::GetDistanceFromStartInBounds(double column_depth, bool use_electron_density) {
