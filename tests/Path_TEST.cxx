@@ -1552,6 +1552,314 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromEndInReverse)
     }
 }
 
+/////////////////////////////////////////////////////////
+
+TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartInBounds)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(1, 1));
+        std::shared_ptr<EarthModel> A(new EarthModel());
+        ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A->GetSectors();
+        ASSERT_EQ(2, sectors.size());
+        EarthSector sector = sectors[1];
+        Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
+        ASSERT_TRUE(sphere);
+        double max_radius = sphere->GetRadius();
+        double min_radius = sphere->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        Vector3D inner_p0 = p0 + direction * distance / 4.0;
+        Vector3D inner_p1 = p1 - direction * distance / 4.0;
+        direction = inner_p1 - inner_p0;
+        distance = direction.magnitude();
+        direction.normalize();
+        Path P(A, inner_p0, inner_p1);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        ASSERT_TRUE(density);
+        double rho = density->Evaluate(Vector3D());
+
+        double target_distance = distance / 3.0;
+        double target_column_depth = target_distance * rho * 100;
+        double sum = P.GetDistanceFromStartInBounds(target_column_depth);
+        EXPECT_NEAR(target_distance, sum, 1e-6 * std::max(target_distance, sum));
+
+        target_distance = -distance / 3.0;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromStartInBounds(target_column_depth);
+        EXPECT_DOUBLE_EQ(0, sum);
+
+        target_distance = distance * 1.5;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromStartInBounds(target_column_depth);
+        EXPECT_DOUBLE_EQ(distance, sum);
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndInBounds)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(1, 1));
+        std::shared_ptr<EarthModel> A(new EarthModel());
+        ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A->GetSectors();
+        ASSERT_EQ(2, sectors.size());
+        EarthSector sector = sectors[1];
+        Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
+        ASSERT_TRUE(sphere);
+        double max_radius = sphere->GetRadius();
+        double min_radius = sphere->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        Vector3D inner_p0 = p0 + direction * distance / 4.0;
+        Vector3D inner_p1 = p1 - direction * distance / 4.0;
+        direction = inner_p1 - inner_p0;
+        distance = direction.magnitude();
+        direction.normalize();
+        Path P(A, inner_p0, inner_p1);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        ASSERT_TRUE(density);
+        double rho = density->Evaluate(Vector3D());
+
+        double target_distance = distance / 3.0;
+        double target_column_depth = target_distance * rho * 100;
+        double sum = P.GetDistanceFromEndInBounds(target_column_depth);
+        EXPECT_NEAR(target_distance, sum, 1e-6 * std::max(target_distance, sum));
+
+        target_distance = -distance / 3.0;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromEndInBounds(target_column_depth);
+        EXPECT_DOUBLE_EQ(0, sum);
+
+        target_distance = distance * 1.5;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromEndInBounds(target_column_depth);
+        EXPECT_DOUBLE_EQ(distance, sum);
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartAlongPath)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(1, 1));
+        std::shared_ptr<EarthModel> A(new EarthModel());
+        ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A->GetSectors();
+        ASSERT_EQ(2, sectors.size());
+        EarthSector sector = sectors[1];
+        Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
+        ASSERT_TRUE(sphere);
+        double max_radius = sphere->GetRadius();
+        double min_radius = sphere->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        Vector3D inner_p0 = p0 + direction * distance / 4.0;
+        Vector3D inner_p1 = p1 - direction * distance / 4.0;
+        direction = inner_p1 - inner_p0;
+        distance = direction.magnitude();
+        direction.normalize();
+        Path P(A, inner_p0, inner_p1);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        ASSERT_TRUE(density);
+        double rho = density->Evaluate(Vector3D());
+
+        double target_distance = distance / 3.0;
+        double target_column_depth = target_distance * rho * 100;
+        double sum = P.GetDistanceFromStartAlongPath(target_column_depth);
+        ASSERT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+
+        target_distance = -distance / 3.0;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromStartAlongPath(target_column_depth);
+        ASSERT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+
+        target_distance = distance * 1.5;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromStartAlongPath(target_column_depth);
+        ASSERT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndAlongPath)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(1, 1));
+        std::shared_ptr<EarthModel> A(new EarthModel());
+        ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A->GetSectors();
+        ASSERT_EQ(2, sectors.size());
+        EarthSector sector = sectors[1];
+        Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
+        ASSERT_TRUE(sphere);
+        double max_radius = sphere->GetRadius();
+        double min_radius = sphere->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        Vector3D inner_p0 = p0 + direction * distance / 4.0;
+        Vector3D inner_p1 = p1 - direction * distance / 4.0;
+        direction = inner_p1 - inner_p0;
+        distance = direction.magnitude();
+        direction.normalize();
+        Path P(A, inner_p0, inner_p1);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        ASSERT_TRUE(density);
+        double rho = density->Evaluate(Vector3D());
+
+        double target_distance = distance / 3.0;
+        double target_column_depth = target_distance * rho * 100;
+        double sum = P.GetDistanceFromEndAlongPath(target_column_depth);
+        ASSERT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+
+        target_distance = -distance / 3.0;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromEndAlongPath(target_column_depth);
+        ASSERT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+
+        target_distance = -distance * 1.5;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromEndAlongPath(target_column_depth);
+        EXPECT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartInReverse)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(1, 1));
+        std::shared_ptr<EarthModel> A(new EarthModel());
+        ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A->GetSectors();
+        ASSERT_EQ(2, sectors.size());
+        EarthSector sector = sectors[1];
+        Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
+        ASSERT_TRUE(sphere);
+        double max_radius = sphere->GetRadius();
+        double min_radius = sphere->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        Vector3D inner_p0 = p0 + direction * distance / 4.0;
+        Vector3D inner_p1 = p1 - direction * distance / 4.0;
+        direction = inner_p1 - inner_p0;
+        distance = direction.magnitude();
+        direction.normalize();
+        Path P(A, inner_p0, inner_p1);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        ASSERT_TRUE(density);
+        double rho = density->Evaluate(Vector3D());
+
+        double target_distance = distance / 3.0;
+        double target_column_depth = target_distance * rho * 100;
+        double sum = P.GetDistanceFromStartInReverse(target_column_depth);
+        ASSERT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+
+        target_distance = -distance / 3.0;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromStartInReverse(target_column_depth);
+        ASSERT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+
+        target_distance = -distance * 1.5;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromStartInReverse(target_column_depth);
+        ASSERT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+    }
+}
+
+TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndInReverse)
+{
+    unsigned int N_rand = 1000;
+    for(unsigned int i=0; i<N_rand; ++i) {
+        ASSERT_NO_THROW(reset(1, 1));
+        std::shared_ptr<EarthModel> A(new EarthModel());
+        ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
+        double max_depth = 5000;
+        max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
+        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double ice_angle = -1;
+        ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
+        std::vector<EarthSector> sectors = A->GetSectors();
+        ASSERT_EQ(2, sectors.size());
+        EarthSector sector = sectors[1];
+        Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
+        ASSERT_TRUE(sphere);
+        double max_radius = sphere->GetRadius();
+        double min_radius = sphere->GetInnerRadius();
+        Vector3D p0 = RandomVector(max_radius, min_radius);
+        Vector3D p1 = RandomVector(max_radius, min_radius);
+        Vector3D direction = p1 - p0;
+        double distance = direction.magnitude();
+        direction.normalize();
+        Vector3D inner_p0 = p0 + direction * distance / 4.0;
+        Vector3D inner_p1 = p1 - direction * distance / 4.0;
+        direction = inner_p1 - inner_p0;
+        distance = direction.magnitude();
+        direction.normalize();
+        Path P(A, inner_p0, inner_p1);
+        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        ASSERT_TRUE(density);
+        double rho = density->Evaluate(Vector3D());
+
+        double target_distance = distance / 3.0;
+        double target_column_depth = target_distance * rho * 100;
+        double sum = P.GetDistanceFromEndInReverse(target_column_depth);
+        ASSERT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+
+        target_distance = -distance / 3.0;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromEndInReverse(target_column_depth);
+        ASSERT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+
+        target_distance = distance * 1.5;
+        target_column_depth = target_distance * rho * 100;
+        sum = P.GetDistanceFromEndInReverse(target_column_depth);
+        EXPECT_NEAR(target_distance, sum, 1e-6 * std::max(std::abs(target_distance), std::abs(sum)));
+    }
+}
+
 
 // TEST()
 
