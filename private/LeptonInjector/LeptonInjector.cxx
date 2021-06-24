@@ -246,14 +246,13 @@ namespace LeptonInjector{
 	RangedLeptonInjector::RangedLeptonInjector(){
 	}
 	
-	RangedLeptonInjector::RangedLeptonInjector( BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<earthmodel::EarthModelService> old_earth_, std::shared_ptr<LI_random> random_){
+	RangedLeptonInjector::RangedLeptonInjector( BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<LI_random> random_){
 		config = config_;
 		eventsGenerated = 0;
 		wroteConfigFrame = false;
 		suspendOnCompletion = true;
 		random = random_;
 		earthModel = earth_;
-		old_earthModel = old_earth_;
 		if(config.injectionRadius<0)
 			throw std::runtime_error(": InjectionRadius must be non-negative");
 		if(config.endcapLength<0)
@@ -287,10 +286,6 @@ namespace LeptonInjector{
 		bool isTau = (this->config.finalType1==Particle::ParticleType::TauMinus) || (this->config.finalType1==Particle::ParticleType::TauPlus); 
 
 		bool use_electron_density = getInteraction(this->config.finalType1, this->config.finalType2 ) == 2;
-        // std::cerr << old_earthModel->GetColumnDepthInCGS(pca-config.endcapLength*dir,pca+config.endcapLength*dir, use_electron_density) << std::endl;
-        // std::cerr << earthModel->GetColumnDepthInCGS(earthModel->GetEarthCoordPosFromDetCoordPos(pca-config.endcapLength*dir),earthModel->GetEarthCoordPosFromDetCoordPos(pca+config.endcapLength*dir), use_electron_density) << std::endl;
-        // std::cerr << path.GetColumnDepthInBounds(use_electron_density) << std::endl;
-        // std::cerr << std::endl;
 		double lepton_range = GetLeptonRange(energy, isTau=isTau);
         double lepton_depth = MWEtoColumnDepthCGS(lepton_range);
         LI_Position endcap_0 = pca - config.endcapLength*dir;
@@ -326,14 +321,13 @@ namespace LeptonInjector{
 	VolumeLeptonInjector::VolumeLeptonInjector(){
 	}
 	
-	VolumeLeptonInjector::VolumeLeptonInjector(BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<earthmodel::EarthModelService> old_earth_, std::shared_ptr<LI_random> random_){
+	VolumeLeptonInjector::VolumeLeptonInjector(BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<LI_random> random_){
 		eventsGenerated = 0;
 		wroteConfigFrame = false;
 		suspendOnCompletion = true;
 		random = random_;
 		config = config_;
 		earthModel = earth_;
-		old_earthModel = old_earth_;
 		if(config.cylinderRadius<0)
 			throw std::runtime_error(": CylinderRadius must be non-negative");
 		if(config.cylinderHeight<0)
@@ -370,10 +364,7 @@ namespace LeptonInjector{
         std::tuple<LI_Position, LI_Position> cylinder_intersections =
             computeCylinderIntersections(vertex, dir, config.cylinderRadius, -config.cylinderHeight/2., config.cylinderHeight/2.);
 		properties.totalColumnDepth =
-            old_earthModel->GetColumnDepthInCGS(std::get<0>(cylinder_intersections), std::get<1>(cylinder_intersections), use_electron_density);
-        std::cout << properties.totalColumnDepth << std::endl;
-        std::cout << earthModel->GetColumnDepthInCGS(std::get<0>(cylinder_intersections), std::get<1>(cylinder_intersections), use_electron_density) << std::endl;
-        std::cout << std::endl;
+            earthModel->GetColumnDepthInCGS(earthModel->GetEarthCoordPosFromDetCoordPos(std::get<0>(cylinder_intersections)), earthModel->GetEarthCoordPosFromDetCoordPos(std::get<1>(cylinder_intersections)), use_electron_density);
 
 		// write hdf5 file! 
 

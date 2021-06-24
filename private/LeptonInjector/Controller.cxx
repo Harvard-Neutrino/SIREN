@@ -71,10 +71,6 @@ namespace LeptonInjector {
         this->earthModel = earthModel_;
     }
 
-    void Controller::SetEarthModel(std::shared_ptr<earthmodel::EarthModelService> old_earthModel_){
-        this->old_earthModel = old_earthModel_;
-    }
-
     void Controller::NameOutfile( std::string out_file_){
         out_file = out_file_;
     }
@@ -155,16 +151,14 @@ namespace LeptonInjector {
 
 
             if(genSet->ranged){
-                RangedLeptonInjector* generator  = new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->old_earthModel, this->random);
+                RangedLeptonInjector* generator  = new RangedLeptonInjector(this->rangedConfig, this->earthModel, this->random);
                 generator->earthModel = this->earthModel;
-                generator->old_earthModel = this->old_earthModel;
                 generator->Configure( *genSet );
                 generators.push_back(generator);
             }
             else{ //volume
-                VolumeLeptonInjector* generator= new VolumeLeptonInjector(volumeConfig, earthModel, old_earthModel, random);
+                VolumeLeptonInjector* generator= new VolumeLeptonInjector(volumeConfig, earthModel, random);
                 generator->earthModel = this->earthModel;
-                generator->old_earthModel = this->old_earthModel;
                 generator->Configure( *genSet );
                 generators.push_back(generator);
             }
