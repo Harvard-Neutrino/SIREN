@@ -40,6 +40,7 @@ class Controller{
 
         // Shared pointer refering to the Earth model used. 
         std::shared_ptr<earthmodel::EarthModel> earthModel;
+        std::shared_ptr<earthmodel::EarthModelService> old_earthModel;
         // Shared pointer refering to the random number generator.
         const std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
 
@@ -73,6 +74,7 @@ class Controller{
         
         // changes the Earth model to be used with the injectors
         void SetEarthModel(std::shared_ptr<earthmodel::EarthModel> earthModel);
+        void SetEarthModel(std::shared_ptr<earthmodel::EarthModelService> old_earthModel);
         // adds a new injector to be used in the process 
         void AddInjector(Injector configs_received);
         // changes the name of the data file

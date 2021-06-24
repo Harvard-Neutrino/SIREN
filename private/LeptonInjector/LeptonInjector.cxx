@@ -246,13 +246,14 @@ namespace LeptonInjector{
 	RangedLeptonInjector::RangedLeptonInjector(){
 	}
 	
-	RangedLeptonInjector::RangedLeptonInjector( BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<LI_random> random_){
+	RangedLeptonInjector::RangedLeptonInjector( BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<earthmodel::EarthModelService> old_earth_, std::shared_ptr<LI_random> random_){
 		config = config_;
 		eventsGenerated = 0;
 		wroteConfigFrame = false;
 		suspendOnCompletion = true;
 		random = random_;
 		earthModel = earth_;
+		old_earthModel = old_earth_;
 		if(config.injectionRadius<0)
 			throw std::runtime_error(": InjectionRadius must be non-negative");
 		if(config.endcapLength<0)
@@ -286,25 +287,57 @@ namespace LeptonInjector{
 		bool isTau = (this->config.finalType1==Particle::ParticleType::TauMinus) || (this->config.finalType1==Particle::ParticleType::TauPlus); 
 
 		bool use_electron_density = getInteraction(this->config.finalType1, this->config.finalType2 ) == 2;
-        earthmodel::Path path(earthModel, pca-config.endcapLength*dir, dir, config.endcapLength*2);
-		double totalColumnDepth=MWEtoColumnDepthCGS(GetLeptonRange(energy, isTau=isTau))
-		+earthModel->GetColumnDepthInCGS(pca-config.endcapLength*dir,pca+config.endcapLength*dir, use_electron_density);
-        path.ExtendFromStartByColumnDepth(MWEtoColumnDepthCGS(GetLeptonRange(energy, isTau=isTau)), use_electron_density);
-        totalColumnDepth = path.GetColumnDepthInBounds(use_electron_density);
+        // std::cerr << old_earthModel->GetColumnDepthInCGS(pca-config.endcapLength*dir,pca+config.endcapLength*dir, use_electron_density) << std::endl;
+        // std::cerr << earthModel->GetColumnDepthInCGS(earthModel->GetEarthCoordPosFromDetCoordPos(pca-config.endcapLength*dir),earthModel->GetEarthCoordPosFromDetCoordPos(pca+config.endcapLength*dir), use_electron_density) << std::endl;
+        // std::cerr << path.GetColumnDepthInBounds(use_electron_density) << std::endl;
+        // std::cerr << std::endl;
+        std::cerr << "###############" << std::endl;
+		double lepton_range = GetLeptonRange(energy, isTau=isTau);
+        double lepton_depth = MWEtoColumnDepthCGS(lepton_range);
+        std::cerr << "Lepton range: " << lepton_range << std::endl;
+        std::cerr << "Lepton depth: " << lepton_depth << std::endl;
+        std::cerr << std::endl;
+        LI_Position endcap_0 = pca - config.endcapLength*dir;
+        LI_Position endcap_1 = pca + config.endcapLength*dir;
+        earthmodel::Path path(earthModel, earthModel->GetEarthCoordPosFromDetCoordPos(endcap_0), earthModel->GetEarthCoordDirFromDetCoordDir(dir), config.endcapLength*2);
+        std::cerr << "Endcap distance: " << (endcap_1 - endcap_0) * dir << " " << path.GetDistance() << std::endl;
+        double column_depth_in_endcaps = old_earthModel->GetColumnDepthInCGS(endcap_0, endcap_1, use_electron_density);
+        double path_column_depth_in_endcaps = path.GetColumnDepthInBounds();
+        std::cerr << "Column depth in endcaps: " << column_depth_in_endcaps << " " << path_column_depth_in_endcaps << std::endl;
+        std::cerr << std::endl;
+
+		double totalColumnDepth = lepton_depth + column_depth_in_endcaps;
+        double path_totalColumnDepth = lepton_depth + path_column_depth_in_endcaps;
+        std::cerr << "Desired column depth: " << totalColumnDepth << " " << path_totalColumnDepth << std::endl;
+        path.ExtendFromStartToColumnDepth(path_totalColumnDepth, use_electron_density);
+        std::cerr << "Path found column depth: " << path_totalColumnDepth << std::endl;
+        std::cerr << std::endl;
 		//See whether that much column depth actually exists along the chosen path
 		{
-			double maxDist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth, use_electron_density)-config.endcapLength;
-			double actualColumnDepth=earthModel->GetColumnDepthInCGS(pca+config.endcapLength*dir,pca-maxDist*dir, use_electron_density);
+			double maxDist=old_earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth, use_electron_density)-config.endcapLength;
+			double path_maxDist=earthModel->DistanceForColumnDepthToPoint(earthModel->GetEarthCoordPosFromDetCoordPos(pca+config.endcapLength*dir),earthModel->GetEarthCoordDirFromDetCoordDir(dir),totalColumnDepth, use_electron_density)-config.endcapLength;
+            std::cerr << "Maximum distance: " << maxDist << " " << path_maxDist << std::endl;
+			double actualColumnDepth=old_earthModel->GetColumnDepthInCGS(pca+config.endcapLength*dir,pca-maxDist*dir, use_electron_density);
+			double path_actualColumnDepth=earthModel->GetColumnDepthInCGS(earthModel->GetEarthCoordPosFromDetCoordPos(pca+config.endcapLength*dir),earthModel->GetEarthCoordPosFromDetCoordPos(pca-path_maxDist*dir), use_electron_density);
+            std::cerr << "Actual column depth: " << actualColumnDepth << " " << path_actualColumnDepth << std::endl;
 			if(actualColumnDepth<(totalColumnDepth-1)){ //if actually smaller, clip as needed, but for tiny differences we don't care
 				//log_debug_stream("Wanted column depth of " << totalColumnDepth << " but found only " << actualColumnDepth << " g/cm^2");
 				totalColumnDepth=actualColumnDepth;
 			}
+            path.ClipToOuterBounds();
+            path_totalColumnDepth = path.GetColumnDepthInBounds(use_electron_density);
+            std::cerr << "Clipped column depth: " << totalColumnDepth << " " << path_totalColumnDepth << std::endl;
+			if(path_actualColumnDepth<(path_totalColumnDepth-1)){ //if actually smaller, clip as needed, but for tiny differences we don't care
+				//log_debug_stream("Wanted column depth of " << totalColumnDepth << " but found only " << actualColumnDepth << " g/cm^2");
+				path_totalColumnDepth=path_actualColumnDepth;
+			}
+            std::cerr << "Final column depth: " << totalColumnDepth << " " << path_totalColumnDepth << std::endl;
+            std::cerr << std::endl;
 		}
 		//Choose how much of the total column depth this event should have to traverse
 		double traversedColumnDepth=totalColumnDepth*random->Uniform();
 		//endcapLength is subtracted so that dist==0 corresponds to pca
-		double dist=earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth-traversedColumnDepth, use_electron_density)-config.endcapLength;
-        dist = path.GetDistanceFromStartAlongPath(traversedColumnDepth);
+		double dist=old_earthModel->DistanceForColumnDepthToPoint(pca+config.endcapLength*dir,dir,totalColumnDepth-traversedColumnDepth, use_electron_density)-config.endcapLength;
 		
 		/* { //ensure that the point we picked is inside the atmosphere
 			LI_Position atmoEntry, atmoExit;
@@ -318,8 +351,22 @@ namespace LeptonInjector{
 			if(std::abs(dist-atmoDist)<100.0)
 				dist=std::min(dist,atmoDist);
 		} */
-		LI_Position vertex=pca-(dist*dir);
-        vertex = path.GetFirstPoint() + path.GetDistanceFromStartAlongPath(traversedColumnDepth) * path.GetDirection();
+		LI_Position vertex = pca - (dist * dir);
+        LI_Position path_vertex = earthModel->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + path.GetDistanceFromStartAlongPath(traversedColumnDepth) * path.GetDirection());
+        double final_density = old_earthModel->GetDensityInCGS(vertex);
+        double path_final_density = earthModel->GetDensity(path.GetFirstPoint() + path.GetDistanceFromStartAlongPath(traversedColumnDepth) * path.GetDirection());
+        std::cerr << "Final density: " << final_density << " " << path_final_density << std::endl;
+        double final_distance = (pca - vertex) * dir;
+        double path_final_distance = (pca - path_vertex) * dir;
+        std::cerr << "Final distance: " << final_distance << " " << path_final_distance << std::endl;
+        std::cerr << std::endl;
+
+        std::cerr << "Final vertex: " << std::endl;
+        std::cerr << earthmodel::Vector3D(vertex) << std::endl;
+        std::cerr << earthmodel::Vector3D(path_vertex) << std::endl;
+        std::cerr << std::endl;
+        assert(final_density == path_final_density or (final_density == 0.000811 and path_final_density == 1e-25));
+        assert(std::abs(final_distance - path_final_distance) < 1e-1 or std::abs(final_distance - path_final_distance) < 1e-2 * std::max(std::abs(final_distance), std::abs(path_final_distance)));
 		
 		//assemble the MCTree
 
@@ -347,13 +394,14 @@ namespace LeptonInjector{
 	VolumeLeptonInjector::VolumeLeptonInjector(){
 	}
 	
-	VolumeLeptonInjector::VolumeLeptonInjector(BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<LI_random> random_){
+	VolumeLeptonInjector::VolumeLeptonInjector(BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<earthmodel::EarthModelService> old_earth_, std::shared_ptr<LI_random> random_){
 		eventsGenerated = 0;
 		wroteConfigFrame = false;
 		suspendOnCompletion = true;
 		random = random_;
 		config = config_;
 		earthModel = earth_;
+		old_earthModel = old_earth_;
 		if(config.cylinderRadius<0)
 			throw std::runtime_error(": CylinderRadius must be non-negative");
 		if(config.cylinderHeight<0)
@@ -390,7 +438,10 @@ namespace LeptonInjector{
         std::tuple<LI_Position, LI_Position> cylinder_intersections =
             computeCylinderIntersections(vertex, dir, config.cylinderRadius, -config.cylinderHeight/2., config.cylinderHeight/2.);
 		properties.totalColumnDepth =
-            earthModel->GetColumnDepthInCGS(std::get<0>(cylinder_intersections), std::get<1>(cylinder_intersections), use_electron_density);
+            old_earthModel->GetColumnDepthInCGS(std::get<0>(cylinder_intersections), std::get<1>(cylinder_intersections), use_electron_density);
+        std::cout << properties.totalColumnDepth << std::endl;
+        std::cout << earthModel->GetColumnDepthInCGS(std::get<0>(cylinder_intersections), std::get<1>(cylinder_intersections), use_electron_density) << std::endl;
+        std::cout << std::endl;
 
 		// write hdf5 file! 
 

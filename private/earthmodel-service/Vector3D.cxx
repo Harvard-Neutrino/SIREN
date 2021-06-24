@@ -137,7 +137,7 @@ std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d)
 
     os << "Cartesian Coordinates (x[cm],y[cm],z[cm]):\n"
        << vector_3d.cartesian_.x_ << "\t" << vector_3d.cartesian_.y_ << "\t" << vector_3d.cartesian_.z_ << std::endl;
-    os << "Spherical Coordinates (radius[cm],azimut[rad],zenith[rad]):\n"
+    os << "Spherical Coordinates (radius[cm],azimuth[rad],zenith[rad]):\n"
        << vector_3d.spherical_.radius_ << "\t" << vector_3d.spherical_.azimuth_ << "\t" << vector_3d.spherical_.zenith_
        << std::endl;
     // os<<"\tCylindrical Coordinates

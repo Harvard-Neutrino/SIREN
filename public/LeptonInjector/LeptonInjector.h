@@ -19,6 +19,7 @@
 
 #include "phys-services/LICrossSection.h"
 #include "earthmodel-service/EarthModel.h"
+#include "earthmodel-service/EarthModelService.h"
 
 namespace LeptonInjector{
 	
@@ -134,26 +135,28 @@ namespace LeptonInjector{
 	class RangedLeptonInjector : public LeptonInjectorBase{
 	public:
 		RangedLeptonInjector();
-		RangedLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModel> earth, std::shared_ptr<LI_random> random_);
+		RangedLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModel> earth, std::shared_ptr<earthmodel::EarthModelService> old_earth, std::shared_ptr<LI_random> random_);
 		bool Generate() override;
 		std::string Name() const override {return("RangedInjector");}
 		bool isRanged() const override {return(true);}
 
 		// the earthmodel will just be a null poitner at instantiation
 		std::shared_ptr<earthmodel::EarthModel> earthModel;
+		std::shared_ptr<earthmodel::EarthModelService> old_earthModel;
 	
 	};
 	
 	class VolumeLeptonInjector : public LeptonInjectorBase{
 	public:
 		VolumeLeptonInjector();
-		VolumeLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModel> earth, std::shared_ptr<LI_random> random_);
+		VolumeLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModel> earth, std::shared_ptr<earthmodel::EarthModelService> old_earth, std::shared_ptr<LI_random> random_);
 		bool Generate() override;
 		std::string Name() const override {return("VolumeInjector");}
 		bool isRanged() const override{return(false);}
 
 		// the earthmodel will just be a null poitner at instantiation
 		std::shared_ptr<earthmodel::EarthModel> earthModel;
+		std::shared_ptr<earthmodel::EarthModelService> old_earthModel;
 	};
 	
 	//----
