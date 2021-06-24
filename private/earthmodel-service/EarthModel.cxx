@@ -293,7 +293,7 @@ double EarthModel::GetDensity(Geometry::IntersectionList const & intersections, 
     } else {
         dot = 1;
     }
-    double density = -1.0;
+    double density = std::numeric_limits<double>::quiet_NaN();
 
     std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
         [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
@@ -572,7 +572,7 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
     }
 
     double total_column_depth = 0.0;
-    double total_distance = -1;
+    double total_distance = std::numeric_limits<double>::quiet_NaN();
     std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
         [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
         // The local integration is bounded on the upper end by the intersection and the global integral boundary

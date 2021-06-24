@@ -141,7 +141,6 @@ void Path::ClipToOuterBounds() {
         assert(bounds.intersections.size() == 2);
         Vector3D p0 = bounds.intersections[0].position;
         Vector3D p1 = bounds.intersections[1].position;
-        std::cerr << p0.magnitude() << " " << p1.magnitude() << std::endl;
         Vector3D direction = p1 - p0;
         double distance = direction.magnitude();
         direction.normalize();
@@ -155,11 +154,9 @@ void Path::ClipToOuterBounds() {
         bool clip = clip_0 or clip_1;
         if(clip_0) {
             first_point_ = p0;
-            std::cout << "Replace first point" << std::endl;
         }
         if(clip_1) {
             last_point_ = p1;
-            std::cout << "Replace last point" << std::endl;
         }
         if(clip) {
             distance_ = (last_point_ - first_point_).magnitude();
@@ -167,7 +164,6 @@ void Path::ClipToOuterBounds() {
             set_column_depth_electron_ = false;
         }
     } else {
-        std::cerr << "No bounds" << std::endl;
         return;
     }
 }
