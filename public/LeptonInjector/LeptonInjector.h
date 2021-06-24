@@ -19,7 +19,6 @@
 
 #include "phys-services/LICrossSection.h"
 #include "earthmodel-service/EarthModel.h"
-#include "earthmodel-service/EarthModelService.h"
 
 namespace LeptonInjector{
 	
