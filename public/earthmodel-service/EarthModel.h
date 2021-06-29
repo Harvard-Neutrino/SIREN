@@ -7,6 +7,7 @@
 
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/Geometry.h"
+#include "earthmodel-service/Placement.h"
 #include "earthmodel-service/DensityDist.h"
 #include "earthmodel-service/MaterialModel.h"
 
@@ -19,6 +20,7 @@ struct EarthSector {
     int material_id;
     int level;
     std::shared_ptr<const Geometry> geo;
+    std::shared_ptr<const Placement> placement;
     std::shared_ptr<const DensityDistribution> density;
     bool operator==(EarthSector const & o) const {
         return name == o.name and material_id == o.material_id and level == o.level and geo == o.geo and density == o.density;

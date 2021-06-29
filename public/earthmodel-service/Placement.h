@@ -2,8 +2,8 @@
 #define LI_Placement_H
 
 #include <sstream>
-#include "earthmodel-service/Rotation3D.h"
 #include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/Rotation3D.h"
 
 namespace earthmodel {
 
@@ -12,6 +12,7 @@ class Placement
 public:
     // constructors
     Placement();
+    Placement(Vector3D position, Rotation3D rotation);
     Placement(const Placement& placement);
     Placement(Placement&& other);
     ~Placement();
@@ -26,7 +27,6 @@ public:
     void swap(Placement& placement);
     friend std::ostream& operator<<(std::ostream& os, Placement const& placement);
 
-    //----------------------------------------------//
 private:
     Vector3D position_;
     Rotation3D rotation_;
