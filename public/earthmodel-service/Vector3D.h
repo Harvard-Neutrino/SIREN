@@ -31,8 +31,11 @@
 #define LI_Vector3D_H
 
 #include <sstream>
+#include "earthmodel-service/Matrix3D.h"
 
 namespace earthmodel {
+
+class Matrix3D;
 
 class Vector3D
 {
@@ -62,6 +65,7 @@ public:
     friend Vector3D operator-(const Vector3D& vec1, const Vector3D& vec2);
     friend Vector3D operator*(const double factor1, const Vector3D& vec1);
     friend Vector3D operator*(const Vector3D& vec1, const double factor1);
+    friend Vector3D operator*(const Matrix3D& mat1, const Vector3D& vec1);
     friend Vector3D operator/(const Vector3D& vec1, const double factor1);
     friend Vector3D& operator*=(Vector3D& vec1, const double factor1);
     friend Vector3D& operator/=(Vector3D& vec1, const double factor1);
