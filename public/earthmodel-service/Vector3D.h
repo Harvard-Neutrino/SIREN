@@ -1,16 +1,12 @@
 
 /******************************************************************************
  *                                                                            *
- * This file is part of the simulation tool PROPOSAL.                         *
+ * This file is adapted from a component of the simulation tool PROPOSAL.     *
  *                                                                            *
- * Copyright (C) 2017 TU Dortmund University, Department of Physics,          *
- *                    Chair Experimental Physics 5b                           *
+ * The PROPOSAL simulation tool is distributed under the terms of a modified  *
+ * GNU Lesser General Public License version 3 (LGPLv3).                       *
  *                                                                            *
- * This software may be modified and distributed under the terms of a         *
- * modified GNU Lesser General Public Licence version 3 (LGPL),               *
- * copied verbatim in the file "LICENSE".                                     *
- *                                                                            *
- * Modifcations to the LGPL License:                                          *
+ * Modifcations to the LGPLv3 License:                                          *
  *                                                                            *
  *      1. The user shall acknowledge the use of PROPOSAL by citing the       *
  *         following reference:                                               *
@@ -53,29 +49,44 @@ public:
     Vector3D& operator=(Vector3D const & vector_3d);
     Vector3D& operator=(Vector3D const && vector_3d);
     Vector3D& operator=(Vector3D && vector_3d);
+
     bool operator==(const Vector3D& vector_3d) const;
     bool operator!=(const Vector3D& vector_3d) const;
+
     void swap(Vector3D& vector_3d);
     friend std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d);
 
     //-------------------------------------//
     // basic arithmetic
+    Vector3D operator-() const;
+
     friend Vector3D operator+(const Vector3D& vec1, const Vector3D& vec2);
     friend Vector3D& operator+=(Vector3D& vec1, const Vector3D& vec2);
+
     friend Vector3D operator-(const Vector3D& vec1, const Vector3D& vec2);
-    friend Vector3D operator*(const double factor1, const Vector3D& vec1);
-    friend Vector3D operator*(const Vector3D& vec1, const double factor1);
-    friend Vector3D operator*(const Matrix3D& mat1, const Vector3D& vec1);
-    friend Vector3D operator/(const Vector3D& vec1, const double factor1);
-    friend Vector3D& operator*=(Vector3D& vec1, const double factor1);
-    friend Vector3D& operator/=(Vector3D& vec1, const double factor1);
+    friend Vector3D& operator-=(Vector3D& vec1, const Vector3D& vec2);
+
     friend double operator*(const Vector3D& vec1, const Vector3D& vec2);
+
+    friend Vector3D operator*(const Vector3D& vec1, const double factor1);
+    friend Vector3D& operator*=(Vector3D& vec1, const double factor1);
+    friend Vector3D operator*(const Vector3D& vec1, const Matrix3D& mat1);
+    friend Vector3D& operator*=(Vector3D& vec1, const Matrix3D& mat1);
+
+    friend Vector3D operator*(const double factor1, const Vector3D& vec1);
+    friend Vector3D operator*(const Matrix3D& mat1, const Vector3D& vec1);
+
+    friend Vector3D operator/(const Vector3D& vec1, const double factor1);
+    friend Vector3D& operator/=(Vector3D& vec1, const double factor1);
+
     friend double scalar_product(const Vector3D& vec1, const Vector3D& vec2);
     friend Vector3D vector_product(const Vector3D& vec1, const Vector3D& vec2);
-    Vector3D operator-() const;
+    friend Vector3D cross_product(const Vector3D& vec1, const Vector3D& vec2);
+
     double magnitude() const;
     void normalize();
-    void deflect(const double , const double);
+    void deflect(const double, const double);
+    void invert();
 
     struct CartesianCoordinates {
         CartesianCoordinates() {};
@@ -94,11 +105,9 @@ public:
     };
 
     //-------------------------------------//
-    // conversions to spherical and cylindrical coordinate
+    // conversions to spherical coordinates
     void CalculateCartesianFromSpherical();
     void CalculateSphericalCoordinates();
-    // void CalculateCartesianFromCylindrical();
-    // void CalculateCylindricalCoordinates();
 
     //-------------------------------------//
     // setter
@@ -114,12 +123,6 @@ public:
         spherical_.azimuth_ = azimuth;
         spherical_.zenith_  = zenith;
     }
-    // void SetCylindricalCoordinates(const double radius, const double azimuth, const double height)
-    // {
-    //     cylindric_radius_  = radius;
-    //     cylindric_azimuth_ = azimuth;
-    //     cylindric_height_  = height;
-    // }
 
     //-------------------------------------//
     // getter
@@ -136,8 +139,6 @@ public:
 private:
     CartesianCoordinates cartesian_;
     SphericalCoordinates spherical_;
-
-    // double cylindric_radius_, cylindric_azimuth_, cylindric_height_;
 };
 
 } // namespace earthmodel

@@ -14,18 +14,12 @@ using namespace earthmodel;
 Vector3D::Vector3D()
     : cartesian_(0,0,0)
     , spherical_(0,0,0)
-// , cylindric_radius_  (0)
-// , cylindric_azimuth_ (0)
-// , cylindric_height_  (0)
 {
 }
 
 Vector3D::Vector3D(const double x, const double y, const double z)
     : cartesian_(x, y, z)
     , spherical_(0,0,0)
-// , cylindric_radius_  (0)
-// , cylindric_azimuth_ (0)
-// , cylindric_height_  (0)
 {
 }
 
@@ -33,9 +27,6 @@ Vector3D::Vector3D(const double x, const double y, const double z)
 Vector3D::Vector3D(const Vector3D& vector_3d)
     : cartesian_(vector_3d.cartesian_)
     , spherical_(vector_3d.spherical_)
-// , cylindric_radius_  (vector_3d.cylindric_radius_)
-// , cylindric_azimuth_ (vector_3d.cylindric_azimuth_)
-// , cylindric_height_  (vector_3d.cylindric_height_)
 {
 }
 
@@ -44,20 +35,6 @@ Vector3D::Vector3D(Vector3D&& other)
     , spherical_(std::move(other.spherical_))
 {
 }
-
-/*Vector3D::Vector3D(const nlohmann::json& config)
-    : spherical_(0,0,0)
-{
-    if(not config.is_array()) throw std::invalid_argument("Vector3D is not a 3 component array.");
-    if(not (config.size() == 3)) throw std::invalid_argument("Vector3D is not 3.");
-    if(not config[0].is_number()) throw std::invalid_argument("x is not a number");
-    if(not config[1].is_number()) throw std::invalid_argument("y is not a number");
-    if(not config[2].is_number()) throw std::invalid_argument("z is not a number");
-
-    config[0].get_to(cartesian_.x_);
-    config[1].get_to(cartesian_.y_);
-    config[2].get_to(cartesian_.z_);
-}*/
 
 // destructor
 Vector3D::~Vector3D() {}
@@ -101,9 +78,6 @@ bool Vector3D::operator==(const Vector3D& vector_3d) const
         return false;
     else if (spherical_.zenith_ != vector_3d.spherical_.zenith_)
         return false;
-    // else if (cylindric_radius_  != vector_3d.cylindric_radius_)  return false;
-    // else if (cylindric_azimuth_ != vector_3d.cylindric_azimuth_) return false;
-    // else if (cylindric_height_  != vector_3d.cylindric_height_)  return false;
 
     return true;
 }
@@ -123,9 +97,6 @@ void Vector3D::swap(Vector3D& vector_3d)
     swap(spherical_.radius_, vector_3d.spherical_.radius_);
     swap(spherical_.azimuth_, vector_3d.spherical_.azimuth_);
     swap(spherical_.zenith_, vector_3d.spherical_.zenith_);
-    // swap(cylindric_radius_,  vector_3d.cylindric_radius_);
-    // swap(cylindric_azimuth_, vector_3d.cylindric_azimuth_);
-    // swap(cylindric_height_,  vector_3d.cylindric_height_);
 }
 
 namespace earthmodel {
@@ -140,10 +111,7 @@ std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d)
     os << "Spherical Coordinates (radius[cm],azimuth[rad],zenith[rad]):\n"
        << vector_3d.spherical_.radius_ << "\t" << vector_3d.spherical_.azimuth_ << "\t" << vector_3d.spherical_.zenith_
        << std::endl;
-    // os<<"\tCylindrical Coordinates
-    // (radius,azimut,height):\t"<<vector_3d.cylindric_radius_<<"\t"<<vector_3d.cylindric_azimuth_<<"\t"<<vector_3d.cylindric_height_<<std::endl;
 
-    //os << Helper::Centered(60, "");
     return os;
 }
 } // namespace earthmodel
@@ -151,6 +119,15 @@ std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d)
 //----------------------------------------------------------------------//
 //-----------------------operator basic arithmetic ---------------------//
 //----------------------------------------------------------------------//
+
+Vector3D Vector3D::operator-() const
+{
+    Vector3D vector_3d;
+    vector_3d.cartesian_.x_ = -cartesian_.x_;
+    vector_3d.cartesian_.y_ = -cartesian_.y_;
+    vector_3d.cartesian_.z_ = -cartesian_.z_;
+    return vector_3d;
+}
 
 namespace earthmodel {
 
@@ -180,7 +157,20 @@ Vector3D operator-(const Vector3D& vec1, const Vector3D& vec2)
     return vector_diff;
 }
 
-Vector3D operator*(const double factor1, const Vector3D& vec1)
+Vector3D& operator-=(Vector3D& vec1, const Vector3D& vec2)
+{
+    vec1.cartesian_.x_ -= vec2.cartesian_.x_;
+    vec1.cartesian_.y_ -= vec2.cartesian_.y_;
+    vec1.cartesian_.z_ -= vec2.cartesian_.z_;
+    return vec1;
+}
+
+double operator*(const Vector3D& vec1, const Vector3D& vec2)
+{
+    return scalar_product(vec1, vec2);
+}
+
+Vector3D operator*(const Vector3D& vec1, const double factor1)
 {
     Vector3D product;
     product.cartesian_.x_ = factor1 * vec1.cartesian_.x_;
@@ -189,7 +179,15 @@ Vector3D operator*(const double factor1, const Vector3D& vec1)
     return product;
 }
 
-Vector3D operator*(const Vector3D& vec1, const double factor1)
+Vector3D& operator*=(Vector3D& vec1, const double factor1)
+{
+    vec1.cartesian_.x_ *= factor1;
+    vec1.cartesian_.y_ *= factor1;
+    vec1.cartesian_.z_ *= factor1;
+    return vec1;
+}
+
+Vector3D operator*(const double factor1, const Vector3D& vec1)
 {
     Vector3D product;
     product.cartesian_.x_ = factor1 * vec1.cartesian_.x_;
@@ -207,25 +205,12 @@ Vector3D operator/(const Vector3D& vec1, const double factor1)
     return product;
 }
 
-Vector3D& operator*=(Vector3D& vec1, const double factor1)
-{
-    vec1.cartesian_.x_ *= factor1;
-    vec1.cartesian_.y_ *= factor1;
-    vec1.cartesian_.z_ *= factor1;
-    return vec1;
-}
-
 Vector3D& operator/=(Vector3D& vec1, const double factor1)
 {
     vec1.cartesian_.x_ /= factor1;
     vec1.cartesian_.y_ /= factor1;
     vec1.cartesian_.z_ /= factor1;
     return vec1;
-}
-
-double operator*(const Vector3D& vec1, const Vector3D& vec2)
-{
-    return scalar_product(vec1, vec2);
 }
 
 double scalar_product(const Vector3D& vec1, const Vector3D& vec2)
@@ -242,16 +227,12 @@ Vector3D vector_product(const Vector3D& vec1, const Vector3D& vec2)
     return product;
 }
 
-} // namespace earthmodel
-
-Vector3D Vector3D::operator-() const
+Vector3D cross_product(const Vector3D& vec1, const Vector3D& vec2)
 {
-    Vector3D vector_3d;
-    vector_3d.cartesian_.x_ = -cartesian_.x_;
-    vector_3d.cartesian_.y_ = -cartesian_.y_;
-    vector_3d.cartesian_.z_ = -cartesian_.z_;
-    return vector_3d;
+    return vector_product(vec1, vec2);
 }
+
+} // namespace earthmodel
 
 double Vector3D::magnitude() const
 {
@@ -296,6 +277,12 @@ void Vector3D::deflect(const double cosphi_deflect, const double theta_deflect)
 
         *this = new_direction;
     }
+}
+
+void Vector3D::invert() {
+    cartesian_.x_ = -cartesian_.x_;
+    cartesian_.y_ = -cartesian_.y_;
+    cartesian_.z_ = -cartesian_.z_;
 }
 
 //----------------------------------------------------------------------//
