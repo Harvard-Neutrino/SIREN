@@ -20,8 +20,24 @@ public:
 
     void SetEulerAngles(double alpha, double beta, double gamma);
     void SetPosition(Vector3D const & vec);
+
+    void GetMatrix(Matrix3D &) const;
     Matrix3D GetMatrix() const;
     void SetMatrix();
+
+    Quaternion & invert();
+    Quaternion & normalize();
+
+    double DotProduct(Quaternion const &);
+
+    static Quaternion lerp(Quaternion const &, Quaternion const &);
+    static Quaternion slerp(Quaternion const &, Quaternion const &);
+
+    void SetAxisAngle(Vector3D const &, double);
+    void GetAxisAngle(Vector3D &, double &);
+    std::tuple<Vector3D, double> GetAxisAngle();
+
+    void GetAnglesEulerZXZ(double & alpha, double & beta, double & gamma);
 
 
     //-------------------------------------//
@@ -34,7 +50,10 @@ public:
     void swap(Quaternion& quaternion);
     friend std::ostream& operator<<(std::ostream& os, Quaternion const& quaternion);
 
-    friend Quaternion operator*(Quaternion & const)
+    Quaternion operator*(Quaternion & const) const;
+    Quaternion & operator*=(Quaternion & const);
+    Quaternion operator*(double) const;
+    Quaternion & operator*=(double);
 private:
     double x_;
     double y_;
