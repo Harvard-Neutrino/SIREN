@@ -38,9 +38,8 @@ public:
 
     void GetAnglesEulerZXZ(double & alpha, double & beta, double & gamma) const;
     void SetAnglesEulerZXZ(double alpha, double beta, double gamma);
-    void GetAnglesTaitBryanZYX(double & yaw, double & pitch, double & roll) const;
-    void SetAnglesTaitBryanZYX(double yaw, double pitch, double roll);
-
+    void GetAnglesTaitBryanZXY(double & yaw, double & pitch, double & roll) const;
+    void SetAnglesTaitBryanZXY(double yaw, double pitch, double roll);
 
     //-------------------------------------//
     // operator functions and swap

@@ -287,7 +287,7 @@ void Quaternion::SetAnglesEulerZXZ(double alpha, double beta, double gamma)
     normalize();
 }
 
-void Quaternion::GetAnglesTaitBryanZYX(double & yaw, double & pitch, double & roll) const
+void Quaternion::GetAnglesTaitBryanZXY(double & yaw, double & pitch, double & roll) const
 {
     double t0 = x_ * x_ - z_ * z_;
     double t1 = w_ * w_ - y_ * y_;
@@ -307,7 +307,7 @@ void Quaternion::GetAnglesTaitBryanZYX(double & yaw, double & pitch, double & ro
     }
 }
 
-void Quaternion::SetAnglesTaitBryanZYX(double yaw, double pitch, double roll)
+void Quaternion::SetAnglesTaitBryanZXY(double yaw, double pitch, double roll)
 {
     double theta = yaw/2;
     const double sa = sin(theta);
@@ -319,10 +319,10 @@ void Quaternion::SetAnglesTaitBryanZYX(double yaw, double pitch, double roll)
     const double sg = sin(theta);
     const double cg = cos(theta);
 
-    x_ = sa * cb * cg - ca * sb * sg;
-    y_ = ca * sb * cg + sa * cb * sg;
-    z_ = ca * cb * sg - sa * sb * cg;
-    w_ = ca * cb * cg + sa * sb * sg;
+    x_ = ca * sb * cg - sa * cb * sg;
+    y_ = sa * cb * cg + ca * sb * sg;
+    z_ = sa * sb * cg + ca * cb * sg;
+    w_ = ca * cb * cg - sa * sb * sg;
 
     normalize();
 }
