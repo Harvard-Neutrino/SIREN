@@ -173,35 +173,6 @@ Quaternion & Quaternion::invert() {
     return *this;
 }
 
-void Quaternion::SetEulerAngles(double alpha, double beta, double gamma)
-{
-    double theta;
-
-    theta = x / 2.0;
-    const double sr = sin(theta);
-    const double cr = cos(theta);
-
-    theta = y / 2.0;
-    const double sp = sin(theta);
-    const double cp = cos(theta);
-
-    theta = z / 2.0;
-    const double sy = sin(theta);
-    const double cy = cos(theta);
-
-    const double cpcy = cp * cy;
-    const double spcy = sp * cy;
-    const double cpsy = cp * sy;
-    const double spsy = sp * sy;
-
-    x_ = (sr * cpcy - cr * spsy);
-    y_ = (cr * spcy + sr * cpsy);
-    z_ = (cr * cpsy - sr * spcy);
-    w_ = (cr * cpcy + sr * spsy);
-
-    return normalize();
-}
-
 void Quaternion::SetPosition(Vector3D & const vec)
 {
     w_ = 0.0;
@@ -291,4 +262,67 @@ void Quaternion::GetAnglesEulerZXZ(double & alpha, double & beta, double & gamma
         beta = 2.0 * atan(sqrt(s2 / c2));
     else
         beta = (0.5 > s2) ? 0 : M_PI;
+}
+
+void Quaternion::SetAnglesEulerZXZ(double alpha, double beta, double gamma)
+{
+    double theta = beta/2;
+
+    const double sb = sin(theta);
+    const double cb = cos(theta);
+
+    theta = (gamma + alpha)/2;
+    const double ss = sin(theta);
+    const double cs = cos(theta);
+
+    theta = (gamma - alpha)/2;
+    const double sd = sin(theta);
+    const double cd = cos(theta);
+
+    x_ = sb * cd;
+    y_ = sb * sd;
+    z_ = cb * ss;
+    w_ = cb * cs;
+
+    normalize();
+}
+
+void Quaternion::GetAnglesTaitBryanZYX(double & yaw, double & pitch, double & roll) const
+{
+    double t0 = x_ * x_ - z_ * z_;
+    double t1 = w_ * w_ - y_ * y_;
+    double xx = 0.5 * (t0 + t1);
+    double xy = x_ * y_ + w_ * z_;
+    double xz = w_ * y_ - x_ * z_;
+    double yz = 2.0 * (y_ * z_ + w_ * x);
+    double t  = xx * xx + xy * xy;
+
+    yaw = atan2(xy, xx);
+    pitch = atan(xz / sqrt(t));
+
+    if (t != 0) {
+        roll = atan2(yz, t1 - t0);
+    } else {
+        roll = 2.0 * atan2(x_, w_) - std::copysign(1.0, xz) * yaw;
+    }
+}
+
+void Quaternion::SetAnglesTaitBryanZYX(double yaw, double pitch, double roll)
+{
+    double theta = yaw/2;
+    const double sa = sin(theta);
+    const double ca = cos(theta);
+    theta = pitch/2;
+    const double sb = sin(theta);
+    const double cb = cos(theta);
+    theta = roll/2;
+    const double sg = sin(theta);
+    const double cg = cos(theta);
+
+    x_ = sa * cb * cg - ca * sb * sg;
+    y_ = ca * sb * cg + sa * cb * sg;
+    z_ = ca * cb * sg - sa * sb * cg;
+    w_ = ca * cb * cg + sa * sb * sg;
+
+    normalize();
 }

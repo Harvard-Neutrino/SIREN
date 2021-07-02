@@ -18,7 +18,6 @@ public:
     Quaternion(Quaternion&& other);
     ~Quaternion();
 
-    void SetEulerAngles(double alpha, double beta, double gamma);
     void SetPosition(Vector3D const & vec);
 
     void GetMatrix(Matrix3D &) const;
@@ -28,16 +27,19 @@ public:
     Quaternion & invert();
     Quaternion & normalize();
 
-    double DotProduct(Quaternion const &);
+    double DotProduct(Quaternion const &) const;
 
     static Quaternion lerp(Quaternion const &, Quaternion const &);
     static Quaternion slerp(Quaternion const &, Quaternion const &);
 
     void SetAxisAngle(Vector3D const &, double);
-    void GetAxisAngle(Vector3D &, double &);
-    std::tuple<Vector3D, double> GetAxisAngle();
+    void GetAxisAngle(Vector3D &, double &) const;
+    std::tuple<Vector3D, double> GetAxisAngle() const;
 
-    void GetAnglesEulerZXZ(double & alpha, double & beta, double & gamma);
+    void GetAnglesEulerZXZ(double & alpha, double & beta, double & gamma) const;
+    void SetAnglesEulerZXZ(double alpha, double beta, double gamma);
+    void GetAnglesTaitBryanZYX(double & yaw, double & pitch, double & roll) const;
+    void SetAnglesTaitBryanZYX(double yaw, double pitch, double roll);
 
 
     //-------------------------------------//
