@@ -371,6 +371,38 @@ Matrix3D Matrix3D::operator-() const
     return matrix_3d;
 }
 
+double const & Matrix3D::operator[](std::initializer_list<unsigned int> index) const {
+    unsigned int row = *index.begin();
+    unsigned int column = *(index.begin()+1);
+    unsigned int i = ((row & 3) << 2) & (column & 3);
+    switch(i) {
+        case 0:
+            return xx_; break;
+        case 1:
+            return xy_; break;
+        case 2:
+            return xz_; break;
+        case 4:
+            return yx_; break;
+        case 5:
+            return yy_; break;
+        case 6:
+            return yz_; break;
+        case 8:
+            return zx_; break;
+        case 9:
+            return zy_; break;
+        case 10:
+            return zz_; break;
+        default:
+            throw("Out of bounds!");
+    }
+}
+
+double & Matrix3D::operator[](std::initializer_list<unsigned int> index) {
+    return const_cast<double &>(const_cast<const Matrix3D*>(this)->operator[](index));
+}
+
 //----------------------------------------------------------------------//
 //---------------------private member function--------------------------//
 //----------------------------------------------------------------------//

@@ -2,6 +2,7 @@
 #define LI_Matrix3D_H
 
 #include <sstream>
+#include <initializer_list>
 #include "earthmodel-service/Vector3D.h"
 
 namespace earthmodel {
@@ -53,6 +54,9 @@ public:
     friend Matrix3D scalar_product(const Matrix3D& mat1, const Matrix3D& mat2);
     friend Matrix3D matrix_product(const Matrix3D& mat1, const Matrix3D& mat2);
     Matrix3D operator-() const;
+
+    double const & operator[](std::initializer_list<unsigned int>) const;
+    double & operator[](std::initializer_list<unsigned int>);
 
     //-------------------------------------//
     // getter
