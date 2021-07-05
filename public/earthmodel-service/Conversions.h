@@ -89,25 +89,25 @@ EulerAngles EulerAnglesFromMatrix3D(Matrix3D const & matrix, EulerOrder order)
     double alpha, beta, gamma;
 
     if(s == EulerRepetition::Yes) {
-        double sy = sqrt(matrix[{i,j}] * matrix[{i,j}] + matrix[{i,k}] * matrix[{i,k}]);
+        double sy = sqrt(matrix[{j,i}] * matrix[{j,i}] + matrix[{k,i}] * matrix[{k,i}]);
         if(sy > 16 * std::numeric_limits<double>::epsilon()) {
-            alpha = atan2(matrix[{i,j}], matrix[{i,k}]);
+            alpha = atan2(matrix[{j,i}], matrix[{k,i}]);
             beta = atan2(sy, matrix[{i,i}]);
-            gamma = atan2(matrix[{j,i}], -matrix[{k,i}]);
+            gamma = atan2(matrix[{i,j}], -matrix[{i,k}]);
         } else {
-            alpha = atan2(-matrix[{j,k}], matrix[{j,j}]);
+            alpha = atan2(-matrix[{k,j}], matrix[{j,j}]);
             beta = atan2(sy, matrix[{i,i}]);
             gamma = 0;
         }
     } else {
-        double cy = sqrt(matrix[{i,i}] * matrix[{i,i}] + matrix[{j,i}]*matrix[{j,i}]);
+        double cy = sqrt(matrix[{i,i}] * matrix[{i,i}] + matrix[{i,j}] * matrix[{i,j}]);
         if(cy > 16 * std::numeric_limits<double>::epsilon()) {
-            alpha = atan2(matrix[{k,j}], matrix[{k,k}]);
-            beta = atan2(-matrix[{k,i}], cy);
-            gamma = atan2(matrix[{j,i}], matrix[{i,i}]);
+            alpha = atan2(matrix[{j,k}], matrix[{k,k}]);
+            beta = atan2(-matrix[{i,k}], cy);
+            gamma = atan2(matrix[{i,j}], matrix[{i,i}]);
         } else {
-            alpha = atan2(-matrix[{j,k}], matrix[{j,j}]);
-            beta = atan2(-matrix[{k,i}], cy);
+            alpha = atan2(-matrix[{k,j}], matrix[{j,j}]);
+            beta = atan2(-matrix[{i,k}], cy);
             gamma = 0;
         }
     }
@@ -123,6 +123,30 @@ EulerAngles EulerAnglesFromMatrix3D(Matrix3D const & matrix, EulerOrder order)
     }
 
     return EulerAngles(order, alpha, beta, gamma);
+}
+
+EulerAngles EulerAnglesFromQuaternion(Quaterion quaternion, EulerOrder order) {
+    Matrix3D matrix;
+    double Nq = quaternion.DotProduct(q);
+    double s = (Nq > 0) ? (2.0 / Nq) : 0;
+    double x =  quaternion.GetX();
+    double y =  quaternion.GetY();
+    double z =  quaternion.GetZ();
+    double w =  quaternion.GetW();
+    double xs = x * s,   ys = y * s,   zs = z * s;
+    double wx = w * xs,  wy = w * ys,  wz = w * zs;
+    double xx = x * xs,  xy = x * ys,  xz = x * zs;
+    double yy = y * ys,  yz = y * zs,  zz = z * zs;
+    matrix.SetXX(1 - (yy + zz));
+    matrix.SetXY(xy + wz);
+    matrix.SetXZ(xz - wy);
+    matrix.SetYX(xy - wz);
+    matrix.SetYY(1 - (xx + zz));
+    matrix.SetYZ(yz + wx);
+    matrix.SetZX(xz + wy);
+    matrix.SetZY(yz - wx);
+    matrix.SetZZ(1 - (xx + yy));
+    return EulerAnglesFromMatrix3D(matrix);
 }
 
 } // namespace earthmodel
