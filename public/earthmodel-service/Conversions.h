@@ -128,6 +128,7 @@ EulerAngles EulerAnglesFromMatrix3D(Matrix3D const & matrix, EulerOrder const & 
 
 inline
 Matrix3D Matrix3DFromEulerAngles(EulerAngles const & euler) {
+    EulerOrder order = euler.GetOrder();
     EulerAxis i = GetEulerAxisI(order);
     EulerAxis j = GetEulerAxisJ(order);
     EulerAxis k = GetEulerAxisK(order);
@@ -137,8 +138,8 @@ Matrix3D Matrix3DFromEulerAngles(EulerAngles const & euler) {
     EulerFrame f = GetEulerFrame(order);
 
     double alpha = euler.GetAlpha();
-    double beta = euler.Getbeta();
-    double gamma = euler.Getgamma();
+    double beta = euler.GetBeta();
+    double gamma = euler.GetGamma();
 
     if(f == EulerFrame::Rotating) {
         std::swap(alpha, beta);
@@ -165,7 +166,7 @@ Matrix3D Matrix3DFromEulerAngles(EulerAngles const & euler) {
     Matrix3D matrix;
 
     if(s == EulerRepetition::Yes) {
-        matrix[{i,i}] = cj;
+        matrix[{i,i}] = cb;
         matrix[{i,j}] = sb * sg;
         matrix[{i,k}] = -sb * cg;
         matrix[{j,i}] = sb * sa;
@@ -192,7 +193,7 @@ Matrix3D Matrix3DFromEulerAngles(EulerAngles const & euler) {
 inline
 Matrix3D Matrix3DFromQuaternion(Quaternion const & quaternion) {
     Matrix3D matrix;
-    double Nq = quaternion.DotProduct(q);
+    double Nq = quaternion.DotProduct(quaternion);
     double s = (Nq > 0) ? (2.0 / Nq) : 0;
     double x =  quaternion.GetX();
     double y =  quaternion.GetY();
@@ -211,12 +212,12 @@ Matrix3D Matrix3DFromQuaternion(Quaternion const & quaternion) {
     matrix.SetZX(xz + wy);
     matrix.SetZY(yz - wx);
     matrix.SetZZ(1 - (xx + yy));
-    return matrix
+    return matrix;
 }
 
 inline
-EulerAngles EulerAnglesFromQuaternion(Quaterion const & quaternion, EulerOrder const & order) {
-    return EulerAnglesFromMatrix3D(EulerAnglesFromMatrix3D(quaternion), order);
+EulerAngles EulerAnglesFromQuaternion(Quaternion const & quaternion, EulerOrder const & order) {
+    return EulerAnglesFromMatrix3D(Matrix3DFromQuaternion(quaternion), order);
 }
 
 } // namespace earthmodel

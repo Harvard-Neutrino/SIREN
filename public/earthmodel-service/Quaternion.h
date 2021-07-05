@@ -63,6 +63,15 @@ public:
     Quaternion & operator+=(Quaternion const &);
     Quaternion operator+(double) const;
     Quaternion & operator+=(double);
+
+    double GetX() const {return x_;}
+    double GetY() const {return y_;}
+    double GetZ() const {return z_;}
+    double GetW() const {return w_;}
+    void GetX(double x) {x_ = x;}
+    void GetY(double y) {y_ = y;}
+    void GetZ(double z) {z_ = z;}
+    void GetW(double w) {w_ = w;}
 private:
     double x_;
     double y_;
