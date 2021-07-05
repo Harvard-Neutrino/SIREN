@@ -76,7 +76,7 @@ Quaternion QuaternionFromEulerAngles(EulerAngles const & euler)
     );
 }
 
-EulerAngles EulerAnglesFromMatrix3D(Matrix3D const & matrix, EulerOrder order)
+EulerAngles EulerAnglesFromMatrix3D(Matrix3D const & matrix, EulerOrder const & order)
 {
     EulerAxis i = GetEulerAxisI(order);
     EulerAxis j = GetEulerAxisJ(order);
@@ -125,7 +125,69 @@ EulerAngles EulerAnglesFromMatrix3D(Matrix3D const & matrix, EulerOrder order)
     return EulerAngles(order, alpha, beta, gamma);
 }
 
-EulerAngles EulerAnglesFromQuaternion(Quaterion quaternion, EulerOrder order) {
+Matrix3D Matrix3DFromEulerAngles(EulerAngles const & euler) {
+    EulerAxis i = GetEulerAxisI(order);
+    EulerAxis j = GetEulerAxisJ(order);
+    EulerAxis k = GetEulerAxisK(order);
+    EulerAxis h = GetEulerAxisH(order);
+    EulerParity n = GetEulerParity(order);
+    EulerRepetition s = GetEulerRepetition(order);
+    EulerFrame f = GetEulerFrame(order);
+
+    double alpha = euler.GetAlpha();
+    double beta = euler.Getbeta();
+    double gamma = euler.Getgamma();
+
+    if(f == EulerFrame::Rotating) {
+        std::swap(alpha, beta);
+    }
+
+    if(n == EulerParity::Odd) {
+        alpha = -alpha;
+        beta = -beta;
+        gamma = -gamma;
+    }
+
+    double ca = cos(alpha);
+    double cb = cos(beta);
+    double cg = cos(gamma);
+    double sa = sin(alpha);
+    double sb = sin(beta);
+    double sg = sin(gamma);
+
+    double cc = ca*cg;
+    double cs = ca*sg;
+    double sc = sa*cg;
+    double ss = sa*sg;
+
+    Matrix3D matrix;
+
+    if(s == EulerRepetition::Yes) {
+        matrix[{i,i}] = cj;
+        matrix[{i,j}] = sb * sg;
+        matrix[{i,k}] = -sb * cg;
+        matrix[{j,i}] = sb * sa;
+        matrix[{j,j}] = -cb * ss + cc;
+        matrix[{j,k}] = cb * sc + cs;
+        matrix[{k,i}] = sb * ca;
+        matrix[{k,j}] = -cb * cs - sc;
+        matrix[{k,k}] = cb * cc - ss;
+    } else {
+        matrix[{i,i}] = cb * cg;
+        matrix[{i,j}] = cb * sg;
+        matrix[{i,k}] = -sb;
+        matrix[{j,i}] = sb * sc - cs;
+        matrix[{j,j}] = sb * ss + cc;
+        matrix[{j,k}] = cb * sa;
+        matrix[{k,i}] = sb * cc + ss;
+        matrix[{k,j}] = sb * cs - sc;
+        matrix[{k,k}] = cb * ca;
+    }
+
+    return matrix;
+}
+
+Matrix3D Matrix3DFromQuaternion(Quaternion const & quaternion) {
     Matrix3D matrix;
     double Nq = quaternion.DotProduct(q);
     double s = (Nq > 0) ? (2.0 / Nq) : 0;
@@ -146,7 +208,11 @@ EulerAngles EulerAnglesFromQuaternion(Quaterion quaternion, EulerOrder order) {
     matrix.SetZX(xz + wy);
     matrix.SetZY(yz - wx);
     matrix.SetZZ(1 - (xx + yy));
-    return EulerAnglesFromMatrix3D(matrix);
+    return matrix
+}
+
+EulerAngles EulerAnglesFromQuaternion(Quaterion const & quaternion, EulerOrder const & order) {
+    return EulerAnglesFromMatrix3D(EulerAnglesFromMatrix3D(quaternion), order);
 }
 
 } // namespace earthmodel
