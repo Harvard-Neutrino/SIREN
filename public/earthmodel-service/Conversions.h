@@ -1,6 +1,8 @@
 #ifndef LI_Conversions_H
 #define LI_Conversions_H
 
+#include <limits>
+
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/Matrix3D.h"
 #include "earthmodel-service/Quaternion.h"
@@ -72,6 +74,55 @@ Quaternion QuaternionFromEulerAngles(EulerAngles const & euler)
         res[(unsigned int)EulerAxis::Z],
         res[3]
     );
+}
+
+EulerAngles EulerAnglesFromMatrix3D(Matrix3D const & matrix, EulerOrder order)
+{
+    EulerAxis i = GetEulerAxisI(order);
+    EulerAxis j = GetEulerAxisJ(order);
+    EulerAxis k = GetEulerAxisK(order);
+    EulerAxis h = GetEulerAxisH(order);
+    EulerParity n = GetEulerParity(order);
+    EulerRepetition s = GetEulerRepetition(order);
+    EulerFrame f = GetEulerFrame(order);
+
+    double alpha, beta, gamma;
+
+    if(s == EulerRepetition::Yes) {
+        double sy = sqrt(matrix[{i,j}] * matrix[{i,j}] + matrix[{i,k}] * matrix[{i,k}]);
+        if(sy > 16 * std::numeric_limits<double>::epsilon()) {
+            alpha = atan2(matrix[{i,j}], matrix[{i,k}]);
+            beta = atan2(sy, matrix[{i,i}]);
+            gamma = atan2(matrix[{j,i}], -matrix[{k,i}]);
+        } else {
+            alpha = atan2(-matrix[{j,k}], matrix[{j,j}]);
+            beta = atan2(sy, matrix[{i,i}]);
+            gamma = 0;
+        }
+    } else {
+        double cy = sqrt(matrix[{i,i}] * matrix[{i,i}] + matrix[{j,i}]*matrix[{j,i}]);
+        if(cy > 16 * std::numeric_limits<double>::epsilon()) {
+            alpha = atan2(matrix[{k,j}], matrix[{k,k}]);
+            beta = atan2(-matrix[{k,i}], cy);
+            gamma = atan2(matrix[{j,i}], matrix[{i,i}]);
+        } else {
+            alpha = atan2(-matrix[{j,k}], matrix[{j,j}]);
+            beta = atan2(-matrix[{k,i}], cy);
+            gamma = 0;
+        }
+    }
+
+    if(n == EulerParity::Odd) {
+        alpha = -alpha;
+        beta = -beta;
+        gamma = -beta;
+    }
+
+    if(f == EulerFrame::Rotating) {
+        std::swap(alpha, gamma);
+    }
+
+    return EulerAngles(order, alpha, beta, gamma);
 }
 
 } // namespace earthmodel
