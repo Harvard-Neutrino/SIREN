@@ -3,8 +3,10 @@
 #include <tuple>
 #include <iostream>
 
-#include "earthmodel-service/Quaternion.h"
 #include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/Quaternion.h"
+#include "earthmodel-service/Conversions.h"
+#include "earthmodel-service/EulerAngles.h"
 
 using namespace earthmodel;
 
@@ -278,7 +280,7 @@ std::tuple<Vector3D, double> Quaternion::GetAxisAngle() const
 
 void Quaternion::SetAngles(EulerAngles const & euler)
 {
-    
+    (*this) = earthmodel::QuaternionFromEulerAngles(euler);
 }
 
 void Quaternion::GetAnglesEulerZXZ(double & alpha, double & beta, double & gamma) const

@@ -2,14 +2,9 @@
 #define LI_EulerAngles_H
 
 #include <sstream>
+#include "earthmodel-service/Matrix3D.h"
 
 namespace earthmodel {
-
-enum EulerAxis {
-    X = 0,
-    Y = 1,
-    Z = 2
-};
 
 enum EulerFrame {
     Static = 0,
@@ -37,6 +32,16 @@ enum EulerParity {
 constexpr EulerParity GetEulerParity(unsigned int order) {
     return EulerParity((order >> 2) & 1);
 };
+
+enum EulerAxis {
+    X = 0,
+    Y = 1,
+    Z = 2
+};
+
+constexpr EulerAxis GetEulerAxis(unsigned int order) {
+    return EulerAxis(((order)>>3)&3);
+}
 
 constexpr unsigned int GetEulerOrder(EulerAxis axis, EulerParity parity, EulerRepetition repetition, EulerFrame frame) {
     return (((((((axis)<<1)+(parity))<<1)+(repetition))<<1)+(frame));
@@ -69,8 +74,23 @@ enum EulerOrder {
     ZYZr = GetEulerOrder(EulerAxis::Z, EulerParity::Odd,  EulerRepetition::Yes, EulerFrame::Rotating)
 };
 
-constexpr unsigned int EulerAxisI(EulerOrder order) {
-    return 0;
+constexpr unsigned int EulerSafe[4] = {0, 1, 2, 0};
+constexpr unsigned int EulerNext[4] = {1, 2, 0, 1};
+
+constexpr EulerAxis GetEulerAxisI(EulerOrder order) {
+    return (EulerAxis)EulerSafe[(unsigned int)GetEulerAxis(order)];
+};
+
+constexpr EulerAxis GetEulerAxisJ(EulerOrder order) {
+    return (EulerAxis)EulerNext[(unsigned int)(GetEulerAxisI(order) + (GetEulerParity(order) == EulerParity::Odd))];
+};
+
+constexpr EulerAxis GetEulerAxisK(EulerOrder order) {
+    return (EulerAxis)EulerNext[(unsigned int)(GetEulerAxisI(order) + (GetEulerParity(order) != EulerParity::Odd))];
+};
+
+constexpr EulerAxis GetEulerAxisH(EulerOrder order) {
+    return (EulerAxis)((GetEulerRepetition(order) == EulerRepetition::No) ? GetEulerAxisK(order) : GetEulerAxisI(order));
 };
 
 class EulerAngles
@@ -92,6 +112,13 @@ public:
     bool operator!=(const EulerAngles& euler) const;
     void swap(EulerAngles& euler);
     friend std::ostream& operator<<(std::ostream& os, EulerAngles const& euler);
+
+    EulerOrder GetOrder() const {return order_;}
+    double GetAlpha() const {return alpha_;}
+    double GetBeta() const {return beta_;}
+    double GetGamma() const {return gamma_;}
+
+    Matrix3D GetMatrix() const;
 private:
     EulerOrder order_;
     double alpha_;
