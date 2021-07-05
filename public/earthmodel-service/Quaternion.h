@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/EulerAngles.h"
 
 namespace earthmodel {
 
@@ -29,17 +30,20 @@ public:
 
     double DotProduct(Quaternion const &) const;
 
-    static Quaternion lerp(Quaternion const &, Quaternion const &);
-    static Quaternion slerp(Quaternion const &, Quaternion const &);
+    static Quaternion lerp(Quaternion const &, Quaternion const &, double);
+    static Quaternion slerp(Quaternion const &, Quaternion const &, double);
 
     void SetAxisAngle(Vector3D const &, double);
     void GetAxisAngle(Vector3D &, double &) const;
     std::tuple<Vector3D, double> GetAxisAngle() const;
 
+    void SetAngles(EulerAngles const & euler);
     void GetAnglesEulerZXZ(double & alpha, double & beta, double & gamma) const;
     void SetAnglesEulerZXZ(double alpha, double beta, double gamma);
     void GetAnglesTaitBryanZXY(double & yaw, double & pitch, double & roll) const;
     void SetAnglesTaitBryanZXY(double yaw, double pitch, double roll);
+    void GetAnglesTaitBryanZYX(double & yaw, double & pitch, double & roll) const;
+    void SetAnglesTaitBryanZYX(double yaw, double pitch, double roll);
 
     //-------------------------------------//
     // operator functions and swap
@@ -51,10 +55,14 @@ public:
     void swap(Quaternion& quaternion);
     friend std::ostream& operator<<(std::ostream& os, Quaternion const& quaternion);
 
-    Quaternion operator*(Quaternion & const) const;
-    Quaternion & operator*=(Quaternion & const);
+    Quaternion operator*(Quaternion const &) const;
+    Quaternion & operator*=(Quaternion const &);
     Quaternion operator*(double) const;
     Quaternion & operator*=(double);
+    Quaternion operator+(Quaternion const &) const;
+    Quaternion & operator+=(Quaternion const &);
+    Quaternion operator+(double) const;
+    Quaternion & operator+=(double);
 private:
     double x_;
     double y_;

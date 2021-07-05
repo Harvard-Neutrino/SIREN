@@ -1,5 +1,6 @@
 
 #include <cmath>
+#include <tuple>
 #include <iostream>
 
 #include "earthmodel-service/Quaternion.h"
@@ -16,7 +17,7 @@ Quaternion::Quaternion() :
     x_(0.0),
     y_(0.0),
     z_(0.0),
-    w_(1.0),
+    w_(1.0)
 {
 }
 
@@ -24,12 +25,12 @@ Quaternion::Quaternion(
     double x,
     double y,
     double z,
-    double w,
+    double w
 ) :
     x_(x),
     y_(y),
     z_(z),
-    w_(w),
+    w_(w)
 {
 }
 
@@ -38,7 +39,7 @@ Quaternion::Quaternion(const Quaternion& quaternion) :
     x_(quaternion.x_),
     y_(quaternion.y_),
     z_(quaternion.z_),
-    w_(quaternion.w_),
+    w_(quaternion.w_)
 {
 }
 
@@ -46,7 +47,7 @@ Quaternion::Quaternion(Quaternion&& other) :
     x_(std::move(other.x_)),
     y_(std::move(other.y_)),
     z_(std::move(other.z_)),
-    w_(std::move(other.w_)),
+    w_(std::move(other.w_))
 {
 }
 
@@ -116,7 +117,7 @@ std::ostream& operator<<(std::ostream& os, Quaternion const& quaternion)
 }
 } // namespace earthmodel
 
-Quaternion Quaternion::operator*(Quaternion & const other) const
+Quaternion Quaternion::operator*(Quaternion const & other) const
 {
     Quaternion product;
     product.x_ = (other.w_ * x_) + (other.x_ * w_) + (other.y_ * z_) - (other.z_ * y_);
@@ -126,14 +127,14 @@ Quaternion Quaternion::operator*(Quaternion & const other) const
     return product;
 }
 
-Quaternion & Quaternion::operator*=(Quaternion & const other)
+Quaternion & Quaternion::operator*=(Quaternion const & other)
 {
     return (*this = other * (*this));
 }
 
 Quaternion Quaternion::operator*(double factor) const
 {
-    return Quaternion(factor * x_, factor * y_, factor * z_ factor * w_);
+    return Quaternion(factor * x_, factor * y_, factor * z_, factor * w_);
 }
 
 Quaternion & Quaternion::operator*=(double factor)
@@ -144,19 +145,45 @@ Quaternion & Quaternion::operator*=(double factor)
     w_ *= factor;
 }
 
+Quaternion Quaternion::operator+(Quaternion const & other) const
+{
+    Quaternion sum;
+    sum.x_ = other.x_ + x_;
+    sum.y_ = other.y_ + y_;
+    sum.z_ = other.z_ + z_;
+    sum.w_ = other.w_ + w_;
+    return sum;
+}
+
+Quaternion & Quaternion::operator+=(Quaternion const & other)
+{
+    return (*this = other * (*this));
+}
+
+Quaternion Quaternion::operator+(double factor) const
+{
+    return Quaternion(factor * x_, factor * y_, factor * z_, factor * w_);
+}
+
+Quaternion & Quaternion::operator+=(double factor)
+{
+    x_ *= factor;
+    y_ *= factor;
+    z_ *= factor;
+    w_ *= factor;
+}
+
 void Quaternion::GetMatrix(Matrix3D & dest) const
 {
-    dest.xx_ = 1 - 2 * y_ * y_ - 2 * z_ * z_;
-    dest.xy_ = 2 * x_ * y_ + 2 * z_ * w_;
-    dest.xz_ = 2 * x_ * z_ - 2 * y_ * w_;
-
-    dest.yx_ = 2 * x_ * y_ - 2 * z_ * w_;
-    dest.yy_ = 1 - 2 * x_ * x_ - 2 * z_ * z_;
-    dest.yz_ = 2 * z_ * y_ + 2 * x_ * w_;
-
-    dest.zx_ = 2 * x_ * z_ + 2 * y_ * w_;
-    dest.zy_ = 2 * z_ * y_ - 2 * x_ * w_;
-    dest.zz_ = 1 - 2 * x_ * x_ - 2 * y_ * y_;
+    dest.SetXX(1 - 2 * y_ * y_ - 2 * z_ * z_);
+    dest.SetXY(2 * x_ * y_ + 2 * z_ * w_);
+    dest.SetXZ(2 * x_ * z_ - 2 * y_ * w_);
+    dest.SetYX(2 * x_ * y_ - 2 * z_ * w_);
+    dest.SetYY(1 - 2 * x_ * x_ - 2 * z_ * z_);
+    dest.SetYZ(2 * z_ * y_ + 2 * x_ * w_);
+    dest.SetZX(2 * x_ * z_ + 2 * y_ * w_);
+    dest.SetZY(2 * z_ * y_ - 2 * x_ * w_);
+    dest.SetZZ(1 - 2 * x_ * x_ - 2 * y_ * y_);
 }
 
 Matrix3D Quaternion::GetMatrix() const
@@ -173,7 +200,7 @@ Quaternion & Quaternion::invert() {
     return *this;
 }
 
-void Quaternion::SetPosition(Vector3D & const vec)
+void Quaternion::SetPosition(Vector3D const & vec)
 {
     w_ = 0.0;
     x_ = vec.GetX();
@@ -191,32 +218,32 @@ Quaternion & Quaternion::normalize()
     return (*this *= 1.0 / sqrt(norm));
 }
 
-double DotProduct(Quaternion const & qu) const
+double Quaternion::DotProduct(Quaternion const & qu) const
 {
     return x_ * qu.x_ + y_ * qu.y_ + z_ * qu.z_ + w_ * qu.w_;
 }
 
-static
 Quaternion Quaternion::lerp(Quaternion const & q1, Quaternion const & q2, double t)
 {
-    const s = 1.0 - t;
+    const double s = 1.0 - t;
     return (q1 * s) + (q2 * t);
 }
 
-static
 Quaternion Quaternion::slerp(Quaternion const & q1, Quaternion const & q2, double t)
 {
     double alpha = q1.DotProduct(q2);
+    unsigned int sign = 1;
 
     if(alpha < 0) {
-        q1 *= -1;
+        //q1 *= -1;
+        sign = -1;
         alpha *= -1;
     }
 
     double theta = acos(alpha);
     double istheta = 1.0 / sin(theta);
-    double S = sin(theta * (1.0 - t)) * istheta;
-    double T = sin(theta * time) * istheta;
+    double S = sin(theta * (1.0 - t)) * istheta * sign;
+    double T = sin(theta * t) * istheta;
     return (q1 * S) + (q2 * T);
 }
 
@@ -236,17 +263,22 @@ void Quaternion::GetAxisAngle(Vector3D & axis, double & angle) const
     double scale = sqrt(x_ * x_ + y_ * y_ + z_ * z_);
     if(scale == 0 or w_ > 1.0 or w_ < -1.0) {
         angle = 0;
-        axis.SetCartesianCoordiantes(0, 0, 1);
+        axis.SetCartesianCoordinates(0, 0, 1);
     } else {
-        axis.SetCartesianCoordiantes(x_ / scale, y_ / scale, z_ / scale);
+        axis.SetCartesianCoordinates(x_ / scale, y_ / scale, z_ / scale);
     }
 }
 
 std::tuple<Vector3D, double> Quaternion::GetAxisAngle() const
 {
     std::tuple<Vector3D, double> result;
-    GetAxisAngle(result.get<0>(), result.get<1>());
+    GetAxisAngle(std::get<0>(result), std::get<1>(result));
     return result;
+}
+
+void Quaternion::SetAngles(EulerAngles const & euler)
+{
+    
 }
 
 void Quaternion::GetAnglesEulerZXZ(double & alpha, double & beta, double & gamma) const
@@ -287,14 +319,14 @@ void Quaternion::SetAnglesEulerZXZ(double alpha, double beta, double gamma)
     normalize();
 }
 
-void Quaternion::GetAnglesTaitBryanZXY(double & yaw, double & pitch, double & roll) const
+void Quaternion::GetAnglesTaitBryanZYX(double & yaw, double & pitch, double & roll) const
 {
     double t0 = x_ * x_ - z_ * z_;
     double t1 = w_ * w_ - y_ * y_;
     double xx = 0.5 * (t0 + t1);
     double xy = x_ * y_ + w_ * z_;
     double xz = w_ * y_ - x_ * z_;
-    double yz = 2.0 * (y_ * z_ + w_ * x);
+    double yz = 2.0 * (y_ * z_ + w_ * x_);
     double t  = xx * xx + xy * xy;
 
     yaw = atan2(xy, xx);
@@ -305,6 +337,11 @@ void Quaternion::GetAnglesTaitBryanZXY(double & yaw, double & pitch, double & ro
     } else {
         roll = 2.0 * atan2(x_, w_) - std::copysign(1.0, xz) * yaw;
     }
+}
+
+void Quaternion::SetAnglesTaitBryanZYX(double yaw, double pitch, double roll)
+{
+    
 }
 
 void Quaternion::SetAnglesTaitBryanZXY(double yaw, double pitch, double roll)

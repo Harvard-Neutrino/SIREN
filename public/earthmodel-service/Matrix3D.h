@@ -57,6 +57,25 @@ public:
     //-------------------------------------//
     // getter
     //----------------------------------------------//
+    double GetXX() {return xx_;};
+    double GetXY() {return xy_;};
+    double GetXZ() {return xz_;};
+    double GetYX() {return yx_;};
+    double GetYY() {return yy_;};
+    double GetYZ() {return yz_;};
+    double GetZX() {return zx_;};
+    double GetZY() {return zy_;};
+    double GetZZ() {return zz_;};
+
+    void SetXX(double xx) {xx_ = xx;};
+    void SetXY(double xy) {xy_ = xy;};
+    void SetXZ(double xz) {xz_ = xz;};
+    void SetYX(double yx) {yx_ = yx;};
+    void SetYY(double yy) {yy_ = yy;};
+    void SetYZ(double yz) {yz_ = yz;};
+    void SetZX(double zx) {zx_ = zx;};
+    void SetZY(double zy) {zy_ = zy;};
+    void SetZZ(double zz) {zz_ = zz;};
 private:
     double xx_ = 0.0;
     double xy_ = 0.0;
