@@ -76,6 +76,7 @@ Quaternion QuaternionFromEulerAngles(EulerAngles const & euler)
     );
 }
 
+inline
 EulerAngles EulerAnglesFromMatrix3D(Matrix3D const & matrix, EulerOrder const & order)
 {
     EulerAxis i = GetEulerAxisI(order);
@@ -125,6 +126,7 @@ EulerAngles EulerAnglesFromMatrix3D(Matrix3D const & matrix, EulerOrder const & 
     return EulerAngles(order, alpha, beta, gamma);
 }
 
+inline
 Matrix3D Matrix3DFromEulerAngles(EulerAngles const & euler) {
     EulerAxis i = GetEulerAxisI(order);
     EulerAxis j = GetEulerAxisJ(order);
@@ -187,6 +189,7 @@ Matrix3D Matrix3DFromEulerAngles(EulerAngles const & euler) {
     return matrix;
 }
 
+inline
 Matrix3D Matrix3DFromQuaternion(Quaternion const & quaternion) {
     Matrix3D matrix;
     double Nq = quaternion.DotProduct(q);
@@ -211,6 +214,7 @@ Matrix3D Matrix3DFromQuaternion(Quaternion const & quaternion) {
     return matrix
 }
 
+inline
 EulerAngles EulerAnglesFromQuaternion(Quaterion const & quaternion, EulerOrder const & order) {
     return EulerAnglesFromMatrix3D(EulerAnglesFromMatrix3D(quaternion), order);
 }
