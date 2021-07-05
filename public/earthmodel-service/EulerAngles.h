@@ -118,6 +118,11 @@ public:
     double GetBeta() const {return beta_;}
     double GetGamma() const {return gamma_;}
 
+    void SetOrder(EulerOrder order) {order_ = order;}
+    void SetAlpha(double alpha) {alpha_ = alpha;}
+    void SetBeta(double beta) {beta_ = beta;}
+    void SetGamma(double gamma) {gamma_ = gamma;}
+
     Matrix3D GetMatrix() const;
 private:
     EulerOrder order_;
