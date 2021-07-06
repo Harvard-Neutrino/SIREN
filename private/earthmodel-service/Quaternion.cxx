@@ -7,6 +7,7 @@
 #include "earthmodel-service/Quaternion.h"
 #include "earthmodel-service/Conversions.h"
 #include "earthmodel-service/EulerAngles.h"
+#include "earthmodel-service/EulerQuaternionConversions.h"
 
 using namespace earthmodel;
 
@@ -278,90 +279,38 @@ std::tuple<Vector3D, double> Quaternion::GetAxisAngle() const
     return result;
 }
 
-void Quaternion::SetAngles(EulerAngles const & euler)
+void Quaternion::SetEulerAngles(EulerAngles const & euler)
 {
     (*this) = earthmodel::QuaternionFromEulerAngles(euler);
 }
 
-void Quaternion::GetAnglesEulerZXZ(double & alpha, double & beta, double & gamma) const
+void Quaternion::GetEulerAngles(EulerAngles & euler, EulerOrder order) const
 {
-    double s2 = x_ * x_ + y_ * y_; // sin(beta)^2
-    double c2 = w_ * w_ + z_ * z_; // cos(beta)^2
-    double s = atan(z_ / w_); // (gamma+alpha)/2
-    double d = atan2(y_, x_); // (gamma-alpha)/2
-    alpha = s - d;
-    gamma = s + d;
-
-    if (c2 != 0.0)
-        beta = 2.0 * atan(sqrt(s2 / c2));
-    else
-        beta = (0.5 > s2) ? 0 : M_PI;
+    euler = earthmodel::EulerAnglesFromQuaternion(*this, order);
 }
 
-void Quaternion::SetAnglesEulerZXZ(double alpha, double beta, double gamma)
+void Quaternion::GetEulerAnglesZXZs(double & alpha, double & beta, double & gamma) const
 {
-    double theta = beta/2;
-
-    const double sb = sin(theta);
-    const double cb = cos(theta);
-
-    theta = (gamma + alpha)/2;
-    const double ss = sin(theta);
-    const double cs = cos(theta);
-
-    theta = (gamma - alpha)/2;
-    const double sd = sin(theta);
-    const double cd = cos(theta);
-
-    x_ = sb * cd;
-    y_ = sb * sd;
-    z_ = cb * ss;
-    w_ = cb * cs;
-
-    normalize();
+    EulerAngles euler = earthmodel::ZXZsFromQ(*this);
+    alpha = euler.GetAlpha();
+    beta = euler.GetBeta();
+    gamma = euler.GetGamma();
 }
 
-void Quaternion::GetAnglesTaitBryanZYX(double & yaw, double & pitch, double & roll) const
+void Quaternion::SetEulerAnglesZXZs(double alpha, double beta, double gamma)
 {
-    double t0 = x_ * x_ - z_ * z_;
-    double t1 = w_ * w_ - y_ * y_;
-    double xx = 0.5 * (t0 + t1);
-    double xy = x_ * y_ + w_ * z_;
-    double xz = w_ * y_ - x_ * z_;
-    double yz = 2.0 * (y_ * z_ + w_ * x_);
-    double t  = xx * xx + xy * xy;
-
-    yaw = atan2(xy, xx);
-    pitch = atan(xz / sqrt(t));
-
-    if (t != 0) {
-        roll = atan2(yz, t1 - t0);
-    } else {
-        roll = 2.0 * atan2(x_, w_) - std::copysign(1.0, xz) * yaw;
-    }
+    (*this) = earthmodel::QFromZXZs(alpha, beta, gamma);
 }
 
-void Quaternion::SetAnglesTaitBryanZYX(double yaw, double pitch, double roll)
+void Quaternion::GetEulerAnglesXYZs(double & alpha, double & beta, double & gamma) const
 {
-    
+    EulerAngles euler = earthmodel::XYZsFromQ(*this);
+    alpha = euler.GetAlpha();
+    beta = euler.GetBeta();
+    gamma = euler.GetGamma();
 }
 
-void Quaternion::SetAnglesTaitBryanZXY(double yaw, double pitch, double roll)
+void Quaternion::SetEulerAnglesXYZs(double alpha, double beta, double gamma)
 {
-    double theta = yaw/2;
-    const double sa = sin(theta);
-    const double ca = cos(theta);
-    theta = pitch/2;
-    const double sb = sin(theta);
-    const double cb = cos(theta);
-    theta = roll/2;
-    const double sg = sin(theta);
-    const double cg = cos(theta);
-
-    x_ = ca * sb * cg - sa * cb * sg;
-    y_ = sa * cb * cg + ca * sb * sg;
-    z_ = sa * sb * cg + ca * cb * sg;
-    w_ = ca * cb * cg - sa * sb * sg;
-
-    normalize();
+    (*this) = earthmodel::QFromXYZs(alpha, beta, gamma);
 }

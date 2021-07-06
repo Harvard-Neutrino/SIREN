@@ -37,13 +37,12 @@ public:
     void GetAxisAngle(Vector3D &, double &) const;
     std::tuple<Vector3D, double> GetAxisAngle() const;
 
-    void SetAngles(EulerAngles const & euler);
-    void GetAnglesEulerZXZ(double & alpha, double & beta, double & gamma) const;
-    void SetAnglesEulerZXZ(double alpha, double beta, double gamma);
-    void GetAnglesTaitBryanZXY(double & yaw, double & pitch, double & roll) const;
-    void SetAnglesTaitBryanZXY(double yaw, double pitch, double roll);
-    void GetAnglesTaitBryanZYX(double & yaw, double & pitch, double & roll) const;
-    void SetAnglesTaitBryanZYX(double yaw, double pitch, double roll);
+    void GetEulerAngles(EulerAngles & euler, EulerOrder order) const;
+    void SetEulerAngles(EulerAngles const & euler);
+    void GetEulerAnglesZXZs(double & alpha, double & beta, double & gamma) const;
+    void SetEulerAnglesZXZs(double alpha, double beta, double gamma);
+    void GetEulerAnglesXYZs(double & alpha, double & beta, double & gamma) const;
+    void SetEulerAnglesXYZs(double alpha, double beta, double gamma);
 
     //-------------------------------------//
     // operator functions and swap

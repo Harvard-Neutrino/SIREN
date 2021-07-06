@@ -31,7 +31,7 @@ Quaternion QFromZXZs(double alpha, double beta, double gamma)
 }
 
 inline
-EulerAngle ZXZsFromQ(Quaternion const & quaternion) {
+EulerAngles ZXZsFromQ(Quaternion const & quaternion) {
     double Nq = quaternion.DotProduct(quaternion);
     double s = (Nq > 0) ? (2.0 / Nq) : 0;
     double x =  quaternion.GetX();
@@ -42,7 +42,7 @@ EulerAngle ZXZsFromQ(Quaternion const & quaternion) {
     double wx = w * xs,  wy = w * ys,  wz = w * zs;
     double xx = x * xs,  xy = x * ys,  xz = x * zs;
     double yy = y * ys,  yz = y * zs,  zz = z * zs;
-    double check = sqrt((xx + yy) * (ww + zz));
+    double check = sqrt((xx + yy) * (w*w + zz));
 
     double alpha, beta, gamma;
 
@@ -55,7 +55,7 @@ EulerAngle ZXZsFromQ(Quaternion const & quaternion) {
         beta = atan2(check, 1.0 - (xx + yy));
         gamma = 0;
     }
-    return EulerAngle(EulerOrder::ZXZs, alpha, beta, gamma);
+    return EulerAngles(EulerOrder::ZXZs, alpha, beta, gamma);
 }
 
 inline
@@ -65,12 +65,12 @@ Quaternion QFromXYZs(double alpha, double beta, double gamma)
     beta *= 0.5;
     gamma *= 0.5;
 
-    double ca = cos(h_alpha);
-    double cb = cos(h_beta);
-    double cg = cos(h_gamma);
-    double sa = sin(h_alpha);
-    double sb = sin(h_beta);
-    double sg = sin(h_gamma);
+    double ca = cos(alpha);
+    double cb = cos(beta);
+    double cg = cos(gamma);
+    double sa = sin(alpha);
+    double sb = sin(beta);
+    double sg = sin(gamma);
 
     double cc = ca*cg;
     double cs = ca*sg;
@@ -87,7 +87,7 @@ Quaternion QFromXYZs(double alpha, double beta, double gamma)
 }
 
 inline
-EulerAngle XYZsFromQ(Quaternion const & quaternion) {
+EulerAngles XYZsFromQ(Quaternion const & quaternion) {
     double Nq = quaternion.DotProduct(quaternion);
     double s = (Nq > 0) ? (2.0 / Nq) : 0;
     double x =  quaternion.GetX();
@@ -111,7 +111,7 @@ EulerAngle XYZsFromQ(Quaternion const & quaternion) {
         beta = atan2(wy - xz, check);
         gamma = 0;
     }
-    return EulerAngle(EulerOrder::XYZs, alpha, beta, gamma);
+    return EulerAngles(EulerOrder::XYZs, alpha, beta, gamma);
 }
 
 } // namespace earthmodel
