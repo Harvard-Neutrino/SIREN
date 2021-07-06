@@ -254,6 +254,46 @@ private:
     double inner_radius_; //!< for spherical shells or hollow cylinder (0 for sphere / cylinder)
 };
 
+class ExtrPoly : public Geometry
+{
+public:
+    ExtrPoly();
+    ExtrPoly(const Vector3D position, int vertices,double radius, double height);
+    ExtrPoly(const ExtrPoly&);
+    //ExtrPoly(const nlohmann::json& config);
+
+    /* Geometry* clone() const override{ return new ExtrPoly(*this); }; */
+    std::shared_ptr<const Geometry> create() const override{ return std::shared_ptr<const Geometry>( new ExtrPoly(*this) ); }
+    void swap(Geometry&) override;
+
+    virtual ~ExtrPoly() {}
+
+    // Operators
+    ExtrPoly& operator=(const Geometry&) override;
+
+    // Methods
+    std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
+    std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const override;
+
+    // Getter & Setter
+    int GetVertices() const { return vertices_; }
+    double GetRadius() const { return radius_; }
+    double GetHeight() const { return height_; }
+
+    void SetVertices(int vertices) { vertices_ = vertices; }
+    void SetRadius(double radius) { radius_ = radius; }
+    void SetHeight(double height) { height_ = height; }
+    
+
+private:
+    bool compare(const Geometry&) const override;
+    void print(std::ostream&) const override;
+
+    double radius_;       //!< the radius of the extrude polygon
+    double height_;       //!< the height of the extrude polygon
+    int vertices_;       //!< the number of vertices of the extrude polygon
+};
+
 } // namespace earthmodel
 
 namespace earthmodel {

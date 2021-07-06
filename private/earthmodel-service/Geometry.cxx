@@ -1173,3 +1173,191 @@ std::pair<double, double> Sphere::DistanceToBorder(const Vector3D& position, con
     return distance;
 }
 
+ExtrPoly::ExtrPoly()
+    : Geometry((std::string)("ExtrPoly"))
+    , vertices_(0)
+    , radius_(0.0)
+    , height_(0.0)
+{
+    // Do nothing here
+}
+
+ExtrPoly::ExtrPoly(const Vector3D position, int vertices, double radius, double height)
+    : Geometry("ExtrPoly", position)
+    , vertices_(vertices)
+    , radius_(radius)
+    , height_(height)
+{
+    if (vertices_  < 3 )
+    {
+        //log_error("Inner radius %f is greater then radius %f (will be swaped)", inner_radius_, radius_);
+				vertices_ = 3;
+    }
+}
+
+ExtrPoly::ExtrPoly(const ExtrPoly& extr)
+    : Geometry(extr)
+    , vertices_(extr.vertices_)
+    , radius_(extr.radius_)
+    , height_(extr.height_)
+{
+    // Nothing to do here
+}
+
+
+// ------------------------------------------------------------------------- //
+void ExtrPoly::swap(Geometry& geometry)
+{
+    ExtrPoly* extr = dynamic_cast<ExtrPoly*>(&geometry);
+    if (!extr)
+    {
+        //log_warn("Cannot swap ExtrPoly!");
+        return;
+    }
+
+    Geometry::swap(*extr);
+
+    std::swap(vertices_, extr->vertices_);
+    std::swap(radius_, extr->radius_);
+    std::swap(height_, extr->height_);
+}
+
+//------------------------------------------------------------------------- //
+ExtrPoly& ExtrPoly::operator=(const Geometry& geometry)
+{
+    if (this != &geometry)
+    {
+        const ExtrPoly* extr = dynamic_cast<const ExtrPoly*>(&geometry);
+        if (!extr)
+        {
+            //log_warn("Cannot assign ExtrPoly!");
+            return *this;
+        }
+
+        ExtrPoly tmp(*extr);
+        swap(tmp);
+    }
+    return *this;
+}
+
+// ------------------------------------------------------------------------- //
+bool ExtrPoly::compare(const Geometry& geometry) const
+{
+    const ExtrPoly* extr = dynamic_cast<const ExtrPoly*>(&geometry);
+
+    if (!extr)
+        return false;
+    else if (vertices_ != extr->vertices_)
+        return false;
+    else if (radius_ != extr->radius_)
+        return false;
+    else if (height_ != extr->height_)
+        return false;
+    else
+        return true;
+}
+
+// ------------------------------------------------------------------------- //
+void ExtrPoly::print(std::ostream& os) const
+{
+    os << "Vertices: " << vertices_ << "\tRadius: " << radius_ << "\tHeight: " << height_ << '\n';
+}
+
+// ------------------------------------------------------------------------- //
+std::vector<Geometry::Intersection> ExtrPoly::Intersections(Vector3D const & position, Vector3D const & direction) const {
+    // Calculate intersection of particle trajectory and the extr poly
+
+
+    std::vector<Intersection> dist;
+
+    Vector3D intersection;
+
+    std::function<void(double, bool)> save = [&](double t, bool entering){
+        Intersection i;
+        i.position = intersection;
+        i.distance = t;
+        i.hierarchy = 0;
+        i.entering = entering;
+        dist.push_back(i);
+    };
+
+
+    std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
+        return a.distance < b.distance;
+    };
+
+    std::sort(dist.begin(), dist.end(), comp);
+    return dist;
+}
+
+// ------------------------------------------------------------------------- //
+std::pair<double, double> ExtrPoly::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+{
+    // Compute the surface intersections
+    std::vector<Intersection> intersections = Intersections(position, direction);
+    std::vector<double> dist;
+    bool first = true;
+    for(unsigned int i=0; i<intersections.size(); ++i) {
+        Intersection const & obj = intersections[i];
+        if(obj.distance > 0) {
+            if(first) {
+                first = false;
+                dist.push_back(obj.distance);
+                if(not obj.entering) {
+                    break;
+                }
+            }
+            else {
+                if(not obj.entering) {
+                    dist.push_back(obj.distance);
+                    break;
+                }
+                else {
+                    throw("There should never be two \"entering\" intersections in a row!");
+                }
+            }
+        }
+    }
+
+    std::pair<double, double> distance;
+
+    // No intersection with the outer cylinder
+    if (dist.size() < 1)
+    {
+        distance.first  = -1;
+        distance.second = -1;
+        //    return distance;
+    } else if (dist.size() == 1) // particle is inside the cylinder
+    {
+        distance.first  = dist.at(0);
+        distance.second = -1;
+
+    } else if (dist.size() == 2) // cylinder is infront of the particle
+    {
+        distance.first  = dist.at(0);
+        distance.second = dist.at(1);
+
+        if (distance.second < distance.first)
+        {
+            std::swap(distance.first, distance.second);
+        }
+
+    } else
+    {
+        //log_error("This point should never be reached");
+    }
+    // Make a computer precision controll!
+    // This is necessary cause due to numerical effects it meight be happen
+    // that a particle which is located on a gemoetry border is treated as
+    // inside
+    // or outside
+
+    if (distance.first < GEOMETRY_PRECISION)
+        distance.first = -1;
+    if (distance.second < GEOMETRY_PRECISION)
+        distance.second = -1;
+    if (distance.first < 0)
+        std::swap(distance.first, distance.second);
+
+    return distance;
+}
