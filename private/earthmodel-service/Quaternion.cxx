@@ -176,6 +176,66 @@ Quaternion & Quaternion::operator+=(double factor)
     w_ *= factor;
 }
 
+Quaternion Quaternion::compose(Quaternion const & p) const
+{
+    double w,x,y,z;
+
+    double const & w0 = w_;
+    double const & x0 = x_;
+    double const & y0 = y_;
+    double const & z0 = z_;
+
+    double w1 = p.GetW();
+    double x1 = p.GetX();
+    double y1 = p.GetY();
+    double z1 = p.GetZ();
+
+    double wx = w_ * x1, wy = w_ * y1, wz = w_ * z1;
+    double xx = x_ * x1, xy = x_ * y1, xz = x_ * z1;
+    double yx = y_ * x1, yy = y_ * y1, yz = y_ * z1;
+    double zx = z_ * x1, zy = z_ * y1, zz = z_ * z1;
+
+    double w2 = w0 * w0;
+    double x2 = x0 * x0;
+    double y2 = y0 * y0;
+    double z2 = z0 * z0;
+
+    w = w1 * (w2 + x2 + y2 + z2);
+    x = x1 * (w2 + x2 - y2 - z2) + 2 * (x0 * (yy + zz) + w0 * (yz - zy));
+    y = y1 * (w2 - x2 + y2 - z2) + 2 * (y0 * (xx + zz) + w0 * (zx - xz));
+    z = z1 * (w2 - x2 - y2 + x2) + 2 * (z0 * (xx + yy) + w0 * (xy - yx));
+    return Quaternion(x, y, z, w);
+}
+
+Vector3D Quaternion::compose(Vector3D const & p) const
+{
+    double w,x,y,z;
+
+    double const & w0 = w_;
+    double const & x0 = x_;
+    double const & y0 = y_;
+    double const & z0 = z_;
+
+    double x1 = p.GetX();
+    double y1 = p.GetY();
+    double z1 = p.GetZ();
+
+    double wx = w_ * x1, wy = w_ * y1, wz = w_ * z1;
+    double xx = x_ * x1, xy = x_ * y1, xz = x_ * z1;
+    double yx = y_ * x1, yy = y_ * y1, yz = y_ * z1;
+    double zx = z_ * x1, zy = z_ * y1, zz = z_ * z1;
+
+    double w2 = w0 * w0;
+    double x2 = x0 * x0;
+    double y2 = y0 * y0;
+    double z2 = z0 * z0;
+
+    x = x1 * (w2 + x2 - y2 - z2) + 2 * (x0 * (yy + zz) + w0 * (yz - zy));
+    y = y1 * (w2 - x2 + y2 - z2) + 2 * (y0 * (xx + zz) + w0 * (zx - xz));
+    z = z1 * (w2 - x2 - y2 + x2) + 2 * (z0 * (xx + yy) + w0 * (xy - yx));
+    return Vector3D(x, y, z);
+}
+
 void Quaternion::GetMatrix(Matrix3D & dest) const
 {
     dest.SetXX(1 - 2 * y_ * y_ - 2 * z_ * z_);
@@ -219,6 +279,11 @@ Quaternion & Quaternion::normalize()
         return *this;
 
     return (*this *= 1.0 / sqrt(norm));
+}
+
+double magnitude() const
+{
+    return w_ * w_ + x_ * x_ + y_ * y_ + z_ * z_;
 }
 
 double Quaternion::DotProduct(Quaternion const & qu) const

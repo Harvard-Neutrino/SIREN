@@ -27,6 +27,7 @@ public:
 
     Quaternion & invert();
     Quaternion & normalize();
+    double magnitude() const;
 
     double DotProduct(Quaternion const &) const;
 
@@ -62,6 +63,9 @@ public:
     Quaternion & operator+=(Quaternion const &);
     Quaternion operator+(double) const;
     Quaternion & operator+=(double);
+
+    Quaternion compose(Quaternion const & p) const;
+    Vector3D compose(Vector3D const & p) const;
 
     double GetX() const {return x_;}
     double GetY() const {return y_;}
