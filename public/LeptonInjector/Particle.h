@@ -24,7 +24,7 @@ namespace LeptonInjector{
 
             // these match the PDG codes!
             // copied over from IceCube's dataclasses I3Particle definition
-            enum ParticleType : int32_t{
+            enum ParticleType : int32_t {
                 unknown = 0,
                 Gamma = 22,
                 EPlus = -11,
@@ -77,6 +77,7 @@ namespace LeptonInjector{
                 NuTauBar = -16,
                 
                 /* Nuclei */
+                HNucleus = 1000010010,
                 H2Nucleus = 1000010020,
                 He3Nucleus = 1000020030,
                 He4Nucleus = 1000020040,
