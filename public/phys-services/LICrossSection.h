@@ -1,5 +1,5 @@
-#ifndef LI_CrossSection_H
-#define LI_CrossSection_H
+#ifndef LI_LICrossSection_H
+#define LI_LICrossSection_H
 
 #include <string>
 
@@ -129,5 +129,5 @@ private:
     int interaction;
 };
 
-#endif // LI_CrossSection_H
+#endif // LI_LICrossSection_H
 
