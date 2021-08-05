@@ -167,5 +167,22 @@ double DISFromSpline::DifferentialCrossSection(InteractionRecord const & interac
 
 }
 
+void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord&) const {
+
+}
+
+std::vector<Particle::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
+
+}
+
+std::vector<InteractionSignature> DISFromSpline::GetPossibleSignatures() const {
+
+}
+
+std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargets() const {
+
+}
+
+
 } // namespace LeptonInjector
 
