@@ -285,6 +285,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     }
 
     unsigned int lepton_index = (isLepton(interaction.signature.secondary_types[0])) ? 0 : 1;
+    unsigned int other_index = 1 - lepton_index;
 
     double m = particleMass(interaction.signature.secondary_types[lepton_index]);
     // The out-going particle always gets at least enough energy for its rest mass
@@ -408,8 +409,15 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
 
     double Q2 = (s - target_mass_ * target_mass_) * final_x * final_y;
 
-    //record whatever we sampled
-    return finalStateRecord(pow(10., kin_vars[1]), pow(10., kin_vars[2]));
+    interaction.secondary_momenta[lepton_index][0] = 0; // p3_energy
+    interaction.secondary_momenta[lepton_index][1] = 0; // p3_x
+    interaction.secondary_momenta[lepton_index][2] = 0; // p3_y
+    interaction.secondary_momenta[lepton_index][3] = 0; // p3_z
+
+    interaction.secondary_momenta[other_index][0] = 0; // p4_energy
+    interaction.secondary_momenta[other_index][1] = 0; // p4_x
+    interaction.secondary_momenta[other_index][2] = 0; // p4_y
+    interaction.secondary_momenta[other_index][3] = 0; // p4_z
 }
 
 std::vector<Particle::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
