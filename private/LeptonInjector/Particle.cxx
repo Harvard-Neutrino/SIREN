@@ -105,6 +105,13 @@ namespace LeptonInjector{
 
 
     // Helper functions for dealing with particle types  
+    bool isNeutrino(Particle::ParticleType p) {
+        return (
+			   p==Particle::ParticleType::NuE      || p==Particle::ParticleType::NuEBar ||
+			   p==Particle::ParticleType::NuMu     || p==Particle::ParticleType::NuMuBar ||
+			   p==Particle::ParticleType::NuTau    || p==Particle::ParticleType::NuTauBar
+               );
+    }
 
     // returns true if a particle is a Lepton. False if not
     bool isLepton(Particle::ParticleType p){
