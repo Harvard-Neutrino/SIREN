@@ -1,9 +1,53 @@
 #include "phys-services/CrossSection.h"
-#include "LeptonInjector/Particle.h"
 
 #include <array>
 
+#include "LeptonInjector/Random.h"
+#include "LeptonInjector/Particle.h"
+
 namespace LeptonInjector {
+
+namespace {
+    /*
+    double particleMass(LeptonInjector::Particle::ParticleType type) {
+        LeptonInjector::Particle p(type);
+        if(!p.HasMass()) {
+            return 0;
+        }
+        return p.GetMass();
+    }
+    */
+
+    ///Check whether a given point in phase space is physically realizable.
+    ///Based on equations 6-8 of http://dx.doi.org/10.1103/PhysRevD.66.113007
+    ///S. Kretzer and M. H. Reno
+    ///"Tau neutrino deep inelastic charged current interactions"
+    ///Phys. Rev. D 66, 113007
+    ///\param x Bjorken x of the interaction
+    ///\param y Bjorken y of the interaction
+    ///\param E Incoming neutrino in energy in the lab frame ($E_\nu$)
+    ///\param M Mass of the target nucleon ($M_N$)
+    ///\param m Mass of the secondary lepton ($m_\tau$)
+    bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
+        if(x > 1) //Eq. 6 right inequality
+            return false;
+        if(x < ((m * m) / (2 * M * (E - m)))) //Eq. 6 left inequality
+            return false;
+        //denominator of a and b
+        double d = 2 * (1 + (M * x) / (2 * E));
+        //the numerator of a (or a*d)
+        double ad = 1 - m * m * ((1 / (2 * M * E * x)) + (1 / (2 * E * E)));
+        double term = 1 - ((m * m) / (2 * M * E * x));
+        //the numerator of b (or b*d)
+        double bd = sqrt(term * term - ((m * m) / (E * E)));
+        return (ad - bd) <= d * y and d * y <= (ad + bd); //Eq. 7
+    }
+
+    inline double dot(std::array<double, 4> p0, std::array<double, 4> p1) {
+        return p0[0] * p1[0] - (p0[1] * p1[1] + p0[2] * p1[2] + p0[3] * p1[3]);
+    }
+}
+
 
 DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
     LoadFromFile(differential_filename, total_filename);
@@ -164,23 +208,224 @@ double DISFromSpline::TotalCrossSection(LeptonInjector::Particle::ParticleType p
 }
 
 double DISFromSpline::DifferentialCrossSection(InteractionRecord const & interaction) const {
+    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    double primary_energy;
+    std::array<double, 4> p1;
+    std::array<double, 4> p2;
+    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
+        primary_energy = interaction.primary_momentum[0];
+        p1 = interaction.primary_momentum;
+        p2 = interaction.target_momentum;
+    } else {
+        throw std::runtime_error("Lorentz boost not implemented!");
+    }
+    assert(interaction.signature.secondary_types.size() == 2);
+    assert(isLepton(interaction.signature.secondary_types[0]) or isLepton(interaction.signature.secondary_types[1]));
+    unsigned int lepton_index = (isLepton(interaction.signature.secondary_types[0])) ? 0 : 1;
+    std::array<double, 4> p3 = interaction.secondary_momenta[lepton_index];
+    std::array<double, 4> q = {p1[0] - p3[0], p1[1] - p3[1], p1[2] - p3[2], p1[3] - p3[3]};
+    double Q2 = -dot(q, q);
+    double y = dot(p2, q) / dot(p2, p1);
+    double x = Q2 / (2.0 * dot(p2, q));
 
+    double lepton_mass = particleMass(interaction.signature.secondary_types[lepton_index]);
+
+    return DifferentialCrossSection(primary_energy, x, y, lepton_mass);
 }
 
-void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord&) const {
+double DISFromSpline::DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass) const {
+    double log_energy = log10(energy);
+    // check preconditions
+    if(log_energy < differential_cross_section_.lower_extent(0)
+            || log_energy>differential_cross_section_.upper_extent(0))
+        throw("Interaction energy ("+ std::to_string(energy) +
+                ") out of cross section table range: ["
+                + std::to_string(pow(10., differential_cross_section_.lower_extent(0))) + " GeV,"
+                + std::to_string(pow(10., differential_cross_section_.upper_extent(0))) + " GeV]");
+    if(x <= 0 || x >= 1)
+        throw("Interaction x out of range: " + std::to_string(x));
+    if(y <= 0 || y >= 1)
+        throw("Interaction y out of range: " + std::to_string(y));
 
+    // we assume that:
+    // the target is stationary so its energy is just its mass
+    // the incoming neutrino is massless, so its kinetic energy is its total energy
+    double s = target_mass_ * target_mass_ + 2 * target_mass_ * energy;
+    double Q2 = (s - target_mass_ * target_mass_) * x *y ;
+    if(Q2 < minimum_Q2_) // cross section not calculated, assumed to be zero
+        return 0;
+
+    // cross section should be zero, but this check is missing from the original
+    // CSMS calculation, so we must add it here
+    if(!kinematicallyAllowed(x, y, energy, target_mass_, secondary_lepton_mass))
+        return 0;
+
+    std::array<double,3> coordinates{{log_energy, log10(x), log10(y)}};
+    std::array<int,3> centers;
+    if(!differential_cross_section_.searchcenters(coordinates.data(), centers.data()))
+        return 0;
+    double result = pow(10., differential_cross_section_.ndsplineeval(coordinates.data(), centers.data(), 0));
+    assert(result >= 0);
+    return result;
+}
+
+
+void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interaction, std::shared_ptr<LeptonInjector::LI_random> random) const {
+    // Uses Metropolis-Hastings Algorithm!
+    // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
+    if (differential_cross_section_.get_ndim() != 3) {
+        throw("I expected 3 dimensions in the cross section spline, but got " + std::to_string(differential_cross_section_.get_ndim()) +". Maybe your fits file doesn't have the right 'INTERACTION' key?");
+    }
+
+    double primary_energy;
+    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
+        primary_energy = interaction.primary_momentum[0];
+    } else {
+        throw std::runtime_error("Lorentz boost not implemented!");
+    }
+
+    unsigned int lepton_index = (isLepton(interaction.signature.secondary_types[0])) ? 0 : 1;
+
+    double m = particleMass(interaction.signature.secondary_types[lepton_index]);
+    // The out-going particle always gets at least enough energy for its rest mass
+    double yMax = 1 - m / primary_energy;
+    double logYMax = log10(yMax);
+
+    // we assume that:
+    // the target is stationary so its energy is just its mass
+    // the incoming neutrino is massless, so its kinetic energy is its total energy
+    double s = target_mass_ * target_mass_ + 2 * target_mass_ * primary_energy;
+
+
+    // The minimum allowed value of y occurs when x = 1 and Q is minimized
+    double yMin = minimum_Q2_ / s;
+    double logYMin = log10(yMin);
+    // The minimum allowed value of x occurs when y = yMax and Q is minimized
+    double xMin = minimum_Q2_ / ((s - target_mass_ * target_mass_) * yMax);
+    double logXMin = log10(xMin);
+
+    bool accept;
+
+    // kin_vars and its twin are 3-vectors containing [nu-energy, Bjorken X, Bjorken Y]
+    std::array<double,3> kin_vars, test_kin_vars;
+
+    // centers of the cross section spline tales.
+    std::array<int,3> spline_table_center, test_spline_table_center;
+
+    // values of cross_section from the splines.  By * Bx * Spline(E,x,y)
+    double cross_section, test_cross_section;
+
+    // No matter what, we're evaluating at this specific energy.
+    kin_vars[0] = test_kin_vars[0] = log10(primary_energy);
+
+    // check preconditions
+    if(kin_vars[0] < differential_cross_section_.lower_extent(0)
+            || kin_vars[0] > differential_cross_section_.upper_extent(0))
+        throw("Interaction energy out of cross section table range: ["
+                + std::to_string(pow(10.,differential_cross_section_.lower_extent(0))) + " GeV,"
+                + std::to_string(pow(10.,differential_cross_section_.upper_extent(0))) + " GeV]");
+
+    // sample an intial point
+    do {
+        // rejection sample a point which is kinematically allowed by calculation limits
+        double trialQ;
+        do {
+            kin_vars[1] = random->Uniform(logXMin,0);
+            kin_vars[2] = random->Uniform(logYMin,logYMax);
+            trialQ = (s - target_mass_ * target_mass_) * pow(10., kin_vars[1] + kin_vars[2]);
+        } while(trialQ<minimum_Q2_ || !kinematicallyAllowed(pow(10., kin_vars[1]), pow(10., kin_vars[2]), primary_energy, target_mass_, m));
+
+        accept = true;
+        //sanity check: demand that the sampled point be within the table extents
+        if(kin_vars[1] < differential_cross_section_.lower_extent(1)
+                || kin_vars[1] > differential_cross_section_.upper_extent(1)) {
+            accept = false;
+            std::cout << "reject" << std::endl;
+        }
+        if(kin_vars[2] < differential_cross_section_.lower_extent(2)
+                || kin_vars[2] > differential_cross_section_.upper_extent(2)) {
+            accept = false;
+            std::cout << "reject" << std::endl;
+        }
+
+        if(accept) {
+            // finds the centers in the cross section spline table, returns true if it's successful
+            // also sets the centers
+            accept = differential_cross_section_.searchcenters(kin_vars.data(),spline_table_center.data());
+        }
+    } while(!accept);
+
+    //TODO: better proposal distribution?
+    double measure = pow(10., kin_vars[1] + kin_vars[2]); // Bx * By
+
+    // Bx * By * xs(E, x, y)
+    // evalutates the differential spline at that point
+    cross_section = measure*pow(10., differential_cross_section_.ndsplineeval(kin_vars.data(), spline_table_center.data(), 0));
+
+    // this is the magic part. Metropolis Hastings Algorithm.
+    // MCMC method!
+    const size_t burnin = 40; // converges to the correct distribution over multiple samplings.
+    // big number means more accurate, but slower
+    for(size_t j = 0; j <= burnin; j++) {
+        // repeat the sampling from above to get a new valid point
+        double trialQ;
+        do {
+            test_kin_vars[1] = random->Uniform(logXMin, 0);
+            test_kin_vars[2] = random->Uniform(logYMin, logYMax);
+            trialQ = (s - target_mass_ * target_mass_) * pow(10., test_kin_vars[1] + test_kin_vars[2]);
+        } while(trialQ < minimum_Q2_ || !kinematicallyAllowed(pow(10., test_kin_vars[1]), pow(10., test_kin_vars[2]), primary_energy, target_mass_, m));
+
+        accept = true;
+        if(test_kin_vars[1] < differential_cross_section_.lower_extent(1)
+                || test_kin_vars[1] > differential_cross_section_.upper_extent(1))
+            accept = false;
+        if(test_kin_vars[2] < differential_cross_section_.lower_extent(2)
+                || test_kin_vars[2] > differential_cross_section_.upper_extent(2))
+            accept = false;
+        if(!accept)
+            continue;
+
+        accept = differential_cross_section_.searchcenters(test_kin_vars.data(), test_spline_table_center.data());
+        if(!accept)
+            continue;
+
+        double measure = pow(10., test_kin_vars[1] + test_kin_vars[2]);
+        double eval = differential_cross_section_.ndsplineeval(test_kin_vars.data(), test_spline_table_center.data(), 0);
+        if(std::isnan(eval))
+            continue;
+        test_cross_section = measure * pow(10., eval);
+
+        double odds = (test_cross_section / cross_section);
+        accept = ((odds > 1.) || random->Uniform(0, 1) < odds);
+
+        if(accept) {
+            kin_vars = test_kin_vars;
+            cross_section = test_cross_section;
+        }
+    }
+    double final_x = pow(10., kin_vars[1]);
+    double final_y = pow(10., kin_vars[2]);
+
+    double Q2 = (s - target_mass_ * target_mass_) * final_x * final_y;
+
+    //record whatever we sampled
+    return finalStateRecord(pow(10., kin_vars[1]), pow(10., kin_vars[2]));
 }
 
 std::vector<Particle::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
-
+    return std::vector<Particle::ParticleType>(primary_types_.begin(), primary_types_.end());
 }
 
 std::vector<InteractionSignature> DISFromSpline::GetPossibleSignatures() const {
-
+    std::vector<InteractionSignature> result;
+    for(auto const & it : signatures_) {
+        result.push_back(it.second);
+    }
+    return result;
 }
 
 std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargets() const {
-
+    return std::vector<Particle::ParticleType>(target_types_.begin(), target_types_.end());
 }
 
 

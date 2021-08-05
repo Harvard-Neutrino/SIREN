@@ -9,6 +9,7 @@
 #include <photospline/splinetable.h>
 
 #include "LeptonInjector/Particle.h"
+#include "LeptonInjector/Random.h"
 
 namespace LeptonInjector {
 
@@ -33,7 +34,7 @@ public:
     virtual double TotalCrossSection(InteractionRecord const &) const = 0;
     virtual double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy) const = 0;
     virtual double DifferentialCrossSection(InteractionRecord const &) const = 0;
-    virtual void SampleFinalState(InteractionRecord &) const = 0;
+    virtual void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random>) const = 0;
 
     virtual std::vector<Particle::ParticleType> GetPossibleTargets() const = 0;
     virtual std::vector<Particle::ParticleType> GetPossiblePrimaries() const = 0;
@@ -62,7 +63,8 @@ public:
     double TotalCrossSection(InteractionRecord const &) const;
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy) const;
     double DifferentialCrossSection(InteractionRecord const &) const;
-    void SampleFinalState(InteractionRecord &) const;
+    double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass) const;
+    void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random> random) const;
 
     std::vector<Particle::ParticleType> GetPossibleTargets() const;
     std::vector<Particle::ParticleType> GetPossiblePrimaries() const;
