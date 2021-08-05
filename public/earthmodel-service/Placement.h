@@ -3,6 +3,7 @@
 
 #include <sstream>
 #include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/Rotation3D.h"
 
 namespace earthmodel {
 

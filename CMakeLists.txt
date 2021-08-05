@@ -100,6 +100,7 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Quaternion.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/EulerAngles.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/LICrossSection.cxx
+    ${CMAKE_SOURCE_DIR}/private/phys-services/CrossSection.cxx
 )
 
 

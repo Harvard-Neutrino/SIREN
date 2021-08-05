@@ -226,6 +226,7 @@ namespace LeptonInjector{
 
     bool isLepton(Particle::ParticleType p);
     bool isCharged(Particle::ParticleType p);
+    bool isNeutrino(Particle::ParticleType p);
     std::string particleName( Particle::ParticleType p);
     double particleMass( Particle::ParticleType type);
     double kineticEnergy( Particle::ParticleType type, double totalEnergy);

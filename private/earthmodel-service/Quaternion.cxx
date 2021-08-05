@@ -281,7 +281,7 @@ Quaternion & Quaternion::normalize()
     return (*this *= 1.0 / sqrt(norm));
 }
 
-double magnitude() const
+double Quaternion::magnitude() const
 {
     return w_ * w_ + x_ * x_ + y_ * y_ + z_ * z_;
 }
