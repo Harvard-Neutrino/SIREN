@@ -437,5 +437,10 @@ std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargets() const {
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
+
+
+DipoleFromTable::DipoleFromTable();
+
 } // namespace LeptonInjector
 
