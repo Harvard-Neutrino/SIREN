@@ -32,6 +32,8 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <math.h> 
+#include <float.h>
 
 #include "earthmodel-service/Vector3D.h"
 
@@ -47,8 +49,8 @@ public:
     struct Intersection {
         double distance;
         int hierarchy;
-        Vector3D position;
         bool entering;
+        Vector3D position;
         bool operator==(Intersection const & other) const {
             return other.distance == distance and other.hierarchy == hierarchy and other.position == position and other.entering == entering;
         }
@@ -63,7 +65,7 @@ public:
     };
 public:
     Geometry(const std::string);
-    Geometry(const std::string, const Vector3D position);
+    //Geometry(const std::string, const Vector3D position);
     Geometry(const Geometry&);
     //Geometry(const nlohmann::json&);
 
@@ -126,18 +128,18 @@ public:
 
     ParticleLocation::Enum GetLocation(const Vector3D& position, const Vector3D& direction) const;
 
-    Vector3D GetPosition() const { return position_; }
+    //Vector3D GetPosition() const { return position_; }
 
     std::string GetName() const { return name_; }
 
-    void SetPosition(const Vector3D& position) { position_ = position; };
+    //void SetPosition(const Vector3D& position) { position_ = position; };
 
 protected:
     // Implemented in child classes to be able to use equality operator
     virtual bool compare(const Geometry&) const = 0;
     virtual void print(std::ostream&) const     = 0;
 
-    Vector3D position_; //!< x,y,z-coordinate of origin ( center of box, cylinder, sphere)
+    //Vector3D position_; //!< x,y,z-coordinate of origin ( center of box, cylinder, sphere)
 
     std::string name_; //!< "box" , "cylinder" , "sphere" (sphere and cylinder might be hollow)
 };
@@ -146,7 +148,7 @@ class Box : public Geometry
 {
 public:
     Box();
-    Box(const Vector3D position, double x, double y, double z);
+    Box(double x, double y, double z);
     Box(const Box&);
     //Box(const nlohmann::json& config);
 
@@ -184,7 +186,7 @@ class Cylinder : public Geometry
 {
 public:
     Cylinder();
-    Cylinder(const Vector3D position, double radius, double inner_radius, double z);
+    Cylinder(double radius, double inner_radius, double z);
     Cylinder(const Cylinder&);
     //Cylinder(const nlohmann::json& config);
 
@@ -222,7 +224,7 @@ class Sphere : public Geometry
 {
 public:
     Sphere();
-    Sphere(const Vector3D position, double radius, double inner_radius);
+    Sphere(double radius, double inner_radius);
     Sphere(const Sphere&);
     //Sphere(const nlohmann::json& config);
 
@@ -257,8 +259,31 @@ private:
 class ExtrPoly : public Geometry
 {
 public:
+		struct ZSection {
+				ZSection(double zpos_, double offset_[2], double scale_)
+        : zpos(zpos_), offset{offset_[0],offset_[1]}, scale(scale_) {}
+
+				double zpos;
+				double scale;
+				double offset[2];
+        void operator=(ZSection const & other) {
+            zpos = other.zpos;
+            scale = other.scale;
+            offset[0] = other.offset[0];
+            offset[1] = other.offset[1];
+        }
+        friend bool operator==(ZSection const & l, ZSection const & r) {
+            return (l.zpos == r.zpos &&
+									 l.scale == r.scale &&
+									 l.offset[0] == r.offset[0] &&
+									 l.offset[1] == r.offset[1]);
+        }
+		};
+
+public:
     ExtrPoly();
-    ExtrPoly(const Vector3D position, int vertices,double radius, double height);
+    ExtrPoly(const std::vector<std::vector<double>>& polygon,
+						 const std::vector<ZSection>& zsections);
     ExtrPoly(const ExtrPoly&);
     //ExtrPoly(const nlohmann::json& config);
 
@@ -276,32 +301,33 @@ public:
     std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const override;
 
     // Getter & Setter
-    int GetVertices() const { return vertices_; }
-    double GetRadius() const { return radius_; }
-    double GetHeight() const { return height_; }
+    std::vector<std::vector<double>> GetPolygon() const { return polygon_; }
+    std::vector<ZSection> GetZSections() const { return zsections_; }
 
-    void SetVertices(int vertices) { vertices_ = vertices; }
-    void SetRadius(double radius) { radius_ = radius; }
-    void SetHeight(double height) { height_ = height; }
+    void SetPolygon(std::vector<std::vector<double>> polygon ) { polygon_=polygon; }
+    void SetZSections(std::vector<ZSection> zsections) { zsections_=zsections; }
+
+		void ComputeLateralPlanes();
     
 
 private:
     bool compare(const Geometry&) const override;
     void print(std::ostream&) const override;
 
-    double radius_;       //!< the radius of the extrude polygon
-    double height_;       //!< the height of the extrude polygon
-    int vertices_;       //!< the number of vertices of the extrude polygon
+    std::vector<std::vector<double>> polygon_; //!< vector of (x,y) pairs denoting vertices of polygon
+    std::vector<ZSection> zsections_; //!< vector of z sections describing z extent of polygon
+		struct plane { double a,b,c,d; }; // a*x + b*y + c*z + d = 0
+		std::vector<plane> planes_;
 };
 
 } // namespace earthmodel
 
 namespace earthmodel {
-    enum Geometry_Type : int { SPHERE, BOX, CYLINDER };
+    enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY};
 } // namespace earthmodel
 
 namespace earthmodel {
-    const std::array<std::string, 3>  Geometry_Name = { "sphere", "box", "cylinder" };
+    const std::array<std::string, 4>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly"};
 } // namespace earthmodel
 
 #endif // LI_Geometry_H

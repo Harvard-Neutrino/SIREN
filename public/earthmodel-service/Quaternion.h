@@ -64,8 +64,8 @@ public:
     Quaternion operator+(double) const;
     Quaternion & operator+=(double);
 
-    Quaternion compose(Quaternion const & p) const;
-    Vector3D compose(Vector3D const & p) const;
+    Quaternion compose(Quaternion const & p, bool inv) const;
+    Vector3D compose(Vector3D const & p, bool inv) const;
 
     double GetX() const {return x_;}
     double GetY() const {return y_;}

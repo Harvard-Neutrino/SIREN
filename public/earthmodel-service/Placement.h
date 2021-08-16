@@ -3,7 +3,7 @@
 
 #include <sstream>
 #include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Rotation3D.h"
+#include "earthmodel-service/Quaternion.h"
 
 namespace earthmodel {
 
@@ -12,7 +12,7 @@ class Placement
 public:
     // constructors
     Placement();
-    Placement(Vector3D position, Rotation3D rotation);
+    Placement(Vector3D position, Quaternion quaternion);
     Placement(const Placement& placement);
     Placement(Placement&& other);
     ~Placement();
@@ -26,10 +26,21 @@ public:
     bool operator!=(const Placement& placement) const;
     void swap(Placement& placement);
     friend std::ostream& operator<<(std::ostream& os, Placement const& placement);
+    
+    std::shared_ptr<const Placement> create() const { return std::shared_ptr<const Placement>( new Placement(*this) ); }
+
+    //-------------------------------------//
+    // getter and setter functions
+		Vector3D GetPosition() { return position_;};
+		Quaternion GetQuaternion() { return quaternion_;};
+
+    //-------------------------------------//
+    // composition function (for rotating)
+    Vector3D Compose(Vector3D const & p, bool inv = false) const;
 
 private:
     Vector3D position_;
-    Rotation3D rotation_;
+    Quaternion quaternion_;
 };
 
 } // namespace earthmodel

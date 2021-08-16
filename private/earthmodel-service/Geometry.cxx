@@ -26,9 +26,6 @@ std::ostream& operator<<(std::ostream& os, Geometry const& geometry)
     ss << " Geometry (" << &geometry << ") ";
     os << ss.str() << '\n';
 
-    os << geometry.name_ << std::endl;
-    os << "Position:\n" << geometry.position_ << '\n';
-
     geometry.print(os);
 
     //os << Helper::Centered(60, "");
@@ -43,20 +40,18 @@ std::ostream& operator<<(std::ostream& os, Geometry const& geometry)
  ******************************************************************************/
 
 Geometry::Geometry(const std::string name)
-    : position_(Vector3D())
-    , name_(name)
+    : name_(name)
 {
 }
 
-Geometry::Geometry(const std::string name, const Vector3D position)
+/*Geometry::Geometry(const std::string name, const Vector3D position)
     : position_(position)
     , name_(name)
 {
-}
+}*/
 
 Geometry::Geometry(const Geometry& geometry)
-    : position_(geometry.position_)
-    , name_(geometry.name_)
+    : name_(geometry.name_)
 {
 }
 
@@ -74,7 +69,6 @@ Geometry::Geometry(const Geometry& geometry)
 // ------------------------------------------------------------------------- //
 void Geometry::swap(Geometry& geometry)
 {
-    position_.swap(geometry.position_);
     name_.swap(geometry.name_);
 }
 
@@ -85,7 +79,6 @@ Geometry& Geometry::operator=(const Geometry& geometry)
 {
     if (this != &geometry)
     {
-        position_ = geometry.position_;
         name_     = geometry.name_;
     }
 
@@ -95,9 +88,7 @@ Geometry& Geometry::operator=(const Geometry& geometry)
 // ------------------------------------------------------------------------- //
 bool Geometry::operator==(const Geometry& geometry) const
 {
-    if (position_ != geometry.position_)
-        return false;
-    else if (name_.compare(geometry.name_) != 0)
+    if (name_.compare(geometry.name_) != 0)
         return false;
     else
         return this->compare(geometry);
@@ -166,6 +157,7 @@ Geometry::ParticleLocation::Enum Geometry::GetLocation(const Vector3D& position,
 // ------------------------------------------------------------------------- //
 double Geometry::DistanceToClosestApproach(const Vector3D& position, const Vector3D& direction) const
 {
+    Vector3D position_;
     return scalar_product(position_ - position, direction);
 }
 
@@ -178,8 +170,8 @@ Box::Box()
     // Do nothing here
 }
 
-Box::Box(const Vector3D position, double x, double y, double z)
-    : Geometry("Box", position)
+Box::Box(double x, double y, double z)
+    : Geometry("Box")
     , x_(x)
     , y_(y)
     , z_(z)
@@ -289,6 +281,8 @@ std::vector<Geometry::Intersection> Box::Intersections(Vector3D const & position
     // ( we want to find the intersection in direction of the particle
     // trajectory)
 
+		Vector3D position_;
+    
     double dir_vec_x = direction.GetX();
     double dir_vec_y = direction.GetY();
     double dir_vec_z = direction.GetZ();
@@ -518,8 +512,8 @@ Cylinder::Cylinder()
     // Do nothing here
 }
 
-Cylinder::Cylinder(const Vector3D position, double radius, double inner_radius, double z)
-    : Geometry("Cylinder", position)
+Cylinder::Cylinder(double radius, double inner_radius, double z)
+    : Geometry("Cylinder")
     , radius_(radius)
     , inner_radius_(inner_radius)
     , z_(z)
@@ -637,6 +631,8 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
     // ( dist_1 / -1 ) particle is inside the cylinder or on border and moving
     // inside
 
+		Vector3D position_;
+    
     double A, B, C, t1, t2, t;
     double dir_vec_x = direction.GetX();
     double dir_vec_y = direction.GetY();
@@ -648,6 +644,7 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
     double intersection_y;
     double intersection_z;
     bool entering;
+
 
     std::vector<Intersection> dist;
 
@@ -910,8 +907,8 @@ Sphere::Sphere()
     // Do nothing here
 }
 
-Sphere::Sphere(const Vector3D position, double radius, double inner_radius)
-    : Geometry("Sphere", position)
+Sphere::Sphere(double radius, double inner_radius)
+    : Geometry("Sphere")
     , radius_(radius)
     , inner_radius_(inner_radius)
 {
@@ -1018,6 +1015,8 @@ std::vector<Geometry::Intersection> Sphere::Intersections(Vector3D const & posit
     // ( we want to find the intersection in direction of the particle
     // trajectory)
 
+		Vector3D position_;
+    
     double A, B, t1, t2, difference_length_squared;
 
     double determinant;
@@ -1175,31 +1174,30 @@ std::pair<double, double> Sphere::DistanceToBorder(const Vector3D& position, con
 
 ExtrPoly::ExtrPoly()
     : Geometry((std::string)("ExtrPoly"))
-    , vertices_(0)
-    , radius_(0.0)
-    , height_(0.0)
+    , polygon_({})
+    , zsections_({})
 {
     // Do nothing here
 }
 
-ExtrPoly::ExtrPoly(const Vector3D position, int vertices, double radius, double height)
-    : Geometry("ExtrPoly", position)
-    , vertices_(vertices)
-    , radius_(radius)
-    , height_(height)
+
+ExtrPoly::ExtrPoly(const std::vector<std::vector<double>>& polygon,
+									 const std::vector<ExtrPoly::ZSection>& zsections)
+		: Geometry("ExtrPoly")
+		, polygon_(polygon)
+		, zsections_(zsections)
 {
-    if (vertices_  < 3 )
-    {
-        //log_error("Inner radius %f is greater then radius %f (will be swaped)", inner_radius_, radius_);
-				vertices_ = 3;
-    }
+		if (polygon.size() < 3)
+		{
+				std::cout << "Need 3 polygon vertices at least!! Give it another shot";
+				return;
+		}
 }
 
 ExtrPoly::ExtrPoly(const ExtrPoly& extr)
     : Geometry(extr)
-    , vertices_(extr.vertices_)
-    , radius_(extr.radius_)
-    , height_(extr.height_)
+		, polygon_(extr.polygon_)
+		, zsections_(extr.zsections_)
 {
     // Nothing to do here
 }
@@ -1217,9 +1215,8 @@ void ExtrPoly::swap(Geometry& geometry)
 
     Geometry::swap(*extr);
 
-    std::swap(vertices_, extr->vertices_);
-    std::swap(radius_, extr->radius_);
-    std::swap(height_, extr->height_);
+    std::swap(polygon_, extr->polygon_);
+    std::swap(zsections_, extr->zsections_);
 }
 
 //------------------------------------------------------------------------- //
@@ -1247,11 +1244,9 @@ bool ExtrPoly::compare(const Geometry& geometry) const
 
     if (!extr)
         return false;
-    else if (vertices_ != extr->vertices_)
+    else if (polygon_ != extr->polygon_)
         return false;
-    else if (radius_ != extr->radius_)
-        return false;
-    else if (height_ != extr->height_)
+    else if (!(zsections_ == extr->zsections_))
         return false;
     else
         return true;
@@ -1260,27 +1255,92 @@ bool ExtrPoly::compare(const Geometry& geometry) const
 // ------------------------------------------------------------------------- //
 void ExtrPoly::print(std::ostream& os) const
 {
-    os << "Vertices: " << vertices_ << "\tRadius: " << radius_ << "\tHeight: " << height_ << '\n';
+    os << "Not implemented yet\n";
+    //os << "Polygon: " << polygon_ << "\tZsections: " << zsections_ << '\n';
+}
+
+// ------------------------------------------------------------------------- //
+void ExtrPoly::ComputeLateralPlanes()
+{
+		int Nv = polygon_.size();
+		planes_.resize(Nv);
+		for (int i=0, k=Nv-1; i<Nv; k = i++)
+		{
+				std::vector<double> dir = {polygon_[i][0] - polygon_[k][0],
+																	 polygon_[i][1] - polygon_[k][1]};
+				double norm = sqrt(dir[0]*dir[0] + dir[1]*dir[1]);
+				dir[0]/=norm; dir[1]/=norm;
+				planes_[i].a = -dir[1];
+				planes_[i].b = dir[0];
+				planes_[i].c = 0;
+				planes_[i].d = dir[1]*polygon_[i][0] - dir[0]*polygon_[k][1];
+		}
 }
 
 // ------------------------------------------------------------------------- //
 std::vector<Geometry::Intersection> ExtrPoly::Intersections(Vector3D const & position, Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the extr poly
+    // Implementation follows that of Geant4, see here:
+    // 
+    // https://gitlab.cern.ch/geant4/geant4/-/blob/master/source/geometry/solids/specific/src/G4ExtrudedSolid.cc
+    // 
+    // NOTE: Only works for convex right prisms at the moment
 
-
-    std::vector<Intersection> dist;
-
+    std::vector<Geometry::Intersection> dist;
+    
     Vector3D intersection;
 
     std::function<void(double, bool)> save = [&](double t, bool entering){
         Intersection i;
-        i.position = intersection;
+        i.position = Vector3D(position.GetX() + direction.GetX()*t,
+														  position.GetY() + direction.GetY()*t,
+														  position.GetZ() + direction.GetZ()*t);
         i.distance = t;
         i.hierarchy = 0;
         i.entering = entering;
         dist.push_back(i);
     };
 
+
+    int Nz = zsections_.size();
+    double z0 = zsections_[0].zpos;
+    double z1 = zsections_[Nz-1].zpos;
+
+		if ((position.GetZ() <= z0 + GEOMETRY_PRECISION) && direction.GetZ() <= 0) return dist;
+		if ((position.GetZ() >= z1 - GEOMETRY_PRECISION) && direction.GetZ() >= 0) return dist;
+
+		// Intersection with Z planes
+		double dz = (z1 - z0)*0.5;
+		double pz = position.GetZ() - dz - z0;
+		
+		double invz = (direction.GetZ() == 0) ? DBL_MAX : -1./direction.GetZ();
+		double ddz = (invz < 0) ? dz : -dz;
+		double tzmin = (pz + ddz)*invz;
+		double tzmax = (pz - ddz)*invz;
+
+		// Intersection with lateral planes
+		int np = planes_.size();
+		double txmin = tzmin, txmax = tzmax;
+		for (int i=0; i<np; ++i)
+		{ 
+			double cosa = planes_[i].a*direction.GetX()+planes_[i].b*direction.GetY();
+			double distnce = planes_[i].a*position.GetX()+planes_[i].b*position.GetY()+planes_[i].d;
+			if (distnce >= -GEOMETRY_PRECISION)
+			{
+				if (cosa >= 0) { continue; }
+				double tmp  = -distnce/cosa;
+				if (txmin < tmp)  { txmin = tmp; }
+			}
+			else if (cosa > 0)
+			{
+				double tmp  = -distnce/cosa;
+				if (txmax > tmp)  { txmax = tmp; }
+			} 
+		}
+		double tmin = txmin, tmax = txmax;
+		
+		save(tmin,true);
+		save(tmax,false);
 
     std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
         return a.distance < b.distance;

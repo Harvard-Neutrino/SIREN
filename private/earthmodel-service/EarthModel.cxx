@@ -8,6 +8,7 @@
 
 #include "earthmodel-service/EarthModel.h"
 #include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/EulerQuaternionConversions.h"
 
 using namespace earthmodel;
 
@@ -174,20 +175,29 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
             sector.level = level;
             level += 1;
             double xc, yc, zc; // Coordinates of the center of the shape
+            double alpha, beta, gamma; // Euler Angles of shape rotation
 
             std::string shape;
             ss >> shape;
             ss >> xc >> yc >> zc;
+            ss >> alpha >> beta >> gamma;
+            sector.placement = Placement(Vector3D(xc,yc,zc),
+																				 QFromZXZs(alpha,beta,gamma)).create();
 
             if(shape.find("sphere")!=std::string::npos) {
                 double radius; // For Sphere shapes
                 ss >> radius;
-                sector.geo = Sphere(Vector3D(xc, yc, zc), radius, 0).create();
+                sector.geo = Sphere(radius, 0).create();
             }
             else if(shape.find("box")!=std::string::npos) {
                 double dx, dy, dz; // For Box shapes
                 ss >> dx >> dy >> dz;
-                sector.geo = Box(Vector3D(xc, yc, zc), dx, dy, dz).create();
+                sector.geo = Box(dx, dy, dz).create();
+            }
+            else if(shape.find("extr")!=std::string::npos) {
+                double dx, dy, dz; // For Box shapes
+                ss >> dx >> dy >> dz;
+                sector.geo = Box(dx, dy, dz).create();
             }
             else {
                 std::stringstream ss_err;
@@ -267,7 +277,7 @@ void EarthModel::LoadDefaultSectors() {
     EarthSector sector;
     sector.material_id = materials_.GetMaterialId("VACUUM");
     sector.level = std::numeric_limits<int>::min();
-    sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
+    sector.geo = Sphere(std::numeric_limits<double>::infinity(), 0).create();
     sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
     AddSector(sector);
 }
@@ -394,7 +404,10 @@ Geometry::IntersectionList EarthModel::GetIntersections(Vector3D const & p0, Vec
 
     // Obtain the intersections with each sector geometry
     for(auto const & sector : sectors_) {
-        std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
+        Vector3D pr = sector.placement->Compose(p0,true);
+        Vector3D dr = sector.placement->Compose(direction,true);
+        std::vector<Geometry::Intersection> i = sector.geo->Intersections(pr, dr);
+        for(auto & in : i) in.position = sector.placement->Compose(in.position);
         intersections.intersections.reserve(intersections.intersections.size() + std::distance(i.begin(), i.end()));
         intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
         for(unsigned int j=intersections.intersections.size(); j>intersections.intersections.size()-i.size(); --j) {
@@ -721,7 +734,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
         sector.material_id = materials_.GetMaterialId(medtype);
         sector.level = level;
         sector.name = label;
-        sector.geo = Sphere(Vector3D(0,0,0), radius, 0).create();
+        sector.geo = Sphere(radius, 0).create();
         level -= 1;
         if(nparams == 1) {
             ss >> param;
@@ -810,7 +823,9 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
             for(auto const & i : ice_layers) {
                 EarthSector & sector = sectors_[i];
                 Sphere const * geo = dynamic_cast<Sphere const *>(sector.geo.get());
-                sector.geo = Sphere(Vector3D(0,0,ice_offset), geo->GetRadius()-ice_offset, 0).create();
+                sector.geo = Sphere(geo->GetRadius()-ice_offset, 0).create();
+								sector.placement = Placement(Vector3D(0,0,ice_offset),
+																						 QFromZXZs(0,0,0)).create();
                 //geo->SetRadius(geo->GetRadius()-ice_offset);
                 //geo->SetPosition(Vector3D(0,0,ice_offset));
             }

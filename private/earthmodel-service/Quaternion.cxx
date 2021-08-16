@@ -176,14 +176,24 @@ Quaternion & Quaternion::operator+=(double factor)
     w_ *= factor;
 }
 
-Quaternion Quaternion::compose(Quaternion const & p) const
+Quaternion Quaternion::compose(Quaternion const & p, bool inv = false) const
 {
     double w,x,y,z;
+		
+		double w0, x0, y0, z0;
 
-    double const & w0 = w_;
-    double const & x0 = x_;
-    double const & y0 = y_;
-    double const & z0 = z_;
+    if(inv){
+			w0 = w_;
+			x0 = -x_;
+			y0 = -y_;
+			z0 = -z_;
+		}
+    else{
+			w0 = w_;
+			x0 = x_;
+			y0 = y_;
+			z0 = z_;
+		}
 
     double w1 = p.GetW();
     double x1 = p.GetX();
@@ -207,14 +217,24 @@ Quaternion Quaternion::compose(Quaternion const & p) const
     return Quaternion(x, y, z, w);
 }
 
-Vector3D Quaternion::compose(Vector3D const & p) const
+Vector3D Quaternion::compose(Vector3D const & p, bool inv = false) const
 {
     double w,x,y,z;
 
-    double const & w0 = w_;
-    double const & x0 = x_;
-    double const & y0 = y_;
-    double const & z0 = z_;
+		double w0, x0, y0, z0;
+
+    if(inv){
+			w0 = w_;
+			x0 = -x_;
+			y0 = -y_;
+			z0 = -z_;
+		}
+    else{
+			w0 = w_;
+			x0 = x_;
+			y0 = y_;
+			z0 = z_;
+		}
 
     double x1 = p.GetX();
     double y1 = p.GetY();
