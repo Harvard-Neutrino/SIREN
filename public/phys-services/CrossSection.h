@@ -78,7 +78,7 @@ private:
 };
 
 template<typename T>
-struct TableData2D {
+struct TableData1D {
     std::vector<T> x;
     std::vector<T> f;
 };
@@ -94,7 +94,7 @@ template<typename T>
 struct IndexFinderIrregular {
     std::vector<T> data;
     std::vector<T> diff;
-    IndexFinderIrregular(std::set<T> x) data(x.begin(), x.end()) {
+    IndexFinderIrregular(std::set<T> x): data(x.begin(), x.end()) {
         diff.reserve(x.size() - 1);
         for(unsigned int i=1; i<x.size(); ++i) {
             diff[i-1] = x[i] - x[i-1];
@@ -127,7 +127,7 @@ struct IndexFinderRegular {
     unsigned int n_points;
     T delta;
 
-    IndexFinderIrregular(std::set<T> x) {
+    IndexFinderRegular(std::set<T> x) {
         n_points = x.size();
         low = *x.begin();
         high = *(x.last() - 1);
@@ -161,7 +161,7 @@ private:
 
 public:
 
-    Indexer1D():
+    Indexer1D() {};
     Indexer1D(TableData1D<T> & table) {
         AddTable(table);
     };
@@ -184,7 +184,7 @@ public:
         T log_relative_max_dist;
 
         std::vector<T> log_x(x.begin(), x.end());
-        std::transform(log_x.begin(), log_x.end(), log_x.begin() [](T t)->T{return log(t);});
+        std::transform(log_x.begin(), log_x.end(), log_x.begin(), [](T t)->T{return log(t);});
         std::set<T> log_x_set(log_x.begin(), log_x.end());
 
         if(relative_max_dist < 1e-4) {
@@ -197,7 +197,7 @@ public:
             log_relative_max_dist = MaxDist(log_x_set, regular_index.delta) / regular_index.delta;
             if(log_relative_max_dist < 1e-4) {
                 is_regular = true;
-                if_log = true;
+                is_log = true;
             }
         }
 
@@ -249,7 +249,7 @@ private:
     bool is_log = false;
 public:
 
-    Interpolator1D():
+    Interpolator1D() {};
     Interpolator1D(TableData1D<T> & table) {
         AddTable(table);
     };
@@ -268,7 +268,7 @@ public:
 
         std::vector<T> function_values(table.f.begin(), table.f.end());
         if(is_log) {
-            std::transform(function_values.begin(), function_values.end(), function_values.begin() [](T t)->T{return log(t);});
+            std::transform(function_values.begin(), function_values.end(), function_values.begin(), [](T t)->T{return log(t);});
         }
 
         for(unsigned int i=0; i<table.x.size(); ++i) {
@@ -315,7 +315,7 @@ private:
     bool is_log = false;
 public:
 
-    Interpolator2D():
+    Interpolator2D() {};
     Interpolator2D(TableData2D<T> & table) {
         AddTable(table);
     };
@@ -334,8 +334,8 @@ public:
             ++n;
         }
 
-        TableData1D x_data;
-        TableData1D y_data;
+        TableData1D<T> x_data;
+        TableData1D<T> y_data;
 
         x_data.x = table.x;
         x_data.f = table.f;
@@ -349,7 +349,7 @@ public:
 
         std::vector<T> function_values(table.f.begin(), table.f.end());
         if(is_log) {
-            std::transform(function_values.begin(), function_values.end(), function_values.begin() [](T t)->T{return log(t);});
+            std::transform(function_values.begin(), function_values.end(), function_values.begin(), [](T t)->T{return log(t);});
         }
 
         for(unsigned int i=0; i<table.x.size(); ++i) {
@@ -419,11 +419,11 @@ public:
 class DipoleFromTable : public CrossSection {
 public:
 private:
-    std::map<Particle::ParticleType, DifferentialTableData> differential
+    std::map<Particle::ParticleType, TableData2D<double>> differential;
     double hnl_mass;
 public:
 
-    DipoleFromTable(double target_mass) {};
+    DipoleFromTable(double hnl_mass) {};
     double TotalCrossSection(InteractionRecord const &) const;
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy) const;
     double DifferentialCrossSection(InteractionRecord const &) const;
@@ -433,8 +433,8 @@ public:
     std::vector<Particle::ParticleType> GetPossiblePrimaries() const;
     std::vector<InteractionSignature> GetPossibleSignatures() const;
 private:
-    AddDifferentialCrossSectionFile(std::string filename, Particle::ParticleType target);
-    AddTotalCrossSectionFile(std::string filename, Particle::ParticleType target);
+    void AddDifferentialCrossSectionFile(std::string filename, Particle::ParticleType target);
+    void AddTotalCrossSectionFile(std::string filename, Particle::ParticleType target);
 };
 
 } // namespace LeptonInjector
