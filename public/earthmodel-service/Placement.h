@@ -26,7 +26,7 @@ public:
     bool operator!=(const Placement& placement) const;
     void swap(Placement& placement);
     friend std::ostream& operator<<(std::ostream& os, Placement const& placement);
-    
+
     std::shared_ptr<const Placement> create() const { return std::shared_ptr<const Placement>( new Placement(*this) ); }
 
     //-------------------------------------//

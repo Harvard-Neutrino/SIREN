@@ -104,7 +104,3 @@ private:
     Quaternion quaternion_;
 };
 
-} // namespace earthmodel
-
-#endif // LI_Placement_H
-
