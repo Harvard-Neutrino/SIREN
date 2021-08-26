@@ -25,7 +25,7 @@ Placement::Placement(Vector3D position, Quaternion quaternion) :
 
 Placement::Placement(const Placement& placement) :
 	position_(placement.position_),
-	quaternion(placement.quaternion_)
+	quaternion_(placement.quaternion_)
 {
 }
 
@@ -68,8 +68,8 @@ Placement& Placement::operator=(Placement const && other) {
 bool Placement::operator==(const Placement& placement) const
 {
     return (this == &placement) or (
-        position_ = placement.position_ and
-        quaternion_ = placement.quaternion_);
+        position_ == placement.position_ and
+        quaternion_ == placement.quaternion_);
 }
 
 bool Placement::operator!=(const Placement& placement) const
@@ -85,22 +85,19 @@ void Placement::swap(Placement& placement)
     swap(quaternion_, placement.quaternion_);
 }
 
-friend std::ostream& operator<<(std::ostream& os, Placement const& placement);
+// friend std::ostream& operator<<(std::ostream& os, Placement const& placement);
 
-std::shared_ptr<const Placement> create() const { return std::shared_ptr<const Placement>( new Placement(*this) ); }
+std::shared_ptr<const Placement> Placement::create() const { return std::shared_ptr<const Placement>( new Placement(*this) ); }
 
 //-------------------------------------//
 // getter and setter functions
-Vector3D Placement::GetPosition() { return position_;};
-Quaternion Placement::GetQuaternion() { return quaternion_;};
 
-Vector3D Placement::compose(Vector3D const & p0, bool inv) const
+Vector3D Placement::GetPosition() { return position_;}
+
+Quaternion Placement::GetQuaternion() { return quaternion_;}
+
+Vector3D Placement::Compose(Vector3D const & p0, bool inv) const
 {
 	return quaternion_.compose(p0,inv);
 }
-
-private:
-    Vector3D position_;
-    Quaternion quaternion_;
-};
 

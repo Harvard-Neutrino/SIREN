@@ -1,7 +1,9 @@
 #ifndef LI_Placement_H
 #define LI_Placement_H
 
+#include <memory>
 #include <sstream>
+
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/Quaternion.h"
 
@@ -27,12 +29,12 @@ public:
     void swap(Placement& placement);
     friend std::ostream& operator<<(std::ostream& os, Placement const& placement);
 
-    std::shared_ptr<const Placement> create() const { return std::shared_ptr<const Placement>( new Placement(*this) ); }
+    std::shared_ptr<const Placement> create() const;
 
     //-------------------------------------//
     // getter and setter functions
-		Vector3D GetPosition() { return position_;};
-		Quaternion GetQuaternion() { return quaternion_;};
+    Vector3D GetPosition();
+    Quaternion GetQuaternion();
 
     //-------------------------------------//
     // composition function (for rotating)
