@@ -14,6 +14,8 @@ class Placement
 public:
     // constructors
     Placement();
+    Placement(Vector3D position);
+    Placement(Quaternion quaternion);
     Placement(Vector3D position, Quaternion quaternion);
     Placement(const Placement& placement);
     Placement(Placement&& other);
@@ -33,8 +35,11 @@ public:
 
     //-------------------------------------//
     // getter and setter functions
-    Vector3D GetPosition();
-    Quaternion GetQuaternion();
+    Vector3D GetPosition() const;
+    Quaternion GetQuaternion() const;
+
+    void SetPosition(Vector3D const &);
+    void SetQuaternion(Quaternion const &);
 
     //-------------------------------------//
     // composition function (for rotating)

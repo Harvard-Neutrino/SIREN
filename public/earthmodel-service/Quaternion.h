@@ -64,6 +64,8 @@ public:
     Quaternion operator+(double) const;
     Quaternion & operator+=(double);
 
+    Quaternion operator~() const;
+
     Quaternion compose(Quaternion const & p, bool inv) const;
     Vector3D compose(Vector3D const & p, bool inv) const;
 

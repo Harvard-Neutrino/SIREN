@@ -17,6 +17,16 @@ Placement::Placement() :
 {
 }
 
+Placement::Placement(Vector3D position) :
+	position_(position)
+{
+}
+
+Placement::Placement(Quaternion quaternion) :
+	quaternion_(quaternion)
+{
+}
+
 Placement::Placement(Vector3D position, Quaternion quaternion) :
 	position_(position),
 	quaternion_(quaternion)
@@ -92,9 +102,13 @@ std::shared_ptr<const Placement> Placement::create() const { return std::shared_
 //-------------------------------------//
 // getter and setter functions
 
-Vector3D Placement::GetPosition() { return position_;}
+Vector3D Placement::GetPosition() const { return position_;}
 
-Quaternion Placement::GetQuaternion() { return quaternion_;}
+Quaternion Placement::GetQuaternion() const { return quaternion_;}
+
+void Placement::SetPosition(Vector3D const & p) { position_ = p; }
+
+void Placement::SetQuaternion(Quaternion const & q) { quaternion_ = q; }
 
 Vector3D Placement::Compose(Vector3D const & p0, bool inv) const
 {
