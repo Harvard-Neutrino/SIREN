@@ -103,7 +103,7 @@ namespace earthmodel {
 std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d)
 {
     std::stringstream ss;
-    ss << " Vector3D (" << &vector_3d << ") ";
+    ss << "Vector3D (" << &vector_3d << ") ";
     os << ss.str() << '\n';
 
     os << "Cartesian Coordinates (x[cm],y[cm],z[cm]):\n"

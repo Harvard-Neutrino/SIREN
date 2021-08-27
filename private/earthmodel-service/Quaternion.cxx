@@ -114,7 +114,8 @@ namespace earthmodel {
 std::ostream& operator<<(std::ostream& os, Quaternion const& quaternion)
 {
     std::stringstream ss;
-    ss << " Quaternion (" << &quaternion << ") ";
+    ss << "Quaternion (" << &quaternion << ")\n" ;
+    ss << quaternion.x_ << "\t" << quaternion.y_ << "\t" << quaternion.z_ << "\t" << quaternion.w_;
     os << ss.str() << '\n';
     return os;
 }

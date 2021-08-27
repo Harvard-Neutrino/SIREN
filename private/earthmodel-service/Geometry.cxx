@@ -23,14 +23,9 @@ namespace earthmodel {
 
 std::ostream& operator<<(std::ostream& os, Geometry const& geometry)
 {
-    std::stringstream ss;
-    ss << " Geometry (" << &geometry << ") ";
-    os << ss.str() << '\n';
-
+    os << "Geometry(" << &geometry << ")" << std::endl;
+    os << geometry.placement_ << std::endl;
     geometry.print(os);
-
-    //os << Helper::Centered(60, "");
-
     return os;
 }
 
@@ -156,7 +151,9 @@ Geometry::ParticleLocation::Enum Geometry::GetLocation(const Vector3D& position,
 // ------------------------------------------------------------------------- //
 double Geometry::DistanceToClosestApproach(const Vector3D& position, const Vector3D& direction) const
 {
-    return scalar_product(position, direction);
+    Vector3D pos = GlobalToLocalPosition(position);
+    Vector3D dir = GlobalToLocalPosition(direction);
+    return scalar_product(-pos, dir);
 }
 
 Vector3D Geometry::LocalToGlobalPosition(Vector3D const & p0) const
@@ -182,7 +179,7 @@ Vector3D Geometry::GlobalToLocalDirection(Vector3D const & p0) const
 std::pair<double, double> Geometry::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const {
     Vector3D local_position = GlobalToLocalPosition(position);
     Vector3D local_direction = GlobalToLocalDirection(direction);
-    return DistanceToBorder(position, direction);
+    return ComputeDistanceToBorder(position, direction);
 }
 std::vector<Geometry::Intersection> Geometry::Intersections(Vector3D const & position, Vector3D const & direction) const {
     Vector3D local_position = GlobalToLocalPosition(position);
@@ -222,7 +219,7 @@ Box::Box(Placement const & placement)
 }
 
 Box::Box(Placement const & placement, double x, double y, double z)
-    : Geometry("Box")
+    : Geometry((std::string)("Box"), placement)
     , x_(x)
     , y_(y)
     , z_(z)

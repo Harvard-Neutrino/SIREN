@@ -174,10 +174,10 @@ TEST(IsInside, Box)
                                                   (2 * rnd_y0 - 1) * 0.5 * (big_width_y - width_y),
                                                   (2 * rnd_z0 - 1) * 0.5 * (big_height - height));
 
+
         // The values are divided by 100 to convert the units...
         // Init functions expects m but here everthing is in cm
         Box A(position_geometry, width_x, width_y, height);
-
         volumia_ratio = width_x * width_y * height / (big_width_x * big_width_y * big_height);
         for (int j = 0; j < number_particles; j++)
         {

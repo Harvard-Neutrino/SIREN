@@ -14,9 +14,9 @@ class Placement
 public:
     // constructors
     Placement();
-    Placement(Vector3D position);
-    Placement(Quaternion quaternion);
-    Placement(Vector3D position, Quaternion quaternion);
+    Placement(Vector3D const & position);
+    Placement(Quaternion const & quaternion);
+    Placement(Vector3D const & position, Quaternion const & quaternion);
     Placement(const Placement& placement);
     Placement(Placement&& other);
     ~Placement();

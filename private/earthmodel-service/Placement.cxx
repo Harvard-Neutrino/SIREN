@@ -18,18 +18,18 @@ Placement::Placement() :
     quaternion_.normalize();
 }
 
-Placement::Placement(Vector3D position) :
+Placement::Placement(Vector3D const & position) :
 	position_(position)
 {
 }
 
-Placement::Placement(Quaternion quaternion) :
+Placement::Placement(Quaternion const & quaternion) :
 	quaternion_(quaternion)
 {
     quaternion_.normalize();
 }
 
-Placement::Placement(Vector3D position, Quaternion quaternion) :
+Placement::Placement(Vector3D const & position, Quaternion const & quaternion) :
 	position_(position),
 	quaternion_(quaternion)
 {
@@ -98,7 +98,14 @@ void Placement::swap(Placement& placement)
     swap(quaternion_, placement.quaternion_);
 }
 
-// friend std::ostream& operator<<(std::ostream& os, Placement const& placement);
+namespace earthmodel {
+std::ostream& operator<<(std::ostream& os, Placement const& placement) {
+    os << "Placement (" << &placement << ")" << std::endl;
+    os << placement.position_ << std::endl;
+    os << placement.quaternion_ << std::endl;
+    return os;
+}
+}
 
 std::shared_ptr<const Placement> Placement::create() const { return std::shared_ptr<const Placement>( new Placement(*this) ); }
 
