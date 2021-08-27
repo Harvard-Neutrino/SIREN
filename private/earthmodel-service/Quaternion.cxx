@@ -146,6 +146,7 @@ Quaternion & Quaternion::operator*=(double factor)
     y_ *= factor;
     z_ *= factor;
     w_ *= factor;
+    return (*this);
 }
 
 Quaternion Quaternion::operator+(Quaternion const & other) const
@@ -160,7 +161,8 @@ Quaternion Quaternion::operator+(Quaternion const & other) const
 
 Quaternion & Quaternion::operator+=(Quaternion const & other)
 {
-    return (*this = other * (*this));
+    (*this) = other + (*this);
+    return (*this);
 }
 
 Quaternion Quaternion::operator+(double factor) const
@@ -170,10 +172,11 @@ Quaternion Quaternion::operator+(double factor) const
 
 Quaternion & Quaternion::operator+=(double factor)
 {
-    x_ *= factor;
-    y_ *= factor;
-    z_ *= factor;
-    w_ *= factor;
+    x_ += factor;
+    y_ += factor;
+    z_ += factor;
+    w_ += factor;
+    return (*this);
 }
 
 Quaternion Quaternion::operator~() const {
@@ -182,6 +185,7 @@ Quaternion Quaternion::operator~() const {
     res.y_ = -y_;
     res.z_ = -z_;
     res.w_ = w_;
+    return res;
 }
 
 Quaternion Quaternion::compose(Quaternion const & p, bool inv = false) const

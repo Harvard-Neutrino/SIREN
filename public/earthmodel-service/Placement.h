@@ -44,9 +44,19 @@ public:
     //-------------------------------------//
     // composition function (for rotating)
     Vector3D Compose(Vector3D const & p, bool inv = false) const;
+    Vector3D GlobalToLocalPosition(Vector3D const & p) const;
+    Vector3D LocalToGlobalPosition(Vector3D const & p) const;
+    Vector3D GlobalToLocalDirection(Vector3D const & d) const;
+    Vector3D LocalToGlobalDirection(Vector3D const & d) const;
 
 private:
     Vector3D position_;
+
+    // Describes the "active" rotation
+    // i.e. composition with the quaternion takes a position defined relative to an un-rotated
+    // body (in "body coordinates") and rotates it into the global system ("global coordinates)
+    // Connecting to Aerospace rotation conventions, the "active" rotation is the same as the
+    // Passive Body To World" (PBTW) transformation as described in https://arxiv.org/abs/1801.07478
     Quaternion quaternion_;
 };
 

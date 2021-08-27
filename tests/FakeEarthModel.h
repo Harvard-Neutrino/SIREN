@@ -13,6 +13,10 @@
 
 #include "FakeMaterialModel.h"
 
+#include "earthmodel-service/Geometry.h"
+#include "earthmodel-service/EarthModel.h"
+#include "earthmodel-service/Quaternion.h"
+
 using namespace earthmodel;
 
 template <typename T>
@@ -25,7 +29,7 @@ std::string str(std::vector<T> v) {
 }
 
 struct ModelToken {
-    enum Token {none, line, newline, comment, entry, string_comment, object, detector, density_distribution, material_name, label, shape, sphere, box, shape_coords, constant, radial_polynomial, polynomial, axis_coords};
+    enum Token {none, line, newline, comment, entry, string_comment, object, detector, density_distribution, material_name, label, shape, sphere, box, shape_coords, shape_angles, constant, radial_polynomial, polynomial, axis_coords};
     Token tok = none;
     int state = 0;
 
@@ -161,6 +165,7 @@ protected:
             case 0:
                 stack.push_back(++token);
                 stack.push_back(ModelToken(ModelToken::shape_coords));
+                stack.push_back(ModelToken(ModelToken::shape_angles));
                 return "sphere" + random_blank_cruft();
             case 1:
                 r = RandomDouble() * max_radius;
@@ -179,6 +184,7 @@ protected:
             case 0:
                 stack.push_back(++token);
                 stack.push_back(ModelToken(ModelToken::shape_coords));
+                stack.push_back(ModelToken(ModelToken::shape_angles));
                 return "box" + random_blank_cruft();
             case 1:
                 v = RandomVector(max_radius);
@@ -194,6 +200,18 @@ protected:
         Vector3D v = RandomVector(max_radius);
         std::stringstream ss;
         ss << v.GetX() << random_blank_cruft() << v.GetY() << random_blank_cruft() << v.GetZ() << random_blank_cruft();
+        return ss.str();
+    }
+
+    std::string token_shape_angles(ModelToken & token) {
+        Vector3D v = RandomVector(1.0);
+        double theta = RandomDouble() * 2.0 * M_PI;
+        Quaternion q;
+        q.SetAxisAngle(v, theta);
+        double alpha, beta, gamma;
+        q.GetEulerAnglesZXZs(alpha, beta, gamma);
+        std::stringstream ss;
+        ss << alpha << random_blank_cruft() << beta << random_blank_cruft() << gamma << random_blank_cruft();
         return ss.str();
     }
 
@@ -366,6 +384,8 @@ protected:
                         next = token_box(token); break;
                     case ModelToken::shape_coords:
                         next = token_shape_coords(token); break;
+                    case ModelToken::shape_angles:
+                        next = token_shape_angles(token); break;
                     case ModelToken::axis_coords:
                         next = token_shape_coords(token); break;
                     case ModelToken::label:

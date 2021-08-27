@@ -181,23 +181,22 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
             ss >> shape;
             ss >> xc >> yc >> zc;
             ss >> alpha >> beta >> gamma;
-            sector.placement = Placement(Vector3D(xc,yc,zc),
-																				 QFromZXZs(alpha,beta,gamma)).create();
+            Placement placement(Vector3D(xc,yc,zc), QFromZXZs(alpha,beta,gamma));
 
             if(shape.find("sphere")!=std::string::npos) {
                 double radius; // For Sphere shapes
                 ss >> radius;
-                sector.geo = Sphere(radius, 0).create();
+                sector.geo = Sphere(placement, radius, 0).create();
             }
             else if(shape.find("box")!=std::string::npos) {
                 double dx, dy, dz; // For Box shapes
                 ss >> dx >> dy >> dz;
-                sector.geo = Box(dx, dy, dz).create();
+                sector.geo = Box(placement, dx, dy, dz).create();
             }
             else if(shape.find("extr")!=std::string::npos) {
                 double dx, dy, dz; // For Box shapes
                 ss >> dx >> dy >> dz;
-                sector.geo = Box(dx, dy, dz).create();
+                sector.geo = Box(placement, dx, dy, dz).create();
             }
             else {
                 std::stringstream ss_err;
@@ -404,10 +403,7 @@ Geometry::IntersectionList EarthModel::GetIntersections(Vector3D const & p0, Vec
 
     // Obtain the intersections with each sector geometry
     for(auto const & sector : sectors_) {
-        Vector3D pr = sector.placement->Compose(p0,true);
-        Vector3D dr = sector.placement->Compose(direction,true);
-        std::vector<Geometry::Intersection> i = sector.geo->Intersections(pr, dr);
-        for(auto & in : i) in.position = sector.placement->Compose(in.position);
+        std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
         intersections.intersections.reserve(intersections.intersections.size() + std::distance(i.begin(), i.end()));
         intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
         for(unsigned int j=intersections.intersections.size(); j>intersections.intersections.size()-i.size(); --j) {
@@ -823,9 +819,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
             for(auto const & i : ice_layers) {
                 EarthSector & sector = sectors_[i];
                 Sphere const * geo = dynamic_cast<Sphere const *>(sector.geo.get());
-                sector.geo = Sphere(geo->GetRadius()-ice_offset, 0).create();
-								sector.placement = Placement(Vector3D(0,0,ice_offset),
-																						 QFromZXZs(0,0,0)).create();
+                sector.geo = Sphere(Placement(Vector3D(0,0,ice_offset), QFromZXZs(0,0,0)), geo->GetRadius()-ice_offset, 0).create();
                 //geo->SetRadius(geo->GetRadius()-ice_offset);
                 //geo->SetPosition(Vector3D(0,0,ice_offset));
             }

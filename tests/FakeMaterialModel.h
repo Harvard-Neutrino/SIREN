@@ -11,6 +11,9 @@
 
 #include <gtest/gtest.h>
 
+#include "earthmodel-service/Geometry.h"
+#include "earthmodel-service/EarthModel.h"
+
 using namespace earthmodel;
 
 

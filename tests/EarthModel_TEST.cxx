@@ -66,7 +66,7 @@ TEST(DefaultSectors, VacuumOnly)
     EarthSector sector = sectors[0];
     EXPECT_EQ(0, sector.material_id);
     EXPECT_EQ(std::numeric_limits<int>::min(), sector.level);
-    Sphere geo(std::numeric_limits<double>::infinity(), 0);
+    Sphere geo(Vector3D(0,0,0),std::numeric_limits<double>::infinity(), 0);
     DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> density;
     EXPECT_EQ(geo, *sector.geo);
     EXPECT_EQ(density, *sector.density);
@@ -232,11 +232,11 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileSectorTypes)
             unsigned int sector_index = j+1;
             unsigned int layer_index = j;
             EarthSector & sector = sectors[sector_index];
-            std::shared_ptr<const Placement> placement = sector.placement;
             std::shared_ptr<const Geometry> geo = sector.geo;
+            Placement placement = geo->GetPlacement();
             Sphere const* sphere = dynamic_cast<Sphere const*>(geo.get());
             ASSERT_TRUE(sphere);
-            double ice_offset = placement->GetPosition().magnitude();
+            double ice_offset = placement.GetPosition().magnitude();
 
             if(ice_offset == 0.0) {
                 EXPECT_GT(sphere->GetRadius(), max_radius);
@@ -575,8 +575,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
         upper_sector.name = "upper";
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
-        upper_sector.geo = Sphere(radius, 0).create();
-        upper_sector.placement = std::make_shared<Placement>(upper_center);
+        upper_sector.geo = Sphere(upper_center, radius, 0).create();
         upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
@@ -584,8 +583,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
         lower_sector.name = "lower";
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
-        lower_sector.geo = Sphere(radius, 0).create();
-        lower_sector.placement = std::make_shared<Placement>(lower_center);
+        lower_sector.geo = Sphere(lower_center, radius, 0).create();
         lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
@@ -872,8 +870,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityIntersecting)
         upper_sector.name = "upper";
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
-        upper_sector.geo = Sphere(radius, 0).create();
-        upper_sector.placement = std::make_shared<Placement>(upper_center);
+        upper_sector.geo = Sphere(upper_center, radius, 0).create();
         upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
@@ -881,8 +878,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityIntersecting)
         lower_sector.name = "lower";
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
-        lower_sector.geo = Sphere(radius, 0).create();
-        lower_sector.placement = std::make_shared<Placement>(lower_center);
+        lower_sector.geo = Sphere(lower_center, radius, 0).create();
         lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
@@ -946,8 +942,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
         upper_sector.name = "upper";
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
-        upper_sector.geo = Sphere(radius, 0).create();
-        upper_sector.placement = std::make_shared<Placement>(upper_center);
+        upper_sector.geo = Sphere(upper_center, radius, 0).create();
         upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
@@ -955,8 +950,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
         lower_sector.name = "lower";
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
-        lower_sector.geo = Sphere(radius/2.0, 0).create();
-        lower_sector.placement = std::make_shared<Placement>(lower_center);
+        lower_sector.geo = Sphere(lower_center, radius/2.0, 0).create();
         lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
@@ -1053,8 +1047,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityHidden)
         upper_sector.name = "upper";
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
-        upper_sector.geo = Sphere(radius, 0).create();
-        upper_sector.placement = std::make_shared<Placement>(upper_center);
+        upper_sector.geo = Sphere(upper_center, radius, 0).create();
         upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
@@ -1062,8 +1055,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityHidden)
         lower_sector.name = "lower";
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
-        lower_sector.geo = Sphere(radius/2.0, 0).create();
-        lower_sector.placement = std::make_shared<Placement>(lower_center);
+        lower_sector.geo = Sphere(lower_center, radius/2.0, 0).create();
         lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
@@ -1159,8 +1151,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
         upper_sector.name = "upper";
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
-        upper_sector.geo = Sphere(radius, 0).create();
-        upper_sector.placement = std::make_shared<Placement>(upper_center);
+        upper_sector.geo = Sphere(upper_center, radius, 0).create();
         upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
@@ -1168,8 +1159,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
         lower_sector.name = "lower";
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
-        lower_sector.geo = Sphere(radius/2.0, 0).create();
-        lower_sector.placement = std::make_shared<Placement>(lower_center);
+        lower_sector.geo = Sphere(lower_center, radius/2.0, 0).create();
         lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector bg_sector;
@@ -1177,8 +1167,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
         bg_sector.name = "bg";
         bg_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         bg_sector.level = -100;
-        bg_sector.geo = Sphere(radius*100, 0).create();
-        bg_sector.placement = std::make_shared<Placement>(bg_center);
+        bg_sector.geo = Sphere(bg_center, radius*100, 0).create();
         bg_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
@@ -1239,8 +1228,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
         upper_sector.name = "upper";
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
-        upper_sector.geo = Sphere(radius, 0).create();
-        upper_sector.placement = std::make_shared<Placement>(upper_center);
+        upper_sector.geo = Sphere(upper_center, radius, 0).create();
         upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
@@ -1248,8 +1236,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
         lower_sector.name = "lower";
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
-        lower_sector.geo = Sphere(radius, 0).create();
-        lower_sector.placement = std::make_shared<Placement>(lower_center);
+        lower_sector.geo = Sphere(lower_center, radius, 0).create();
         lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector bg_sector;
@@ -1257,8 +1244,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
         bg_sector.name = "bg";
         bg_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         bg_sector.level = -100;
-        bg_sector.geo = Sphere(radius*100, 0).create();
-        bg_sector.placement = std::make_shared<Placement>(bg_center);
+        bg_sector.geo = Sphere(bg_center, radius*100, 0).create();
         bg_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
@@ -1327,8 +1313,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralNested)
         bg_sector.name = "bg";
         bg_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         bg_sector.level = -100;
-        bg_sector.geo = Sphere(max_radius*100, 0).create();
-        bg_sector.placement = std::make_shared<Placement>(bg_center);
+        bg_sector.geo = Sphere(bg_center, max_radius*100, 0).create();
         bg_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(bg_sector);

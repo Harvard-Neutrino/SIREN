@@ -32,10 +32,11 @@
 #include <iostream>
 #include <map>
 #include <memory>
-#include <math.h> 
+#include <math.h>
 #include <float.h>
 
 #include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/Placement.h"
 
 namespace earthmodel {
 
@@ -65,6 +66,8 @@ public:
     };
 public:
     Geometry(const std::string);
+    Geometry(const std::string, Placement const &);
+    Geometry(Placement const &);
     //Geometry(const std::string, const Vector3D position);
     Geometry(const Geometry&);
     //Geometry(const nlohmann::json&);
@@ -107,13 +110,13 @@ public:
      * a particle on the geometry border which moves outside has no intersection.
      * Distances smaller then GEOMETRY_PRECISION (1e-9) are also set to -1
      */
-    virtual std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const = 0;
+    std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const;
 
 
     /*!
      * Calculates the intersections of a ray with the geometry surface
      */
-    virtual std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const = 0;
+    std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const;
 
     /*!
      * Calculates the distance to the closest approch to the geometry center
@@ -132,16 +135,28 @@ public:
 
     std::string GetName() const { return name_; }
 
+    Placement GetPlacement() const { return placement_; }
+
+    void SetPlacement(Placement const & placement) { placement_ = placement; }
+
     //void SetPosition(const Vector3D& position) { position_ = position; };
 
 protected:
     // Implemented in child classes to be able to use equality operator
     virtual bool compare(const Geometry&) const = 0;
     virtual void print(std::ostream&) const     = 0;
+    virtual std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const = 0;
+    virtual std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const = 0;
 
     //Vector3D position_; //!< x,y,z-coordinate of origin ( center of box, cylinder, sphere)
 
     std::string name_; //!< "box" , "cylinder" , "sphere" (sphere and cylinder might be hollow)
+    Placement placement_;
+
+    Vector3D LocalToGlobalPosition(Vector3D const & p) const;
+    Vector3D LocalToGlobalDirection(Vector3D const & d) const;
+    Vector3D GlobalToLocalPosition(Vector3D const & p) const;
+    Vector3D GlobalToLocalDirection(Vector3D const & d) const;
 };
 
 class Box : public Geometry
@@ -149,6 +164,8 @@ class Box : public Geometry
 public:
     Box();
     Box(double x, double y, double z);
+    Box(Placement const &);
+    Box(Placement const &, double x, double y, double z);
     Box(const Box&);
     //Box(const nlohmann::json& config);
 
@@ -161,8 +178,8 @@ public:
     Box& operator=(const Geometry&) override;
 
     // Methods
-    std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
-    std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const override;
+    std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
+    std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const override;
 
     // Getter & Setter
     double GetX() const { return x_; }
@@ -187,6 +204,8 @@ class Cylinder : public Geometry
 public:
     Cylinder();
     Cylinder(double radius, double inner_radius, double z);
+    Cylinder(Placement const &);
+    Cylinder(Placement const &, double radius, double inner_radius, double z);
     Cylinder(const Cylinder&);
     //Cylinder(const nlohmann::json& config);
 
@@ -199,8 +218,8 @@ public:
     Cylinder& operator=(const Geometry&) override;
 
     // Methods
-    std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
-    std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const override;
+    std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
+    std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const override;
 
     // Getter & Setter
     double GetInnerRadius() const { return inner_radius_; }
@@ -225,6 +244,8 @@ class Sphere : public Geometry
 public:
     Sphere();
     Sphere(double radius, double inner_radius);
+    Sphere(Placement const &);
+    Sphere(Placement const &, double radius, double inner_radius);
     Sphere(const Sphere&);
     //Sphere(const nlohmann::json& config);
 
@@ -238,8 +259,8 @@ public:
     Sphere& operator=(const Geometry&) override;
 
     // Methods
-    std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
-    std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const override;
+    std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
+    std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const override;
 
     // Getter & Setter
     double GetInnerRadius() const { return inner_radius_; }
@@ -284,6 +305,9 @@ public:
     ExtrPoly();
     ExtrPoly(const std::vector<std::vector<double>>& polygon,
 						 const std::vector<ZSection>& zsections);
+    ExtrPoly(Placement const &);
+    ExtrPoly(Placement const &, const std::vector<std::vector<double>>& polygon,
+						 const std::vector<ZSection>& zsections);
     ExtrPoly(const ExtrPoly&);
     //ExtrPoly(const nlohmann::json& config);
 
@@ -297,8 +321,8 @@ public:
     ExtrPoly& operator=(const Geometry&) override;
 
     // Methods
-    std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
-    std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const override;
+    std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
+    std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const override;
 
     // Getter & Setter
     std::vector<std::vector<double>> GetPolygon() const { return polygon_; }
@@ -308,7 +332,7 @@ public:
     void SetZSections(std::vector<ZSection> zsections) { zsections_=zsections; }
 
 		void ComputeLateralPlanes();
-    
+
 
 private:
     bool compare(const Geometry&) const override;

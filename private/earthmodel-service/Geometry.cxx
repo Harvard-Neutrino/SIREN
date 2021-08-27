@@ -11,6 +11,7 @@
 #include <functional>
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/Geometry.h"
+#include "earthmodel-service/Placement.h"
 
 using namespace earthmodel;
 
@@ -44,32 +45,29 @@ Geometry::Geometry(const std::string name)
 {
 }
 
-/*Geometry::Geometry(const std::string name, const Vector3D position)
-    : position_(position)
-    , name_(name)
-{
-}*/
-
-Geometry::Geometry(const Geometry& geometry)
-    : name_(geometry.name_)
+Geometry::Geometry(const std::string name, Placement const & placement)
+    : name_(name)
+    , placement_(placement)
 {
 }
 
-/*Geometry::Geometry(const nlohmann::json& config)
+Geometry::Geometry(Placement const & placement)
+    : name_()
+    , placement_(placement)
 {
-    if(not config.is_object()) throw std::invalid_argument("No json object found.");
+}
 
-    name_ = config.value("shape", "unknown");
-
-    if(not config.contains("origin"))
-        throw std::invalid_argument("No geometry originfound.");
-    position_ = Vector3D(config.at("origin"));
-}*/
+Geometry::Geometry(const Geometry& geometry)
+    : name_(geometry.name_)
+    , placement_(geometry.placement_)
+{
+}
 
 // ------------------------------------------------------------------------- //
 void Geometry::swap(Geometry& geometry)
 {
     name_.swap(geometry.name_);
+    placement_.swap(geometry.placement_);
 }
 
 
@@ -80,6 +78,7 @@ Geometry& Geometry::operator=(const Geometry& geometry)
     if (this != &geometry)
     {
         name_     = geometry.name_;
+        placement_     = geometry.placement_;
     }
 
     return *this;
@@ -88,7 +87,7 @@ Geometry& Geometry::operator=(const Geometry& geometry)
 // ------------------------------------------------------------------------- //
 bool Geometry::operator==(const Geometry& geometry) const
 {
-    if (name_.compare(geometry.name_) != 0)
+    if (name_.compare(geometry.name_) != 0 or (placement_ != geometry.placement_))
         return false;
     else
         return this->compare(geometry);
@@ -157,8 +156,42 @@ Geometry::ParticleLocation::Enum Geometry::GetLocation(const Vector3D& position,
 // ------------------------------------------------------------------------- //
 double Geometry::DistanceToClosestApproach(const Vector3D& position, const Vector3D& direction) const
 {
-    Vector3D position_;
-    return scalar_product(position_ - position, direction);
+    return scalar_product(position, direction);
+}
+
+Vector3D Geometry::LocalToGlobalPosition(Vector3D const & p0) const
+{
+    return placement_.LocalToGlobalPosition(p0);
+}
+
+Vector3D Geometry::LocalToGlobalDirection(Vector3D const & p0) const
+{
+    return placement_.LocalToGlobalDirection(p0);
+}
+
+Vector3D Geometry::GlobalToLocalPosition(Vector3D const & p0) const
+{
+    return placement_.GlobalToLocalPosition(p0);
+}
+
+Vector3D Geometry::GlobalToLocalDirection(Vector3D const & p0) const
+{
+    return placement_.GlobalToLocalDirection(p0);
+}
+
+std::pair<double, double> Geometry::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const {
+    Vector3D local_position = GlobalToLocalPosition(position);
+    Vector3D local_direction = GlobalToLocalDirection(direction);
+    return DistanceToBorder(position, direction);
+}
+std::vector<Geometry::Intersection> Geometry::Intersections(Vector3D const & position, Vector3D const & direction) const {
+    Vector3D local_position = GlobalToLocalPosition(position);
+    Vector3D local_direction = GlobalToLocalDirection(direction);
+    std::vector<Geometry::Intersection> intersections = ComputeIntersections(local_position, local_direction);
+    for(auto & intersection : intersections) {
+        intersection.position = LocalToGlobalPosition(intersection.position);
+    }
+    return intersections;
 }
 
 Box::Box()
@@ -171,6 +204,24 @@ Box::Box()
 }
 
 Box::Box(double x, double y, double z)
+    : Geometry("Box")
+    , x_(x)
+    , y_(y)
+    , z_(z)
+{
+    // Do nothing here
+}
+
+Box::Box(Placement const & placement)
+    : Geometry((std::string)("Box"), placement)
+    , x_(0.0)
+    , y_(0.0)
+    , z_(0.0)
+{
+    // Do nothing here
+}
+
+Box::Box(Placement const & placement, double x, double y, double z)
     : Geometry("Box")
     , x_(x)
     , y_(y)
@@ -266,7 +317,7 @@ void Box::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Box::Intersections(Vector3D const & position, Vector3D const & direction) const {
+std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & position, Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the box
     // Surface of the box is defined by six planes:
     // E1: x1   =   position.GetX() + 0.5*x
@@ -281,8 +332,6 @@ std::vector<Geometry::Intersection> Box::Intersections(Vector3D const & position
     // ( we want to find the intersection in direction of the particle
     // trajectory)
 
-		Vector3D position_;
-    
     double dir_vec_x = direction.GetX();
     double dir_vec_y = direction.GetY();
     double dir_vec_z = direction.GetZ();
@@ -304,12 +353,12 @@ std::vector<Geometry::Intersection> Box::Intersections(Vector3D const & position
         dist.push_back(i);
     };
 
-    double x_calc_pos = position_.GetX() + 0.5 * x_;
-    double x_calc_neg = position_.GetX() - 0.5 * x_;
-    double y_calc_pos = position_.GetY() + 0.5 * y_;
-    double y_calc_neg = position_.GetY() - 0.5 * y_;
-    double z_calc_pos = position_.GetZ() + 0.5 * z_;
-    double z_calc_neg = position_.GetZ() - 0.5 * z_;
+    double x_calc_pos =   0.5 * x_;
+    double x_calc_neg = - 0.5 * x_;
+    double y_calc_pos =   0.5 * y_;
+    double y_calc_neg = - 0.5 * y_;
+    double z_calc_pos =   0.5 * z_;
+    double z_calc_neg = - 0.5 * z_;
 
     // intersection with E1
     if (dir_vec_x != 0) // if dir_vec == 0 particle trajectory is parallel to E1
@@ -446,7 +495,7 @@ std::vector<Geometry::Intersection> Box::Intersections(Vector3D const & position
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Box::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+std::pair<double, double> Box::ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -513,7 +562,33 @@ Cylinder::Cylinder()
 }
 
 Cylinder::Cylinder(double radius, double inner_radius, double z)
-    : Geometry("Cylinder")
+    : Geometry((std::string)("Cylinder"))
+    , radius_(radius)
+    , inner_radius_(inner_radius)
+    , z_(z)
+{
+    if (inner_radius_ > radius_)
+    {
+        //log_error("Inner radius %f is greater then radius %f (will be swaped)", inner_radius_, radius_);
+        std::swap(inner_radius_, radius_);
+    }
+    if (inner_radius_ == radius_)
+    {
+        //log_error("Warning: Inner radius %f == radius %f (Volume is 0)", inner_radius_, radius_);
+    }
+}
+
+Cylinder::Cylinder(Placement const & placement)
+    : Geometry((std::string)("Cylinder"), placement)
+    , radius_(0.0)
+    , inner_radius_(0.0)
+    , z_(0.0)
+{
+    // Do nothing here
+}
+
+Cylinder::Cylinder(Placement const & placement, double radius, double inner_radius, double z)
+    : Geometry((std::string)("Cylinder"), placement)
     , radius_(radius)
     , inner_radius_(inner_radius)
     , z_(z)
@@ -611,7 +686,7 @@ void Cylinder::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & position, Vector3D const & direction) const {
+std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D const & position, Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the cylinder
     // cylinder barrel (x1 + x0)^2 + (x2 + y0)^2  = radius^2 [ z0_-0.5*z_ <
     // particle->z <z0_ - 0.5*z_ ]
@@ -631,8 +706,6 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
     // ( dist_1 / -1 ) particle is inside the cylinder or on border and moving
     // inside
 
-		Vector3D position_;
-    
     double A, B, C, t1, t2, t;
     double dir_vec_x = direction.GetX();
     double dir_vec_y = direction.GetY();
@@ -658,22 +731,22 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
     };
 
     std::function<bool()> entering_radial = [&]() {
-        return Vector3D(intersection_x-position_.GetX(), intersection_y-position_.GetY(), 0) * direction < 0;
+        return Vector3D(intersection_x, intersection_y, 0) * direction < 0;
     };
 
-    double z_calc_pos = position_.GetZ() + 0.5 * z_;
-    double z_calc_neg = position_.GetZ() - 0.5 * z_;
+    double z_calc_pos = 0.5 * z_;
+    double z_calc_neg = -0.5 * z_;
 
     if (!(dir_vec_x == 0 && dir_vec_y == 0)) // Otherwise the particle
                                              // trajectory is parallel to
                                              // cylinder barrel
     {
 
-        A = std::pow((position.GetX() - position_.GetX()), 2) +
-            std::pow((position.GetY() - position_.GetY()), 2) -
+        A = std::pow((position.GetX()), 2) +
+            std::pow((position.GetY()), 2) -
             radius_*radius_;
 
-        B = 2 * ((position.GetX() - position_.GetX()) * dir_vec_x + (position.GetY() - position_.GetY()) * dir_vec_y);
+        B = 2 * ((position.GetX()) * dir_vec_x + (position.GetY()) * dir_vec_y);
 
         C = dir_vec_x * dir_vec_x + dir_vec_y * dir_vec_y;
 
@@ -725,11 +798,11 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
         intersection_x = position.GetX() + t * dir_vec_x;
         intersection_y = position.GetY() + t * dir_vec_y;
 
-        if (std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-            std::pow((intersection_y - position_.GetY()), 2)) <=
+        if (std::sqrt(std::pow((intersection_x), 2) +
+            std::pow((intersection_y), 2)) <=
                 radius_ &&
-            std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-            std::pow((intersection_y - position_.GetY()), 2)) >=
+            std::sqrt(std::pow((intersection_x), 2) +
+            std::pow((intersection_y), 2)) >=
                 inner_radius_)
         {
             intersection_z = position.GetZ() + t * dir_vec_z;
@@ -750,11 +823,11 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
         intersection_x = position.GetX() + t * dir_vec_x;
         intersection_y = position.GetY() + t * dir_vec_y;
 
-        if (std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-            std::pow((intersection_y - position_.GetY()), 2)) <=
+        if (std::sqrt(std::pow((intersection_x), 2) +
+            std::pow((intersection_y), 2)) <=
                 radius_ &&
-            std::sqrt(std::pow((intersection_x - position_.GetX()), 2) +
-            std::pow((intersection_y - position_.GetY()), 2)) >=
+            std::sqrt(std::pow((intersection_x), 2) +
+            std::pow((intersection_y), 2)) >=
                 inner_radius_)
         {
             intersection_z = position.GetZ() + t * dir_vec_z;
@@ -771,12 +844,12 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
         if (!(dir_vec_x == 0 && dir_vec_y == 0))
         {
 
-            A = std::pow((position.GetX() - position_.GetX()), 2) +
-                std::pow((position.GetY() - position_.GetY()), 2) -
+            A = std::pow((position.GetX()), 2) +
+                std::pow((position.GetY()), 2) -
                 inner_radius_*inner_radius_;
 
             B = 2 *
-                ((position.GetX() - position_.GetX()) * dir_vec_x + (position.GetY() - position_.GetY()) * dir_vec_y);
+                ((position.GetX()) * dir_vec_x + (position.GetY()) * dir_vec_y);
 
             C = dir_vec_x * dir_vec_x + dir_vec_y * dir_vec_y;
 
@@ -828,7 +901,7 @@ std::vector<Geometry::Intersection> Cylinder::Intersections(Vector3D const & pos
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Cylinder::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+std::pair<double, double> Cylinder::ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -909,6 +982,30 @@ Sphere::Sphere()
 
 Sphere::Sphere(double radius, double inner_radius)
     : Geometry("Sphere")
+    , radius_(radius)
+    , inner_radius_(inner_radius)
+{
+    if (inner_radius_ > radius_)
+    {
+        //log_error("Inner radius %f is greater then radius %f (will be swaped)", inner_radius_, radius_);
+        std::swap(inner_radius_, radius_);
+    }
+    if (inner_radius_ == radius_)
+    {
+        //log_error("Warning: Inner radius %f == radius %f (Volume is 0)", inner_radius_, radius_);
+    }
+}
+
+Sphere::Sphere(Placement const & placement)
+    : Geometry((std::string)("Sphere"), placement)
+    , radius_(0.0)
+    , inner_radius_(0.0)
+{
+    // Do nothing here
+}
+
+Sphere::Sphere(Placement const & placement, double radius, double inner_radius)
+    : Geometry((std::string)("Sphere"), placement)
     , radius_(radius)
     , inner_radius_(inner_radius)
 {
@@ -1004,7 +1101,7 @@ void Sphere::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Sphere::Intersections(Vector3D const & position, Vector3D const & direction) const {
+std::vector<Geometry::Intersection> Sphere::ComputeIntersections(Vector3D const & position, Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the sphere
     // sphere (x1 + x0)^2 + (x2 + y0)^2 + (x3 + z0)^2 = radius^2
     // straight line (particle trajectory) g = vec(x,y,z) + t * dir_vec( cosph
@@ -1015,8 +1112,6 @@ std::vector<Geometry::Intersection> Sphere::Intersections(Vector3D const & posit
     // ( we want to find the intersection in direction of the particle
     // trajectory)
 
-		Vector3D position_;
-    
     double A, B, t1, t2, difference_length_squared;
 
     double determinant;
@@ -1034,10 +1129,10 @@ std::vector<Geometry::Intersection> Sphere::Intersections(Vector3D const & posit
         dist.push_back(i);
     };
 
-    difference_length_squared = std::pow((position - position_).magnitude(), 2);
+    difference_length_squared = std::pow((position).magnitude(), 2);
     A                         = difference_length_squared - radius_ * radius_;
 
-    B = scalar_product(position - position_, direction);
+    B = scalar_product(position, direction);
 
     determinant = B * B - A;
 
@@ -1101,7 +1196,7 @@ std::vector<Geometry::Intersection> Sphere::Intersections(Vector3D const & posit
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Sphere::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+std::pair<double, double> Sphere::ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -1184,6 +1279,28 @@ ExtrPoly::ExtrPoly()
 ExtrPoly::ExtrPoly(const std::vector<std::vector<double>>& polygon,
 									 const std::vector<ExtrPoly::ZSection>& zsections)
 		: Geometry("ExtrPoly")
+		, polygon_(polygon)
+		, zsections_(zsections)
+{
+		if (polygon.size() < 3)
+		{
+				std::cout << "Need 3 polygon vertices at least!! Give it another shot";
+				return;
+		}
+}
+
+ExtrPoly::ExtrPoly(Placement const & placement)
+    : Geometry((std::string)("ExtrPoly"), placement)
+    , polygon_({})
+    , zsections_({})
+{
+    // Do nothing here
+}
+
+
+ExtrPoly::ExtrPoly(Placement const & placement, const std::vector<std::vector<double>>& polygon,
+									 const std::vector<ExtrPoly::ZSection>& zsections)
+		: Geometry((std::string)("ExtrPoly"), placement)
 		, polygon_(polygon)
 		, zsections_(zsections)
 {
@@ -1278,7 +1395,7 @@ void ExtrPoly::ComputeLateralPlanes()
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> ExtrPoly::Intersections(Vector3D const & position, Vector3D const & direction) const {
+std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D const & position, Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the extr poly
     // Implementation follows that of Geant4, see here:
     // 
@@ -1351,7 +1468,7 @@ std::vector<Geometry::Intersection> ExtrPoly::Intersections(Vector3D const & pos
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> ExtrPoly::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+std::pair<double, double> ExtrPoly::ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
