@@ -266,6 +266,16 @@ TEST(Quaternion, AxisAngle)
         EXPECT_DOUBLE_EQ(axis.GetY(), new_axis.GetY());
         EXPECT_DOUBLE_EQ(axis.GetZ(), new_axis.GetZ());
         EXPECT_DOUBLE_EQ(theta, new_angle);
+
+        std::tuple<Vector3D, double> tup = A.GetAxisAngle();
+
+        new_axis = std::get<0>(tup);
+        new_angle = std::get<1>(tup);
+
+        EXPECT_DOUBLE_EQ(axis.GetX(), new_axis.GetX());
+        EXPECT_DOUBLE_EQ(axis.GetY(), new_axis.GetY());
+        EXPECT_DOUBLE_EQ(axis.GetZ(), new_axis.GetZ());
+        EXPECT_DOUBLE_EQ(theta, new_angle);
     }
 }
 
