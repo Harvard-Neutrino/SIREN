@@ -399,12 +399,13 @@ Quaternion Quaternion::slerp(Quaternion const & q1, Quaternion const & q2, doubl
 
 void Quaternion::SetAxisAngle(Vector3D const & axis, double angle)
 {
+    Vector3D dir = axis.normalized();
     double x = angle / 2.0;
     double s = sin(x);
 
-    x_ = s * axis.GetX();
-    y_ = s * axis.GetY();
-    z_ = s * axis.GetZ();
+    x_ = s * dir.GetX();
+    y_ = s * dir.GetY();
+    z_ = s * dir.GetZ();
     w_ = cos(x);
 }
 

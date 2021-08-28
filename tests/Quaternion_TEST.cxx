@@ -225,6 +225,41 @@ TEST(Quaternion, DotProduct)
     }
 }
 
+TEST(Quaternion, AxisAngle)
+{
+    unsigned int n_rand = 100;
+    for(unsigned int i=0; i<n_rand; ++i) {
+        double nz = RandomDouble() * 2 - 1;
+        double phi = RandomDouble() * 2 * M_PI;
+        double nrho = std::sqrt(1.0 - nz*nz);
+        double nx = nrho * std::cos(phi);
+        double ny = nrho * std::sin(phi);
+        Vector3D axis(nx, ny, nz);
+
+        double theta = RandomDouble() * 2 * M_PI;
+
+        Quaternion A;
+        A.SetAxisAngle(axis, theta);
+
+        Vector3D vec;
+        vec.SetCartesianCoordinates(A.GetX(), A.GetY(), A.GetZ());
+
+        double sin_angle = vec.magnitude();
+        double cos_angle = A.GetW();
+
+        EXPECT_DOUBLE_EQ(std::sin(theta / 2.0), sin_angle);
+        EXPECT_DOUBLE_EQ(std::cos(theta / 2.0), cos_angle);
+
+        Vector3D normed_vec = vec.normalized();
+
+        EXPECT_DOUBLE_EQ(axis.magnitude(), normed_vec.magnitude());
+
+        EXPECT_DOUBLE_EQ(axis.GetX(), normed_vec.GetX());
+        EXPECT_DOUBLE_EQ(axis.GetY(), normed_vec.GetY());
+        EXPECT_DOUBLE_EQ(axis.GetZ(), normed_vec.GetZ());
+    }
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
