@@ -73,10 +73,10 @@ public:
     double GetY() const {return y_;}
     double GetZ() const {return z_;}
     double GetW() const {return w_;}
-    void GetX(double x) {x_ = x;}
-    void GetY(double y) {y_ = y;}
-    void GetZ(double z) {z_ = z;}
-    void GetW(double w) {w_ = w;}
+    void SetX(double x) {x_ = x;}
+    void SetY(double y) {y_ = y;}
+    void SetZ(double z) {z_ = z;}
+    void SetW(double w) {w_ = w;}
 private:
     double x_;
     double y_;
