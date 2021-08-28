@@ -289,6 +289,36 @@ Matrix3D Quaternion::GetMatrix() const
     return mat;
 }
 
+void Quaternion::SetMatrix(Matrix3D const & mat) {
+    double trace = mat.GetXX() + mat.GetYY() + mat.GetZZ();
+
+    if(trace > 0) {
+        double S = std::sqrt(trace + 1.0) * 2.0; // S=4*q_
+        w_ = 0.25 * S;
+        x_ = (mat.GetZY() - mat.GetYZ()) / S;
+        y_ = (mat.GetXZ() - mat.GetZX()) / S;
+        z_ = (mat.GetYX() - mat.GetXY()) / S;
+    } else if ((mat.GetXX() > mat.GetYY())&(mat.GetXX() > mat.GetZZ())) {
+        double S = std::sqrt(1.0 + mat.GetXX() - mat.GetYY() - mat.GetZZ()) * 2; // S=4*x_
+        w_ = (mat.GetZY() - mat.GetYZ()) / S;
+        x_ = 0.25 * S;
+        y_ = (mat.GetXY() + mat.GetYX()) / S;
+        z_ = (mat.GetXZ() + mat.GetZX()) / S;
+    } else if (mat.GetYY() > mat.GetZZ()) {
+        double S = std::sqrt(1.0 + mat.GetYY() - mat.GetXX() - mat.GetZZ()) * 2; // S=4*y_
+        w_ = (mat.GetXZ() - mat.GetZX()) / S;
+        x_ = (mat.GetXY() + mat.GetYX()) / S;
+        y_ = 0.25 * S;
+        z_ = (mat.GetYZ() + mat.GetZY()) / S;
+    } else {
+        double S = std::sqrt(1.0 + mat.GetZZ() - mat.GetXX() - mat.GetYY()) * 2; // S=4*z_
+        w_ = (mat.GetYX() - mat.GetXY()) / S;
+        x_ = (mat.GetXZ() + mat.GetZX()) / S;
+        y_ = (mat.GetYZ() + mat.GetZY()) / S;
+        z_ = 0.25 * S;
+    }
+}
+
 Quaternion & Quaternion::invert() {
     x_ = -x_;
     y_ = -y_;

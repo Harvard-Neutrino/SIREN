@@ -61,15 +61,15 @@ public:
     //-------------------------------------//
     // getter
     //----------------------------------------------//
-    double GetXX() {return xx_;};
-    double GetXY() {return xy_;};
-    double GetXZ() {return xz_;};
-    double GetYX() {return yx_;};
-    double GetYY() {return yy_;};
-    double GetYZ() {return yz_;};
-    double GetZX() {return zx_;};
-    double GetZY() {return zy_;};
-    double GetZZ() {return zz_;};
+    double GetXX() const {return xx_;};
+    double GetXY() const {return xy_;};
+    double GetXZ() const {return xz_;};
+    double GetYX() const {return yx_;};
+    double GetYY() const {return yy_;};
+    double GetYZ() const {return yz_;};
+    double GetZX() const {return zx_;};
+    double GetZY() const {return zy_;};
+    double GetZZ() const {return zz_;};
 
     void SetXX(double xx) {xx_ = xx;};
     void SetXY(double xy) {xy_ = xy;};

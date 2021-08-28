@@ -2,11 +2,13 @@
 #define LI_Quaternion_H
 
 #include <sstream>
+#include "earthmodel-service/Matrix3D.h"
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/EulerAngles.h"
 
 namespace earthmodel {
 
+class Matrix3D;
 class Vector3D;
 
 class Quaternion
@@ -23,7 +25,7 @@ public:
 
     void GetMatrix(Matrix3D &) const;
     Matrix3D GetMatrix() const;
-    void SetMatrix();
+    void SetMatrix(Matrix3D const &);
 
     Quaternion & invert();
     Quaternion & normalize();
