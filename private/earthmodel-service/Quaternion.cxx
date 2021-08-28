@@ -416,6 +416,7 @@ void Quaternion::GetAxisAngle(Vector3D & axis, double & angle) const
         angle = 0;
         axis.SetCartesianCoordinates(0, 0, 1);
     } else {
+        angle = std::atan2(scale, w_) * 2.0;
         axis.SetCartesianCoordinates(x_ / scale, y_ / scale, z_ / scale);
     }
 }

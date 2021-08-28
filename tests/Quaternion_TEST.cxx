@@ -257,6 +257,15 @@ TEST(Quaternion, AxisAngle)
         EXPECT_DOUBLE_EQ(axis.GetX(), normed_vec.GetX());
         EXPECT_DOUBLE_EQ(axis.GetY(), normed_vec.GetY());
         EXPECT_DOUBLE_EQ(axis.GetZ(), normed_vec.GetZ());
+
+        Vector3D new_axis;
+        double new_angle;
+        A.GetAxisAngle(new_axis, new_angle);
+
+        EXPECT_DOUBLE_EQ(axis.GetX(), new_axis.GetX());
+        EXPECT_DOUBLE_EQ(axis.GetY(), new_axis.GetY());
+        EXPECT_DOUBLE_EQ(axis.GetZ(), new_axis.GetZ());
+        EXPECT_DOUBLE_EQ(theta, new_angle);
     }
 }
 
