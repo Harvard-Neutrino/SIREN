@@ -1,5 +1,6 @@
 
 #include <cmath>
+#include <random>
 #include <iostream>
 
 #include <gtest/gtest.h>
@@ -9,6 +10,13 @@
 #include "earthmodel-service/Quaternion.h"
 
 using namespace earthmodel;
+
+std::mt19937 rng_;
+std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
+
+double RandomDouble() {
+    return uniform_distribution(rng_);
+}
 
 TEST(Constructor, Default)
 {
@@ -136,6 +144,23 @@ TEST(Matrix, IdentityRoundtrip)
     EXPECT_DOUBLE_EQ(0.0, A.GetX());
     EXPECT_DOUBLE_EQ(0.0, A.GetY());
     EXPECT_DOUBLE_EQ(0.0, A.GetZ());
+}
+
+TEST(Quaternion, Magnitude)
+{
+    unsigned int n_rand = 100;
+    for(unsigned int i=0; i<n_rand; ++i) {
+        double w = RandomDouble() * 10;
+        double x = RandomDouble() * 10;
+        double y = RandomDouble() * 10;
+        double z = RandomDouble() * 10;
+        Quaternion A(x, y, z, w);
+        double norm = A.magnitude();
+        EXPECT_DOUBLE_EQ(std::sqrt(w*w + x*x + y*y + z*z), norm);
+
+        A.normalize();
+        EXPECT_DOUBLE_EQ(1.0, A.magnitude());
+    }
 }
 
 int main(int argc, char** argv)

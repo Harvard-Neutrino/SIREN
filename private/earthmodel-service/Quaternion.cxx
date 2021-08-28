@@ -341,12 +341,12 @@ Quaternion & Quaternion::normalize()
     if(norm == 1)
         return *this;
 
-    return (*this *= 1.0 / sqrt(norm));
+    return (*this *= 1.0 / std::sqrt(norm));
 }
 
 double Quaternion::magnitude() const
 {
-    return w_ * w_ + x_ * x_ + y_ * y_ + z_ * z_;
+    return std::sqrt(w_ * w_ + x_ * x_ + y_ * y_ + z_ * z_);
 }
 
 double Quaternion::DotProduct(Quaternion const & qu) const
