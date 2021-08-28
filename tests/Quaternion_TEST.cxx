@@ -197,6 +197,34 @@ TEST(Quaternion, Invert)
     }
 }
 
+TEST(Quaternion, DotProduct)
+{
+    unsigned int n_rand = 100;
+    for(unsigned int i=0; i<n_rand; ++i) {
+        double wa = RandomDouble() * 20 - 10;
+        double xa = RandomDouble() * 20 - 10;
+        double ya = RandomDouble() * 20 - 10;
+        double za = RandomDouble() * 20 - 10;
+        Quaternion A(xa, ya, za, wa);
+
+        double wb = RandomDouble() * 20 - 10;
+        double xb = RandomDouble() * 20 - 10;
+        double yb = RandomDouble() * 20 - 10;
+        double zb = RandomDouble() * 20 - 10;
+        Quaternion B(xb, yb, zb, wb);
+
+        double C = A.DotProduct(B);
+        double D = B.DotProduct(A);
+
+        EXPECT_DOUBLE_EQ(C, D);
+
+        double dot = xa*xb + ya*yb + za*zb + wa*wb;
+
+        EXPECT_DOUBLE_EQ(dot, C);
+        EXPECT_DOUBLE_EQ(dot, D);
+    }
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
