@@ -248,6 +248,12 @@ void Vector3D::normalize()
     spherical_.radius_ = 1;
 }
 
+Vector3D Vector3D::normalized() const {
+    Vector3D res(*this);
+    res.normalize();
+    return res;
+}
+
 void Vector3D::deflect(const double cosphi_deflect, const double theta_deflect)
 {
     if(cosphi_deflect != 1 || theta_deflect != 0)
@@ -283,6 +289,12 @@ void Vector3D::invert() {
     cartesian_.x_ = -cartesian_.x_;
     cartesian_.y_ = -cartesian_.y_;
     cartesian_.z_ = -cartesian_.z_;
+}
+
+Vector3D Vector3D::inverted() const {
+    Vector3D res(*this);
+    res.invert();
+    return res;
 }
 
 //----------------------------------------------------------------------//

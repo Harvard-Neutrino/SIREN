@@ -85,8 +85,10 @@ public:
 
     double magnitude() const;
     void normalize();
+    Vector3D normalized() const;
     void deflect(const double, const double);
     void invert();
+    Vector3D inverted() const;
 
     struct CartesianCoordinates {
         CartesianCoordinates() {};
