@@ -150,16 +150,50 @@ TEST(Quaternion, Magnitude)
 {
     unsigned int n_rand = 100;
     for(unsigned int i=0; i<n_rand; ++i) {
-        double w = RandomDouble() * 10;
-        double x = RandomDouble() * 10;
-        double y = RandomDouble() * 10;
-        double z = RandomDouble() * 10;
+        double w = RandomDouble() * 20 - 10;
+        double x = RandomDouble() * 20 - 10;
+        double y = RandomDouble() * 20 - 10;
+        double z = RandomDouble() * 20 - 10;
         Quaternion A(x, y, z, w);
         double norm = A.magnitude();
         EXPECT_DOUBLE_EQ(std::sqrt(w*w + x*x + y*y + z*z), norm);
 
+        Quaternion B = A.normalized();
+        EXPECT_DOUBLE_EQ(1.0, B.magnitude());
+
         A.normalize();
         EXPECT_DOUBLE_EQ(1.0, A.magnitude());
+    }
+}
+
+TEST(Quaternion, Invert)
+{
+    unsigned int n_rand = 100;
+    for(unsigned int i=0; i<n_rand; ++i) {
+        double w = RandomDouble() * 20 - 10;
+        double x = RandomDouble() * 20 - 10;
+        double y = RandomDouble() * 20 - 10;
+        double z = RandomDouble() * 20 - 10;
+        double norm2 = w*w + x*x + y*y + z*z;
+        Quaternion A(x, y, z, w);
+
+        Quaternion B = A.inverted();
+        EXPECT_DOUBLE_EQ(w/norm2, B.GetW());
+        EXPECT_DOUBLE_EQ(-x/norm2, B.GetX());
+        EXPECT_DOUBLE_EQ(-y/norm2, B.GetY());
+        EXPECT_DOUBLE_EQ(-z/norm2, B.GetZ());
+
+        Quaternion C = A*B;
+        EXPECT_NEAR(1.0, C.GetW(), 1e-12);
+        EXPECT_NEAR(0.0, C.GetX(), 1e-12);
+        EXPECT_NEAR(0.0, C.GetY(), 1e-12);
+        EXPECT_NEAR(0.0, C.GetZ(), 1e-12);
+
+        A.invert();
+        EXPECT_DOUBLE_EQ(w/norm2, A.GetW());
+        EXPECT_DOUBLE_EQ(-x/norm2, A.GetX());
+        EXPECT_DOUBLE_EQ(-y/norm2, A.GetY());
+        EXPECT_DOUBLE_EQ(-z/norm2, A.GetZ());
     }
 }
 

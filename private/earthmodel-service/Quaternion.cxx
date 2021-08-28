@@ -320,10 +320,18 @@ void Quaternion::SetMatrix(Matrix3D const & mat) {
 }
 
 Quaternion & Quaternion::invert() {
-    x_ = -x_;
-    y_ = -y_;
-    z_ = -z_;
+    double norm2 = magnitudesq();
+    w_ = w_ / norm2;
+    x_ = -x_ / norm2;
+    y_ = -y_ / norm2;
+    z_ = -z_ / norm2;
     return *this;
+}
+
+Quaternion Quaternion::inverted() const{
+    Quaternion res(*this);
+    res.invert();
+    return res;
 }
 
 void Quaternion::SetPosition(Vector3D const & vec)
@@ -344,9 +352,20 @@ Quaternion & Quaternion::normalize()
     return (*this *= 1.0 / std::sqrt(norm));
 }
 
+Quaternion Quaternion::normalized() const {
+    Quaternion res(*this);
+    res.normalize();
+    return res;
+}
+
+double Quaternion::magnitudesq() const
+{
+    return w_ * w_ + x_ * x_ + y_ * y_ + z_ * z_;
+}
+
 double Quaternion::magnitude() const
 {
-    return std::sqrt(w_ * w_ + x_ * x_ + y_ * y_ + z_ * z_);
+    return std::sqrt(magnitudesq());
 }
 
 double Quaternion::DotProduct(Quaternion const & qu) const

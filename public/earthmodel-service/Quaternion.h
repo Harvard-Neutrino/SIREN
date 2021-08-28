@@ -29,7 +29,10 @@ public:
 
     Quaternion & invert();
     Quaternion & normalize();
+    Quaternion inverted() const;
+    Quaternion normalized() const;
     double magnitude() const;
+    double magnitudesq() const;
 
     double DotProduct(Quaternion const &) const;
 
