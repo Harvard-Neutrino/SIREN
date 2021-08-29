@@ -265,7 +265,7 @@ Vector3D Quaternion::compose(Vector3D const & p, bool inv = false) const
 
     x = x1 * (w2 + x2 - y2 - z2) + 2 * (x0 * (yy + zz) + w0 * (yz - zy));
     y = y1 * (w2 - x2 + y2 - z2) + 2 * (y0 * (xx + zz) + w0 * (zx - xz));
-    z = z1 * (w2 - x2 - y2 + x2) + 2 * (z0 * (xx + yy) + w0 * (xy - yx));
+    z = z1 * (w2 - x2 - y2 + z2) + 2 * (z0 * (xx + yy) + w0 * (xy - yx));
     return Vector3D(x, y, z);
 }
 

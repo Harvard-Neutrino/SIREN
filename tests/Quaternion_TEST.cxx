@@ -279,6 +279,158 @@ TEST(Quaternion, AxisAngle)
     }
 }
 
+TEST(Quaternion, Rotation)
+{
+    Vector3D res;
+    Vector3D vec;
+    Vector3D axis;
+    double angle;
+    Quaternion rotor;
+
+    // pos x
+    vec = Vector3D(1, 0, 0);
+
+    // null rotation
+    angle = 0;
+    axis = Vector3D(0, 0, 1);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_DOUBLE_EQ(1.0, res.GetX());
+    EXPECT_DOUBLE_EQ(0.0, res.GetY());
+    EXPECT_DOUBLE_EQ(0.0, res.GetZ());
+
+    angle = M_PI * 0.5;
+
+    // about z
+    axis = Vector3D(0, 0, 1);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+
+    // about y
+    axis = Vector3D(0, 1, 0);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(-1.0, res.GetZ(), 1e-12);
+
+    // about x
+    axis = Vector3D(1, 0, 0);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_NEAR(1.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+
+    // pos y
+    vec = Vector3D(0, 1, 0);
+
+    // null rotation
+    angle = 0;
+    axis = Vector3D(1, 0, 0);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_DOUBLE_EQ(0.0, res.GetX());
+    EXPECT_DOUBLE_EQ(1.0, res.GetY());
+    EXPECT_DOUBLE_EQ(0.0, res.GetZ());
+
+    angle = M_PI * 0.5;
+
+    // about z
+    axis = Vector3D(0, 0, 1);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_NEAR(-1.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+
+    // about y
+    axis = Vector3D(0, 1, 0);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+
+    // about x
+    axis = Vector3D(1, 0, 0);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
+
+    // pos z
+    vec = Vector3D(0, 0, 1);
+
+    // null rotation
+    angle = 0;
+    axis = Vector3D(0, 1, 0);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_DOUBLE_EQ(0.0, res.GetX());
+    EXPECT_DOUBLE_EQ(0.0, res.GetY());
+    EXPECT_DOUBLE_EQ(1.0, res.GetZ());
+
+    angle = M_PI * 0.5;
+
+    // about z
+    axis = Vector3D(0, 0, 1);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
+
+    // about y
+    axis = Vector3D(0, 1, 0);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_NEAR(1.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+
+    // about x
+    axis = Vector3D(1, 0, 0);
+    rotor.SetAxisAngle(axis, angle);
+    res = rotor.compose(vec, false);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(-1.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+}
+
+TEST(Quaternion, RotationComposition)
+{
+    Vector3D res;
+    Vector3D vec(1, 0, 0);
+    double x_angle = M_PI * 0.5;
+    double z_angle = M_PI * 0.5;
+    Vector3D x_axis(1, 0, 0);
+    Vector3D z_axis(0, 0, 1);
+    Quaternion x_rotor;
+    x_rotor.SetAxisAngle(x_axis, x_angle);
+    Quaternion z_rotor;
+    z_rotor.SetAxisAngle(z_axis, z_angle);
+
+    Quaternion rotor = z_rotor * x_rotor;
+
+    res = z_rotor.compose(vec, false);
+    res = x_rotor.compose(res, false);
+
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
+
+    res = rotor.compose(vec, false);
+
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
