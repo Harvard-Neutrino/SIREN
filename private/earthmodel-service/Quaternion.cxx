@@ -181,12 +181,7 @@ Quaternion & Quaternion::operator+=(double factor)
 }
 
 Quaternion Quaternion::operator~() const {
-    Quaternion res;
-    res.x_ = -x_;
-    res.y_ = -y_;
-    res.z_ = -z_;
-    res.w_ = w_;
-    return res;
+    return conjugated();
 }
 
 Quaternion Quaternion::rotate(Quaternion const & p, bool inv = false) const
@@ -213,10 +208,10 @@ Quaternion Quaternion::rotate(Quaternion const & p, bool inv = false) const
     double y1 = p.GetY();
     double z1 = p.GetZ();
 
-    double wx = w_ * x1, wy = w_ * y1, wz = w_ * z1;
-    double xx = x_ * x1, xy = x_ * y1, xz = x_ * z1;
-    double yx = y_ * x1, yy = y_ * y1, yz = y_ * z1;
-    double zx = z_ * x1, zy = z_ * y1, zz = z_ * z1;
+    double wx = w0 * x1, wy = w0 * y1, wz = w0 * z1;
+    double xx = x0 * x1, xy = x0 * y1, xz = x0 * z1;
+    double yx = y0 * x1, yy = y0 * y1, yz = y0 * z1;
+    double zx = z0 * x1, zy = z0 * y1, zz = z0 * z1;
 
     double w2 = w0 * w0;
     double x2 = x0 * x0;
@@ -253,10 +248,10 @@ Vector3D Quaternion::rotate(Vector3D const & p, bool inv = false) const
     double y1 = p.GetY();
     double z1 = p.GetZ();
 
-    double wx = w_ * x1, wy = w_ * y1, wz = w_ * z1;
-    double xx = x_ * x1, xy = x_ * y1, xz = x_ * z1;
-    double yx = y_ * x1, yy = y_ * y1, yz = y_ * z1;
-    double zx = z_ * x1, zy = z_ * y1, zz = z_ * z1;
+    double wx = w0 * x1, wy = w0 * y1, wz = w0 * z1;
+    double xx = x0 * x1, xy = x0 * y1, xz = x0 * z1;
+    double yx = y0 * x1, yy = y0 * y1, yz = y0 * z1;
+    double zx = z0 * x1, zy = z0 * y1, zz = z0 * z1;
 
     double w2 = w0 * w0;
     double x2 = x0 * x0;
@@ -317,6 +312,20 @@ void Quaternion::SetMatrix(Matrix3D const & mat) {
         y_ = (mat.GetYZ() + mat.GetZY()) / S;
         z_ = 0.25 * S;
     }
+}
+
+Quaternion & Quaternion::conjugate() {
+    w_ = w_;
+    x_ = -x_;
+    y_ = -y_;
+    z_ = -z_;
+    return *this;
+}
+
+Quaternion Quaternion::conjugated() const{
+    Quaternion res(*this);
+    res.conjugate();
+    return res;
 }
 
 Quaternion & Quaternion::invert() {

@@ -28,8 +28,10 @@ public:
     void SetMatrix(Matrix3D const &);
 
     Quaternion & invert();
+    Quaternion & conjugate();
     Quaternion & normalize();
     Quaternion inverted() const;
+    Quaternion conjugated() const;
     Quaternion normalized() const;
     double magnitude() const;
     double magnitudesq() const;

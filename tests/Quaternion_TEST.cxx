@@ -197,6 +197,69 @@ TEST(Quaternion, Invert)
     }
 }
 
+TEST(Quaternion, Conjugate)
+{
+    unsigned int n_rand = 100;
+    for(unsigned int i=0; i<n_rand; ++i) {
+        double w = RandomDouble() * 20 - 10;
+        double x = RandomDouble() * 20 - 10;
+        double y = RandomDouble() * 20 - 10;
+        double z = RandomDouble() * 20 - 10;
+        double norm2 = w*w + x*x + y*y + z*z;
+        Quaternion A(x, y, z, w);
+
+        Quaternion B = A.conjugated();
+        EXPECT_DOUBLE_EQ(w, B.GetW());
+        EXPECT_DOUBLE_EQ(-x, B.GetX());
+        EXPECT_DOUBLE_EQ(-y, B.GetY());
+        EXPECT_DOUBLE_EQ(-z, B.GetZ());
+
+        Quaternion C = A*B;
+        EXPECT_NEAR(norm2, C.GetW(), 1e-12);
+        EXPECT_NEAR(0.0, C.GetX(), 1e-12);
+        EXPECT_NEAR(0.0, C.GetY(), 1e-12);
+        EXPECT_NEAR(0.0, C.GetZ(), 1e-12);
+
+        A.conjugate();
+        EXPECT_DOUBLE_EQ(w, A.GetW());
+        EXPECT_DOUBLE_EQ(-x, A.GetX());
+        EXPECT_DOUBLE_EQ(-y, A.GetY());
+        EXPECT_DOUBLE_EQ(-z, A.GetZ());
+    }
+}
+
+TEST(Quaternion, Normalize)
+{
+    unsigned int n_rand = 100;
+    for(unsigned int i=0; i<n_rand; ++i) {
+        double w = RandomDouble() * 20 - 10;
+        double x = RandomDouble() * 20 - 10;
+        double y = RandomDouble() * 20 - 10;
+        double z = RandomDouble() * 20 - 10;
+        double norm2 = w*w + x*x + y*y + z*z;
+        double norm = std::sqrt(norm2);
+        Quaternion A(x, y, z, w);
+
+        Quaternion B = A.normalized();
+        EXPECT_DOUBLE_EQ(w/norm, B.GetW());
+        EXPECT_DOUBLE_EQ(x/norm, B.GetX());
+        EXPECT_DOUBLE_EQ(y/norm, B.GetY());
+        EXPECT_DOUBLE_EQ(z/norm, B.GetZ());
+
+        Quaternion C = A*B.inverted();
+        EXPECT_NEAR(norm, C.GetW(), 1e-12);
+        EXPECT_NEAR(0.0, C.GetX(), 1e-12);
+        EXPECT_NEAR(0.0, C.GetY(), 1e-12);
+        EXPECT_NEAR(0.0, C.GetZ(), 1e-12);
+
+        A.normalize();
+        EXPECT_DOUBLE_EQ(w/norm, A.GetW());
+        EXPECT_DOUBLE_EQ(x/norm, A.GetX());
+        EXPECT_DOUBLE_EQ(y/norm, A.GetY());
+        EXPECT_DOUBLE_EQ(z/norm, A.GetZ());
+    }
+}
+
 TEST(Quaternion, DotProduct)
 {
     unsigned int n_rand = 100;
@@ -357,6 +420,10 @@ TEST(Quaternion, SimpleRotation)
     EXPECT_DOUBLE_EQ(1.0, res.GetX());
     EXPECT_DOUBLE_EQ(0.0, res.GetY());
     EXPECT_DOUBLE_EQ(0.0, res.GetZ());
+    res = rotor.rotate(vec, true);
+    EXPECT_DOUBLE_EQ(1.0, res.GetX());
+    EXPECT_DOUBLE_EQ(0.0, res.GetY());
+    EXPECT_DOUBLE_EQ(0.0, res.GetZ());
     q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
     EXPECT_DOUBLE_EQ(1.0, q_res.GetX());
     EXPECT_DOUBLE_EQ(0.0, q_res.GetY());
@@ -371,6 +438,10 @@ TEST(Quaternion, SimpleRotation)
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(1.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    res = rotor.rotate(vec, true);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(-1.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
     q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
     EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
     EXPECT_NEAR(1.0, q_res.GetY(), 1e-12);
@@ -383,6 +454,10 @@ TEST(Quaternion, SimpleRotation)
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(-1.0, res.GetZ(), 1e-12);
+    res = rotor.rotate(vec, true);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
     q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
     EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
@@ -392,6 +467,10 @@ TEST(Quaternion, SimpleRotation)
     axis = Vector3D(1, 0, 0);
     rotor.SetAxisAngle(axis, angle);
     res = rotor.rotate(vec, false);
+    EXPECT_NEAR(1.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    res = rotor.rotate(vec, true);
     EXPECT_NEAR(1.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
@@ -411,6 +490,10 @@ TEST(Quaternion, SimpleRotation)
     EXPECT_DOUBLE_EQ(0.0, res.GetX());
     EXPECT_DOUBLE_EQ(1.0, res.GetY());
     EXPECT_DOUBLE_EQ(0.0, res.GetZ());
+    res = rotor.rotate(vec, true);
+    EXPECT_DOUBLE_EQ(0.0, res.GetX());
+    EXPECT_DOUBLE_EQ(1.0, res.GetY());
+    EXPECT_DOUBLE_EQ(0.0, res.GetZ());
     q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
     EXPECT_DOUBLE_EQ(0.0, q_res.GetX());
     EXPECT_DOUBLE_EQ(1.0, q_res.GetY());
@@ -425,6 +508,10 @@ TEST(Quaternion, SimpleRotation)
     EXPECT_NEAR(-1.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    res = rotor.rotate(vec, true);
+    EXPECT_NEAR(1.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
     q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
     EXPECT_NEAR(-1.0, q_res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
@@ -434,6 +521,10 @@ TEST(Quaternion, SimpleRotation)
     axis = Vector3D(0, 1, 0);
     rotor.SetAxisAngle(axis, angle);
     res = rotor.rotate(vec, false);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    res = rotor.rotate(vec, true);
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(1.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
@@ -449,6 +540,10 @@ TEST(Quaternion, SimpleRotation)
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
+    res = rotor.rotate(vec, true);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(-1.0, res.GetZ(), 1e-12);
     q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
     EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
@@ -462,6 +557,10 @@ TEST(Quaternion, SimpleRotation)
     axis = Vector3D(0, 1, 0);
     rotor.SetAxisAngle(axis, angle);
     res = rotor.rotate(vec, false);
+    EXPECT_DOUBLE_EQ(0.0, res.GetX());
+    EXPECT_DOUBLE_EQ(0.0, res.GetY());
+    EXPECT_DOUBLE_EQ(1.0, res.GetZ());
+    res = rotor.rotate(vec, true);
     EXPECT_DOUBLE_EQ(0.0, res.GetX());
     EXPECT_DOUBLE_EQ(0.0, res.GetY());
     EXPECT_DOUBLE_EQ(1.0, res.GetZ());
@@ -479,6 +578,10 @@ TEST(Quaternion, SimpleRotation)
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
+    res = rotor.rotate(vec, true);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
     q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
     EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
@@ -489,6 +592,10 @@ TEST(Quaternion, SimpleRotation)
     rotor.SetAxisAngle(axis, angle);
     res = rotor.rotate(vec, false);
     EXPECT_NEAR(1.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    res = rotor.rotate(vec, true);
+    EXPECT_NEAR(-1.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
     q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
@@ -502,6 +609,10 @@ TEST(Quaternion, SimpleRotation)
     res = rotor.rotate(vec, false);
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(-1.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    res = rotor.rotate(vec, true);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
     q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
     EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
@@ -541,8 +652,6 @@ TEST(Quaternion, RotationComposition)
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
 }
-
-
 
 int main(int argc, char** argv)
 {
