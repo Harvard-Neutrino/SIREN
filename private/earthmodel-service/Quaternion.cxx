@@ -190,17 +190,19 @@ Quaternion Quaternion::rotate(Quaternion const & p, bool inv = false) const
 
     double w0, x0, y0, z0;
 
-    if(inv){
-        w0 = w_;
-        x0 = -x_;
-        y0 = -y_;
-        z0 = -z_;
+    double norm = magnitude();
+
+    if(inv) {
+        w0 = w_ / norm;
+        x0 = -x_ / norm;
+        y0 = -y_ / norm;
+        z0 = -z_ / norm;
     }
-    else{
-        w0 = w_;
-        x0 = x_;
-        y0 = y_;
-        z0 = z_;
+    else {
+        w0 = w_ / norm;
+        x0 = x_ / norm;
+        y0 = y_ / norm;
+        z0 = z_ / norm;
     }
 
     double w1 = p.GetW();
@@ -227,21 +229,23 @@ Quaternion Quaternion::rotate(Quaternion const & p, bool inv = false) const
 
 Vector3D Quaternion::rotate(Vector3D const & p, bool inv = false) const
 {
-    double w,x,y,z;
+    double w, x, y, z;
 
     double w0, x0, y0, z0;
 
-    if(inv){
-        w0 = w_;
-        x0 = -x_;
-        y0 = -y_;
-        z0 = -z_;
+    double norm = magnitude();
+
+    if(inv) {
+        w0 = w_ / norm;
+        x0 = -x_ / norm;
+        y0 = -y_ / norm;
+        z0 = -z_ / norm;
     }
-    else{
-        w0 = w_;
-        x0 = x_;
-        y0 = y_;
-        z0 = z_;
+    else {
+        w0 = w_ / norm;
+        x0 = x_ / norm;
+        y0 = y_ / norm;
+        z0 = z_ / norm;
     }
 
     double x1 = p.GetX();
