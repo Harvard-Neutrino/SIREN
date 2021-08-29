@@ -184,6 +184,10 @@ Quaternion Quaternion::operator~() const {
     return conjugated();
 }
 
+Quaternion Quaternion::operator!() const {
+    return inverted();
+}
+
 Quaternion Quaternion::rotate(Quaternion const & p, bool inv = false) const
 {
     double w,x,y,z;
@@ -451,17 +455,17 @@ void Quaternion::GetEulerAngles(EulerAngles & euler, EulerOrder order) const
     euler = earthmodel::EulerAnglesFromQuaternion(*this, order);
 }
 
-void Quaternion::GetEulerAnglesZXZs(double & alpha, double & beta, double & gamma) const
+void Quaternion::GetEulerAnglesZXZr(double & alpha, double & beta, double & gamma) const
 {
-    EulerAngles euler = earthmodel::ZXZsFromQ(*this);
+    EulerAngles euler = earthmodel::ZXZrFromQ(*this);
     alpha = euler.GetAlpha();
     beta = euler.GetBeta();
     gamma = euler.GetGamma();
 }
 
-void Quaternion::SetEulerAnglesZXZs(double alpha, double beta, double gamma)
+void Quaternion::SetEulerAnglesZXZr(double alpha, double beta, double gamma)
 {
-    (*this) = earthmodel::QFromZXZs(alpha, beta, gamma);
+    (*this) = earthmodel::QFromZXZr(alpha, beta, gamma);
 }
 
 void Quaternion::GetEulerAnglesXYZs(double & alpha, double & beta, double & gamma) const

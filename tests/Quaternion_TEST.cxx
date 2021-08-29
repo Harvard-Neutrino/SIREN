@@ -653,6 +653,76 @@ TEST(Quaternion, RotationComposition)
     EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
 }
 
+TEST(Quaternion, EulerAngleConversion)
+{
+    Vector3D res;
+    Vector3D vec(0, 1, 0);
+    double x_angle = M_PI * 0.5;
+    double z_angle = M_PI * 0.5;
+    Vector3D x_axis(1, 0, 0);
+    Vector3D z_axis(0, 0, 1);
+    Quaternion x_rotor;
+    x_rotor.SetAxisAngle(x_axis, x_angle);
+    Quaternion z_rotor;
+    z_rotor.SetAxisAngle(z_axis, z_angle);
+
+    Quaternion rotor = z_rotor * x_rotor;
+
+    Quaternion q;
+    q.SetEulerAnglesZXZr(z_angle, x_angle, 0.0);
+    EXPECT_NEAR(rotor.GetX(), q.GetX(), 1e-12);
+    EXPECT_NEAR(rotor.GetY(), q.GetY(), 1e-12);
+    EXPECT_NEAR(rotor.GetZ(), q.GetZ(), 1e-12);
+    EXPECT_NEAR(rotor.GetW(), q.GetW(), 1e-12);
+
+    res = rotor.rotate(vec, false);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
+
+    res = q.rotate(vec, false);
+    EXPECT_NEAR(0.0, res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
+
+    double alpha, beta, gamma;
+    q.GetEulerAnglesZXZr(alpha, beta, gamma);
+    EXPECT_NEAR(z_angle, alpha, 1e-12);
+    EXPECT_NEAR(x_angle, beta, 1e-12);
+    EXPECT_NEAR(0.0, gamma, 1e-12);
+
+    unsigned int n_rand = 100;
+
+    for(unsigned int i=0; i<n_rand; ++i) {
+        double z0 = (RandomDouble() * 2 - 1) * M_PI;
+        double x0 = (RandomDouble() * M_PI);
+        double z1 = (RandomDouble() * 2 - 1) * M_PI;
+        q.SetEulerAnglesZXZr(z0, x0, z1);
+        q.GetEulerAnglesZXZr(alpha, beta, gamma);
+        EXPECT_NEAR(z0, alpha, 1e-12);
+        EXPECT_NEAR(x0, beta, 1e-12);
+        EXPECT_NEAR(z1, gamma, 1e-12);
+
+        Quaternion z0_rotor;
+        Quaternion x0_rotor;
+        Quaternion z1_rotor;
+        z0_rotor.SetAxisAngle(z_axis, z0);
+        x0_rotor.SetAxisAngle(x_axis, x0);
+        z1_rotor.SetAxisAngle(z_axis, z1);
+        rotor = z0_rotor * x0_rotor * z1_rotor;
+        EXPECT_NEAR(rotor.GetX(), q.GetX(), 1e-12);
+        EXPECT_NEAR(rotor.GetY(), q.GetY(), 1e-12);
+        EXPECT_NEAR(rotor.GetZ(), q.GetZ(), 1e-12);
+        EXPECT_NEAR(rotor.GetW(), q.GetW(), 1e-12);
+
+        q.SetEulerAngles(EulerAngles(EulerOrder::ZXZr, z0, x0, z1));
+        EXPECT_NEAR(rotor.GetX(), q.GetX(), 1e-12);
+        EXPECT_NEAR(rotor.GetY(), q.GetY(), 1e-12);
+        EXPECT_NEAR(rotor.GetZ(), q.GetZ(), 1e-12);
+        EXPECT_NEAR(rotor.GetW(), q.GetW(), 1e-12);
+    }
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

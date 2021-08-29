@@ -181,7 +181,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
             ss >> shape;
             ss >> xc >> yc >> zc;
             ss >> alpha >> beta >> gamma;
-            Placement placement(Vector3D(xc,yc,zc), QFromZXZs(alpha,beta,gamma));
+            Placement placement(Vector3D(xc,yc,zc), QFromZXZr(alpha,beta,gamma));
 
             if(shape.find("sphere")!=std::string::npos) {
                 double radius; // For Sphere shapes
@@ -819,7 +819,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
             for(auto const & i : ice_layers) {
                 EarthSector & sector = sectors_[i];
                 Sphere const * geo = dynamic_cast<Sphere const *>(sector.geo.get());
-                sector.geo = Sphere(Placement(Vector3D(0,0,ice_offset), QFromZXZs(0,0,0)), geo->GetRadius()-ice_offset, 0).create();
+                sector.geo = Sphere(Placement(Vector3D(0,0,ice_offset), QFromZXZr(0,0,0)), geo->GetRadius()-ice_offset, 0).create();
                 //geo->SetRadius(geo->GetRadius()-ice_offset);
                 //geo->SetPosition(Vector3D(0,0,ice_offset));
             }

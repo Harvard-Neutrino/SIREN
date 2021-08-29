@@ -12,7 +12,7 @@ class Quaternion;
 class EulerAngles;
 
 inline
-Quaternion QFromZXZs(double alpha, double beta, double gamma)
+Quaternion QFromZXZr(double alpha, double beta, double gamma)
 {
     alpha *= 0.5;
     beta *= 0.5;
@@ -24,38 +24,39 @@ Quaternion QFromZXZs(double alpha, double beta, double gamma)
     double res[4];
     return Quaternion(
             sb * cos(alpha - gamma),
-            -sb * sin(alpha - gamma),
+            sb * sin(alpha - gamma),
             cb * sin(alpha + gamma),
             cb * cos(alpha + gamma)
         );
 }
 
 inline
-EulerAngles ZXZsFromQ(Quaternion const & quaternion) {
+EulerAngles ZXZrFromQ(Quaternion const & quaternion) {
     double Nq = quaternion.DotProduct(quaternion);
     double s = (Nq > 0) ? (2.0 / Nq) : 0;
     double x =  quaternion.GetX();
     double y =  quaternion.GetY();
     double z =  quaternion.GetZ();
     double w =  quaternion.GetW();
+    double ww = w * w * s;
     double xs = x * s,   ys = y * s,   zs = z * s;
     double wx = w * xs,  wy = w * ys,  wz = w * zs;
     double xx = x * xs,  xy = x * ys,  xz = x * zs;
     double yy = y * ys,  yz = y * zs,  zz = z * zs;
-    double check = sqrt((xx + yy) * (w*w + zz));
+    double check = sqrt((xx + yy) * (ww + zz));
 
     double alpha, beta, gamma;
 
     if(check > 16 * std::numeric_limits<double>::epsilon()) {
-        alpha = atan2(xz - wy, wx + yz);
-        beta = atan2(check, 1.0 - (xx + yy));
-        gamma = atan2(wy + xz, wx - yz);
+        alpha = atan2(wy + xz, wx - yz);
+        beta = atan2(check, 1 - (xx + yy));
+        gamma = atan2(xz - wy, wx + yz);
     } else {
-        alpha = atan2(wz - xy, 1.0 - (yy + zz));
-        beta = atan2(check, 1.0 - (xx + yy));
-        gamma = 0;
+        alpha = 0;
+        beta = atan2(check, 1 - (xx + yy));
+        gamma = atan2(wz - xy, 1 - (yy + zz));
     }
-    return EulerAngles(EulerOrder::ZXZs, alpha, beta, gamma);
+    return EulerAngles(EulerOrder::ZXZr, alpha, beta, gamma);
 }
 
 inline
@@ -94,6 +95,7 @@ EulerAngles XYZsFromQ(Quaternion const & quaternion) {
     double y =  quaternion.GetY();
     double z =  quaternion.GetZ();
     double w =  quaternion.GetW();
+    double ww = w * w * s;
     double xs = x * s,   ys = y * s,   zs = z * s;
     double wx = w * xs,  wy = w * ys,  wz = w * zs;
     double xx = x * xs,  xy = x * ys,  xz = x * zs;

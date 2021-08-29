@@ -53,7 +53,7 @@ Quaternion QuaternionFromEulerAngles(EulerAngles const & euler)
     double res[4];
 
     if(s == EulerRepetition::Yes) {
-        res[i] = cb * (cs + ss);
+        res[i] = cb * (cs + sc);
         res[j] = sb * (cc + ss);
         res[k] = sb * (cs - sc);
         res[3] = cb * (cc - ss);

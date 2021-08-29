@@ -13,7 +13,7 @@ using namespace earthmodel;
 
 Placement::Placement() :
 	position_(Vector3D(0,0,0)),
-	quaternion_(QFromZXZs(0,0,0))
+	quaternion_(QFromZXZr(0,0,0))
 {
     quaternion_.normalize();
 }

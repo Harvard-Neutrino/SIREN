@@ -47,8 +47,8 @@ public:
 
     void GetEulerAngles(EulerAngles & euler, EulerOrder order) const;
     void SetEulerAngles(EulerAngles const & euler);
-    void GetEulerAnglesZXZs(double & alpha, double & beta, double & gamma) const;
-    void SetEulerAnglesZXZs(double alpha, double beta, double gamma);
+    void GetEulerAnglesZXZr(double & alpha, double & beta, double & gamma) const;
+    void SetEulerAnglesZXZr(double alpha, double beta, double gamma);
     void GetEulerAnglesXYZs(double & alpha, double & beta, double & gamma) const;
     void SetEulerAnglesXYZs(double alpha, double beta, double gamma);
 
@@ -72,6 +72,7 @@ public:
     Quaternion & operator+=(double);
 
     Quaternion operator~() const;
+    Quaternion operator!() const;
 
     Quaternion rotate(Quaternion const & p, bool inv) const;
     Vector3D rotate(Vector3D const & p, bool inv) const;

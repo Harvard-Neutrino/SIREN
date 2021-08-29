@@ -209,7 +209,7 @@ protected:
         Quaternion q;
         q.SetAxisAngle(v, theta);
         double alpha, beta, gamma;
-        q.GetEulerAnglesZXZs(alpha, beta, gamma);
+        q.GetEulerAnglesZXZr(alpha, beta, gamma);
         std::stringstream ss;
         ss << alpha << random_blank_cruft() << beta << random_blank_cruft() << gamma << random_blank_cruft();
         return ss.str();
