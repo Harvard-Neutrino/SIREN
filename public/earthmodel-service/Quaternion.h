@@ -71,8 +71,8 @@ public:
 
     Quaternion operator~() const;
 
-    Quaternion compose(Quaternion const & p, bool inv) const;
-    Vector3D compose(Vector3D const & p, bool inv) const;
+    Quaternion rotate(Quaternion const & p, bool inv) const;
+    Vector3D rotate(Vector3D const & p, bool inv) const;
 
     double GetX() const {return x_;}
     double GetY() const {return y_;}

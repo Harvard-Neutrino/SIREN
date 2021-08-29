@@ -279,13 +279,72 @@ TEST(Quaternion, AxisAngle)
     }
 }
 
-TEST(Quaternion, Rotation)
+TEST(Quaternion, Parity)
+{
+    Quaternion x(1, 0, 0, 0);
+    Quaternion y(0, 1, 0, 0);
+    Quaternion z(0, 0, 1, 0);
+    Quaternion w(0, 0, 0, 1);
+
+    Quaternion res;
+
+    res = x * y;
+    EXPECT_EQ(1.0, res.GetZ());
+
+    res = y * x;
+    EXPECT_EQ(-1.0, res.GetZ());
+
+    res = y * z;
+    EXPECT_EQ(1.0, res.GetX());
+
+    res = z * y;
+    EXPECT_EQ(-1.0, res.GetX());
+
+    res = z * x;
+    EXPECT_EQ(1.0, res.GetY());
+
+    res = x * z;
+    EXPECT_EQ(-1.0, res.GetY());
+
+    res = w * x;
+    EXPECT_EQ(1.0, res.GetX());
+
+    res = x * w;
+    EXPECT_EQ(1.0, res.GetX());
+
+    res = w * y;
+    EXPECT_EQ(1.0, res.GetY());
+
+    res = y * w;
+    EXPECT_EQ(1.0, res.GetY());
+
+    res = w * z;
+    EXPECT_EQ(1.0, res.GetZ());
+
+    res = z * w;
+    EXPECT_EQ(1.0, res.GetZ());
+
+    res = w * w;
+    EXPECT_EQ(1.0, res.GetW());
+
+    res = x * x;
+    EXPECT_EQ(-1.0, res.GetW());
+
+    res = y * y;
+    EXPECT_EQ(-1.0, res.GetW());
+
+    res = z * z;
+    EXPECT_EQ(-1.0, res.GetW());
+}
+
+TEST(Quaternion, SimpleRotation)
 {
     Vector3D res;
     Vector3D vec;
     Vector3D axis;
     double angle;
     Quaternion rotor;
+    Quaternion q_res;
 
     // pos x
     vec = Vector3D(1, 0, 0);
@@ -294,36 +353,52 @@ TEST(Quaternion, Rotation)
     angle = 0;
     axis = Vector3D(0, 0, 1);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_DOUBLE_EQ(1.0, res.GetX());
     EXPECT_DOUBLE_EQ(0.0, res.GetY());
     EXPECT_DOUBLE_EQ(0.0, res.GetZ());
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_DOUBLE_EQ(1.0, q_res.GetX());
+    EXPECT_DOUBLE_EQ(0.0, q_res.GetY());
+    EXPECT_DOUBLE_EQ(0.0, q_res.GetZ());
 
     angle = M_PI * 0.5;
 
     // about z
     axis = Vector3D(0, 0, 1);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(1.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
+    EXPECT_NEAR(1.0, q_res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetZ(), 1e-12);
 
     // about y
     axis = Vector3D(0, 1, 0);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(-1.0, res.GetZ(), 1e-12);
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
+    EXPECT_NEAR(-1.0, q_res.GetZ(), 1e-12);
 
     // about x
     axis = Vector3D(1, 0, 0);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_NEAR(1.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_NEAR(1.0, q_res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetZ(), 1e-12);
 
     // pos y
     vec = Vector3D(0, 1, 0);
@@ -332,36 +407,52 @@ TEST(Quaternion, Rotation)
     angle = 0;
     axis = Vector3D(1, 0, 0);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_DOUBLE_EQ(0.0, res.GetX());
     EXPECT_DOUBLE_EQ(1.0, res.GetY());
     EXPECT_DOUBLE_EQ(0.0, res.GetZ());
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_DOUBLE_EQ(0.0, q_res.GetX());
+    EXPECT_DOUBLE_EQ(1.0, q_res.GetY());
+    EXPECT_DOUBLE_EQ(0.0, q_res.GetZ());
 
     angle = M_PI * 0.5;
 
     // about z
     axis = Vector3D(0, 0, 1);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_NEAR(-1.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_NEAR(-1.0, q_res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetZ(), 1e-12);
 
     // about y
     axis = Vector3D(0, 1, 0);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(1.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
+    EXPECT_NEAR(1.0, q_res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetZ(), 1e-12);
 
     // about x
     axis = Vector3D(1, 0, 0);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, q_res.GetZ(), 1e-12);
 
     // pos z
     vec = Vector3D(0, 0, 1);
@@ -370,42 +461,58 @@ TEST(Quaternion, Rotation)
     angle = 0;
     axis = Vector3D(0, 1, 0);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_DOUBLE_EQ(0.0, res.GetX());
     EXPECT_DOUBLE_EQ(0.0, res.GetY());
     EXPECT_DOUBLE_EQ(1.0, res.GetZ());
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_DOUBLE_EQ(0.0, q_res.GetX());
+    EXPECT_DOUBLE_EQ(0.0, q_res.GetY());
+    EXPECT_DOUBLE_EQ(1.0, q_res.GetZ());
 
     angle = M_PI * 0.5;
 
     // about z
     axis = Vector3D(0, 0, 1);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, q_res.GetZ(), 1e-12);
 
     // about y
     axis = Vector3D(0, 1, 0);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_NEAR(1.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_NEAR(1.0, q_res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetZ(), 1e-12);
 
     // about x
     axis = Vector3D(1, 0, 0);
     rotor.SetAxisAngle(axis, angle);
-    res = rotor.compose(vec, false);
+    res = rotor.rotate(vec, false);
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(-1.0, res.GetY(), 1e-12);
     EXPECT_NEAR(0.0, res.GetZ(), 1e-12);
+    q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
+    EXPECT_NEAR(-1.0, q_res.GetY(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetZ(), 1e-12);
 }
 
 TEST(Quaternion, RotationComposition)
 {
     Vector3D res;
-    Vector3D vec(1, 0, 0);
+    Vector3D vec(0, 1, 0);
     double x_angle = M_PI * 0.5;
     double z_angle = M_PI * 0.5;
     Vector3D x_axis(1, 0, 0);
@@ -417,19 +524,25 @@ TEST(Quaternion, RotationComposition)
 
     Quaternion rotor = z_rotor * x_rotor;
 
-    res = z_rotor.compose(vec, false);
-    res = x_rotor.compose(res, false);
+    Quaternion q_res = rotor * Quaternion(vec.GetX(), vec.GetY(), vec.GetZ(), 0) * (rotor.inverted());
+    EXPECT_NEAR(0.0, q_res.GetX(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetY(), 1e-12);
+    EXPECT_NEAR(1.0, q_res.GetZ(), 1e-12);
+    EXPECT_NEAR(0.0, q_res.GetW(), 1e-12);
 
+    res = rotor.rotate(vec, false);
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
 
-    res = rotor.compose(vec, false);
-
+    res = x_rotor.rotate(vec, false);
+    res = z_rotor.rotate(res, false);
     EXPECT_NEAR(0.0, res.GetX(), 1e-12);
     EXPECT_NEAR(0.0, res.GetY(), 1e-12);
     EXPECT_NEAR(1.0, res.GetZ(), 1e-12);
 }
+
+
 
 int main(int argc, char** argv)
 {

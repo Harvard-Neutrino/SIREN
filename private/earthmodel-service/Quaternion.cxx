@@ -124,10 +124,10 @@ std::ostream& operator<<(std::ostream& os, Quaternion const& quaternion)
 Quaternion Quaternion::operator*(Quaternion const & other) const
 {
     Quaternion product;
-    product.x_ = (other.w_ * x_) + (other.x_ * w_) + (other.y_ * z_) - (other.z_ * y_);
-    product.y_ = (other.w_ * y_) + (other.y_ * w_) + (other.z_ * x_) - (other.x_ * z_);
-    product.z_ = (other.w_ * z_) + (other.z_ * w_) + (other.x_ * y_) - (other.y_ * x_);
-    product.w_ = (other.w_ * w_) - (other.x_ * x_) - (other.y_ * y_) - (other.z_ * z_);
+    product.x_ = (other.w_ * x_) + (other.x_ * w_) + (y_ * other.z_) - (z_ * other.y_);
+    product.y_ = (other.w_ * y_) + (other.y_ * w_) + (z_ * other.x_) - (x_ * other.z_);
+    product.z_ = (other.w_ * z_) + (other.z_ * w_) + (x_ * other.y_) - (y_ * other.x_);
+    product.w_ = (other.w_ * w_) - (other.x_ * x_) - (y_ * other.y_) - (z_ * other.z_);
     return product;
 }
 
@@ -189,7 +189,7 @@ Quaternion Quaternion::operator~() const {
     return res;
 }
 
-Quaternion Quaternion::compose(Quaternion const & p, bool inv = false) const
+Quaternion Quaternion::rotate(Quaternion const & p, bool inv = false) const
 {
     double w,x,y,z;
 
@@ -226,11 +226,11 @@ Quaternion Quaternion::compose(Quaternion const & p, bool inv = false) const
     w = w1 * (w2 + x2 + y2 + z2);
     x = x1 * (w2 + x2 - y2 - z2) + 2 * (x0 * (yy + zz) + w0 * (yz - zy));
     y = y1 * (w2 - x2 + y2 - z2) + 2 * (y0 * (xx + zz) + w0 * (zx - xz));
-    z = z1 * (w2 - x2 - y2 + x2) + 2 * (z0 * (xx + yy) + w0 * (xy - yx));
+    z = z1 * (w2 - x2 - y2 + z2) + 2 * (z0 * (xx + yy) + w0 * (xy - yx));
     return Quaternion(x, y, z, w);
 }
 
-Vector3D Quaternion::compose(Vector3D const & p, bool inv = false) const
+Vector3D Quaternion::rotate(Vector3D const & p, bool inv = false) const
 {
     double w,x,y,z;
 

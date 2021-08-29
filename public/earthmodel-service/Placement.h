@@ -43,7 +43,7 @@ public:
 
     //-------------------------------------//
     // composition function (for rotating)
-    Vector3D Compose(Vector3D const & p, bool inv = false) const;
+    Vector3D Rotate(Vector3D const & p, bool inv = false) const;
     Vector3D GlobalToLocalPosition(Vector3D const & p) const;
     Vector3D LocalToGlobalPosition(Vector3D const & p) const;
     Vector3D GlobalToLocalDirection(Vector3D const & d) const;

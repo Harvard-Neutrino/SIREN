@@ -123,34 +123,34 @@ void Placement::SetQuaternion(Quaternion const & q) {
     quaternion_.normalize();
 }
 
-Vector3D Placement::Compose(Vector3D const & p0, bool inv) const
+Vector3D Placement::Rotate(Vector3D const & p0, bool inv) const
 {
-	return quaternion_.compose(p0,inv);
+	return quaternion_.rotate(p0,inv);
 }
 
 Vector3D Placement::LocalToGlobalPosition(Vector3D const & p0) const
 {
-	Vector3D p1 = quaternion_.compose(p0, false); // Rotate about local origin to get orientation in the global system
+	Vector3D p1 = quaternion_.rotate(p0, false); // Rotate about local origin to get orientation in the global system
     Vector3D p2 = p1 + position_; // Translate local origin to global origin
     return p2;
 }
 
 Vector3D Placement::LocalToGlobalDirection(Vector3D const & p0) const
 {
-	Vector3D p1 = quaternion_.compose(p0, false); // Rotate about local origin to get orientation in the global system
+	Vector3D p1 = quaternion_.rotate(p0, false); // Rotate about local origin to get orientation in the global system
     return p1;
 }
 
 Vector3D Placement::GlobalToLocalPosition(Vector3D const & p0) const
 {
     Vector3D p1 = p0 - position_; // Translate global origin to local origin
-    Vector3D p2 = quaternion_.compose(p1, true); // Inverse rotatation about local origin to get orientation in the local system
+    Vector3D p2 = quaternion_.rotate(p1, true); // Inverse rotatation about local origin to get orientation in the local system
 	return p2;
 }
 
 Vector3D Placement::GlobalToLocalDirection(Vector3D const & p0) const
 {
-    Vector3D p1 = quaternion_.compose(p0, false); // Inverse rotatation about local origin to get orientation in the local system
+    Vector3D p1 = quaternion_.rotate(p0, false); // Inverse rotatation about local origin to get orientation in the local system
 	return p1;
 }
 
