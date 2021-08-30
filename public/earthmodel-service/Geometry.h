@@ -280,13 +280,13 @@ private:
 class ExtrPoly : public Geometry
 {
 public:
-		struct ZSection {
-				ZSection(double zpos_, double offset_[2], double scale_)
-        : zpos(zpos_), offset{offset_[0],offset_[1]}, scale(scale_) {}
+    struct ZSection {
+        ZSection(double zpos_, double offset_[2], double scale_)
+            : zpos(zpos_), offset{offset_[0],offset_[1]}, scale(scale_) {}
 
-				double zpos;
-				double scale;
-				double offset[2];
+        double zpos;
+        double scale;
+        double offset[2];
         void operator=(ZSection const & other) {
             zpos = other.zpos;
             scale = other.scale;
@@ -295,19 +295,19 @@ public:
         }
         friend bool operator==(ZSection const & l, ZSection const & r) {
             return (l.zpos == r.zpos &&
-									 l.scale == r.scale &&
-									 l.offset[0] == r.offset[0] &&
-									 l.offset[1] == r.offset[1]);
+                    l.scale == r.scale &&
+                    l.offset[0] == r.offset[0] &&
+                    l.offset[1] == r.offset[1]);
         }
-		};
+    };
 
 public:
     ExtrPoly();
     ExtrPoly(const std::vector<std::vector<double>>& polygon,
-						 const std::vector<ZSection>& zsections);
+            const std::vector<ZSection>& zsections);
     ExtrPoly(Placement const &);
     ExtrPoly(Placement const &, const std::vector<std::vector<double>>& polygon,
-						 const std::vector<ZSection>& zsections);
+            const std::vector<ZSection>& zsections);
     ExtrPoly(const ExtrPoly&);
     //ExtrPoly(const nlohmann::json& config);
 
@@ -331,8 +331,7 @@ public:
     void SetPolygon(std::vector<std::vector<double>> polygon ) { polygon_=polygon; }
     void SetZSections(std::vector<ZSection> zsections) { zsections_=zsections; }
 
-		void ComputeLateralPlanes();
-
+    void ComputeLateralPlanes();
 
 private:
     bool compare(const Geometry&) const override;
@@ -340,8 +339,8 @@ private:
 
     std::vector<std::vector<double>> polygon_; //!< vector of (x,y) pairs denoting vertices of polygon
     std::vector<ZSection> zsections_; //!< vector of z sections describing z extent of polygon
-		struct plane { double a,b,c,d; }; // a*x + b*y + c*z + d = 0
-		std::vector<plane> planes_;
+    struct plane { double a,b,c,d; }; // a*x + b*y + c*z + d = 0
+    std::vector<plane> planes_;
 };
 
 } // namespace earthmodel

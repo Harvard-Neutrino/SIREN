@@ -42,19 +42,19 @@ Geometry::Geometry(const std::string name)
 
 Geometry::Geometry(const std::string name, Placement const & placement)
     : name_(name)
-    , placement_(placement)
+      , placement_(placement)
 {
 }
 
 Geometry::Geometry(Placement const & placement)
     : name_()
-    , placement_(placement)
+      , placement_(placement)
 {
 }
 
 Geometry::Geometry(const Geometry& geometry)
     : name_(geometry.name_)
-    , placement_(geometry.placement_)
+      , placement_(geometry.placement_)
 {
 }
 
@@ -195,7 +195,7 @@ Box::Box()
     : Geometry((std::string)("Box"))
     , x_(0.0)
     , y_(0.0)
-    , z_(0.0)
+      , z_(0.0)
 {
     // Do nothing here
 }
@@ -204,7 +204,7 @@ Box::Box(double x, double y, double z)
     : Geometry("Box")
     , x_(x)
     , y_(y)
-    , z_(z)
+      , z_(z)
 {
     // Do nothing here
 }
@@ -213,7 +213,7 @@ Box::Box(Placement const & placement)
     : Geometry((std::string)("Box"), placement)
     , x_(0.0)
     , y_(0.0)
-    , z_(0.0)
+      , z_(0.0)
 {
     // Do nothing here
 }
@@ -222,7 +222,7 @@ Box::Box(Placement const & placement, double x, double y, double z)
     : Geometry((std::string)("Box"), placement)
     , x_(x)
     , y_(y)
-    , z_(z)
+      , z_(z)
 {
     // Do nothing here
 }
@@ -231,29 +231,29 @@ Box::Box(const Box& box)
     : Geometry(box)
     , x_(box.x_)
     , y_(box.y_)
-    , z_(box.z_)
+      , z_(box.z_)
 {
     // Nothing to do here
 }
 
 /*Box::Box(const nlohmann::json& config)
-    : Geometry(config)
-{
-    if(not config.at("length").is_number())
-        throw std::invalid_argument("Length is not a number.");
-    if(not config.at("width").is_number())
-        throw std::invalid_argument("Width is not a number.");
-    if(not config.at("height").is_number())
-        throw std::invalid_argument("Height is not a number.");
+  : Geometry(config)
+  {
+  if(not config.at("length").is_number())
+  throw std::invalid_argument("Length is not a number.");
+  if(not config.at("width").is_number())
+  throw std::invalid_argument("Width is not a number.");
+  if(not config.at("height").is_number())
+  throw std::invalid_argument("Height is not a number.");
 
-    x_ = config["length"].get<double>();
-    y_ = config["width"].get<double>();
-    z_ = config["height"].get<double>();
+  x_ = config["length"].get<double>();
+  y_ = config["width"].get<double>();
+  z_ = config["height"].get<double>();
 
-    if(x_ < 0) throw std::logic_error("lenght must be > 0");
-    if(y_ < 0) throw std::logic_error("width must be > 0");
-    if(z_ < 0) throw std::logic_error("height must be > 0");
-}*/
+  if(x_ < 0) throw std::logic_error("lenght must be > 0");
+  if(y_ < 0) throw std::logic_error("width must be > 0");
+  if(z_ < 0) throw std::logic_error("height must be > 0");
+  }*/
 
 // ------------------------------------------------------------------------- //
 void Box::swap(Geometry& geometry)
@@ -370,7 +370,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & p
         intersection_y = position.GetY() + t * dir_vec_y;
         intersection_z = position.GetZ() + t * dir_vec_z;
         if (intersection_y >= y_calc_neg && intersection_y <= y_calc_pos && intersection_z >= z_calc_neg &&
-            intersection_z <= z_calc_pos)
+                intersection_z <= z_calc_pos)
         {
             intersection_x = position.GetX() + t * dir_vec_x;
             entering = direction.GetX() < 0;
@@ -391,7 +391,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & p
         intersection_y = position.GetY() + t * dir_vec_y;
         intersection_z = position.GetZ() + t * dir_vec_z;
         if (intersection_y >= y_calc_neg && intersection_y <= y_calc_pos && intersection_z >= z_calc_neg &&
-            intersection_z <= z_calc_pos)
+                intersection_z <= z_calc_pos)
         {
             intersection_x = position.GetX() + t * dir_vec_x;
             entering = direction.GetX() > 0;
@@ -412,7 +412,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & p
         intersection_x = position.GetX() + t * dir_vec_x;
         intersection_z = position.GetZ() + t * dir_vec_z;
         if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_z >= z_calc_neg &&
-            intersection_z <= z_calc_pos)
+                intersection_z <= z_calc_pos)
         {
             intersection_y = position.GetY() + t * dir_vec_y;
             entering = direction.GetY() < 0;
@@ -433,7 +433,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & p
         intersection_x = position.GetX() + t * dir_vec_x;
         intersection_z = position.GetZ() + t * dir_vec_z;
         if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_z >= z_calc_neg &&
-            intersection_z <= z_calc_pos)
+                intersection_z <= z_calc_pos)
         {
             intersection_y = position.GetY() + t * dir_vec_y;
             entering = direction.GetY() > 0;
@@ -454,7 +454,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & p
         intersection_x = position.GetX() + t * dir_vec_x;
         intersection_y = position.GetY() + t * dir_vec_y;
         if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_y >= y_calc_neg &&
-            intersection_y <= y_calc_pos)
+                intersection_y <= y_calc_pos)
         {
             intersection_z = position.GetZ() + t * dir_vec_z;
             entering = direction.GetZ() < 0;
@@ -475,7 +475,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & p
         intersection_x = position.GetX() + t * dir_vec_x;
         intersection_y = position.GetY() + t * dir_vec_y;
         if (intersection_x >= x_calc_neg && intersection_x <= x_calc_pos && intersection_y >= y_calc_neg &&
-            intersection_y <= y_calc_pos)
+                intersection_y <= y_calc_pos)
         {
             intersection_z = position.GetZ() + t * dir_vec_z;
             entering = direction.GetZ() > 0;
@@ -484,7 +484,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & p
     }
 
     std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
-    return a.distance < b.distance;
+        return a.distance < b.distance;
     };
 
     std::sort(dist.begin(), dist.end(), comp);
@@ -510,14 +510,14 @@ std::pair<double, double> Box::ComputeDistanceToBorder(const Vector3D& position,
         distance.first  = -1;
         distance.second = -1;
     } else if (dist.size() == 1) // Particle is inside the box and we have one
-                                 // intersection in direction of the particle
-                                 // trajectory
+        // intersection in direction of the particle
+        // trajectory
     {
         distance.first  = dist.at(0);
         distance.second = -1;
     } else if (dist.size() == 2) // Particle is outside and the box is infront
-                                 // of the particle trajectory ( two
-                                 // intersections).
+        // of the particle trajectory ( two
+        // intersections).
     {
         distance.first  = dist.at(0);
         distance.second = dist.at(1);
@@ -553,7 +553,7 @@ Cylinder::Cylinder()
     : Geometry((std::string)("Cylinder"))
     , radius_(0.0)
     , inner_radius_(0.0)
-    , z_(0.0)
+      , z_(0.0)
 {
     // Do nothing here
 }
@@ -562,7 +562,7 @@ Cylinder::Cylinder(double radius, double inner_radius, double z)
     : Geometry((std::string)("Cylinder"))
     , radius_(radius)
     , inner_radius_(inner_radius)
-    , z_(z)
+      , z_(z)
 {
     if (inner_radius_ > radius_)
     {
@@ -579,7 +579,7 @@ Cylinder::Cylinder(Placement const & placement)
     : Geometry((std::string)("Cylinder"), placement)
     , radius_(0.0)
     , inner_radius_(0.0)
-    , z_(0.0)
+      , z_(0.0)
 {
     // Do nothing here
 }
@@ -588,7 +588,7 @@ Cylinder::Cylinder(Placement const & placement, double radius, double inner_radi
     : Geometry((std::string)("Cylinder"), placement)
     , radius_(radius)
     , inner_radius_(inner_radius)
-    , z_(z)
+      , z_(z)
 {
     if (inner_radius_ > radius_)
     {
@@ -605,26 +605,26 @@ Cylinder::Cylinder(const Cylinder& cylinder)
     : Geometry(cylinder)
     , radius_(cylinder.radius_)
     , inner_radius_(cylinder.inner_radius_)
-    , z_(cylinder.z_)
+      , z_(cylinder.z_)
 {
     // Nothing to do here
 }
 
 /*Cylinder::Cylinder(const nlohmann::json& config)
-    : Geometry(config)
-{
-    assert(config["outer_radius"].is_number());
-    assert(config["height"].is_number());
+  : Geometry(config)
+  {
+  assert(config["outer_radius"].is_number());
+  assert(config["height"].is_number());
 
 
-    radius_ = config["outer_radius"].get<double>(); // m
-    inner_radius_ = config.value("inner_radius", 0); // m
-    z_ = config["height"].get<double>(); // m
+  radius_ = config["outer_radius"].get<double>(); // m
+  inner_radius_ = config.value("inner_radius", 0); // m
+  z_ = config["height"].get<double>(); // m
 
-    assert(inner_radius_>=0);
-    assert(radius_>inner_radius_);
-    assert(z_>0);
-}*/
+  assert(inner_radius_>=0);
+  assert(radius_>inner_radius_);
+  assert(z_>0);
+  }*/
 
 // ------------------------------------------------------------------------- //
 void Cylinder::swap(Geometry& geometry)
@@ -735,8 +735,8 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D cons
     double z_calc_neg = -0.5 * z_;
 
     if (!(dir_vec_x == 0 && dir_vec_y == 0)) // Otherwise the particle
-                                             // trajectory is parallel to
-                                             // cylinder barrel
+        // trajectory is parallel to
+        // cylinder barrel
     {
 
         A = std::pow((position.GetX()), 2) +
@@ -785,7 +785,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D cons
 
     // intersection with E1
     if (dir_vec_z != 0) // if dir_vec == 0 particle trajectory is parallel
-                        // to E1 (Should not happen)
+        // to E1 (Should not happen)
     {
         t = (z_calc_pos - position.GetZ()) / dir_vec_z;
         // Computer precision controll
@@ -796,10 +796,10 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D cons
         intersection_y = position.GetY() + t * dir_vec_y;
 
         if (std::sqrt(std::pow((intersection_x), 2) +
-            std::pow((intersection_y), 2)) <=
+                    std::pow((intersection_y), 2)) <=
                 radius_ &&
-            std::sqrt(std::pow((intersection_x), 2) +
-            std::pow((intersection_y), 2)) >=
+                std::sqrt(std::pow((intersection_x), 2) +
+                    std::pow((intersection_y), 2)) >=
                 inner_radius_)
         {
             intersection_z = position.GetZ() + t * dir_vec_z;
@@ -809,7 +809,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D cons
 
     // intersection with E2
     if (dir_vec_z != 0) // if dir_vec == 0 particle trajectory is parallel
-                        // to E2 (Should not happen)
+        // to E2 (Should not happen)
     {
         t = (z_calc_neg - position.GetZ()) / dir_vec_z;
 
@@ -821,10 +821,10 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D cons
         intersection_y = position.GetY() + t * dir_vec_y;
 
         if (std::sqrt(std::pow((intersection_x), 2) +
-            std::pow((intersection_y), 2)) <=
+                    std::pow((intersection_y), 2)) <=
                 radius_ &&
-            std::sqrt(std::pow((intersection_x), 2) +
-            std::pow((intersection_y), 2)) >=
+                std::sqrt(std::pow((intersection_x), 2) +
+                    std::pow((intersection_y), 2)) >=
                 inner_radius_)
         {
             intersection_z = position.GetZ() + t * dir_vec_z;
@@ -972,7 +972,7 @@ std::pair<double, double> Cylinder::ComputeDistanceToBorder(const Vector3D& posi
 Sphere::Sphere()
     : Geometry((std::string)("Sphere"))
     , radius_(0.0)
-    , inner_radius_(0.0)
+      , inner_radius_(0.0)
 {
     // Do nothing here
 }
@@ -980,7 +980,7 @@ Sphere::Sphere()
 Sphere::Sphere(double radius, double inner_radius)
     : Geometry("Sphere")
     , radius_(radius)
-    , inner_radius_(inner_radius)
+      , inner_radius_(inner_radius)
 {
     if (inner_radius_ > radius_)
     {
@@ -996,7 +996,7 @@ Sphere::Sphere(double radius, double inner_radius)
 Sphere::Sphere(Placement const & placement)
     : Geometry((std::string)("Sphere"), placement)
     , radius_(0.0)
-    , inner_radius_(0.0)
+      , inner_radius_(0.0)
 {
     // Do nothing here
 }
@@ -1004,7 +1004,7 @@ Sphere::Sphere(Placement const & placement)
 Sphere::Sphere(Placement const & placement, double radius, double inner_radius)
     : Geometry((std::string)("Sphere"), placement)
     , radius_(radius)
-    , inner_radius_(inner_radius)
+      , inner_radius_(inner_radius)
 {
     if (inner_radius_ > radius_)
     {
@@ -1020,7 +1020,7 @@ Sphere::Sphere(Placement const & placement, double radius, double inner_radius)
 Sphere::Sphere(const Sphere& sphere)
     : Geometry(sphere)
     , radius_(sphere.radius_)
-    , inner_radius_(sphere.inner_radius_)
+      , inner_radius_(sphere.inner_radius_)
 {
     // Nothing to do here
 }
@@ -1028,19 +1028,19 @@ Sphere::Sphere(const Sphere& sphere)
 
 
 /*Sphere::Sphere(const nlohmann::json& config)
-    : Geometry(config)
-{
-    if(not config.is_object()) throw std::invalid_argument("No json object found.");
-    if(not config.at("outer_radius").is_number())
-        throw std::invalid_argument("Outer radius is not a number.");
+  : Geometry(config)
+  {
+  if(not config.is_object()) throw std::invalid_argument("No json object found.");
+  if(not config.at("outer_radius").is_number())
+  throw std::invalid_argument("Outer radius is not a number.");
 
-    config["outer_radius"].get_to(radius_);
-    inner_radius_ = config.value("inner_radius", 0);
+  config["outer_radius"].get_to(radius_);
+  inner_radius_ = config.value("inner_radius", 0);
 
-    if(inner_radius_ < 0) throw std::logic_error("inner radius must be >= 0");
-    if(radius_ < inner_radius_)
-       throw std::logic_error("radius must be larger than inner radius");
-}*/
+  if(inner_radius_ < 0) throw std::logic_error("inner radius must be >= 0");
+  if(radius_ < inner_radius_)
+  throw std::logic_error("radius must be larger than inner radius");
+  }*/
 
 // ------------------------------------------------------------------------- //
 void Sphere::swap(Geometry& geometry)
@@ -1266,52 +1266,52 @@ std::pair<double, double> Sphere::ComputeDistanceToBorder(const Vector3D& positi
 
 ExtrPoly::ExtrPoly()
     : Geometry((std::string)("ExtrPoly"))
-    , polygon_({})
-    , zsections_({})
+      , polygon_({})
+, zsections_({})
 {
     // Do nothing here
 }
 
 
 ExtrPoly::ExtrPoly(const std::vector<std::vector<double>>& polygon,
-									 const std::vector<ExtrPoly::ZSection>& zsections)
-		: Geometry("ExtrPoly")
-		, polygon_(polygon)
-		, zsections_(zsections)
+        const std::vector<ExtrPoly::ZSection>& zsections)
+    : Geometry("ExtrPoly")
+    , polygon_(polygon)
+      , zsections_(zsections)
 {
-		if (polygon.size() < 3)
-		{
-				std::cout << "Need 3 polygon vertices at least!! Give it another shot";
-				return;
-		}
+    if (polygon.size() < 3)
+    {
+        std::cout << "Need 3 polygon vertices at least!! Give it another shot";
+        return;
+    }
 }
 
 ExtrPoly::ExtrPoly(Placement const & placement)
     : Geometry((std::string)("ExtrPoly"), placement)
-    , polygon_({})
-    , zsections_({})
+      , polygon_({})
+, zsections_({})
 {
     // Do nothing here
 }
 
 
 ExtrPoly::ExtrPoly(Placement const & placement, const std::vector<std::vector<double>>& polygon,
-									 const std::vector<ExtrPoly::ZSection>& zsections)
-		: Geometry((std::string)("ExtrPoly"), placement)
-		, polygon_(polygon)
-		, zsections_(zsections)
+        const std::vector<ExtrPoly::ZSection>& zsections)
+    : Geometry((std::string)("ExtrPoly"), placement)
+    , polygon_(polygon)
+      , zsections_(zsections)
 {
-		if (polygon.size() < 3)
-		{
-				std::cout << "Need 3 polygon vertices at least!! Give it another shot";
-				return;
-		}
+    if (polygon.size() < 3)
+    {
+        std::cout << "Need 3 polygon vertices at least!! Give it another shot";
+        return;
+    }
 }
 
 ExtrPoly::ExtrPoly(const ExtrPoly& extr)
     : Geometry(extr)
-		, polygon_(extr.polygon_)
-		, zsections_(extr.zsections_)
+    , polygon_(extr.polygon_)
+      , zsections_(extr.zsections_)
 {
     // Nothing to do here
 }
@@ -1376,39 +1376,39 @@ void ExtrPoly::print(std::ostream& os) const
 // ------------------------------------------------------------------------- //
 void ExtrPoly::ComputeLateralPlanes()
 {
-		int Nv = polygon_.size();
-		planes_.resize(Nv);
-		for (int i=0, k=Nv-1; i<Nv; k = i++)
-		{
-				std::vector<double> dir = {polygon_[i][0] - polygon_[k][0],
-																	 polygon_[i][1] - polygon_[k][1]};
-				double norm = sqrt(dir[0]*dir[0] + dir[1]*dir[1]);
-				dir[0]/=norm; dir[1]/=norm;
-				planes_[i].a = -dir[1];
-				planes_[i].b = dir[0];
-				planes_[i].c = 0;
-				planes_[i].d = dir[1]*polygon_[i][0] - dir[0]*polygon_[k][1];
-		}
+    int Nv = polygon_.size();
+    planes_.resize(Nv);
+    for (int i=0, k=Nv-1; i<Nv; k = i++)
+    {
+        std::vector<double> dir = {polygon_[i][0] - polygon_[k][0],
+            polygon_[i][1] - polygon_[k][1]};
+        double norm = sqrt(dir[0]*dir[0] + dir[1]*dir[1]);
+        dir[0]/=norm; dir[1]/=norm;
+        planes_[i].a = -dir[1];
+        planes_[i].b = dir[0];
+        planes_[i].c = 0;
+        planes_[i].d = dir[1]*polygon_[i][0] - dir[0]*polygon_[k][1];
+    }
 }
 
 // ------------------------------------------------------------------------- //
 std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D const & position, Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the extr poly
     // Implementation follows that of Geant4, see here:
-    // 
+    //
     // https://gitlab.cern.ch/geant4/geant4/-/blob/master/source/geometry/solids/specific/src/G4ExtrudedSolid.cc
-    // 
+    //
     // NOTE: Only works for convex right prisms at the moment
 
     std::vector<Geometry::Intersection> dist;
-    
+
     Vector3D intersection;
 
     std::function<void(double, bool)> save = [&](double t, bool entering){
         Intersection i;
         i.position = Vector3D(position.GetX() + direction.GetX()*t,
-														  position.GetY() + direction.GetY()*t,
-														  position.GetZ() + direction.GetZ()*t);
+                position.GetY() + direction.GetY()*t,
+                position.GetZ() + direction.GetZ()*t);
         i.distance = t;
         i.hierarchy = 0;
         i.entering = entering;
@@ -1420,41 +1420,41 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D cons
     double z0 = zsections_[0].zpos;
     double z1 = zsections_[Nz-1].zpos;
 
-		if ((position.GetZ() <= z0 + GEOMETRY_PRECISION) && direction.GetZ() <= 0) return dist;
-		if ((position.GetZ() >= z1 - GEOMETRY_PRECISION) && direction.GetZ() >= 0) return dist;
+    if ((position.GetZ() <= z0 + GEOMETRY_PRECISION) && direction.GetZ() <= 0) return dist;
+    if ((position.GetZ() >= z1 - GEOMETRY_PRECISION) && direction.GetZ() >= 0) return dist;
 
-		// Intersection with Z planes
-		double dz = (z1 - z0)*0.5;
-		double pz = position.GetZ() - dz - z0;
-		
-		double invz = (direction.GetZ() == 0) ? DBL_MAX : -1./direction.GetZ();
-		double ddz = (invz < 0) ? dz : -dz;
-		double tzmin = (pz + ddz)*invz;
-		double tzmax = (pz - ddz)*invz;
+    // Intersection with Z planes
+    double dz = (z1 - z0)*0.5;
+    double pz = position.GetZ() - dz - z0;
 
-		// Intersection with lateral planes
-		int np = planes_.size();
-		double txmin = tzmin, txmax = tzmax;
-		for (int i=0; i<np; ++i)
-		{ 
-			double cosa = planes_[i].a*direction.GetX()+planes_[i].b*direction.GetY();
-			double distnce = planes_[i].a*position.GetX()+planes_[i].b*position.GetY()+planes_[i].d;
-			if (distnce >= -GEOMETRY_PRECISION)
-			{
-				if (cosa >= 0) { continue; }
-				double tmp  = -distnce/cosa;
-				if (txmin < tmp)  { txmin = tmp; }
-			}
-			else if (cosa > 0)
-			{
-				double tmp  = -distnce/cosa;
-				if (txmax > tmp)  { txmax = tmp; }
-			} 
-		}
-		double tmin = txmin, tmax = txmax;
-		
-		save(tmin,true);
-		save(tmax,false);
+    double invz = (direction.GetZ() == 0) ? DBL_MAX : -1./direction.GetZ();
+    double ddz = (invz < 0) ? dz : -dz;
+    double tzmin = (pz + ddz)*invz;
+    double tzmax = (pz - ddz)*invz;
+
+    // Intersection with lateral planes
+    int np = planes_.size();
+    double txmin = tzmin, txmax = tzmax;
+    for (int i=0; i<np; ++i)
+    {
+        double cosa = planes_[i].a*direction.GetX()+planes_[i].b*direction.GetY();
+        double distnce = planes_[i].a*position.GetX()+planes_[i].b*position.GetY()+planes_[i].d;
+        if (distnce >= -GEOMETRY_PRECISION)
+        {
+            if (cosa >= 0) { continue; }
+            double tmp  = -distnce/cosa;
+            if (txmin < tmp)  { txmin = tmp; }
+        }
+        else if (cosa > 0)
+        {
+            double tmp  = -distnce/cosa;
+            if (txmax > tmp)  { txmax = tmp; }
+        }
+    }
+    double tmin = txmin, tmax = txmax;
+
+    save(tmin,true);
+    save(tmax,false);
 
     std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
         return a.distance < b.distance;
