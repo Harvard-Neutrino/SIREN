@@ -723,6 +723,44 @@ TEST(Quaternion, EulerAngleConversion)
     }
 }
 
+TEST(Quaternion, AllEulerConversions)
+{
+    Vector3D axes[3] = {Vector3D(1, 0, 0), Vector3D(0, 1, 0), Vector3D(0, 0, 1)};
+    Quaternion rotors[3];
+    Quaternion rotor;
+    Quaternion q;
+    double angles[3];
+    EulerOrder all[] = {XYZs, XYXs, XZYs, XZXs, YZXs, YZYs, YXZs, YXYs, ZXYs, ZXZs, ZYXs, ZYZs, ZYXr, XYXr, YZXr, XZXr, XZYr, YZYr, ZXYr, YXYr, YXZr, ZXZr, XYZr, ZYZr};
+    for(auto order : all) {
+        unsigned int axis_indexes[3] = {GetEulerAxisI(order), GetEulerAxisJ(order), GetEulerAxisH(order)};
+
+        if(GetEulerFrame(order) == EulerFrame::Rotating) {
+            std::reverse(axis_indexes, axis_indexes + 3);
+        }
+
+        for(unsigned int i=0; i<3; ++i) {
+            angles[i] = RandomDouble();
+            if(i != 1) {
+                angles[i] = angles[i] * 2 - 1;
+            }
+            angles[i] *= M_PI;
+            rotors[i].SetAxisAngle(axes[axis_indexes[i]], angles[i]);
+        }
+
+        if(GetEulerFrame(order) == EulerFrame::Rotating) {
+            rotor = rotors[0] * rotors[1] * rotors[2];
+        } else {
+            rotor = rotors[2] * rotors[1] * rotors[0];
+        }
+        q.SetEulerAngles(EulerAngles(order, angles[0], angles[1], angles[2]));
+
+        EXPECT_NEAR(rotor.GetX(), q.GetX(), 1e-12) << "BAD: " << order;
+        EXPECT_NEAR(rotor.GetY(), q.GetY(), 1e-12) << "BAD: " << order;
+        EXPECT_NEAR(rotor.GetZ(), q.GetZ(), 1e-12) << "BAD: " <<  order;
+        EXPECT_NEAR(rotor.GetW(), q.GetW(), 1e-12) << "BAD: " << order;
+    }
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
