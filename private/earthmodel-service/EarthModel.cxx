@@ -194,9 +194,29 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
                 sector.geo = Box(placement, dx, dy, dz).create();
             }
             else if(shape.find("extr")!=std::string::npos) {
-                double dx, dy, dz; // For Box shapes
-                ss >> dx >> dy >> dz;
-                sector.geo = Box(placement, dx, dy, dz).create();
+                int nverts;
+                double v1,v2; // For Extr Poly vertices
+                int nzsec;
+                double zpos, off1, off2, scale; // For Extr Poly zsections
+                double offset[2];
+                std::vector<std::vector<double>> poly;
+                std::vector<double> polyVert;
+                std::vector<ExtrPoly::ZSection> zsecs;
+                ss >> nverts;
+                for (int i = 0; i < nverts; ++i){
+										ss >> v1 >> v2;
+										polyVert.push_back(v1);
+										polyVert.push_back(v2);
+										poly.push_back(polyVert);
+										polyVert.clear();
+                }
+                ss > nzsec;
+                for (int i = 0; i < nzsec; ++i){
+										ss >> zpos >> off1 >> off2 >> scale;
+										offset = {off1,off2};
+										zsecs.push_back(ExtrPoly::ZSection(zpos,offset,scale));
+                }
+                sector.geo = ExtrPoly(placement, poly, zsecs).create();
             }
             else {
                 std::stringstream ss_err;
