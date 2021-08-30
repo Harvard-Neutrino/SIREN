@@ -275,13 +275,13 @@ Vector3D Quaternion::rotate(Vector3D const & p, bool inv = false) const
 void Quaternion::GetMatrix(Matrix3D & dest) const
 {
     dest.SetXX(1 - 2 * y_ * y_ - 2 * z_ * z_);
-    dest.SetXY(2 * x_ * y_ + 2 * z_ * w_);
-    dest.SetXZ(2 * x_ * z_ - 2 * y_ * w_);
-    dest.SetYX(2 * x_ * y_ - 2 * z_ * w_);
+    dest.SetXY(2 * x_ * y_ - 2 * z_ * w_);
+    dest.SetXZ(2 * x_ * z_ + 2 * y_ * w_);
+    dest.SetYX(2 * x_ * y_ + 2 * z_ * w_);
     dest.SetYY(1 - 2 * x_ * x_ - 2 * z_ * z_);
-    dest.SetYZ(2 * z_ * y_ + 2 * x_ * w_);
-    dest.SetZX(2 * x_ * z_ + 2 * y_ * w_);
-    dest.SetZY(2 * z_ * y_ - 2 * x_ * w_);
+    dest.SetYZ(2 * z_ * y_ - 2 * x_ * w_);
+    dest.SetZX(2 * x_ * z_ - 2 * y_ * w_);
+    dest.SetZY(2 * z_ * y_ + 2 * x_ * w_);
     dest.SetZZ(1 - 2 * x_ * x_ - 2 * y_ * y_);
 }
 
@@ -294,31 +294,29 @@ Matrix3D Quaternion::GetMatrix() const
 
 void Quaternion::SetMatrix(Matrix3D const & mat) {
     double trace = mat.GetXX() + mat.GetYY() + mat.GetZZ();
+    double M = std::max(std::max(mat.GetXX(), mat.GetYY()), std::max(mat.GetZZ(), trace));
+    double qmax = 2.0 * std::sqrt(1.0 - trace + 2 * M);
 
-    if(trace > 0) {
-        double S = std::sqrt(trace + 1.0) * 2.0; // S=4*q_
-        w_ = 0.25 * S;
-        x_ = (mat.GetZY() - mat.GetYZ()) / S;
-        y_ = (mat.GetXZ() - mat.GetZX()) / S;
-        z_ = (mat.GetYX() - mat.GetXY()) / S;
-    } else if ((mat.GetXX() > mat.GetYY())&(mat.GetXX() > mat.GetZZ())) {
-        double S = std::sqrt(1.0 + mat.GetXX() - mat.GetYY() - mat.GetZZ()) * 2; // S=4*x_
-        w_ = (mat.GetZY() - mat.GetYZ()) / S;
-        x_ = 0.25 * S;
-        y_ = (mat.GetXY() + mat.GetYX()) / S;
-        z_ = (mat.GetXZ() + mat.GetZX()) / S;
-    } else if (mat.GetYY() > mat.GetZZ()) {
-        double S = std::sqrt(1.0 + mat.GetYY() - mat.GetXX() - mat.GetZZ()) * 2; // S=4*y_
-        w_ = (mat.GetXZ() - mat.GetZX()) / S;
-        x_ = (mat.GetXY() + mat.GetYX()) / S;
-        y_ = 0.25 * S;
-        z_ = (mat.GetYZ() + mat.GetZY()) / S;
+    if(M == mat.GetXX()) {
+        x_ = 0.25 * qmax;
+        y_ = (mat.GetXY() + mat.GetYX()) / qmax;
+        z_ = (mat.GetZX() + mat.GetXZ()) / qmax;
+        w_ = (mat.GetZY() - mat.GetYZ()) / qmax;
+    } else if(M == mat.GetYY()) {
+        x_ = (mat.GetXY() + mat.GetYX()) / qmax;
+        y_ = 0.25 * qmax;
+        z_ = (mat.GetYZ() + mat.GetZY()) / qmax;
+        w_ = (mat.GetXZ() - mat.GetZX()) / qmax;
+    } else if(M == mat.GetZZ()) {
+        x_ = (mat.GetXZ() + mat.GetZX()) / qmax;
+        y_ = (mat.GetYZ() + mat.GetZY()) / qmax;
+        z_ = 0.25 * qmax;
+        w_ = (mat.GetYX() - mat.GetXY()) / qmax;
     } else {
-        double S = std::sqrt(1.0 + mat.GetZZ() - mat.GetXX() - mat.GetYY()) * 2; // S=4*z_
-        w_ = (mat.GetYX() - mat.GetXY()) / S;
-        x_ = (mat.GetXZ() + mat.GetZX()) / S;
-        y_ = (mat.GetYZ() + mat.GetZY()) / S;
-        z_ = 0.25 * S;
+        x_ = (mat.GetZY() - mat.GetYZ()) / qmax;
+        y_ = (mat.GetXZ() - mat.GetZX()) / qmax;
+        z_ = (mat.GetYX() - mat.GetXY()) / qmax;
+        w_ = 0.25 * qmax;
     }
 }
 

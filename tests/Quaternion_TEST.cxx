@@ -730,6 +730,9 @@ TEST(Quaternion, AllEulerConversions)
     Quaternion rotor;
     Quaternion q;
     double angles[3];
+
+    unsigned int n_rand = 100;
+
     EulerOrder all[] = {XYZs, XYXs, XZYs, XZXs, YZXs, YZYs, YXZs, YXYs, ZXYs, ZXZs, ZYXs, ZYZs, ZYXr, XYXr, YZXr, XZXr, XZYr, YZYr, ZXYr, YXYr, YXZr, ZXZr, XYZr, ZYZr};
     for(auto order : all) {
         unsigned int axis_indexes[3] = {GetEulerAxisI(order), GetEulerAxisJ(order), GetEulerAxisH(order)};
@@ -738,26 +741,81 @@ TEST(Quaternion, AllEulerConversions)
             std::reverse(axis_indexes, axis_indexes + 3);
         }
 
-        for(unsigned int i=0; i<3; ++i) {
-            angles[i] = RandomDouble();
-            if(i != 1) {
-                angles[i] = angles[i] * 2 - 1;
+        for(unsigned int j=0; j<n_rand; ++j) {
+
+            for(unsigned int i=0; i<3; ++i) {
+                angles[i] = RandomDouble();
+                if(i != 1) {
+                    angles[i] = angles[i] * 2 - 1;
+                }
+                angles[i] *= M_PI;
             }
-            angles[i] *= M_PI;
-            rotors[i].SetAxisAngle(axes[axis_indexes[i]], angles[i]);
-        }
+            for(unsigned int i=0; i<3; ++i) {
+                rotors[i].SetAxisAngle(axes[axis_indexes[i]], angles[i]);
+            }
 
-        if(GetEulerFrame(order) == EulerFrame::Rotating) {
-            rotor = rotors[0] * rotors[1] * rotors[2];
-        } else {
-            rotor = rotors[2] * rotors[1] * rotors[0];
-        }
-        q.SetEulerAngles(EulerAngles(order, angles[0], angles[1], angles[2]));
+            if(GetEulerFrame(order) == EulerFrame::Rotating) {
+                rotor = rotors[0] * rotors[1] * rotors[2];
+            } else {
+                rotor = rotors[2] * rotors[1] * rotors[0];
+            }
+            q.SetEulerAngles(EulerAngles(order, angles[0], angles[1], angles[2]));
 
-        EXPECT_NEAR(rotor.GetX(), q.GetX(), 1e-12);
-        EXPECT_NEAR(rotor.GetY(), q.GetY(), 1e-12);
-        EXPECT_NEAR(rotor.GetZ(), q.GetZ(), 1e-12);
-        EXPECT_NEAR(rotor.GetW(), q.GetW(), 1e-12);
+            EXPECT_NEAR(rotor.GetX(), q.GetX(), 1e-12);
+            EXPECT_NEAR(rotor.GetY(), q.GetY(), 1e-12);
+            EXPECT_NEAR(rotor.GetZ(), q.GetZ(), 1e-12);
+            EXPECT_NEAR(rotor.GetW(), q.GetW(), 1e-12);
+
+            EulerAngles res;
+
+            Vector3D vec(1, 2, 4);
+            Vector3D mat_res = q.GetMatrix() * vec;
+            Vector3D q_res = q.rotate(vec, false);
+
+            EXPECT_NEAR(q_res.GetX(), mat_res.GetX(), 1e-12);
+            EXPECT_NEAR(q_res.GetY(), mat_res.GetY(), 1e-12);
+            EXPECT_NEAR(q_res.GetZ(), mat_res.GetZ(), 1e-12);
+
+            Quaternion mat_q;
+            mat_q.SetMatrix(q.GetMatrix());
+
+            EXPECT_NEAR(std::abs(q.GetX()), std::abs(mat_q.GetX()), 1e-12);
+            EXPECT_NEAR(std::abs(q.GetY()), std::abs(mat_q.GetY()), 1e-12);
+            EXPECT_NEAR(std::abs(q.GetZ()), std::abs(mat_q.GetZ()), 1e-12);
+            EXPECT_NEAR(std::abs(q.GetW()), std::abs(mat_q.GetW()), 1e-12);
+
+            q.GetEulerAngles(res, order);
+
+            double alpha_diff = std::abs(angles[0] - res.GetAlpha());
+            double beta_diff = std::abs(angles[1] - res.GetBeta());
+            double beta_sum = std::abs(angles[1] + res.GetBeta());
+            double gamma_diff = std::abs(angles[2] - res.GetGamma());
+
+            bool alpha_near = alpha_diff < 1e-12;
+            bool beta_near = beta_diff < 1e-12;
+            bool gamma_near = gamma_diff < 1e-12;
+            bool near = alpha_near and beta_near and gamma_near;
+
+            bool alpha_pi = std::abs(alpha_diff - M_PI) < 1e-12;
+            bool beta_pi = std::abs(beta_sum - M_PI) < 1e-12;
+            bool beta_zero = std::abs(beta_sum) < 1e-12;
+            bool gamma_pi = std::abs(gamma_diff - M_PI) < 1e-12;
+            bool rev_near = alpha_pi and (beta_pi or beta_zero) and gamma_pi;
+
+            EXPECT_TRUE(near or rev_near) << alpha_diff << std::endl << beta_diff << std::endl << gamma_diff << std::endl << beta_sum;
+
+            //EXPECT_NEAR(angles[0], res.GetAlpha(), 1e-12);
+            //EXPECT_NEAR(angles[1], res.GetBeta(), 1e-12);
+            //EXPECT_NEAR(angles[2], res.GetGamma(), 1e-12);
+
+            Quaternion qq;
+            qq.SetEulerAngles(res);
+
+            EXPECT_NEAR(std::abs(q.GetX()), std::abs(qq.GetX()), 1e-12);
+            EXPECT_NEAR(std::abs(q.GetY()), std::abs(qq.GetY()), 1e-12);
+            EXPECT_NEAR(std::abs(q.GetZ()), std::abs(qq.GetZ()), 1e-12);
+            EXPECT_NEAR(std::abs(q.GetW()), std::abs(qq.GetW()), 1e-12);
+        }
     }
 }
 

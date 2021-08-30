@@ -374,7 +374,7 @@ Matrix3D Matrix3D::operator-() const
 double const & Matrix3D::operator[](std::initializer_list<unsigned int> index) const {
     unsigned int row = *index.begin();
     unsigned int column = *(index.begin()+1);
-    unsigned int i = ((row & 3) << 2) & (column & 3);
+    unsigned int i = ((row & 3) << 2) | (column & 3);
     switch(i) {
         case 0:
             return xx_; break;
