@@ -754,10 +754,10 @@ TEST(Quaternion, AllEulerConversions)
         }
         q.SetEulerAngles(EulerAngles(order, angles[0], angles[1], angles[2]));
 
-        EXPECT_NEAR(rotor.GetX(), q.GetX(), 1e-12) << "BAD: " << order;
-        EXPECT_NEAR(rotor.GetY(), q.GetY(), 1e-12) << "BAD: " << order;
-        EXPECT_NEAR(rotor.GetZ(), q.GetZ(), 1e-12) << "BAD: " <<  order;
-        EXPECT_NEAR(rotor.GetW(), q.GetW(), 1e-12) << "BAD: " << order;
+        EXPECT_NEAR(rotor.GetX(), q.GetX(), 1e-12);
+        EXPECT_NEAR(rotor.GetY(), q.GetY(), 1e-12);
+        EXPECT_NEAR(rotor.GetZ(), q.GetZ(), 1e-12);
+        EXPECT_NEAR(rotor.GetW(), q.GetW(), 1e-12);
     }
 }
 
