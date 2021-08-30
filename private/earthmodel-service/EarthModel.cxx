@@ -210,10 +210,11 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
 										poly.push_back(polyVert);
 										polyVert.clear();
                 }
-                ss > nzsec;
+                ss >> nzsec;
                 for (int i = 0; i < nzsec; ++i){
 										ss >> zpos >> off1 >> off2 >> scale;
-										offset = {off1,off2};
+										offset[0] = off1;
+										offset[1] = off2;
 										zsecs.push_back(ExtrPoly::ZSection(zpos,offset,scale));
                 }
                 sector.geo = ExtrPoly(placement, poly, zsecs).create();
