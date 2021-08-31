@@ -152,24 +152,9 @@ inline R130B0<T> R130B0<T>::invnorm() const {
 };
 
 template<typename T>
-inline R130MV<T> exp(const R130B0<T> &A) {
-    R130MV<T> res;
+inline R130B0<T> exp(const R130B0<T> &A) {
+    R130B0<T> res;
     res[0]=std::exp(A[0]);
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
