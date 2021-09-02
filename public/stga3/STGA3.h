@@ -74,6 +74,21 @@ public:
     inline R130MV<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline R130MV<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline R130MV<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -98,6 +113,21 @@ public:
     inline R130B4<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Boost<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1Sm1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1Sp1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2Sm1<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2Sp1<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3Sm1<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3Sp1<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotation<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -124,6 +154,21 @@ public:
     inline R130B3<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline R130MV<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline R130MV<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -149,6 +194,21 @@ public:
     inline R130B3Sm1<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Boost<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1Sm1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1Sp1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2Sm1<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2Sp1<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3Sm1<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3Sp1<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotation<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -170,6 +230,21 @@ public:
     inline R130B3Sp1<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Boost<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1Sm1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1Sp1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2Sm1<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2Sp1<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3Sm1<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3Sp1<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotation<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -201,6 +276,21 @@ public:
     inline R130B2<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Rotor<T> conjugate(const Boost<T> &A) const;
+    inline R130MV<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130MV<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotor<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -228,6 +318,21 @@ public:
     inline R130B2Sp1<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Boost<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1Sm1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1Sp1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2Sm1<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2Sp1<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3Sm1<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3Sp1<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotation<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -255,6 +360,21 @@ public:
     inline R130B2Sm1<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Boost<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1Sm1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1Sp1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2Sm1<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2Sp1<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3Sm1<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3Sp1<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotation<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -281,6 +401,21 @@ public:
     inline R130B1<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline R130MV<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline R130MV<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -306,6 +441,21 @@ public:
     inline R130B1Sm1<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Boost<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1Sm1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1Sp1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2Sm1<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2Sp1<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3Sm1<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3Sp1<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotation<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -327,6 +477,21 @@ public:
     inline R130B1Sp1<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Boost<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1Sm1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1Sp1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2Sm1<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2Sp1<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3Sm1<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3Sp1<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotation<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -350,6 +515,21 @@ public:
     inline R130B0<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Boost<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1Sm1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1Sp1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2Sm1<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2Sp1<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3Sm1<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3Sp1<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotation<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -401,6 +581,21 @@ public:
     inline R130MV<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline R130MV<T> conjugate(const Boost<T> &A) const;
+    inline R130MV<T> conjugate(const R130B0<T> &A) const;
+    inline R130MV<T> conjugate(const R130B1<T> &A) const;
+    inline R130MV<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130MV<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130MV<T> conjugate(const R130B2<T> &A) const;
+    inline R130MV<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130MV<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130MV<T> conjugate(const R130B3<T> &A) const;
+    inline R130MV<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130MV<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130MV<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline R130MV<T> conjugate(const Rotation<T> &A) const;
+    inline R130MV<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -428,6 +623,21 @@ public:
     inline R130MV<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Boost<T> conjugate(const Boost<T> &A) const;
+    inline R130B0<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1Sm1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1Sp1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2Sm1<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2Sp1<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3Sm1<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3Sp1<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130B4<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotation<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 template<typename T>
@@ -464,9 +674,27 @@ public:
     inline Rotor<T> dual() const;
     inline R130B0<T> norm() const;
     inline R130B0<T> invnorm() const;
+    inline Rotor<T> conjugate(const Boost<T> &A) const;
+    inline R130MV<T> conjugate(const R130B0<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1Sm1<T> &A) const;
+    inline R130B1<T> conjugate(const R130B1Sp1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2Sm1<T> &A) const;
+    inline R130B2<T> conjugate(const R130B2Sp1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3Sm1<T> &A) const;
+    inline R130B3<T> conjugate(const R130B3Sp1<T> &A) const;
+    inline R130MV<T> conjugate(const R130B4<T> &A) const;
+    inline R130MV<T> conjugate(const R130MV<T> &A) const;
+    inline Rotor<T> conjugate(const Rotation<T> &A) const;
+    inline Rotor<T> conjugate(const Rotor<T> &A) const;
 };
 
 
 } // namespace stga3
+
+#include "stga3/UnaryOperators.h"
+#include "stga3/BinaryOperators.h"
 
 #endif // LI_STGA3_STGA3_H

@@ -21,7 +21,7 @@ inline Boost<T> Boost<T>::negation() const {
 };
 
 template<typename T>
-inline Boost<T> operator-(const Boost<T> &A) const {
+inline Boost<T> operator-(const Boost<T> &A) {
     return A.negation();
 };
 
@@ -31,7 +31,7 @@ inline Boost<T> Boost<T>::involution() const {
     res[0]=(*this)[0];
     res[1]=(*this)[1];
     res[2]=(*this)[2];
-    res[3]=(*this)[3]
+    res[3]=(*this)[3];
     return res;
 };
 
@@ -105,14 +105,14 @@ inline R130B0<T> R130B0<T>::negation() const {
 };
 
 template<typename T>
-inline R130B0<T> operator-(const R130B0<T> &A) const {
+inline R130B0<T> operator-(const R130B0<T> &A) {
     return A.negation();
 };
 
 template<typename T>
 inline R130B0<T> R130B0<T>::involution() const {
     R130B0<T> res;
-    res[0]=(*this)[0]
+    res[0]=(*this)[0];
     return res;
 };
 
@@ -173,7 +173,7 @@ inline R130B1<T> R130B1<T>::negation() const {
 };
 
 template<typename T>
-inline R130B1<T> operator-(const R130B1<T> &A) const {
+inline R130B1<T> operator-(const R130B1<T> &A) {
     return A.negation();
 };
 
@@ -183,7 +183,7 @@ inline R130B1<T> R130B1<T>::involution() const {
     res[0]=-(*this)[0];
     res[1]=-(*this)[1];
     res[2]=-(*this)[2];
-    res[3]=-(*this)[3]
+    res[3]=-(*this)[3];
     return res;
 };
 
@@ -247,7 +247,7 @@ inline R130B1Sm1<T> R130B1Sm1<T>::negation() const {
 };
 
 template<typename T>
-inline R130B1Sm1<T> operator-(const R130B1Sm1<T> &A) const {
+inline R130B1Sm1<T> operator-(const R130B1Sm1<T> &A) {
     return A.negation();
 };
 
@@ -256,7 +256,7 @@ inline R130B1Sm1<T> R130B1Sm1<T>::involution() const {
     R130B1Sm1<T> res;
     res[0]=-(*this)[0];
     res[1]=-(*this)[1];
-    res[2]=-(*this)[2]
+    res[2]=-(*this)[2];
     return res;
 };
 
@@ -337,14 +337,14 @@ inline R130B1Sp1<T> R130B1Sp1<T>::negation() const {
 };
 
 template<typename T>
-inline R130B1Sp1<T> operator-(const R130B1Sp1<T> &A) const {
+inline R130B1Sp1<T> operator-(const R130B1Sp1<T> &A) {
     return A.negation();
 };
 
 template<typename T>
 inline R130B1Sp1<T> R130B1Sp1<T>::involution() const {
     R130B1Sp1<T> res;
-    res[0]=-(*this)[0]
+    res[0]=-(*this)[0];
     return res;
 };
 
@@ -423,7 +423,7 @@ inline R130B2<T> R130B2<T>::negation() const {
 };
 
 template<typename T>
-inline R130B2<T> operator-(const R130B2<T> &A) const {
+inline R130B2<T> operator-(const R130B2<T> &A) {
     return A.negation();
 };
 
@@ -435,7 +435,7 @@ inline R130B2<T> R130B2<T>::involution() const {
     res[2]=(*this)[2];
     res[3]=(*this)[3];
     res[4]=(*this)[4];
-    res[5]=(*this)[5]
+    res[5]=(*this)[5];
     return res;
 };
 
@@ -505,7 +505,7 @@ inline R130B2Sm1<T> R130B2Sm1<T>::negation() const {
 };
 
 template<typename T>
-inline R130B2Sm1<T> operator-(const R130B2Sm1<T> &A) const {
+inline R130B2Sm1<T> operator-(const R130B2Sm1<T> &A) {
     return A.negation();
 };
 
@@ -514,7 +514,7 @@ inline R130B2Sm1<T> R130B2Sm1<T>::involution() const {
     R130B2Sm1<T> res;
     res[0]=(*this)[0];
     res[1]=(*this)[1];
-    res[2]=(*this)[2]
+    res[2]=(*this)[2];
     return res;
 };
 
@@ -585,7 +585,7 @@ inline R130B2Sp1<T> R130B2Sp1<T>::negation() const {
 };
 
 template<typename T>
-inline R130B2Sp1<T> operator-(const R130B2Sp1<T> &A) const {
+inline R130B2Sp1<T> operator-(const R130B2Sp1<T> &A) {
     return A.negation();
 };
 
@@ -594,7 +594,7 @@ inline R130B2Sp1<T> R130B2Sp1<T>::involution() const {
     R130B2Sp1<T> res;
     res[0]=(*this)[0];
     res[1]=(*this)[1];
-    res[2]=(*this)[2]
+    res[2]=(*this)[2];
     return res;
 };
 
@@ -666,7 +666,7 @@ inline R130B3<T> R130B3<T>::negation() const {
 };
 
 template<typename T>
-inline R130B3<T> operator-(const R130B3<T> &A) const {
+inline R130B3<T> operator-(const R130B3<T> &A) {
     return A.negation();
 };
 
@@ -676,7 +676,7 @@ inline R130B3<T> R130B3<T>::involution() const {
     res[0]=-(*this)[0];
     res[1]=-(*this)[1];
     res[2]=-(*this)[2];
-    res[3]=-(*this)[3]
+    res[3]=-(*this)[3];
     return res;
 };
 
@@ -740,7 +740,7 @@ inline R130B3Sm1<T> R130B3Sm1<T>::negation() const {
 };
 
 template<typename T>
-inline R130B3Sm1<T> operator-(const R130B3Sm1<T> &A) const {
+inline R130B3Sm1<T> operator-(const R130B3Sm1<T> &A) {
     return A.negation();
 };
 
@@ -749,7 +749,7 @@ inline R130B3Sm1<T> R130B3Sm1<T>::involution() const {
     R130B3Sm1<T> res;
     res[0]=-(*this)[0];
     res[1]=-(*this)[1];
-    res[2]=-(*this)[2]
+    res[2]=-(*this)[2];
     return res;
 };
 
@@ -830,14 +830,14 @@ inline R130B3Sp1<T> R130B3Sp1<T>::negation() const {
 };
 
 template<typename T>
-inline R130B3Sp1<T> operator-(const R130B3Sp1<T> &A) const {
+inline R130B3Sp1<T> operator-(const R130B3Sp1<T> &A) {
     return A.negation();
 };
 
 template<typename T>
 inline R130B3Sp1<T> R130B3Sp1<T>::involution() const {
     R130B3Sp1<T> res;
-    res[0]=-(*this)[0]
+    res[0]=-(*this)[0];
     return res;
 };
 
@@ -911,14 +911,14 @@ inline R130B4<T> R130B4<T>::negation() const {
 };
 
 template<typename T>
-inline R130B4<T> operator-(const R130B4<T> &A) const {
+inline R130B4<T> operator-(const R130B4<T> &A) {
     return A.negation();
 };
 
 template<typename T>
 inline R130B4<T> R130B4<T>::involution() const {
     R130B4<T> res;
-    res[0]=(*this)[0]
+    res[0]=(*this)[0];
     return res;
 };
 
@@ -1007,7 +1007,7 @@ inline R130MV<T> R130MV<T>::negation() const {
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130MV<T> &A) const {
+inline R130MV<T> operator-(const R130MV<T> &A) {
     return A.negation();
 };
 
@@ -1029,7 +1029,7 @@ inline R130MV<T> R130MV<T>::involution() const {
     res[12]=-(*this)[12];
     res[13]=-(*this)[13];
     res[14]=-(*this)[14];
-    res[15]=(*this)[15]
+    res[15]=(*this)[15];
     return res;
 };
 
@@ -1130,7 +1130,7 @@ inline Rotation<T> Rotation<T>::negation() const {
 };
 
 template<typename T>
-inline Rotation<T> operator-(const Rotation<T> &A) const {
+inline Rotation<T> operator-(const Rotation<T> &A) {
     return A.negation();
 };
 
@@ -1140,7 +1140,7 @@ inline Rotation<T> Rotation<T>::involution() const {
     res[0]=(*this)[0];
     res[1]=(*this)[1];
     res[2]=(*this)[2];
-    res[3]=(*this)[3]
+    res[3]=(*this)[3];
     return res;
 };
 
@@ -1221,7 +1221,7 @@ inline Rotor<T> Rotor<T>::negation() const {
 };
 
 template<typename T>
-inline Rotor<T> operator-(const Rotor<T> &A) const {
+inline Rotor<T> operator-(const Rotor<T> &A) {
     return A.negation();
 };
 
@@ -1235,7 +1235,7 @@ inline Rotor<T> Rotor<T>::involution() const {
     res[4]=(*this)[4];
     res[5]=(*this)[5];
     res[6]=(*this)[6];
-    res[7]=(*this)[7]
+    res[7]=(*this)[7];
     return res;
 };
 
