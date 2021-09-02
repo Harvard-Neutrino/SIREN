@@ -301,7 +301,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
         p2_lab = p2;
         primary_energy = p1_lab.e0();
     } else {
-        stga3::R130B2Sp1<double> beta_start_to_lab = (p2 ^ gamma0) * (p2 | gamma0).invnorm();
+        stga3::R130B2Sp1<double> beta_start_to_lab = (p2 ^ gamma0) / (p2 | gamma0);
         stga3::Boost<double> boost_start_to_lab = exp(beta_start_to_lab/2.0);
         p1_lab = boost_start_to_lab.conjugate(p1);
         p2_lab = boost_start_to_lab.conjugate(p2);
