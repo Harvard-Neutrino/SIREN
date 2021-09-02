@@ -3,6 +3,8 @@
 
 #include <array>
 #include <cmath>
+#include <algorithm>
+#include <initializer_list>
 
 namespace stga3 {
 template <typename T>
@@ -55,6 +57,7 @@ private:
     std::array<T, 4> mvec;
 public:
     Boost() {mvec.fill(0);}
+    Boost(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & scalar() {return (*this)[0];}
@@ -97,6 +100,7 @@ private:
     std::array<T, 1> mvec;
 public:
     R130B0() {mvec.fill(0);}
+    R130B0(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & scalar() {return (*this)[0];}
@@ -136,6 +140,7 @@ private:
     std::array<T, 4> mvec;
 public:
     R130B1() {mvec.fill(0);}
+    R130B1(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & e0() {return (*this)[0];}
@@ -177,6 +182,7 @@ private:
     std::array<T, 3> mvec;
 public:
     R130B1Sm1() {mvec.fill(0);}
+    R130B1Sm1(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & e1() {return (*this)[0];}
@@ -217,6 +223,7 @@ private:
     std::array<T, 1> mvec;
 public:
     R130B1Sp1() {mvec.fill(0);}
+    R130B1Sp1(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & e0() {return (*this)[0];}
@@ -253,6 +260,7 @@ private:
     std::array<T, 6> mvec;
 public:
     R130B2() {mvec.fill(0);}
+    R130B2(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & e10() {return (*this)[0];}
@@ -299,6 +307,7 @@ private:
     std::array<T, 3> mvec;
 public:
     R130B2Sm1() {mvec.fill(0);}
+    R130B2Sm1(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & e32() {return (*this)[0];}
@@ -341,6 +350,7 @@ private:
     std::array<T, 3> mvec;
 public:
     R130B2Sp1() {mvec.fill(0);}
+    R130B2Sp1(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & e10() {return (*this)[0];}
@@ -383,6 +393,7 @@ private:
     std::array<T, 4> mvec;
 public:
     R130B3() {mvec.fill(0);}
+    R130B3(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & e123() {return (*this)[0];}
@@ -424,6 +435,7 @@ private:
     std::array<T, 3> mvec;
 public:
     R130B3Sm1() {mvec.fill(0);}
+    R130B3Sm1(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & e320() {return (*this)[0];}
@@ -464,6 +476,7 @@ private:
     std::array<T, 1> mvec;
 public:
     R130B3Sp1() {mvec.fill(0);}
+    R130B3Sp1(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & e123() {return (*this)[0];}
@@ -500,6 +513,7 @@ private:
     std::array<T, 1> mvec;
 public:
     R130B4() {mvec.fill(0);}
+    R130B4(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & e0123() {return (*this)[0];}
@@ -538,6 +552,7 @@ private:
     std::array<T, 16> mvec;
 public:
     R130MV() {mvec.fill(0);}
+    R130MV(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & scalar() {return (*this)[0];}
@@ -604,6 +619,7 @@ private:
     std::array<T, 4> mvec;
 public:
     Rotation() {mvec.fill(0);}
+    Rotation(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & scalar() {return (*this)[0];}
@@ -646,6 +662,7 @@ private:
     std::array<T, 8> mvec;
 public:
     Rotor() {mvec.fill(0);}
+    Rotor(std::initializer_list<T> const & v) {std::copy(v.begin(), v.end(), mvec.begin());}
     T & operator [] (size_t idx) {return mvec[idx];}
     T const & operator [] (size_t idx) const {return mvec[idx];}
     T & scalar() {return (*this)[0];}

@@ -466,7 +466,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     pq_cm.e2() = pqy;
     pq_cm = x_to_p1_rot.conjugate(pq_cm);
 
-    stga3::R130B2Sm1<double> free_plane;
+    stga3::R130B2Sm1<double> free_plane = {p1_cm_dir.e1(), p1_cm_dir.e2(), p1_cm_dir.e3()};
     free_plane.e32() = p1_cm_dir.e1();
     free_plane.e13() = p1_cm_dir.e2();
     free_plane.e21() = p1_cm_dir.e3();
