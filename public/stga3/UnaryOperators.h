@@ -158,6 +158,10 @@ inline R130B0<T> exp(const R130B0<T> &A) {
     return res;
 };
 
+template<typename T>
+inline R130B0<T>::operator T() const {
+    return (*this)[0];
+};
 //------------------------
 // R130B1 unary operations
 //------------------------

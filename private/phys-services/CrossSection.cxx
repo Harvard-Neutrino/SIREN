@@ -433,7 +433,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
 
     double Q2 = (s - target_mass_ * target_mass_) * final_x * final_y;
 
-    stga3::R130B2Sp1<double> beta_start_to_cm = ((p1+p2) ^ gamma0) * ((p1+p2) | gamma0).invnorm();
+    stga3::R130B2Sp1<double> beta_start_to_cm = ((p1+p2) ^ gamma0) / ((p1+p2) | gamma0);
     stga3::Boost<double> boost_start_to_cm = exp(beta_start_to_cm/2.0);
     stga3::R130B1<double> p1_cm = boost_start_to_cm.conjugate(p1);
     stga3::R130B1<double> p2_cm = boost_start_to_cm.conjugate(p2);
@@ -447,10 +447,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
 
     double pq = std::sqrt(Q2 + Eq * Eq);
     double pqy = std::sqrt(pq*pq - pqx*pqx);
-    stga3::R130B1Sm1<double> p1_cm_dir;
-    p1_cm_dir.e1() = p1_cm.e1();
-    p1_cm_dir.e2() = p1_cm.e2();
-    p1_cm_dir.e3() = p1_cm.e3();
+    stga3::R130B1Sm1<double> p1_cm_dir{p1_cm.e1(), p1_cm.e2(), p1_cm.e3()};
     p1_cm_dir = p1_cm_dir * p1_cm_dir.invnorm();
 
     stga3::R130B1Sm1<double> x_dir;
@@ -460,16 +457,10 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     x_to_p1_rot.scalar() -= 1.0;
     x_to_p1_rot = x_to_p1_rot * x_to_p1_rot.invnorm();
 
-    stga3::R130B1<double> pq_cm;
-    pq_cm.e0() = Eq;
-    pq_cm.e1() = pqx;
-    pq_cm.e2() = pqy;
+    stga3::R130B1<double> pq_cm{Eq, pqx, pqy, 0};
     pq_cm = x_to_p1_rot.conjugate(pq_cm);
 
-    stga3::R130B2Sm1<double> free_plane = {p1_cm_dir.e1(), p1_cm_dir.e2(), p1_cm_dir.e3()};
-    free_plane.e32() = p1_cm_dir.e1();
-    free_plane.e13() = p1_cm_dir.e2();
-    free_plane.e21() = p1_cm_dir.e3();
+    stga3::R130B2Sm1<double> free_plane{p1_cm_dir.e1(), p1_cm_dir.e2(), p1_cm_dir.e3()};
 
     double phi = random->Uniform(0, 2.0 * M_PI);
     stga3::Rotation<double> rand_rot = exp(free_plane * phi / 2.0);
