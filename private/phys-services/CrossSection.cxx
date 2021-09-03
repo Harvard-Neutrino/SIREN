@@ -5,6 +5,8 @@
 #include "LeptonInjector/Random.h"
 #include "LeptonInjector/Particle.h"
 #include "stga3/STGA3.h"
+#include "stga3/Typedefs.h"
+#include "stga3/Utilities.h"
 
 namespace LeptonInjector {
 
@@ -278,33 +280,21 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
         throw("I expected 3 dimensions in the cross section spline, but got " + std::to_string(differential_cross_section_.get_ndim()) +". Maybe your fits file doesn't have the right 'INTERACTION' key?");
     }
 
-    stga3::R130B1Sp1<double> gamma0;
-    gamma0.e0() = 1.0;
-
-    stga3::R130B1<double> p1;
-    p1.e0() = interaction.primary_momentum[0];
-    p1.e1() = interaction.primary_momentum[1];
-    p1.e2() = interaction.primary_momentum[2];
-    p1.e3() = interaction.primary_momentum[3];
-
-    stga3::R130B1<double> p2;
-    p2.e0() = interaction.target_momentum[0];
-    p2.e1() = interaction.target_momentum[1];
-    p2.e2() = interaction.target_momentum[2];
-    p2.e3() = interaction.target_momentum[3];
+    stga3::FourVector<double> p1{interaction.primary_momentum[0], interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]};
+    stga3::FourVector<double> p2{interaction.target_momentum[0], interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]};
 
     double primary_energy;
-    stga3::R130B1<double> p1_lab;
-    stga3::R130B1<double> p2_lab;
+    stga3::FourVector<double> p1_lab;
+    stga3::FourVector<double> p2_lab;
     if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
         p1_lab = p1;
         p2_lab = p2;
         primary_energy = p1_lab.e0();
     } else {
-        stga3::R130B2Sp1<double> beta_start_to_lab = (p2 ^ gamma0) / (p2 | gamma0);
-        stga3::Boost<double> boost_start_to_lab = exp(beta_start_to_lab/2.0);
-        p1_lab = boost_start_to_lab.conjugate(p1);
-        p2_lab = boost_start_to_lab.conjugate(p2);
+        stga3::Beta<double> beta_start_to_lab = stga3::beta_to_rest_frame_of(p2);
+        stga3::Boost<double> boost_start_to_lab = stga3::boost_from_beta(beta_start_to_lab);
+        p1_lab = stga3::apply_boost(boost_start_to_lab, p1);
+        p2_lab = stga3::apply_boost(boost_start_to_lab, p2);
         primary_energy = p1_lab.e0();
     }
 
@@ -433,10 +423,10 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
 
     double Q2 = (s - target_mass_ * target_mass_) * final_x * final_y;
 
-    stga3::R130B2Sp1<double> beta_start_to_cm = ((p1+p2) ^ gamma0) / ((p1+p2) | gamma0);
-    stga3::Boost<double> boost_start_to_cm = exp(beta_start_to_cm/2.0);
-    stga3::R130B1<double> p1_cm = boost_start_to_cm.conjugate(p1);
-    stga3::R130B1<double> p2_cm = boost_start_to_cm.conjugate(p2);
+    stga3::Beta<double> beta_start_to_cm = stga3::beta_to_rest_frame_of(p1 + p2);
+    stga3::Boost<double> boost_start_to_cm = stga3::beta_to_boost(beta_start_to_cm);
+    stga3::FourVector<double> p1_cm = stga3::apply_boost(boost_start_to_cm, p1);
+    stga3::FourVector<double> p2_cm = stga3::apply_boost(boost_start_to_cm, p2);
 
     double E1 = p1_cm.e0();
     double E2 = p2_cm.e0();
@@ -447,32 +437,23 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
 
     double pq = std::sqrt(Q2 + Eq * Eq);
     double pqy = std::sqrt(pq*pq - pqx*pqx);
-    stga3::R130B1Sm1<double> p1_cm_dir{p1_cm.e1(), p1_cm.e2(), p1_cm.e3()};
-    p1_cm_dir = p1_cm_dir * p1_cm_dir.invnorm();
 
-    stga3::R130B1Sm1<double> x_dir;
-    x_dir.e1() = 1.0;
-
-    stga3::Rotation<double> x_to_p1_rot = x_dir * p1_cm_dir;
-    x_to_p1_rot.scalar() -= 1.0;
-    x_to_p1_rot = x_to_p1_rot * x_to_p1_rot.invnorm();
-
-    stga3::R130B1<double> pq_cm{Eq, pqx, pqy, 0};
-    pq_cm = x_to_p1_rot.conjugate(pq_cm);
-
-    stga3::R130B2Sm1<double> free_plane{p1_cm_dir.e1(), p1_cm_dir.e2(), p1_cm_dir.e3()};
+    stga3::ThreeVector<double> x_dir{1.0, 0.0, 0.0};
+    stga3::Rotation<double> x_to_p1_rot = stga3::rotation_between(x_dir, p1_cm);
 
     double phi = random->Uniform(0, 2.0 * M_PI);
-    stga3::Rotation<double> rand_rot = exp(free_plane * phi / 2.0);
+    stga3::Rotation<double> rand_rot = stga3::rotation_about(p1_cm, phi);
 
-    pq_cm = rand_rot.conjugate(pq_cm);
+    stga3::FourVector<double> pq_cm{Eq, pqx, pqy, 0};
+    pq_cm = stga3::apply_rotation(x_to_p1_rot, pq_cm);
+    pq_cm = stga3::apply_rotation(rand_rot, pq_cm);
 
-    stga3::R130B1<double> p3_cm = p1_cm - pq_cm;
-    stga3::R130B1<double> p4_cm = p2_cm + pq_cm;
+    stga3::FourVector<double> p3_cm = p1_cm - pq_cm;
+    stga3::FourVector<double> p4_cm = p2_cm + pq_cm;
 
-    stga3::Boost<double> boost_cm_to_start = exp(-beta_start_to_cm/2.0);
-    stga3::R130B1<double> p3 = boost_cm_to_start.conjugate(p3_cm);
-    stga3::R130B1<double> p4 = boost_cm_to_start.conjugate(p4_cm);
+    stga3::Boost<double> boost_cm_to_start = stga3::beta_to_boost(-beta_start_to_cm);
+    stga3::FourVector<double> p3 = stga3::apply_boost(boost_cm_to_start, p3_cm);
+    stga3::FourVector<double> p4 = stga3::apply_boost(boost_cm_to_start, p4_cm);
 
     interaction.secondary_momenta[lepton_index][0] = p3.e0(); // p3_energy
     interaction.secondary_momenta[lepton_index][1] = p3.e1(); // p3_x
