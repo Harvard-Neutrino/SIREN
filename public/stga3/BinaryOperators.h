@@ -31,24 +31,16 @@ inline Boost<T> operator-(const Boost<T> &A, const Boost<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const Boost<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const Boost<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2] + A[3]*B[3];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0]*B[1] + A[1]*B[0];
-    res[6]=A[0]*B[2] + A[2]*B[0];
-    res[7]=A[0]*B[3] + A[3]*B[0];
-    res[8]=A[2]*B[3] - A[3]*B[2];
-    res[9]=-A[1]*B[3] + A[3]*B[1];
-    res[10]=A[1]*B[2] - A[2]*B[1];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0]*B[1] + A[1]*B[0];
+    res[2]=A[0]*B[2] + A[2]*B[0];
+    res[3]=A[0]*B[3] + A[3]*B[0];
+    res[4]=A[2]*B[3] - A[3]*B[2];
+    res[5]=-A[1]*B[3] + A[3]*B[1];
+    res[6]=A[1]*B[2] - A[2]*B[1];
+    res[7]=0;
     return res;
 };
 
@@ -72,8 +64,8 @@ inline R130B2Sm1<T> operator^(const Boost<T> &A, const Boost<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> Boost<T>::conjugate(const Boost<T> &A) const {
-    R130MV<T> res;
+inline Rotor<T> Boost<T>::conjugate(const Boost<T> &A) const {
+    Rotor<T> res;
     T x0 = std::pow((*this)[0], 2);
     T x1 = std::pow((*this)[1], 2);
     T x2 = std::pow((*this)[2], 2);
@@ -87,21 +79,13 @@ inline R130MV<T> Boost<T>::conjugate(const Boost<T> &A) const {
     T x10 = 2.0*(*this)[0];
     T x11 = (*this)[0]*A[3];
     res[0]=A[0]*(x0 - x1 - x2 - x3);
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[1]*x0 - A[1]*x1 + A[1]*x2 + A[1]*x3 - A[2]*x5 - x4*x6;
-    res[6]=-A[1]*x5 + A[2]*x0 + A[2]*x1 - A[2]*x2 + A[2]*x3 - x6*x7;
-    res[7]=A[3]*x0 + A[3]*x1 + A[3]*x2 - A[3]*x3 - x4*x8 - x7*x9;
-    res[8]=x10*x9 - x11*x7;
-    res[9]=-x10*x8 + x11*x4;
-    res[10]=(*this)[0]*(A[1]*x7 - A[2]*x4);
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[1]*x0 - A[1]*x1 + A[1]*x2 + A[1]*x3 - A[2]*x5 - x4*x6;
+    res[2]=-A[1]*x5 + A[2]*x0 + A[2]*x1 - A[2]*x2 + A[2]*x3 - x6*x7;
+    res[3]=A[3]*x0 + A[3]*x1 + A[3]*x2 - A[3]*x3 - x4*x8 - x7*x9;
+    res[4]=x10*x9 - x11*x7;
+    res[5]=-x10*x8 + x11*x4;
+    res[6]=(*this)[0]*(A[1]*x7 - A[2]*x4);
+    res[7]=0;
     return res;
 };
 
@@ -161,24 +145,9 @@ inline Boost<T> operator|(const Boost<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const Boost<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const Boost<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -522,46 +491,30 @@ inline R130B1<T> Boost<T>::conjugate(const R130B1Sp1<T> &A) const {
 //----------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const Boost<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const Boost<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[1] + B[0];
-    res[6]=A[2] + B[1];
-    res[7]=A[3] + B[2];
-    res[8]=B[3];
-    res[9]=B[4];
-    res[10]=B[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[1] + B[0];
+    res[2]=A[2] + B[1];
+    res[3]=A[3] + B[2];
+    res[4]=B[3];
+    res[5]=B[4];
+    res[6]=B[5];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const Boost<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const Boost<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[1] - B[0];
-    res[6]=A[2] - B[1];
-    res[7]=A[3] - B[2];
-    res[8]=-B[3];
-    res[9]=-B[4];
-    res[10]=-B[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[1] - B[0];
+    res[2]=A[2] - B[1];
+    res[3]=A[3] - B[2];
+    res[4]=-B[3];
+    res[5]=-B[4];
+    res[6]=-B[5];
+    res[7]=0;
     return res;
 };
 
@@ -637,90 +590,58 @@ inline R130B2<T> Boost<T>::conjugate(const R130B2<T> &A) const {
 //-------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const Boost<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const Boost<T> &A, const R130B2Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[1];
-    res[6]=A[2];
-    res[7]=A[3];
-    res[8]=B[0];
-    res[9]=B[1];
-    res[10]=B[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
-    return res;
-};
-
-template<typename T>
-inline R130MV<T> operator-(const Boost<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
-    res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[1];
-    res[6]=A[2];
-    res[7]=A[3];
-    res[8]=-B[0];
-    res[9]=-B[1];
-    res[10]=-B[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
-    return res;
-};
-
-template<typename T>
-inline R130MV<T> operator*(const Boost<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
-    res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[2]*B[2] + A[3]*B[1];
-    res[6]=A[1]*B[2] - A[3]*B[0];
-    res[7]=-A[1]*B[1] + A[2]*B[0];
-    res[8]=A[0]*B[0];
-    res[9]=A[0]*B[1];
-    res[10]=A[0]*B[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
-    return res;
-};
-
-template<typename T>
-inline R130MV<T> operator|(const Boost<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
-    res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
+    res[1]=A[1];
+    res[2]=A[2];
+    res[3]=A[3];
+    res[4]=B[0];
+    res[5]=B[1];
+    res[6]=B[2];
     res[7]=0;
-    res[8]=A[0]*B[0];
-    res[9]=A[0]*B[1];
-    res[10]=A[0]*B[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
+    return res;
+};
+
+template<typename T>
+inline Rotor<T> operator-(const Boost<T> &A, const R130B2Sm1<T> &B) {
+    Rotor<T> res;
+    res[0]=A[0];
+    res[1]=A[1];
+    res[2]=A[2];
+    res[3]=A[3];
+    res[4]=-B[0];
+    res[5]=-B[1];
+    res[6]=-B[2];
+    res[7]=0;
+    return res;
+};
+
+template<typename T>
+inline Rotor<T> operator*(const Boost<T> &A, const R130B2Sm1<T> &B) {
+    Rotor<T> res;
+    res[0]=0;
+    res[1]=-A[2]*B[2] + A[3]*B[1];
+    res[2]=A[1]*B[2] - A[3]*B[0];
+    res[3]=-A[1]*B[1] + A[2]*B[0];
+    res[4]=A[0]*B[0];
+    res[5]=A[0]*B[1];
+    res[6]=A[0]*B[2];
+    res[7]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
+    return res;
+};
+
+template<typename T>
+inline Rotor<T> operator|(const Boost<T> &A, const R130B2Sm1<T> &B) {
+    Rotor<T> res;
+    res[0]=0;
+    res[1]=0;
+    res[2]=0;
+    res[3]=0;
+    res[4]=A[0]*B[0];
+    res[5]=A[0]*B[1];
+    res[6]=A[0]*B[2];
+    res[7]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
     return res;
 };
 
@@ -782,24 +703,16 @@ inline Boost<T> operator-(const Boost<T> &A, const R130B2Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const Boost<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const Boost<T> &A, const R130B2Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0]*B[0];
-    res[6]=A[0]*B[1];
-    res[7]=A[0]*B[2];
-    res[8]=A[2]*B[2] - A[3]*B[1];
-    res[9]=-A[1]*B[2] + A[3]*B[0];
-    res[10]=A[1]*B[1] - A[2]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0]*B[0];
+    res[2]=A[0]*B[1];
+    res[3]=A[0]*B[2];
+    res[4]=A[2]*B[2] - A[3]*B[1];
+    res[5]=-A[1]*B[2] + A[3]*B[0];
+    res[6]=A[1]*B[1] - A[2]*B[0];
+    res[7]=0;
     return res;
 };
 
@@ -1179,112 +1092,65 @@ inline R130B3<T> Boost<T>::conjugate(const R130B3Sp1<T> &A) const {
 //----------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const Boost<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const Boost<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=A[1];
+    res[2]=A[2];
+    res[3]=A[3];
     res[4]=0;
-    res[5]=A[1];
-    res[6]=A[2];
-    res[7]=A[3];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=B[0];
+    res[5]=0;
+    res[6]=0;
+    res[7]=B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const Boost<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const Boost<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=A[1];
+    res[2]=A[2];
+    res[3]=A[3];
     res[4]=0;
-    res[5]=A[1];
-    res[6]=A[2];
-    res[7]=A[3];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-B[0];
+    res[5]=0;
+    res[6]=0;
+    res[7]=-B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator*(const Boost<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const Boost<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[1]*B[0];
-    res[9]=A[2]*B[0];
-    res[10]=A[3]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0];
+    res[4]=A[1]*B[0];
+    res[5]=A[2]*B[0];
+    res[6]=A[3]*B[0];
+    res[7]=A[0]*B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator|(const Boost<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const Boost<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[1]*B[0];
-    res[9]=A[2]*B[0];
-    res[10]=A[3]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0];
+    res[4]=A[1]*B[0];
+    res[5]=A[2]*B[0];
+    res[6]=A[3]*B[0];
+    res[7]=A[0]*B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator^(const Boost<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const Boost<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -1476,46 +1342,30 @@ inline R130MV<T> Boost<T>::conjugate(const R130MV<T> &A) const {
 //------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const Boost<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const Boost<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=A[0] + B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[1];
-    res[6]=A[2];
-    res[7]=A[3];
-    res[8]=B[1];
-    res[9]=B[2];
-    res[10]=B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[1];
+    res[2]=A[2];
+    res[3]=A[3];
+    res[4]=B[1];
+    res[5]=B[2];
+    res[6]=B[3];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const Boost<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const Boost<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=A[0] - B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[1];
-    res[6]=A[2];
-    res[7]=A[3];
-    res[8]=-B[1];
-    res[9]=-B[2];
-    res[10]=-B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[1];
+    res[2]=A[2];
+    res[3]=A[3];
+    res[4]=-B[1];
+    res[5]=-B[2];
+    res[6]=-B[3];
+    res[7]=0;
     return res;
 };
 
@@ -1557,8 +1407,8 @@ inline R130B2Sp1<T> operator^(const Boost<T> &A, const Rotation<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> Boost<T>::conjugate(const Rotation<T> &A) const {
-    R130MV<T> res;
+inline Rotor<T> Boost<T>::conjugate(const Rotation<T> &A) const {
+    Rotor<T> res;
     T x0 = std::pow((*this)[0], 2);
     T x1 = std::pow((*this)[1], 2);
     T x2 = std::pow((*this)[2], 2);
@@ -1572,21 +1422,13 @@ inline R130MV<T> Boost<T>::conjugate(const Rotation<T> &A) const {
     T x10 = 2.0*(*this)[1];
     T x11 = (*this)[3]*A[3];
     res[0]=A[0]*(x0 - x1 - x2 - x3);
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=(*this)[2]*x5 - A[2]*x6;
-    res[6]=-(*this)[1]*x5 + A[1]*x6;
-    res[7]=x4*(x7 - x8);
-    res[8]=A[1]*x0 - A[1]*x1 + A[1]*x2 + A[1]*x3 - x10*x11 - x7*x9;
-    res[9]=A[2]*x0 + A[2]*x1 - A[2]*x2 + A[2]*x3 - x10*x8 - x11*x9;
-    res[10]=-(*this)[3]*A[1]*x10 - (*this)[3]*A[2]*x9 + A[3]*x0 + A[3]*x1 + A[3]*x2 - A[3]*x3;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=(*this)[2]*x5 - A[2]*x6;
+    res[2]=-(*this)[1]*x5 + A[1]*x6;
+    res[3]=x4*(x7 - x8);
+    res[4]=A[1]*x0 - A[1]*x1 + A[1]*x2 + A[1]*x3 - x10*x11 - x7*x9;
+    res[5]=A[2]*x0 + A[2]*x1 - A[2]*x2 + A[2]*x3 - x10*x8 - x11*x9;
+    res[6]=-(*this)[3]*A[1]*x10 - (*this)[3]*A[2]*x9 + A[3]*x0 + A[3]*x1 + A[3]*x2 - A[3]*x3;
+    res[7]=0;
     return res;
 };
 
@@ -1782,24 +1624,9 @@ inline Boost<T> operator|(const R130B0<T> &A, const Boost<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const Boost<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -1854,24 +1681,9 @@ inline R130B0<T> operator|(const R130B0<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -1951,24 +1763,9 @@ inline R130B1<T> operator|(const R130B0<T> &A, const R130B1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -2050,24 +1847,9 @@ inline R130B1Sm1<T> operator|(const R130B0<T> &A, const R130B1Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B1Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B1Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -2144,24 +1926,9 @@ inline R130B1Sp1<T> operator|(const R130B0<T> &A, const R130B1Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B1Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B1Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -2177,46 +1944,30 @@ inline R130B1Sp1<T> R130B0<T>::conjugate(const R130B1Sp1<T> &A) const {
 //-----------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B0<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B0<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=B[0];
-    res[6]=B[1];
-    res[7]=B[2];
-    res[8]=B[3];
-    res[9]=B[4];
-    res[10]=B[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=B[0];
+    res[2]=B[1];
+    res[3]=B[2];
+    res[4]=B[3];
+    res[5]=B[4];
+    res[6]=B[5];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B0<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B0<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-B[0];
-    res[6]=-B[1];
-    res[7]=-B[2];
-    res[8]=-B[3];
-    res[9]=-B[4];
-    res[10]=-B[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=-B[0];
+    res[2]=-B[1];
+    res[3]=-B[2];
+    res[4]=-B[3];
+    res[5]=-B[4];
+    res[6]=-B[5];
+    res[7]=0;
     return res;
 };
 
@@ -2245,24 +1996,9 @@ inline R130B2<T> operator|(const R130B0<T> &A, const R130B2<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B2<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -2322,24 +2058,9 @@ inline R130B2Sm1<T> operator|(const R130B0<T> &A, const R130B2Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B2Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -2396,24 +2117,9 @@ inline R130B2Sp1<T> operator|(const R130B0<T> &A, const R130B2Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B2Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -2496,24 +2202,9 @@ inline R130B3<T> operator|(const R130B0<T> &A, const R130B3<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B3<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B3<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -2595,24 +2286,9 @@ inline R130B3Sm1<T> operator|(const R130B0<T> &A, const R130B3Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B3Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B3Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -2689,24 +2365,9 @@ inline R130B3Sp1<T> operator|(const R130B0<T> &A, const R130B3Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B3Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B3Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -2722,8 +2383,8 @@ inline R130B3Sp1<T> R130B0<T>::conjugate(const R130B3Sp1<T> &A) const {
 //-----------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B0<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B0<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
     res[1]=0;
     res[2]=0;
@@ -2731,21 +2392,13 @@ inline R130MV<T> operator+(const R130B0<T> &A, const R130B4<T> &B) {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=B[0];
+    res[7]=B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B0<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B0<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
     res[1]=0;
     res[2]=0;
@@ -2753,15 +2406,7 @@ inline R130MV<T> operator-(const R130B0<T> &A, const R130B4<T> &B) {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-B[0];
+    res[7]=-B[0];
     return res;
 };
 
@@ -2780,24 +2425,9 @@ inline R130B4<T> operator|(const R130B0<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -2923,24 +2553,9 @@ inline R130MV<T> operator|(const R130B0<T> &A, const R130MV<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const R130MV<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const R130MV<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -3022,24 +2637,9 @@ inline Rotation<T> operator|(const R130B0<T> &A, const Rotation<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const Rotation<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -3129,24 +2729,9 @@ inline Rotor<T> operator|(const R130B0<T> &A, const Rotor<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B0<T> &A, const Rotor<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B0<T> &A, const Rotor<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -3287,8 +2872,8 @@ inline R130B1<T> operator^(const R130B1<T> &A, const Boost<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> R130B1<T>::conjugate(const Boost<T> &A) const {
-    R130MV<T> res;
+inline Rotor<T> R130B1<T>::conjugate(const Boost<T> &A) const {
+    Rotor<T> res;
     T x0 = std::pow((*this)[1], 2);
     T x1 = std::pow((*this)[2], 2);
     T x2 = std::pow((*this)[3], 2);
@@ -3302,21 +2887,13 @@ inline R130MV<T> R130B1<T>::conjugate(const Boost<T> &A) const {
     T x10 = (*this)[0]*A[3];
     T x11 = 2.0*(*this)[0];
     res[0]=A[0]*(x0 + x1 + x2 - x3);
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[1]*x0 + A[1]*x1 + A[1]*x2 + A[1]*x3 - A[2]*x5 - x4*x6;
-    res[6]=-A[1]*x5 + A[2]*x0 - A[2]*x1 + A[2]*x2 + A[2]*x3 - x6*x7;
-    res[7]=A[3]*x0 + A[3]*x1 - A[3]*x2 + A[3]*x3 - x4*x8 - x7*x9;
-    res[8]=x10*x7 - x11*x9;
-    res[9]=-x10*x4 + x11*x8;
-    res[10]=(*this)[0]*(-A[1]*x7 + A[2]*x4);
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=-A[1]*x0 + A[1]*x1 + A[1]*x2 + A[1]*x3 - A[2]*x5 - x4*x6;
+    res[2]=-A[1]*x5 + A[2]*x0 - A[2]*x1 + A[2]*x2 + A[2]*x3 - x6*x7;
+    res[3]=A[3]*x0 + A[3]*x1 - A[3]*x2 + A[3]*x3 - x4*x8 - x7*x9;
+    res[4]=x10*x7 - x11*x9;
+    res[5]=-x10*x4 + x11*x8;
+    res[6]=(*this)[0]*(-A[1]*x7 + A[2]*x4);
+    res[7]=0;
     return res;
 };
 
@@ -3400,24 +2977,9 @@ inline R130B1<T> operator|(const R130B1<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B1<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B1<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -3453,24 +3015,16 @@ inline R130B1<T> operator-(const R130B1<T> &A, const R130B1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B1<T> &A, const R130B1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B1<T> &A, const R130B1<T> &B) {
+    Rotor<T> res;
     res[0]=A[0]*B[0] - A[1]*B[1] - A[2]*B[2] - A[3]*B[3];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[0]*B[1] + A[1]*B[0];
-    res[6]=-A[0]*B[2] + A[2]*B[0];
-    res[7]=-A[0]*B[3] + A[3]*B[0];
-    res[8]=-A[2]*B[3] + A[3]*B[2];
-    res[9]=A[1]*B[3] - A[3]*B[1];
-    res[10]=-A[1]*B[2] + A[2]*B[1];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=-A[0]*B[1] + A[1]*B[0];
+    res[2]=-A[0]*B[2] + A[2]*B[0];
+    res[3]=-A[0]*B[3] + A[3]*B[0];
+    res[4]=-A[2]*B[3] + A[3]*B[2];
+    res[5]=A[1]*B[3] - A[3]*B[1];
+    res[6]=-A[1]*B[2] + A[2]*B[1];
+    res[7]=0;
     return res;
 };
 
@@ -3539,24 +3093,16 @@ inline R130B1<T> operator-(const R130B1<T> &A, const R130B1Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B1<T> &A, const R130B1Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B1<T> &A, const R130B1Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=-A[1]*B[0] - A[2]*B[1] - A[3]*B[2];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[0]*B[0];
-    res[6]=-A[0]*B[1];
-    res[7]=-A[0]*B[2];
-    res[8]=-A[2]*B[2] + A[3]*B[1];
-    res[9]=A[1]*B[2] - A[3]*B[0];
-    res[10]=-A[1]*B[1] + A[2]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=-A[0]*B[0];
+    res[2]=-A[0]*B[1];
+    res[3]=-A[0]*B[2];
+    res[4]=-A[2]*B[2] + A[3]*B[1];
+    res[5]=A[1]*B[2] - A[3]*B[0];
+    res[6]=-A[1]*B[1] + A[2]*B[0];
+    res[7]=0;
     return res;
 };
 
@@ -4053,24 +3599,16 @@ inline R130MV<T> operator-(const R130B1<T> &A, const R130B3<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B1<T> &A, const R130B3<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B1<T> &A, const R130B3<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[2]*B[3] + A[3]*B[2];
-    res[6]=A[1]*B[3] - A[3]*B[1];
-    res[7]=-A[1]*B[2] + A[2]*B[1];
-    res[8]=A[0]*B[1] + A[1]*B[0];
-    res[9]=A[0]*B[2] + A[2]*B[0];
-    res[10]=A[0]*B[3] + A[3]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2] + A[3]*B[3];
+    res[1]=-A[2]*B[3] + A[3]*B[2];
+    res[2]=A[1]*B[3] - A[3]*B[1];
+    res[3]=-A[1]*B[2] + A[2]*B[1];
+    res[4]=A[0]*B[1] + A[1]*B[0];
+    res[5]=A[0]*B[2] + A[2]*B[0];
+    res[6]=A[0]*B[3] + A[3]*B[0];
+    res[7]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2] + A[3]*B[3];
     return res;
 };
 
@@ -4163,24 +3701,16 @@ inline R130MV<T> operator-(const R130B1<T> &A, const R130B3Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B1<T> &A, const R130B3Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B1<T> &A, const R130B3Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[2]*B[2] + A[3]*B[1];
-    res[6]=A[1]*B[2] - A[3]*B[0];
-    res[7]=-A[1]*B[1] + A[2]*B[0];
-    res[8]=A[0]*B[0];
-    res[9]=A[0]*B[1];
-    res[10]=A[0]*B[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
+    res[1]=-A[2]*B[2] + A[3]*B[1];
+    res[2]=A[1]*B[2] - A[3]*B[0];
+    res[3]=-A[1]*B[1] + A[2]*B[0];
+    res[4]=A[0]*B[0];
+    res[5]=A[0]*B[1];
+    res[6]=A[0]*B[2];
+    res[7]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
     return res;
 };
 
@@ -4273,24 +3803,16 @@ inline R130MV<T> operator-(const R130B1<T> &A, const R130B3Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B1<T> &A, const R130B3Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B1<T> &A, const R130B3Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[1]*B[0];
-    res[9]=A[2]*B[0];
-    res[10]=A[3]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0];
+    res[4]=A[1]*B[0];
+    res[5]=A[2]*B[0];
+    res[6]=A[3]*B[0];
+    res[7]=A[0]*B[0];
     return res;
 };
 
@@ -4380,24 +3902,9 @@ inline R130B3<T> operator*(const R130B1<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B1<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -4696,8 +4203,8 @@ inline R130B1Sm1<T> operator^(const R130B1<T> &A, const Rotation<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> R130B1<T>::conjugate(const Rotation<T> &A) const {
-    R130MV<T> res;
+inline Rotor<T> R130B1<T>::conjugate(const Rotation<T> &A) const {
+    Rotor<T> res;
     T x0 = std::pow((*this)[1], 2);
     T x1 = std::pow((*this)[2], 2);
     T x2 = std::pow((*this)[3], 2);
@@ -4711,21 +4218,13 @@ inline R130MV<T> R130B1<T>::conjugate(const Rotation<T> &A) const {
     T x10 = 2.0*(*this)[1];
     T x11 = (*this)[3]*A[3];
     res[0]=A[0]*(x0 + x1 + x2 - x3);
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=(*this)[2]*x5 - A[2]*x6;
-    res[6]=-(*this)[1]*x5 + A[1]*x6;
-    res[7]=x4*(x7 - x8);
-    res[8]=A[1]*x0 - A[1]*x1 - A[1]*x2 - A[1]*x3 + x10*x11 + x7*x9;
-    res[9]=-A[2]*x0 + A[2]*x1 - A[2]*x2 - A[2]*x3 + x10*x8 + x11*x9;
-    res[10]=(*this)[3]*A[1]*x10 + (*this)[3]*A[2]*x9 - A[3]*x0 - A[3]*x1 + A[3]*x2 - A[3]*x3;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=(*this)[2]*x5 - A[2]*x6;
+    res[2]=-(*this)[1]*x5 + A[1]*x6;
+    res[3]=x4*(x7 - x8);
+    res[4]=A[1]*x0 - A[1]*x1 - A[1]*x2 - A[1]*x3 + x10*x11 + x7*x9;
+    res[5]=-A[2]*x0 + A[2]*x1 - A[2]*x2 - A[2]*x3 + x10*x8 + x11*x9;
+    res[6]=(*this)[3]*A[1]*x10 + (*this)[3]*A[2]*x9 - A[3]*x0 - A[3]*x1 + A[3]*x2 - A[3]*x3;
+    res[7]=0;
     return res;
 };
 
@@ -5087,24 +4586,9 @@ inline R130B1Sm1<T> operator|(const R130B1Sm1<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B1Sm1<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B1Sm1<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -5150,24 +4634,16 @@ inline R130B1<T> operator-(const R130B1Sm1<T> &A, const R130B1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B1Sm1<T> &A, const R130B1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B1Sm1<T> &A, const R130B1<T> &B) {
+    Rotor<T> res;
     res[0]=-A[0]*B[1] - A[1]*B[2] - A[2]*B[3];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0]*B[0];
-    res[6]=A[1]*B[0];
-    res[7]=A[2]*B[0];
-    res[8]=-A[1]*B[3] + A[2]*B[2];
-    res[9]=A[0]*B[3] - A[2]*B[1];
-    res[10]=-A[0]*B[2] + A[1]*B[1];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0]*B[0];
+    res[2]=A[1]*B[0];
+    res[3]=A[2]*B[0];
+    res[4]=-A[1]*B[3] + A[2]*B[2];
+    res[5]=A[0]*B[3] - A[2]*B[1];
+    res[6]=-A[0]*B[2] + A[1]*B[1];
+    res[7]=0;
     return res;
 };
 
@@ -5305,24 +4781,9 @@ inline R130B2Sp1<T> operator*(const R130B1Sm1<T> &A, const R130B1Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B1Sm1<T> &A, const R130B1Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B1Sm1<T> &A, const R130B1Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -5706,24 +5167,16 @@ inline R130MV<T> operator-(const R130B1Sm1<T> &A, const R130B3<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B1Sm1<T> &A, const R130B3<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B1Sm1<T> &A, const R130B3<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[1]*B[3] + A[2]*B[2];
-    res[6]=A[0]*B[3] - A[2]*B[1];
-    res[7]=-A[0]*B[2] + A[1]*B[1];
-    res[8]=A[0]*B[0];
-    res[9]=A[1]*B[0];
-    res[10]=A[2]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
+    res[1]=-A[1]*B[3] + A[2]*B[2];
+    res[2]=A[0]*B[3] - A[2]*B[1];
+    res[3]=-A[0]*B[2] + A[1]*B[1];
+    res[4]=A[0]*B[0];
+    res[5]=A[1]*B[0];
+    res[6]=A[2]*B[0];
+    res[7]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
     return res;
 };
 
@@ -5812,24 +5265,16 @@ inline R130MV<T> operator-(const R130B1Sm1<T> &A, const R130B3Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B1Sm1<T> &A, const R130B3Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B1Sm1<T> &A, const R130B3Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=-A[1]*B[2] + A[2]*B[1];
+    res[2]=A[0]*B[2] - A[2]*B[0];
+    res[3]=-A[0]*B[1] + A[1]*B[0];
     res[4]=0;
-    res[5]=-A[1]*B[2] + A[2]*B[1];
-    res[6]=A[0]*B[2] - A[2]*B[0];
-    res[7]=-A[0]*B[1] + A[1]*B[0];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
     return res;
 };
 
@@ -5932,24 +5377,9 @@ inline R130B2Sm1<T> operator|(const R130B1Sm1<T> &A, const R130B3Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B1Sm1<T> &A, const R130B3Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B1Sm1<T> &A, const R130B3Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -6018,24 +5448,9 @@ inline R130B3Sm1<T> operator*(const R130B1Sm1<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B1Sm1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B1Sm1<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -6653,24 +6068,9 @@ inline R130B1Sp1<T> operator|(const R130B1Sp1<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B1Sp1<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B1Sp1<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -6786,24 +6186,9 @@ inline R130B2Sp1<T> operator*(const R130B1Sp1<T> &A, const R130B1Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B1Sp1<T> &A, const R130B1Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B1Sp1<T> &A, const R130B1Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -6859,24 +6244,9 @@ inline R130B0<T> operator|(const R130B1Sp1<T> &A, const R130B1Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B1Sp1<T> &A, const R130B1Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B1Sp1<T> &A, const R130B1Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -7055,24 +6425,9 @@ inline R130B3Sm1<T> operator|(const R130B1Sp1<T> &A, const R130B2Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B1Sp1<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B1Sp1<T> &A, const R130B2Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -7144,24 +6499,9 @@ inline R130B1Sm1<T> operator*(const R130B1Sp1<T> &A, const R130B2Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B1Sp1<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B1Sp1<T> &A, const R130B2Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -7233,24 +6573,16 @@ inline R130MV<T> operator-(const R130B1Sp1<T> &A, const R130B3<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B1Sp1<T> &A, const R130B3<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B1Sp1<T> &A, const R130B3<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[0]*B[1];
-    res[9]=A[0]*B[2];
-    res[10]=A[0]*B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0];
+    res[4]=A[0]*B[1];
+    res[5]=A[0]*B[2];
+    res[6]=A[0]*B[3];
+    res[7]=A[0]*B[0];
     return res;
 };
 
@@ -7348,24 +6680,9 @@ inline R130B2Sm1<T> operator|(const R130B1Sp1<T> &A, const R130B3Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B1Sp1<T> &A, const R130B3Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B1Sp1<T> &A, const R130B3Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -7435,24 +6752,9 @@ inline R130B4<T> operator*(const R130B1Sp1<T> &A, const R130B3Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B1Sp1<T> &A, const R130B3Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B1Sp1<T> &A, const R130B3Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -7526,24 +6828,9 @@ inline R130B3Sp1<T> operator*(const R130B1Sp1<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B1Sp1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B1Sp1<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -7813,24 +7100,9 @@ inline R130MV<T> operator|(const R130B1Sp1<T> &A, const Rotation<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B1Sp1<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B1Sp1<T> &A, const Rotation<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -7998,46 +7270,30 @@ inline R130B1Sp1<T> operator/(const R130B1Sp1<T> &A, const T &B) {
 //----------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B2<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B2<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0] + B[1];
-    res[6]=A[1] + B[2];
-    res[7]=A[2] + B[3];
-    res[8]=A[3];
-    res[9]=A[4];
-    res[10]=A[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0] + B[1];
+    res[2]=A[1] + B[2];
+    res[3]=A[2] + B[3];
+    res[4]=A[3];
+    res[5]=A[4];
+    res[6]=A[5];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B2<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B2<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=-B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0] - B[1];
-    res[6]=A[1] - B[2];
-    res[7]=A[2] - B[3];
-    res[8]=A[3];
-    res[9]=A[4];
-    res[10]=A[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0] - B[1];
+    res[2]=A[1] - B[2];
+    res[3]=A[2] - B[3];
+    res[4]=A[3];
+    res[5]=A[4];
+    res[6]=A[5];
+    res[7]=0;
     return res;
 };
 
@@ -8121,46 +7377,30 @@ inline Rotor<T> R130B2<T>::conjugate(const Boost<T> &A) const {
 //-----------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B2<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B2<T> &A, const R130B0<T> &B) {
+    Rotor<T> res;
     res[0]=B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0];
-    res[6]=A[1];
-    res[7]=A[2];
-    res[8]=A[3];
-    res[9]=A[4];
-    res[10]=A[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0];
+    res[2]=A[1];
+    res[3]=A[2];
+    res[4]=A[3];
+    res[5]=A[4];
+    res[6]=A[5];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B2<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B2<T> &A, const R130B0<T> &B) {
+    Rotor<T> res;
     res[0]=-B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0];
-    res[6]=A[1];
-    res[7]=A[2];
-    res[8]=A[3];
-    res[9]=A[4];
-    res[10]=A[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0];
+    res[2]=A[1];
+    res[3]=A[2];
+    res[4]=A[3];
+    res[5]=A[4];
+    res[6]=A[5];
+    res[7]=0;
     return res;
 };
 
@@ -8202,30 +7442,15 @@ inline R130B2<T> operator|(const R130B2<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B2<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B2<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> R130B2<T>::conjugate(const R130B0<T> &A) const {
-    R130MV<T> res;
+inline Rotor<T> R130B2<T>::conjugate(const R130B0<T> &A) const {
+    Rotor<T> res;
     res[0]=A[0]*(-std::pow((*this)[0], 2) - std::pow((*this)[1], 2) - std::pow((*this)[2], 2) + std::pow((*this)[3], 2) + std::pow((*this)[4], 2) + std::pow((*this)[5], 2));
     res[1]=0;
     res[2]=0;
@@ -8233,15 +7458,7 @@ inline R130MV<T> R130B2<T>::conjugate(const R130B0<T> &A) const {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-2.0*A[0]*((*this)[0]*(*this)[3] + (*this)[1]*(*this)[4] + (*this)[2]*(*this)[5]);
+    res[7]=-2.0*A[0]*((*this)[0]*(*this)[3] + (*this)[1]*(*this)[4] + (*this)[2]*(*this)[5]);
     return res;
 };
 
@@ -8630,8 +7847,8 @@ inline Rotor<T> operator*(const R130B2<T> &A, const R130B2<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B2<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const R130B2<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2] - A[3]*B[3] - A[4]*B[4] - A[5]*B[5];
     res[1]=0;
     res[2]=0;
@@ -8639,15 +7856,7 @@ inline R130MV<T> operator|(const R130B2<T> &A, const R130B2<T> &B) {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[3] + A[1]*B[4] + A[2]*B[5] + A[3]*B[0] + A[4]*B[1] + A[5]*B[2];
+    res[7]=A[0]*B[3] + A[1]*B[4] + A[2]*B[5] + A[3]*B[0] + A[4]*B[1] + A[5]*B[2];
     return res;
 };
 
@@ -8750,8 +7959,8 @@ inline Rotor<T> operator*(const R130B2<T> &A, const R130B2Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B2<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const R130B2<T> &A, const R130B2Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=-A[3]*B[0] - A[4]*B[1] - A[5]*B[2];
     res[1]=0;
     res[2]=0;
@@ -8759,15 +7968,7 @@ inline R130MV<T> operator|(const R130B2<T> &A, const R130B2Sm1<T> &B) {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
+    res[7]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
     return res;
 };
 
@@ -8860,8 +8061,8 @@ inline Rotor<T> operator*(const R130B2<T> &A, const R130B2Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B2<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const R130B2<T> &A, const R130B2Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
     res[1]=0;
     res[2]=0;
@@ -8869,15 +8070,7 @@ inline R130MV<T> operator|(const R130B2<T> &A, const R130B2Sp1<T> &B) {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[3]*B[0] + A[4]*B[1] + A[5]*B[2];
+    res[7]=A[3]*B[0] + A[4]*B[1] + A[5]*B[2];
     return res;
 };
 
@@ -9272,46 +8465,30 @@ inline R130B3<T> R130B2<T>::conjugate(const R130B3Sp1<T> &A) const {
 //-----------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B2<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B2<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0];
-    res[6]=A[1];
-    res[7]=A[2];
-    res[8]=A[3];
-    res[9]=A[4];
-    res[10]=A[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=B[0];
+    res[1]=A[0];
+    res[2]=A[1];
+    res[3]=A[2];
+    res[4]=A[3];
+    res[5]=A[4];
+    res[6]=A[5];
+    res[7]=B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B2<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B2<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0];
-    res[6]=A[1];
-    res[7]=A[2];
-    res[8]=A[3];
-    res[9]=A[4];
-    res[10]=A[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-B[0];
+    res[1]=A[0];
+    res[2]=A[1];
+    res[3]=A[2];
+    res[4]=A[3];
+    res[5]=A[4];
+    res[6]=A[5];
+    res[7]=-B[0];
     return res;
 };
 
@@ -9340,30 +8517,15 @@ inline R130B2<T> operator|(const R130B2<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B2<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B2<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> R130B2<T>::conjugate(const R130B4<T> &A) const {
-    R130MV<T> res;
+inline Rotor<T> R130B2<T>::conjugate(const R130B4<T> &A) const {
+    Rotor<T> res;
     res[0]=2.0*A[0]*((*this)[0]*(*this)[3] + (*this)[1]*(*this)[4] + (*this)[2]*(*this)[5]);
     res[1]=0;
     res[2]=0;
@@ -9371,15 +8533,7 @@ inline R130MV<T> R130B2<T>::conjugate(const R130B4<T> &A) const {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*(-std::pow((*this)[0], 2) - std::pow((*this)[1], 2) - std::pow((*this)[2], 2) + std::pow((*this)[3], 2) + std::pow((*this)[4], 2) + std::pow((*this)[5], 2));
+    res[7]=A[0]*(-std::pow((*this)[0], 2) - std::pow((*this)[1], 2) - std::pow((*this)[2], 2) + std::pow((*this)[3], 2) + std::pow((*this)[4], 2) + std::pow((*this)[5], 2));
     return res;
 };
 
@@ -9588,46 +8742,30 @@ inline R130MV<T> R130B2<T>::conjugate(const R130MV<T> &A) const {
 //-------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B2<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B2<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0];
-    res[6]=A[1];
-    res[7]=A[2];
-    res[8]=A[3] + B[1];
-    res[9]=A[4] + B[2];
-    res[10]=A[5] + B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0];
+    res[2]=A[1];
+    res[3]=A[2];
+    res[4]=A[3] + B[1];
+    res[5]=A[4] + B[2];
+    res[6]=A[5] + B[3];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B2<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B2<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=-B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0];
-    res[6]=A[1];
-    res[7]=A[2];
-    res[8]=A[3] - B[1];
-    res[9]=A[4] - B[2];
-    res[10]=A[5] - B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0];
+    res[2]=A[1];
+    res[3]=A[2];
+    res[4]=A[3] - B[1];
+    res[5]=A[4] - B[2];
+    res[6]=A[5] - B[3];
+    res[7]=0;
     return res;
 };
 
@@ -9875,90 +9013,58 @@ inline R130B2<T> operator/(const R130B2<T> &A, const T &B) {
 //-------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B2Sm1<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B2Sm1<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=B[1];
-    res[6]=B[2];
-    res[7]=B[3];
-    res[8]=A[0];
-    res[9]=A[1];
-    res[10]=A[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
-    return res;
-};
-
-template<typename T>
-inline R130MV<T> operator-(const R130B2Sm1<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
-    res[0]=-B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-B[1];
-    res[6]=-B[2];
-    res[7]=-B[3];
-    res[8]=A[0];
-    res[9]=A[1];
-    res[10]=A[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
-    return res;
-};
-
-template<typename T>
-inline R130MV<T> operator*(const R130B2Sm1<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
-    res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[1]*B[3] + A[2]*B[2];
-    res[6]=A[0]*B[3] - A[2]*B[1];
-    res[7]=-A[0]*B[2] + A[1]*B[1];
-    res[8]=A[0]*B[0];
-    res[9]=A[1]*B[0];
-    res[10]=A[2]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
-    return res;
-};
-
-template<typename T>
-inline R130MV<T> operator|(const R130B2Sm1<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
-    res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
+    res[1]=B[1];
+    res[2]=B[2];
+    res[3]=B[3];
+    res[4]=A[0];
+    res[5]=A[1];
+    res[6]=A[2];
     res[7]=0;
-    res[8]=A[0]*B[0];
-    res[9]=A[1]*B[0];
-    res[10]=A[2]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
+    return res;
+};
+
+template<typename T>
+inline Rotor<T> operator-(const R130B2Sm1<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
+    res[0]=-B[0];
+    res[1]=-B[1];
+    res[2]=-B[2];
+    res[3]=-B[3];
+    res[4]=A[0];
+    res[5]=A[1];
+    res[6]=A[2];
+    res[7]=0;
+    return res;
+};
+
+template<typename T>
+inline Rotor<T> operator*(const R130B2Sm1<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
+    res[0]=0;
+    res[1]=-A[1]*B[3] + A[2]*B[2];
+    res[2]=A[0]*B[3] - A[2]*B[1];
+    res[3]=-A[0]*B[2] + A[1]*B[1];
+    res[4]=A[0]*B[0];
+    res[5]=A[1]*B[0];
+    res[6]=A[2]*B[0];
+    res[7]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
+    return res;
+};
+
+template<typename T>
+inline Rotor<T> operator|(const R130B2Sm1<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
+    res[0]=0;
+    res[1]=0;
+    res[2]=0;
+    res[3]=0;
+    res[4]=A[0]*B[0];
+    res[5]=A[1]*B[0];
+    res[6]=A[2]*B[0];
+    res[7]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
     return res;
 };
 
@@ -10041,24 +9147,9 @@ inline R130B2Sm1<T> operator|(const R130B2Sm1<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B2Sm1<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B2Sm1<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -10344,24 +9435,9 @@ inline R130B3Sm1<T> operator|(const R130B2Sm1<T> &A, const R130B1Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B2Sm1<T> &A, const R130B1Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B2Sm1<T> &A, const R130B1Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -10427,8 +9503,8 @@ inline Rotor<T> operator*(const R130B2Sm1<T> &A, const R130B2<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B2Sm1<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const R130B2Sm1<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=-A[0]*B[3] - A[1]*B[4] - A[2]*B[5];
     res[1]=0;
     res[2]=0;
@@ -10436,15 +9512,7 @@ inline R130MV<T> operator|(const R130B2Sm1<T> &A, const R130B2<T> &B) {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
+    res[7]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
     return res;
 };
 
@@ -10574,24 +9642,16 @@ inline R130B2<T> operator-(const R130B2Sm1<T> &A, const R130B2Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B2Sm1<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B2Sm1<T> &A, const R130B2Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=-A[1]*B[2] + A[2]*B[1];
+    res[2]=A[0]*B[2] - A[2]*B[0];
+    res[3]=-A[0]*B[1] + A[1]*B[0];
     res[4]=0;
-    res[5]=-A[1]*B[2] + A[2]*B[1];
-    res[6]=A[0]*B[2] - A[2]*B[0];
-    res[7]=-A[0]*B[1] + A[1]*B[0];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
     return res;
 };
 
@@ -10902,24 +9962,9 @@ inline R130B1Sm1<T> operator|(const R130B2Sm1<T> &A, const R130B3Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B2Sm1<T> &A, const R130B3Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B2Sm1<T> &A, const R130B3Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -10935,46 +9980,30 @@ inline R130B3Sp1<T> R130B2Sm1<T>::conjugate(const R130B3Sp1<T> &A) const {
 //--------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B2Sm1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B2Sm1<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[0];
-    res[9]=A[1];
-    res[10]=A[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=B[0];
+    res[4]=A[0];
+    res[5]=A[1];
+    res[6]=A[2];
+    res[7]=B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B2Sm1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B2Sm1<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[0];
-    res[9]=A[1];
-    res[10]=A[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-B[0];
+    res[4]=A[0];
+    res[5]=A[1];
+    res[6]=A[2];
+    res[7]=-B[0];
     return res;
 };
 
@@ -10997,24 +10026,9 @@ inline R130B2Sp1<T> operator|(const R130B2Sm1<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B2Sm1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B2Sm1<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -11437,24 +10451,16 @@ inline Boost<T> operator-(const R130B2Sp1<T> &A, const Boost<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B2Sp1<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B2Sp1<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0]*B[0];
-    res[6]=A[1]*B[0];
-    res[7]=A[2]*B[0];
-    res[8]=A[1]*B[3] - A[2]*B[2];
-    res[9]=-A[0]*B[3] + A[2]*B[1];
-    res[10]=A[0]*B[2] - A[1]*B[1];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0]*B[0];
+    res[2]=A[1]*B[0];
+    res[3]=A[2]*B[0];
+    res[4]=A[1]*B[3] - A[2]*B[2];
+    res[5]=-A[0]*B[3] + A[2]*B[1];
+    res[6]=A[0]*B[2] - A[1]*B[1];
+    res[7]=0;
     return res;
 };
 
@@ -11547,24 +10553,9 @@ inline R130B2Sp1<T> operator|(const R130B2Sp1<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B2Sp1<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B2Sp1<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -11841,24 +10832,9 @@ inline R130B1Sm1<T> operator*(const R130B2Sp1<T> &A, const R130B1Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B2Sp1<T> &A, const R130B1Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B2Sp1<T> &A, const R130B1Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -11933,8 +10909,8 @@ inline Rotor<T> operator*(const R130B2Sp1<T> &A, const R130B2<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B2Sp1<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const R130B2Sp1<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
     res[1]=0;
     res[2]=0;
@@ -11942,15 +10918,7 @@ inline R130MV<T> operator|(const R130B2Sp1<T> &A, const R130B2<T> &B) {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[3] + A[1]*B[4] + A[2]*B[5];
+    res[7]=A[0]*B[3] + A[1]*B[4] + A[2]*B[5];
     return res;
 };
 
@@ -12016,24 +10984,16 @@ inline R130B2<T> operator-(const R130B2Sp1<T> &A, const R130B2Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B2Sp1<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B2Sp1<T> &A, const R130B2Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=-A[1]*B[2] + A[2]*B[1];
+    res[2]=A[0]*B[2] - A[2]*B[0];
+    res[3]=-A[0]*B[1] + A[1]*B[0];
     res[4]=0;
-    res[5]=-A[1]*B[2] + A[2]*B[1];
-    res[6]=A[0]*B[2] - A[2]*B[0];
-    res[7]=-A[0]*B[1] + A[1]*B[0];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
     return res;
 };
 
@@ -12399,24 +11359,9 @@ inline R130B3Sm1<T> operator*(const R130B2Sp1<T> &A, const R130B3Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B2Sp1<T> &A, const R130B3Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B2Sp1<T> &A, const R130B3Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -12441,46 +11386,30 @@ inline R130B3Sp1<T> R130B2Sp1<T>::conjugate(const R130B3Sp1<T> &A) const {
 //--------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B2Sp1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B2Sp1<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=A[0];
+    res[2]=A[1];
+    res[3]=A[2];
     res[4]=0;
-    res[5]=A[0];
-    res[6]=A[1];
-    res[7]=A[2];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=B[0];
+    res[5]=0;
+    res[6]=0;
+    res[7]=B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B2Sp1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B2Sp1<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=A[0];
+    res[2]=A[1];
+    res[3]=A[2];
     res[4]=0;
-    res[5]=A[0];
-    res[6]=A[1];
-    res[7]=A[2];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-B[0];
+    res[5]=0;
+    res[6]=0;
+    res[7]=-B[0];
     return res;
 };
 
@@ -12503,24 +11432,9 @@ inline R130B2Sm1<T> operator|(const R130B2Sp1<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B2Sp1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B2Sp1<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -12703,90 +11617,58 @@ inline R130MV<T> R130B2Sp1<T>::conjugate(const R130MV<T> &A) const {
 //----------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B2Sp1<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B2Sp1<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0];
-    res[6]=A[1];
-    res[7]=A[2];
-    res[8]=B[1];
-    res[9]=B[2];
-    res[10]=B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0];
+    res[2]=A[1];
+    res[3]=A[2];
+    res[4]=B[1];
+    res[5]=B[2];
+    res[6]=B[3];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B2Sp1<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B2Sp1<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=-B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0];
-    res[6]=A[1];
-    res[7]=A[2];
-    res[8]=-B[1];
-    res[9]=-B[2];
-    res[10]=-B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0];
+    res[2]=A[1];
+    res[3]=A[2];
+    res[4]=-B[1];
+    res[5]=-B[2];
+    res[6]=-B[3];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B2Sp1<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B2Sp1<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=A[0]*B[0] - A[1]*B[3] + A[2]*B[2];
+    res[2]=A[0]*B[3] + A[1]*B[0] - A[2]*B[1];
+    res[3]=-A[0]*B[2] + A[1]*B[1] + A[2]*B[0];
     res[4]=0;
-    res[5]=A[0]*B[0] - A[1]*B[3] + A[2]*B[2];
-    res[6]=A[0]*B[3] + A[1]*B[0] - A[2]*B[1];
-    res[7]=-A[0]*B[2] + A[1]*B[1] + A[2]*B[0];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B2Sp1<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const R130B2Sp1<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=A[0]*B[0];
+    res[2]=A[1]*B[0];
+    res[3]=A[2]*B[0];
     res[4]=0;
-    res[5]=A[0]*B[0];
-    res[6]=A[1]*B[0];
-    res[7]=A[2]*B[0];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[0]*B[1] + A[1]*B[2] + A[2]*B[3];
     return res;
 };
 
@@ -13049,8 +11931,8 @@ inline R130B3<T> operator^(const R130B3<T> &A, const Boost<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> R130B3<T>::conjugate(const Boost<T> &A) const {
-    R130MV<T> res;
+inline Rotor<T> R130B3<T>::conjugate(const Boost<T> &A) const {
+    Rotor<T> res;
     T x0 = std::pow((*this)[0], 2);
     T x1 = std::pow((*this)[1], 2);
     T x2 = std::pow((*this)[2], 2);
@@ -13064,21 +11946,13 @@ inline R130MV<T> R130B3<T>::conjugate(const Boost<T> &A) const {
     T x10 = (*this)[0]*A[3];
     T x11 = 2.0*(*this)[0];
     res[0]=A[0]*(x0 - x1 - x2 - x3);
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[1]*x0 + A[1]*x1 - A[1]*x2 - A[1]*x3 + A[2]*x5 + x4*x6;
-    res[6]=A[1]*x5 - A[2]*x0 - A[2]*x1 + A[2]*x2 - A[2]*x3 + x6*x7;
-    res[7]=-A[3]*x0 - A[3]*x1 - A[3]*x2 + A[3]*x3 + x4*x8 + x7*x9;
-    res[8]=x10*x7 - x11*x9;
-    res[9]=-x10*x4 + x11*x8;
-    res[10]=(*this)[0]*(-A[1]*x7 + A[2]*x4);
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=-A[1]*x0 + A[1]*x1 - A[1]*x2 - A[1]*x3 + A[2]*x5 + x4*x6;
+    res[2]=A[1]*x5 - A[2]*x0 - A[2]*x1 + A[2]*x2 - A[2]*x3 + x6*x7;
+    res[3]=-A[3]*x0 - A[3]*x1 - A[3]*x2 + A[3]*x3 + x4*x8 + x7*x9;
+    res[4]=x10*x7 - x11*x9;
+    res[5]=-x10*x4 + x11*x8;
+    res[6]=(*this)[0]*(-A[1]*x7 + A[2]*x4);
+    res[7]=0;
     return res;
 };
 
@@ -13162,24 +12036,9 @@ inline R130B3<T> operator|(const R130B3<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B3<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B3<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -13239,24 +12098,16 @@ inline R130MV<T> operator-(const R130B3<T> &A, const R130B1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B3<T> &A, const R130B1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B3<T> &A, const R130B1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[2]*B[3] - A[3]*B[2];
-    res[6]=-A[1]*B[3] + A[3]*B[1];
-    res[7]=A[1]*B[2] - A[2]*B[1];
-    res[8]=A[0]*B[1] + A[1]*B[0];
-    res[9]=A[0]*B[2] + A[2]*B[0];
-    res[10]=A[0]*B[3] + A[3]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-A[0]*B[0] - A[1]*B[1] - A[2]*B[2] - A[3]*B[3];
+    res[1]=A[2]*B[3] - A[3]*B[2];
+    res[2]=-A[1]*B[3] + A[3]*B[1];
+    res[3]=A[1]*B[2] - A[2]*B[1];
+    res[4]=A[0]*B[1] + A[1]*B[0];
+    res[5]=A[0]*B[2] + A[2]*B[0];
+    res[6]=A[0]*B[3] + A[3]*B[0];
+    res[7]=-A[0]*B[0] - A[1]*B[1] - A[2]*B[2] - A[3]*B[3];
     return res;
 };
 
@@ -13349,24 +12200,16 @@ inline R130MV<T> operator-(const R130B3<T> &A, const R130B1Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B3<T> &A, const R130B1Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B3<T> &A, const R130B1Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[2]*B[2] - A[3]*B[1];
-    res[6]=-A[1]*B[2] + A[3]*B[0];
-    res[7]=A[1]*B[1] - A[2]*B[0];
-    res[8]=A[0]*B[0];
-    res[9]=A[0]*B[1];
-    res[10]=A[0]*B[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-A[1]*B[0] - A[2]*B[1] - A[3]*B[2];
+    res[1]=A[2]*B[2] - A[3]*B[1];
+    res[2]=-A[1]*B[2] + A[3]*B[0];
+    res[3]=A[1]*B[1] - A[2]*B[0];
+    res[4]=A[0]*B[0];
+    res[5]=A[0]*B[1];
+    res[6]=A[0]*B[2];
+    res[7]=-A[1]*B[0] - A[2]*B[1] - A[3]*B[2];
     return res;
 };
 
@@ -13459,24 +12302,16 @@ inline R130MV<T> operator-(const R130B3<T> &A, const R130B1Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B3<T> &A, const R130B1Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B3<T> &A, const R130B1Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[1]*B[0];
-    res[9]=A[2]*B[0];
-    res[10]=A[3]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-A[0]*B[0];
+    res[4]=A[1]*B[0];
+    res[5]=A[2]*B[0];
+    res[6]=A[3]*B[0];
+    res[7]=-A[0]*B[0];
     return res;
 };
 
@@ -13874,24 +12709,16 @@ inline R130B3<T> operator-(const R130B3<T> &A, const R130B3<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B3<T> &A, const R130B3<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B3<T> &A, const R130B3<T> &B) {
+    Rotor<T> res;
     res[0]=A[0]*B[0] - A[1]*B[1] - A[2]*B[2] - A[3]*B[3];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0]*B[1] - A[1]*B[0];
-    res[6]=A[0]*B[2] - A[2]*B[0];
-    res[7]=A[0]*B[3] - A[3]*B[0];
-    res[8]=-A[2]*B[3] + A[3]*B[2];
-    res[9]=A[1]*B[3] - A[3]*B[1];
-    res[10]=-A[1]*B[2] + A[2]*B[1];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0]*B[1] - A[1]*B[0];
+    res[2]=A[0]*B[2] - A[2]*B[0];
+    res[3]=A[0]*B[3] - A[3]*B[0];
+    res[4]=-A[2]*B[3] + A[3]*B[2];
+    res[5]=A[1]*B[3] - A[3]*B[1];
+    res[6]=-A[1]*B[2] + A[2]*B[1];
+    res[7]=0;
     return res;
 };
 
@@ -13960,24 +12787,16 @@ inline R130B3<T> operator-(const R130B3<T> &A, const R130B3Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B3<T> &A, const R130B3Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B3<T> &A, const R130B3Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=-A[1]*B[0] - A[2]*B[1] - A[3]*B[2];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[0]*B[0];
-    res[6]=A[0]*B[1];
-    res[7]=A[0]*B[2];
-    res[8]=-A[2]*B[2] + A[3]*B[1];
-    res[9]=A[1]*B[2] - A[3]*B[0];
-    res[10]=-A[1]*B[1] + A[2]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=A[0]*B[0];
+    res[2]=A[0]*B[1];
+    res[3]=A[0]*B[2];
+    res[4]=-A[2]*B[2] + A[3]*B[1];
+    res[5]=A[1]*B[2] - A[3]*B[0];
+    res[6]=-A[1]*B[1] + A[2]*B[0];
+    res[7]=0;
     return res;
 };
 
@@ -14141,24 +12960,9 @@ inline R130B1<T> operator*(const R130B3<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B3<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B3<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -14457,8 +13261,8 @@ inline R130B3Sm1<T> operator^(const R130B3<T> &A, const Rotation<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> R130B3<T>::conjugate(const Rotation<T> &A) const {
-    R130MV<T> res;
+inline Rotor<T> R130B3<T>::conjugate(const Rotation<T> &A) const {
+    Rotor<T> res;
     T x0 = std::pow((*this)[0], 2);
     T x1 = std::pow((*this)[1], 2);
     T x2 = std::pow((*this)[2], 2);
@@ -14472,21 +13276,13 @@ inline R130MV<T> R130B3<T>::conjugate(const Rotation<T> &A) const {
     T x10 = 2.0*(*this)[1];
     T x11 = (*this)[3]*A[3];
     res[0]=A[0]*(x0 - x1 - x2 - x3);
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=(*this)[2]*x5 - A[2]*x6;
-    res[6]=-(*this)[1]*x5 + A[1]*x6;
-    res[7]=x4*(x7 - x8);
-    res[8]=A[1]*x0 - A[1]*x1 + A[1]*x2 + A[1]*x3 - x10*x11 - x7*x9;
-    res[9]=A[2]*x0 + A[2]*x1 - A[2]*x2 + A[2]*x3 - x10*x8 - x11*x9;
-    res[10]=-(*this)[3]*A[1]*x10 - (*this)[3]*A[2]*x9 + A[3]*x0 + A[3]*x1 + A[3]*x2 - A[3]*x3;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=(*this)[2]*x5 - A[2]*x6;
+    res[2]=-(*this)[1]*x5 + A[1]*x6;
+    res[3]=x4*(x7 - x8);
+    res[4]=A[1]*x0 - A[1]*x1 + A[1]*x2 + A[1]*x3 - x10*x11 - x7*x9;
+    res[5]=A[2]*x0 + A[2]*x1 - A[2]*x2 + A[2]*x3 - x10*x8 - x11*x9;
+    res[6]=-(*this)[3]*A[1]*x10 - (*this)[3]*A[2]*x9 + A[3]*x0 + A[3]*x1 + A[3]*x2 - A[3]*x3;
+    res[7]=0;
     return res;
 };
 
@@ -14847,24 +13643,9 @@ inline R130B3Sm1<T> operator|(const R130B3Sm1<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B3Sm1<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B3Sm1<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -14924,24 +13705,16 @@ inline R130MV<T> operator-(const R130B3Sm1<T> &A, const R130B1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B3Sm1<T> &A, const R130B1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B3Sm1<T> &A, const R130B1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=A[1]*B[3] - A[2]*B[2];
-    res[6]=-A[0]*B[3] + A[2]*B[1];
-    res[7]=A[0]*B[2] - A[1]*B[1];
-    res[8]=A[0]*B[0];
-    res[9]=A[1]*B[0];
-    res[10]=A[2]*B[0];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-A[0]*B[1] - A[1]*B[2] - A[2]*B[3];
+    res[1]=A[1]*B[3] - A[2]*B[2];
+    res[2]=-A[0]*B[3] + A[2]*B[1];
+    res[3]=A[0]*B[2] - A[1]*B[1];
+    res[4]=A[0]*B[0];
+    res[5]=A[1]*B[0];
+    res[6]=A[2]*B[0];
+    res[7]=-A[0]*B[1] - A[1]*B[2] - A[2]*B[3];
     return res;
 };
 
@@ -15030,24 +13803,16 @@ inline R130MV<T> operator-(const R130B3Sm1<T> &A, const R130B1Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B3Sm1<T> &A, const R130B1Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B3Sm1<T> &A, const R130B1Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=A[1]*B[2] - A[2]*B[1];
+    res[2]=-A[0]*B[2] + A[2]*B[0];
+    res[3]=A[0]*B[1] - A[1]*B[0];
     res[4]=0;
-    res[5]=A[1]*B[2] - A[2]*B[1];
-    res[6]=-A[0]*B[2] + A[2]*B[0];
-    res[7]=A[0]*B[1] - A[1]*B[0];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-A[0]*B[0] - A[1]*B[1] - A[2]*B[2];
+    res[5]=0;
+    res[6]=0;
+    res[7]=-A[0]*B[0] - A[1]*B[1] - A[2]*B[2];
     return res;
 };
 
@@ -15150,24 +13915,9 @@ inline R130B2Sm1<T> operator|(const R130B3Sm1<T> &A, const R130B1Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B3Sm1<T> &A, const R130B1Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B3Sm1<T> &A, const R130B1Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -15528,24 +14278,16 @@ inline R130B3<T> operator-(const R130B3Sm1<T> &A, const R130B3<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B3Sm1<T> &A, const R130B3<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B3Sm1<T> &A, const R130B3<T> &B) {
+    Rotor<T> res;
     res[0]=-A[0]*B[1] - A[1]*B[2] - A[2]*B[3];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[0]*B[0];
-    res[6]=-A[1]*B[0];
-    res[7]=-A[2]*B[0];
-    res[8]=-A[1]*B[3] + A[2]*B[2];
-    res[9]=A[0]*B[3] - A[2]*B[1];
-    res[10]=-A[0]*B[2] + A[1]*B[1];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=-A[0]*B[0];
+    res[2]=-A[1]*B[0];
+    res[3]=-A[2]*B[0];
+    res[4]=-A[1]*B[3] + A[2]*B[2];
+    res[5]=A[0]*B[3] - A[2]*B[1];
+    res[6]=-A[0]*B[2] + A[1]*B[1];
+    res[7]=0;
     return res;
 };
 
@@ -15683,24 +14425,9 @@ inline R130B2Sp1<T> operator*(const R130B3Sm1<T> &A, const R130B3Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B3Sm1<T> &A, const R130B3Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B3Sm1<T> &A, const R130B3Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -15778,24 +14505,9 @@ inline R130B1Sm1<T> operator*(const R130B3Sm1<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B3Sm1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B3Sm1<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -16413,24 +15125,9 @@ inline R130B3Sp1<T> operator|(const R130B3Sp1<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B3Sp1<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B3Sp1<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -16490,24 +15187,16 @@ inline R130MV<T> operator-(const R130B3Sp1<T> &A, const R130B1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B3Sp1<T> &A, const R130B1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B3Sp1<T> &A, const R130B1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[0]*B[1];
-    res[9]=A[0]*B[2];
-    res[10]=A[0]*B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-A[0]*B[0];
+    res[4]=A[0]*B[1];
+    res[5]=A[0]*B[2];
+    res[6]=A[0]*B[3];
+    res[7]=-A[0]*B[0];
     return res;
 };
 
@@ -16605,24 +15294,9 @@ inline R130B2Sm1<T> operator|(const R130B3Sp1<T> &A, const R130B1Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B3Sp1<T> &A, const R130B1Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B3Sp1<T> &A, const R130B1Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -16692,24 +15366,9 @@ inline R130B4<T> operator*(const R130B3Sp1<T> &A, const R130B1Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B3Sp1<T> &A, const R130B1Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B3Sp1<T> &A, const R130B1Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -16895,24 +15554,9 @@ inline R130B1Sm1<T> operator|(const R130B3Sp1<T> &A, const R130B2Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B3Sp1<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B3Sp1<T> &A, const R130B2Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -16984,24 +15628,9 @@ inline R130B3Sm1<T> operator*(const R130B3Sp1<T> &A, const R130B2Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B3Sp1<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B3Sp1<T> &A, const R130B2Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -17129,24 +15758,9 @@ inline R130B2Sp1<T> operator*(const R130B3Sp1<T> &A, const R130B3Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B3Sp1<T> &A, const R130B3Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B3Sp1<T> &A, const R130B3Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -17202,24 +15816,9 @@ inline R130B0<T> operator|(const R130B3Sp1<T> &A, const R130B3Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B3Sp1<T> &A, const R130B3Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B3Sp1<T> &A, const R130B3Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -17286,24 +15885,9 @@ inline R130B1Sp1<T> operator*(const R130B3Sp1<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B3Sp1<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B3Sp1<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -17573,24 +16157,9 @@ inline R130MV<T> operator|(const R130B3Sp1<T> &A, const Rotation<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B3Sp1<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B3Sp1<T> &A, const Rotation<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -17758,112 +16327,65 @@ inline R130B3Sp1<T> operator/(const R130B3Sp1<T> &A, const T &B) {
 //----------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B4<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B4<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=B[1];
+    res[2]=B[2];
+    res[3]=B[3];
     res[4]=0;
-    res[5]=B[1];
-    res[6]=B[2];
-    res[7]=B[3];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B4<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B4<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=-B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=-B[1];
+    res[2]=-B[2];
+    res[3]=-B[3];
     res[4]=0;
-    res[5]=-B[1];
-    res[6]=-B[2];
-    res[7]=-B[3];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B4<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const R130B4<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[0]*B[1];
-    res[9]=A[0]*B[2];
-    res[10]=A[0]*B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0];
+    res[4]=A[0]*B[1];
+    res[5]=A[0]*B[2];
+    res[6]=A[0]*B[3];
+    res[7]=A[0]*B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B4<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const R130B4<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[0]*B[1];
-    res[9]=A[0]*B[2];
-    res[10]=A[0]*B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0];
+    res[4]=A[0]*B[1];
+    res[5]=A[0]*B[2];
+    res[6]=A[0]*B[3];
+    res[7]=A[0]*B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B4<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B4<T> &A, const Boost<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -17883,8 +16405,8 @@ inline Boost<T> R130B4<T>::conjugate(const Boost<T> &A) const {
 //-----------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B4<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B4<T> &A, const R130B0<T> &B) {
+    Rotor<T> res;
     res[0]=B[0];
     res[1]=0;
     res[2]=0;
@@ -17892,21 +16414,13 @@ inline R130MV<T> operator+(const R130B4<T> &A, const R130B0<T> &B) {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[7]=A[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B4<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B4<T> &A, const R130B0<T> &B) {
+    Rotor<T> res;
     res[0]=-B[0];
     res[1]=0;
     res[2]=0;
@@ -17914,15 +16428,7 @@ inline R130MV<T> operator-(const R130B4<T> &A, const R130B0<T> &B) {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[7]=A[0];
     return res;
 };
 
@@ -17948,24 +16454,9 @@ inline R130B4<T> operator|(const R130B4<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B4<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B4<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -18035,24 +16526,9 @@ inline R130B3<T> operator*(const R130B4<T> &A, const R130B1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B4<T> &A, const R130B1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B4<T> &A, const R130B1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -18135,24 +16611,9 @@ inline R130B3Sm1<T> operator*(const R130B4<T> &A, const R130B1Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B4<T> &A, const R130B1Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B4<T> &A, const R130B1Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -18231,24 +16692,9 @@ inline R130B3Sp1<T> operator*(const R130B4<T> &A, const R130B1Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B4<T> &A, const R130B1Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B4<T> &A, const R130B1Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -18271,46 +16717,30 @@ inline R130B1Sp1<T> R130B4<T>::conjugate(const R130B1Sp1<T> &A) const {
 //-----------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B4<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B4<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=B[0];
-    res[6]=B[1];
-    res[7]=B[2];
-    res[8]=B[3];
-    res[9]=B[4];
-    res[10]=B[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[1]=B[0];
+    res[2]=B[1];
+    res[3]=B[2];
+    res[4]=B[3];
+    res[5]=B[4];
+    res[6]=B[5];
+    res[7]=A[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B4<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B4<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-B[0];
-    res[6]=-B[1];
-    res[7]=-B[2];
-    res[8]=-B[3];
-    res[9]=-B[4];
-    res[10]=-B[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[1]=-B[0];
+    res[2]=-B[1];
+    res[3]=-B[2];
+    res[4]=-B[3];
+    res[5]=-B[4];
+    res[6]=-B[5];
+    res[7]=A[0];
     return res;
 };
 
@@ -18339,24 +16769,9 @@ inline R130B2<T> operator|(const R130B4<T> &A, const R130B2<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B4<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B4<T> &A, const R130B2<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -18378,46 +16793,30 @@ inline R130B2<T> R130B4<T>::conjugate(const R130B2<T> &A) const {
 //--------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B4<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B4<T> &A, const R130B2Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=B[0];
-    res[9]=B[1];
-    res[10]=B[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[4]=B[0];
+    res[5]=B[1];
+    res[6]=B[2];
+    res[7]=A[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B4<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B4<T> &A, const R130B2Sm1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=-B[0];
-    res[9]=-B[1];
-    res[10]=-B[2];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[4]=-B[0];
+    res[5]=-B[1];
+    res[6]=-B[2];
+    res[7]=A[0];
     return res;
 };
 
@@ -18440,24 +16839,9 @@ inline R130B2Sp1<T> operator|(const R130B4<T> &A, const R130B2Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B4<T> &A, const R130B2Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B4<T> &A, const R130B2Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -18476,46 +16860,30 @@ inline R130B2Sm1<T> R130B4<T>::conjugate(const R130B2Sm1<T> &A) const {
 //--------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B4<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B4<T> &A, const R130B2Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=B[0];
+    res[2]=B[1];
+    res[3]=B[2];
     res[4]=0;
-    res[5]=B[0];
-    res[6]=B[1];
-    res[7]=B[2];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B4<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B4<T> &A, const R130B2Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=-B[0];
+    res[2]=-B[1];
+    res[3]=-B[2];
     res[4]=0;
-    res[5]=-B[0];
-    res[6]=-B[1];
-    res[7]=-B[2];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[0];
     return res;
 };
 
@@ -18538,24 +16906,9 @@ inline R130B2Sm1<T> operator|(const R130B4<T> &A, const R130B2Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B4<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B4<T> &A, const R130B2Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -18628,24 +16981,9 @@ inline R130B1<T> operator*(const R130B4<T> &A, const R130B3<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B4<T> &A, const R130B3<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B4<T> &A, const R130B3<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -18728,24 +17066,9 @@ inline R130B1Sm1<T> operator*(const R130B4<T> &A, const R130B3Sm1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B4<T> &A, const R130B3Sm1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B4<T> &A, const R130B3Sm1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -18824,24 +17147,9 @@ inline R130B1Sp1<T> operator*(const R130B4<T> &A, const R130B3Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator|(const R130B4<T> &A, const R130B3Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator|(const R130B4<T> &A, const R130B3Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -18892,24 +17200,9 @@ inline R130B0<T> operator|(const R130B4<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B4<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B4<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -19076,112 +17369,65 @@ inline R130MV<T> R130B4<T>::conjugate(const R130MV<T> &A) const {
 //-------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const R130B4<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const R130B4<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=B[0];
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=B[1];
-    res[9]=B[2];
-    res[10]=B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[4]=B[1];
+    res[5]=B[2];
+    res[6]=B[3];
+    res[7]=A[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const R130B4<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const R130B4<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=-B[0];
     res[1]=0;
     res[2]=0;
     res[3]=0;
+    res[4]=-B[1];
+    res[5]=-B[2];
+    res[6]=-B[3];
+    res[7]=A[0];
+    return res;
+};
+
+template<typename T>
+inline Rotor<T> operator*(const R130B4<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
+    res[0]=0;
+    res[1]=-A[0]*B[1];
+    res[2]=-A[0]*B[2];
+    res[3]=-A[0]*B[3];
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=-B[1];
-    res[9]=-B[2];
-    res[10]=-B[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0];
+    res[7]=A[0]*B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator*(const R130B4<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const R130B4<T> &A, const Rotation<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[0]*B[1];
-    res[6]=-A[0]*B[2];
-    res[7]=-A[0]*B[3];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0];
-    return res;
-};
-
-template<typename T>
-inline R130MV<T> operator|(const R130B4<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
-    res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[0]*B[1];
-    res[6]=-A[0]*B[2];
-    res[7]=-A[0]*B[3];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0];
-    return res;
-};
-
-template<typename T>
-inline R130MV<T> operator^(const R130B4<T> &A, const Rotation<T> &B) {
-    R130MV<T> res;
-    res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=-A[0]*B[1];
+    res[2]=-A[0]*B[2];
+    res[3]=-A[0]*B[3];
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[7]=A[0]*B[0];
+    return res;
+};
+
+template<typename T>
+inline R130B0<T> operator^(const R130B4<T> &A, const Rotation<T> &B) {
+    R130B0<T> res;
+    res[0]=0;
     return res;
 };
 
@@ -19271,24 +17517,9 @@ inline Rotor<T> operator|(const R130B4<T> &A, const Rotor<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130B4<T> &A, const Rotor<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130B4<T> &A, const Rotor<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -19645,24 +17876,9 @@ inline R130MV<T> operator|(const R130MV<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const R130MV<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const R130MV<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -22516,46 +20732,30 @@ inline R130MV<T> operator/(const R130MV<T> &A, const T &B) {
 //------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const Rotation<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const Rotation<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=A[0] + B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=B[1];
-    res[6]=B[2];
-    res[7]=B[3];
-    res[8]=A[1];
-    res[9]=A[2];
-    res[10]=A[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=B[1];
+    res[2]=B[2];
+    res[3]=B[3];
+    res[4]=A[1];
+    res[5]=A[2];
+    res[6]=A[3];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const Rotation<T> &A, const Boost<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const Rotation<T> &A, const Boost<T> &B) {
+    Rotor<T> res;
     res[0]=A[0] - B[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-B[1];
-    res[6]=-B[2];
-    res[7]=-B[3];
-    res[8]=A[1];
-    res[9]=A[2];
-    res[10]=A[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=-B[1];
+    res[2]=-B[2];
+    res[3]=-B[3];
+    res[4]=A[1];
+    res[5]=A[2];
+    res[6]=A[3];
+    res[7]=0;
     return res;
 };
 
@@ -22673,24 +20873,9 @@ inline Rotation<T> operator|(const Rotation<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const Rotation<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const Rotation<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -23037,24 +21222,9 @@ inline R130MV<T> operator|(const Rotation<T> &A, const R130B1Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const Rotation<T> &A, const R130B1Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const Rotation<T> &A, const R130B1Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -23070,46 +21240,30 @@ inline R130B1Sp1<T> Rotation<T>::conjugate(const R130B1Sp1<T> &A) const {
 //-------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const Rotation<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const Rotation<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=B[0];
-    res[6]=B[1];
-    res[7]=B[2];
-    res[8]=A[1] + B[3];
-    res[9]=A[2] + B[4];
-    res[10]=A[3] + B[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=B[0];
+    res[2]=B[1];
+    res[3]=B[2];
+    res[4]=A[1] + B[3];
+    res[5]=A[2] + B[4];
+    res[6]=A[3] + B[5];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const Rotation<T> &A, const R130B2<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const Rotation<T> &A, const R130B2<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-B[0];
-    res[6]=-B[1];
-    res[7]=-B[2];
-    res[8]=A[1] - B[3];
-    res[9]=A[2] - B[4];
-    res[10]=A[3] - B[5];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=-B[0];
+    res[2]=-B[1];
+    res[3]=-B[2];
+    res[4]=A[1] - B[3];
+    res[5]=A[2] - B[4];
+    res[6]=A[3] - B[5];
+    res[7]=0;
     return res;
 };
 
@@ -23258,90 +21412,58 @@ inline R130B2Sm1<T> Rotation<T>::conjugate(const R130B2Sm1<T> &A) const {
 //----------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const Rotation<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const Rotation<T> &A, const R130B2Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=B[0];
-    res[6]=B[1];
-    res[7]=B[2];
-    res[8]=A[1];
-    res[9]=A[2];
-    res[10]=A[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=B[0];
+    res[2]=B[1];
+    res[3]=B[2];
+    res[4]=A[1];
+    res[5]=A[2];
+    res[6]=A[3];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const Rotation<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const Rotation<T> &A, const R130B2Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-B[0];
-    res[6]=-B[1];
-    res[7]=-B[2];
-    res[8]=A[1];
-    res[9]=A[2];
-    res[10]=A[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[1]=-B[0];
+    res[2]=-B[1];
+    res[3]=-B[2];
+    res[4]=A[1];
+    res[5]=A[2];
+    res[6]=A[3];
+    res[7]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator*(const Rotation<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator*(const Rotation<T> &A, const R130B2Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=A[0]*B[0] - A[2]*B[2] + A[3]*B[1];
+    res[2]=A[0]*B[1] + A[1]*B[2] - A[3]*B[0];
+    res[3]=A[0]*B[2] - A[1]*B[1] + A[2]*B[0];
     res[4]=0;
-    res[5]=A[0]*B[0] - A[2]*B[2] + A[3]*B[1];
-    res[6]=A[0]*B[1] + A[1]*B[2] - A[3]*B[0];
-    res[7]=A[0]*B[2] - A[1]*B[1] + A[2]*B[0];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator|(const Rotation<T> &A, const R130B2Sp1<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const Rotation<T> &A, const R130B2Sp1<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=A[0]*B[0];
+    res[2]=A[0]*B[1];
+    res[3]=A[0]*B[2];
     res[4]=0;
-    res[5]=A[0]*B[0];
-    res[6]=A[0]*B[1];
-    res[7]=A[0]*B[2];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
+    res[5]=0;
+    res[6]=0;
+    res[7]=A[1]*B[0] + A[2]*B[1] + A[3]*B[2];
     return res;
 };
 
@@ -23710,24 +21832,9 @@ inline R130MV<T> operator|(const Rotation<T> &A, const R130B3Sp1<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const Rotation<T> &A, const R130B3Sp1<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const Rotation<T> &A, const R130B3Sp1<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
@@ -23743,112 +21850,65 @@ inline R130B3Sp1<T> Rotation<T>::conjugate(const R130B3Sp1<T> &A) const {
 //-------------------------------------
 
 template<typename T>
-inline R130MV<T> operator+(const Rotation<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator+(const Rotation<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=A[1];
-    res[9]=A[2];
-    res[10]=A[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=B[0];
+    res[4]=A[1];
+    res[5]=A[2];
+    res[6]=A[3];
+    res[7]=B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator-(const Rotation<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator-(const Rotation<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=A[0];
     res[1]=0;
     res[2]=0;
     res[3]=0;
+    res[4]=A[1];
+    res[5]=A[2];
+    res[6]=A[3];
+    res[7]=-B[0];
+    return res;
+};
+
+template<typename T>
+inline Rotor<T> operator*(const Rotation<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
+    res[0]=0;
+    res[1]=-A[1]*B[0];
+    res[2]=-A[2]*B[0];
+    res[3]=-A[3]*B[0];
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=A[1];
-    res[9]=A[2];
-    res[10]=A[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=-B[0];
+    res[7]=A[0]*B[0];
     return res;
 };
 
 template<typename T>
-inline R130MV<T> operator*(const Rotation<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline Rotor<T> operator|(const Rotation<T> &A, const R130B4<T> &B) {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[1]*B[0];
-    res[6]=-A[2]*B[0];
-    res[7]=-A[3]*B[0];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0];
-    return res;
-};
-
-template<typename T>
-inline R130MV<T> operator|(const Rotation<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
-    res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=-A[1]*B[0];
-    res[6]=-A[2]*B[0];
-    res[7]=-A[3]*B[0];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*B[0];
-    return res;
-};
-
-template<typename T>
-inline R130MV<T> operator^(const Rotation<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
-    res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=-A[1]*B[0];
+    res[2]=-A[2]*B[0];
+    res[3]=-A[3]*B[0];
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
+    res[7]=A[0]*B[0];
+    return res;
+};
+
+template<typename T>
+inline R130B0<T> operator^(const Rotation<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
+    res[0]=0;
     return res;
 };
 
@@ -24435,30 +22495,15 @@ inline Rotor<T> operator|(const Rotor<T> &A, const R130B0<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const Rotor<T> &A, const R130B0<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const Rotor<T> &A, const R130B0<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> Rotor<T>::conjugate(const R130B0<T> &A) const {
-    R130MV<T> res;
+inline Rotor<T> Rotor<T>::conjugate(const R130B0<T> &A) const {
+    Rotor<T> res;
     res[0]=A[0]*(std::pow((*this)[0], 2) - std::pow((*this)[1], 2) - std::pow((*this)[2], 2) - std::pow((*this)[3], 2) + std::pow((*this)[4], 2) + std::pow((*this)[5], 2) + std::pow((*this)[6], 2) - std::pow((*this)[7], 2));
     res[1]=0;
     res[2]=0;
@@ -24466,15 +22511,7 @@ inline R130MV<T> Rotor<T>::conjugate(const R130B0<T> &A) const {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=2.0*A[0]*((*this)[0]*(*this)[7] - (*this)[1]*(*this)[4] - (*this)[2]*(*this)[5] - (*this)[3]*(*this)[6]);
+    res[7]=2.0*A[0]*((*this)[0]*(*this)[7] - (*this)[1]*(*this)[4] - (*this)[2]*(*this)[5] - (*this)[3]*(*this)[6]);
     return res;
 };
 
@@ -25776,30 +23813,15 @@ inline Rotor<T> operator|(const Rotor<T> &A, const R130B4<T> &B) {
 };
 
 template<typename T>
-inline R130MV<T> operator^(const Rotor<T> &A, const R130B4<T> &B) {
-    R130MV<T> res;
+inline R130B0<T> operator^(const Rotor<T> &A, const R130B4<T> &B) {
+    R130B0<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=0;
     return res;
 };
 
 template<typename T>
-inline R130MV<T> Rotor<T>::conjugate(const R130B4<T> &A) const {
-    R130MV<T> res;
+inline Rotor<T> Rotor<T>::conjugate(const R130B4<T> &A) const {
+    Rotor<T> res;
     res[0]=2.0*A[0]*(-(*this)[0]*(*this)[7] + (*this)[1]*(*this)[4] + (*this)[2]*(*this)[5] + (*this)[3]*(*this)[6]);
     res[1]=0;
     res[2]=0;
@@ -25807,15 +23829,7 @@ inline R130MV<T> Rotor<T>::conjugate(const R130B4<T> &A) const {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*(std::pow((*this)[0], 2) - std::pow((*this)[1], 2) - std::pow((*this)[2], 2) - std::pow((*this)[3], 2) + std::pow((*this)[4], 2) + std::pow((*this)[5], 2) + std::pow((*this)[6], 2) - std::pow((*this)[7], 2));
+    res[7]=A[0]*(std::pow((*this)[0], 2) - std::pow((*this)[1], 2) - std::pow((*this)[2], 2) - std::pow((*this)[3], 2) + std::pow((*this)[4], 2) + std::pow((*this)[5], 2) + std::pow((*this)[6], 2) - std::pow((*this)[7], 2));
     return res;
 };
 

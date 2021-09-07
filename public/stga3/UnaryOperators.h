@@ -56,24 +56,16 @@ inline Boost<T> Boost<T>::conjugate() const {
 };
 
 template<typename T>
-inline R130MV<T> Boost<T>::dual() const {
-    R130MV<T> res;
+inline Rotor<T> Boost<T>::dual() const {
+    Rotor<T> res;
     res[0]=0;
     res[1]=0;
     res[2]=0;
     res[3]=0;
-    res[4]=0;
-    res[5]=0;
-    res[6]=0;
-    res[7]=0;
-    res[8]=(*this)[1];
-    res[9]=(*this)[2];
-    res[10]=(*this)[3];
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=(*this)[0];
+    res[4]=(*this)[1];
+    res[5]=(*this)[2];
+    res[6]=(*this)[3];
+    res[7]=(*this)[0];
     return res;
 };
 
@@ -962,8 +954,8 @@ inline R130B0<T> R130B4<T>::invnorm() const {
 };
 
 template<typename T>
-inline R130MV<T> exp(const R130B4<T> &A) {
-    R130MV<T> res;
+inline Rotor<T> exp(const R130B4<T> &A) {
+    Rotor<T> res;
     T x0 = std::sqrt(std::pow(A[0], 2));
     res[0]=std::cos(x0);
     res[1]=0;
@@ -972,15 +964,7 @@ inline R130MV<T> exp(const R130B4<T> &A) {
     res[4]=0;
     res[5]=0;
     res[6]=0;
-    res[7]=0;
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=A[0]*std::sin(x0)/x0;
+    res[7]=A[0]*std::sin(x0)/x0;
     return res;
 };
 
@@ -1169,24 +1153,16 @@ inline Rotation<T> Rotation<T>::conjugate() const {
 };
 
 template<typename T>
-inline R130MV<T> Rotation<T>::dual() const {
-    R130MV<T> res;
+inline Rotor<T> Rotation<T>::dual() const {
+    Rotor<T> res;
     res[0]=0;
-    res[1]=0;
-    res[2]=0;
-    res[3]=0;
+    res[1]=(*this)[1];
+    res[2]=(*this)[2];
+    res[3]=(*this)[3];
     res[4]=0;
-    res[5]=(*this)[1];
-    res[6]=(*this)[2];
-    res[7]=(*this)[3];
-    res[8]=0;
-    res[9]=0;
-    res[10]=0;
-    res[11]=0;
-    res[12]=0;
-    res[13]=0;
-    res[14]=0;
-    res[15]=(*this)[0];
+    res[5]=0;
+    res[6]=0;
+    res[7]=(*this)[0];
     return res;
 };
 
