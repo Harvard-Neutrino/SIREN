@@ -72,6 +72,10 @@ public:
 
     void LoadFromFile(std::string differential_filename, std::string total_filename);
 
+    double GetMinimumQ2() const {return minimum_Q2_;};
+    double GetTargetMass() const {return target_mass_;};
+    int GetInteractionType() const {return interaction_type_;};
+
 private:
     void ReadParamsFromSplineTable();
     void InitializeSignatures();

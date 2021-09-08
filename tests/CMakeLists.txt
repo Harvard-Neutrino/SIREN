@@ -32,5 +32,8 @@ package_add_test(UnitTest_MaterialModel MaterialModel_TEST.cxx)
 package_add_test(UnitTest_MathMethods MathMethods_TEST.cxx)
 package_add_test(UnitTest_Path Path_TEST.cxx)
 package_add_test(UnitTest_Polynomial Polynomial_TEST.cxx)
-package_add_test(UnitTest_Quaternion Quaternion_TEST.cxx)
 package_add_test(UnitTest_DensityDistribution DensityDistribution_TEST.cxx)
+
+package_add_test(UnitTest_Quaternion Quaternion_TEST.cxx)
+
+package_add_test(UnitTest_CrossSection CrossSection_TEST.cxx)

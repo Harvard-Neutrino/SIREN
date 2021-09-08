@@ -423,37 +423,100 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
 
     double Q2 = (s - target_mass_ * target_mass_) * final_x * final_y;
 
-    stga3::Beta<double> beta_start_to_cm = stga3::beta_to_rest_frame_of(p1 + p2);
-    stga3::Boost<double> boost_start_to_cm = stga3::beta_to_boost(beta_start_to_cm);
-    stga3::FourVector<double> p1_cm = stga3::apply_boost(boost_start_to_cm, p1);
-    stga3::FourVector<double> p2_cm = stga3::apply_boost(boost_start_to_cm, p2);
-
-    double E1 = p1_cm.e0();
-    double E2 = p2_cm.e0();
-    double p1_tot = std::sqrt(p1_cm.e1() * p1_cm.e1() + p1_cm.e2() * p1_cm.e2() + p1_cm.e3() * p1_cm.e3());
-
-    double Eq = Q2 * (1.0 + final_y) / (2.0 * (E1 + E2) * final_x * final_y);
-    double pqx = - Q2 * (E2 - E1 * final_y) / (2.0 * (E1 + E2) * p1_tot * final_x * final_y);
-
-    double pq = std::sqrt(Q2 + Eq * Eq);
-    double pqy = std::sqrt(pq*pq - pqx*pqx);
+    double m1 = p1_lab | p1_lab;
+    double m3 = m;
+    double E1_lab = p1_lab.e0();
+    double E2_lab = p2_lab.e0();
+    double p1x_lab = std::sqrt(p1_lab.e1() * p1_lab.e1() + p1_lab.e2() * p1_lab.e2() + p1_lab.e3() * p1_lab.e3());
+    double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
+    double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
+    double pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);
+    double Eq_lab = E1_lab * final_y;
 
     stga3::ThreeVector<double> x_dir{1.0, 0.0, 0.0};
-    stga3::Rotation<double> x_to_p1_rot = stga3::rotation_between(x_dir, p1_cm);
+    stga3::Rotation<double> x_to_p1_lab_rot = stga3::rotation_between(x_dir, p1_lab);
 
     double phi = random->Uniform(0, 2.0 * M_PI);
-    stga3::Rotation<double> rand_rot = stga3::rotation_about(p1_cm, phi);
+    stga3::Rotation<double> rand_rot = stga3::rotation_about(p1_lab, phi);
 
-    stga3::FourVector<double> pq_cm{Eq, pqx, pqy, 0};
-    pq_cm = stga3::apply_rotation(x_to_p1_rot, pq_cm);
-    pq_cm = stga3::apply_rotation(rand_rot, pq_cm);
+    stga3::FourVector<double> pq_lab{Eq_lab, pqx_lab, pqy_lab, 0};
+    double xdir_pq_p1 = pq_lab | stga3::FourVector<double>{E1_lab, p1x_lab, 0, 0};
+    std::cout << "xdir_pq_p1: " << xdir_pq_p1 << std::endl;
+    pq_lab = stga3::apply_rotation(x_to_p1_lab_rot, pq_lab);
+    double colinear_pq_p1 = pq_lab | p1_lab;
+    std::cout << "colinear_pq_p1: " << colinear_pq_p1 << std::endl;
+    pq_lab = stga3::apply_rotation(rand_rot, pq_lab);
+    double final_pq_p1 = pq_lab | p1_lab;
+    std::cout << "final_pq_p1: " << final_pq_p1 << std::endl;
 
-    stga3::FourVector<double> p3_cm = p1_cm - pq_cm;
-    stga3::FourVector<double> p4_cm = p2_cm + pq_cm;
+    // Check that computed q2 in the lab frame matches up with the specified Q2
+    std::cerr << "Q2: " << Q2 << std::endl;
+    std::cerr << "q2_lab: " << double(pq_lab | pq_lab) << std::endl;
+    //assert(std::abs(double(pq_lab | pq_lab) + Q2) < std::abs(Q2 * 1e-4));
 
-    stga3::Boost<double> boost_cm_to_start = stga3::beta_to_boost(-beta_start_to_cm);
-    stga3::FourVector<double> p3 = stga3::apply_boost(boost_cm_to_start, p3_cm);
-    stga3::FourVector<double> p4 = stga3::apply_boost(boost_cm_to_start, p4_cm);
+    stga3::FourVector<double> p3_lab = p1_lab - pq_lab;
+    stga3::FourVector<double> p4_lab = p2_lab + pq_lab;
+
+    stga3::ThreeVector<double> p3_lab_vec{p3_lab.e1(), p3_lab.e2(), p3_lab.e3()};
+    stga3::ThreeVector<double> p4_lab_vec{p4_lab.e1(), p4_lab.e2(), p4_lab.e3()};
+
+    double p34_dot_lab = p3_lab_vec | p4_lab_vec;
+    double p34_norm_lab = std::sqrt((p3_lab_vec | p3_lab_vec) * (p4_lab_vec | p4_lab_vec));
+
+    std::cerr << "p34_dot_lab: " << p34_dot_lab << std::endl;
+    std::cerr << "p34_norm_lab: " << p34_norm_lab << std::endl;
+
+    std::cerr << "s2 lab orig: " << (p1_lab | p2_lab) << std::endl;
+    std::cerr << "s2 lab final: " << (p3_lab | p4_lab) - (E1_lab - E2_lab) * Eq_lab - Q2 << std::endl;
+
+    double x_lab_check = -(pq_lab | pq_lab) / (2.0 * (p2_lab | pq_lab));
+    double y_lab_check = (p2_lab | pq_lab) / (p2_lab | p1_lab);
+
+    // Check that the computed x and y in the start frame match up with the specified x and y
+    std::cerr << "final_x: " << final_x << std::endl;
+    std::cerr << "x_lab_check: " << x_lab_check << std::endl;
+    std::cerr << "final_y: " << final_y << std::endl;
+    std::cerr << "y_lab_check: " << y_lab_check << std::endl;
+    assert(std::abs(x_lab_check - final_x) < std::abs(final_x * 1e-6));
+    assert(std::abs(y_lab_check - final_y) < std::abs(final_y * 1e-6));
+
+    stga3::FourVector<double> p3;
+    stga3::FourVector<double> p4;
+    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
+        p3 = p3_lab;
+        p4 = p4_lab;
+    } else {
+        stga3::Beta<double> beta_start_to_lab = stga3::beta_to_rest_frame_of(p2);
+        stga3::Boost<double> boost_lab_to_start = stga3::beta_to_boost(-beta_start_to_lab);
+        p3 = stga3::apply_boost(boost_lab_to_start, p3_lab);
+        p4 = stga3::apply_boost(boost_lab_to_start, p4_lab);
+    }
+
+    stga3::FourVector<double> pq_13 = p1 - p3;
+    stga3::FourVector<double> pq_24 = p4 - p2;
+
+    // Check that computed q2 in the start frame matches up with the specified Q2
+    assert(std::abs(double(pq_13 | pq_13) + Q2) < std::abs(Q2 * 1e-6));
+    assert(std::abs(double(pq_24 | pq_24) + Q2) < std::abs(Q2 * 1e-6));
+
+    double x_check = -(pq_13 | pq_13) / (2.0 * (p2 | pq_13));
+    double y_num_check = p2 | pq_13;
+    double y_num_dumb = target_mass_ * (p1.e0() - p3.e0());
+    std::cerr << "y_num_check: " << y_num_check << std::endl;
+    std::cerr << "y_num_dumb: " << y_num_dumb << std::endl;
+    double y_den_check = (p2 | p1);
+    double y_den_dumb = target_mass_ * (p1.e0());
+    std::cerr << "y_den_check: " << y_den_check << std::endl;
+    std::cerr << "y_den_dumb: " << y_den_dumb << std::endl;
+    double y_check = (p2 | pq_13) / (p2 | p1);
+
+    // Check that the computed x and y in the start frame match up with the specified x and y
+    std::cerr << "final_x: " << final_x << std::endl;
+    std::cerr << "x_check: " << x_check << std::endl;
+    std::cerr << "final_y: " << final_y << std::endl;
+    std::cerr << "y_check: " << y_check << std::endl;
+    assert(std::abs(x_check - final_x) < std::abs(final_x * 1e-6));
+    assert(std::abs(y_check - final_y) < std::abs(final_y * 1e-6));
 
     interaction.secondary_momenta[lepton_index][0] = p3.e0(); // p3_energy
     interaction.secondary_momenta[lepton_index][1] = p3.e1(); // p3_x

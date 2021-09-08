@@ -174,6 +174,7 @@ namespace LeptonInjector{
 
                 /* The following are fake particles used in Icetray and have no official codes */
                 /* The section abs(code) > 2000000000 is reserved for this kind of use */
+                Nucleon = 2000002112,
                 CherenkovPhoton = 2000009900,
                 Nu = -2000000004,
                 Monopole = -2000000041,
