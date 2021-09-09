@@ -361,12 +361,10 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
         if(kin_vars[1] < differential_cross_section_.lower_extent(1)
                 || kin_vars[1] > differential_cross_section_.upper_extent(1)) {
             accept = false;
-            std::cout << "reject" << std::endl;
         }
         if(kin_vars[2] < differential_cross_section_.lower_extent(2)
                 || kin_vars[2] > differential_cross_section_.upper_extent(2)) {
             accept = false;
-            std::cout << "reject" << std::endl;
         }
 
         if(accept) {
@@ -441,45 +439,14 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     stga3::Rotation<double> rand_rot = stga3::rotation_about(p1_lab, phi);
 
     stga3::FourVector<double> pq_lab{Eq_lab, pqx_lab, pqy_lab, 0};
-    double xdir_pq_p1 = pq_lab | stga3::FourVector<double>{E1_lab, p1x_lab, 0, 0};
-    std::cout << "xdir_pq_p1: " << xdir_pq_p1 << std::endl;
     pq_lab = stga3::apply_rotation(x_to_p1_lab_rot, pq_lab);
-    double colinear_pq_p1 = pq_lab | p1_lab;
-    std::cout << "colinear_pq_p1: " << colinear_pq_p1 << std::endl;
     pq_lab = stga3::apply_rotation(rand_rot, pq_lab);
-    double final_pq_p1 = pq_lab | p1_lab;
-    std::cout << "final_pq_p1: " << final_pq_p1 << std::endl;
-
-    // Check that computed q2 in the lab frame matches up with the specified Q2
-    std::cerr << "Q2: " << Q2 << std::endl;
-    std::cerr << "q2_lab: " << double(pq_lab | pq_lab) << std::endl;
-    //assert(std::abs(double(pq_lab | pq_lab) + Q2) < std::abs(Q2 * 1e-3));
 
     stga3::FourVector<double> p3_lab = p1_lab - pq_lab;
     stga3::FourVector<double> p4_lab = p2_lab + pq_lab;
 
     stga3::ThreeVector<double> p3_lab_vec{p3_lab.e1(), p3_lab.e2(), p3_lab.e3()};
     stga3::ThreeVector<double> p4_lab_vec{p4_lab.e1(), p4_lab.e2(), p4_lab.e3()};
-
-    double p34_dot_lab = p3_lab_vec | p4_lab_vec;
-    double p34_norm_lab = std::sqrt((p3_lab_vec | p3_lab_vec) * (p4_lab_vec | p4_lab_vec));
-
-    std::cerr << "p34_dot_lab: " << p34_dot_lab << std::endl;
-    std::cerr << "p34_norm_lab: " << p34_norm_lab << std::endl;
-
-    std::cerr << "s2 lab orig: " << (p1_lab | p2_lab) << std::endl;
-    std::cerr << "s2 lab final: " << (p3_lab | p4_lab) - (E1_lab - E2_lab) * Eq_lab - Q2 << std::endl;
-
-    double x_lab_check = -(pq_lab | pq_lab) / (2.0 * (p2_lab | pq_lab));
-    double y_lab_check = (p2_lab | pq_lab) / (p2_lab | p1_lab);
-
-    // Check that the computed x and y in the start frame match up with the specified x and y
-    std::cerr << "final_x: " << final_x << std::endl;
-    std::cerr << "x_lab_check: " << x_lab_check << std::endl;
-    std::cerr << "final_y: " << final_y << std::endl;
-    std::cerr << "y_lab_check: " << y_lab_check << std::endl;
-    assert(std::abs(x_lab_check - final_x) < std::abs(final_x * 1e-3));
-    assert(std::abs(y_lab_check - final_y) < std::abs(final_y * 1e-3));
 
     stga3::FourVector<double> p3;
     stga3::FourVector<double> p4;
@@ -499,25 +466,6 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     // Check that computed q2 in the start frame matches up with the specified Q2
     assert(std::abs(double(pq_13 | pq_13) + Q2) < std::abs(Q2 * 1e-3));
     assert(std::abs(double(pq_24 | pq_24) + Q2) < std::abs(Q2 * 1e-3));
-
-    double x_check = -(pq_13 | pq_13) / (2.0 * (p2 | pq_13));
-    double y_num_check = p2 | pq_13;
-    double y_num_dumb = target_mass_ * (p1.e0() - p3.e0());
-    std::cerr << "y_num_check: " << y_num_check << std::endl;
-    std::cerr << "y_num_dumb: " << y_num_dumb << std::endl;
-    double y_den_check = (p2 | p1);
-    double y_den_dumb = target_mass_ * (p1.e0());
-    std::cerr << "y_den_check: " << y_den_check << std::endl;
-    std::cerr << "y_den_dumb: " << y_den_dumb << std::endl;
-    double y_check = (p2 | pq_13) / (p2 | p1);
-
-    // Check that the computed x and y in the start frame match up with the specified x and y
-    std::cerr << "final_x: " << final_x << std::endl;
-    std::cerr << "x_check: " << x_check << std::endl;
-    std::cerr << "final_y: " << final_y << std::endl;
-    std::cerr << "y_check: " << y_check << std::endl;
-    assert(std::abs(x_check - final_x) < std::abs(final_x * 1e-3));
-    assert(std::abs(y_check - final_y) < std::abs(final_y * 1e-3));
 
     interaction.secondary_momenta.resize(2);
     interaction.secondary_momenta[lepton_index][0] = p3.e0(); // p3_energy

@@ -10,9 +10,7 @@ namespace stga3 {
 
 template<typename T>
 inline Boost<T> beta_to_boost(Beta<T> const & beta) {
-    std::cerr << "Beta: (" << beta[0] << ", " << beta[1] << ", " << beta[2] << ")" << std::endl;
     Boost<T> boost = exp(beta / 2.0);
-    std::cerr << "Boost: (" << boost[0] << ", " << boost[1] << ", " << boost[2] << ", " << boost[3] << ")" << std::endl;
     return boost;
 }
 
