@@ -283,6 +283,12 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     stga3::FourVector<double> p1{interaction.primary_momentum[0], interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]};
     stga3::FourVector<double> p2{interaction.target_momentum[0], interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]};
 
+    // we assume that:
+    // the target is stationary so its energy is just its mass
+    // the incoming neutrino is massless, so its kinetic energy is its total energy
+    // double s = target_mass_ * tinteraction.secondary_momentarget_mass_ + 2 * target_mass_ * primary_energy;
+    double s = (p1 + p2) | (p1 + p2);
+
     double primary_energy;
     stga3::FourVector<double> p1_lab;
     stga3::FourVector<double> p2_lab;
@@ -300,23 +306,23 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
 
     unsigned int lepton_index = (isLepton(interaction.signature.secondary_types[0])) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
-
     double m = particleMass(interaction.signature.secondary_types[lepton_index]);
+
+    double m1 = p1_lab | p1_lab;
+    double m3 = m;
+    double E1_lab = p1_lab.e0();
+    double E2_lab = p2_lab.e0();
+
     // The out-going particle always gets at least enough energy for its rest mass
     double yMax = 1 - m / primary_energy;
     double logYMax = log10(yMax);
-
-    // we assume that:
-    // the target is stationary so its energy is just its mass
-    // the incoming neutrino is massless, so its kinetic energy is its total energy
-    double s = target_mass_ * target_mass_ + 2 * target_mass_ * primary_energy;
-
 
     // The minimum allowed value of y occurs when x = 1 and Q is minimized
     double yMin = minimum_Q2_ / s;
     double logYMin = log10(yMin);
     // The minimum allowed value of x occurs when y = yMax and Q is minimized
-    double xMin = minimum_Q2_ / ((s - target_mass_ * target_mass_) * yMax);
+    // double xMin = minimum_Q2_ / ((s - target_mass_ * target_mass_) * yMax);
+    double xMin = minimum_Q2_ / (2 * E1_lab * E2_lab * yMax);
     double logXMin = log10(xMin);
 
     bool accept;
@@ -347,7 +353,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
         do {
             kin_vars[1] = random->Uniform(logXMin,0);
             kin_vars[2] = random->Uniform(logYMin,logYMax);
-            trialQ = (s - target_mass_ * target_mass_) * pow(10., kin_vars[1] + kin_vars[2]);
+            trialQ = (2 * E1_lab * E2_lab) * pow(10., kin_vars[1] + kin_vars[2]);
         } while(trialQ<minimum_Q2_ || !kinematicallyAllowed(pow(10., kin_vars[1]), pow(10., kin_vars[2]), primary_energy, target_mass_, m));
 
         accept = true;
@@ -387,7 +393,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
         do {
             test_kin_vars[1] = random->Uniform(logXMin, 0);
             test_kin_vars[2] = random->Uniform(logYMin, logYMax);
-            trialQ = (s - target_mass_ * target_mass_) * pow(10., test_kin_vars[1] + test_kin_vars[2]);
+            trialQ = (2 * E1_lab * E2_lab) * pow(10., test_kin_vars[1] + test_kin_vars[2]);
         } while(trialQ < minimum_Q2_ || !kinematicallyAllowed(pow(10., test_kin_vars[1]), pow(10., test_kin_vars[2]), primary_energy, target_mass_, m));
 
         accept = true;
@@ -421,12 +427,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     double final_x = pow(10., kin_vars[1]);
     double final_y = pow(10., kin_vars[2]);
 
-    double Q2 = (s - target_mass_ * target_mass_) * final_x * final_y;
-
-    double m1 = p1_lab | p1_lab;
-    double m3 = m;
-    double E1_lab = p1_lab.e0();
-    double E2_lab = p2_lab.e0();
+    double Q2 = 2 * E1_lab * E2_lab * pow(10.0, kin_vars[1] + kin_vars[2]);
     double p1x_lab = std::sqrt(p1_lab.e1() * p1_lab.e1() + p1_lab.e2() * p1_lab.e2() + p1_lab.e3() * p1_lab.e3());
     double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
     double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
@@ -452,7 +453,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     // Check that computed q2 in the lab frame matches up with the specified Q2
     std::cerr << "Q2: " << Q2 << std::endl;
     std::cerr << "q2_lab: " << double(pq_lab | pq_lab) << std::endl;
-    //assert(std::abs(double(pq_lab | pq_lab) + Q2) < std::abs(Q2 * 1e-4));
+    //assert(std::abs(double(pq_lab | pq_lab) + Q2) < std::abs(Q2 * 1e-3));
 
     stga3::FourVector<double> p3_lab = p1_lab - pq_lab;
     stga3::FourVector<double> p4_lab = p2_lab + pq_lab;
@@ -477,8 +478,8 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     std::cerr << "x_lab_check: " << x_lab_check << std::endl;
     std::cerr << "final_y: " << final_y << std::endl;
     std::cerr << "y_lab_check: " << y_lab_check << std::endl;
-    assert(std::abs(x_lab_check - final_x) < std::abs(final_x * 1e-6));
-    assert(std::abs(y_lab_check - final_y) < std::abs(final_y * 1e-6));
+    assert(std::abs(x_lab_check - final_x) < std::abs(final_x * 1e-3));
+    assert(std::abs(y_lab_check - final_y) < std::abs(final_y * 1e-3));
 
     stga3::FourVector<double> p3;
     stga3::FourVector<double> p4;
@@ -496,8 +497,8 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     stga3::FourVector<double> pq_24 = p4 - p2;
 
     // Check that computed q2 in the start frame matches up with the specified Q2
-    assert(std::abs(double(pq_13 | pq_13) + Q2) < std::abs(Q2 * 1e-6));
-    assert(std::abs(double(pq_24 | pq_24) + Q2) < std::abs(Q2 * 1e-6));
+    assert(std::abs(double(pq_13 | pq_13) + Q2) < std::abs(Q2 * 1e-3));
+    assert(std::abs(double(pq_24 | pq_24) + Q2) < std::abs(Q2 * 1e-3));
 
     double x_check = -(pq_13 | pq_13) / (2.0 * (p2 | pq_13));
     double y_num_check = p2 | pq_13;
@@ -515,8 +516,8 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     std::cerr << "x_check: " << x_check << std::endl;
     std::cerr << "final_y: " << final_y << std::endl;
     std::cerr << "y_check: " << y_check << std::endl;
-    assert(std::abs(x_check - final_x) < std::abs(final_x * 1e-6));
-    assert(std::abs(y_check - final_y) < std::abs(final_y * 1e-6));
+    assert(std::abs(x_check - final_x) < std::abs(final_x * 1e-3));
+    assert(std::abs(y_check - final_y) < std::abs(final_y * 1e-3));
 
     interaction.secondary_momenta.resize(2);
     interaction.secondary_momenta[lepton_index][0] = p3.e0(); // p3_energy
