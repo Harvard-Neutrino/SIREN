@@ -49,8 +49,8 @@ public:
     double DistanceForColumnDepthFromPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
     double DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
     double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
-    EarthSector EarthModel::GetContainingSector(Geometry::IntersectionList const & intersections, Vector3D const & p0) const;
-    EarthSector EarthModel::GetContainingSector(Vector3D const & p0) const;
+    EarthSector GetContainingSector(Geometry::IntersectionList const & intersections, Vector3D const & p0) const;
+    EarthSector GetContainingSector(Vector3D const & p0) const;
     Vector3D GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const;
     Vector3D GetEarthCoordDirFromDetCoordDir(Vector3D const & direction) const;
     Vector3D GetDetCoordPosFromEarthCoordPos(Vector3D const & point) const;
