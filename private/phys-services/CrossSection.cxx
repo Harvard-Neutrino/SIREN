@@ -518,6 +518,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     assert(std::abs(x_check - final_x) < std::abs(final_x * 1e-6));
     assert(std::abs(y_check - final_y) < std::abs(final_y * 1e-6));
 
+    interaction.secondary_momenta.resize(2);
     interaction.secondary_momenta[lepton_index][0] = p3.e0(); // p3_energy
     interaction.secondary_momenta[lepton_index][1] = p3.e1(); // p3_x
     interaction.secondary_momenta[lepton_index][2] = p3.e2(); // p3_y
