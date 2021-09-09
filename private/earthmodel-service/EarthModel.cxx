@@ -417,6 +417,43 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1,
     return GetColumnDepthInCGS(intersections, p0, p1, use_electron_density);
 }
 
+EarthSector EarthModel::GetContainingSector(Geometry::IntersectionList const & intersections, Vector3D const & p0) const {
+    Vector3D direction = intersections.direction;
+
+    double offset = (intersections.position - p0) * direction;
+    double dot = (intersections.position - p0) * (intersections.position - p0);
+
+    if(dot < 0) {
+        dot = -1;
+    } else {
+        dot = 1;
+    }
+
+    EarthSector sector;
+
+    std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
+        [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
+        double end_point = offset + dot * intersection->distance;
+        double start_point = offset + dot * current_intersection->distance;
+        bool done = false;
+        if((start_point < 0 and end_point > 0) or start_point == 0) {
+            sector = GetSector(current_intersection->hierarchy);
+            done = true;
+        }
+        return done;
+    };
+
+    SectorLoop(callback, intersections, dot < 0);
+
+    return sector;
+}
+
+EarthSector EarthModel::GetContainingSector(Vector3D const & p0) const {
+    Vector3D direction(0, 0, 1);
+    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    return GetContainingSector(intersections, p0);
+}
+
 Geometry::IntersectionList EarthModel::GetIntersections(Vector3D const & p0, Vector3D const & direction) const {
     Geometry::IntersectionList intersections;
     intersections.position = p0;
