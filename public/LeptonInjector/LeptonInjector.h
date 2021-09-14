@@ -17,158 +17,235 @@
 #include "LeptonInjector/Coordinates.h"
 #include "LeptonInjector/BasicInjectionConfiguration.h"
 
-#include "phys-services/LICrossSection.h"
+#include "phys-services/CrossSection.h"
 #include "earthmodel-service/EarthModel.h"
+#include "earthmodel-service/Vector3D.h"
 
-namespace LeptonInjector{
-	
-	// Generator configuration structures
+namespace LeptonInjector {
 
-	
-	///Parameters for injectors placed within a MultiLeptonInjector
-	struct Injector{
-		// The below  puts in a constructor for the Injector. 
-		// you just pass the things in order and BAM
-		Injector(unsigned int events,
-		  Particle::ParticleType finalType1, Particle::ParticleType finalType2,
-		  const std::string& crossSectionPath, const std::string& totalCrossSectionPath,
-		  bool ranged):
-		events(events),finalType1(finalType1),finalType2(finalType2),
-		crossSectionPath(crossSectionPath),totalCrossSectionPath(totalCrossSectionPath),
-		ranged(ranged){}
-		
-		
-		///Number of events the generator should/did generate
-		unsigned int events;
-		///Type of first particle to be injected in the final state
-		Particle::ParticleType finalType1;
-		///Type of second particle to be injected in the final state
-		Particle::ParticleType finalType2;
-		///
-		std::string crossSectionPath;
-		///
-		std::string totalCrossSectionPath;
-		///
-		bool ranged;
-	};
-	bool operator == (const Injector& one , const Injector& two);
-	//----
-	
-	
-	
-	//----
-	
-	class LeptonInjectorBase {
-	public:
-		LeptonInjectorBase();
-		//LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> random_);
-		//No implementation of DAQ; this base class should be pure virtual
+class InjectionDistribution {
+private:
+public:
+    virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord & record) const;
+    virtual std::vector<std::string> DensityVariables() const;
+};
 
-		virtual bool Generate()=0;
-		//Whether this module has generated as many events already as it was configured to
-		virtual std::string Name() const{return("BasicInjector");}
-		virtual bool isRanged() const{ return(false); }
+class PrimaryEnergyDistribution : public InjectionDistribution {
+private:
+    virtual double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord const & record) const;
+public:
+    void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord & record) const override {
+        record.primary_momentum[0] = SampleEnergy(rand, earth_model, record);
+    };
+    virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"PrimaryEnergy"};};
+    virtual std::string Name() const;
+};
 
-		void Print_Configuration();
-		void Configure(Injector basic);//, std::shared_ptr<LI_random> pass);
+class PowerLaw : public PrimaryEnergyDistribution {
+public:
+    double powerLawIndex;
+    double energyMin;
+    double energyMax;
+    double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord const & record) const override {
+        if(energyMin == energyMax)
+            return energyMin; //return the only allowed energy
 
-		std::shared_ptr<DataWriter> writer_link;
+        if(powerLawIndex == 1.0) //sample uniformly in log space
+            return pow(10.0, rand->Uniform(log10(energyMin), log10(energyMax)));
+        else {
+            double u = rand->Uniform();
+            double energyP = (1 - u) * pow(energyMin, 1 - powerLawIndex) + u * pow(energyMax, 1 - powerLawIndex);
+            return pow(energyP, 1 / (1 - powerLawIndex));
+        }
+    };
+    std::string Name() const override {
+        return "PowerLaw";
+    };
+};
 
-		BasicInjectionConfiguration& getConfig( void );
+class PrimaryDirectionDistribution : public InjectionDistribution {
+private:
+    virtual earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord const & record) const;
+public:
+    void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord & record) const override {
+        earthmodel::Vector3D dir = SampleDirection(rand, earth_model, record);
+        double energy = record.primary_momentum[0];
+        double mass = record.primary_mass;
+        double momentum = std::sqrt(energy*energy - mass*mass);
+        record.primary_momentum[1] = momentum * dir.GetX();
+        record.primary_momentum[2] = momentum * dir.GetY();
+        record.primary_momentum[3] = momentum * dir.GetZ();
+    };
+    virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"PrimaryDirection"};};
+};
 
-	protected:
-		///Add common I3Module parameters
-		//void AddBaseParameters();
-		
-		///Get common I3Module parameter values
-		
-		///Sample a random position on a disk with a given size and orientation.
-		///The disk is always centered on the origin of the coordinate system.
-		///\param radius the radius of the disk
-		///\param zenith the zenith angle of the disk normal
-		///\param azimuth the azimuth angle of the disk normal
-		LI_Position SampleFromDisk(double radius, double zenith=0., double azimuth=0.);
-		
-		///Sample one energy value from the energy spectrum
-		double SampleEnergy();
-		
-		///Determine the angles of the final state particles with respect to the
-		///initial state neutrino direction, in the lab frame
-		///\param E_total the energy of the initial neutrino
-		///\param x Bjorken x for the interaction
-		///\param y Bjorken y for the interaction
-		///\return the relative zenith angles for the first and second final state particles
-		std::pair<double,double> computeFinalStateAngles(double E_total, double x, double y);
-		
-		///\brief Construct an I3MCTree representing an interaction
-		///
-		///Samples a suitable final state and computes all resulting directions
-		///and energies.
-		///\param vertex the point at which the interaction occurs
-		///\param dir the direction of the interacting neutrino
-		///\param energy the energy of the interacting neutrino
-		///\param properties the associated structure where the event properties should be recorded
-		void FillTree(LI_Position vertex, LI_Direction dir, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree);
-		
-		///Random number source
-		///Configuration structure in which to store parameters
-		BasicInjectionConfiguration config;
-		///Number of events produced so far
-		unsigned int eventsGenerated;
-		///Whether an S frame has been written
-		bool wroteConfigFrame;
-		///Whether to suspend the tray after all events have been generated
-		bool suspendOnCompletion;
-		///The type of interacting neutrino this instance will produce.
-		///Note that in the presence of oscillations this may not be the type of
-		///the neutrino which arrived at the surface of the Earth.
-		Particle::ParticleType initialType;
-		
-		std::shared_ptr<LI_random> random;
+class IsotropicDirection : public PrimaryDirectionDistribution {
+private:
+    earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord const & record) const override {
+        double nx = rand->Uniform(0, 1);
+        double ny = rand->Uniform(0, 1);
+        double nz = rand->Uniform(0, 1);
+        earthmodel::Vector3D res(nx, ny, nz);
+        res.normalize();
+        return res;
+    };
+};
 
-	private:
-		LICrossSection crossSection;
-		
-	};
-	
-	class RangedLeptonInjector : public LeptonInjectorBase{
-	public:
-		RangedLeptonInjector();
-		RangedLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModel> earth, std::shared_ptr<LI_random> random_);
-		bool Generate() override;
-		std::string Name() const override {return("RangedInjector");}
-		bool isRanged() const override {return(true);}
+class FixedDirection : public PrimaryDirectionDistribution {
+private:
+    earthmodel::Vector3D dir;
+public:
+    FixedDirection(earthmodel::Vector3D dir) : dir(dir) {};
+private:
+    earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord const & record) const override {
+        return dir;
+    };
+    virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>();};
+};
 
-		// the earthmodel will just be a null poitner at instantiation
-		std::shared_ptr<earthmodel::EarthModel> earthModel;
-	
-	};
-	
-	class VolumeLeptonInjector : public LeptonInjectorBase{
-	public:
-		VolumeLeptonInjector();
-		VolumeLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModel> earth, std::shared_ptr<LI_random> random_);
-		bool Generate() override;
-		std::string Name() const override {return("VolumeInjector");}
-		bool isRanged() const override{return(false);}
+class Cone : public PrimaryDirectionDistribution {
+private:
+    earthmodel::Vector3D dir;
+    earthmodel::Quaternion rotation;
+    double opening_angle;
+public:
+    Cone(earthmodel::Vector3D dir, double opening_angle) : dir(dir), opening_angle(opening_angle) {
+        this->dir.normalize();
+        if(this->dir == earthmodel::Vector3D(0,0,1)) {
+            rotation = earthmodel::Quaternion(0,0,0,1);
+        } else {
+            earthmodel::Vector3D r = cross_product(earthmodel::Vector3D(0, 0, 1), dir);
+            r.normalize();
+            rotation = earthmodel::Quaternion(r);
+            rotation.SetW(1.0 + dir.GetZ());
+        }
+    };
+private:
+    earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord const & record) const override {
+        double theta = rand->Uniform(0, opening_angle);
+        double phi = rand->Uniform(0, 2.0 * M_PI);
+        earthmodel::Quaternion q;
+        q.SetEulerAnglesZXZr(phi, theta, 0.0);
+        return rotation.rotate(q.rotate(earthmodel::Vector3D(0,0,1), false), false);
+    };
+};
 
-		// the earthmodel will just be a null poitner at instantiation
-		std::shared_ptr<earthmodel::EarthModel> earthModel;
-	};
-	
-	//----
-	
-	
-	///Construct a new direction with the given relative angles with respect to
-	///an existing direction.
-	///\param base the existing base direction
-	///\param zenith the angle of the new direction with respect to the base
-	///\param azimuth the rotation of the new direction about the base
-	//std::pair<double,double> rotateRelative(std::pair<double,double> base, double zenith, double azimuth);
-	
-	
-		
-	
+class VertexPositionDistribution : public InjectionDistribution {
+private:
+    virtual earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord const & record) const;
+public:
+    void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord & record) const {
+        earthmodel::Vector3D pos = SamplePosition(rand, earth_model, record);
+        record.interaction_vertex[0] = pos.GetX();
+        record.interaction_vertex[1] = pos.GetY();
+        record.interaction_vertex[2] = pos.GetZ();
+    };
+    virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"VertexPosition"};};
+    virtual std::string Name() const;
+};
+
+class VolumePositionDistribution : public VertexPositionDistribution {
+private:
+    earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord const & record) const override {
+
+    };
+public:
+    VolumePositionDistribution();
+    std::string Name() const override {
+        return "VolumePositionDistribution";
+    };
+};
+
+class RangePositionDistribution : public VertexPositionDistribution {
+private:
+    earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, InteractionRecord const & record) const override {
+
+    };
+public:
+    std::string Name() const override {
+        return "RangePositionDistribution";
+    };
+};
+
+class InjectorBase {
+protected:
+    unsigned int events_to_inject = 0;
+    unsigned int injected_events = 0;
+    std::shared_ptr<LI_random> random;
+    Particle::ParticleType primary_type;
+    CrossSectionCollection cross_sections;
+    std::shared_ptr<earthmodel::EarthModel> earth_model;
+    std::vector<InjectionDistribution> distributions;
+public:
+    InjectorBase(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections) : primary_type(primary_type), cross_sections(primary_type, cross_sections) {};
+    InjectorBase(CrossSectionCollection cross_sections) : cross_sections(cross_sections) {};
+    InteractionRecord NewRecord() const {
+        InteractionRecord record;
+        record.signature.primary_type = primary_type;
+        record.primary_mass = Particle(primary_type).GetMass();
+    };
+    virtual InteractionRecord GenerateEvent(std::shared_ptr<LI_random>) {
+        InteractionRecord record = this->NewRecord();
+        for(auto & distribution : distributions) {
+            distribution.Sample(random, earth_model, record);
+        }
+        std::vector<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
+        std::vector<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
+        std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
+        double total_prob = 0.0;
+        std::vector<double> probs;
+        std::vector<Particle::ParticleTypes> matching_targets;
+        std::vector<std::shared_ptr<CrossSection>> matching_cross_sections;
+        for(auto const & target : targets) {
+            if(available_targets.find(target) != available_targets.end()) {
+                // Get target density
+                // Loop over cross sections that have this target
+                // Add total cross section times density to the total prob
+                // Add total prob to probs
+                // Add target and cross section pointer to the lists
+            }
+        }
+        // Throw a random number
+        // Choose the target and cross section
+        return record;
+    };
+};
+
+class RangedLeptonInjector : public InjectorBase {
+    public:
+        RangedLeptonInjector();
+        RangedLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModel> earth, std::shared_ptr<LI_random> random_);
+        bool Generate() override;
+        std::string Name() const override {return("RangedInjector");}
+        bool isRanged() const override {return(true);}
+
+        // the earthmodel will just be a null poitner at instantiation
+        std::shared_ptr<earthmodel::EarthModel> earthModel;
+
+};
+
+class VolumeLeptonInjector : public InjectorBase {
+    public:
+        VolumeLeptonInjector();
+        VolumeLeptonInjector(BasicInjectionConfiguration config, std::shared_ptr<earthmodel::EarthModel> earth, std::shared_ptr<LI_random> random_);
+        bool Generate() override;
+        std::string Name() const override {return("VolumeInjector");}
+        bool isRanged() const override{return(false);}
+
+        // the earthmodel will just be a null poitner at instantiation
+        std::shared_ptr<earthmodel::EarthModel> earthModel;
+};
+
+//----
+
+
+///Construct a new direction with the given relative angles with respect to
+///an existing direction.
+///\param base the existing base direction
+///\param zenith the angle of the new direction with respect to the base
+///\param azimuth the rotation of the new direction about the base
+//std::pair<double,double> rotateRelative(std::pair<double,double> base, double zenith, double azimuth);
+
 } //namespace LeptonInjector
 
 #endif // LI_LeptonInjector_H
