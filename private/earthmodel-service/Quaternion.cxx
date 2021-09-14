@@ -38,11 +38,19 @@ Quaternion::Quaternion(
 }
 
 // copy constructor
-Quaternion::Quaternion(const Quaternion& quaternion) :
+Quaternion::Quaternion(const Quaternion & quaternion) :
     x_(quaternion.x_),
     y_(quaternion.y_),
     z_(quaternion.z_),
     w_(quaternion.w_)
+{
+}
+
+Quaternion::Quaternion(const Vector3D &  vec) :
+    x_(vec.GetX()),
+    y_(vec.GetY()),
+    z_(vec.GetZ()),
+    w_(0)
 {
 }
 

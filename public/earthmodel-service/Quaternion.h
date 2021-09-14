@@ -17,7 +17,8 @@ public:
     // constructors
     Quaternion();
     Quaternion(const double x, const double y, const double z, const double w);
-    Quaternion(const Quaternion& quaternion);
+    Quaternion(const Quaternion & quaternion);
+    Quaternion(const Vector3D & vec);
     Quaternion(Quaternion&& other);
     ~Quaternion();
 
