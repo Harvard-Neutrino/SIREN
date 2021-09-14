@@ -51,6 +51,35 @@ namespace {
     }
 }
 
+void CrossSectionCollection::InitializeTargetTypes() {
+    target_types.clear();
+    cross_sections_by_target.clear();
+    for(unsigned int i=0; i<cross_sections.size(); ++i) {
+        std::vector<Particle::ParticleType> xs_targets = cross_sections[i]->GetPossibleTargets();
+        target_types.reserve(target_types.size() + std::distance(xs_targets.begin(), xs_targets.end()));
+        target_types.insert(target_types.end(), xs_targets.begin(), xs_targets.end());
+
+        for(unsigned int j=0; j<xs_targets; ++j) {
+            Particle::ParticleType target = xs_targets[j];
+            std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>::const_iterator it = cross_sections_by_target.find(target);
+            if(it == cross_sections_by_target.end()) {
+                cross_sections_by_target.insert(it, std::make_pair(target, cross_sections[i]));
+            }
+        }
+    }
+}
+
+CrossSectionCollection::CrossSectionCollection(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections) : primary_type(primary_type), cross_sections(cross_sections) {
+    InitializeTargetTypes();
+}
+
+std::vector<std::shared_ptr<CrossSection>> CrossSectionCollection::CrossSections(Particle::ParticleType p) const {
+    if(cross_sections.find(p) != cross_sections.end()) {
+        return cross_sections[p];
+    } else {
+        return std::vector<std::shared_ptr<CrossSection>>();
+    }
+}
 
 DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
     LoadFromFile(differential_filename, total_filename);
@@ -253,8 +282,7 @@ double DISFromSpline::DifferentialCrossSection(double energy, double x, double y
     // we assume that:
     // the target is stationary so its energy is just its mass
     // the incoming neutrino is massless, so its kinetic energy is its total energy
-    double s = target_mass_ * target_mass_ + 2 * target_mass_ * energy;
-    double Q2 = (s - target_mass_ * target_mass_) * x *y ;
+    double Q2 = 2.0 * energy * target_mass_ * x * y
     if(Q2 < minimum_Q2_) // cross section not calculated, assumed to be zero
         return 0;
 
@@ -424,6 +452,11 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     }
     double final_x = pow(10., kin_vars[1]);
     double final_y = pow(10., kin_vars[2]);
+
+    interaction.interaction_parameters.resize(3);
+    interaction.interaction_parameters[0] = E1_lab;
+    interaction.interaction_parameters[1] = final_x;
+    interaction.interaction_parameters[2] = final_y;
 
     double Q2 = 2 * E1_lab * E2_lab * pow(10.0, kin_vars[1] + kin_vars[2]);
     double p1x_lab = std::sqrt(p1_lab.e1() * p1_lab.e1() + p1_lab.e2() * p1_lab.e2() + p1_lab.e3() * p1_lab.e3());

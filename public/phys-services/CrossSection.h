@@ -21,9 +21,12 @@ struct InteractionSignature {
 
 struct InteractionRecord {
     InteractionSignature signature;
+    double primary_mass = 0;
     std::array<double, 4> primary_momentum = {0, 0, 0, 0};
     std::array<double, 4> target_momentum = {0, 0, 0, 0};
+    std::array<double, 3> interaction_vertex = {0, 0, 0};
     std::vector<std::array<double, 4>> secondary_momenta;
+    std::vector<double> interaction_parameters;
 };
 
 class CrossSection {
@@ -39,6 +42,24 @@ public:
     virtual std::vector<Particle::ParticleType> GetPossibleTargets() const = 0;
     virtual std::vector<Particle::ParticleType> GetPossiblePrimaries() const = 0;
     virtual std::vector<InteractionSignature> GetPossibleSignatures() const = 0;
+};
+
+class CrossSectionCollection {
+private:
+    std::vector<std::shared_ptr<CrossSection>> cross_sections;
+    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> cross_sections_by_target;
+    std::vector<Particle::ParticleType> target_types;
+    void InitializeTargetTypes();
+public:
+    CrossSectionCollection(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
+    std::vector<std::shared_ptr<CrossSection>> const & CrossSections() const {return cross_sections;};
+    std::vector<std::shared_ptr<CrossSection>> const & CrossSections(Particle::ParticleType p) const;
+    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & CrossSectionsByTarget() const {
+        return cross_sections_by_target;
+    };
+    std::vector<Particle::ParticleType> const & TargetTypes() const {
+        return target_types;
+    };
 };
 
 class DISFromSpline : public CrossSection {
