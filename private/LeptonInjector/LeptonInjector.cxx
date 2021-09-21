@@ -5,6 +5,8 @@
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/EventProps.h"
 
+#include "phys-services/LICrossSection.h"
+
 #include "earthmodel-service/Path.h"
 
 // namespace constants = boost::math::constants;
@@ -20,168 +22,48 @@ namespace LeptonInjector{
 //-----------
 //Module base
 
-void InjectorBase::InitializeTargetTypes() {
-    target_types.clear();
-    cross_sections_by_target.clear();
-    for(unsigned int i=0; i<cross_sections.size(); ++i) {
-        std::vector<Particle::ParticleType> xs_targets = cross_sections[i]->GetPossibleTargets();
-        target_types.reserve(target_types.size() + std::distance(xs_targets.begin(), xs_targets.end()));
-        target_types.insert(target_types.end(), xs_targets.begin(), xs_targets.end());
-
-        for(unsigned int j=0; j<xs_targets; ++j) {
-            Particle::ParticleType target = xs_targets[j];
-            std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>::const_iterator it = cross_sections_by_target.find(target);
-            if(it == cross_sections_by_target.end()) {
-                cross_sections_by_target.insert(it, std::make_pair(target, cross_sections[i]));
-            }
-        }
-    }
-}
-
-InjectorBase::InjectorBase(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections) : primary_type(primary_type), cross_sections(cross_sections) {
-    InitializeTargetTypes();
-}
-
-InteractionRecord EnergyDirectionPositionInjector::GenerateEvent(std::shared_ptr<LI_random> rand) {
-    InteractionRecord record = NewRecord();
-    edist.SampleEnergy(record);
-    ddist.SampleDirection(record);
-    pdist.SamplePosition(record);
-    return record;
-}
-
-
-LeptonInjectorBase::LeptonInjectorBase(){
-    eventsGenerated = 0;
-    wroteConfigFrame = false;
-    suspendOnCompletion = true;
-    // also do nothing with this...
-    //config = BasicInjectionConfiguration();
-}
-
-/*
-   LeptonInjectorBase::LeptonInjectorBase(BasicInjectionConfiguration& config, std::shared_ptr<LI_random> _random):
-   config(config),
-   eventsGenerated(0),
-   wroteConfigFrame(false),
-   suspendOnCompletion(true),
-   random(_random){
-   }
-   */
-
-
-void LeptonInjectorBase::Configure(Injector basic){// , std::shared_ptr<LI_random> pass){
-
-
-    //std::cout<<"configured the random thing" << std::endl;
-    config.events = basic.events;
-    config.finalType1 = basic.finalType1;
-    config.finalType2 = basic.finalType2;
-
-    //std::cout << "wrote more" << std::endl;
-
-    if(this->config.events==0)
-        throw("there's no point in running this if you don't generate at least one event");
-    if(this->config.energyMinimum<=0)
-        throw(": minimum energy must be positive");
-    if(this->config.energyMaximum<=0)
-        throw(": maximum energy must be positive");
-    if(this->config.energyMaximum<this->config.energyMinimum)
-        throw(": maximum energy must be greater than or equal to minimum energy");
-    if(this->config.azimuthMinimum<0.0)
-        throw(": minimum azimuth angle must be greater than or equal to zero");
-    if(this->config.azimuthMaximum>2*Constants::pi)
-        throw(": maximum azimuth angle must be less than or equal to 2 pi");
-    if(this->config.azimuthMinimum>this->config.azimuthMaximum)
-        throw(": minimum azimuth angle must be less than or equal to maximum azimuth angle");
-    if(this->config.zenithMinimum<0.0)
-        throw(": minimum zenith angle must be greater than or equal to zero");
-    if(this->config.zenithMaximum>Constants::pi)
-        throw(": maximum zenith angle must be less than or equal to pi");
-    if(this->config.zenithMinimum>this->config.zenithMaximum)
-        throw(": minimum zenith angle must be less than or equal to maximum zenith angle");
-    try{
-        Particle::ParticleType initialType=deduceInitialType(this->config.finalType1,this->config.finalType2);
-    }catch(std::runtime_error& re){
-        throw("Something bad happened while deducing the Initial particle type");
-    }
-    this->initialType = initialType;
-    // write the pointer to the RNG
-    if(!random)
-        throw("A random service is required");
-    if(basic.crossSectionPath.empty())
-        throw(": DoublyDifferentialCrossSectionFile must be specified");
-    else if(basic.totalCrossSectionPath.empty())
-        throw(": TotalCrossSectionFile must be specified");
-    else
-        crossSection.load(basic.crossSectionPath,basic.totalCrossSectionPath);
-
-    this->crossSection.insert_blobs( this->config );
-}
-
-BasicInjectionConfiguration& LeptonInjectorBase::getConfig(void){
-    return( this->config );
-}
-
-
-
-void LeptonInjectorBase::Print_Configuration(){
-    std::cout << "    Events   : " << this->config.events << std::endl;
-    std::cout << "    Emin     : " << this->config.energyMinimum << std::endl;
-    std::cout << "    Emax     : " << this->config.energyMaximum << std::endl;
-    std::cout << "    PowerLaw : " << this->config.powerlawIndex << std::endl;
-    std::cout << "    AzMin    : " << this->config.azimuthMinimum << std::endl;
-    std::cout << "    AzMax    : " << this->config.azimuthMaximum << std::endl;
-    std::cout << "    ZenMin   : " << this->config.zenithMinimum << std::endl;
-    std::cout << "    ZenMax   : " << this->config.zenithMaximum << std::endl;
-    std::cout << "    FT1      : " << static_cast<int32_t>(this->config.finalType1) << std::endl;
-    std::cout << "    FT2      : " << static_cast<int32_t>(this->config.finalType2) << std::endl;
-}
-
-
-LI_Position LeptonInjectorBase::SampleFromDisk(double radius, double zenith, double azimuth){
+LI_Position SampleFromDisk(std::shared_ptr<LI_random> rand, double radius, double zenith, double azimuth) {
     //choose a random point on a disk laying in the xy plane
-    double t=this->random->Uniform(0,2*Constants::pi);
-    double u=this->random->Uniform()+this->random->Uniform();
-    double r=(u>1.?2.-u:u)*radius;
-    LI_Position  pos(r*cos(t) ,r*sin(t), 0.0);
+    double t = rand->Uniform(0, 2 * Constants::pi);
+    double u = rand->Uniform() + rand->Uniform();
+    double r = ((u > 1.) ? (2. - u) : u) * radius;
+    LI_Position  pos(r * cos(t) ,r * sin(t), 0.0);
     //now rotate to make the disc perpendicular to the requested normal vector
-    pos = RotateY(pos, zenith );
+    pos = RotateY(pos, zenith);
     pos = RotateZ(pos, azimuth);
     return(pos);
 }
 
-double LeptonInjectorBase::SampleEnergy(){
-    if(config.energyMinimum==config.energyMaximum)
-        return(config.energyMinimum); //return the only allowed energy
+double SampleEnergy(std::shared_ptr<LI_random> rand, double energyMinimum, double energyMaximum, double powerlawIndex) {
+    if(energyMinimum == energyMaximum)
+        return energyMinimum; //return the only allowed energy
 
-    if(config.powerlawIndex==1.0) //sample uniformly in log space
-        return(pow(10.0,this->random->Uniform(log10(config.energyMinimum),log10(config.energyMaximum))));
+    if(powerlawIndex == 1.0) //sample uniformly in log space
+        return std::pow(10.0, rand->Uniform(log10(energyMinimum),log10(energyMaximum)));
     else{
-        double u=this->random->Uniform();
-        double energyP=(1-u)*pow(config.energyMinimum,1-config.powerlawIndex) + u*pow(config.energyMaximum,1-config.powerlawIndex);
-        return(pow(energyP,1/(1-config.powerlawIndex)));
+        double u = rand->Uniform();
+        double energyP = (1-u) * std::pow(energyMinimum, 1-powerlawIndex) + u * std::pow(energyMaximum, 1-powerlawIndex);
+        return std::pow(energyP, 1/(1-powerlawIndex));
     }
 }
 
 // this function returns a pair of angles
-std::pair<double,double> LeptonInjectorBase::computeFinalStateAngles(double E_total, double x, double y){
-    const double M_N = crossSection.GetTargetMass();
+std::pair<double,double> computeFinalStateAngles(Particle::ParticleType finalType1, Particle::ParticleType finalType2, double target_mass, double E_total, double x, double y) {
     double theta1=0, theta2=0;
 
     //first particle is a lepton, which covers CC, NC, and leptonic GR
-    if(isLepton(config.finalType1)){
-        double m1=Particle(config.finalType1).GetMass();
+    if(isLepton(finalType1)) {
+        double m1=Particle(finalType1).GetMass();
         double E1 = (1 - y) * E_total;
         double cos_theta1, kE1;
 
-        if(!isLepton(config.finalType2)){ //CC and NC have Hadrons as particle 2
+        if(!isLepton(finalType2)){ //CC and NC have Hadrons as particle 2
             //squared kinetic energy of final state particle 1:
             double kE1sq=E1*E1 - m1*m1;
             if(kE1sq<=0){
                 throw std::runtime_error("Negative kinetic energy. Not good");
             }
-            cos_theta1=(E1 - x*y*M_N - m1*m1/(2*E_total))/sqrt(kE1sq);
+            cos_theta1=(E1 - x * y * target_mass - m1*m1/(2*E_total))/sqrt(kE1sq);
             kE1=sqrt(kE1sq);
         }
         else{ //leptonic GR
@@ -229,15 +111,14 @@ std::pair<double,double> LeptonInjectorBase::computeFinalStateAngles(double E_to
 // So the zenith and azimuth are only what their names would suggest in the coordinate system where
 //		/base/ is the \hat{z} axis
 
-void LeptonInjectorBase::FillTree(LI_Position vertex, LI_Direction dir, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree) {
-    const LICrossSection::finalStateRecord& fs=crossSection.sampleFinalState(energy,config.finalType1,this->random);
+void FillTree(std::shared_ptr<LI_random> rand, Particle::ParticleType finalType1, Particle::ParticleType finalType2, LI_Position vertex, LI_Direction dir, double target_mass, LICrossSection::finalStateRecord const &fs, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree) {
 
-    std::pair<double,double> relativeZeniths=computeFinalStateAngles(energy, fs.x, fs.y);
-    double azimuth1=this->random->Uniform(0,2*Constants::pi);
-    double azimuth2=azimuth1+(azimuth1<Constants::pi ? 1 : -1)*Constants::pi ;
+    std::pair<double,double> relativeZeniths = computeFinalStateAngles(finalType1, finalType2, target_mass, energy, fs.x, fs.y);
+    double azimuth1 = rand->Uniform(0, 2 * Constants::pi);
+    double azimuth2 = azimuth1 + (azimuth1<Constants::pi ? 1 : -1)*Constants::pi ;
 
     (particle_tree)[0]=  h5Particle(true,
-            static_cast<int32_t>(this->initialType),
+            static_cast<int32_t>(deduceInitialType(finalType1, finalType2)),
             vertex,
             dir,
             energy
@@ -245,17 +126,17 @@ void LeptonInjectorBase::FillTree(LI_Position vertex, LI_Direction dir, double e
 
     //Make the first final state particle
     (particle_tree)[1] = h5Particle( false,
-            static_cast<int32_t>(config.finalType1),
+            static_cast<int32_t>(finalType1),
             vertex,
             rotateRelative(dir,relativeZeniths.first,azimuth1),
-            kineticEnergy(config.finalType1,(1-fs.y)*energy)
+            kineticEnergy(finalType1,(1-fs.y)*energy)
             );
 
     (particle_tree)[2] = h5Particle(false,
-            static_cast<int32_t>(config.finalType2),
+            static_cast<int32_t>(finalType2),
             vertex,
             rotateRelative(dir,relativeZeniths.second,azimuth2),
-            kineticEnergy(config.finalType2,fs.y*energy)
+            kineticEnergy(finalType2,fs.y*energy)
             );
 
     properties.totalEnergy=energy;
@@ -263,49 +144,29 @@ void LeptonInjectorBase::FillTree(LI_Position vertex, LI_Direction dir, double e
     properties.azimuth=dir.azimuth;
     properties.finalStateX=fs.x;
     properties.finalStateY=fs.y;
-    properties.finalType1= static_cast<int32_t>(config.finalType1);
-    properties.finalType2= static_cast<int32_t>(config.finalType2);
-    properties.initialType=static_cast<int32_t>(deduceInitialType(config.finalType1, config.finalType2));
+    properties.finalType1= static_cast<int32_t>(finalType1);
+    properties.finalType2= static_cast<int32_t>(finalType2);
+    properties.initialType=static_cast<int32_t>(deduceInitialType(finalType1, finalType2));
     properties.x = vertex.GetX();
     properties.y = vertex.GetY();
     properties.z = vertex.GetZ();
 }
 
-//-----------------------
-//Ranged injection module
+InteractionRecord RangedLeptonInjector::GenerateEvent() {
+    InteractionRecord event = NewRecord();
+    event.target_momentum[0] = Particle(event.signature.target_type).GetMass();
 
-RangedLeptonInjector::RangedLeptonInjector(){
-}
-
-RangedLeptonInjector::RangedLeptonInjector( BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<LI_random> random_){
-    config = config_;
-    eventsGenerated = 0;
-    wroteConfigFrame = false;
-    suspendOnCompletion = true;
-    random = random_;
-    earthModel = earth_;
-    if(config.injectionRadius<0)
-        throw std::runtime_error(": InjectionRadius must be non-negative");
-    if(config.endcapLength<0)
-        throw std::runtime_error(": EndcapLength must be non-negative");
-    if(!earthModel)
-        throw std::runtime_error(": an Earth model service is required");
-}
-
-
-
-
-bool RangedLeptonInjector::Generate() {
     // Choose an energy
-    double energy = SampleEnergy();
+    energy_distribution.Sample(random, earth_model, cross_sections, event);
+    double energy = event.primary_momentum[0];
 
     // Pick a direction on the sphere
-    double zenith = acos(random->Uniform(cos(config.zenithMaximum),cos(config.zenithMinimum)));
-    double azimuth = random->Uniform(config.azimuthMinimum,config.azimuthMaximum);
-    LI_Direction dir(zenith, azimuth);
+    direction_distribution.Sample(random, earth_model, cross_sections, event);
+    earthmodel::Vector3D mom(event.primary_momentum[1], event.primary_momentum[2], event.primary_momentum[3]);
+    LI_Direction dir = mom.normalized();
 
     // decide the point of closest approach
-    LI_Position pca = SampleFromDisk(config.injectionRadius, dir.zenith, dir.azimuth);
+    LI_Position pca = SampleFromDisk(random, dir);
 
     // Figure out where we want the vertex
     // Add up the column depth for the range of a muon at this energy with the
@@ -333,19 +194,12 @@ bool RangedLeptonInjector::Generate() {
     double dist = path.GetDistanceFromStartAlongPath(traversedColumnDepth);
     LI_Position vertex = earthModel->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
-    // assemble the MCTree
+    event.interaction_vertex[0] = vertex.GetX();
+    event.interaction_vertex[1] = vertex.GetY();
+    event.interaction_vertex[2] = vertex.GetZ();
 
-    RangedEventProperties properties;
-    std::array<h5Particle, 3> particle_tree;
-
-    properties.totalColumnDepth = totalColumnDepth;
-    FillTree(vertex, dir, energy, properties, particle_tree);
-
-    //update event count and check for completion
-    eventsGenerated++;
-    writer_link->WriteEvent(properties, particle_tree[0] , particle_tree[1], particle_tree[2]);
-
-    return eventsGenerated < this->config.events;
+    crossSection.SampleFinalState(event, this->random);
+    return event;
 }
 
 
@@ -372,10 +226,10 @@ VolumeLeptonInjector::VolumeLeptonInjector(BasicInjectionConfiguration config_, 
 
 
 
-bool VolumeLeptonInjector::Generate(){
+InteractionRecord VolumeLeptonInjector::GenerateEvent() {
 
     //Choose an energy
-    double energy=SampleEnergy();
+    double energy = SampleEnergy(random, energy_min, energy_max, powerlaw_index);
 
     //Pick a direction on the sphere
     LI_Direction dir(acos(this->random->Uniform(cos(config.zenithMaximum),cos(config.zenithMinimum))),
@@ -400,20 +254,10 @@ bool VolumeLeptonInjector::Generate(){
     properties.totalColumnDepth =
         earthModel->GetColumnDepthInCGS(earthModel->GetEarthCoordPosFromDetCoordPos(std::get<0>(cylinder_intersections)), earthModel->GetEarthCoordPosFromDetCoordPos(std::get<1>(cylinder_intersections)), use_electron_density);
 
-    // write hdf5 file!
-
-    InteractionRecord event;
+    InteractionRecord event = NewRecord();
     event.signature.primary_type = initialType;
     crossSection.SampleFinalState(event, this->random);
-    FillTree(vertex, dir, energy, properties, particle_tree);
-
-    //package up output and send it
-    writer_link->WriteEvent( properties, particle_tree[0] , particle_tree[1], particle_tree[2]);
-    //update event count and check for completion
-    eventsGenerated++;
-
-    return(  (eventsGenerated < config.events)  );
-
+    return event;
 }
 
 bool operator == (const Injector& one , const Injector& two){

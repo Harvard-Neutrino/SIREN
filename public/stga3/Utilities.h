@@ -106,10 +106,10 @@ inline Beta<T> beta_to_rest_frame_of(FourVector<T> const & vec) {
     return (vec ^ gamma0) / (vec | gamma0);
 }
 
-//template<typename T>
-//inline Beta<T> beta_between(FourVector<T> const & vec0, FourVector<T> const & vec1) {
-//    return (vec0 ^ vec1) / (vec0 | vec1);
-//}
+template<typename T>
+inline Beta<T> beta_between(FourVector<T> const & vec0, FourVector<T> const & vec1) {
+    return (vec0 ^ vec1) / (vec0 | vec1);
+}
 
 template<typename T>
 inline Boost<T> boost_to_rest_frame_of(FourVector<T> const & vec) {

@@ -80,7 +80,13 @@ void EarthModel::AddSector(EarthSector sector) {
 }
 
 EarthSector EarthModel::GetSector(int heirarchy) const {
-    return sectors_[sector_map_.find(heirarchy)->second];
+    auto const iter = sector_map_.find(heirarchy);
+    assert(iter != sector_map_.end());
+    unsigned int index = sector_map_[iter];
+    assert(index < sectors_.size());
+    unsigned int alt_index = sector_map_.find(heirarchy)->second;
+    assert(index == alt_index);
+    return sectors_[index];
 }
 
 void EarthModel::ClearSectors() {

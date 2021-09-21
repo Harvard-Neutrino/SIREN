@@ -516,6 +516,10 @@ std::vector<Particle::ParticleType> DISFromSpline::GetPossiblePrimaries() const 
     return std::vector<Particle::ParticleType>(primary_types_.begin(), primary_types_.end());
 }
 
+std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargetsFromPrimary(Particle::ParticleType primary_type) const {
+    return std::vector<Particle::ParticleType>(target_types_.begin(), target_types_.end());
+}
+
 std::vector<InteractionSignature> DISFromSpline::GetPossibleSignatures() const {
     std::vector<InteractionSignature> result;
     for(auto const & it : signatures_) {
@@ -528,9 +532,16 @@ std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargets() const {
     return std::vector<Particle::ParticleType>(target_types_.begin(), target_types_.end());
 }
 
+std::vector<InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const {
+    std::pair<LeptonInjector::Particle::ParticleType, LeptonInjector::Particle::ParticleType> key(primary_type, target_type);
+    if(signatures_.find() != signatures.end()) {
+        return std::vector<InteractionSignature> signatures_[key];
+    } else {
+        return std::vector<InteractionSignature>();
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 } // namespace LeptonInjector
 

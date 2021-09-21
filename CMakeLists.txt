@@ -10,7 +10,7 @@ cmake_policy(VERSION 3.3.2)
 ## project(lepton_injector VERSION 1.0.0 DESCRIPTION "lepton injector library")
 project(lepton_injector VERSION 1.0.0 LANGUAGES CXX C)
 
-SET(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_C_STANDARD 99)
 ## enable_language(cxx)
 SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake

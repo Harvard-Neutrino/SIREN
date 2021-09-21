@@ -40,8 +40,11 @@ public:
     virtual void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random>) const = 0;
 
     virtual std::vector<Particle::ParticleType> GetPossibleTargets() const = 0;
+    virtual std::vector<Particle::ParticleType> GetPossibleTargetsFromPrimary(Particle::ParticleType primary_type) const = 0;
     virtual std::vector<Particle::ParticleType> GetPossiblePrimaries() const = 0;
     virtual std::vector<InteractionSignature> GetPossibleSignatures() const = 0;
+
+    virtual std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const = 0;
 };
 
 class CrossSectionCollection {
@@ -52,9 +55,9 @@ private:
     void InitializeTargetTypes();
 public:
     CrossSectionCollection(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
-    std::vector<std::shared_ptr<CrossSection>> const & CrossSections() const {return cross_sections;};
-    std::vector<std::shared_ptr<CrossSection>> const & CrossSections(Particle::ParticleType p) const;
-    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & CrossSectionsByTarget() const {
+    std::vector<std::shared_ptr<CrossSection>> const & GetCrossSections() const {return cross_sections;};
+    std::vector<std::shared_ptr<CrossSection>> const & GetCrossSectionsForTarget(Particle::ParticleType p) const;
+    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & GetCrossSectionsByTarget() const {
         return cross_sections_by_target;
     };
     std::vector<Particle::ParticleType> const & TargetTypes() const {
@@ -70,6 +73,8 @@ private:
     std::map<std::pair<LeptonInjector::Particle::ParticleType, LeptonInjector::Particle::ParticleType>, InteractionSignature> signatures_;
     std::set<LeptonInjector::Particle::ParticleType> primary_types_;
     std::set<LeptonInjector::Particle::ParticleType> target_types_;
+    std::map<LeptonInjector::Particle::ParticleType, std::vector<LeptonInjector::Particle::ParticleType>> targets_by_primary_types_;
+    std::map<std::pair<LeptonInjector::Particle::ParticleType, LeptonInjector::Particle::ParticleType>, std::vector<InteractionSignature>> signatures_by_parent_types_;
 
     double minimum_Q2_;
     double target_mass_;
@@ -88,8 +93,10 @@ public:
     void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random> random) const;
 
     std::vector<Particle::ParticleType> GetPossibleTargets() const;
+    std::vector<Particle::ParticleType> GetPossibleTargetsFromPrimary(Particle::ParticleType primary_type) const;
     std::vector<Particle::ParticleType> GetPossiblePrimaries() const;
     std::vector<InteractionSignature> GetPossibleSignatures() const;
+    std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const;
 
     void LoadFromFile(std::string differential_filename, std::string total_filename);
 
@@ -455,8 +462,10 @@ public:
     void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random>) const;
 
     std::vector<Particle::ParticleType> GetPossibleTargets() const;
+    std::vector<Particle::ParticleType> GetPossibleTargetsFromPrimary(Particle::ParticleType primary_type) const;
     std::vector<Particle::ParticleType> GetPossiblePrimaries() const;
     std::vector<InteractionSignature> GetPossibleSignatures() const;
+    std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const;
 private:
     void AddDifferentialCrossSectionFile(std::string filename, Particle::ParticleType target);
     void AddTotalCrossSectionFile(std::string filename, Particle::ParticleType target);

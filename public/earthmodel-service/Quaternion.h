@@ -93,6 +93,8 @@ private:
     double w_;
 };
 
+Quaternion rotation_between(Vector3D const & v0, Vector3D const & v1);
+
 } // namespace earthmodel
 
 #endif // LI_Quaternion_H
