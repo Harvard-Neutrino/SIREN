@@ -50,6 +50,7 @@ public:
 
 class CrossSectionCollection {
 private:
+    Particle::ParticleType primary_type;
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> cross_sections_by_target;
     std::vector<Particle::ParticleType> target_types;

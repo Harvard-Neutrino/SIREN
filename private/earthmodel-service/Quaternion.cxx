@@ -490,9 +490,9 @@ void Quaternion::SetEulerAnglesXYZs(double alpha, double beta, double gamma)
 Quaternion earthmodel::rotation_between(Vector3D const & v0, Vector3D const & v1) {
     Vector3D dir0 = v0.normalized();
     Vector3D dir1 = v1.normalized();
-    Vector3D cross = dir0.cross_product(dir1);
+    Vector3D cross = cross_product(dir0, dir1);
     Quaternion rot(cross);
-    rot.SetW(1.0 + dir0.dot_product(dir1));
+    rot.SetW(1.0 + scalar_product(dir0, dir1));
     rot.normalize();
     return rot;
 }

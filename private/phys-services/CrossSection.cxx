@@ -59,11 +59,13 @@ void CrossSectionCollection::InitializeTargetTypes() {
         target_types.reserve(target_types.size() + std::distance(xs_targets.begin(), xs_targets.end()));
         target_types.insert(target_types.end(), xs_targets.begin(), xs_targets.end());
 
-        for(unsigned int j=0; j<xs_targets; ++j) {
+        for(unsigned int j=0; j<xs_targets.size(); ++j) {
             Particle::ParticleType target = xs_targets[j];
             std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>::const_iterator it = cross_sections_by_target.find(target);
             if(it == cross_sections_by_target.end()) {
-                cross_sections_by_target.insert(it, std::make_pair(target, cross_sections[i]));
+                cross_sections_by_target.insert(it, std::make_pair(target, std::vector<std::shared_ptr<CrossSection>>{cross_sections[i]}));
+            } else {
+                cross_sections_by_target[target].push_back(cross_sections[i]);
             }
         }
     }
@@ -534,8 +536,8 @@ std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargets() const {
 
 std::vector<InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const {
     std::pair<LeptonInjector::Particle::ParticleType, LeptonInjector::Particle::ParticleType> key(primary_type, target_type);
-    if(signatures_.find() != signatures.end()) {
-        return std::vector<InteractionSignature> signatures_[key];
+    if(signatures_.find() != signatures_.end()) {
+        return std::vector<InteractionSignature>(signatures_[key]);
     } else {
         return std::vector<InteractionSignature>();
     }

@@ -1,10 +1,12 @@
 #ifndef LI_Controller_H
 #define LI_Controller_H
 
+#include <memory>
+#include <iostream>
+
 #include <LeptonInjector/LeptonInjector.h>
 #include <LeptonInjector/Constants.h> // pi, GeV, degrees, meters, ...
 #include <LeptonInjector/DataWriter.h> // adds DataWriter class
-#include <iostream> // cout
 
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
@@ -18,10 +20,7 @@ class Controller{
 private:
     // a deque (basically an array) to hold all of the base injectors. Will be filled with volume
     //      and ranged mode injectors
-    std::deque<LeptonInjectorBase*> generators;
-    // prototypes of the above generators. When an injector is added, it is placed here. These all are later
-    //      built with the default configurations to make the generators
-    std::vector<Injector> configs;
+    std::deque<std::unique_ptr<InjectorBase>> generators;
 
     // seeds the random number generator
     uint seed = 100;
@@ -61,20 +60,13 @@ public:
     Controller();
 
     // sending one will make a single little list...
-    Controller(Injector configs_received );
+    Controller(std::unique_ptr<InjectorBase> injector);
     // multilepton injector equivalent
-
-    // The BEST constructor
-    Controller(Injector configs_received, double minimumEnergy,
-            double maximumEnergy, double powerlawIndex, double minimumAzimuth,
-            double maximumAzimuth, double minimumZenith, double maximumZenith,
-            double injectionRadius=1200*Constants::m, double endcapLength=1200*Constants::m,
-            double cylinderRadius=1200*Constants::m, double cylinderHeight= 1200*Constants::m);
 
     // changes the Earth model to be used with the injectors
     void SetEarthModel(std::shared_ptr<earthmodel::EarthModel> earthModel);
     // adds a new injector to be used in the process
-    void AddInjector(Injector configs_received);
+    void AddInjector(std::unique_ptr<InjectorBase> generator);
     // changes the name of the data file
     void NameOutfile( std::string out_file );
     // changes the name of the configuration file

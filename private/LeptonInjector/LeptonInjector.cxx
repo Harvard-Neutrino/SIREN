@@ -169,6 +169,7 @@ InteractionRecord RangedLeptonInjector::GenerateEvent() {
 
     // Sample the cross section and final state
     SampleCrossSection(event);
+    injected_events += 1;
     return event;
 }
 
@@ -193,6 +194,7 @@ InteractionRecord VolumeLeptonInjector::GenerateEvent() {
 
     // Sample the cross section and final state
     SampleCrossSection(event);
+    injected_events += 1;
     return event;
 }
 
