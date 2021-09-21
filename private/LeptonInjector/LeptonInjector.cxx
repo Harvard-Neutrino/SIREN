@@ -154,51 +154,21 @@ void FillTree(std::shared_ptr<LI_random> rand, Particle::ParticleType finalType1
 
 InteractionRecord RangedLeptonInjector::GenerateEvent() {
     InteractionRecord event = NewRecord();
-    event.target_momentum[0] = Particle(event.signature.target_type).GetMass();
+
+    // Choose a target momentum
+    target_momentum_distribution.Sample(random, earth_model, cross_sections, event);
 
     // Choose an energy
     energy_distribution.Sample(random, earth_model, cross_sections, event);
-    double energy = event.primary_momentum[0];
 
     // Pick a direction on the sphere
     direction_distribution.Sample(random, earth_model, cross_sections, event);
-    earthmodel::Vector3D mom(event.primary_momentum[1], event.primary_momentum[2], event.primary_momentum[3]);
-    LI_Direction dir = mom.normalized();
 
-    // decide the point of closest approach
-    LI_Position pca = SampleFromDisk(random, dir);
+    // Pick a position for the vertex
+    position_distribution.Sample(random, earth_model, cross_sections, event);
 
-    // Figure out where we want the vertex
-    // Add up the column depth for the range of a muon at this energy with the
-    // column depth for the fixed endcaps to ensure that the whole detector is
-    // covered
-    using namespace earthmodel::EarthModelCalculator;
-    bool isTau = (this->config.finalType1==Particle::ParticleType::TauMinus) || (this->config.finalType1==Particle::ParticleType::TauPlus);
-
-    bool use_electron_density = getInteraction(this->config.finalType1, this->config.finalType2) == 2;
-
-    double lepton_range = GetLeptonRange(energy, isTau=isTau);
-    double lepton_depth = MWEtoColumnDepthCGS(lepton_range);
-
-    LI_Position endcap_0 = pca - config.endcapLength*dir;
-    LI_Position endcap_1 = pca + config.endcapLength*dir;
-
-    earthmodel::Path path(earthModel, earthModel->GetEarthCoordPosFromDetCoordPos(endcap_0), earthModel->GetEarthCoordDirFromDetCoordDir(dir), config.endcapLength*2);
-    path.ExtendFromStartByColumnDepth(lepton_depth, use_electron_density);
-    path.ClipToOuterBounds();
-
-    double totalColumnDepth = path.GetColumnDepthInBounds(use_electron_density);
-
-    // Choose how much of the total column depth this event should have to traverse
-    double traversedColumnDepth = totalColumnDepth * random->Uniform();
-    double dist = path.GetDistanceFromStartAlongPath(traversedColumnDepth);
-    LI_Position vertex = earthModel->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
-
-    event.interaction_vertex[0] = vertex.GetX();
-    event.interaction_vertex[1] = vertex.GetY();
-    event.interaction_vertex[2] = vertex.GetZ();
-
-    crossSection.SampleFinalState(event, this->random);
+    // Sample the cross section and final state
+    SampleCrossSection(event);
     return event;
 }
 
@@ -206,68 +176,24 @@ InteractionRecord RangedLeptonInjector::GenerateEvent() {
 //-----------------------
 //Volume injection module
 
-VolumeLeptonInjector::VolumeLeptonInjector(){
-}
-
-VolumeLeptonInjector::VolumeLeptonInjector(BasicInjectionConfiguration config_, std::shared_ptr<earthmodel::EarthModel> earth_, std::shared_ptr<LI_random> random_){
-    eventsGenerated = 0;
-    wroteConfigFrame = false;
-    suspendOnCompletion = true;
-    random = random_;
-    config = config_;
-    earthModel = earth_;
-    if(config.cylinderRadius<0)
-        throw std::runtime_error(": CylinderRadius must be non-negative");
-    if(config.cylinderHeight<0)
-        throw std::runtime_error(": CylinderHeight must be non-negative");
-    if(!earthModel)
-        throw std::runtime_error(": an Earth model service is required");
-}
-
-
-
 InteractionRecord VolumeLeptonInjector::GenerateEvent() {
-
-    //Choose an energy
-    double energy = SampleEnergy(random, energy_min, energy_max, powerlaw_index);
-
-    //Pick a direction on the sphere
-    LI_Direction dir(acos(this->random->Uniform(cos(config.zenithMaximum),cos(config.zenithMinimum))),
-            this->random->Uniform(config.azimuthMinimum,config.azimuthMaximum));
-    //log_trace_stream("dir=(" << dir.GetX() << ',' << dir.GetY() << ',' << dir.GetZ() << ')');
-
-    //Pick a position in the xy-plane
-    LI_Position vertex = SampleFromDisk(config.cylinderRadius);
-    //Add on the vertical component
-    vertex.SetZ(this->random->Uniform(-config.cylinderHeight/2,config.cylinderHeight/2));
-    //log_trace_stream("vtx=(" << vertex.GetX() << ',' << vertex.GetY() << ',' << vertex.GetZ() << ')');
-
-    //assemble the MCTree
-    VolumeEventProperties properties;
-    std::array<h5Particle, 3> particle_tree;
-
-    bool use_electron_density = getInteraction(this->config.finalType1, this->config.finalType2 ) == 2;
-
-    //set subclass properties
-    std::tuple<LI_Position, LI_Position> cylinder_intersections =
-        computeCylinderIntersections(vertex, dir, config.cylinderRadius, -config.cylinderHeight/2., config.cylinderHeight/2.);
-    properties.totalColumnDepth =
-        earthModel->GetColumnDepthInCGS(earthModel->GetEarthCoordPosFromDetCoordPos(std::get<0>(cylinder_intersections)), earthModel->GetEarthCoordPosFromDetCoordPos(std::get<1>(cylinder_intersections)), use_electron_density);
-
     InteractionRecord event = NewRecord();
-    event.signature.primary_type = initialType;
-    crossSection.SampleFinalState(event, this->random);
-    return event;
-}
 
-bool operator == (const Injector& one , const Injector& two){
-    return( one.crossSectionPath == two.crossSectionPath
-            && one.events == two.events
-            && one.finalType1 == two.finalType2
-            && one.finalType2 == two.finalType2
-            && one.totalCrossSectionPath == two.totalCrossSectionPath
-            && one.ranged == two.ranged
-          );
+    // Choose a target momentum
+    target_momentum_distribution.Sample(random, earth_model, cross_sections, event);
+
+    // Choose an energy
+    energy_distribution.Sample(random, earth_model, cross_sections, event);
+
+    // Pick a direction on the sphere
+    direction_distribution.Sample(random, earth_model, cross_sections, event);
+
+    // Pick a position for the vertex
+    position_distribution.Sample(random, earth_model, cross_sections, event);
+
+    // Sample the cross section and final state
+    SampleCrossSection(event);
+    return event;
 }
 
 } // namespace LeptonInjector

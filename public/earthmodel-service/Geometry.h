@@ -153,6 +153,7 @@ protected:
     std::string name_; //!< "box" , "cylinder" , "sphere" (sphere and cylinder might be hollow)
     Placement placement_;
 
+public:
     Vector3D LocalToGlobalPosition(Vector3D const & p) const;
     Vector3D LocalToGlobalDirection(Vector3D const & d) const;
     Vector3D GlobalToLocalPosition(Vector3D const & p) const;

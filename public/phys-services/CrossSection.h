@@ -22,6 +22,7 @@ struct InteractionSignature {
 struct InteractionRecord {
     InteractionSignature signature;
     double primary_mass = 0;
+    double target_mass = 0;
     std::array<double, 4> primary_momentum = {0, 0, 0, 0};
     std::array<double, 4> target_momentum = {0, 0, 0, 0};
     std::array<double, 3> interaction_vertex = {0, 0, 0};
