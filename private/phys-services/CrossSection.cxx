@@ -1,6 +1,7 @@
 #include "phys-services/CrossSection.h"
 
 #include <array>
+#include <functional>
 
 #include "LeptonInjector/Random.h"
 #include "LeptonInjector/Particle.h"
@@ -540,6 +541,64 @@ std::vector<InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParent
     } else {
         return std::vector<InteractionSignature>();
     }
+}
+
+void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, Particle::ParticleType target) {
+    std::string delimeter = "_";
+    std::string end_delimeter = ".";
+    std::string::size_type pos = 0;
+    std::string::size_type next_pos = 0;
+    std::string::size_type sub_len = 0;
+    unsigned int Z = 0;
+    unsigned int A = 0;
+    bool bad = false;
+    std::function<std::string()> next_substr = [&] () -> std::string {
+        if(pos >= filename.size() or pos == std::string::npos) {
+            bad = true;
+            return std::string();
+        }
+        next_pos = filename.find(delimeter, pos);
+        if(next_pos == std::string::npos) {
+            next_pos = filename.find(end_delimeter, pos);
+            if(next_pos == std::string::npos) {
+                bad = true;
+                return std::string();
+            }
+        }
+        sub_len = std::max((int)(next_pos - pos - 1), 0);
+        next_pos = pos + sub_len + 1;
+        std::string sub = filename.substr(pos, sub_len);
+        pos = next_pos;
+        return sub;
+    };
+    while(pos < filename.size() and pos != std::string::npos) {
+        std::string sub = next_substr();
+        if(bad)
+            break;
+        if(sub == "Z") {
+            sub = next_substr();
+            if(bad)
+                break;
+            Z = std::stoi(sub);
+        } else if(sub == "A") {
+            sub = next_substr();
+            if(bad)
+                break;
+            A = std::stoi(sub);
+        } else if(sub == "mHNL") {
+            sub = next_substr();
+            if(bad)
+                break;
+            double file_hnl_mass = std::stod(sub);
+            if(std::abs(file_hnl_mass - hnl_mass) / std::max(std::abs(file_hnl_mass), std::abs(hnl_mass)) > 1e-6) {
+                throw std::runtime_error("File HNL mass does not match specified HNL mass!");
+            }
+        }
+    }
+}
+
+void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, Particle::ParticleType target) {
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////

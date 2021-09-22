@@ -457,7 +457,7 @@ private:
     double hnl_mass;
 public:
 
-    DipoleFromTable(double hnl_mass) {};
+    DipoleFromTable(double hnl_mass) : hnl_mass(hnl_mass) {};
     double TotalCrossSection(InteractionRecord const &) const;
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy) const;
     double DifferentialCrossSection(InteractionRecord const &) const;
