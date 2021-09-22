@@ -156,16 +156,16 @@ InteractionRecord RangedLeptonInjector::GenerateEvent() {
     InteractionRecord event = NewRecord();
 
     // Choose a target momentum
-    target_momentum_distribution.Sample(random, earth_model, cross_sections, event);
+    target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
 
     // Choose an energy
-    energy_distribution.Sample(random, earth_model, cross_sections, event);
+    energy_distribution->Sample(random, earth_model, cross_sections, event);
 
     // Pick a direction on the sphere
-    direction_distribution.Sample(random, earth_model, cross_sections, event);
+    direction_distribution->Sample(random, earth_model, cross_sections, event);
 
     // Pick a position for the vertex
-    position_distribution.Sample(random, earth_model, cross_sections, event);
+    position_distribution->Sample(random, earth_model, cross_sections, event);
 
     // Sample the cross section and final state
     SampleCrossSection(event);
@@ -181,16 +181,16 @@ InteractionRecord VolumeLeptonInjector::GenerateEvent() {
     InteractionRecord event = NewRecord();
 
     // Choose a target momentum
-    target_momentum_distribution.Sample(random, earth_model, cross_sections, event);
+    target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
 
     // Choose an energy
-    energy_distribution.Sample(random, earth_model, cross_sections, event);
+    energy_distribution->Sample(random, earth_model, cross_sections, event);
 
     // Pick a direction on the sphere
-    direction_distribution.Sample(random, earth_model, cross_sections, event);
+    direction_distribution->Sample(random, earth_model, cross_sections, event);
 
     // Pick a position for the vertex
-    position_distribution.Sample(random, earth_model, cross_sections, event);
+    position_distribution->Sample(random, earth_model, cross_sections, event);
 
     // Sample the cross section and final state
     SampleCrossSection(event);

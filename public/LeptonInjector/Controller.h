@@ -20,7 +20,7 @@ class Controller{
 private:
     // a deque (basically an array) to hold all of the base injectors. Will be filled with volume
     //      and ranged mode injectors
-    std::deque<std::unique_ptr<InjectorBase>> generators;
+    std::deque<std::shared_ptr<InjectorBase>> generators;
 
     // seeds the random number generator
     uint seed = 100;
@@ -60,13 +60,13 @@ public:
     Controller();
 
     // sending one will make a single little list...
-    Controller(std::unique_ptr<InjectorBase> injector);
+    Controller(std::shared_ptr<InjectorBase> injector);
     // multilepton injector equivalent
 
     // changes the Earth model to be used with the injectors
     void SetEarthModel(std::shared_ptr<earthmodel::EarthModel> earthModel);
     // adds a new injector to be used in the process
-    void AddInjector(std::unique_ptr<InjectorBase> generator);
+    void AddInjector(std::shared_ptr<InjectorBase> generator);
     // changes the name of the data file
     void NameOutfile( std::string out_file );
     // changes the name of the configuration file

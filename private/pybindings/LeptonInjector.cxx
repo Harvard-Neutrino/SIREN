@@ -83,8 +83,8 @@ BOOST_PYTHON_MODULE(LeptonInjector){
     def("computeCylinderIntersections", &computeCylinderIntersections);
 
 
-    class_<Controller>("Controller", init<Injector,double,double,double,double,double,double,double,double,double,double,double>(
-        (args("injectors"),args("minimum energy"),args("maximum energy"),args("spectral index"),args("minimum azimuth"),args("maximum azimuth"),args("minimum zenith"),args("maximum zenith"),args("injection radius")=1200., args("endcap length")=1200., args("cylinder radius")=1200., args("cylinder height")=1200.))
+    class_<Controller>("Controller", init<std::shared_ptr<InjectorBase>>(
+        (args("injector")))
         )
         .def("Execute",&Controller::Execute)
         .def("AddInjector",&Controller::AddInjector)
@@ -281,17 +281,11 @@ BOOST_PYTHON_MODULE(LeptonInjector){
     def("deduceInitialType", &deduceInitialType);
     def("getInteraction", &getInteraction);
 
-    class_<Injector, std::shared_ptr<Injector>>("Injector",
-	  init<unsigned int,Particle::ParticleType,Particle::ParticleType,std::string,std::string,bool>(
-	    (args("NEvents"),args("FinalType1"),args("FinalType2"),args("DoublyDifferentialCrossSectionFile"),args("TotalCrossSectionFile"),args("Ranged"))
+    class_<InjectorBase, std::shared_ptr<InjectorBase>>("InjectorBase",
+	  init<unsigned int, Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::shared_ptr<earthmodel::EarthModel>, std::vector<std::shared_ptr<InjectionDistribution>>, std::shared_ptr<LI_random>>(
+	    (args("events_to_inject"),args("primary_type"),args("cross_sections"),args("earth_model"),args("distributions"),args("random"))
 	  )
 	)
-	.def_readwrite("events",&Injector::events)
-	.def_readwrite("finalType1",&Injector::finalType1)
-	.def_readwrite("finalType2",&Injector::finalType2)
-	.def_readwrite("crossSectionPath",&Injector::crossSectionPath)
-	.def_readwrite("totalCrossSectionPath",&Injector::totalCrossSectionPath)
-	.def_readwrite("ranged",&Injector::ranged)
 	;
 
     scope constants = class_<LIConstants>("Constants");

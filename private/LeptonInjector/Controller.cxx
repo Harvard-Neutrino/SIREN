@@ -6,11 +6,11 @@ Controller::Controller(){
 }
 
 // constructor if the user only provides one injector and no parameters
-Controller::Controller(std::unique_ptr<InjectorBase> generator){
+Controller::Controller(std::shared_ptr<InjectorBase> generator){
     generators.push_back(std::move(generator));
 }
 
-void Controller::AddInjector(std::unique_ptr<InjectorBase> generator){
+void Controller::AddInjector(std::shared_ptr<InjectorBase> generator){
     generators.push_back(std::move(generator));
 }
 

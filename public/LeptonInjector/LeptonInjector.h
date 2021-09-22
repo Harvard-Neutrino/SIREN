@@ -34,14 +34,14 @@ private:
 public:
     virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const;
     virtual std::vector<std::string> DensityVariables() const;
-    virtual std::unique_ptr<InjectionDistribution> clone() const {
-        return std::make_unique<InjectionDistribution>(InjectionDistribution(*this));
+    virtual std::shared_ptr<InjectionDistribution> clone() const {
+        return std::make_shared<InjectionDistribution>(InjectionDistribution(*this));
     };
 };
 
 class TargetMomentumDistribution : public InjectionDistribution {
 private:
-    virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const;
+    virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
 public:
     void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override {
         record.target_momentum = SampleMomentum(rand, earth_model, cross_sections, record);
@@ -60,14 +60,14 @@ public:
 
 class PrimaryEnergyDistribution : public InjectionDistribution {
 private:
-    virtual double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const;
+    virtual double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
 public:
     void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override {
         record.primary_momentum[0] = SampleEnergy(rand, earth_model, cross_sections, record);
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"PrimaryEnergy"};};
     virtual std::string Name() const;
-    virtual std::unique_ptr<InjectionDistribution> clone() const {
+    virtual std::shared_ptr<InjectionDistribution> clone() const {
     };
 };
 
@@ -95,7 +95,7 @@ public:
 
 class PrimaryDirectionDistribution : public InjectionDistribution {
 private:
-    virtual earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const;
+    virtual earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
 public:
     void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override {
         earthmodel::Vector3D dir = SampleDirection(rand, earth_model, cross_sections, record);
@@ -391,17 +391,17 @@ public:
 
 class RangedLeptonInjector : public InjectorBase {
     private:
-        PrimaryEnergyDistribution energy_distribution;
-        PrimaryDirectionDistribution direction_distribution;
-        TargetMomentumDistribution target_momentum_distribution;
+        std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;
+        std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
+        std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
         RangeFunction range_func;
         double disk_radius;
         double endcap_length;
-        RangePositionDistribution position_distribution;
+        std::shared_ptr<RangePositionDistribution> position_distribution;
     public:
-        RangedLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, PrimaryEnergyDistribution edist, PrimaryDirectionDistribution ddist, TargetMomentumDistribution target_momentum_distribution, RangeFunction range_func, double disk_radius, double endcap_length) : energy_distribution(edist), direction_distribution(ddist), target_momentum_distribution(target_momentum_distribution), disk_radius(disk_radius), endcap_length(endcap_length), InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random) {
+        RangedLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, RangeFunction range_func, double disk_radius, double endcap_length) : energy_distribution(edist), direction_distribution(ddist), target_momentum_distribution(target_momentum_distribution), disk_radius(disk_radius), endcap_length(endcap_length), InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random) {
             std::vector<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
-            position_distribution = RangePositionDistribution(disk_radius, endcap_length, range_func, target_types);
+            position_distribution = std::make_shared<RangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
         };
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override {return("RangedInjector");}
@@ -409,12 +409,12 @@ class RangedLeptonInjector : public InjectorBase {
 
 class VolumeLeptonInjector : public InjectorBase {
     private:
-        PrimaryEnergyDistribution energy_distribution;
-        PrimaryDirectionDistribution direction_distribution;
-        TargetMomentumDistribution target_momentum_distribution;
-        CylinderVolumePositionDistribution position_distribution;
+        std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;
+        std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
+        std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
+        std::shared_ptr<CylinderVolumePositionDistribution> position_distribution;
     public:
-        VolumeLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, PrimaryEnergyDistribution edist, PrimaryDirectionDistribution ddist, TargetMomentumDistribution target_momentum_distribution, earthmodel::Cylinder cylinder) : energy_distribution(edist), direction_distribution(ddist), target_momentum_distribution(target_momentum_distribution), position_distribution(cylinder), InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random) {};
+        VolumeLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, earthmodel::Cylinder cylinder) : energy_distribution(edist), direction_distribution(ddist), target_momentum_distribution(target_momentum_distribution), position_distribution(std::make_shared<CylinderVolumePositionDistribution>(cylinder)), InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random) {};
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override {return("VolumeInjector");}
 };
