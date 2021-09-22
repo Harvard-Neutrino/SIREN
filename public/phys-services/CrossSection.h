@@ -72,7 +72,7 @@ private:
     photospline::splinetable<> differential_cross_section_;
     photospline::splinetable<> total_cross_section_;
 
-    std::map<std::pair<LeptonInjector::Particle::ParticleType, LeptonInjector::Particle::ParticleType>, InteractionSignature> signatures_;
+    std::vector<InteractionSignature> signatures_;
     std::set<LeptonInjector::Particle::ParticleType> primary_types_;
     std::set<LeptonInjector::Particle::ParticleType> target_types_;
     std::map<LeptonInjector::Particle::ParticleType, std::vector<LeptonInjector::Particle::ParticleType>> targets_by_primary_types_;

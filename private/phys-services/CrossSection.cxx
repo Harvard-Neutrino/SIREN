@@ -75,9 +75,9 @@ CrossSectionCollection::CrossSectionCollection(Particle::ParticleType primary_ty
     InitializeTargetTypes();
 }
 
-std::vector<std::shared_ptr<CrossSection>> CrossSectionCollection::CrossSections(Particle::ParticleType p) const {
-    if(cross_sections.find(p) != cross_sections.end()) {
-        return cross_sections[p];
+std::vector<std::shared_ptr<CrossSection>> const & CrossSectionCollection::GetCrossSectionsForTarget(Particle::ParticleType p) const {
+    if(cross_sections_by_target.find(p) != cross_sections_by_target.end()) {
+        return std::vector<std::shared_ptr<CrossSection>>(cross_sections_by_target.at(p));
     } else {
         return std::vector<std::shared_ptr<CrossSection>>();
     }
@@ -201,9 +201,12 @@ void DISFromSpline::InitializeSignatures() {
             throw std::runtime_error("InitializeSignatures: Unkown interaction type!");
         }
         for(auto target_type : target_types_) {
-            std::pair<Particle::ParticleType, Particle::ParticleType> key(primary_type, target_type);
             signature.target_type = target_type;
-            signatures_.emplace(key, signature);
+
+            signatures_.push_back(signature);
+
+            std::pair<Particle::ParticleType, Particle::ParticleType> key(primary_type, target_type);
+            signatures_by_parent_types_[key].push_back(signature);
         }
     }
 }
@@ -284,7 +287,7 @@ double DISFromSpline::DifferentialCrossSection(double energy, double x, double y
     // we assume that:
     // the target is stationary so its energy is just its mass
     // the incoming neutrino is massless, so its kinetic energy is its total energy
-    double Q2 = 2.0 * energy * target_mass_ * x * y
+    double Q2 = 2.0 * energy * target_mass_ * x * y;
     if(Q2 < minimum_Q2_) // cross section not calculated, assumed to be zero
         return 0;
 
@@ -523,11 +526,7 @@ std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargetsFromPrimary
 }
 
 std::vector<InteractionSignature> DISFromSpline::GetPossibleSignatures() const {
-    std::vector<InteractionSignature> result;
-    for(auto const & it : signatures_) {
-        result.push_back(it.second);
-    }
-    return result;
+    return std::vector<InteractionSignature>(signatures_.begin(), signatures_.end());
 }
 
 std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargets() const {
@@ -536,8 +535,8 @@ std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargets() const {
 
 std::vector<InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const {
     std::pair<LeptonInjector::Particle::ParticleType, LeptonInjector::Particle::ParticleType> key(primary_type, target_type);
-    if(signatures_.find() != signatures_.end()) {
-        return std::vector<InteractionSignature>(signatures_[key]);
+    if(signatures_by_parent_types_.find(key) != signatures_by_parent_types_.end()) {
+        return signatures_by_parent_types_.at(key);
     } else {
         return std::vector<InteractionSignature>();
     }
