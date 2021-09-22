@@ -67,8 +67,7 @@ public:
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"PrimaryEnergy"};};
     virtual std::string Name() const;
-    virtual std::shared_ptr<InjectionDistribution> clone() const {
-    };
+    virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
 };
 
 class PowerLaw : public PrimaryEnergyDistribution {
@@ -91,6 +90,9 @@ public:
     std::string Name() const override {
         return "PowerLaw";
     };
+    virtual std::shared_ptr<InjectionDistribution> clone() const {
+        return std::shared_ptr<InjectionDistribution>(new PowerLaw(*this));
+    };
 };
 
 class PrimaryDirectionDistribution : public InjectionDistribution {
@@ -107,6 +109,7 @@ public:
         record.primary_momentum[3] = momentum * dir.GetZ();
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"PrimaryDirection"};};
+    virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
 };
 
 class IsotropicDirection : public PrimaryDirectionDistribution {
@@ -118,6 +121,9 @@ private:
         earthmodel::Vector3D res(nx, ny, nz);
         res.normalize();
         return res;
+    };
+    virtual std::shared_ptr<InjectionDistribution> clone() const {
+        return std::shared_ptr<InjectionDistribution>(new IsotropicDirection(*this));
     };
 };
 
@@ -131,6 +137,9 @@ private:
         return dir;
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>();};
+    virtual std::shared_ptr<InjectionDistribution> clone() const {
+        return std::shared_ptr<InjectionDistribution>(new FixedDirection(*this));
+    };
 };
 
 class Cone : public PrimaryDirectionDistribution {
@@ -158,11 +167,14 @@ private:
         q.SetEulerAnglesZXZr(phi, theta, 0.0);
         return rotation.rotate(q.rotate(earthmodel::Vector3D(0,0,1), false), false);
     };
+    virtual std::shared_ptr<InjectionDistribution> clone() const {
+        return std::shared_ptr<InjectionDistribution>(new Cone(*this));
+    };
 };
 
 class VertexPositionDistribution : public InjectionDistribution {
 private:
-    virtual earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const;
+    virtual earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
 public:
     void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
         earthmodel::Vector3D pos = SamplePosition(rand, earth_model, cross_sections, record);
@@ -172,6 +184,7 @@ public:
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"VertexPosition"};};
     virtual std::string Name() const;
+    virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
 };
 
 class CylinderVolumePositionDistribution : public VertexPositionDistribution {
@@ -191,6 +204,9 @@ public:
     CylinderVolumePositionDistribution(earthmodel::Cylinder) : cylinder(cylinder) {};
     std::string Name() const override {
         return "CylinderVolumePositionDistribution";
+    };
+    virtual std::shared_ptr<InjectionDistribution> clone() const {
+        return std::shared_ptr<InjectionDistribution>(new CylinderVolumePositionDistribution(*this));
     };
 };
 
@@ -266,6 +282,9 @@ public:
     std::string Name() const override {
         return "ColumnDepthPositionDistribution";
     };
+    virtual std::shared_ptr<InjectionDistribution> clone() const {
+        return std::shared_ptr<InjectionDistribution>(new ColumnDepthPositionDistribution(*this));
+    };
 };
 
 class RangePositionDistribution : public VertexPositionDistribution {
@@ -315,6 +334,9 @@ public:
     std::string Name() const override {
         return "RangePositionDistribution";
     };
+    virtual std::shared_ptr<InjectionDistribution> clone() const {
+        return std::shared_ptr<InjectionDistribution>(new RangePositionDistribution(*this));
+    };
 };
 
 class InjectorBase {
@@ -334,6 +356,7 @@ public:
         InteractionRecord record;
         record.signature.primary_type = primary_type;
         record.primary_mass = Particle(primary_type).GetMass();
+        return record;
     };
     virtual void SampleCrossSection(InteractionRecord & record) const {
         std::vector<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();

@@ -1,6 +1,8 @@
 #include "phys-services/CrossSection.h"
 
 #include <array>
+//#include <format>
+#include <fstream>
 #include <functional>
 
 #include "LeptonInjector/Random.h"
@@ -76,7 +78,7 @@ CrossSectionCollection::CrossSectionCollection(Particle::ParticleType primary_ty
     InitializeTargetTypes();
 }
 
-std::vector<std::shared_ptr<CrossSection>> const & CrossSectionCollection::GetCrossSectionsForTarget(Particle::ParticleType p) const {
+std::vector<std::shared_ptr<CrossSection>> CrossSectionCollection::GetCrossSectionsForTarget(Particle::ParticleType p) const {
     if(cross_sections_by_target.find(p) != cross_sections_by_target.end()) {
         return std::vector<std::shared_ptr<CrossSection>>(cross_sections_by_target.at(p));
     } else {
@@ -543,15 +545,29 @@ std::vector<InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParent
     }
 }
 
+namespace {
+bool fexists(const char *filename)
+{
+    std::ifstream ifile(filename);
+    return (bool)ifile;
+}
+bool fexists(const std::string filename)
+{
+    std::ifstream ifile(filename.c_str());
+    return (bool)ifile;
+}
+}
+
 void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, Particle::ParticleType target) {
     std::string delimeter = "_";
     std::string end_delimeter = ".";
-    std::string::size_type pos = 0;
-    std::string::size_type next_pos = 0;
+    std::string::size_type pos = filename.rfind("/");
+    std::string::size_type next_pos = pos;
     std::string::size_type sub_len = 0;
     unsigned int Z = 0;
     unsigned int A = 0;
     bool bad = false;
+
     std::function<std::string()> next_substr = [&] () -> std::string {
         if(pos >= filename.size() or pos == std::string::npos) {
             bad = true;
@@ -571,6 +587,7 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, Part
         pos = next_pos;
         return sub;
     };
+
     while(pos < filename.size() and pos != std::string::npos) {
         std::string sub = next_substr();
         if(bad)
@@ -594,6 +611,42 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, Part
                 throw std::runtime_error("File HNL mass does not match specified HNL mass!");
             }
         }
+    }
+    //std::string pid_str = std::format("10{0:0>1d}{1:0>3d}{2:0>3d}{3:0>1d}", 0, Z, A, 0);
+    unsigned int buffer_size = 1024;
+    char buffer[buffer_size];
+    unsigned int str_size = std::snprintf(buffer, buffer_size, "10%01d%03d%03d%01d", 0, Z, A, 0);
+    if(str_size > 10) {
+        throw std::runtime_error("Cannot create particle ID string!");
+    }
+    std::string pid_str(buffer);
+    int32_t pid_int = std::stoul(pid_str);
+    Particle::ParticleType pid = (Particle::ParticleType)pid_int;
+
+    if(fexists(filename)) {
+        std::ifstream in(filename.c_str());
+        std::string buf;
+
+        TableData2D<double> table_data;
+        while(std::getline(in, buf)) {
+            if((pos = buf.find('#')) != std::string::npos)
+                buf.erase(pos);
+            const char* whitespace=" \n\r\t\v";
+            if((pos=buf.find_first_not_of(whitespace))!=0)
+                buf.erase(0,pos);
+            if(!buf.empty() && (pos=buf.find_last_not_of(whitespace))!=buf.size()-1)
+                buf.erase(pos+1);
+            if(buf.empty())
+                continue;
+        }
+        std::stringstream ss(buf);
+        double x, y, f;
+        ss >> x, y, f;
+        table_data.x.push_back(x);
+        table_data.y.push_back(y);
+        table_data.f.push_back(f);
+    } else {
+        throw std::runtime_error("Failed open cross section file!");
     }
 }
 

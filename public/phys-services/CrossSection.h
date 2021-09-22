@@ -57,12 +57,12 @@ private:
     void InitializeTargetTypes();
 public:
     CrossSectionCollection(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
-    std::vector<std::shared_ptr<CrossSection>> const & GetCrossSections() const {return cross_sections;};
-    std::vector<std::shared_ptr<CrossSection>> const & GetCrossSectionsForTarget(Particle::ParticleType p) const;
-    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & GetCrossSectionsByTarget() const {
+    std::vector<std::shared_ptr<CrossSection>> GetCrossSections() const {return cross_sections;};
+    std::vector<std::shared_ptr<CrossSection>> GetCrossSectionsForTarget(Particle::ParticleType p) const;
+    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> GetCrossSectionsByTarget() const {
         return cross_sections_by_target;
     };
-    std::vector<Particle::ParticleType> const & TargetTypes() const {
+    std::vector<Particle::ParticleType> TargetTypes() const {
         return target_types;
     };
 };
