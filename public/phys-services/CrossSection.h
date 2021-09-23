@@ -128,10 +128,19 @@ template<typename T>
 struct IndexFinderIrregular {
     std::vector<T> data;
     std::vector<T> diff;
+    T low;
+    T high;
+    T range;
+
+    IndexFinderIrregular() {};
     IndexFinderIrregular(std::set<T> x): data(x.begin(), x.end()) {
-        diff.reserve(x.size() - 1);
-        for(unsigned int i=1; i<x.size(); ++i) {
-            diff[i-1] = x[i] - x[i-1];
+        std::sort(data.begin(), data.end());
+        low = data.front();
+        high = data.back();
+        range = high - low;
+        diff.reserve(data.size() - 1);
+        for(unsigned int i=1; i<data.size(); ++i) {
+            diff[i-1] = data[i] - data[i-1];
         }
     };
 
@@ -161,10 +170,13 @@ struct IndexFinderRegular {
     unsigned int n_points;
     T delta;
 
+    IndexFinderRegular() {};
     IndexFinderRegular(std::set<T> x) {
-        n_points = x.size();
-        low = *x.begin();
-        high = *(x.last() - 1);
+        std::vector<T> points(x.begin(), x.end());
+        std::sort(points.begin(), points.end());
+        n_points = points.size();
+        low = points.front();
+        high = points.back();
         range = high - low;
         delta = range / (n_points - 1);
     };
@@ -181,9 +193,9 @@ template<typename T>
 struct Indexer1D {
 private:
     T min_x;
+    T max_x;
     T range;
     unsigned int n_points;
-    T delta;
 
     std::vector<T> points;
 
@@ -202,15 +214,17 @@ public:
 
     static
     T MaxDist(std::set<T> x, T avg_diff) {
-        std::vector<T> dist(x.size() - 1);
-        for(unsigned int i=1; i<x.size(); ++i) {
-            dist[i-1] = std::abs(x[i] - x[i-1] - avg_diff);
+        std::vector<T> p(x.begin(), x.end());
+        std::sort(p.begin(), p.end());
+        std::vector<T> dist(p.size() - 1);
+        for(unsigned int i=1; i<p.size(); ++i) {
+            dist[i-1] = std::abs(p[i] - p[i-1] - avg_diff);
         }
-        return *std::max_element(dist.first(), dist.last());
+        return *std::max_element(dist.begin(), dist.end());
     };
 
 	void AddTable(TableData1D<T> & table) {
-        std::set<T> x(table.x.begin(). table.x.end());
+        std::set<T> x(table.x.begin(), table.x.end());
         n_points = x.size();
 
         regular_index = IndexFinderRegular<T>(x);
@@ -252,11 +266,18 @@ public:
 
         if(is_regular) {
             min_x = irregular_index.low;
-            delta = irregular_index.delta;
+            max_x = irregular_index.high;
+            range = irregular_index.range;
             irregular_index.data.clear();
         } else {
             min_x = regular_index.low;
-            delta = regular_index.delta;
+            max_x = regular_index.high;
+            range = regular_index.range;
+        }
+        if(is_log) {
+            min_x = exp(min_x);
+            max_x = exp(max_x);
+            range = max_x - min_x;
         }
     }
 
@@ -272,6 +293,22 @@ public:
         } else {
             return irregular_index(val);
         }
+    }
+
+    T Min() const {
+        return min_x;
+    }
+
+    T Range() const {
+        return range;
+    }
+
+    T Max() const {
+        return min_x + range;
+    }
+
+    bool IsLog() {
+        return is_log;
     }
 };
 
@@ -298,7 +335,7 @@ public:
 
         indexer = Indexer1D<T>(table);
 
-        is_log = indexer.is_log;
+        is_log = indexer.IsLog();
 
         std::vector<T> function_values(table.f.begin(), table.f.end());
         if(is_log) {
@@ -337,6 +374,22 @@ public:
 
         return result;
     }
+
+    T MinX() {
+        return indexer.Min();
+    }
+
+    T RangeX() {
+        return indexer.Range();
+    }
+
+    T MaxX() {
+        return indexer.Max();
+    }
+
+    bool IsLog() {
+        return is_log;
+    }
 };
 
 
@@ -355,8 +408,8 @@ public:
     };
 
 	void AddTable(TableData2D<T> & table) {
-        std::set<T> x(table.x.begin(). table.x.end());
-        std::set<T> y(table.y.begin(). table.y.end());
+        std::set<T> x(table.x.begin(), table.x.end());
+        std::set<T> y(table.y.begin(), table.y.end());
         std::map<T, unsigned int> xmap;
         std::map<T, unsigned int> ymap;
         for(unsigned int n = 0; auto i : x) {
@@ -379,7 +432,7 @@ public:
         indexer_x = Indexer1D<T>(x_data);
         indexer_y = Indexer1D<T>(y_data);
 
-        is_log = indexer_x.is_log or indexer_y.is_log;
+        is_log = indexer_x.IsLog() or indexer_y.IsLog();
 
         std::vector<T> function_values(table.f.begin(), table.f.end());
         if(is_log) {
@@ -447,13 +500,37 @@ public:
 
         return result;
     }
+
+    T MinX() {
+        return indexer_x.Min();
+    }
+
+    T RangeX() {
+        return indexer_x.Range();
+    }
+
+    T MaxX() {
+        return indexer_x.Max();
+    }
+
+    T MinY() {
+        return indexer_y.Min();
+    }
+
+    T RangeY() {
+        return indexer_y.Range();
+    }
+
+    T MaxY() {
+        return indexer_y.Max();
+    }
 };
 
 
 class DipoleFromTable : public CrossSection {
 public:
 private:
-    std::map<Particle::ParticleType, TableData2D<double>> differential;
+    std::map<Particle::ParticleType, Interpolator2D<double>> differential;
     double hnl_mass;
 public:
 

@@ -638,13 +638,16 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, Part
                 buf.erase(pos+1);
             if(buf.empty())
                 continue;
+
+            std::stringstream ss(buf);
+            double x, y, f;
+            ss >> x, y, f;
+            table_data.x.push_back(x);
+            table_data.y.push_back(y);
+            table_data.f.push_back(f);
         }
-        std::stringstream ss(buf);
-        double x, y, f;
-        ss >> x, y, f;
-        table_data.x.push_back(x);
-        table_data.y.push_back(y);
-        table_data.f.push_back(f);
+        Interpolator2D<double> interp(table_data);
+        differential.insert(std::make_pair(pid, interp));
     } else {
         throw std::runtime_error("Failed open cross section file!");
     }
