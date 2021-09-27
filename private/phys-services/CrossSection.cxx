@@ -97,6 +97,16 @@ std::vector<std::shared_ptr<CrossSection>> CrossSectionCollection::GetCrossSecti
     }
 }
 
+DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
+    LoadFromMemory(differential_data, total_data);
+    InitializeSignatures();
+}
+
+DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<LeptonInjector::Particle::ParticleType> primary_types, std::vector<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
+    LoadFromMemory(differential_data, total_data);
+    InitializeSignatures();
+}
+
 DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
@@ -132,6 +142,11 @@ void DISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::string to
     if(total_cross_section_.get_ndim() != 1)
         throw std::runtime_error("Total cross section spline has " + std::to_string(total_cross_section_.get_ndim())
                 + " dimensions, should have 1, log10(E)");
+}
+
+void DISFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data) {
+    differential_cross_section_.read_fits_mem(differential_data.data(), differential_data.size());
+    total_cross_section_.read_fits_mem(total_data.data(), total_data.size());
 }
 
 void DISFromSpline::ReadParamsFromSplineTable() {

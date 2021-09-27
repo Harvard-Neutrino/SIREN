@@ -5,7 +5,9 @@
 #include <iostream>
 
 #include <gtest/gtest.h>
-#include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/array.hpp>
 
 #include "phys-services/CrossSection.h"
 
@@ -48,6 +50,8 @@ TEST(DISFromSpline, Constructor)
     event.primary_momentum[3] = z * energy;
 
     xs->SampleFinalState(event, rand);
+    cereal::JSONOutputArchive output(std::cout);
+    output(xs);
 }
 
 TEST(DipoleFromTable, Constructor)
@@ -85,9 +89,11 @@ TEST(DipoleFromTable, Constructor)
     event.primary_momentum[2] = y * energy;
     event.primary_momentum[3] = z * energy;
 
+    cereal::JSONOutputArchive output(std::cout);
     for(unsigned int i=0; i<10; ++i) {
         xs->SampleFinalState(event, rand);
-        std::cerr << event << std::endl;
+        //std::cerr << event << std::endl;
+        output(event);
     }
 }
 

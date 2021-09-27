@@ -7,6 +7,15 @@
 #include <string>
 
 #include <photospline/splinetable.h>
+#include <photospline/cinter/splinetable.h>
+
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/array.hpp>
+#include <cereal/types/set.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
 
 #include "LeptonInjector/Particle.h"
 #include "LeptonInjector/Random.h"
@@ -18,6 +27,16 @@ struct InteractionSignature {
     LeptonInjector::Particle::ParticleType target_type;
     std::vector<LeptonInjector::Particle::ParticleType> secondary_types;
     friend std::ostream& operator<<(std::ostream& os, InteractionSignature const& signature);
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("PrimaryType", primary_type));
+            archive(cereal::make_nvp("TargetType", target_type));
+            archive(cereal::make_nvp("SecondaryTypes", secondary_types));
+        } else {
+            throw std::runtime_error("InteractionSignature only supports version <= 0!");
+        }
+    }
 };
 
 struct InteractionRecord {
@@ -30,11 +49,26 @@ struct InteractionRecord {
     std::vector<std::array<double, 4>> secondary_momenta;
     std::vector<double> interaction_parameters;
     friend std::ostream& operator<<(std::ostream& os, InteractionRecord const& record);
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("InteractionSignature", signature));
+            archive(::cereal::make_nvp("PrimaryMass", primary_mass));
+            archive(::cereal::make_nvp("TargetMass", target_mass));
+            archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
+            archive(::cereal::make_nvp("TargetMomentum", target_momentum));
+            archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
+            archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
+            archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
+        } else {
+            throw std::runtime_error("InteractionRecord only supports version <= 0!");
+        }
+    };
 };
 
 class CrossSection {
+friend cereal::access;
 private:
-    //
 public:
     CrossSection() {};
     virtual double TotalCrossSection(InteractionRecord const &) const = 0;
@@ -47,6 +81,10 @@ public:
     virtual std::vector<InteractionSignature> GetPossibleSignatures() const = 0;
 
     virtual std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const = 0;
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {};
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {};
 };
 
 class CrossSectionCollection {
@@ -66,9 +104,33 @@ public:
     std::vector<Particle::ParticleType> TargetTypes() const {
         return target_types;
     };
+public:
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("PrimaryType", primary_type));
+            archive(cereal::make_nvp("CrossSections", cross_sections));
+        } else {
+            throw std::runtime_error("CrossSectionCollection only supports version <= 0!");
+        }
+    }
+
+    template<class Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<CrossSectionCollection> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            Particle::ParticleType p;
+            std::vector<std::shared_ptr<CrossSection>> c;
+            archive(cereal::make_nvp("PrimaryType", p));
+            archive(cereal::make_nvp("CrossSections", c));
+            construct(p, c);
+        } else {
+            throw std::runtime_error("CrossSectionCollection only supports version <= 0!");
+        }
+    }
 };
 
 class DISFromSpline : public CrossSection {
+friend cereal::access;
 private:
     photospline::splinetable<> differential_cross_section_;
     photospline::splinetable<> total_cross_section_;
@@ -79,11 +141,14 @@ private:
     std::map<LeptonInjector::Particle::ParticleType, std::vector<LeptonInjector::Particle::ParticleType>> targets_by_primary_types_;
     std::map<std::pair<LeptonInjector::Particle::ParticleType, LeptonInjector::Particle::ParticleType>, std::vector<InteractionSignature>> signatures_by_parent_types_;
 
-    double minimum_Q2_;
-    double target_mass_;
     int interaction_type_;
+    double target_mass_;
+    double minimum_Q2_;
 
 public:
+    DISFromSpline() {};
+    DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types);
+    DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::vector<LeptonInjector::Particle::ParticleType> primary_types, std::vector<LeptonInjector::Particle::ParticleType> target_types);
     DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types);
     DISFromSpline(std::string differential_filename, std::string total_filename, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types);
     DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<LeptonInjector::Particle::ParticleType> primary_types, std::vector<LeptonInjector::Particle::ParticleType> target_types);
@@ -102,15 +167,76 @@ public:
     std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const;
 
     void LoadFromFile(std::string differential_filename, std::string total_filename);
+    void LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data);
 
     double GetMinimumQ2() const {return minimum_Q2_;};
     double GetTargetMass() const {return target_mass_;};
     int GetInteractionType() const {return interaction_type_;};
 
+public:
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            splinetable_buffer buf;
+            buf.size = 0;
+            auto result_obj = differential_cross_section_.write_fits_mem();
+            buf.data = result_obj.first;
+            buf.size = result_obj.second;
+
+            std::vector<char> diff_blob;
+            diff_blob.resize(buf.size);
+            std::copy((char*)buf.data, (char*)buf.data + buf.size, &diff_blob[0]);
+
+            archive(::cereal::make_nvp("DifferentialCrossSectionSpline", diff_blob));
+
+            buf.size = 0;
+            result_obj = total_cross_section_.write_fits_mem();
+            buf.data = result_obj.first;
+            buf.size = result_obj.second;
+
+            std::vector<char> total_blob;
+            total_blob.resize(buf.size);
+            std::copy((char*)buf.data, (char*)buf.data + buf.size, &total_blob[0]);
+
+            archive(::cereal::make_nvp("TotalCrossSectionSpline", total_blob));
+            archive(::cereal::make_nvp("PrimaryTypes", primary_types_));
+            archive(::cereal::make_nvp("TargetTypes", target_types_));
+            archive(::cereal::make_nvp("InteractionType", interaction_type_));
+            archive(::cereal::make_nvp("TargetMass", target_mass_));
+            archive(::cereal::make_nvp("MinimumQ2", minimum_Q2_));
+            archive(cereal::virtual_base_class<CrossSection>(this));
+        } else {
+            throw std::runtime_error("DISFromSpline only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<DISFromSpline> construct, std::uint32_t version) {
+        if(version == 0) {
+            std::vector<char> differential_data;
+            std::vector<char> total_data;
+            int interaction;
+            double target_mass;
+            double minimum_Q2;
+            std::set<LeptonInjector::Particle::ParticleType> primary_types;
+            std::set<LeptonInjector::Particle::ParticleType> target_types;
+            archive(::cereal::make_nvp("DifferentialCrossSectionSpline", differential_data));
+            archive(::cereal::make_nvp("TotalCrossSectionSpline", total_data));
+            archive(::cereal::make_nvp("PrimaryTypes", primary_types));
+            archive(::cereal::make_nvp("TargetTypes", target_types));
+            archive(::cereal::make_nvp("InteractionType", interaction));
+            archive(::cereal::make_nvp("TargetMass", target_mass));
+            archive(::cereal::make_nvp("MinimumQ2", minimum_Q2));
+            construct(differential_data, total_data, interaction, target_mass, minimum_Q2, primary_types, target_mass);
+            archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
+        } else {
+            throw std::runtime_error("DISFromSpline only supports version <= 0!");
+        }
+    }
 private:
     void ReadParamsFromSplineTable();
     void InitializeSignatures();
 };
+
 
 template<typename T>
 struct TableData1D {
@@ -574,6 +700,15 @@ public:
 };
 
 } // namespace LeptonInjector
+
+CEREAL_CLASS_VERSION(LeptonInjector::DISFromSpline, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::DISFromSpline)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::CrossSection, LeptonInjector::DISFromSpline);
+
+CEREAL_CLASS_VERSION(LeptonInjector::InteractionSignature, 0);
+CEREAL_CLASS_VERSION(LeptonInjector::InteractionRecord, 0);
+CEREAL_CLASS_VERSION(LeptonInjector::CrossSectionCollection, 0);
+
 
 #endif // LI_CrossSection_H
 
