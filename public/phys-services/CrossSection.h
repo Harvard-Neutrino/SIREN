@@ -17,6 +17,7 @@ struct InteractionSignature {
     LeptonInjector::Particle::ParticleType primary_type;
     LeptonInjector::Particle::ParticleType target_type;
     std::vector<LeptonInjector::Particle::ParticleType> secondary_types;
+    friend std::ostream& operator<<(std::ostream& os, InteractionSignature const& signature);
 };
 
 struct InteractionRecord {
@@ -28,6 +29,7 @@ struct InteractionRecord {
     std::array<double, 3> interaction_vertex = {0, 0, 0};
     std::vector<std::array<double, 4>> secondary_momenta;
     std::vector<double> interaction_parameters;
+    friend std::ostream& operator<<(std::ostream& os, InteractionRecord const& record);
 };
 
 class CrossSection {

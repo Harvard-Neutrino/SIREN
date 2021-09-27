@@ -1103,5 +1103,52 @@ void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, Particle::P
 
 ////////////////////////////////////////////////////////////////////////////////
 
+std::ostream& operator<<(std::ostream& os, InteractionSignature const& signature)
+{
+    std::stringstream ss;
+    ss << "InteractionSignature (" << &signature << ") ";
+    os << ss.str() << '\n';
+
+
+    os << "PrimaryType: " << signature.primary_type << "\n";
+    os << "TargetType: " << signature.target_type << "\n";
+    os << "SecondaryTypes:";
+    for(auto secondary: signature.secondary_types) {
+        os << " " << secondary;
+    }
+    os << std::endl;
+
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, InteractionRecord const& record)
+{
+    std::stringstream ss;
+    ss << "InteractionRecord (" << &record << ") ";
+    os << ss.str() << '\n';
+    os << "Signature(" << &record.signature << "): " << record.signature.primary_type << " + " << record.signature.target_type << " ->";
+    for(auto secondary: record.signature.secondary_types) {
+        os << " " << secondary;
+    }
+    os << "\n";
+
+    os << "InteractionVertex: " << record.interaction_vertex[0] << " " << record.interaction_vertex[1] << " " << record.interaction_vertex[2] << "\n";
+    os << "PrimaryMass: " << record.primary_mass << "\n";
+    os << "PrimaryMomentum: " << record.primary_momentum[0] << " " << record.primary_momentum[1] << " " << record.primary_momentum[2] << " " << record.primary_momentum[3] << "\n";
+    os << "TargetMass: " << record.target_mass << "\n";
+    os << "TargetMomentum: " << record.target_momentum[0] << " " << record.target_momentum[1] << " " << record.target_momentum[2] << " " << record.target_momentum[3] << "\n";
+    os << "SecondaryMomenta:\n";
+    for(auto const & secondary: record.secondary_momenta) {
+        os << "\t" << secondary[0] << " " << secondary[1] << " " << secondary[2] << " " << secondary[3] << "\n";
+    }
+    os << "InteractionParameters:";
+    for(auto param: record.interaction_parameters) {
+        os << " " << param;
+    }
+    os << std::endl;
+
+    return os;
+}
+
 } // namespace LeptonInjector
 
