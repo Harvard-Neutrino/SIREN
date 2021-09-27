@@ -37,3 +37,4 @@ package_add_test(UnitTest_DensityDistribution DensityDistribution_TEST.cxx)
 package_add_test(UnitTest_Quaternion Quaternion_TEST.cxx)
 
 package_add_test(UnitTest_CrossSection CrossSection_TEST.cxx)
+package_add_test(UnitTest_Injector Injector_TEST.cxx)

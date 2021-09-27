@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include <gtest/gtest.h>
+#include <cereal/archives/binary.hpp>
 
 #include "phys-services/CrossSection.h"
 

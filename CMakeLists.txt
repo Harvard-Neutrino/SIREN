@@ -208,6 +208,11 @@ ELSE(NOT PYTHON FOUND)
     MESSAGE("-- no python. skipping")
 ENDIF(PYTHON_FOUND)
 
+set(JUST_INSTALL_CEREAL ON CACHE INTERNAL "Cereal just install library.")
+set(SKIP_PORTABILITY_TEST ON CACHE INTERNAL "Skip cereal portability tests.")
+set(SKIP_PERFORMANCE_COMPARISON ON CACHE INTERNAL "Skip cereal performance comparison.")
+add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/cereal" "extern/cereal")
+include_directories("${PROJECT_SOURCE_DIR}/vendor/cereal/include")
 add_subdirectory(tests)
 
 MESSAGE("")
