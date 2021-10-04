@@ -80,7 +80,13 @@ void EarthModel::AddSector(EarthSector sector) {
 }
 
 EarthSector EarthModel::GetSector(int heirarchy) const {
-    return sectors_[sector_map_.find(heirarchy)->second];
+    auto const iter = sector_map_.find(heirarchy);
+    assert(iter != sector_map_.end());
+    unsigned int index = sector_map_.at(heirarchy);
+    assert(index < sectors_.size());
+    unsigned int alt_index = sector_map_.find(heirarchy)->second;
+    assert(index == alt_index);
+    return sectors_[index];
 }
 
 void EarthModel::ClearSectors() {
@@ -277,7 +283,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
                 throw(ss_err.str());
             }
 
-            sectors_.push_back(sector);
+            AddSector(sector);
         }
         else if(type.find("detector") != std::string::npos) {
             double x0, y0, z0; // Coordinates of the center of the detector
@@ -470,7 +476,18 @@ Geometry::IntersectionList EarthModel::GetIntersections(Vector3D const & p0, Vec
     }
 
     SortIntersections(intersections);
-
+		
+/*		std::cout << "INITIAL POSITION\n";
+    std::cout << p0 << std::endl;
+		std::cout << "INITIAL DIRECTION\n";
+    std::cout << direction << std::endl;
+    for(unsigned int k = 0; k < intersections.intersections.size(); ++k){
+			std::cout << "POSITION\n";
+			std::cout << intersections.intersections[k].position << std::endl;
+			std::cout << "CONTAINING VOLUME\n";
+			std::cout << GetContainingSector(intersections.intersections[k].position).material_id << std::endl;
+    }
+*/
     return intersections;
 }
 

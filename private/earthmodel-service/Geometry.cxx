@@ -1284,6 +1284,7 @@ ExtrPoly::ExtrPoly(const std::vector<std::vector<double>>& polygon,
         std::cout << "Need 3 polygon vertices at least!! Give it another shot";
         return;
     }
+    ComputeLateralPlanes();
 }
 
 ExtrPoly::ExtrPoly(Placement const & placement)
@@ -1291,7 +1292,7 @@ ExtrPoly::ExtrPoly(Placement const & placement)
       , polygon_({})
 , zsections_({})
 {
-    // Do nothing here
+    ComputeLateralPlanes();
 }
 
 
@@ -1306,6 +1307,7 @@ ExtrPoly::ExtrPoly(Placement const & placement, const std::vector<std::vector<do
         std::cout << "Need 3 polygon vertices at least!! Give it another shot";
         return;
     }
+    ComputeLateralPlanes();
 }
 
 ExtrPoly::ExtrPoly(const ExtrPoly& extr)
@@ -1313,7 +1315,7 @@ ExtrPoly::ExtrPoly(const ExtrPoly& extr)
     , polygon_(extr.polygon_)
       , zsections_(extr.zsections_)
 {
-    // Nothing to do here
+    ComputeLateralPlanes();
 }
 
 
@@ -1387,7 +1389,7 @@ void ExtrPoly::ComputeLateralPlanes()
         planes_[i].a = -dir[1];
         planes_[i].b = dir[0];
         planes_[i].c = 0;
-        planes_[i].d = dir[1]*polygon_[i][0] - dir[0]*polygon_[k][1];
+        planes_[i].d = dir[1]*polygon_[i][0] - dir[0]*polygon_[i][1];
     }
 }
 
@@ -1415,7 +1417,7 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D cons
         dist.push_back(i);
     };
 
-
+    
     int Nz = zsections_.size();
     double z0 = zsections_[0].zpos;
     double z1 = zsections_[Nz-1].zpos;
@@ -1439,12 +1441,15 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D cons
     {
         double cosa = planes_[i].a*direction.GetX()+planes_[i].b*direction.GetY();
         double distnce = planes_[i].a*position.GetX()+planes_[i].b*position.GetY()+planes_[i].d;
+        // case 1: particle is outside XY projection of detector
         if (distnce >= -GEOMETRY_PRECISION)
         {
-            if (cosa >= 0) { continue; }
+            if (cosa >= 0) { return dist; } // If particle is currently moving away from any face, it will never intersect
             double tmp  = -distnce/cosa;
             if (txmin < tmp)  { txmin = tmp; }
+
         }
+        // case 2: particle is inside XY projection of detector
         else if (cosa > 0)
         {
             double tmp  = -distnce/cosa;
