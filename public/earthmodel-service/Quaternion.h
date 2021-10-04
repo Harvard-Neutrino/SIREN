@@ -17,7 +17,8 @@ public:
     // constructors
     Quaternion();
     Quaternion(const double x, const double y, const double z, const double w);
-    Quaternion(const Quaternion& quaternion);
+    Quaternion(const Quaternion & quaternion);
+    Quaternion(const Vector3D & vec);
     Quaternion(Quaternion&& other);
     ~Quaternion();
 
@@ -91,6 +92,8 @@ private:
     double z_;
     double w_;
 };
+
+Quaternion rotation_between(Vector3D const & v0, Vector3D const & v1);
 
 } // namespace earthmodel
 

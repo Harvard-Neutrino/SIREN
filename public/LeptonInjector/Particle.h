@@ -75,7 +75,7 @@ namespace LeptonInjector{
                 TauMinus = 15,
                 NuTau = 16,
                 NuTauBar = -16,
-                
+
                 /* Nuclei */
                 HNucleus = 1000010010,
                 H2Nucleus = 1000010020,
@@ -168,12 +168,15 @@ namespace LeptonInjector{
                 Fe56Nucleus = 1000260560,
                 Fe57Nucleus = 1000260570,
                 Fe58Nucleus = 1000260580,
+                Pb208Nucleus = 1000822080,
 
                 /* Exotics */
                 Qball = 10000000,
 
                 /* The following are fake particles used in Icetray and have no official codes */
                 /* The section abs(code) > 2000000000 is reserved for this kind of use */
+                NuF4 = 2000000018,
+                NuF4Bar = -2000000018,
                 Nucleon = 2000002112,
                 CherenkovPhoton = 2000009900,
                 Nu = -2000000004,

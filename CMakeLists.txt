@@ -10,7 +10,7 @@ cmake_policy(VERSION 3.3.2)
 ## project(lepton_injector VERSION 1.0.0 DESCRIPTION "lepton injector library")
 project(lepton_injector VERSION 1.0.0 LANGUAGES CXX C)
 
-SET(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_C_STANDARD 99)
 ## enable_language(cxx)
 SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
@@ -208,6 +208,11 @@ ELSE(NOT PYTHON FOUND)
     MESSAGE("-- no python. skipping")
 ENDIF(PYTHON_FOUND)
 
+set(JUST_INSTALL_CEREAL ON CACHE INTERNAL "Cereal just install library.")
+set(SKIP_PORTABILITY_TEST ON CACHE INTERNAL "Skip cereal portability tests.")
+set(SKIP_PERFORMANCE_COMPARISON ON CACHE INTERNAL "Skip cereal performance comparison.")
+add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/cereal" "extern/cereal")
+include_directories("${PROJECT_SOURCE_DIR}/vendor/cereal/include")
 add_subdirectory(tests)
 
 MESSAGE("")
