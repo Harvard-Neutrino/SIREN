@@ -3,6 +3,7 @@
 #include <array>
 //#include <format>
 #include <fstream>
+#include <algorithm>
 #include <functional>
 
 #include "LeptonInjector/Random.h"
@@ -63,6 +64,64 @@ namespace {
     inline double dot(std::array<double, 4> p0, std::array<double, 4> p1) {
         return p0[0] * p1[0] - (p0[1] * p1[1] + p0[2] * p1[2] + p0[3] * p1[3]);
     }
+
+    template <class InIt>
+	typename std::iterator_traits<InIt>::value_type accumulate(InIt begin, InIt end) {
+		typedef typename std::iterator_traits<InIt>::value_type real;
+		real sum = real(0);
+		real running_error = real(0);
+		real temp;
+		real difference;
+
+		for (; begin != end; ++begin) {
+			difference = *begin;
+			difference -= running_error;
+			temp = sum;
+			temp += difference;
+			running_error = temp;
+			running_error -= sum;
+			running_error -= difference;
+			sum = std::move(temp);
+		}
+		return sum;
+	};
+
+    template<typename T>
+    T accumulate(std::initializer_list<T> list) {
+        return accumulate(list.begin(), list.end());
+    }
+
+	template <typename T>
+	class accumulator {
+    private:
+		T sum;
+		T running_error;
+		T temp;
+		T difference;
+    public:
+        accumulator() : sum(0), running_error(0) {};
+        accumulator(std::initializer_list<T> const & list) : sum(0), running_error(0) {
+            for(auto const & val : list) {
+                accumulate(val);
+            }
+        }
+        void accumulate(T const & val) {
+			difference = val;
+			difference -= running_error;
+			temp = sum;
+			temp += difference;
+			running_error = temp;
+			running_error -= sum;
+			running_error -= difference;
+			sum = std::move(temp);
+        }
+        T result() {
+            return sum;
+        }
+        operator T() {
+            return sum;
+        }
+    };
 }
 
 void CrossSectionCollection::InitializeTargetTypes() {
@@ -370,7 +429,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     unsigned int other_index = 1 - lepton_index;
     double m = particleMass(interaction.signature.secondary_types[lepton_index]);
 
-    double m1 = p1_lab | p1_lab;
+    double m1 = interaction.primary_mass;
     double m3 = m;
     double E1_lab = p1_lab.e0();
     double E2_lab = p2_lab.e0();
@@ -477,7 +536,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
         test_cross_section = measure * pow(10., eval);
 
         double odds = (test_cross_section / cross_section);
-        accept = ((odds > 1.) || random->Uniform(0, 1) < odds);
+        accept = (cross_section == 0 || (odds > 1.) || random->Uniform(0, 1) < odds);
 
         if(accept) {
             kin_vars = test_kin_vars;
@@ -713,6 +772,9 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
             yMin = 0.5 * (1 + (mm2*mm2 + (-1 * r2 + (-1 * std::pow((std::pow(-1 + mm2, 2) + (-2 * (1 + mm2) * r2 + r2*r2)), 0.5) + mm2 * (-2 + (-1 * r2 + std::pow((std::pow(-1 + mm2, 2) + (-2 * (1 + mm2) * r2 + r2*r2)), 0.5)))))));
         }
     }
+    assert(yMin > 0);
+    double log_yMax = log10(yMax);
+    double log_yMin = log10(yMin);
     double min_Q2 = yMin * s;
 
     bool accept;
@@ -738,7 +800,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
         // rejection sample a point which is kinematically allowed by calculation limits
         double trialQ;
         do {
-            kin_vars[1] = random->Uniform(yMin, yMax);
+            kin_vars[1] = std::pow(10.0, random->Uniform(log_yMin, log_yMax));
             trialQ = (2 * E1_lab * E2_lab) * kin_vars[1];
         } while(trialQ < min_Q2 || !kinematicallyAllowed(kin_vars[1], primary_energy, m2, m));
 
@@ -762,7 +824,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
         // repeat the sampling from above to get a new valid point
         double trialQ;
         do {
-            test_kin_vars[1] = random->Uniform(yMin, yMax);
+            test_kin_vars[1] = std::pow(10.0, random->Uniform(log_yMin, log_yMax));
             trialQ = (2 * E1_lab * E2_lab) * test_kin_vars[1];
         } while(trialQ < min_Q2 || !kinematicallyAllowed(test_kin_vars[1], primary_energy, m2, m));
 
@@ -774,11 +836,11 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
             continue;
 
         test_cross_section = diff_table(test_kin_vars[0], test_kin_vars[1]);
-        if(std::isnan(test_cross_section))
+        if(std::isnan(test_cross_section) or test_cross_section <= 0)
             continue;
 
         double odds = (test_cross_section / cross_section);
-        accept = ((odds > 1.) || random->Uniform(0, 1) < odds);
+        accept = (cross_section == 0 || (odds > 1.) || random->Uniform(0, 1) < odds);
 
         if(accept) {
             kin_vars = test_kin_vars;
@@ -792,10 +854,57 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     interaction.interaction_parameters[1] = final_y;
 
     double Q2 = 2 * E1_lab * E2_lab * final_y;
-    double p1x_lab = std::sqrt(p1_lab.e1() * p1_lab.e1() + p1_lab.e2() * p1_lab.e2() + p1_lab.e3() * p1_lab.e3());
-    double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
-    double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
-    double pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);
+    double p1x_lab = std::sqrt(accumulator<double>{p1_lab.e1() * p1_lab.e1(), p1_lab.e2() * p1_lab.e2(), p1_lab.e3() * p1_lab.e3()});
+    //double pqx_lab = accumulator<double>{m1*m1, m3*m3, 2 * p1x_lab * p1x_lab, Q2, 2 * E1_lab * E1_lab * (final_y - 1)} / (2.0 * p1x_lab);
+    double pqx_lab = accumulator<double>{-2*E1_lab*E1_lab, 2*E1_lab*E1_lab*final_y, 2 * E1_lab*E2_lab*final_y, m1*m1, m3*m3, 2*p1_lab.e1()*p1_lab.e1(), 2*p1_lab.e2()*p1_lab.e2(), 2*p1_lab.e3()*p1_lab.e3()}
+        / (2 * p1x_lab);
+    //double momq_lab = std::sqrt(accumulator<double>{m1*m1, p1x_lab*p1x_lab, Q2, E1_lab * E1_lab * (final_y * final_y - 1)});
+    //double pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);
+    double pqy_lab;
+    {
+        double E1lab = E1_lab;
+        double E1lab2 = E1_lab * E1_lab;
+        double E1lab3 = E1lab2 * E1_lab;
+        double E1lab4 = E1lab3 * E1_lab;
+
+        double finaly = final_y;
+        double finaly2 = finaly * finaly;
+
+        double E2lab = E2_lab;
+        double E2lab2 = E2_lab * E2_lab;
+        double E2lab3 = E2lab2 * E2_lab;
+        double E2lab4 = E2lab3 * E2_lab;
+
+        double m12 = m1 * m1;
+        double m13 = m12 * m1;
+        double m14 = m13 * m1;
+
+        double m32 = m3 * m3;
+        double m33 = m32 * m3;
+        double m34 = m33 * m3;
+
+        double p1labe1 = p1_lab.e1();
+        double p1labe2 = p1_lab.e2();
+        double p1labe3 = p1_lab.e3();
+        double p1labe12 = p1labe1*p1labe1;
+        double p1labe22 = p1labe2*p1labe2;
+        double p1labe32 = p1labe3*p1labe3;
+
+        pqy_lab = accumulator<double>{
+            -4*E1lab4, 8*E1lab4*finaly, 8*E1lab3*E2lab*finaly,
+            -4*E1lab4*finaly2, -8*E1lab3*E2lab*finaly2,
+            -4*E1lab2*E2lab2*finaly2, 4*E1lab2*m12,
+            -4*E1lab2*finaly*m12, -4*E1lab*E2lab*finaly*m12, -m14,
+             4*E1lab2*m32, -4*E1lab2*finaly*m32,
+            -4*E1lab*E2lab*finaly*m32, -2*m12*m32, -m34,
+             4*E1lab2*p1labe12, -8*E1lab2*finaly*p1labe12,
+             4*E1lab2*finaly2*p1labe12, -4*m32*p1labe12,
+             4*E1lab2*p1labe22, -8*E1lab2*finaly*p1labe22,
+             4*E1lab2*finaly2*p1labe22, -4*m32*p1labe22,
+             4*E1lab2*p1labe32, -8*E1lab2*finaly*p1labe32,
+             4*E1lab2*finaly2*p1labe32, -4*m32*p1labe32};
+        pqy_lab /= accumulator<double>{p1labe12, p1labe22, p1labe32};
+    }
     double Eq_lab = E1_lab * final_y;
 
     stga3::ThreeVector<double> x_dir{1.0, 0.0, 0.0};
@@ -830,8 +939,9 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     stga3::FourVector<double> pq_24 = p4 - p2;
 
     // Check that computed q2 in the start frame matches up with the specified Q2
-    assert(std::abs(double(pq_13 | pq_13) + Q2) < std::abs(Q2 * 1e-3));
-    assert(std::abs(double(pq_24 | pq_24) + Q2) < std::abs(Q2 * 1e-3));
+    double check_q2 = double(pq_13 | pq_13);
+    //assert(std::abs(check_q2 + Q2) < std::abs(Q2 * 1e-3));
+    //assert(std::abs(double(pq_24 | pq_24) + Q2) < std::abs(Q2 * 1e-3));
 
     interaction.secondary_momenta.resize(2);
     interaction.secondary_momenta[lepton_index][0] = p3.e0(); // p3_energy
