@@ -16,6 +16,7 @@
 #include <cereal/types/set.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
+#include "serialization/array.h"
 
 #include "LeptonInjector/Particle.h"
 #include "LeptonInjector/Random.h"
@@ -258,6 +259,7 @@ struct IndexFinderIrregular {
     T low;
     T high;
     T range;
+    unsigned int n_points;
 
     IndexFinderIrregular() {};
     IndexFinderIrregular(std::set<T> x): data(x.begin(), x.end()) {
@@ -265,10 +267,11 @@ struct IndexFinderIrregular {
         low = data.front();
         high = data.back();
         range = high - low;
-        diff.reserve(data.size() - 1);
+        diff.resize(data.size() - 1);
         for(unsigned int i=1; i<data.size(); ++i) {
             diff[i-1] = data[i] - data[i-1];
         }
+        n_points = data.size();
     };
 
     std::tuple<unsigned int, T, T, T> operator()(T const & x) const {
@@ -278,7 +281,14 @@ struct IndexFinderIrregular {
         // distance(begin, pointer to y) --> y
         // therefore this function returns the index of the lower bin edge
         unsigned int index = std::distance(data.begin(), std::lower_bound(data.begin(), data.end(), x)) - 1;
-        return std::tuple<unsigned int, T, T, T>(index, x, data[index], diff[index]);
+        if(index < 0)
+            index = 0;
+        else if(index >= n_points - 1)
+            index = n_points - 2;
+        return std::tuple<unsigned int, T, T, T>(index,
+                x,
+                data[index],
+                diff[index]);
     }
 };
 
@@ -310,6 +320,10 @@ struct IndexFinderRegular {
 
     std::tuple<unsigned int, T, T, T> operator()(T const & x) const {
         int i = (int)alt_floor<T>()((x - low) / range * (n_points - 1));
+        if(i < 0)
+            i = 0;
+        else if(i >= n_points - 1)
+            i = n_points - 2;
         T lower_edge = low + i * delta;
         return std::tuple<unsigned int, T, T, T>(i, x, lower_edge, delta);
     }
@@ -453,6 +467,7 @@ struct Interpolator1D {
 private:
     Indexer1D<T> indexer;
 	std::map<unsigned int, T> function;
+    std::vector<bool> zero_mask;
     bool is_log = false;
 public:
 
@@ -464,20 +479,24 @@ public:
 	void AddTable(TableData1D<T> & table) {
         std::set<T> x(table.x.begin(), table.x.end());
         std::map<T, unsigned int> xmap;
-        for(unsigned int n = 0; auto i : x) {
+        unsigned int n = 0;
+        for(auto i : x) {
             xmap[i] = n;
             ++n;
         }
 
-        assert(table.x.size() >= 2);
+        assert(x.size() >= 2);
         assert(table.f.size() >= 2);
+        assert(x.size() == table.f.size());
         indexer = Indexer1D<T>(table);
 
         is_log = indexer.IsLog();
 
         std::vector<T> function_values(table.f.begin(), table.f.end());
         if(is_log) {
-            std::transform(function_values.begin(), function_values.end(), function_values.begin(), [](T t)->T{return log(t);});
+            zero_mask.reserve(function_values.size());
+            std::transform(function_values.begin(), function_values.end(), zero_mask.begin(), [](T t)->T{return t<=0;});
+            std::transform(function_values.begin(), function_values.end(), function_values.begin(), [](T t)->T{if(t > 0){return log(t);} else {return t;}});
         }
 
         for(unsigned int i=0; i<table.x.size(); ++i) {
@@ -504,10 +523,27 @@ public:
 
         T fa = function.at(index);
         T fb = function.at(index+1);
-        T result = fa + (fb - fa) * (val - xa) / delta;
-
+        T result;
         if(is_log) {
-            result = exp(result);
+            if(zero_mask[index]) {
+                if(zero_mask[index+1]) {
+                    result = fa + (fb - fa) * exp(val - xa - delta);
+                } else {
+                    result = fa + (exp(fb) - fa) * exp(val - xa - delta);
+                }
+            } else {
+                if(zero_mask[index+1]) {
+                    result = exp(fa) + (fb - exp(fa)) * exp(val - xa - delta);
+                } else {
+                    result = exp(fa + (fb - fa) * (val - xa) / delta);
+                }
+            }
+        } else {
+            result = fa + (fb - fa) * (val - xa) / delta;
+        }
+
+        if(result < 0) {
+            result = 0;
         }
 
         return result;
@@ -536,6 +572,7 @@ struct Interpolator2D {
 private:
     Indexer1D<T> indexer_x;
     Indexer1D<T> indexer_y;
+    std::map<std::pair<unsigned int, unsigned int>, bool> zero_mask;
 	std::map<std::pair<unsigned int, unsigned int>, T> function;
     bool is_log = false;
 public:
@@ -550,11 +587,13 @@ public:
         std::set<T> y(table.y.begin(), table.y.end());
         std::map<T, unsigned int> xmap;
         std::map<T, unsigned int> ymap;
-        for(unsigned int n = 0; auto i : x) {
+        unsigned int n = 0;
+        for(auto i : x) {
             xmap[i] = n;
             ++n;
         }
-        for(unsigned int n = 0; auto i : y) {
+        n = 0;
+        for(auto i : y) {
             ymap[i] = n;
             ++n;
         }
@@ -582,8 +621,12 @@ public:
         is_log = indexer_x.IsLog() or indexer_y.IsLog();
 
         std::vector<T> function_values(table.f.begin(), table.f.end());
+        std::vector<bool> z_mask;
         if(is_log) {
-            std::transform(function_values.begin(), function_values.end(), function_values.begin(), [](T t)->T{return log(t);});
+            z_mask.reserve(function_values.size());
+            std::transform(function_values.begin(), function_values.end(), z_mask.begin(), [](T t)->T{return t<=0;});
+            std::transform(function_values.begin(), function_values.end(), function_values.begin(), [](T t)->T{if(t > 0){return log(t);} else {return t;}});
+            //std::transform(function_values.begin(), function_values.end(), function_values.begin(), [](T t)->T{return log(t);});
         }
 
         for(unsigned int i=0; i<table.x.size(); ++i) {
@@ -594,17 +637,26 @@ public:
                         )
             ] = function_values[i];
         }
+        if(is_log) {
+            for(unsigned int i=0; i<table.x.size(); ++i) {
+                zero_mask[
+                    std::pair<unsigned int, unsigned int>(
+                            xmap[table.x[i]],
+                            ymap[table.y[i]]
+                            )
+                ] = z_mask[i];
+            }
+        }
     }
 
     T operator()(T const & x, T const & y) const {
-
         std::tuple<unsigned int, T, T, T> index_result_x = indexer_x(x);
         unsigned int index_x = std::get<0>(index_result_x);
         T val_x = std::get<1>(index_result_x);
         T xa = std::get<2>(index_result_x);
         T delta_x = std::get<3>(index_result_x);
 
-        std::tuple<unsigned int, T, T, T> index_result_y = indexer_y(x);
+        std::tuple<unsigned int, T, T, T> index_result_y = indexer_y(y);
         unsigned int index_y = std::get<0>(index_result_y);
         T val_y = std::get<1>(index_result_y);
         T ya = std::get<2>(index_result_y);
@@ -634,15 +686,59 @@ public:
         T fba = function.at(std::pair<unsigned int, unsigned int>(index_x+1, index_y));
         T fbb = function.at(std::pair<unsigned int, unsigned int>(index_x+1, index_y+1));
 
-        T result = (
-                db_x * db_y * faa +
-                db_x * da_y * fab +
-                da_x * db_y * fba +
-                da_x * da_y * fbb
-                ) / (delta_x * delta_y);
+        T result;
 
         if(is_log) {
-            result = exp(result);
+            bool zaa = zero_mask.at(std::pair<unsigned int, unsigned int>(index_x, index_y));
+            bool zab = zero_mask.at(std::pair<unsigned int, unsigned int>(index_x, index_y+1));
+            bool zba = zero_mask.at(std::pair<unsigned int, unsigned int>(index_x+1, index_y));
+            bool zbb = zero_mask.at(std::pair<unsigned int, unsigned int>(index_x+1, index_y+1));
+
+            bool has_zero = zaa or zab or zba or zbb;
+            if(has_zero) {
+                if(indexer_x.IsLog()) {
+                    da_x = exp(da_x);
+                    db_x = exp(db_x);
+                    delta_x = exp(delta_x);
+                }
+                if(indexer_y.IsLog()) {
+                    da_y = exp(da_y);
+                    db_y = exp(db_y);
+                    delta_y = exp(delta_y);
+                }
+                if(!zaa)
+                    faa = exp(faa);
+                if(!zab)
+                    fab = exp(fab);
+                if(!zba)
+                    fba = exp(fba);
+                if(!zbb)
+                    fbb = exp(fbb);
+                result = (
+                        db_x * db_y * faa +
+                        db_x * da_y * fab +
+                        da_x * db_y * fba +
+                        da_x * da_y * fbb
+                        ) / (delta_x * delta_y);
+            } else {
+                result = exp((
+                        db_x * db_y * faa +
+                        db_x * da_y * fab +
+                        da_x * db_y * fba +
+                        da_x * da_y * fbb
+                        ) / (delta_x * delta_y));
+            }
+        } else {
+            result = (
+                    db_x * db_y * faa +
+                    db_x * da_y * fab +
+                    da_x * db_y * fba +
+                    da_x * da_y * fbb
+                    ) / (delta_x * delta_y);
+        }
+
+        if(result < 0) {
+            result = 0;
         }
 
         return result;
