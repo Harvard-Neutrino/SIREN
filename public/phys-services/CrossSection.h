@@ -14,8 +14,10 @@
 #include <cereal/types/vector.hpp>
 #include <cereal/types/array.hpp>
 #include <cereal/types/set.hpp>
+#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
+#include <cereal/types/utility.hpp>
 #include "serialization/array.h"
 
 #include "LeptonInjector/Particle.h"
@@ -211,7 +213,7 @@ public:
         }
     }
     template<typename Archive>
-    static void load_and_construct(Archive & archive, cereal::construct<DISFromSpline> construct, std::uint32_t version) {
+    static void load_and_construct(Archive & archive, cereal::construct<DISFromSpline> & construct, std::uint32_t version) {
         if(version == 0) {
             std::vector<char> differential_data;
             std::vector<char> total_data;
@@ -227,7 +229,7 @@ public:
             archive(::cereal::make_nvp("InteractionType", interaction));
             archive(::cereal::make_nvp("TargetMass", target_mass));
             archive(::cereal::make_nvp("MinimumQ2", minimum_Q2));
-            construct(differential_data, total_data, interaction, target_mass, minimum_Q2, primary_types, target_mass);
+            construct(differential_data, total_data, interaction, target_mass, minimum_Q2, primary_types, target_types);
             archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
         } else {
             throw std::runtime_error("DISFromSpline only supports version <= 0!");
@@ -243,6 +245,15 @@ template<typename T>
 struct TableData1D {
     std::vector<T> x;
     std::vector<T> f;
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("TableX", x));
+            archive(cereal::make_nvp("TableF", f));
+        } else {
+            throw std::runtime_error("TableData1D only supports version <= 0!");
+        }
+    }
 };
 
 template<typename T>
@@ -250,6 +261,16 @@ struct TableData2D {
     std::vector<T> x;
     std::vector<T> y;
     std::vector<T> f;
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("TableX", x));
+            archive(cereal::make_nvp("TableY", y));
+            archive(cereal::make_nvp("TableF", f));
+        } else {
+            throw std::runtime_error("TableData2D only supports version <= 0!");
+        }
+    }
 };
 
 template<typename T>
@@ -273,6 +294,20 @@ struct IndexFinderIrregular {
         }
         n_points = data.size();
     };
+
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("Data", data));
+            archive(cereal::make_nvp("Diff", diff));
+            archive(cereal::make_nvp("Low", low));
+            archive(cereal::make_nvp("High", high));
+            archive(cereal::make_nvp("Range", range));
+            archive(cereal::make_nvp("NPoints", n_points));
+        } else {
+            throw std::runtime_error("IndexFinderIrregular only supports version <= 0!");
+        }
+    }
 
     std::tuple<unsigned int, T, T, T> operator()(T const & x) const {
         // Lower bound returns pointer to element that is greater than or equal to x
@@ -318,6 +353,19 @@ struct IndexFinderRegular {
         delta = range / (n_points - 1);
     };
 
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("Low", low));
+            archive(cereal::make_nvp("High", high));
+            archive(cereal::make_nvp("Range", range));
+            archive(cereal::make_nvp("NPoints", n_points));
+            archive(cereal::make_nvp("Delta", delta));
+        } else {
+            throw std::runtime_error("IndexFinderRegular only supports version <= 0!");
+        }
+    }
+
     std::tuple<unsigned int, T, T, T> operator()(T const & x) const {
         int i = (int)alt_floor<T>()((x - low) / range * (n_points - 1));
         if(i < 0)
@@ -336,7 +384,6 @@ private:
     T min_x;
     T max_x;
     T range;
-    unsigned int n_points;
 
     std::vector<T> points;
 
@@ -352,6 +399,22 @@ public:
     Indexer1D(TableData1D<T> & table) {
         AddTable(table);
     };
+
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("MinX", min_x));
+            archive(cereal::make_nvp("MaxX", max_x));
+            archive(cereal::make_nvp("Range", range));
+            archive(cereal::make_nvp("Points", points));
+            archive(cereal::make_nvp("IsLog", is_log));
+            archive(cereal::make_nvp("IsRegular", is_regular));
+            archive(cereal::make_nvp("RegularIndexer", regular_index));
+            archive(cereal::make_nvp("IrregularIndexer", irregular_index));
+        } else {
+            throw std::runtime_error("Indexer1D only supports version <= 0!");
+        }
+    }
 
     static
     T MaxDist(std::vector<T> x, T avg_diff) {
@@ -370,7 +433,7 @@ public:
         std::set<T> x_set(table.x.begin(), table.x.end());
         std::vector<T> x(x_set.begin(), x_set.end());
         std::sort(x.begin(), x.end());
-        n_points = x.size();
+        unsigned int n_points = x.size();
         assert(n_points >= 2);
 
         std::vector<T> log_x(x.begin(), x.end());
@@ -458,7 +521,7 @@ public:
         return is_log;
     }
     unsigned int NPoints() const {
-        return n_points;
+        return points.size();
     }
 };
 
@@ -475,6 +538,18 @@ public:
     Interpolator1D(TableData1D<T> & table) {
         AddTable(table);
     };
+
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("Indexer", indexer));
+            archive(cereal::make_nvp("Function", function));
+            archive(cereal::make_nvp("ZeroMask", zero_mask));
+            archive(cereal::make_nvp("IsLog", is_log));
+        } else {
+            throw std::runtime_error("Interpolator1D only supports version <= 0!");
+        }
+    }
 
 	void AddTable(TableData1D<T> & table) {
         std::set<T> x(table.x.begin(), table.x.end());
@@ -579,10 +654,23 @@ public:
 
     Interpolator2D() {};
     Interpolator2D(TableData2D<T> & table) {
-        AddTable(table);
+        SetTable(table);
     };
 
-	void AddTable(TableData2D<T> & table) {
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("IndexerX", indexer_x));
+            archive(cereal::make_nvp("IndexerY", indexer_y));
+            archive(cereal::make_nvp("Function", function));
+            archive(cereal::make_nvp("ZeroMask", zero_mask));
+            archive(cereal::make_nvp("IsLog", is_log));
+        } else {
+            throw std::runtime_error("Interpolator2D only supports version <= 0!");
+        }
+    }
+
+	void SetTable(TableData2D<T> & table) {
         std::set<T> x(table.x.begin(), table.x.end());
         std::set<T> y(table.y.begin(), table.y.end());
         std::map<T, unsigned int> xmap;
@@ -771,6 +859,7 @@ public:
 
 
 class DipoleFromTable : public CrossSection {
+friend cereal::access;
 public:
 private:
     std::map<Particle::ParticleType, Interpolator2D<double>> differential;
@@ -782,6 +871,7 @@ public:
     static double DipoleyMin(double Enu, double mHNL, double target_mass);
     static double DipoleyMax(double Enu, double mHNL, double target_mass);
     DipoleFromTable(double hnl_mass) : hnl_mass(hnl_mass) {};
+    DipoleFromTable(double hnl_mass, std::set<Particle::ParticleType> const & primary_types) : hnl_mass(hnl_mass), primary_types(primary_types) {};
     double TotalCrossSection(InteractionRecord const &) const;
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const;
     double DifferentialCrossSection(InteractionRecord const &) const;
@@ -795,6 +885,44 @@ public:
     std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const;
     void AddDifferentialCrossSectionFile(std::string filename, Particle::ParticleType target);
     void AddTotalCrossSectionFile(std::string filename, Particle::ParticleType target);
+    void AddDifferentialCrossSection(Particle::ParticleType target, Interpolator2D<double>);
+    void AddTotalCrossSection(Particle::ParticleType target, Interpolator1D<double>);
+public:
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("DifferentialCrossSection", differential));
+            archive(::cereal::make_nvp("TotalCrossSection", total));
+            archive(::cereal::make_nvp("PrimaryTypes", primary_types));
+            archive(::cereal::make_nvp("HNLMass", hnl_mass));
+            archive(cereal::virtual_base_class<CrossSection>(this));
+        } else {
+            throw std::runtime_error("DipoleFromTable only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<DipoleFromTable> & construct, std::uint32_t version) {
+        if(version == 0) {
+            std::map<Particle::ParticleType, Interpolator2D<double>> differential;
+            std::map<Particle::ParticleType, Interpolator1D<double>> total;
+            std::set<Particle::ParticleType> primary_types;
+            double hnl_mass;
+            archive(::cereal::make_nvp("DifferentialCrossSection", differential));
+            archive(::cereal::make_nvp("TotalCrossSection", total));
+            archive(::cereal::make_nvp("PrimaryTypes", primary_types));
+            archive(::cereal::make_nvp("HNLMass", hnl_mass));
+            construct(hnl_mass, primary_types);
+            for(auto const & iter : differential) {
+                construct.ptr()->AddDifferentialCrossSection(iter.first, iter.second);
+            }
+            for(auto const & iter : total) {
+                construct.ptr()->AddTotalCrossSection(iter.first, iter.second);
+            }
+            archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
+        } else {
+            throw std::runtime_error("DipoleFromTable only supports version <= 0!");
+        }
+    }
 };
 
 } // namespace LeptonInjector
@@ -802,6 +930,19 @@ public:
 CEREAL_CLASS_VERSION(LeptonInjector::DISFromSpline, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::DISFromSpline)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::CrossSection, LeptonInjector::DISFromSpline);
+
+
+CEREAL_CLASS_VERSION(LeptonInjector::TableData1D<double>, 0);
+CEREAL_CLASS_VERSION(LeptonInjector::TableData2D<double>, 0);
+CEREAL_CLASS_VERSION(LeptonInjector::IndexFinderRegular<double>, 0);
+CEREAL_CLASS_VERSION(LeptonInjector::IndexFinderIrregular<double>, 0);
+CEREAL_CLASS_VERSION(LeptonInjector::Indexer1D<double>, 0);
+CEREAL_CLASS_VERSION(LeptonInjector::Interpolator1D<double>, 0);
+CEREAL_CLASS_VERSION(LeptonInjector::Interpolator2D<double>, 0);
+
+CEREAL_CLASS_VERSION(LeptonInjector::DipoleFromTable, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::DipoleFromTable)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::CrossSection, LeptonInjector::DipoleFromTable);
 
 CEREAL_CLASS_VERSION(LeptonInjector::InteractionSignature, 0);
 CEREAL_CLASS_VERSION(LeptonInjector::InteractionRecord, 0);
