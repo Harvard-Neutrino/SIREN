@@ -2,6 +2,11 @@
 #define LI_EulerAngles_H
 
 #include <sstream>
+
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+
 #include "earthmodel-service/Matrix3D.h"
 
 namespace earthmodel {
@@ -124,6 +129,21 @@ public:
     void SetGamma(double gamma) {gamma_ = gamma;}
 
     Matrix3D GetMatrix() const;
+
+    //-------------------------------------//
+    // serialization
+    //----------------------------------------------//
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("EulerOrder", order_));
+            archive(cereal::make_nvp("Alpha", alpha_));
+            archive(cereal::make_nvp("Beta", beta_));
+            archive(cereal::make_nvp("Gamma", gamma_));
+        } else {
+            throw std::runtime_error("EulerAngles only supports version <= 0!");
+        }
+    }
 private:
     EulerOrder order_;
     double alpha_;
@@ -132,6 +152,8 @@ private:
 };
 
 } // namespace earthmodel
+
+CEREAL_CLASS_VERSION(earthmodel::EulerAngles, 0);
 
 #endif // LI_EulerAngles_H
 

@@ -32,6 +32,11 @@
 #include <vector>
 #include <fstream>
 
+#include <cereal/cereal.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%       Polynom      %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -63,6 +68,29 @@ class Polynom {
 
     std::function<double(double)> GetFunction();
 
+    //-------------------------------------//
+    // serialization
+    //----------------------------------------------//
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::make_nvp("Coefficients", coeff_));
+        } else {
+            throw std::runtime_error("Polynom only supports version <= 0!");
+        }
+    }
+
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<Polynom> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            std::vector<double> coeff;
+            archive(cereal::make_nvp("Coefficients", coeff));
+            construct(coeff);
+        } else {
+            throw std::runtime_error("Polynom only supports version <= 0!");
+        }
+    }
+
    protected:
     int N_;
     std::vector<double> coeff_;
@@ -91,6 +119,8 @@ double NewtonRaphson(std::function<double(double)> f, std::function<double(doubl
         double xinit, int MAX_STEPS = 101, double xacc = 1.e-6);
 
 }  // namespace earthmodel
+
+CEREAL_CLASS_VERSION(earthmodel::Polynom, 0);
 
 #endif // LI_Polynomial_H
 
