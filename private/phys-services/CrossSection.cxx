@@ -50,17 +50,6 @@ namespace {
         return (ad - bd) <= d * y and d * y <= (ad + bd); //Eq. 7
     }
 
-    bool kinematicallyAllowed(double y, double E, double M, double m) {
-        //denominator of a and b
-        double d = 2 * (1 + M / (2 * E));
-        //the numerator of a (or a*d)
-        double ad = 1 - m * m * ((1 / (2 * M * E)) + (1 / (2 * E * E)));
-        double term = 1 - ((m * m) / (2 * M * E));
-        //the numerator of b (or b*d)
-        double bd = sqrt(term * term - ((m * m) / (E * E)));
-        return (ad - bd) <= d * y and d * y <= (ad + bd); //Eq. 7
-    }
-
     inline double dot(std::array<double, 4> p0, std::array<double, 4> p1) {
         return p0[0] * p1[0] - (p0[1] * p1[1] + p0[2] * p1[2] + p0[3] * p1[3]);
     }
@@ -630,6 +619,42 @@ std::vector<InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParent
     }
 }
 
+
+double DipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) {
+    double target_mass2 = target_mass * target_mass;
+    double mHNL2 = mHNL * mHNL;
+
+    double s = 2 * Enu * target_mass + target_mass2;
+    double s2 = s * s;
+
+    double r2 = mHNL2 / s;
+    double r4 = mHNL2 * mHNL2 / s2;
+    double m2 = target_mass2 / s;
+    double m4 = target_mass2 * target_mass2 / s2;
+    double m2sub1sq = std::pow(m2 - 1, 2);
+    bool small_r = r2 < 1e-6;
+
+    if(small_r)
+        return m2 * r4 / m2sub1sq;
+    else {
+        double root = std::sqrt(m2sub1sq + (r4 - 2 * (1 + m2) * r2));
+        return 0.5 * (1 + m4 - r2 - root + m2 * (-2 - r2 + root));
+    }
+}
+
+
+double DipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) {
+    double target_mass2 = target_mass * target_mass;
+    double target_mass4 = target_mass2 * target_mass2;
+    double mHNL2 = mHNL * mHNL;
+
+    double s = 2 * Enu * target_mass + target_mass2;
+    double s2 = s * s;
+
+    return 0.5 * (target_mass4 - mHNL2*s + s2 - target_mass2*(mHNL2+2*s) + (s - target_mass2) * std::sqrt(target_mass4 + std::pow(mHNL2 - s, 2) - 2*target_mass2*(mHNL2+s))) / s2;
+}
+
+
 double DipoleFromTable::TotalCrossSection(InteractionRecord const & interaction) const {
     LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
     LeptonInjector::Particle::ParticleType target_type = interaction.signature.target_type;
@@ -729,7 +754,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     // we assume that:
     // the target is stationary so its energy is just its mass
     // the incoming neutrino is massless, so its kinetic energy is its total energy
-    // double s = target_mass_ * interaction.secondary_momentarget_mass_ + 2 * target_mass_ * primary_energy;
+    // double s = target_mass_ * target_mass_ + 2 * target_mass_ * primary_energy;
     double s = (p1 + p2) | (p1 + p2);
 
     double primary_energy;
@@ -757,21 +782,8 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     double E1_lab = p1_lab.e0();
     double E2_lab = p2_lab.e0();
 
-    // The out-going particle always gets at least enough energy for its rest mass
-    double yMax = 1 - m / primary_energy;
-    // The minimum allowed value of y occurs when x = 1 and Q is minimized
-	double yMin = 0;
-    {
-        double r = hnl_mass / std::sqrt(s);
-        double mm2 = m2*m2 / s;
-        double r2 = r*r;
-
-        if(r < 1e-3) {
-            yMin = mm2 * std::pow(-1 + mm2, -2) * r2*r2;
-        } else {
-            yMin = 0.5 * (1 + (mm2*mm2 + (-1 * r2 + (-1 * std::pow((std::pow(-1 + mm2, 2) + (-2 * (1 + mm2) * r2 + r2*r2)), 0.5) + mm2 * (-2 + (-1 * r2 + std::pow((std::pow(-1 + mm2, 2) + (-2 * (1 + mm2) * r2 + r2*r2)), 0.5)))))));
-        }
-    }
+    double yMin = DipoleyMin(E1_lab, GetHNLMass(), interaction.target_mass);
+    double yMax = DipoleyMax(E1_lab, GetHNLMass(), interaction.target_mass);
     assert(yMin > 0);
     double log_yMax = log10(yMax);
     double log_yMin = log10(yMin);
@@ -802,7 +814,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
         do {
             kin_vars[1] = std::pow(10.0, random->Uniform(log_yMin, log_yMax));
             trialQ = (2 * E1_lab * E2_lab) * kin_vars[1];
-        } while(trialQ < min_Q2 || !kinematicallyAllowed(kin_vars[1], primary_energy, m2, m));
+        } while(trialQ < min_Q2);
 
         accept = true;
         //sanity check: demand that the sampled point be within the table extents
@@ -826,7 +838,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
         do {
             test_kin_vars[1] = std::pow(10.0, random->Uniform(log_yMin, log_yMax));
             trialQ = (2 * E1_lab * E2_lab) * test_kin_vars[1];
-        } while(trialQ < min_Q2 || !kinematicallyAllowed(test_kin_vars[1], primary_energy, m2, m));
+        } while(trialQ < min_Q2);
 
         accept = true;
         //sanity check: demand that the sampled point be within the table extents
@@ -855,11 +867,8 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
 
     double Q2 = 2 * E1_lab * E2_lab * final_y;
     double p1x_lab = std::sqrt(accumulator<double>{p1_lab.e1() * p1_lab.e1(), p1_lab.e2() * p1_lab.e2(), p1_lab.e3() * p1_lab.e3()});
-    //double pqx_lab = accumulator<double>{m1*m1, m3*m3, 2 * p1x_lab * p1x_lab, Q2, 2 * E1_lab * E1_lab * (final_y - 1)} / (2.0 * p1x_lab);
     double pqx_lab = accumulator<double>{-2*E1_lab*E1_lab, 2*E1_lab*E1_lab*final_y, 2 * E1_lab*E2_lab*final_y, m1*m1, m3*m3, 2*p1_lab.e1()*p1_lab.e1(), 2*p1_lab.e2()*p1_lab.e2(), 2*p1_lab.e3()*p1_lab.e3()}
         / (2 * p1x_lab);
-    //double momq_lab = std::sqrt(accumulator<double>{m1*m1, p1x_lab*p1x_lab, Q2, E1_lab * E1_lab * (final_y * final_y - 1)});
-    //double pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);
     double pqy_lab;
     {
         double E1lab = E1_lab;

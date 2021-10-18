@@ -779,6 +779,8 @@ private:
     double hnl_mass;
 public:
     double GetHNLMass() const {return hnl_mass;};
+    static double DipoleyMin(double Enu, double mHNL, double target_mass);
+    static double DipoleyMax(double Enu, double mHNL, double target_mass);
     DipoleFromTable(double hnl_mass) : hnl_mass(hnl_mass) {};
     double TotalCrossSection(InteractionRecord const &) const;
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const;

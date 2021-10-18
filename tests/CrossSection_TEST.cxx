@@ -105,7 +105,7 @@ TEST(DipoleFromTable, Constructor)
     out.open("carbon_test.json");
 
     cereal::JSONOutputArchive output(out);
-    unsigned int total_events = 1000000;
+    unsigned int total_events = 10000;
     output(cereal::make_size_tag(static_cast<size_t>(total_events)));
     for(unsigned int i=0; i<total_events; ++i) {
         xs->SampleFinalState(event, rand);
