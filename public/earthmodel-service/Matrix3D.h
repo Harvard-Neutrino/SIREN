@@ -3,6 +3,11 @@
 
 #include <sstream>
 #include <initializer_list>
+
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+
 #include "earthmodel-service/Vector3D.h"
 
 namespace earthmodel {
@@ -80,6 +85,27 @@ public:
     void SetZX(double zx) {zx_ = zx;};
     void SetZY(double zy) {zy_ = zy;};
     void SetZZ(double zz) {zz_ = zz;};
+
+    //-------------------------------------//
+    // serialization
+    //----------------------------------------------//
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("XX", xx_));
+            archive(cereal::make_nvp("XY", xy_));
+            archive(cereal::make_nvp("XZ", xz_));
+            archive(cereal::make_nvp("YX", yx_));
+            archive(cereal::make_nvp("YY", yy_));
+            archive(cereal::make_nvp("YZ", yz_));
+            archive(cereal::make_nvp("ZX", zx_));
+            archive(cereal::make_nvp("ZY", zy_));
+            archive(cereal::make_nvp("ZZ", zz_));
+        } else {
+            throw std::runtime_error("Matrix3D only supports version <= 0!");
+        }
+    }
+
 private:
     double xx_ = 0.0;
     double xy_ = 0.0;
@@ -93,6 +119,8 @@ private:
 };
 
 } // namespace earthmodel
+
+CEREAL_CLASS_VERSION(earthmodel::Matrix3D, 0);
 
 #endif // LI_Matrix3D_H
 

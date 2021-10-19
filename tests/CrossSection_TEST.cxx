@@ -101,6 +101,9 @@ TEST(DipoleFromTable, Constructor)
     event.primary_momentum[2] = y * energy;
     event.primary_momentum[3] = z * energy;
 
+    cereal::JSONOutputArchive err(std::cerr);
+    err(*dipole_xs);
+
     std::ofstream out;
     out.open("carbon_test.json");
 

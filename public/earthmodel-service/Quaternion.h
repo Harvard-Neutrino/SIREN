@@ -2,6 +2,11 @@
 #define LI_Quaternion_H
 
 #include <sstream>
+
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+
 #include "earthmodel-service/Matrix3D.h"
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/EulerAngles.h"
@@ -86,6 +91,21 @@ public:
     void SetY(double y) {y_ = y;}
     void SetZ(double z) {z_ = z;}
     void SetW(double w) {w_ = w;}
+
+    //-------------------------------------//
+    // serialization
+    //----------------------------------------------//
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("X", x_));
+            archive(cereal::make_nvp("Y", y_));
+            archive(cereal::make_nvp("Z", z_));
+            archive(cereal::make_nvp("W", w_));
+        } else {
+            throw std::runtime_error("Quaternion only supports version <= 0!");
+        }
+    }
 private:
     double x_;
     double y_;
@@ -96,6 +116,8 @@ private:
 Quaternion rotation_between(Vector3D const & v0, Vector3D const & v1);
 
 } // namespace earthmodel
+
+CEREAL_CLASS_VERSION(earthmodel::Quaternion, 0);
 
 #endif // LI_Quaternion_H
 

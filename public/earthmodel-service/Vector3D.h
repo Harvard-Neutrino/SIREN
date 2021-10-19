@@ -27,6 +27,11 @@
 #define LI_Vector3D_H
 
 #include <sstream>
+
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+
 #include "earthmodel-service/Matrix3D.h"
 
 namespace earthmodel {
@@ -96,6 +101,17 @@ public:
         CartesianCoordinates(const CartesianCoordinates&);
 
         double x_, y_, z_;
+
+        template<typename Archive>
+        void serialize(Archive & archive, std::uint32_t const version) {
+            if(version == 0) {
+                archive(cereal::make_nvp("X", x_));
+                archive(cereal::make_nvp("Y", y_));
+                archive(cereal::make_nvp("Z", z_));
+            } else {
+                throw std::runtime_error("CartesianCoordinates only supports version <= 0!");
+            }
+        }
     };
 
     struct SphericalCoordinates {
@@ -104,6 +120,17 @@ public:
         SphericalCoordinates(const SphericalCoordinates&);
 
         double radius_, azimuth_, zenith_;
+
+        template<typename Archive>
+        void serialize(Archive & archive, std::uint32_t const version) {
+            if(version == 0) {
+                archive(cereal::make_nvp("Radius", radius_));
+                archive(cereal::make_nvp("Azimuth", azimuth_));
+                archive(cereal::make_nvp("Zenith", zenith_));
+            } else {
+                throw std::runtime_error("SphericalCoordinates only supports version <= 0!");
+            }
+        }
     };
 
     //-------------------------------------//
@@ -137,6 +164,18 @@ public:
     Vector3D::CartesianCoordinates GetCartesianCoordinates() const { return cartesian_; }
     Vector3D::SphericalCoordinates GetSphericalCoordinates() const { return spherical_; }
 
+    //-------------------------------------//
+    // serialization
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("CartesianCoordinates", cartesian_));
+            archive(cereal::make_nvp("SphericalCoordinates", spherical_));
+        } else {
+            throw std::runtime_error("Vector3D only supports version <= 0!");
+        }
+    }
+
     //----------------------------------------------//
 private:
     CartesianCoordinates cartesian_;
@@ -144,6 +183,8 @@ private:
 };
 
 } // namespace earthmodel
+
+CEREAL_CLASS_VERSION(earthmodel::Vector3D, 0);
 
 #endif // LI_Vector3D_H
 

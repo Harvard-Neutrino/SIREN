@@ -1135,7 +1135,7 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, Part
             table_data.f.push_back(f);
         }
         Interpolator2D<double> interp(table_data);
-        differential.insert(std::make_pair(pid, interp));
+        AddDifferentialCrossSection(pid, interp);
     } else {
         throw std::runtime_error("Failed open cross section file!");
     }
@@ -1206,6 +1206,10 @@ void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, Particle::P
     int32_t pid_int = std::stoul(pid_str);
     Particle::ParticleType pid = (Particle::ParticleType)pid_int;
 
+    if(pid != target) {
+        throw std::runtime_error("File target nucleus does not match supplied target type!");
+    }
+
     if(fexists(filename)) {
         std::ifstream in(filename.c_str());
         std::string buf;
@@ -1229,10 +1233,18 @@ void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, Particle::P
             table_data.f.push_back(f);
         }
         Interpolator1D<double> interp(table_data);
-        total.insert(std::make_pair(pid, interp));
+        AddTotalCrossSection(pid, interp);
     } else {
         throw std::runtime_error("Failed open cross section file!");
     }
+}
+
+void DipoleFromTable::AddDifferentialCrossSection(Particle::ParticleType target, Interpolator2D<double> interp) {
+    differential.insert(std::make_pair(target, interp));
+}
+
+void DipoleFromTable::AddTotalCrossSection(Particle::ParticleType target, Interpolator1D<double> interp) {
+    total.insert(std::make_pair(target, interp));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

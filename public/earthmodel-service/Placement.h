@@ -4,6 +4,10 @@
 #include <memory>
 #include <sstream>
 
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/Quaternion.h"
 
@@ -49,6 +53,19 @@ public:
     Vector3D GlobalToLocalDirection(Vector3D const & d) const;
     Vector3D LocalToGlobalDirection(Vector3D const & d) const;
 
+    //-------------------------------------//
+    // serialization
+    //----------------------------------------------//
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("Position", position_));
+            archive(cereal::make_nvp("Quaternion", quaternion_));
+        } else {
+            throw std::runtime_error("Placement only supports version <= 0!");
+        }
+    }
+
 private:
     Vector3D position_;
 
@@ -61,6 +78,8 @@ private:
 };
 
 } // namespace earthmodel
+
+CEREAL_CLASS_VERSION(earthmodel::Placement, 0);
 
 #endif // LI_Placement_H
 
