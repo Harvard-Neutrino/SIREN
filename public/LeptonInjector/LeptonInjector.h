@@ -360,9 +360,7 @@ public:
     };
     virtual void SampleCrossSection(InteractionRecord & record) const {
         std::vector<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
-        // TODO add GetAvailableTargets method
-        // std::vector<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
-        std::vector<Particle::ParticleType> available_targets_list;
+        std::vector<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
         std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
         double total_prob = 0.0;
         std::vector<double> probs;

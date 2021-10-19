@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "LeptonInjector/Particle.h"
+
 namespace earthmodel {
 
 class MaterialModel {
@@ -16,6 +18,7 @@ private:
     std::vector<std::string> material_names_;
     std::map<std::string, int> material_ids_;
     std::map<int, std::map<int, double> > material_maps_;
+    std::map<int, std::vector<LeptonInjector::Particle::ParticleType> > material_constituents_;
     std::map<int, double> pne_ratios_;
 public:
     MaterialModel();
@@ -31,11 +34,13 @@ public:
     void AddModelFile(std::string matratio);
 
     double GetPNERatio(int id) const;
+    double GetTargetComposition(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
     std::string GetMaterialName(int id) const;
     int GetMaterialId(std::string const & name) const;
     bool HasMaterial(std::string const & name) const;
     bool HasMaterial(int) const;
     std::map<int, double> GetMaterialMap(int id) const;
+    std::vector<LeptonInjector::Particle::ParticleType> GetMaterialConstituents(int id) const;
 private:
     double ComputePNERatio(std::map<int, double> const & matratios) const;
 public:

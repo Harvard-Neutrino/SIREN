@@ -38,6 +38,9 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
         material_ids_.insert({name, id});
         material_names_.push_back(name);
         material_maps_.insert({id, matratios});
+        std::vector<LeptonInjector::Particle::ParticleType> ptypes;
+        for (auto& k : matratios) {ptypes.push_back(static_cast<LeptonInjector::Particle::ParticleType>(k.first));}
+        material_constituents_.insert({id,ptypes});
         pne_ratios_.insert({id, pne_ratio});
     }
     else {
@@ -166,6 +169,15 @@ double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) const 
     return nw_electron;
 }
 
+double MaterialModel::GetTargetComposition(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+    double target_comp = 0;
+    for(auto const & it : material_maps_[id]) {
+        int pdg = it.first;
+        if std::find(targets.begin(), targets.end(),static_cast<LeptonInjector::Particle::ParticleType>(pdg))!=targets.end() {target_comp+=it.second;} 
+    }
+    return target_comp;
+}
+
 double MaterialModel::GetPNERatio(int id) const {
     return pne_ratios_.at(id);
 }
@@ -188,6 +200,10 @@ bool MaterialModel::HasMaterial(int id) const {
 
 std::map<int, double> MaterialModel::GetMaterialMap(int id) const {
     return material_maps_.at(id);
+}
+
+std::vector<LeptonInjector::Particle::ParticleType> MaterialModel::GetMaterialConstituents(int id) const {
+    return material_constituents_.at(id);
 }
 
 void MaterialModel::GetAZ(int code, int & np, int & nn) {
