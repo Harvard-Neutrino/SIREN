@@ -44,7 +44,8 @@
 namespace earthmodel {
 
 class Polynom {
-   public:
+friend cereal::access;
+public:
     Polynom(const std::vector<double>& coefficients);
     Polynom(const Polynom&);
 
