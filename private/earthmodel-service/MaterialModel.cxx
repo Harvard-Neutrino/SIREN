@@ -1,4 +1,5 @@
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -171,9 +172,11 @@ double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) const 
 
 double MaterialModel::GetTargetComposition(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
     double target_comp = 0;
-    for(auto const & it : material_maps_[id]) {
-        int pdg = it.first;
-        if std::find(targets.begin(), targets.end(),static_cast<LeptonInjector::Particle::ParticleType>(pdg))!=targets.end() {target_comp+=it.second;} 
+    std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
+    for(auto const & it : material_maps_.at(id)) {
+        LeptonInjector::Particle::ParticleType pdg = (LeptonInjector::Particle::ParticleType)it.first;
+        if(t.count(pdg) > 0)
+            target_comp += it.second;
     }
     return target_comp;
 }
