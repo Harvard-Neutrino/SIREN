@@ -928,10 +928,11 @@ public:
 
 } // namespace LeptonInjector
 
+CEREAL_CLASS_VERSION(LeptonInjector::CrossSection, 0);
+
 CEREAL_CLASS_VERSION(LeptonInjector::DISFromSpline, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::DISFromSpline)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::CrossSection, LeptonInjector::DISFromSpline);
-
 
 CEREAL_CLASS_VERSION(LeptonInjector::TableData1D<double>, 0);
 CEREAL_CLASS_VERSION(LeptonInjector::TableData2D<double>, 0);
