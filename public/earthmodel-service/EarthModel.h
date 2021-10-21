@@ -5,6 +5,18 @@
 #include <string>
 #include <vector>
 
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/array.hpp>
+#include <cereal/types/set.hpp>
+#include <cereal/types/map.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/utility.hpp>
+#include "serialization/array.h"
+
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/Geometry.h"
 #include "earthmodel-service/Placement.h"
@@ -25,6 +37,18 @@ struct EarthSector {
     bool operator==(EarthSector const & o) const {
         return name == o.name and material_id == o.material_id and level == o.level and geo == o.geo and density == o.density;
     }
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("Name", name));
+            archive(cereal::make_nvp("MaterialID", material_id));
+            archive(cereal::make_nvp("Level", level));
+            archive(cereal::make_nvp("Geometry", geo));
+            archive(cereal::make_nvp("density", density));
+        } else {
+            throw std::runtime_error("EarthSector only supports version <= 0!");
+        }
+    }
 };
 
 class EarthModel {
@@ -38,6 +62,18 @@ public:
     EarthModel();
     EarthModel(std::string const & earth_model, std::string const & material_model);
     EarthModel(std::string const & path, std::string const & earth_model, std::string const & material_model);
+
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("Path", path_));
+            archive(cereal::make_nvp("Sectors", sectors_));
+            archive(cereal::make_nvp("SectorMap", sector_map_));
+            archive(cereal::make_nvp("DetectorOrigin", detector_origin_));
+        } else {
+            throw std::runtime_error("EarthModel only supports version <= 0!");
+        }
+    }
 
     void LoadEarthModel(std::string const & earth_model);
     void LoadMaterialModel(std::string const & material_model);
@@ -103,5 +139,7 @@ public:
 };
 
 }; // namespace earthmodel
+
+CEREAL_CLASS_VERSION(earthmodel::EarthModel, 0);
 
 #endif // LI_EarthModel_H
