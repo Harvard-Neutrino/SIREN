@@ -35,6 +35,10 @@ std::ostream& operator<<(std::ostream& os, Geometry const& geometry)
  *                                  Geometry                                   *
  ******************************************************************************/
 
+Geometry::Geometry()
+{
+}
+
 Geometry::Geometry(const std::string name)
     : name_(name)
 {
