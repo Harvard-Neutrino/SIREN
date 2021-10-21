@@ -93,7 +93,7 @@ public:
 
     static Geometry::IntersectionList GetOuterBounds(Geometry::IntersectionList const & intersections);
     Geometry::IntersectionList GetOuterBounds(Vector3D const & p0, Vector3D const & direction);
-		std::vector<LeptonInjector::Particle::ParticleType> GetAvailableTargets(std::array<double,3>& vertex);
+    std::vector<LeptonInjector::Particle::ParticleType> GetAvailableTargets(std::array<double,3>& vertex);
 
 private:
     void LoadDefaultMaterials();
