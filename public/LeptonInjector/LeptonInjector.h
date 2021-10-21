@@ -263,13 +263,10 @@ private:
         earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
 
         earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
-        // TODO method should take vector of targets
-        // path.ExtendFromStartByColumnDepth(lepton_depth, target_types);
+        path.ExtendFromStartByColumnDepth(lepton_depth, target_types);
         path.ClipToOuterBounds();
 
-        // TODO method should take vector of targets
-        // double totalColumnDepth = path.GetColumnDepthInBounds(target_types);
-        double totalColumnDepth = path.GetColumnDepthInBounds(false);
+        double totalColumnDepth = path.GetColumnDepthInBounds(target_types);
 
         double traversedColumnDepth = totalColumnDepth * rand->Uniform();
         double dist = path.GetDistanceFromStartAlongPath(traversedColumnDepth);
@@ -316,13 +313,10 @@ private:
         path.ExtendFromStartByDistance(lepton_range);
         path.ClipToOuterBounds();
 
-        // TODO method should take vector of targets
-        // double totalColumnDepth = path.GetColumnDepthInBounds(target_types);
-        double totalColumnDepth = path.GetColumnDepthInBounds(false);
+        double totalColumnDepth = path.GetColumnDepthInBounds(target_types);
 
         double traversedColumnDepth = totalColumnDepth * rand->Uniform();
-        double dist = path.GetDistanceFromStartAlongPath(traversedColumnDepth);
-        //double dist = path.GetDistanceFromStartAlongPath(traversedColumnDepth, target_types);
+        double dist = path.GetDistanceFromStartAlongPath(traversedColumnDepth, target_types);
         earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
         return vertex;

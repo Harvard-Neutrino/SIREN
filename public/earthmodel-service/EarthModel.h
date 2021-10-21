@@ -86,7 +86,7 @@ public:
     double DistanceForColumnDepthFromPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
     double DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
     double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
-    
+
     // Density/CD calculations with general target list, not just nucleon/electron
     double GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, std::vector<LeptonInjector::Particle::ParticleType> targets) const;
     double GetDensity(Vector3D const & p0, std::vector<LeptonInjector::Particle::ParticleType> targets) const;
@@ -96,8 +96,7 @@ public:
     double DistanceForColumnDepthFromPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, std::vector<LeptonInjector::Particle::ParticleType> targets) const;
     double DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, std::vector<LeptonInjector::Particle::ParticleType> targets) const;
     double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, std::vector<LeptonInjector::Particle::ParticleType> targets) const;
-    
-    
+
     EarthSector GetContainingSector(Geometry::IntersectionList const & intersections, Vector3D const & p0) const;
     EarthSector GetContainingSector(Vector3D const & p0) const;
     Vector3D GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const;
