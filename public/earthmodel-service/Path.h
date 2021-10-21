@@ -49,9 +49,11 @@ public:
             archive(cereal::make_nvp("LastPoint", last_point_));
             archive(cereal::make_nvp("Distance", distance_));
             archive(cereal::make_nvp("SetPoints", set_points_));
-            archive(cereal::make_nvp("FirstPoint", first_point_));
+            archive(cereal::make_nvp("ColumnDepthCache", column_depth_cache_));
+            archive(cereal::make_nvp("Intersections", intersections_));
+            archive(cereal::make_nvp("SetIntersections", set_intersections_));
         } else {
-            throw std::runtime_error("InteractionSignature only supports version <= 0!");
+            throw std::runtime_error("Path only supports version <= 0!");
         }
     }
 
