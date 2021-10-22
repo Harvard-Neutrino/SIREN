@@ -35,17 +35,47 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
     double pne_ratio = ComputePNERatio(matratios);
     if(material_ids_.find(name) == material_ids_.end()) {
         int id = material_names_.size();
+        
+        // Fill basic information
         material_ids_.insert({name, id});
         material_names_.push_back(name);
-        material_maps_.insert({id, matratios});
+
+        // Fill proton/neutron/nucleon number maps
+        int np,nn;
+        std::map<int, int> num_protons_,num_neutrons_,num_nucleons_;
+        for (auto& k: matratios)
+        {
+					GetAZ(k.first,np,nn);
+					num_protons_[k.first] = np;
+					num_neutrons_[k.first] = nn;
+					num_nucleons_[k.first] = np+nn;
+				}
+				material_num_protons_.insert({id,num_protons_});
+				material_num_neutrons_.insert({id,num_neutrons_});
+				material_num_nucleons_.insert({id,num_nucleons_});
+        
+        // Fill mass fraction, molar mass, and atomic fraction maps
+        material_mass_frac_.insert({id, matratios});
+        std::map<int,double> molar_masses = GetMolarMasses(num_protons_);
+        material_molar_mass_.insert({id, molar_masses});
+        double nfrac_denom = 0;
+        for (auto& k : matratios) {nfrac_denom += matratios[k.first]/molar_masses[k.first];}
+        std::map<int,double> atom_fracs;
+        for (auto& k : matratios) {atom_fracs[k.first] = (matratios[k.first]/molar_masses[k.first])/nfrac_denom;}
+        material_atom_frac_.insert({id,atom_fracs});
+
+
+        // Fill particle type map
         std::vector<LeptonInjector::Particle::ParticleType> ptypes;
         for (auto& k : matratios) {ptypes.push_back(static_cast<LeptonInjector::Particle::ParticleType>(k.first));}
         material_constituents_.insert({id,ptypes});
+        
+        // Fill proton:electron ratio map
         pne_ratios_.insert({id, pne_ratio});
     }
     else {
         int id = material_ids_[name];
-        material_maps_[id] = matratios;
+        material_mass_frac_[id] = matratios;
         pne_ratios_[id] = pne_ratio;
     }
 }
@@ -169,14 +199,23 @@ double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) const 
     return nw_electron;
 }
 
-double MaterialModel::GetTargetComposition(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
-    double target_comp = 0;
-    for(auto const & it : material_maps_[id]) {
-        int pdg = it.first;
-        if std::find(targets.begin(), targets.end(),static_cast<LeptonInjector::Particle::ParticleType>(pdg))!=targets.end() {target_comp+=it.second;} 
-    }
-    return target_comp;
+std::map<int, double> MaterialModel::GetMolarMasses(std::map<int, int> const & pnums) const {
+		
+		std::ifstream ifs("AtomicData.csv");
+		std::string line;
+		int nproton; double molmass;
+		std::map<int, double> molar_masses;
+
+		while(std::getline(ifs, line))
+		{
+				std::stringstream linestream(line);
+				linestream >> nproton >> molmass;
+				auto result = std::find_if(pnums.begin(),pnums.end(),[nproton](const auto& mo) {return mo.second==nproton; });
+				if(result != pnums.end()) molar_masses[result->first] = nproton;
+		}
+		return molar_masses;	
 }
+
 
 double MaterialModel::GetPNERatio(int id) const {
     return pne_ratios_.at(id);
@@ -198,12 +237,76 @@ bool MaterialModel::HasMaterial(int id) const {
     return material_names_.size() > id;
 }
 
-std::map<int, double> MaterialModel::GetMaterialMap(int id) const {
-    return material_maps_.at(id);
-}
-
 std::vector<LeptonInjector::Particle::ParticleType> MaterialModel::GetMaterialConstituents(int id) const {
     return material_constituents_.at(id);
+}
+
+std::map<int, double> MaterialModel::GetMaterialMassFracs(int id) const {
+    return material_mass_frac_.at(id);
+}
+
+std::map<int, double> MaterialModel::GetMaterialAtomFracs(int id) const {
+    return material_atom_frac_.at(id);
+}
+
+std::map<int, int> MaterialModel::GetMaterialNumNucleons(int id) const {
+    return material_num_nucleons_.at(id);
+}
+
+std::map<int, int> MaterialModel::GetMaterialNumProtons(int id) const {
+    return material_num_protons.at(id);
+}
+
+std::map<int, int> MaterialModel::GetMaterialNumNeutrons(int id) const {
+    return material_num_neutrons.at(id);
+}
+
+double MaterialModel::GetTargetListMassFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+    double sum = 0;
+    for(auto const & it : material_mass_frac_[id]) {
+        int pdg = it.first;
+        if std::find(targets.begin(), targets.end(),static_cast<LeptonInjector::Particle::ParticleType>(pdg))!=targets.end() {sum+=it.second;} 
+    }
+    return sum;
+}
+
+double MaterialModel::GetTargetListAtomFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+    double sum = 0;
+    for(auto const & it : material_atom_frac_[id]) {
+        int pdg = it.first;
+        if std::find(targets.begin(), targets.end(),static_cast<LeptonInjector::Particle::ParticleType>(pdg))!=targets.end() {sum+=it.second;} 
+    }
+    return sum;
+}
+
+double MaterialModel::GetTargetListNucleonFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+    double num = 0, dem = 0;
+    for(auto const & it : material_atom_frac_[id]) {
+        int pdg = it.first;
+        dem += material_atom_frac_[id]*material_num_nucleons_[id];
+        if std::find(targets.begin(), targets.end(),static_cast<LeptonInjector::Particle::ParticleType>(pdg))!=targets.end() {num += material_atom_frac_[id]*material_num_nucleons_[id];} 
+    }
+    return num/dem;
+}
+
+double MaterialModel::GetTargetListProtonFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+    double num = 0, dem = 0;
+    for(auto const & it : material_atom_frac_[id]) {
+        int pdg = it.first;
+        dem += material_atom_frac_[id]*material_num_protons_[id];
+        if std::find(targets.begin(), targets.end(),static_cast<LeptonInjector::Particle::ParticleType>(pdg))!=targets.end() {num += material_atom_frac_[id]*material_num_protons_[id];} 
+    }
+    return num/dem;
+}
+
+double MaterialModel::GetTargetListNeutronFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+    double num = 0, dem = 0;
+    for(auto const & it : material_atom_frac_[id]) {
+        int pdg = it.first;
+        dem += material_atom_frac_[id]*material_num_protons_[id];
+        if std::find(targets.begin(), targets.end(),static_cast<LeptonInjector::Particle::ParticleType>(pdg))!=targets.end() {num += material_atom_frac_[id]*material_num_protons_[id];} 
+    }
+    return num/dem;
 }
 
 void MaterialModel::GetAZ(int code, int & np, int & nn) {
