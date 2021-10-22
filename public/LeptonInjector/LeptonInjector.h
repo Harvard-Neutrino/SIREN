@@ -9,6 +9,18 @@
 #include <photospline/splinetable.h>
 #include <photospline/cinter/splinetable.h>
 
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/array.hpp>
+#include <cereal/types/set.hpp>
+#include <cereal/types/map.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/utility.hpp>
+#include "serialization/array.h"
+
 #include "LeptonInjector/Random.h"
 #include "LeptonInjector/Particle.h"
 #include "LeptonInjector/Constants.h"
@@ -32,11 +44,16 @@ namespace LeptonInjector {
 class InjectionDistribution {
 private:
 public:
-    virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const;
-    virtual std::vector<std::string> DensityVariables() const;
-    virtual std::shared_ptr<InjectionDistribution> clone() const {
-        return std::make_shared<InjectionDistribution>(InjectionDistribution(*this));
-    };
+    virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {};
+    virtual std::vector<std::string> DensityVariables() const {return {};};
+    virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+        } else {
+            throw std::runtime_error("InjectionDistribution only supports version <= 0!");
+        }
+    }
 };
 
 class TargetMomentumDistribution : public InjectionDistribution {
@@ -47,15 +64,31 @@ public:
         record.target_momentum = SampleMomentum(rand, earth_model, cross_sections, record);
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"TargetMomentum"};};
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("TargetMomentumDistribution only supports version <= 0!");
+        }
+    }
 };
 
-class TargetAtRest : TargetMomentumDistribution {
+class TargetAtRest : public TargetMomentumDistribution {
 private:
 public:
     virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
         return std::array<double, 4>{record.target_mass, 0, 0, 0};
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>();};
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<TargetMomentumDistribution>(this));
+        } else {
+            throw std::runtime_error("TargetAtRest only supports version <= 0!");
+        }
+    }
 };
 
 class PrimaryEnergyDistribution : public InjectionDistribution {
@@ -66,8 +99,16 @@ public:
         record.primary_momentum[0] = SampleEnergy(rand, earth_model, cross_sections, record);
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"PrimaryEnergy"};};
-    virtual std::string Name() const;
+    virtual std::string Name() const = 0;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("PrimaryEnergyDistribution only supports version <= 0!");
+        }
+    }
 };
 
 class PowerLaw : public PrimaryEnergyDistribution {
@@ -93,6 +134,17 @@ public:
     virtual std::shared_ptr<InjectionDistribution> clone() const {
         return std::shared_ptr<InjectionDistribution>(new PowerLaw(*this));
     };
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("PowerLawIndex", powerLawIndex));
+            archive(::cereal::make_nvp("EnergyMin", energyMin));
+            archive(::cereal::make_nvp("EnergyMax", energyMax));
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
+        } else {
+            throw std::runtime_error("PowerLaw only supports version <= 0!");
+        }
+    }
 };
 
 class PrimaryDirectionDistribution : public InjectionDistribution {
@@ -110,6 +162,14 @@ public:
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"PrimaryDirection"};};
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("PrimaryDirectionDistribution only supports version <= 0!");
+        }
+    }
 };
 
 class IsotropicDirection : public PrimaryDirectionDistribution {
@@ -125,9 +185,18 @@ private:
     virtual std::shared_ptr<InjectionDistribution> clone() const {
         return std::shared_ptr<InjectionDistribution>(new IsotropicDirection(*this));
     };
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<PrimaryDirectionDistribution>(this));
+        } else {
+            throw std::runtime_error("IsotropicDirection only supports version <= 0!");
+        }
+    }
 };
 
 class FixedDirection : public PrimaryDirectionDistribution {
+friend cereal::access;
 private:
     earthmodel::Vector3D dir;
 public:
@@ -140,9 +209,30 @@ private:
     virtual std::shared_ptr<InjectionDistribution> clone() const {
         return std::shared_ptr<InjectionDistribution>(new FixedDirection(*this));
     };
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Direction", dir));
+            archive(cereal::virtual_base_class<PrimaryDirectionDistribution>(this));
+        } else {
+            throw std::runtime_error("FixedDirection only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<FixedDirection> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            earthmodel::Vector3D d;
+            archive(::cereal::make_nvp("Direction", d));
+            construct(d);
+            archive(cereal::virtual_base_class<PrimaryDirectionDistribution>(construct.ptr()));
+        } else {
+            throw std::runtime_error("FixedDirection only supports version <= 0!");
+        }
+    }
 };
 
 class Cone : public PrimaryDirectionDistribution {
+friend cereal::access;
 private:
     earthmodel::Vector3D dir;
     earthmodel::Quaternion rotation;
@@ -170,6 +260,29 @@ private:
     virtual std::shared_ptr<InjectionDistribution> clone() const {
         return std::shared_ptr<InjectionDistribution>(new Cone(*this));
     };
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Direction", dir));
+            archive(::cereal::make_nvp("OpeningAngle", opening_angle));
+            archive(cereal::virtual_base_class<PrimaryDirectionDistribution>(this));
+        } else {
+            throw std::runtime_error("Cone only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<Cone> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            earthmodel::Vector3D d;
+            double angle;
+            archive(::cereal::make_nvp("Direction", d));
+            archive(::cereal::make_nvp("OpeningAngle", angle));
+            construct(d, angle);
+            archive(cereal::virtual_base_class<PrimaryDirectionDistribution>(construct.ptr()));
+        } else {
+            throw std::runtime_error("Cone only supports version <= 0!");
+        }
+    }
 };
 
 class VertexPositionDistribution : public InjectionDistribution {
@@ -183,11 +296,28 @@ public:
         record.interaction_vertex[2] = pos.GetZ();
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>{"VertexPosition"};};
-    virtual std::string Name() const;
+    virtual std::string Name() const = 0;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("VertexPositionDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("VertexPositionDistribution only supports version <= 0!");
+        }
+    }
 };
 
 class CylinderVolumePositionDistribution : public VertexPositionDistribution {
+friend cereal::access;
 private:
     earthmodel::Cylinder cylinder;
     earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override {
@@ -208,17 +338,74 @@ public:
     virtual std::shared_ptr<InjectionDistribution> clone() const {
         return std::shared_ptr<InjectionDistribution>(new CylinderVolumePositionDistribution(*this));
     };
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Cylinder", cylinder));
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+        } else {
+            throw std::runtime_error("CylinderVolumePositionDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<LeptonInjector::CylinderVolumePositionDistribution> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            earthmodel::Cylinder c;
+            archive(::cereal::make_nvp("Cylinder", c));
+            construct(c);
+            archive(cereal::virtual_base_class<LeptonInjector::VertexPositionDistribution>(construct.ptr()));
+        } else {
+            throw std::runtime_error("CylinderVolumePositionDistribution only supports version <= 0!");
+        }
+    }
+};
+
+class DepthFunction {
+public:
+    DepthFunction() {};
+    virtual double operator()(InteractionSignature const & signature, double energy) const {
+        return 0.0;
+    };
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+        } else {
+            throw std::runtime_error("DepthFunction only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+        } else {
+            throw std::runtime_error("DepthFunction only supports version <= 0!");
+        }
+    }
 };
 
 class RangeFunction {
 public:
-    RangeFunction();
+    RangeFunction() {};
     virtual double operator()(InteractionSignature const & signature, double energy) const {
         return 0.0;
     };
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+        } else {
+            throw std::runtime_error("RangeFunction only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+        } else {
+            throw std::runtime_error("RangeFunction only supports version <= 0!");
+        }
+    }
 };
 
 class DecayRangeFunction : public RangeFunction {
+friend cereal::access;
 private:
     double particle_mass; // GeV
     double decay_width; // GeV
@@ -230,10 +417,33 @@ public:
         double decay_time = 1.0 / decay_width; // inverse GeV
         stga3::FourVector<double> time_in_rest_frame{decay_time, 0,0,0}; // inverse GeV
         stga3::FourVector<double> time_in_lab_frame = stga3::apply_boost(-beta, time_in_rest_frame); // inverse GeV
-        constexpr double iGeV_in_m = 1.973269804593025e-16; // meters per GeV
-        double length = (time_in_lab_frame.e0() * beta.norm()) * iGeV_in_m; // meters = ((inverse GeV | dimensionless) * (meters per GeV))
+        constexpr double iGeV_in_m = 1.973269804593025e-16; // meters per inverse GeV
+        double length = (time_in_lab_frame.e0() * beta.norm()) * iGeV_in_m; // meters = ((inverse GeV | dimensionless) * (meters per inverse GeV))
         return length; // meters
     };
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("ParticleMass", particle_mass));
+            archive(::cereal::make_nvp("DecayWidth", decay_width));
+            archive(cereal::virtual_base_class<RangeFunction>(this));
+        } else {
+            throw std::runtime_error("DecayRangeFunction only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<DecayRangeFunction> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            double mass;
+            double width;
+            archive(::cereal::make_nvp("ParticleMass", mass));
+            archive(::cereal::make_nvp("DecayWidth", width));
+            construct(mass, width);
+            archive(cereal::virtual_base_class<RangeFunction>(construct.ptr()));
+        } else {
+            throw std::runtime_error("DecayRangeFunction only supports version <= 0!");
+        }
+    }
 };
 
 
@@ -241,7 +451,7 @@ class ColumnDepthPositionDistribution : public VertexPositionDistribution {
 private:
     double radius;
     double endcap_length;
-    std::function<double(InteractionSignature const &, double)> depth_function;
+    std::shared_ptr<DepthFunction> depth_function;
     std::vector<Particle::ParticleType> target_types;
 
     earthmodel::Vector3D SampleFromDisk(std::shared_ptr<LI_random> rand, earthmodel::Vector3D const & dir) const {
@@ -257,7 +467,7 @@ private:
         dir.normalize();
         earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
 
-        double lepton_depth = depth_function(record.signature, record.primary_momentum[0]);
+        double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
 
         earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
         earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -275,13 +485,42 @@ private:
         return vertex;
     };
 public:
-    ColumnDepthPositionDistribution(double radius, double endcap_length, std::function<double(InteractionSignature const &, double)> depth_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {};
+    ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {};
     std::string Name() const override {
         return "ColumnDepthPositionDistribution";
     };
     virtual std::shared_ptr<InjectionDistribution> clone() const {
         return std::shared_ptr<InjectionDistribution>(new ColumnDepthPositionDistribution(*this));
     };
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Radius", radius));
+            archive(::cereal::make_nvp("EndcapLength", endcap_length));
+            archive(::cereal::make_nvp("DepthFunction", depth_function));
+            archive(::cereal::make_nvp("TargetTypes", target_types));
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+        } else {
+            throw std::runtime_error("ColumnDepthPositionDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<ColumnDepthPositionDistribution> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            double r;
+            double l;
+            std::vector<Particle::ParticleType> t;
+            std::shared_ptr<DepthFunction> f;
+            archive(::cereal::make_nvp("Radius", r));
+            archive(::cereal::make_nvp("EndcapLength", l));
+            archive(::cereal::make_nvp("DepthFunction", f));
+            archive(::cereal::make_nvp("TargetTypes", t));
+            construct(r, l, f, t);
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(construct.ptr()));
+        } else {
+            throw std::runtime_error("ColumnDepthPositionDistribution only supports version <= 0!");
+        }
+    }
 };
 
 class RangePositionDistribution : public VertexPositionDistribution {
@@ -445,6 +684,58 @@ class VolumeLeptonInjector : public InjectorBase {
 //std::pair<double,double> rotateRelative(std::pair<double,double> base, double zenith, double azimuth);
 
 } //namespace LeptonInjector
+
+CEREAL_CLASS_VERSION(LeptonInjector::InjectionDistribution, 0);
+
+CEREAL_CLASS_VERSION(LeptonInjector::TargetMomentumDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::TargetMomentumDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectionDistribution, LeptonInjector::TargetMomentumDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::TargetAtRest, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::TargetAtRest);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::TargetMomentumDistribution, LeptonInjector::TargetAtRest);
+
+CEREAL_CLASS_VERSION(LeptonInjector::PrimaryEnergyDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::PrimaryEnergyDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectionDistribution, LeptonInjector::PrimaryEnergyDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::PowerLaw, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::PowerLaw);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PrimaryEnergyDistribution, LeptonInjector::PowerLaw);
+
+CEREAL_CLASS_VERSION(LeptonInjector::PrimaryDirectionDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::PrimaryDirectionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectionDistribution, LeptonInjector::PrimaryDirectionDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::IsotropicDirection, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::IsotropicDirection);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PrimaryDirectionDistribution, LeptonInjector::IsotropicDirection);
+
+CEREAL_CLASS_VERSION(LeptonInjector::FixedDirection, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::FixedDirection);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PrimaryDirectionDistribution, LeptonInjector::FixedDirection);
+
+CEREAL_CLASS_VERSION(LeptonInjector::Cone, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::Cone);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PrimaryDirectionDistribution, LeptonInjector::Cone);
+
+CEREAL_CLASS_VERSION(LeptonInjector::VertexPositionDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::VertexPositionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectionDistribution, LeptonInjector::VertexPositionDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::CylinderVolumePositionDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::CylinderVolumePositionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::VertexPositionDistribution, LeptonInjector::CylinderVolumePositionDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::RangeFunction, 0);
+
+CEREAL_CLASS_VERSION(LeptonInjector::DecayRangeFunction, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::DecayRangeFunction);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::RangeFunction, LeptonInjector::DecayRangeFunction);
+
+CEREAL_CLASS_VERSION(LeptonInjector::ColumnDepthPositionDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::ColumnDepthPositionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::VertexPositionDistribution, LeptonInjector::ColumnDepthPositionDistribution);
 
 #endif // LI_LeptonInjector_H
 
