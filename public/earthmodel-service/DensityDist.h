@@ -31,6 +31,13 @@
 #include <string>
 #include <exception>
 #include <functional>
+
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
+
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/Polynomial.h"
 #include "earthmodel-service/EarthModelCalculator.h"
@@ -47,7 +54,8 @@ class DensityException : public std::exception {
 };
 
 class DensityDistribution {
-   public:
+friend cereal::access;
+public:
     DensityDistribution();
     DensityDistribution(const DensityDistribution&);
 
@@ -73,9 +81,15 @@ class DensityDistribution {
                                    double integral,
                                    double max_distance) const = 0;
     virtual double Evaluate(const Vector3D& xi) const = 0;
+
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {};
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {};
 };
 
 class Distribution1D {
+friend cereal::access;
 public:
     bool operator==(const Distribution1D& dist) const;
     bool operator!=(const Distribution1D& dist) const;
@@ -85,6 +99,11 @@ public:
     virtual double Derivative(double x) const = 0;
     virtual double AntiDerivative(double x) const = 0;
     virtual double Evaluate(double x) const = 0;
+
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {};
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {};
 };
 
 class ConstantDistribution1D : public Distribution1D {
@@ -100,11 +119,21 @@ public:
     double Derivative(double x) const override;
     double AntiDerivative(double x) const override;
     double Evaluate(double x) const override;
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Value", val_));
+            archive(cereal::virtual_base_class<Distribution1D>(this));
+        } else {
+            throw std::runtime_error("ConstantDistribution1D only supports version <= 0");
+        }
+    };
 protected:
     double val_;
 };
 
 class PolynomialDistribution1D : public Distribution1D {
+friend cereal::access;
 public:
     PolynomialDistribution1D(const PolynomialDistribution1D&);
     PolynomialDistribution1D(const Polynom&);
@@ -117,6 +146,26 @@ public:
     double Derivative(double x) const override;
     double AntiDerivative(double x) const override;
     double Evaluate(double x) const override;
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Polynomial", polynom_.GetCoefficient()));
+            archive(cereal::virtual_base_class<Distribution1D>(this));
+        } else {
+            throw std::runtime_error("PolynomialDistribution1D only supports version <= 0");
+        }
+    };
+    template<class Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<PolynomialDistribution1D> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            std::vector<double> coeff;
+            archive(::cereal::make_nvp("Polynomial", coeff));
+            construct(coeff);
+            archive(cereal::virtual_base_class<Distribution1D>(construct.ptr()));
+        } else {
+            throw std::runtime_error("PolynomialDistribution1D only supports version <= 0");
+        }
+    };
 protected:
     Polynom polynom_;
     Polynom Ipolynom_;
@@ -124,6 +173,7 @@ protected:
 };
 
 class ExponentialDistribution1D : public Distribution1D {
+friend cereal::access;
 public:
     ExponentialDistribution1D(const ExponentialDistribution1D&);
     ExponentialDistribution1D(double sigma);
@@ -135,12 +185,33 @@ public:
     double Derivative(double x) const override;
     double AntiDerivative(double x) const override;
     double Evaluate(double x) const override;
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Sigma", sigma_));
+            archive(cereal::virtual_base_class<Distribution1D>(this));
+        } else {
+            throw std::runtime_error("ExponentialDistribution1D only supports version <= 0");
+        }
+    };
+    template<class Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<ExponentialDistribution1D> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            double sigma;
+            archive(::cereal::make_nvp("Sigma", sigma));
+            construct(sigma);
+            archive(cereal::virtual_base_class<Distribution1D>(construct.ptr()));
+        } else {
+            throw std::runtime_error("ExponentialDistribution1D only supports version <= 0");
+        }
+    };
 protected:
     double sigma_;
 };
 
 class Axis1D {
-   public:
+friend cereal::access;
+public:
     Axis1D();
     Axis1D(const Vector3D& fAxis, const Vector3D& fp0);
     Axis1D(const Axis1D&);
@@ -160,13 +231,23 @@ class Axis1D {
     Vector3D GetAxis() const { return fAxis_; };
     Vector3D GetFp0() const { return fp0_; };
 
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Axis", fAxis_));
+            archive(::cereal::make_nvp("Origin", fp0_));
+        } else {
+            throw std::runtime_error("Axis1D only supports version <= 0");
+        }
+    };
    protected:
     Vector3D fAxis_;
     Vector3D fp0_;
 };
 
 class RadialAxis1D : public Axis1D {
-   public:
+friend cereal::access;
+public:
     RadialAxis1D();
     RadialAxis1D(const Vector3D& fAxis, const Vector3D& fp0);
     RadialAxis1D(const Vector3D& fp0);
@@ -181,6 +262,15 @@ class RadialAxis1D : public Axis1D {
 
     double GetX(const Vector3D& xi) const override;
     double GetdX(const Vector3D& xi, const Vector3D& direction) const override;
+
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<Axis1D>(this));
+        } else {
+            throw std::runtime_error("RadialAxis1D only supports version <= 0");
+        }
+    };
 };
 
 class CartesianAxis1D : public Axis1D {
@@ -198,6 +288,15 @@ class CartesianAxis1D : public Axis1D {
 
     double GetX(const Vector3D& xi) const override;
     double GetdX(const Vector3D& xi, const Vector3D& direction) const override;
+
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<Axis1D>(this));
+        } else {
+            throw std::runtime_error("CartesianAxis1D only supports version <= 0");
+        }
+    };
 };
 
 template <typename AxisT, typename DistributionT, class E = typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value && std::is_base_of<Distribution1D, DistributionT>::value>::type>
@@ -284,6 +383,17 @@ class DensityDistribution1D
     double Evaluate(const Vector3D& xi) const override {
         return dist.Evaluate(axis.GetX(xi));
     };
+
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Axis", axis));
+            archive(::cereal::make_nvp("Distribution", dist));
+            archive(cereal::virtual_base_class<DensityDistribution>(this));
+        } else {
+            throw std::runtime_error("DensityDistribution1D only supports version <= 0");
+        }
+    };
 };
 
 template<typename AxisT>
@@ -357,6 +467,17 @@ class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_
     double Evaluate(const Vector3D& xi) const override {
         (void)xi;
         return dist.Evaluate(0);
+    };
+
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Axis", axis));
+            archive(::cereal::make_nvp("Distribution", dist));
+            archive(cereal::virtual_base_class<DensityDistribution>(this));
+        } else {
+            throw std::runtime_error("DensityDistribution1D only supports version <= 0");
+        }
     };
 };
 
@@ -450,6 +571,17 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
 
     double Evaluate(const Vector3D& xi) const override {
         return dist.Evaluate(axis.GetX(xi));
+    };
+
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Axis", axis));
+            archive(::cereal::make_nvp("Distribution", dist));
+            archive(cereal::virtual_base_class<DensityDistribution>(this));
+        } else {
+            throw std::runtime_error("DensityDistribution1D only supports version <= 0");
+        }
     };
 };
 
@@ -545,9 +677,72 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
     double Evaluate(const Vector3D& xi) const override {
         return dist.Evaluate(axis.GetX(xi));
     };
+
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Axis", axis));
+            archive(::cereal::make_nvp("Distribution", dist));
+            archive(cereal::virtual_base_class<DensityDistribution>(this));
+        } else {
+            throw std::runtime_error("DensityDistribution1D only supports version <= 0");
+        }
+    };
 };
 
 }  // namespace earthmodel
+
+CEREAL_CLASS_VERSION(earthmodel::DensityDistribution, 0);
+
+CEREAL_CLASS_VERSION(earthmodel::Distribution1D, 0);
+
+CEREAL_CLASS_VERSION(earthmodel::ConstantDistribution1D, 0);
+CEREAL_REGISTER_TYPE(earthmodel::ConstantDistribution1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Distribution1D, earthmodel::ConstantDistribution1D);
+
+CEREAL_CLASS_VERSION(earthmodel::PolynomialDistribution1D, 0);
+CEREAL_REGISTER_TYPE(earthmodel::PolynomialDistribution1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Distribution1D, earthmodel::PolynomialDistribution1D);
+
+CEREAL_CLASS_VERSION(earthmodel::ExponentialDistribution1D, 0);
+CEREAL_REGISTER_TYPE(earthmodel::ExponentialDistribution1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Distribution1D, earthmodel::ExponentialDistribution1D);
+
+CEREAL_CLASS_VERSION(earthmodel::Axis1D, 0);
+
+CEREAL_CLASS_VERSION(earthmodel::RadialAxis1D, 0);
+CEREAL_REGISTER_TYPE(earthmodel::RadialAxis1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Axis1D, earthmodel::RadialAxis1D);
+
+CEREAL_CLASS_VERSION(earthmodel::CartesianAxis1D, 0);
+CEREAL_REGISTER_TYPE(earthmodel::CartesianAxis1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Axis1D, earthmodel::CartesianAxis1D);
+
+#define COMMA ,
+
+CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ConstantDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ConstantDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ConstantDistribution1D>);
+
+CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ConstantDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ConstantDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ConstantDistribution1D>);
+
+CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::PolynomialDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::PolynomialDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::PolynomialDistribution1D>);
+
+CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::PolynomialDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::PolynomialDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::PolynomialDistribution1D>);
+
+CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ExponentialDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ExponentialDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ExponentialDistribution1D>);
+
+CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ExponentialDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ExponentialDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ExponentialDistribution1D>);
 
 #endif // LI_DensityDist_H
 

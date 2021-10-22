@@ -5,6 +5,18 @@
 #include <string>
 #include <vector>
 
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/array.hpp>
+#include <cereal/types/set.hpp>
+#include <cereal/types/map.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/utility.hpp>
+#include "serialization/array.h"
+
 #include "LeptonInjector/Particle.h"
 
 namespace earthmodel {
@@ -26,6 +38,19 @@ private:
     std::map<int, std::vector<LeptonInjector::Particle::ParticleType> > material_constituents_;
     std::map<int, double> pne_ratios_;
 public:
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("Path", path_));
+            archive(cereal::make_nvp("MaterialNames", material_names_));
+            archive(cereal::make_nvp("MaterialIDs", material_ids_));
+            archive(cereal::make_nvp("MaterialMaps", material_maps_));
+            archive(cereal::make_nvp("MaterialConstituents", material_constituents_));
+            archive(cereal::make_nvp("PNERatios", pne_ratios_));
+        } else {
+            throw std::runtime_error("MaterialModel only supports version <= 0!");
+        }
+    }
     MaterialModel();
     MaterialModel(std::string const & file);
     MaterialModel(std::string const & path, std::string const & file);
@@ -62,6 +87,8 @@ public:
 };
 
 } // namespace earthmodel
+
+CEREAL_CLASS_VERSION(earthmodel::MaterialModel, 0);
 
 # endif // LI_MaterialModel_H
 

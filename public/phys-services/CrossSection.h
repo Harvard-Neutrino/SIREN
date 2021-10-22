@@ -529,6 +529,7 @@ public:
 template<typename T>
 struct Interpolator1D {
 private:
+    TableData1D<T> original_table;
     Indexer1D<T> indexer;
 	std::map<unsigned int, T> function;
     std::vector<bool> zero_mask;
@@ -540,19 +541,27 @@ public:
         AddTable(table);
     };
 
-    template<class Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
-            archive(cereal::make_nvp("Indexer", indexer));
-            archive(cereal::make_nvp("Function", function));
-            archive(cereal::make_nvp("ZeroMask", zero_mask));
-            archive(cereal::make_nvp("IsLog", is_log));
+            archive(cereal::make_nvp("Table", original_table));
         } else {
             throw std::runtime_error("Interpolator1D only supports version <= 0!");
         }
-    }
+    };
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            TableData1D<T> table;
+            archive(cereal::make_nvp("Table", table));
+            AddTable(table);
+        } else {
+            throw std::runtime_error("Interpolator1D only supports version <= 0!");
+        }
+    };
 
 	void AddTable(TableData1D<T> & table) {
+        original_table = table;
         std::set<T> x(table.x.begin(), table.x.end());
         std::map<T, unsigned int> xmap;
         unsigned int n = 0;
@@ -646,6 +655,7 @@ public:
 template<typename T>
 struct Interpolator2D {
 private:
+    TableData2D<T> original_table;
     Indexer1D<T> indexer_x;
     Indexer1D<T> indexer_y;
     std::map<std::pair<unsigned int, unsigned int>, bool> zero_mask;
@@ -658,20 +668,27 @@ public:
         SetTable(table);
     };
 
-    template<class Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
-            archive(cereal::make_nvp("IndexerX", indexer_x));
-            archive(cereal::make_nvp("IndexerY", indexer_y));
-            archive(cereal::make_nvp("Function", function));
-            archive(cereal::make_nvp("ZeroMask", zero_mask));
-            archive(cereal::make_nvp("IsLog", is_log));
+            archive(cereal::make_nvp("Table", original_table));
         } else {
             throw std::runtime_error("Interpolator2D only supports version <= 0!");
         }
-    }
+    };
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            TableData2D<T> table;
+            archive(cereal::make_nvp("Table", table));
+            SetTable(table);
+        } else {
+            throw std::runtime_error("Interpolator2D only supports version <= 0!");
+        }
+    };
 
 	void SetTable(TableData2D<T> & table) {
+        original_table = table;
         std::set<T> x(table.x.begin(), table.x.end());
         std::set<T> y(table.y.begin(), table.y.end());
         std::map<T, unsigned int> xmap;
@@ -928,10 +945,11 @@ public:
 
 } // namespace LeptonInjector
 
-CEREAL_CLASS_VERSION(LeptonInjector::DISFromSpline, 0);
-CEREAL_REGISTER_TYPE(LeptonInjector::DISFromSpline)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::CrossSection, LeptonInjector::DISFromSpline);
+CEREAL_CLASS_VERSION(LeptonInjector::CrossSection, 0);
 
+CEREAL_CLASS_VERSION(LeptonInjector::DISFromSpline, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::DISFromSpline);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::CrossSection, LeptonInjector::DISFromSpline);
 
 CEREAL_CLASS_VERSION(LeptonInjector::TableData1D<double>, 0);
 CEREAL_CLASS_VERSION(LeptonInjector::TableData2D<double>, 0);
@@ -942,7 +960,7 @@ CEREAL_CLASS_VERSION(LeptonInjector::Interpolator1D<double>, 0);
 CEREAL_CLASS_VERSION(LeptonInjector::Interpolator2D<double>, 0);
 
 CEREAL_CLASS_VERSION(LeptonInjector::DipoleFromTable, 0);
-CEREAL_REGISTER_TYPE(LeptonInjector::DipoleFromTable)
+CEREAL_REGISTER_TYPE(LeptonInjector::DipoleFromTable);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::CrossSection, LeptonInjector::DipoleFromTable);
 
 CEREAL_CLASS_VERSION(LeptonInjector::InteractionSignature, 0);

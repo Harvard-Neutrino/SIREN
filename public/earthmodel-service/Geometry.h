@@ -35,14 +35,30 @@
 #include <math.h>
 #include <float.h>
 
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/array.hpp>
+#include <cereal/types/set.hpp>
+#include <cereal/types/map.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/utility.hpp>
+#include "serialization/array.h"
+
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/Placement.h"
 
 namespace earthmodel {
 
-class Geometry
-{
+class Geometry {
+friend cereal::access;
 public:
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {};
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {};
     static constexpr const double GEOMETRY_PRECISION = 1.e-9;
     struct ParticleLocation {
         enum Enum { InfrontGeometry= 0, InsideGeometry, BehindGeometry };
@@ -55,6 +71,17 @@ public:
         bool operator==(Intersection const & other) const {
             return other.distance == distance and other.hierarchy == hierarchy and other.position == position and other.entering == entering;
         }
+        template<typename Archive>
+        void serialize(Archive & archive, std::uint32_t const version) {
+            if(version == 0) {
+                archive(cereal::make_nvp("Distance", distance));
+                archive(cereal::make_nvp("Hierarchy", hierarchy));
+                archive(cereal::make_nvp("Entering", entering));
+                archive(cereal::make_nvp("Position", position));
+            } else {
+                throw std::runtime_error("Intersection only supports version <= 0!");
+            }
+        }
     };
     struct IntersectionList {
         Vector3D position;
@@ -63,8 +90,19 @@ public:
         bool operator==(IntersectionList const & other) const {
             return other.position == position and other.direction == direction and other.intersections == intersections;
         }
+        template<typename Archive>
+        void serialize(Archive & archive, std::uint32_t const version) {
+            if(version == 0) {
+                archive(cereal::make_nvp("Position", position));
+                archive(cereal::make_nvp("Direction", direction));
+                archive(cereal::make_nvp("Intersections", intersections));
+            } else {
+                throw std::runtime_error("IntersectionList only supports version <= 0!");
+            }
+        }
     };
 public:
+    Geometry();
     Geometry(const std::string);
     Geometry(const std::string, Placement const &);
     Geometry(Placement const &);
@@ -160,15 +198,25 @@ public:
     Vector3D GlobalToLocalDirection(Vector3D const & d) const;
 };
 
-class Box : public Geometry
-{
+class Box : public Geometry {
 public:
     Box();
     Box(double x, double y, double z);
     Box(Placement const &);
     Box(Placement const &, double x, double y, double z);
     Box(const Box&);
-    //Box(const nlohmann::json& config);
+
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("XWidth", x_));
+            archive(::cereal::make_nvp("YWidth", y_));
+            archive(::cereal::make_nvp("ZWidth", z_));
+            archive(cereal::virtual_base_class<Geometry>(this));
+        } else {
+            throw std::runtime_error("Box only supports version <= 0!");
+        }
+    }
 
     std::shared_ptr<const Geometry> create() const override { return std::shared_ptr<const Geometry>( new Box(*this) ); };
     void swap(Geometry&) override;
@@ -200,15 +248,25 @@ private:
     double z_; //!< width of box in z-direction
 };
 
-class Cylinder : public Geometry
-{
+class Cylinder : public Geometry {
 public:
     Cylinder();
     Cylinder(double radius, double inner_radius, double z);
     Cylinder(Placement const &);
     Cylinder(Placement const &, double radius, double inner_radius, double z);
     Cylinder(const Cylinder&);
-    //Cylinder(const nlohmann::json& config);
+
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("OuterRadius", radius_));
+            archive(::cereal::make_nvp("InnerRadius", inner_radius_));
+            archive(::cereal::make_nvp("Height", z_));
+            archive(cereal::virtual_base_class<Geometry>(this));
+        } else {
+            throw std::runtime_error("Cylinder only supports version <= 0!");
+        }
+    }
 
     std::shared_ptr<const Geometry> create() const override { return std::shared_ptr<const Geometry>( new Cylinder(*this) ); };
     void swap(Geometry&) override;
@@ -240,15 +298,24 @@ private:
     double z_;            //!< height of box/cylinder
 };
 
-class Sphere : public Geometry
-{
+class Sphere : public Geometry {
 public:
     Sphere();
     Sphere(double radius, double inner_radius);
     Sphere(Placement const &);
     Sphere(Placement const &, double radius, double inner_radius);
     Sphere(const Sphere&);
-    //Sphere(const nlohmann::json& config);
+
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("OuterRadius", radius_));
+            archive(::cereal::make_nvp("InnerRadius", inner_radius_));
+            archive(cereal::virtual_base_class<Geometry>(this));
+        } else {
+            throw std::runtime_error("Sphere only supports version <= 0!");
+        }
+    }
 
     /* Geometry* clone() const override{ return new Sphere(*this); }; */
     std::shared_ptr<const Geometry> create() const override{ return std::shared_ptr<const Geometry>( new Sphere(*this) ); }
@@ -278,8 +345,7 @@ private:
     double inner_radius_; //!< for spherical shells or hollow cylinder (0 for sphere / cylinder)
 };
 
-class ExtrPoly : public Geometry
-{
+class ExtrPoly : public Geometry {
 public:
     struct ZSection {
         ZSection(double zpos_, double offset_[2], double scale_)
@@ -287,7 +353,7 @@ public:
 
         double zpos;
         double scale;
-        double offset[2];
+        std::array<double, 2> offset;
         void operator=(ZSection const & other) {
             zpos = other.zpos;
             scale = other.scale;
@@ -300,6 +366,31 @@ public:
                     l.offset[0] == r.offset[0] &&
                     l.offset[1] == r.offset[1]);
         }
+        template<typename Archive>
+        void serialize(Archive & archive, std::uint32_t const version) const {
+            if(version == 0) {
+                archive(::cereal::make_nvp("ZPosition", zpos));
+                archive(::cereal::make_nvp("Scale", scale));
+                archive(::cereal::make_nvp("Offset", offset));
+            } else {
+                throw std::runtime_error("ZSection only supports version <= 0!");
+            }
+        }
+    };
+
+    struct plane {
+        double a,b,c,d; // a*x + b*y + c*z + d = 0
+        template<typename Archive>
+        void serialize(Archive & archive, std::uint32_t const version) const {
+            if(version == 0) {
+                archive(::cereal::make_nvp("A", a));
+                archive(::cereal::make_nvp("B", b));
+                archive(::cereal::make_nvp("C", c));
+                archive(::cereal::make_nvp("D", d));
+            } else {
+                throw std::runtime_error("Plane only supports version <= 0!");
+            }
+        }
     };
 
 public:
@@ -310,7 +401,18 @@ public:
     ExtrPoly(Placement const &, const std::vector<std::vector<double>>& polygon,
             const std::vector<ZSection>& zsections);
     ExtrPoly(const ExtrPoly&);
-    //ExtrPoly(const nlohmann::json& config);
+
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Polygons", polygon_));
+            archive(::cereal::make_nvp("ZSections", zsections_));
+            archive(::cereal::make_nvp("Planes", planes_));
+            archive(cereal::virtual_base_class<Geometry>(this));
+        } else {
+            throw std::runtime_error("Sphere only supports version <= 0!");
+        }
+    }
 
     /* Geometry* clone() const override{ return new ExtrPoly(*this); }; */
     std::shared_ptr<const Geometry> create() const override{ return std::shared_ptr<const Geometry>( new ExtrPoly(*this) ); }
@@ -340,7 +442,6 @@ private:
 
     std::vector<std::vector<double>> polygon_; //!< vector of (x,y) pairs denoting vertices of polygon
     std::vector<ZSection> zsections_; //!< vector of z sections describing z extent of polygon
-    struct plane { double a,b,c,d; }; // a*x + b*y + c*z + d = 0
     std::vector<plane> planes_;
 };
 
@@ -353,6 +454,14 @@ namespace earthmodel {
 namespace earthmodel {
     const std::array<std::string, 4>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly"};
 } // namespace earthmodel
+
+CEREAL_CLASS_VERSION(earthmodel::Geometry, 0);
+CEREAL_CLASS_VERSION(earthmodel::Geometry::Intersection, 0);
+CEREAL_CLASS_VERSION(earthmodel::Geometry::IntersectionList, 0);
+
+CEREAL_CLASS_VERSION(earthmodel::Box, 0);
+CEREAL_REGISTER_TYPE(earthmodel::Box)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Geometry, earthmodel::Box);
 
 #endif // LI_Geometry_H
 

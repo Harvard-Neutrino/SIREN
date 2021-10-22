@@ -10,6 +10,8 @@
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/EarthModel.h"
 
+#include "LeptonInjector/Particle.h"
+
 #include "FakeMaterialModel.h"
 #include "FakeEarthModel.h"
 
@@ -26,8 +28,7 @@ TEST(DefaultConstructor, HasNone)
     EXPECT_FALSE(A.HasEarthModel());
     EXPECT_FALSE(A.HasPoints());
     EXPECT_FALSE(A.HasIntersections());
-    EXPECT_FALSE(A.HasNucleonColumnDepth());
-    EXPECT_FALSE(A.HasElectronColumnDepth());
+    EXPECT_FALSE(A.HasTargetColumnDepth({LeptonInjector::Particle::ParticleType::Nucleon}));
 }
 
 TEST(DefaultConstructor, MembersAreDefault)

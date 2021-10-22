@@ -382,7 +382,7 @@ double EarthModel::GetDensity(Geometry::IntersectionList const & intersections, 
         if(start_point <= 0 and end_point >= 0) {
             EarthSector sector = GetSector(current_intersection->hierarchy);
             density = sector.density->Evaluate(p0);
-            density *= materials_.GetTargetComposition(targets);
+            density *= materials_.GetTargetListAtomFrac(sector.material_id, targets);
             return true;
         } else {
             return false;
@@ -488,7 +488,7 @@ double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & inters
             double segment_length = end_point - start_point;
             EarthSector sector = GetSector(current_intersection->hierarchy);
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
-            integral *= materials_.GetTargetComposition(targets);
+            integral *= materials_.GetTargetListAtomFrac(sector.material_id, targets);
             column_depth += integral;
         }
         // last_point = end_point;
@@ -840,11 +840,12 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
             double segment_length = end_point - start_point;
             EarthSector sector = GetSector(current_intersection->hierarchy);
             double target = column_depth - total_column_depth;
-            target /= materials_.GetTargetComposition(targets);
+            double target_composition = materials_.GetTargetListAtomFrac(sector.material_id, targets);
+            target /= target_composition;;
             double distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
             done = distance >= 0;
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
-            integral *= materials_.GetTargetComposition(targets);
+            integral *= target_composition;
             total_column_depth += integral;
             if(done) {
                 total_distance = start_point + distance;
