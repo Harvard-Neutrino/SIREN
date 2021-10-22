@@ -948,7 +948,7 @@ public:
 CEREAL_CLASS_VERSION(LeptonInjector::CrossSection, 0);
 
 CEREAL_CLASS_VERSION(LeptonInjector::DISFromSpline, 0);
-CEREAL_REGISTER_TYPE(LeptonInjector::DISFromSpline)
+CEREAL_REGISTER_TYPE(LeptonInjector::DISFromSpline);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::CrossSection, LeptonInjector::DISFromSpline);
 
 CEREAL_CLASS_VERSION(LeptonInjector::TableData1D<double>, 0);
@@ -960,7 +960,7 @@ CEREAL_CLASS_VERSION(LeptonInjector::Interpolator1D<double>, 0);
 CEREAL_CLASS_VERSION(LeptonInjector::Interpolator2D<double>, 0);
 
 CEREAL_CLASS_VERSION(LeptonInjector::DipoleFromTable, 0);
-CEREAL_REGISTER_TYPE(LeptonInjector::DipoleFromTable)
+CEREAL_REGISTER_TYPE(LeptonInjector::DipoleFromTable);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::CrossSection, LeptonInjector::DipoleFromTable);
 
 CEREAL_CLASS_VERSION(LeptonInjector::InteractionSignature, 0);
