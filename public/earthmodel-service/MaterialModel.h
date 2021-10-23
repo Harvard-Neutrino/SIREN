@@ -23,6 +23,7 @@ namespace earthmodel {
 
 class MaterialModel {
     static constexpr const int CHAR_BUF_SIZE = 8196;
+    static constexpr const double NA = 6.02e23;
 private:
     std::string path_;
     std::vector<std::string> model_files_;
@@ -74,11 +75,17 @@ public:
     std::map<int, int> GetMaterialNumNucleons(int id) const;
     std::map<int, int> GetMaterialNumProtons(int id) const;
     std::map<int, int> GetMaterialNumNeutrons(int id) const;
+    
     double GetTargetListMassFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
     double GetTargetListAtomFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
     double GetTargetListNucleonFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
     double GetTargetListProtonFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
     double GetTargetListNeutronFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
+    
+    double GetTargetListAtomsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListNucleonsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListProtonsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListNeutronsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
 private:
     double ComputePNERatio(std::map<int, double> const & matratios) const;
     std::map<int, double> GetMolarMasses(std::map<int, int> const & pnums) const;
