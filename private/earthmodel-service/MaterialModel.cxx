@@ -211,8 +211,12 @@ std::map<int, double> MaterialModel::GetMolarMasses(std::map<int, int> const & p
 		{
 				std::stringstream linestream(line);
 				linestream >> nproton >> molmass;
-				auto result = std::find_if(pnums.begin(),pnums.end(),[nproton](const auto& mo) {return mo.second==nproton; });
-				if(result != pnums.end()) molar_masses[result->first] = nproton;
+				int code = 0;
+				for(auto const & it : pnums) 
+				{
+					if (it.second==nproton) code = it.first;
+				}
+				if(code!=0) molar_masses[code] = molmass;
 		}
 		return molar_masses;	
 }
@@ -254,11 +258,11 @@ std::map<int, int> MaterialModel::GetMaterialNumNucleons(int id) const {
 }
 
 std::map<int, int> MaterialModel::GetMaterialNumProtons(int id) const {
-    return material_num_protons.at(id);
+    return material_num_protons_.at(id);
 }
 
 std::map<int, int> MaterialModel::GetMaterialNumNeutrons(int id) const {
-    return material_num_neutrons.at(id);
+    return material_num_neutrons_.at(id);
 }
 
 double MaterialModel::GetTargetListMassFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
@@ -289,7 +293,7 @@ double MaterialModel::GetTargetListNucleonFrac(int id, std::vector<LeptonInjecto
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_atom_frac_.at(id)) {
         LeptonInjector::Particle::ParticleType pdg = (LeptonInjector::Particle::ParticleType)it.first;
-        dem += it.second*material_num_nucleons_.at(id)[it.first];
+        dem += it.second*material_num_nucleons_.at(id).at(it.first);
         if(t.count(pdg) > 0)
             num += it.second;
     }
@@ -301,7 +305,7 @@ double MaterialModel::GetTargetListProtonFrac(int id, std::vector<LeptonInjector
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_atom_frac_.at(id)) {
         LeptonInjector::Particle::ParticleType pdg = (LeptonInjector::Particle::ParticleType)it.first;
-        dem += it.second*material_num_protons_.at(id)[it.first];
+        dem += it.second*material_num_protons_.at(id).at(it.first);
         if(t.count(pdg) > 0)
             num += it.second;
     }
@@ -313,7 +317,7 @@ double MaterialModel::GetTargetListNeutronFrac(int id, std::vector<LeptonInjecto
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_atom_frac_.at(id)) {
         LeptonInjector::Particle::ParticleType pdg = (LeptonInjector::Particle::ParticleType)it.first;
-        dem += it.second*material_num_neutrons_.at(id)[it.first];
+        dem += it.second*material_num_neutrons_.at(id).at(it.first);
         if(t.count(pdg) > 0)
             num += it.second;
     }
@@ -326,7 +330,7 @@ double MaterialModel::GetTargetListAtomsToMass(int id, std::vector<LeptonInjecto
     for(auto const & it : material_mass_frac_.at(id)) {
         LeptonInjector::Particle::ParticleType pdg = (LeptonInjector::Particle::ParticleType)it.first;
         if(t.count(pdg) > 0)
-            sum += it.second/material_molar_mass_.at(id)[it.first];
+            sum += it.second/material_molar_mass_.at(id).at(it.first);
     }
     return NA*sum;
 }
@@ -337,7 +341,7 @@ double MaterialModel::GetTargetListNucleonsToMass(int id, std::vector<LeptonInje
     for(auto const & it : material_mass_frac_.at(id)) {
         LeptonInjector::Particle::ParticleType pdg = (LeptonInjector::Particle::ParticleType)it.first;
         if(t.count(pdg) > 0)
-            sum += it.second/material_molar_mass_.at(id)[it.first] * material_num_nucleons_.at(id)[it.first];
+            sum += it.second/material_molar_mass_.at(id).at(it.first) * material_num_nucleons_.at(id).at(it.first);
     }
     return NA*sum;
 }
@@ -348,7 +352,7 @@ double MaterialModel::GetTargetListProtonsToMass(int id, std::vector<LeptonInjec
     for(auto const & it : material_mass_frac_.at(id)) {
         LeptonInjector::Particle::ParticleType pdg = (LeptonInjector::Particle::ParticleType)it.first;
         if(t.count(pdg) > 0)
-            sum += it.second/material_molar_mass_.at(id)[it.first] * material_num_protons_.at(id)[it.first];
+            sum += it.second/material_molar_mass_.at(id).at(it.first) * material_num_protons_.at(id).at(it.first);
     }
     return NA*sum;
 }
@@ -359,7 +363,7 @@ double MaterialModel::GetTargetListNeutronsToMass(int id, std::vector<LeptonInje
     for(auto const & it : material_mass_frac_.at(id)) {
         LeptonInjector::Particle::ParticleType pdg = (LeptonInjector::Particle::ParticleType)it.first;
         if(t.count(pdg) > 0)
-            sum += it.second/material_molar_mass_.at(id)[it.first] * material_num_neutrons_.at(id)[it.first];
+            sum += it.second/material_molar_mass_.at(id).at(it.first) * material_num_neutrons_.at(id).at(it.first);
     }
     return NA*sum;
 }

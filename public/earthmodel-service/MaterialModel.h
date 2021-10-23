@@ -45,7 +45,7 @@ public:
             archive(cereal::make_nvp("Path", path_));
             archive(cereal::make_nvp("MaterialNames", material_names_));
             archive(cereal::make_nvp("MaterialIDs", material_ids_));
-            archive(cereal::make_nvp("MaterialMaps", material_maps_));
+            archive(cereal::make_nvp("MaterialMaps", material_mass_frac_));
             archive(cereal::make_nvp("MaterialConstituents", material_constituents_));
             archive(cereal::make_nvp("PNERatios", pne_ratios_));
         } else {

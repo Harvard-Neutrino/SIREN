@@ -95,7 +95,7 @@ TEST_F(FakeMaterialModelTest, MaterialCount)
             names.push_back(A.GetMaterialName(material_count));
             ASSERT_LT(material_count, material_names_.size());
             EXPECT_EQ(std::string(names.back()), std::string(material_names_[material_count])) << file_contents;
-            EXPECT_EQ(A.GetMaterialMap(material_count).size(), material_components_[material_names_[material_count]].size()) << A.GetMaterialName(material_count) << " " << material_names_[material_count] << std::endl << print_m(A.GetMaterialMap(material_count)) << std::endl << std::endl << print_vp(material_components_[material_names_[material_count]]);
+            EXPECT_EQ(A.GetMaterialMassFracs(material_count).size(), material_components_[material_names_[material_count]].size()) << A.GetMaterialName(material_count) << " " << material_names_[material_count] << std::endl << print_m(A.GetMaterialMassFracs(material_count)) << std::endl << std::endl << print_vp(material_components_[material_names_[material_count]]);
             material_count += 1;
         }
 
@@ -119,7 +119,7 @@ TEST_F(FakeMaterialModelTest, DuplicateFileMaterialCount)
             names.push_back(A.GetMaterialName(material_count));
             ASSERT_LT(material_count, material_names_.size());
             EXPECT_EQ(std::string(names.back()), std::string(material_names_[material_count])) << file_contents;
-            EXPECT_EQ(A.GetMaterialMap(material_count).size(), material_components_[material_names_[material_count]].size()) << file_contents;
+            EXPECT_EQ(A.GetMaterialMassFracs(material_count).size(), material_components_[material_names_[material_count]].size()) << file_contents;
             material_count += 1;
         }
 
@@ -132,7 +132,7 @@ TEST_F(FakeMaterialModelTest, DuplicateFileMaterialCount)
             names.push_back(A.GetMaterialName(material_count));
             ASSERT_LT(material_count, material_names_.size());
             EXPECT_EQ(std::string(names.back()), std::string(material_names_[material_count]));
-            EXPECT_EQ(A.GetMaterialMap(material_count).size(), material_components_[material_names_[material_count]].size());
+            EXPECT_EQ(A.GetMaterialMassFracs(material_count).size(), material_components_[material_names_[material_count]].size());
             material_count += 1;
         }
 

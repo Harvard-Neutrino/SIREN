@@ -43,7 +43,7 @@ TEST(DefaultMaterials, VacuumOnly)
     EXPECT_DOUBLE_EQ(7.0/8.0, materials.GetPNERatio(id));
 
     int component_id = 1000070080;
-    std::map<int, double> material_map = materials.GetMaterialMap(id);
+    std::map<int, double> material_map = materials.GetMaterialMassFracs(id);
     ASSERT_EQ(1, material_map.size());
     ASSERT_EQ(1, material_map.count(component_id));
     EXPECT_DOUBLE_EQ(1.0, material_map[component_id]);
