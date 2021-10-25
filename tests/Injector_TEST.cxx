@@ -137,6 +137,8 @@ TEST(Injector, Constructor)
         hc_xs->AddDifferentialCrossSectionFile(hc_diff_fnames[i], target_types[i]);
         hc_xs->AddTotalCrossSectionFile(hc_tot_fnames[i], target_types[i]);
     }
+    cross_sections.push_back(hf_xs);
+    cross_sections.push_back(hc_xs);
 
     // Load the earth model
     std::shared_ptr<earthmodel::EarthModel> earth_model = std::make_shared<earthmodel::EarthModel>();
@@ -163,6 +165,9 @@ TEST(Injector, Constructor)
     // Put it all together!
     RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
 
+    while(injector) {
+        LeptonInjector::InteractionRecord event = injector.GenerateEvent();
+    }
 }
 
 int main(int argc, char** argv)
