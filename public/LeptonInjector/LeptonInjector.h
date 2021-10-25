@@ -81,6 +81,9 @@ public:
         return std::array<double, 4>{record.target_mass, 0, 0, 0};
     };
     virtual std::vector<std::string> DensityVariables() const {return std::vector<std::string>();};
+    virtual std::shared_ptr<InjectionDistribution> clone() const {
+        return std::shared_ptr<TargetMomentumDistribution>(new TargetAtRest(*this));
+    };
     template<typename Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
@@ -409,8 +412,9 @@ friend cereal::access;
 private:
     double particle_mass; // GeV
     double decay_width; // GeV
+    double multiplier;
 public:
-    DecayRangeFunction(double particle_mass, double decay_width) : particle_mass(particle_mass), decay_width(decay_width) {};
+    DecayRangeFunction(double particle_mass, double decay_width, double multiplier) : particle_mass(particle_mass), decay_width(decay_width), multiplier(multiplier) {};
     double operator()(InteractionSignature const & signature, double energy) const override {
         stga3::FourVector<double> lab_momentum{energy, energy*energy - particle_mass*particle_mass, 0.0, 0.0}; // GeV
         stga3::Beta<double> beta = stga3::beta_to_rest_frame_of(lab_momentum); // dimensionless
@@ -419,7 +423,7 @@ public:
         stga3::FourVector<double> time_in_lab_frame = stga3::apply_boost(-beta, time_in_rest_frame); // inverse GeV
         constexpr double iGeV_in_m = 1.973269804593025e-16; // meters per inverse GeV
         double length = (time_in_lab_frame.e0() * beta.norm()) * iGeV_in_m; // meters = ((inverse GeV | dimensionless) * (meters per inverse GeV))
-        return length; // meters
+        return length * multiplier; // meters
     };
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -436,9 +440,11 @@ public:
         if(version == 0) {
             double mass;
             double width;
+            double multiplier;
             archive(::cereal::make_nvp("ParticleMass", mass));
             archive(::cereal::make_nvp("DecayWidth", width));
-            construct(mass, width);
+            archive(::cereal::make_nvp("Multiplier", multiplier));
+            construct(mass, width, multiplier);
             archive(cereal::virtual_base_class<RangeFunction>(construct.ptr()));
         } else {
             throw std::runtime_error("DecayRangeFunction only supports version <= 0!");
@@ -527,7 +533,7 @@ class RangePositionDistribution : public VertexPositionDistribution {
 private:
     double radius;
     double endcap_length;
-    RangeFunction range_function;
+    std::shared_ptr<RangeFunction> range_function;
     std::vector<Particle::ParticleType> target_types;
 
     earthmodel::Vector3D SampleFromDisk(std::shared_ptr<LI_random> rand, earthmodel::Vector3D const & dir) const {
@@ -543,7 +549,7 @@ private:
         dir.normalize();
         earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
 
-        double lepton_range = range_function(record.signature, record.primary_momentum[0]);
+        double lepton_range = (*range_function)(record.signature, record.primary_momentum[0]);
 
         earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
         earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -563,13 +569,42 @@ private:
 public:
     RangePositionDistribution(){};
     RangePositionDistribution(const RangePositionDistribution &) = default;
-    RangePositionDistribution(double radius, double endcap_length, RangeFunction range_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {};
+    RangePositionDistribution(double radius, double endcap_length, std::shared_ptr<RangeFunction> range_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {};
     std::string Name() const override {
         return "RangePositionDistribution";
     };
     virtual std::shared_ptr<InjectionDistribution> clone() const {
         return std::shared_ptr<InjectionDistribution>(new RangePositionDistribution(*this));
     };
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Radius", radius));
+            archive(::cereal::make_nvp("EndcapLength", endcap_length));
+            archive(::cereal::make_nvp("RangeFunction", range_function));
+            archive(::cereal::make_nvp("TargetTypes", target_types));
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+        } else {
+            throw std::runtime_error("RangePositionDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<RangePositionDistribution> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            double r;
+            double l;
+            std::vector<Particle::ParticleType> t;
+            std::shared_ptr<RangeFunction> f;
+            archive(::cereal::make_nvp("Radius", r));
+            archive(::cereal::make_nvp("EndcapLength", l));
+            archive(::cereal::make_nvp("RangeFunction", f));
+            archive(::cereal::make_nvp("TargetTypes", t));
+            construct(r, l, f, t);
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(construct.ptr()));
+        } else {
+            throw std::runtime_error("RangePositionDistribution only supports version <= 0!");
+        }
+    }
 };
 
 class InjectorBase {
@@ -590,6 +625,9 @@ public:
         record.signature.primary_type = primary_type;
         record.primary_mass = Particle(primary_type).GetMass();
         return record;
+    };
+    void SetRandom(std::shared_ptr<LI_random> random) {
+        this->random = random;
     };
     virtual void SampleCrossSection(InteractionRecord & record) const {
         std::vector<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
@@ -641,6 +679,52 @@ public:
     operator bool() const {
         return injected_events < events_to_inject;
     };
+    /*
+    unsigned int events_to_inject = 0;
+    unsigned int injected_events = 0;
+    std::shared_ptr<LI_random> random;
+    Particle::ParticleType primary_type;
+    CrossSectionCollection cross_sections;
+    std::shared_ptr<earthmodel::EarthModel> earth_model;
+    std::vector<std::shared_ptr<InjectionDistribution>> distributions;
+     */
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("EventsToInject", events_to_inject));
+            archive(::cereal::make_nvp("InjectedEvents", injected_events));
+            archive(::cereal::make_nvp("PrimaryType", primary_type));
+            archive(::cereal::make_nvp("CrossSectrions", cross_sections));
+            archive(::cereal::make_nvp("EarthModel", earth_model));
+            archive(::cereal::make_nvp("InjectionDistributions", distributions));
+        } else {
+            throw std::runtime_error("InjectorBase only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<InjectorBase> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            unsigned int events_to_inject;
+            unsigned int injected_events;
+            Particle::ParticleType primary_type;
+            CrossSectionCollection cross_sections;
+            std::shared_ptr<earthmodel::EarthModel> earth_model;
+            std::vector<std::shared_ptr<InjectionDistribution>> distributions;
+            archive(::cereal::make_nvp("EventsToInject", events_to_inject));
+            archive(::cereal::make_nvp("InjectedEvents", injected_events));
+            archive(::cereal::make_nvp("PrimaryType", primary_type));
+            archive(::cereal::make_nvp("CrossSectrions", cross_sections));
+            archive(::cereal::make_nvp("EarthModel", earth_model));
+            archive(::cereal::make_nvp("InjectionDistributions", distributions));
+            construct(events_to_inject, cross_sections);
+            construct.ptr()->injected_events = injected_events;
+            construct.ptr()->primary_type = primary_type;
+            construct.ptr()->earth_model = earth_model;
+            construct.ptr()->distributions = distributions;
+        } else {
+            throw std::runtime_error("InjectorBase only supports version <= 0!");
+        }
+    }
 };
 
 class RangedLeptonInjector : public InjectorBase {
@@ -648,12 +732,12 @@ class RangedLeptonInjector : public InjectorBase {
         std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;
         std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
         std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
-        RangeFunction range_func;
+        std::shared_ptr<RangeFunction> range_func;
         double disk_radius;
         double endcap_length;
         std::shared_ptr<RangePositionDistribution> position_distribution;
     public:
-        RangedLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, RangeFunction range_func, double disk_radius, double endcap_length) : energy_distribution(edist), direction_distribution(ddist), target_momentum_distribution(target_momentum_distribution), disk_radius(disk_radius), endcap_length(endcap_length), InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random) {
+        RangedLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<RangeFunction> range_func, double disk_radius, double endcap_length) : energy_distribution(edist), direction_distribution(ddist), target_momentum_distribution(target_momentum_distribution), disk_radius(disk_radius), endcap_length(endcap_length), InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random) {
             std::vector<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
             position_distribution = std::make_shared<RangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
         };
@@ -736,6 +820,12 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::RangeFunction, LeptonInject
 CEREAL_CLASS_VERSION(LeptonInjector::ColumnDepthPositionDistribution, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::ColumnDepthPositionDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::VertexPositionDistribution, LeptonInjector::ColumnDepthPositionDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::RangePositionDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::RangePositionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::VertexPositionDistribution, LeptonInjector::RangePositionDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::InjectorBase, 0);
 
 #endif // LI_LeptonInjector_H
 
