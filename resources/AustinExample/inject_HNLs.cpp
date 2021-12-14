@@ -1,3 +1,15 @@
+#include <LeptonInjector/Controller.h>
+#include <LeptonInjector/Particle.h>
+#include <LeptonInjector/LeptonInjector.h>
+#include <LeptonInjector/Constants.h>
+#include <earthmodel-service/EarthModel.h>
+#include <earthmodel-service/Geometry.h>
+#include <string>
+#include <memory>
+#include <chrono>
+#include <ctime>
+#include <argagg.hpp>
+#include "date.h"
 
 #include <cmath>
 #include <math.h>
@@ -6,7 +18,6 @@
 #include <array>
 #include <iostream>
 
-#include <gtest/gtest.h>
 
 #include "phys-services/CrossSection.h"
 
@@ -14,11 +25,18 @@
 #include "LeptonInjector/Particle.h"
 #include "LeptonInjector/LeptonInjector.h"
 
+template <class Precision>
+std::string getISOCurrentTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    return date::format("%FT%TZ", date::floor<Precision>(now));
+}
+
+
 using namespace LeptonInjector;
 
 std::string diff_xs(int Z, int A) {
-	std::stringstream ss;
-	ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
+  std::stringstream ss;
+  ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
     ss << "dxsec_";
     ss << "Z_" << Z << "_";
     ss << "A_" << A << "_";
@@ -27,8 +45,8 @@ std::string diff_xs(int Z, int A) {
 }
 
 std::string tot_xs(int Z, int A) {
-	std::stringstream ss;
-	ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
+  std::stringstream ss;
+  ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/tot_xsec_y_Enu/";
     ss << "xsec_";
     ss << "Z_" << Z << "_";
     ss << "A_" << A << "_";
@@ -72,7 +90,6 @@ std::vector<std::string> gen_diff_xs_hf() {
     for(auto const & za : gen_ZA()) {
         res.push_back(diff_xs(za[0], za[1]) + "_hf.dat");
     }
-    return res;
 }
 
 std::vector<std::string> gen_tot_xs_hf() {
@@ -80,7 +97,6 @@ std::vector<std::string> gen_tot_xs_hf() {
     for(auto const & za : gen_ZA()) {
         res.push_back(tot_xs(za[0], za[1]) + "_hf.dat");
     }
-    return res;
 }
 
 std::vector<std::string> gen_diff_xs_hc() {
@@ -88,7 +104,6 @@ std::vector<std::string> gen_diff_xs_hc() {
     for(auto const & za : gen_ZA()) {
         res.push_back(diff_xs(za[0], za[1]) + "_hc.dat");
     }
-    return res;
 }
 
 std::vector<std::string> gen_tot_xs_hc() {
@@ -96,15 +111,17 @@ std::vector<std::string> gen_tot_xs_hc() {
     for(auto const & za : gen_ZA()) {
         res.push_back(tot_xs(za[0], za[1]) + "_hc.dat");
     }
-    return res;
 }
 
-TEST(Injector, Constructor)
-{
-    using ParticleType = LeptonInjector::Particle::ParticleType;
 
-    std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
-    std::string earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
+
+
+int main(int argc, char ** argv) {
+
+		using ParticleType = LeptonInjector::Particle::ParticleType;
+
+    std::string material_file = "";
+    std::string earth_file = "";
     double powerLawIndex = 2;
     double energyMin = 1; // in GeV
     double energyMax = 20; // in GeV
@@ -117,8 +134,8 @@ TEST(Injector, Constructor)
     double n_decay_lengths = 3.0;
 
     // This should encompass Minerva, should probably be smaller? Depends on how long Minerva is...
-    double disk_radius = 0.1; // in meters
-    double endcap_length = 5; // in meters
+    double disk_radius = 10; // in meters
+    double endcap_length = 10; // in meters
 
 
     // Events to inject
@@ -158,7 +175,7 @@ TEST(Injector, Constructor)
     std::shared_ptr<PrimaryEnergyDistribution> edist = power_law;
 
     // Choose injection direction
-    std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<LeptonInjector::FixedDirection>(earthmodel::Vector3D{0.0, 0.0, 1.0});
+    std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<LeptonInjector::FixedDirection>(earthmodel::Vector3D{1.0, 0.0, 0.0});
 
     // Targets should be stationary
     std::shared_ptr<LeptonInjector::TargetMomentumDistribution> target_momentum_distribution = std::make_shared<LeptonInjector::TargetAtRest>();
@@ -169,17 +186,7 @@ TEST(Injector, Constructor)
     // Put it all together!
     RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
 
-    int iter = 0;
     while(injector) {
-        std::cout << ++iter << std::endl;
         LeptonInjector::InteractionRecord event = injector.GenerateEvent();
     }
-
 }
-
-int main(int argc, char** argv)
-{
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
-

@@ -624,7 +624,8 @@ inline R130B2Sm1<T> R130B2Sp1<T>::dual() const {
 template<typename T>
 inline R130B0<T> R130B2Sp1<T>::norm() const {
     R130B0<T> res;
-    res[0]=std::fabs(std::sqrt(-std::pow((*this)[0], 2) - std::pow((*this)[1], 2) - std::pow((*this)[2], 2)));
+    //res[0]=std::fabs(std::sqrt(-std::pow((*this)[0], 2) - std::pow((*this)[1], 2) - std::pow((*this)[2], 2)));
+    res[0]=std::fabs(std::sqrt(std::pow((*this)[0], 2) + std::pow((*this)[1], 2) + std::pow((*this)[2], 2)));
     return res;
 };
 
