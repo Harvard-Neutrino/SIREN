@@ -46,7 +46,7 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
         std::map<int, int> num_protons_, num_neutrons_, num_nucleons_;
         for (auto & k: matratios) {
             int pdgcode = k.first;
-            GetAZ(pdgcode, np, nn);
+            GetNucleonContent(pdgcode, np, nn);
             num_protons_[pdgcode] = np;
             num_neutrons_[pdgcode] = nn;
             num_nucleons_[pdgcode] = np+nn;
@@ -186,7 +186,7 @@ double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) const 
     int np, nn;
     for(auto const & it : mats) {
         int pdg = it.first;
-        GetAZ(pdg, np, nn);
+        GetNucleonContent(pdg, np, nn);
         tot_np += np*it.second;
         tot_nn += nn*it.second;
     }
@@ -370,7 +370,7 @@ double MaterialModel::GetTargetListNeutronsToMass(int id, std::vector<LeptonInje
     return NA*sum;
 }
 
-void MaterialModel::GetAZ(int code, int & np, int & nn) {
+void MaterialModel::GetNucleonContent(int code, int & np, int & nn) {
     np = 0;
     int z = 0;
     int prefix = 0;

@@ -91,7 +91,7 @@ private:
     double ComputePNERatio(std::map<int, double> const & matratios) const;
     std::map<int, double> GetMolarMasses(std::map<int, int> const & pnums) const;
 public:
-    static void GetAZ(int code, int & np, int & nn);
+    static void GetNucleonContent(int code, int & np, int & nn);
 };
 
 } // namespace earthmodel
