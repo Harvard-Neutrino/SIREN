@@ -28,7 +28,7 @@ std::string diff_xs(int Z, int A) {
 
 std::string tot_xs(int Z, int A) {
 	std::stringstream ss;
-	ss << "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_y_Enu/";
+	ss << "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
     ss << "xsec_";
     ss << "Z_" << Z << "_";
     ss << "A_" << A << "_";
@@ -72,6 +72,7 @@ std::vector<std::string> gen_diff_xs_hf() {
     for(auto const & za : gen_ZA()) {
         res.push_back(diff_xs(za[0], za[1]) + "_hf.dat");
     }
+    return res;
 }
 
 std::vector<std::string> gen_tot_xs_hf() {
@@ -79,6 +80,7 @@ std::vector<std::string> gen_tot_xs_hf() {
     for(auto const & za : gen_ZA()) {
         res.push_back(tot_xs(za[0], za[1]) + "_hf.dat");
     }
+    return res;
 }
 
 std::vector<std::string> gen_diff_xs_hc() {
@@ -86,6 +88,7 @@ std::vector<std::string> gen_diff_xs_hc() {
     for(auto const & za : gen_ZA()) {
         res.push_back(diff_xs(za[0], za[1]) + "_hc.dat");
     }
+    return res;
 }
 
 std::vector<std::string> gen_tot_xs_hc() {
@@ -93,14 +96,15 @@ std::vector<std::string> gen_tot_xs_hc() {
     for(auto const & za : gen_ZA()) {
         res.push_back(tot_xs(za[0], za[1]) + "_hc.dat");
     }
+    return res;
 }
 
 TEST(Injector, Constructor)
 {
     using ParticleType = LeptonInjector::Particle::ParticleType;
 
-    std::string material_file = "";
-    std::string earth_file = "";
+    std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
+    std::string earth_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
     double powerLawIndex = 2;
     double energyMin = 1; // in GeV
     double energyMax = 20; // in GeV
@@ -132,9 +136,13 @@ TEST(Injector, Constructor)
     std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf();
     std::vector<std::string> hc_tot_fnames = gen_tot_xs_hc();
     for(unsigned int i=0; i < target_types.size(); ++i) {
+        std::cerr << hf_diff_fnames[i] << std::endl;
         hf_xs->AddDifferentialCrossSectionFile(hf_diff_fnames[i], target_types[i]);
+        std::cerr << hf_tot_fnames[i] << std::endl;
         hf_xs->AddTotalCrossSectionFile(hf_tot_fnames[i], target_types[i]);
+        std::cerr << hc_diff_fnames[i] << std::endl;
         hc_xs->AddDifferentialCrossSectionFile(hc_diff_fnames[i], target_types[i]);
+        std::cerr << hc_tot_fnames[i] << std::endl;
         hc_xs->AddTotalCrossSectionFile(hc_tot_fnames[i], target_types[i]);
     }
     cross_sections.push_back(hf_xs);

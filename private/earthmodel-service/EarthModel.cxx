@@ -638,15 +638,19 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Geometry::IntersectionList
     int min_hierarchy = std::numeric_limits<int>::min();
     int min_index = 0;
     for(unsigned int i=0; i<intersections.intersections.size(); ++i) {
+        std::cerr << "Looking at index " << i << " hierarchy " << intersections.intersections[i].hierarchy << std::endl;
         if(intersections.intersections[i].hierarchy > min_hierarchy) {
             result.intersections.push_back(intersections.intersections[i]);
             min_index = i;
+            std::cerr << "Storing first intersection index " << i << " hierarchy " << intersections.intersections[i].hierarchy << std::endl;
             break;
         }
     }
     for(unsigned int i=intersections.intersections.size()-1; (i >= 0 and i > min_index); --i) {
+        std::cerr << "Looking at index " << i << " hierarchy " << intersections.intersections[i].hierarchy << std::endl;
         if(intersections.intersections[i].hierarchy > min_hierarchy) {
             result.intersections.push_back(intersections.intersections[i]);
+            std::cerr << "Storing second intersection index " << i << " hierarchy " << intersections.intersections[i].hierarchy << std::endl;
             break;
         }
     }

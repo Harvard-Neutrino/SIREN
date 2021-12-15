@@ -633,6 +633,10 @@ public:
         std::vector<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
         std::vector<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
         std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
+
+
+        earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(record.interaction_vertex, earthmodel::Vector3D());
+
         double total_prob = 0.0;
         std::vector<double> probs;
         std::vector<Particle::ParticleType> matching_targets;
@@ -640,22 +644,21 @@ public:
         std::vector<std::shared_ptr<CrossSection>> matching_cross_sections;
         for(auto target : possible_targets) {
             if(available_targets.find(target) != available_targets.end()) {
-                // // Get target density
-                // double target_density = earth_model->GetTargetDensity(record.interaction_vertex);
-                // // Loop over cross sections that have this target
-                // std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections.GetCrossSectionsForTarget(target);
-                // for(auto const & cross_section : target_cross_sections) {
-                //     // Loop over cross section signatures with the same target
-                //     std::vector<InteractionSignature> signatures = cross_section->
-                //     // Add total cross section times density to the total prob
-                //     total_prob += target_density * cross_section->TotalCrossSection(record);
-                //     // Add total prob to probs
-                //     probs.push_back(total_prob);
-                //     // Add target and cross section pointer to the lists
-                //     matching_targets.push_back(target);
-                //     matching_cross_sections.push_back(cross_section);
-                // }
-                //
+                // Get target density
+                double target_density = earth_model->GetDensity(intersections, record.interaction_vertex, std::vector<LeptonInjector::Particle::ParticleType>{target});
+                // Loop over cross sections that have this target
+                std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections.GetCrossSectionsForTarget(target);
+                for(auto const & cross_section : target_cross_sections) {
+                    // Loop over cross section signatures with the same target
+                    std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
+                    // Add total cross section times density to the total prob
+                    total_prob += target_density * cross_section->TotalCrossSection(record);
+                    // Add total prob to probs
+                    probs.push_back(total_prob);
+                    // Add target and cross section pointer to the lists
+                    matching_targets.push_back(target);
+                    matching_cross_sections.push_back(cross_section);
+                }
             }
         }
         // Throw a random number

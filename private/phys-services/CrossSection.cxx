@@ -972,7 +972,7 @@ std::vector<Particle::ParticleType> DipoleFromTable::GetPossibleTargets() const 
     for(auto const & tot : total)
         tot_targets.insert(tot.first);
     std::vector<Particle::ParticleType> res;
-    std::set_intersection(diff_targets.begin(), diff_targets.end(), tot_targets.begin(), tot_targets.end(), res.begin());
+    std::set_intersection(diff_targets.begin(), diff_targets.end(), tot_targets.begin(), tot_targets.end(), std::back_inserter(res));
     return res;
 }
 
