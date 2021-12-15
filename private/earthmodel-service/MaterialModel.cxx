@@ -42,18 +42,18 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
         material_names_.push_back(name);
 
         // Fill proton/neutron/nucleon number maps
-        int np,nn;
-        std::map<int, int> num_protons_,num_neutrons_,num_nucleons_;
-        for (auto& k: matratios)
-        {
-            GetAZ(k.first,np,nn);
-            num_protons_[k.first] = np;
-            num_neutrons_[k.first] = nn;
-            num_nucleons_[k.first] = np+nn;
+        int np, nn;
+        std::map<int, int> num_protons_, num_neutrons_, num_nucleons_;
+        for (auto & k: matratios) {
+            int pdgcode = k.first;
+            GetAZ(pdgcode, np, nn);
+            num_protons_[pdgcode] = np;
+            num_neutrons_[pdgcode] = nn;
+            num_nucleons_[pdgcode] = np+nn;
         }
-        material_num_protons_.insert({id,num_protons_});
-        material_num_neutrons_.insert({id,num_neutrons_});
-        material_num_nucleons_.insert({id,num_nucleons_});
+        material_num_protons_.insert({id, num_protons_});
+        material_num_neutrons_.insert({id, num_neutrons_});
+        material_num_nucleons_.insert({id, num_nucleons_});
 
         // Fill mass fraction, molar mass, and atomic fraction maps
         material_mass_frac_.insert({id, matratios});
