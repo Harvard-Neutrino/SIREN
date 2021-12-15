@@ -1089,3 +1089,11 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
         }
     }
 }
+
+//Added by Nick
+double EarthModel::GetTargetMass(int code){
+		int np = 0;
+		int nn = 0;
+    materials_.GetAZ(code,np,nn);
+    return np*LeptonInjector::Constants::protonMass + nn*LeptonInjector::Constants::neutronMass;
+}

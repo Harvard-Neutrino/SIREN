@@ -321,6 +321,12 @@ double DISFromSpline::TotalCrossSection(LeptonInjector::Particle::ParticleType p
     return std::pow(10.0, log_xs);
 }
 
+// No implementation for DIS yet, just use non-target function
+double DISFromSpline::TotalCrossSection(LeptonInjector::Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type) const {
+		return DISFromSpline::TotalCrossSection(primary_type,primary_energy);
+}
+
+
 double DISFromSpline::DifferentialCrossSection(InteractionRecord const & interaction) const {
     LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
     double primary_energy;
@@ -673,6 +679,7 @@ double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType
     }
 
     if(total.find(target_type) == total.end()) {
+				std::cout << "Faulty target: " << target_type << std::endl;
         throw std::runtime_error("Supplied target not supported by cross section!");
     }
 

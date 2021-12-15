@@ -416,7 +416,7 @@ private:
 public:
     DecayRangeFunction(double particle_mass, double decay_width, double multiplier) : particle_mass(particle_mass), decay_width(decay_width), multiplier(multiplier) {};
     double operator()(InteractionSignature const & signature, double energy) const override {
-        stga3::FourVector<double> lab_momentum{energy, energy*energy - particle_mass*particle_mass, 0.0, 0.0}; // GeV
+        stga3::FourVector<double> lab_momentum{energy, sqrt(energy*energy - particle_mass*particle_mass), 0.0, 0.0}; // GeV
         stga3::Beta<double> beta = stga3::beta_to_rest_frame_of(lab_momentum); // dimensionless
         double decay_time = 1.0 / decay_width; // inverse GeV
         stga3::FourVector<double> time_in_rest_frame{decay_time, 0,0,0}; // inverse GeV
@@ -554,9 +554,13 @@ private:
         earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
         earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
 
+        
         earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
         path.ExtendFromStartByDistance(lepton_range);
         path.ClipToOuterBounds();
+
+
+
 
         double totalColumnDepth = path.GetColumnDepthInBounds(target_types);
 
@@ -638,26 +642,36 @@ public:
         earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(record.interaction_vertex, earthmodel::Vector3D());
 
         double total_prob = 0.0;
+        std::vector<Particle::ParticleType> single;
+        earthmodel::Vector3D intVertex(record.interaction_vertex[0],record.interaction_vertex[1],record.interaction_vertex[2]);
         std::vector<double> probs;
         std::vector<Particle::ParticleType> matching_targets;
         std::vector<InteractionSignature> matching_signatures;
         std::vector<std::shared_ptr<CrossSection>> matching_cross_sections;
-        for(auto target : possible_targets) {
+        for(auto const target : possible_targets) {
             if(available_targets.find(target) != available_targets.end()) {
                 // Get target density
-                double target_density = earth_model->GetDensity(intersections, record.interaction_vertex, std::vector<LeptonInjector::Particle::ParticleType>{target});
+                single.push_back(target);
+                std::cout << target << std::endl;
+                std::cout << intVertex << std::endl;
+                double target_density = earth_model->GetDensity(intVertex, single);
+                single.clear();
                 // Loop over cross sections that have this target
                 std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections.GetCrossSectionsForTarget(target);
                 for(auto const & cross_section : target_cross_sections) {
                     // Loop over cross section signatures with the same target
-                    std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
-                    // Add total cross section times density to the total prob
-                    total_prob += target_density * cross_section->TotalCrossSection(record);
-                    // Add total prob to probs
-                    probs.push_back(total_prob);
-                    // Add target and cross section pointer to the lists
-                    matching_targets.push_back(target);
-                    matching_cross_sections.push_back(cross_section);
+                    std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignatures();
+                    for(auto const & signature : signatures) {
+                        record.signature = signature;
+                        // Add total cross section times density to the total prob
+                        total_prob += target_density * cross_section->TotalCrossSection(record);
+                        // Add total prob to probs
+                        probs.push_back(total_prob);
+                        // Add target and cross section pointer to the lists
+                        matching_targets.push_back(target);
+                        matching_cross_sections.push_back(cross_section);
+                        matching_signatures.push_back(signature);
+                    }
                 }
             }
         }
@@ -667,6 +681,9 @@ public:
         unsigned int index = 0;
         for(; (index < probs.size()-1) and (r > probs[index]); ++index) {}
         record.signature.target_type = matching_targets[index];
+        record.signature = matching_signatures[index];
+        record.target_mass = earth_model->GetTargetMass(record.signature.target_type);
+        record.target_momentum = {record.target_mass,0,0,0};
         matching_cross_sections[index]->SampleFinalState(record, random);
     }
     virtual InteractionRecord GenerateEvent() {

@@ -18,6 +18,7 @@
 #include "serialization/array.h"
 
 #include "LeptonInjector/Particle.h"
+#include "LeptonInjector/Constants.h"
 
 namespace earthmodel {
 

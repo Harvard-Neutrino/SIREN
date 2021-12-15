@@ -62,7 +62,9 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
         double nfrac_denom = 0;
         for (auto& k : matratios) {nfrac_denom += matratios[k.first]/molar_masses[k.first];}
         std::map<int,double> atom_fracs;
-        for (auto& k : matratios) {atom_fracs[k.first] = (matratios[k.first]/molar_masses[k.first])/nfrac_denom;}
+        for (auto& k : matratios) {
+					atom_fracs[k.first] = (matratios[k.first]/molar_masses[k.first])/nfrac_denom;
+				}
         material_atom_frac_.insert({id,atom_fracs});
 
 
@@ -203,20 +205,20 @@ double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) const 
 std::map<int, double> MaterialModel::GetMolarMasses(std::map<int, int> const & pnums) const {
 		
 		std::ifstream ifs("AtomicData.csv");
-		std::string line;
 		int nproton; double molmass;
 		std::map<int, double> molar_masses;
 
-		while(std::getline(ifs, line))
+		while(ifs >> nproton >> molmass)
 		{
-				std::stringstream linestream(line);
-				linestream >> nproton >> molmass;
 				int code = 0;
 				for(auto const & it : pnums) 
 				{
 					if (it.second==nproton) code = it.first;
 				}
-				if(code!=0) molar_masses[code] = molmass;
+				if(code!=0)
+				{
+					molar_masses[code] = molmass;
+				}
 		}
 		return molar_masses;	
 }

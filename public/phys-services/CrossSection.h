@@ -76,6 +76,7 @@ private:
 public:
     CrossSection() {};
     virtual double TotalCrossSection(InteractionRecord const &) const = 0;
+    virtual double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const = 0;
     virtual double DifferentialCrossSection(InteractionRecord const &) const = 0;
     virtual void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random>) const = 0;
 
@@ -160,6 +161,7 @@ public:
 
     double TotalCrossSection(InteractionRecord const &) const;
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy) const;
+    double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const;
     double DifferentialCrossSection(InteractionRecord const &) const;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass) const;
     void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random> random) const;
