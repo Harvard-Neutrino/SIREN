@@ -36,7 +36,7 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
     double pne_ratio = ComputePNERatio(matratios);
     if(material_ids_.find(name) == material_ids_.end()) {
         int id = material_names_.size();
-        
+
         // Fill basic information
         material_ids_.insert({name, id});
         material_names_.push_back(name);
@@ -46,15 +46,15 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
         std::map<int, int> num_protons_,num_neutrons_,num_nucleons_;
         for (auto& k: matratios)
         {
-					GetAZ(k.first,np,nn);
-					num_protons_[k.first] = np;
-					num_neutrons_[k.first] = nn;
-					num_nucleons_[k.first] = np+nn;
-				}
-				material_num_protons_.insert({id,num_protons_});
-				material_num_neutrons_.insert({id,num_neutrons_});
-				material_num_nucleons_.insert({id,num_nucleons_});
-        
+            GetAZ(k.first,np,nn);
+            num_protons_[k.first] = np;
+            num_neutrons_[k.first] = nn;
+            num_nucleons_[k.first] = np+nn;
+        }
+        material_num_protons_.insert({id,num_protons_});
+        material_num_neutrons_.insert({id,num_neutrons_});
+        material_num_nucleons_.insert({id,num_nucleons_});
+
         // Fill mass fraction, molar mass, and atomic fraction maps
         material_mass_frac_.insert({id, matratios});
         std::map<int,double> molar_masses = GetMolarMasses(num_protons_);
@@ -63,8 +63,8 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
         for (auto& k : matratios) {nfrac_denom += matratios[k.first]/molar_masses[k.first];}
         std::map<int,double> atom_fracs;
         for (auto& k : matratios) {
-					atom_fracs[k.first] = (matratios[k.first]/molar_masses[k.first])/nfrac_denom;
-				}
+            atom_fracs[k.first] = (matratios[k.first]/molar_masses[k.first])/nfrac_denom;
+        }
         material_atom_frac_.insert({id,atom_fracs});
 
 
@@ -72,7 +72,7 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
         std::vector<LeptonInjector::Particle::ParticleType> ptypes;
         for (auto& k : matratios) {ptypes.push_back(static_cast<LeptonInjector::Particle::ParticleType>(k.first));}
         material_constituents_.insert({id,ptypes});
-        
+
         // Fill proton:electron ratio map
         pne_ratios_.insert({id, pne_ratio});
     }
@@ -89,16 +89,16 @@ void MaterialModel::AddModelFiles(std::vector<std::string> const & matratios) {
 }
 
 namespace {
-bool fexists(const char *filename)
-{
-    std::ifstream ifile(filename);
-    return (bool)ifile;
-}
-bool fexists(const std::string filename)
-{
-    std::ifstream ifile(filename.c_str());
-    return (bool)ifile;
-}
+    bool fexists(const char *filename)
+    {
+        std::ifstream ifile(filename);
+        return (bool)ifile;
+    }
+    bool fexists(const std::string filename)
+    {
+        std::ifstream ifile(filename.c_str());
+        return (bool)ifile;
+    }
 }
 
 void MaterialModel::AddModelFile(std::string matratio) {
@@ -203,24 +203,24 @@ double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) const 
 }
 
 std::map<int, double> MaterialModel::GetMolarMasses(std::map<int, int> const & pnums) const {
-		
-		std::ifstream ifs("AtomicData.csv");
-		int nproton; double molmass;
-		std::map<int, double> molar_masses;
 
-		while(ifs >> nproton >> molmass)
-		{
-				int code = 0;
-				for(auto const & it : pnums) 
-				{
-					if (it.second==nproton) code = it.first;
-				}
-				if(code!=0)
-				{
-					molar_masses[code] = molmass;
-				}
-		}
-		return molar_masses;	
+    std::ifstream ifs("AtomicData.csv");
+    int nproton; double molmass;
+    std::map<int, double> molar_masses;
+
+    while(ifs >> nproton >> molmass)
+    {
+        int code = 0;
+        for(auto const & it : pnums)
+        {
+            if (it.second==nproton) code = it.first;
+        }
+        if(code!=0)
+        {
+            molar_masses[code] = molmass;
+        }
+    }
+    return molar_masses;
 }
 
 double MaterialModel::GetPNERatio(int id) const {
@@ -268,7 +268,7 @@ std::map<int, int> MaterialModel::GetMaterialNumNeutrons(int id) const {
 }
 
 double MaterialModel::GetTargetListMassFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
-    
+
     double sum = 0;
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_mass_frac_.at(id)) {
