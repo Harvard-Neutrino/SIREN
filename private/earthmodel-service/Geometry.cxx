@@ -1383,11 +1383,11 @@ void ExtrPoly::print(std::ostream& os) const
 void ExtrPoly::ComputeLateralPlanes()
 {
     int Nv = polygon_.size();
+    std::cout << "num_verts: " << Nv << std::endl;
     planes_.resize(Nv);
     for (int i=0, k=Nv-1; i<Nv; k = i++)
     {
-        std::vector<double> dir = {polygon_[i][0] - polygon_[k][0],
-            polygon_[i][1] - polygon_[k][1]};
+        std::vector<double> dir = {polygon_[i][0] - polygon_[k][0],polygon_[i][1] - polygon_[k][1]};
         double norm = sqrt(dir[0]*dir[0] + dir[1]*dir[1]);
         dir[0]/=norm; dir[1]/=norm;
         planes_[i].a = -dir[1];
