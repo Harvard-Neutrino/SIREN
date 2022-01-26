@@ -47,9 +47,11 @@ struct InteractionRecord {
     InteractionSignature signature;
     double primary_mass = 0;
     double target_mass = 0;
+    double decay_length = 0;
     std::array<double, 4> primary_momentum = {0, 0, 0, 0};
     std::array<double, 4> target_momentum = {0, 0, 0, 0};
     std::array<double, 3> interaction_vertex = {0, 0, 0};
+    std::array<double, 3> decay_vertex = {0, 0, 0};
     std::vector<std::array<double, 4>> secondary_momenta;
     std::vector<double> interaction_parameters;
     friend std::ostream& operator<<(std::ostream& os, InteractionRecord const& record);

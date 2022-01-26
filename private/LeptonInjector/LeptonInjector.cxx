@@ -78,17 +78,17 @@ std::pair<double,double> computeFinalStateAngles(Particle::ParticleType finalTyp
 
         if(cos_theta1<-1){
             // commented out until new logger is implemented
-            //				log_warn_stream("cos(theta) underflow (" << cos_theta1 << "); rounding up to -1"
-            //					"\n(E_total=" << E_total/I3Units::GeV << " x=" << x << " y=" << y << ")");
+            //        log_warn_stream("cos(theta) underflow (" << cos_theta1 << "); rounding up to -1"
+            //          "\n(E_total=" << E_total/I3Units::GeV << " x=" << x << " y=" << y << ")");
             cos_theta1=-1;
         }
         else if(cos_theta1>1){
             //tell the user if the difference was large enough to plausibly not be just round-off
 
             // need new logger
-            //				if((cos_theta1-1)>1e-3)
-            //					log_warn_stream("cos(theta) overflow (" << cos_theta1 << "); rounding down to 1"
-            //						"\n(E_total=" << E_total/I3Units::GeV << " x=" << x << " y=" << y <<")");
+            //        if((cos_theta1-1)>1e-3)
+            //          log_warn_stream("cos(theta) overflow (" << cos_theta1 << "); rounding down to 1"
+            //            "\n(E_total=" << E_total/I3Units::GeV << " x=" << x << " y=" << y <<")");
             cos_theta1=1;
         }
 
@@ -107,9 +107,9 @@ std::pair<double,double> computeFinalStateAngles(Particle::ParticleType finalTyp
 }
 
 // take a direction, deflect that direction by a distance /zenith/
-//		rotate the new direction around the initial direction by /azimuth/
+//    rotate the new direction around the initial direction by /azimuth/
 // So the zenith and azimuth are only what their names would suggest in the coordinate system where
-//		/base/ is the \hat{z} axis
+//    /base/ is the \hat{z} axis
 
 void FillTree(std::shared_ptr<LI_random> rand, Particle::ParticleType finalType1, Particle::ParticleType finalType2, LI_Position vertex, LI_Direction dir, double target_mass, LICrossSection::finalStateRecord const &fs, double energy, BasicEventProperties& properties, std::array<h5Particle,3>& particle_tree) {
 
@@ -169,6 +169,13 @@ InteractionRecord RangedLeptonInjector::GenerateEvent() {
 
     // Sample the cross section and final state
     SampleCrossSection(event);
+    
+    // Sample decay angle of photon
+    SampleSecondaryDecay(event);
+    
+    // Sample pair production location 
+    SamplePairProduction(event);
+    
     injected_events += 1;
     return event;
 }

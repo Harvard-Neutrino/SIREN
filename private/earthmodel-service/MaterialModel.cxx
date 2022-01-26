@@ -75,6 +75,9 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
 
         // Fill proton:electron ratio map
         pne_ratios_.insert({id, pne_ratio});
+        
+        // Compute radiation length 
+        material_rad_length_.insert({id, ComputeRadLength(id)});
     }
     else {
         int id = material_ids_[name];
@@ -202,6 +205,26 @@ double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) const 
     return nw_electron;
 }
 
+double MaterialModel::ComputeRadLength(int id) {
+		// This function calculates the radiation length of a given material in g/cm^2
+		// Takes screening effects into account
+		// Averages over constituent materials in a composite
+		// See Page 21 of Particle Detectors by Grupen and Shwartz
+		
+		double X0inv = 0;
+		int i;
+		double X0i, Z, A, f;
+		std::map<int, double>::iterator it;
+		for (it = material_mass_frac_[id].begin(); it != material_mass_frac_[id].end(); it++) {
+				i,A = it->first,it->second;
+				Z = (material_num_protons_[id])[i];	
+				f = (material_mass_frac_[id])[i];	
+				X0i = 716.4 * A / ( Z*(Z + 1) * std::log(287./std::sqrt(Z))); // g/cm^2, Grupen eq 1.59
+				X0inv += f/X0i;
+		}
+		return 1/X0inv;
+}
+
 std::map<int, double> MaterialModel::GetMolarMasses(std::map<int, int> const & pnums) const {
 
     std::ifstream ifs("AtomicData.csv");
@@ -265,6 +288,10 @@ std::map<int, int> MaterialModel::GetMaterialNumProtons(int id) const {
 
 std::map<int, int> MaterialModel::GetMaterialNumNeutrons(int id) const {
     return material_num_neutrons_.at(id);
+}
+
+double MaterialModel::GetMaterialRadLength(int id) const {
+    return material_rad_length_.at(id);
 }
 
 double MaterialModel::GetTargetListMassFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
