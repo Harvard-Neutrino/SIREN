@@ -57,7 +57,7 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
 
         // Fill mass fraction, molar mass, and atomic fraction maps
         material_mass_frac_.insert({id, matratios});
-        std::map<int,double> molar_masses = GetMolarMasses(num_protons_);
+        std::map<int, double> molar_masses = GetMolarMasses(num_protons_);
         material_molar_mass_.insert({id, molar_masses});
         double nfrac_denom = 0;
         for (auto& k : matratios) {nfrac_denom += matratios[k.first]/molar_masses[k.first];}
