@@ -36,6 +36,12 @@ Vector3D::Vector3D(Vector3D&& other)
 {
 }
 
+Vector3D::Vector3D(std::array<double, 3> const & vec)
+    : cartesian_(vec[0], vec[1], vec[2])
+    , spherical_(0,0,0)
+{
+}
+
 // destructor
 Vector3D::~Vector3D() {}
 
