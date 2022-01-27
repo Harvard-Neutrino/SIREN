@@ -37,6 +37,7 @@ private:
     std::map<int, std::map<int, int> > material_num_protons_;
     std::map<int, std::map<int, int> > material_num_neutrons_;
     std::map<int, std::map<int, int> > material_num_nucleons_;
+    std::map<int, double > material_rad_length_;
     std::map<int, std::vector<LeptonInjector::Particle::ParticleType> > material_constituents_;
     std::map<int, double> pne_ratios_;
 public:
@@ -76,6 +77,7 @@ public:
     std::map<int, int> GetMaterialNumNucleons(int id) const;
     std::map<int, int> GetMaterialNumProtons(int id) const;
     std::map<int, int> GetMaterialNumNeutrons(int id) const;
+    double GetMaterialRadLength(int id) const;
     
     double GetTargetListMassFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
     double GetTargetListAtomFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
@@ -89,6 +91,7 @@ public:
     double GetTargetListNeutronsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
 private:
     double ComputePNERatio(std::map<int, double> const & matratios) const;
+    double ComputeRadLength(int id);
     std::map<int, double> GetMolarMasses(std::map<int, int> const & pnums) const;
 public:
     static void GetNucleonContent(int code, int & np, int & nn);

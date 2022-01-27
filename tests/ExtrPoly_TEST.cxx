@@ -339,9 +339,9 @@ TEST(IsInside, ExtrPoly)
         else
             EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
     }
-    /*
-    // Surface in negativ x direction
-    particle_position.SetCartesianCoordinates(-0.5 * width_x, 0, 0);
+    // Surface 2: right face
+    particle_position.SetCartesianCoordinates(extr_face/2, 0, 0);
+    double cosa;
     for (int i = 0; i < 1e4; i++)
     {
         rnd_theta = RandomDouble();
@@ -349,15 +349,16 @@ TEST(IsInside, ExtrPoly)
 
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, rnd_theta * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
+				cosa = (1./sqrt(5.)) * (2*particle_direction.GetX() + particle_direction.GetY());
 
         // phi = 0 is in positive x direction
-        if (particle_direction.GetPhi() < 0.5 * M_PI || particle_direction.GetPhi() > 1.5 * M_PI)
-            EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
-        else
+        if (cosa>0)
             EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
+        else
+            EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
     }
-    // Surface in positiv y direction
-    particle_position.SetCartesianCoordinates(0, 0.5 * width_y, 0);
+    // Surface 3: left face
+    particle_position.SetCartesianCoordinates(-extr_face/2, 0, 0);
     for (int i = 0; i < 1e4; i++)
     {
         rnd_theta = RandomDouble();
@@ -365,47 +366,14 @@ TEST(IsInside, ExtrPoly)
 
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, rnd_theta * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
+				cosa = (1./sqrt(5.)) * (-2*particle_direction.GetX() + particle_direction.GetY());
 
         // phi = 0 is in positive x direction
-        if (particle_direction.GetPhi() < M_PI)
+        if (cosa>0)
             EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
         else
             EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
     }
-    // Surface in negativ y direction
-    particle_position.SetCartesianCoordinates(0, -0.5 * width_y, 0);
-    for (int i = 0; i < 1e4; i++)
-    {
-        rnd_theta = RandomDouble();
-        rnd_phi   = RandomDouble();
-
-        particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, rnd_theta * M_PI);
-        particle_direction.CalculateCartesianFromSpherical();
-
-        // phi = 0 is in positive x direction
-        if (particle_direction.GetPhi() < M_PI)
-            EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
-        else
-            EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
-    }
-
-    // For completness check one corner
-    particle_position.SetCartesianCoordinates(0.5 * width_x, 0.5 * width_y, 0.5 * height);
-    for (int i = 0; i < 1e4; i++)
-    {
-        rnd_theta = RandomDouble();
-        rnd_phi   = RandomDouble();
-
-        particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, rnd_theta * M_PI);
-        particle_direction.CalculateCartesianFromSpherical();
-
-        if (particle_direction.GetTheta() < 0.5 * M_PI || particle_direction.GetPhi() < M_PI ||
-            particle_direction.GetPhi() > 1.5 * M_PI)
-            EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
-        else
-            EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
-    }
-    */
 }
 
 
@@ -432,14 +400,26 @@ TEST(DistanceTo, Box)
     int number_particles = 1e5;
 
     std::cout.precision(16);
+		
+		// Choose extr poly dimensions. Here we make a box
+    std::vector<std::vector<double>> poly;
+    std::vector<ExtrPoly::ZSection> zsecs;
+		poly.push_back(std::vector<double>{width/2,width/2});
+		poly.push_back(std::vector<double>{width/2,-width/2});
+		poly.push_back(std::vector<double>{-width/2,-width/2});
+		poly.push_back(std::vector<double>{-width/2,width/2});
+    double offset[2] = {0,0};
+    zsecs.push_back(ExtrPoly::ZSection(-height/2,offset,1));
+    zsecs.push_back(ExtrPoly::ZSection(height/2,offset,1));
+        
+		// The values are divided by 100 to convert the units...
+		// Init functions expects m but here everthing is in cm
+    ExtrPoly A(Vector3D(0, 0, 0), poly,zsecs);
 
     for (int j = 0; j < number_particles; j++)
     {
         rnd_phi = RandomDouble();
 
-        // The values are divided by 100 to convert the units...
-        // Init functions expects m but here everthing is in cm
-        Box A(Vector3D(0, 0, 0), width, width, height);
 
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, 0.5 * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
@@ -497,7 +477,7 @@ TEST(DistanceTo, Box)
         }
     }
 
-    Box A(Vector3D(0, 0, 0), width, width, height);
+    //ExtrPoly A(Vector3D(0, 0, 0), poly,zsecs);
 
     for (int i = 0; i < number_particles; i++)
     {

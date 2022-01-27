@@ -290,7 +290,7 @@ private:
 
 class VertexPositionDistribution : public InjectionDistribution {
 private:
-    virtual earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
+    virtual earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const = 0;
 public:
     void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
         earthmodel::Vector3D pos = SamplePosition(rand, earth_model, cross_sections, record);
@@ -323,7 +323,7 @@ class CylinderVolumePositionDistribution : public VertexPositionDistribution {
 friend cereal::access;
 private:
     earthmodel::Cylinder cylinder;
-    earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override {
+    earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override {
         double t = rand->Uniform(0, 2 * M_PI);
         const double outer_radius = cylinder.GetRadius();
         const double inner_radius = cylinder.GetInnerRadius();
@@ -416,7 +416,7 @@ private:
 public:
     DecayRangeFunction(double particle_mass, double decay_width, double multiplier) : particle_mass(particle_mass), decay_width(decay_width), multiplier(multiplier) {};
     double operator()(InteractionSignature const & signature, double energy) const override {
-        stga3::FourVector<double> lab_momentum{energy, sqrt(energy*energy - particle_mass*particle_mass), 0.0, 0.0}; // GeV
+        stga3::FourVector<double> lab_momentum{energy, 0.0, 0.0, sqrt(energy*energy - particle_mass*particle_mass)}; // GeV
         stga3::Beta<double> beta = stga3::beta_to_rest_frame_of(lab_momentum); // dimensionless
         double decay_time = 1.0 / decay_width; // inverse GeV
         stga3::FourVector<double> time_in_rest_frame{decay_time, 0,0,0}; // inverse GeV
@@ -468,7 +468,7 @@ private:
         return q.rotate(pos, false);
     };
 
-    earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override {
+    earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override {
         earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
         dir.normalize();
         earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
@@ -544,12 +544,13 @@ private:
         return q.rotate(pos, false);
     };
 
-    earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override {
+    earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override {
         earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
         dir.normalize();
         earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
 
         double lepton_range = (*range_function)(record.signature, record.primary_momentum[0]);
+        record.decay_length = lepton_range;
 
         earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
         earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -638,12 +639,12 @@ public:
         std::vector<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
         std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
+        earthmodel::Vector3D intVertex(record.interaction_vertex[0],record.interaction_vertex[1],record.interaction_vertex[2]);
 
-        earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(record.interaction_vertex, earthmodel::Vector3D());
+        earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(intVertex, earthmodel::Vector3D());
 
         double total_prob = 0.0;
         std::vector<Particle::ParticleType> single;
-        earthmodel::Vector3D intVertex(record.interaction_vertex[0],record.interaction_vertex[1],record.interaction_vertex[2]);
         std::vector<double> probs;
         std::vector<Particle::ParticleType> matching_targets;
         std::vector<InteractionSignature> matching_signatures;
@@ -652,8 +653,6 @@ public:
             if(available_targets.find(target) != available_targets.end()) {
                 // Get target density
                 single.push_back(target);
-                std::cout << target << std::endl;
-                std::cout << intVertex << std::endl;
                 double target_density = earth_model->GetDensity(intVertex, single);
                 single.clear();
                 // Loop over cross sections that have this target
@@ -686,6 +685,73 @@ public:
         record.target_momentum = {record.target_mass,0,0,0};
         matching_cross_sections[index]->SampleFinalState(record, random);
     }
+    virtual void SampleSecondaryDecay(InteractionRecord & record) const {
+        // This function takes an interaction record containing an HNL and simulates the decay to a photon
+        // Currently assumes Majorana HNL
+        // Final state photon added to secondary particle vectors in InteractionRecord
+
+        // Find the HNL in the secondar particle vector and save its momentum/cartesian direction
+        unsigned int lepton_index = (record.signature.secondary_types[0] == Particle::ParticleType::NuF4 or record.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
+        std::array<double, 4> hnl_momentum = record.secondary_momenta[lepton_index];
+        stga3::FourVector<double> pHNL_lab{hnl_momentum[0], hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]};
+        double hnl_mass = std::sqrt(pHNL_lab | pHNL_lab);
+        earthmodel::Vector3D hnl_dir(hnl_momentum[1],hnl_momentum[2],hnl_momentum[3]);
+        hnl_dir.normalize();
+        
+        // Calculate the decay location of the HNL
+        double decay_loc = -1 * record.decay_length * std::log(random->Uniform(0,1));
+        record.decay_vertex = {record.interaction_vertex[0] + decay_loc*hnl_dir.GetX(),
+                               record.interaction_vertex[1] + decay_loc*hnl_dir.GetY(),
+                               record.interaction_vertex[2] + decay_loc*hnl_dir.GetZ()};
+
+        // Sample decay angles
+        // Majorana Case: Isotropic Decay
+        double costh = random->Uniform(-1,1);
+        double theta = std::acos(costh);
+        double phi = random->Uniform(0,2*Constants::pi);
+        stga3::FourVector<double> pGamma_HNLrest{hnl_mass/2.0,
+                                                 hnl_mass/2.0*std::cos(phi)*std::sin(theta),
+                                                 hnl_mass/2.0*std::sin(phi)*std::sin(theta),
+                                                 hnl_mass/2.0*costh};
+
+        // Boost gamma to lab frame
+        stga3::Beta<double> beta_to_hnl_rest = stga3::beta_to_rest_frame_of(pHNL_lab);
+        stga3::Boost<double> boost_to_lab = stga3::boost_from_beta(-beta_to_hnl_rest);
+        stga3::FourVector<double> pGamma_lab = stga3::apply_boost(boost_to_lab,pGamma_HNLrest);
+
+        std::array<double,4> gamma_momentum;
+        gamma_momentum[0] = pGamma_lab.e0();
+        gamma_momentum[1] = pGamma_lab.e1();
+        gamma_momentum[2] = pGamma_lab.e2();
+        gamma_momentum[3] = pGamma_lab.e3();
+        record.secondary_momenta.push_back(gamma_momentum);
+        record.signature.secondary_types.push_back(Particle::ParticleType::Gamma);
+    }
+    virtual void SamplePairProduction(InteractionRecord & record) {
+        // Nick TODO: finish implementing this function which samples the photon pair produciton location
+        earthmodel::Vector3D decay_vtx(record.decay_vertex[0],
+                                       record.decay_vertex[1],
+                                       record.decay_vertex[2]);
+        unsigned int gamma_index = record.secondary_momenta.size() - 1; 
+        earthmodel::Vector3D decay_dir(record.secondary_momenta[gamma_index][1],
+                                       record.secondary_momenta[gamma_index][2],
+                                       record.secondary_momenta[gamma_index][3]);
+        decay_dir.normalize();
+        earthmodel::Path path(earth_model, decay_vtx, decay_dir, 0);
+        path.ComputeIntersections();
+        std::vector<double> P;
+        double N = 0;
+        for
+        earthmodel::Geometry::IntersectionList ilist = path.GetIntersections();
+        std::cout << "HNL DECAY VERTEX: " << decay_vtx.GetX() << " " << decay_vtx.GetY() << " " << decay_vtx.GetZ() << std::endl;
+        std::cout << "HNL DECAY DIRECTION: " << decay_dir.GetX() << " " << decay_dir.GetY() << " " << decay_dir.GetZ() << std::endl;
+        std::cout << "INTERSECTIONS:\n";
+        for(auto& i : ilist.intersections){
+            std::cout << i.hierarchy << " " << i.distance << " " << i.position.GetX() << " " << i.position.GetY() << " " << i.position.GetZ() << std::endl;
+        }
+        std::cout << "\n";
+    
+    }
     virtual InteractionRecord GenerateEvent() {
         InteractionRecord record = this->NewRecord();
         for(auto & distribution : distributions) {
@@ -707,7 +773,7 @@ public:
     CrossSectionCollection cross_sections;
     std::shared_ptr<earthmodel::EarthModel> earth_model;
     std::vector<std::shared_ptr<InjectionDistribution>> distributions;
-     */
+    */
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

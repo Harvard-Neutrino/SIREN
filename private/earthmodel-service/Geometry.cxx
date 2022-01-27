@@ -1383,7 +1383,6 @@ void ExtrPoly::print(std::ostream& os) const
 void ExtrPoly::ComputeLateralPlanes()
 {
     int Nv = polygon_.size();
-    std::cout << "num_verts: " << Nv << std::endl;
     planes_.resize(Nv);
     for (int i=0, k=Nv-1; i<Nv; k = i++)
     {
@@ -1445,7 +1444,7 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D cons
     {
         double cosa = planes_[i].a*direction.GetX()+planes_[i].b*direction.GetY();
         double distnce = planes_[i].a*position.GetX()+planes_[i].b*position.GetY()+planes_[i].d;
-        // case 1: particle is outside XY projection of detector
+        // case 1: particle is outside of outward-facing normal vector of plane in XY projection
         if (distnce >= -GEOMETRY_PRECISION)
         {
             if (cosa >= 0) { return dist; } // If particle is currently moving away from any face, it will never intersect
@@ -1453,7 +1452,7 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D cons
             if (txmin < tmp)  { txmin = tmp; }
 
         }
-        // case 2: particle is inside XY projection of detector
+        // case 2: particle is inside of outward-facing normal vector of plane
         else if (cosa > 0)
         {
             double tmp  = -distnce/cosa;
@@ -1461,6 +1460,11 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D cons
         }
     }
     double tmin = txmin, tmax = txmax;
+		if (tmax <= tmin + GEOMETRY_PRECISION)   // touch or no hit
+      {
+        return dist;
+      }
+
 
     save(tmin,true);
     save(tmax,false);

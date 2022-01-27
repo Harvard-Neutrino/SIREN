@@ -5,35 +5,38 @@
 #include <vector>
 #include <array>
 #include <iostream>
+#include <fstream>
 
 #include <gtest/gtest.h>
 
 #include "phys-services/CrossSection.h"
 
 #include "LeptonInjector/Random.h"
+#include "LeptonInjector/Constants.h"
 #include "LeptonInjector/Particle.h"
 #include "LeptonInjector/LeptonInjector.h"
+#include "LeptonInjector/Controller.h"
 
 using namespace LeptonInjector;
 
-std::string diff_xs(int Z, int A) {
-	std::stringstream ss;
-	ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
+std::string diff_xs(int Z, int A, std::string mHNL) {
+  std::stringstream ss;
+  ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
     ss << "dxsec_";
     ss << "Z_" << Z << "_";
     ss << "A_" << A << "_";
-    ss << "mHNL_0.001";
+    ss << "mHNL_" << mHNL;
     return ss.str();
 }
 
-std::string tot_xs(int Z, int A) {
-	std::stringstream ss;
-	// ss << "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
-	ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
+std::string tot_xs(int Z, int A, std::string mHNL) {
+  std::stringstream ss;
+  // ss << "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
+  ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
     ss << "xsec_";
     ss << "Z_" << Z << "_";
     ss << "A_" << A << "_";
-    ss << "mHNL_0.001";
+    ss << "mHNL_" << mHNL;
     return ss.str();
 }
 
@@ -68,39 +71,39 @@ std::vector<LeptonInjector::Particle::ParticleType> gen_TargetPIDs() {
     };
 }
 
-std::vector<std::string> gen_diff_xs_hf() {
+std::vector<std::string> gen_diff_xs_hf(std::string mHNL) {
     std::vector<std::string> res;
     for(auto const & za : gen_ZA()) {
-        res.push_back(diff_xs(za[0], za[1]) + "_hf.dat");
+        res.push_back(diff_xs(za[0], za[1], mHNL) + "_hf.dat");
     }
     return res;
 }
 
-std::vector<std::string> gen_tot_xs_hf() {
+std::vector<std::string> gen_tot_xs_hf(std::string mHNL) {
     std::vector<std::string> res;
     for(auto const & za : gen_ZA()) {
-        res.push_back(tot_xs(za[0], za[1]) + "_hf.dat");
+        res.push_back(tot_xs(za[0], za[1], mHNL) + "_hf.dat");
     }
     return res;
 }
 
-std::vector<std::string> gen_diff_xs_hc() {
+std::vector<std::string> gen_diff_xs_hc(std::string mHNL) {
     std::vector<std::string> res;
     for(auto const & za : gen_ZA()) {
-        res.push_back(diff_xs(za[0], za[1]) + "_hc.dat");
+        res.push_back(diff_xs(za[0], za[1], mHNL) + "_hc.dat");
     }
     return res;
 }
 
-std::vector<std::string> gen_tot_xs_hc() {
+std::vector<std::string> gen_tot_xs_hc(std::string mHNL) {
     std::vector<std::string> res;
     for(auto const & za : gen_ZA()) {
-        res.push_back(tot_xs(za[0], za[1]) + "_hc.dat");
+        res.push_back(tot_xs(za[0], za[1], mHNL) + "_hc.dat");
     }
     return res;
 }
 
-TEST(Injector, Constructor)
+TEST(Injector, Generation)
 {
     using ParticleType = LeptonInjector::Particle::ParticleType;
 
@@ -110,22 +113,23 @@ TEST(Injector, Constructor)
     std::string earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
     double powerLawIndex = 2;
     double energyMin = 1; // in GeV
-    double energyMax = 20; // in GeV
+    double energyMax = 1; // in GeV
 
-    double hnl_mass = 0.001; // in GeV; The HNL mass we are injecting
+    double hnl_mass = 0.4; // in GeV; The HNL mass we are injecting
+    double d = 1e-7; // in GeV^-1; the effective dipole coupling strength 
+    std::string mHNL = "0.4";
 
     // Decay parameters used to set the max range when injecting an HNL, decay width is likely wrong, set accordingly...
-    double HNL_decay_mass = 0.001; // in GeV
-    double HNL_decay_width = 0.001; // in GeV; decay_width == 1.0 / decay_time; fixme
+    double HNL_decay_width = std::pow(d,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)
     double n_decay_lengths = 3.0;
 
     // This should encompass Minerva, should probably be smaller? Depends on how long Minerva is...
-    double disk_radius = 0.1; // in meters
+    double disk_radius = 1; // in meters
     double endcap_length = 5; // in meters
 
 
     // Events to inject
-    unsigned int events_to_inject = 1000;
+    unsigned int events_to_inject = 1e3;
     Particle::ParticleType primary_type = ParticleType::NuE;
 
     // Load cross sections
@@ -134,10 +138,10 @@ TEST(Injector, Constructor)
     std::vector<Particle::ParticleType> target_types = gen_TargetPIDs();
     std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass);
     std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass);
-    std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf();
-    std::vector<std::string> hc_diff_fnames = gen_diff_xs_hc();
-    std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf();
-    std::vector<std::string> hc_tot_fnames = gen_tot_xs_hc();
+    std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL);
+    std::vector<std::string> hc_diff_fnames = gen_diff_xs_hc(mHNL);
+    std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf(mHNL);
+    std::vector<std::string> hc_tot_fnames = gen_tot_xs_hc(mHNL);
     for(unsigned int i=0; i < target_types.size(); ++i) {
         std::cerr << hf_diff_fnames[i] << std::endl;
         hf_xs->AddDifferentialCrossSectionFile(hf_diff_fnames[i], target_types[i]);
@@ -171,17 +175,44 @@ TEST(Injector, Constructor)
     std::shared_ptr<LeptonInjector::TargetMomentumDistribution> target_momentum_distribution = std::make_shared<LeptonInjector::TargetAtRest>();
 
     // Let us inject according to the decay distribution
-    std::shared_ptr<RangeFunction> range_func = std::make_shared<LeptonInjector::DecayRangeFunction>(HNL_decay_mass, HNL_decay_width, n_decay_lengths);
+    std::shared_ptr<RangeFunction> range_func = std::make_shared<LeptonInjector::DecayRangeFunction>(hnl_mass, HNL_decay_width, n_decay_lengths);
 
     // Put it all together!
-    RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
+    //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
+    std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
+   
+    /*
+    Controller cont(injector);
+    cont.NameOutfile("injector_test_events.h5");
+    cont.NameLicFile("injector_test_events.lic");
 
-    int iter = 0;
-    while(injector) {
-        std::cout << ++iter << std::endl;
-        LeptonInjector::InteractionRecord event = injector.GenerateEvent();
+    // Run the program.
+    cont.Execute();
+    */
+
+    std::ofstream myFile("injector_test_events.csv");
+    myFile << "x y z EHNL pHNLx pHNLy pHNLz EGamma pGammaX pGammaY pGammaZ target\n";
+    int i = 0;
+    while(*injector) {
+        LeptonInjector::InteractionRecord event = injector->GenerateEvent();
+        if(event.secondary_momenta.size() > 0)
+        {
+          myFile << event.interaction_vertex[0] << " ";
+          myFile << event.interaction_vertex[1] << " ";
+          myFile << event.interaction_vertex[2] << " ";
+          myFile << event.secondary_momenta[0][0] << " ";
+          myFile << event.secondary_momenta[0][1] << " ";
+          myFile << event.secondary_momenta[0][2] << " ";
+          myFile << event.secondary_momenta[0][3] << " ";
+          myFile << event.secondary_momenta[2][0] << " ";
+          myFile << event.secondary_momenta[2][1] << " ";
+          myFile << event.secondary_momenta[2][2] << " ";
+          myFile << event.secondary_momenta[2][3] << " ";
+          myFile << event.signature.target_type << "\n";
+        }
+        std::cout << ++i << std::endl;
     }
-
+    myFile.close();
 }
 
 int main(int argc, char** argv)
