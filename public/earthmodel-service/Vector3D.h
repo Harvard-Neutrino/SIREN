@@ -46,6 +46,7 @@ public:
     Vector3D(const double x, const double y, const double z);
     Vector3D(const Vector3D& vector_3d);
     Vector3D(Vector3D&& other);
+    Vector3D(std::array<double, 3> const & vec);
     //Vector3D(const nlohmann::json&);
     ~Vector3D();
 
