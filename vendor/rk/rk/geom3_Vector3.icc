@@ -1,0 +1,281 @@
+// Note: the x_, y_, and z_ values in Vector3 must always
+// be correct. l_ value < 0.0 means that l_ is incorrect
+// and must be recalculated.
+
+namespace geom3 {
+    inline double Vector3::x() const
+    {
+        return x_;
+    }
+
+    inline double Vector3::y() const
+    {
+        return y_;
+    }
+
+    inline double Vector3::z() const
+    {
+        return z_;
+    }
+
+    inline Vector3::Vector3()
+        : x_(0.0),
+          y_(0.0),
+          z_(0.0),
+          l_(0.0)
+    {
+    }
+
+    inline Vector3::Vector3(double x, double y, double z)
+        : x_(x),
+          y_(y),
+          z_(z),
+          l_(-1.0)
+    {
+    }
+
+    inline Vector3::Vector3(const Point3& p, const Point3& origin)
+        : x_(p.x_ - origin.x_),
+          y_(p.y_ - origin.y_),
+          z_(p.z_ - origin.z_),
+          l_(-1.0)
+    {
+    }
+
+    inline Vector3::Vector3(double length, const UnitVector3& direction)
+        : l_(fabs(length))
+    {
+        x_ = length*direction.x_;
+        y_ = length*direction.y_;
+        z_ = length*direction.z_;
+    }
+
+    inline double Vector3::length() const
+    {
+        if (l_ < 0.0)
+            l_ = sqrt(x_*x_ + y_*y_ + z_*z_);
+        return l_;
+    }
+
+    inline double Vector3::lengthSquared() const
+    {
+        return x_*x_ + y_*y_ + z_*z_;
+    }
+
+    inline UnitVector3 Vector3::direction() const
+    {
+        if (l_ < 0.0)
+            l_ = sqrt(x_*x_ + y_*y_ + z_*z_);
+        return UnitVector3(x_, y_, z_, l_);
+    }
+
+    inline double Vector3::dot(const Vector3& r) const
+    {
+        return x_*r.x_ + y_*r.y_ + z_*r.z_;
+    }
+
+    inline double Vector3::dot(const UnitVector3& r) const
+    {
+        return x_*r.x_ + y_*r.y_ + z_*r.z_;
+    }
+
+    inline Vector3 Vector3::cross(const Vector3& r) const
+    {
+        return Vector3(y_*r.z_ - z_*r.y_, z_*r.x_ - x_*r.z_, x_*r.y_ - y_*r.x_);
+    }
+
+    inline Vector3 Vector3::cross(const UnitVector3& r) const
+    {
+        return Vector3(y_*r.z_ - z_*r.y_, z_*r.x_ - x_*r.z_, x_*r.y_ - y_*r.x_);
+    }
+
+    inline Vector3& Vector3::operator+=(const Vector3& r)
+    {
+        x_ += r.x_;
+        y_ += r.y_;
+        z_ += r.z_;
+        l_ = -1.0;
+        return *this;
+    }
+    
+    inline Vector3& Vector3::operator-=(const Vector3& r)
+    {
+        x_ -= r.x_;
+        y_ -= r.y_;
+        z_ -= r.z_;
+        l_ = -1.0;
+        return *this;
+    }
+    
+    inline Vector3& Vector3::operator*=(const double& d)
+    {
+        x_ *= d;
+        y_ *= d;
+        z_ *= d;
+        if (l_ >= 0.0)
+            l_ *= fabs(d);
+        return *this;
+    }
+    
+    inline Vector3& Vector3::operator/=(const double& d)
+    {
+        assert(d != 0.0);
+        x_ /= d;
+        y_ /= d;
+        z_ /= d;
+        if (l_ >= 0.0)
+            l_ /= fabs(d);
+        return *this;
+    }
+
+    inline bool operator==(const Vector3& l, const Vector3& r)
+    {
+        return l.x_ == r.x_ && l.y_ == r.y_ && l.z_ == r.z_;
+    }
+    
+    inline bool operator!=(const Vector3& l, const Vector3& r)
+    {
+        return !(l == r);
+    }
+
+    inline Vector3 operator+(const Vector3& l, const Vector3& r)
+    {
+        return Vector3(l.x_ + r.x_, l.y_ + r.y_, l.z_ + r.z_);
+    }
+
+    inline Vector3 operator+(const Vector3& l, const UnitVector3& r)
+    {
+        return Vector3(l.x_ + r.x_, l.y_ + r.y_, l.z_ + r.z_);
+    }
+
+    inline Vector3 operator+(const UnitVector3& l, const Vector3& r)
+    {
+        return Vector3(l.x_ + r.x_, l.y_ + r.y_, l.z_ + r.z_);
+    }
+
+    inline Vector3 operator-(const Vector3& l, const Vector3& r)
+    {
+        return Vector3(l.x_ - r.x_, l.y_ - r.y_, l.z_ - r.z_);
+    }
+
+    inline Vector3 operator-(const UnitVector3& l, const Vector3& r)
+    {
+        return Vector3(l.x_ - r.x_, l.y_ - r.y_, l.z_ - r.z_);
+    }
+
+    inline Vector3 operator-(const Vector3& l, const UnitVector3& r)
+    {
+        return Vector3(l.x_ - r.x_, l.y_ - r.y_, l.z_ - r.z_);
+    }
+
+    inline Vector3 operator*(const Vector3& l, const double& r)
+    {
+        return Vector3(l.x_*r, l.y_*r, l.z_*r);
+    }
+
+    inline Vector3 operator*(const double& r, const Vector3& l)
+    {
+        return Vector3(l.x_*r, l.y_*r, l.z_*r);
+    }
+
+    inline Vector3 operator/(const Vector3& l, const double& r)
+    {
+        assert(r != 0.0);
+        return Vector3(l.x_/r, l.y_/r, l.z_/r);
+    }
+
+    inline Vector3 Vector3::operator-() const
+    {
+        return Vector3(-x_, -y_, -z_);
+    }
+
+    inline Vector3 Vector3::operator+() const
+    {
+        return *this;
+    }
+
+    inline double Vector3::angle(const UnitVector3& r) const
+    {
+        return direction().angle(r);
+    }
+
+    inline double Vector3::angle(const Vector3& r) const
+    {
+        return direction().angle(r.direction());
+    }
+
+    inline double Vector3::cosTheta() const
+    {
+        if (l_ < 0.0)
+            l_ = sqrt(x_*x_ + y_*y_ + z_*z_);
+        if (l_ == 0.0)
+            return 0.0;
+        else
+            return z_/l_;
+    }
+
+    inline double Vector3::phi() const
+    {
+        return atan2(y_, x_);
+    }
+
+    inline double Vector3::eta() const
+    {
+        const double t = sqrt(x_*x_ + y_*y_);
+        assert(t != 0.0);
+        return asinh(z_/t);
+    }
+
+    // deltaPhi specialization for real numbers (just angles)
+    template <>
+    inline double deltaPhi<double, double>(const double& phi1,
+                                           const double& phi2)
+    {
+        double delta = phi1 - phi2;
+        while (delta > M_PI)
+            delta -= 2.0*M_PI;
+        while (delta < -M_PI)
+            delta += 2.0*M_PI;
+        return delta;
+    }
+
+    template <>
+    inline double deltaPhi<double, float>(const double& phi1,
+                                          const float& phi2)
+    {
+        return deltaPhi(phi1, static_cast<double>(phi2));
+    }
+
+    template <>
+    inline double deltaPhi<float, double>(const float& phi1,
+                                          const double& phi2)
+    {
+        return deltaPhi(static_cast<double>(phi1), phi2);
+    }
+
+    template <>
+    inline double deltaPhi<float, float>(const float& phi1,
+                                         const float& phi2)
+    {
+        return deltaPhi(static_cast<double>(phi1), static_cast<double>(phi2));
+    }
+
+    template <typename V1, typename V2>
+    inline double deltaPhi(const V1& v1, const V2& v2)
+    {
+        return deltaPhi(v1.phi(), v2.phi());
+    }
+
+    template <typename V1, typename V2>
+    inline double deltaR(const V1& v1, const V2& v2)
+    {
+        const double dphi(deltaPhi(v1, v2)), deta(v1.eta() - v2.eta());
+        return sqrt(dphi*dphi + deta*deta);
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, const geom3::Vector3& v)
+{
+    os << '(' << v.x() << ", " << v.y() << ", " << v.z() << ')';
+    return os;
+}

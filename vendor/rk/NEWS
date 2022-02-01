@@ -1,0 +1,48 @@
+Version 1.7 - November 15 2016, by I. Volobouev
+
+* Added methods "beta", "gamma", "betaGamma", and "velocity" to the
+  rk::Boost class.
+
+* Added function "rk::transformVelocity".
+
+
+Version 1.6 - December 16 2014, by I. Volobouev
+
+* Added transverse() function to P4
+
+
+Version 1.5 - February 28 2013, by I. Volobouev
+
+* Introduced arbitrary Lorentz transformations represented by the "LT"
+  class. Internal implementation is via biquaternions which allows for
+  a simple transformation renormalization that keeps round-off errors under
+  control. Naturally, LT preserves particle masses, just like Boost.
+
+
+Version 1.4 - July 6 2012, by I. Volobouev
+
+* Changed the deltaPhi function so that it now works for four-vectors.
+  As a consequence, deltaR now works as well.
+
+
+Version 1.3 - April 5 2012, by I. Volobouev
+
+* Added serialization capabilities to all classes by providing the
+  "rkIO.hh" header as interface to "Geners".
+
+
+Version 1.2 - March 1 2011, by I. Volobouev
+
+* Added the rk::Point4 class which can be used to represent space-time
+  locations.
+
+
+Version 1.1 - Oct 2 2010, by I. Volobouev
+
+* Added "peripheralSplit" function. It is declared in the "rk.hh" header.
+  This function allows for phase space generation based on sampling
+  the Mandelstam t variable ("t-channel" phase space splitting).
+
+* Removed the requirement that all arguments to the kinematic lambda
+  function must be positive. This allows for simple calculation of phase
+  space weights in recursive t-channel splits.
