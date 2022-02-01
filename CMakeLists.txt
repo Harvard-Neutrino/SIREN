@@ -88,6 +88,7 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/EventProps.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Particle.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Random.cxx
+    ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Distributions.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/EarthModelCalculator.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Geometry.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Vector3D.cxx
