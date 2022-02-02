@@ -502,6 +502,9 @@ namespace geom3 {
         friend Quaternion operator-(const Quaternion& l,
                                     const Quaternion& r);
 
+        template<typename V1, typename V2>
+        friend Rotation3 rotationBetween(V1 const & v1, V2 const & v2);
+
         // The following constructor assumes that
         // the quaternion is normalized
         Rotation3(const Quaternion &);
@@ -515,9 +518,6 @@ namespace geom3 {
         friend Vector3 angularVelocity(const Rotation3&,
                                        const Rotation3&, double);
         friend Rotation3 slerp(const Rotation3&, const Rotation3&, double);
-
-        template<typename V1, typename V2>
-        friend Rotation3 rotationBetween(V1 const & v1, V2 const & v2);
 
         friend class rk::LT;
     };
