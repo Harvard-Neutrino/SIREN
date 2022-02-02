@@ -516,6 +516,9 @@ namespace geom3 {
                                        const Rotation3&, double);
         friend Rotation3 slerp(const Rotation3&, const Rotation3&, double);
 
+        template<typename V1, typename V2>
+        friend Rotation3 rotationBetween(V1 const & v1, V2 const & v2);
+
         friend class rk::LT;
     };
 
@@ -550,6 +553,9 @@ namespace geom3 {
     // for example, in calculating moments of inertia.
     template <typename V>
     Matrix3x3 outerSquared(const V& v);
+
+    template<typename V1, typename V2>
+    Rotation3 rotationBetween(V1 const & v1, V2 const & v2);
 }
 
 std::ostream& operator<<(std::ostream& os, const geom3::UnitVector3& u);
