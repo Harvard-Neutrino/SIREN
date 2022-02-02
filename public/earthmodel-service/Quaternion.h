@@ -11,6 +11,8 @@
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/EulerAngles.h"
 
+#include <rk/geom3.hh>
+
 namespace earthmodel {
 
 class Matrix3D;
@@ -25,6 +27,7 @@ public:
     Quaternion(const Quaternion & quaternion);
     Quaternion(const Vector3D & vec);
     Quaternion(Quaternion&& other);
+    Quaternion(geom3::Rotation3::Quaternion const &);
     ~Quaternion();
 
     void SetPosition(Vector3D const & vec);
@@ -63,6 +66,9 @@ public:
     Quaternion& operator=(Quaternion const & quaternion);
     Quaternion& operator=(Quaternion const && quaternion);
     Quaternion& operator=(Quaternion && quaternion);
+
+    operator geom3::Rotation3::Quaternion() const;
+
     bool operator==(const Quaternion& quaternion) const;
     bool operator!=(const Quaternion& quaternion) const;
     void swap(Quaternion& quaternion);
