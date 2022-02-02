@@ -144,8 +144,12 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord & record) const {
 
     // Boost gamma to lab frame
     stga3::Beta<double> beta_to_hnl_rest = stga3::beta_to_rest_frame_of(pHNL_lab);
-    stga3::Boost<double> boost_to_lab = stga3::boost_from_beta(-beta_to_hnl_rest);
-    stga3::FourVector<double> pGamma_lab = stga3::apply_boost(boost_to_lab,pGamma_HNLrest);
+    double beta = beta_to_hnl_rest.norm();
+    double gamma = 1.0 / std::sqrt(1 - beta*beta);
+    stga3::FourVector<double> pGamma_lab{gamma*(pGamma_HNLrest.e0() + beta*pGamma_HNLrest.e3()),
+                                         pGamma_HNLrest.e1(),
+                                         pGamma_HNLrest.e2(),
+                                         gamma*(beta*pGamma_HNLrest.e0() + pGamma_HNLrest.e3())};
 
     std::array<double,4> gamma_momentum;
     gamma_momentum[0] = pGamma_lab.e0();
