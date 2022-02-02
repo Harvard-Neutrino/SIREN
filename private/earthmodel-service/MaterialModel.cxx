@@ -57,7 +57,7 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
 
         // Fill mass fraction, molar mass, and atomic fraction maps
         material_mass_frac_.insert({id, matratios});
-        std::map<int, double> molar_masses = GetMolarMasses(num_protons_);
+        std::map<int,double> molar_masses = GetMolarMasses(num_protons_);
         material_molar_mass_.insert({id, molar_masses});
         double nfrac_denom = 0;
         for (auto& k : matratios) {nfrac_denom += matratios[k.first]/molar_masses[k.first];}
@@ -206,23 +206,24 @@ double MaterialModel::ComputePNERatio(std::map<int, double> const & mats) const 
 }
 
 double MaterialModel::ComputeRadLength(int id) {
-		// This function calculates the radiation length of a given material in g/cm^2
-		// Takes screening effects into account
-		// Averages over constituent materials in a composite
-		// See Page 21 of Particle Detectors by Grupen and Shwartz
-		
-		double X0inv = 0;
-		int i;
-		double X0i, Z, A, f;
-		std::map<int, double>::iterator it;
-		for (it = material_mass_frac_[id].begin(); it != material_mass_frac_[id].end(); it++) {
-				i,A = it->first,it->second;
-				Z = (material_num_protons_[id])[i];	
-				f = (material_mass_frac_[id])[i];	
-				X0i = 716.4 * A / ( Z*(Z + 1) * std::log(287./std::sqrt(Z))); // g/cm^2, Grupen eq 1.59
-				X0inv += f/X0i;
-		}
-		return 1/X0inv;
+    // This function calculates the radiation length of a given material in g/cm^2
+    // Takes screening effects into account
+    // Averages over constituent materials in a composite
+    // See Page 21 of Particle Detectors by Grupen and Shwartz
+    
+    double X0inv = 0;
+    int i;
+    double X0i, Z, A, f;
+    std::map<int, double>::iterator it;
+    for (it = material_molar_mass_[id].begin(); it != material_molar_mass_[id].end(); it++) {
+        i = it->first;
+        A = it->second;
+        Z = (material_num_protons_[id])[i];  
+        f = (material_mass_frac_[id])[i];  
+        X0i = 716.4 * A / ( Z*(Z + 1) * std::log(287./std::sqrt(Z))); // g/cm^2, Grupen eq 1.59
+        X0inv += f/X0i;
+    }
+    return 1/X0inv;
 }
 
 std::map<int, double> MaterialModel::GetMolarMasses(std::map<int, int> const & pnums) const {

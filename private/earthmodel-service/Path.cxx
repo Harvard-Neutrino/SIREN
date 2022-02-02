@@ -95,7 +95,8 @@ void Path::SetPointsWithRay(Vector3D first_point, Vector3D direction, double dis
     first_point_ = first_point;
     direction_ = direction;
     direction_.normalize();
-    assert(std::abs(direction_.magnitude() - direction.magnitude()) / std::max(direction_.magnitude(), direction.magnitude()) < 1e-12);
+    //double dif = std::abs(direction_.magnitude() - direction.magnitude()) / std::max(direction_.magnitude(), direction.magnitude());
+    //if(not std::isnan(dif)) assert(dif < 1e-12);
     distance_ = distance;
     last_point_ = first_point + direction * distance;
     set_points_ = true;

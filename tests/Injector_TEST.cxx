@@ -191,7 +191,16 @@ TEST(Injector, Generation)
     */
 
     std::ofstream myFile("injector_test_events.csv");
-    myFile << "x y z EHNL pHNLx pHNLy pHNLz EGamma pGammaX pGammaY pGammaZ target\n";
+    myFile << std::fixed << std::setprecision(4);
+    myFile << "intX intY intZ ";
+    myFile << "decX decY decZ ";
+    myFile << "ppX ppY ppZ ";
+    myFile << "p4nu_0 p4nu_1 p4nu_2 p4nu_3";
+    myFile << "p4itgt_0 p4itgt_1 p4itgt_2 p4itgt_3";
+    myFile << "p4hnl_0 p4hnl_1 p4hnl_2 p4hnl_3";
+    myFile << "p4ftgt_0 p4ftgt_1 p4ftgt_2 p4ftgt_3";
+    myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3";
+    myFile << "decay_length prob_nopairprod target\n";
     int i = 0;
     while(*injector) {
         LeptonInjector::InteractionRecord event = injector->GenerateEvent();
@@ -200,14 +209,42 @@ TEST(Injector, Generation)
           myFile << event.interaction_vertex[0] << " ";
           myFile << event.interaction_vertex[1] << " ";
           myFile << event.interaction_vertex[2] << " ";
+          
+          myFile << event.decay_vertex[0] << " ";
+          myFile << event.decay_vertex[1] << " ";
+          myFile << event.decay_vertex[2] << " ";
+          
+          myFile << event.pairprod_vertex[0] << " ";
+          myFile << event.pairprod_vertex[1] << " ";
+          myFile << event.pairprod_vertex[2] << " ";
+          
+          myFile << event.primary_momentum[0] << " ";
+          myFile << event.primary_momentum[1] << " ";
+          myFile << event.primary_momentum[2] << " ";
+          myFile << event.primary_momentum[3] << " ";
+          
+          myFile << event.target_momentum[0] << " ";
+          myFile << event.target_momentum[1] << " ";
+          myFile << event.target_momentum[2] << " ";
+          myFile << event.target_momentum[3] << " ";
+          
           myFile << event.secondary_momenta[0][0] << " ";
           myFile << event.secondary_momenta[0][1] << " ";
           myFile << event.secondary_momenta[0][2] << " ";
           myFile << event.secondary_momenta[0][3] << " ";
+          
+          myFile << event.secondary_momenta[1][0] << " ";
+          myFile << event.secondary_momenta[1][1] << " ";
+          myFile << event.secondary_momenta[1][2] << " ";
+          myFile << event.secondary_momenta[1][3] << " ";
+          
           myFile << event.secondary_momenta[2][0] << " ";
           myFile << event.secondary_momenta[2][1] << " ";
           myFile << event.secondary_momenta[2][2] << " ";
           myFile << event.secondary_momenta[2][3] << " ";
+          
+          myFile << event.decay_length << " ";
+          myFile << event.prob_nopairprod << " ";
           myFile << event.signature.target_type << "\n";
         }
         std::cout << ++i << std::endl;

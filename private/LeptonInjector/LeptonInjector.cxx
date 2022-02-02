@@ -163,7 +163,11 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord & record) const {
 }
 
 void InjectorBase::SamplePairProduction(InteractionRecord & record) {
-    // Nick TODO: finish implementing this function which samples the photon pair produciton location
+    // function for simulating the pair production of the photon created in HNL decay
+    // considers the different radiation lengths of materials in the detector
+    // Nick TODO: comment more
+
+    earthmodel::MaterialModel mat_model = earth_model->GetMaterials();
     earthmodel::Vector3D decay_vtx(record.decay_vertex[0],
                                    record.decay_vertex[1],
                                    record.decay_vertex[2]);
@@ -172,18 +176,58 @@ void InjectorBase::SamplePairProduction(InteractionRecord & record) {
                                    record.secondary_momenta[gamma_index][2],
                                    record.secondary_momenta[gamma_index][3]);
     decay_dir.normalize();
+    if(std::isnan(decay_dir.magnitude())){
+        for(int j = 0; j < record.secondary_momenta.size(); ++j)
+        {
+        std::cout << j << " ";
+        for(int k = 0; k < 4; ++k) std::cout << record.secondary_momenta[j][k] << " ";
+        std::cout << std::endl;
+        }
+        return;
+    }
     earthmodel::Path path(earth_model, decay_vtx, decay_dir, 0);
     path.ComputeIntersections();
+    std::vector<double> X0;
     std::vector<double> P;
+    std::vector<double> D;
+    double x0; double p; double density;
+    D.push_back(0.);
     double N = 0;
+    double lnP_nopp = 0; // for calculating the probability that no pair production occurs
     earthmodel::Geometry::IntersectionList ilist = path.GetIntersections();
-    std::cout << "HNL DECAY VERTEX: " << decay_vtx.GetX() << " " << decay_vtx.GetY() << " " << decay_vtx.GetZ() << std::endl;
-    std::cout << "HNL DECAY DIRECTION: " << decay_dir.GetX() << " " << decay_dir.GetY() << " " << decay_dir.GetZ() << std::endl;
-    std::cout << "INTERSECTIONS:\n";
+    earthmodel::Vector3D density_point = decay_vtx;
+    int j = 0;
     for(auto& i : ilist.intersections){
-        std::cout << i.hierarchy << " " << i.distance << " " << i.position.GetX() << " " << i.position.GetY() << " " << i.position.GetZ() << std::endl;
+        if(i.distance<0 || std::isinf(i.distance)) continue;
+        D.push_back(i.distance);
+        x0 = (9./7.)*mat_model.GetMaterialRadLength(i.matID); // in g/cm^2
+        density_point += 0.5*(i.position - density_point);
+        density = earth_model->GetDensity(density_point);
+        x0 *= 0.01/density; // in m
+        X0.push_back(x0);
+        p = std::exp(-D[j]/x0) - std::exp(-D[j+1]/x0);
+        P.push_back(p);
+        N += p;
+        lnP_nopp += -(D[j+1] - D[j])/x0;
+        density_point = i.position;
+        ++j;
     }
-    std::cout << "\n";
+    record.prob_nopairprod = std::exp(lnP_nopp);
+
+
+    // sample the PDF by inverting the CDF
+    double X = random->Uniform(0,1);
+    double C = 0;
+    if(P.size() > 0) {
+        for(j = 0; j < P.size(); ++j){
+            C += P[j]/N;
+            if(C>X) {C -= P[j]/N; break;}
+        }
+        double pairprod_dist = -X0[j]*std::log(X - C + std::exp(-D[j]/X0[j]));
+        record.pairprod_vertex = {record.decay_vertex[0] + pairprod_dist*decay_dir.GetX(),
+                                  record.decay_vertex[1] + pairprod_dist*decay_dir.GetY(),
+                                  record.decay_vertex[2] + pairprod_dist*decay_dir.GetZ()};
+    }
 
 }
 

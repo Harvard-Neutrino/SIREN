@@ -580,22 +580,12 @@ Geometry::IntersectionList EarthModel::GetIntersections(Vector3D const & p0, Vec
         intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
         for(unsigned int j=intersections.intersections.size(); j>intersections.intersections.size()-i.size(); --j) {
             intersections.intersections[j-1].hierarchy = sector.level;
+            intersections.intersections[j-1].matID = sector.material_id;
         }
     }
 
     SortIntersections(intersections);
 		
-/*		std::cout << "INITIAL POSITION\n";
-    std::cout << p0 << std::endl;
-		std::cout << "INITIAL DIRECTION\n";
-    std::cout << direction << std::endl;
-    for(unsigned int k = 0; k < intersections.intersections.size(); ++k){
-			std::cout << "POSITION\n";
-			std::cout << intersections.intersections[k].position << std::endl;
-			std::cout << "CONTAINING VOLUME\n";
-			std::cout << GetContainingSector(intersections.intersections[k].position).material_id << std::endl;
-    }
-*/
     return intersections;
 }
 
