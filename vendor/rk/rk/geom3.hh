@@ -476,7 +476,6 @@ namespace geom3 {
         // Random rotation. The arguments are three random numbers on [0, 1).
         static Rotation3 random(double rnd0, double rnd1, double rnd2);
 
-    private:
         // The real role of the rotation class is to keep
         // the underlying quaternion properly normalized
         struct Quaternion
@@ -507,6 +506,7 @@ namespace geom3 {
         // the quaternion is normalized
         Rotation3(const Quaternion &);
 
+    private:
         UnitVector3 axis_;
         double angle_;
         Quaternion q_;
