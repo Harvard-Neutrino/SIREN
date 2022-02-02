@@ -67,6 +67,7 @@ public:
         double distance;
         int hierarchy;
         bool entering;
+        int matID;
         Vector3D position;
         bool operator==(Intersection const & other) const {
             return other.distance == distance and other.hierarchy == hierarchy and other.position == position and other.entering == entering;

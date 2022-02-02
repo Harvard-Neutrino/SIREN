@@ -48,10 +48,12 @@ struct InteractionRecord {
     double primary_mass = 0;
     double target_mass = 0;
     double decay_length = 0;
+    double prob_nopairprod = 0;
     std::array<double, 4> primary_momentum = {0, 0, 0, 0};
     std::array<double, 4> target_momentum = {0, 0, 0, 0};
     std::array<double, 3> interaction_vertex = {0, 0, 0};
     std::array<double, 3> decay_vertex = {0, 0, 0};
+    std::array<double, 3> pairprod_vertex = {0, 0, 0};
     std::vector<std::array<double, 4>> secondary_momenta;
     std::vector<double> interaction_parameters;
     friend std::ostream& operator<<(std::ostream& os, InteractionRecord const& record);
@@ -433,7 +435,7 @@ public:
         return *std::max_element(dist.begin(), dist.end());
     };
 
-	void AddTable(TableData1D<T> & table) {
+    void AddTable(TableData1D<T> & table) {
         is_regular = false;
         std::set<T> x_set(table.x.begin(), table.x.end());
         std::vector<T> x(x_set.begin(), x_set.end());
@@ -535,7 +537,7 @@ struct Interpolator1D {
 private:
     TableData1D<T> original_table;
     Indexer1D<T> indexer;
-	std::map<unsigned int, T> function;
+    std::map<unsigned int, T> function;
     std::vector<bool> zero_mask;
     bool is_log = false;
 public:
@@ -564,7 +566,7 @@ public:
         }
     };
 
-	void AddTable(TableData1D<T> & table) {
+    void AddTable(TableData1D<T> & table) {
         original_table = table;
         std::set<T> x(table.x.begin(), table.x.end());
         std::map<T, unsigned int> xmap;
@@ -663,7 +665,7 @@ private:
     Indexer1D<T> indexer_x;
     Indexer1D<T> indexer_y;
     std::map<std::pair<unsigned int, unsigned int>, bool> zero_mask;
-	std::map<std::pair<unsigned int, unsigned int>, T> function;
+    std::map<std::pair<unsigned int, unsigned int>, T> function;
     bool is_log = false;
 public:
 
@@ -691,7 +693,7 @@ public:
         }
     };
 
-	void SetTable(TableData2D<T> & table) {
+    void SetTable(TableData2D<T> & table) {
         original_table = table;
         std::set<T> x(table.x.begin(), table.x.end());
         std::set<T> y(table.y.begin(), table.y.end());
