@@ -114,13 +114,14 @@ ExternalProject_Add(
   BUILD_COMMAND make
   BUILD_IN_SOURCE 0
 )
-include_directories("${PROJECT_SOURCE_DIR}/vendor/rk/include")
+include_directories(${CMAKE_BINARY_DIR}/extern/rk/include)
 
 
 add_library( lepton_injector SHARED ${core_SOURCES} )
 target_include_directories(lepton_injector PUBLIC
     ${CMAKE_SOURCE_DIR}/public/
 )
+add_dependencies(lepton_injector rk)
 
 set_target_properties(lepton_injector PROPERTIES
     VERSION ${PROJECT_VERSION}
@@ -133,6 +134,7 @@ MESSAGE("    hdf5 ${HDF5_LIBRARIES}")
 MESSAGE("    boost ${Boost_LIBRARIES}")
 target_link_libraries(lepton_injector ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(lepton_injector photospline)
+target_link_libraries(lepton_injector ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
 MESSAGE("")
 
 install(TARGETS lepton_injector
