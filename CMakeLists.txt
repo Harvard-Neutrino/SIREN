@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
 cmake_policy(VERSION 3.3.2)
 
+include(ExternalProject)
 
 #TODO
 # + add support for Apple systems (needs an apple part??)
@@ -104,6 +105,16 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/phys-services/LICrossSection.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/CrossSection.cxx
 )
+
+ExternalProject_Add(
+  rk
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
+  CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk/configure --prefix=${CMAKE_BINARY_DIR}/extern/rk
+  PREFIX ${CMAKE_BINARY_DIR}/extern/rk
+  BUILD_COMMAND make
+  BUILD_IN_SOURCE 0
+)
+include_directories("${PROJECT_SOURCE_DIR}/vendor/rk/include")
 
 
 add_library( lepton_injector SHARED ${core_SOURCES} )
@@ -214,16 +225,6 @@ set(SKIP_PORTABILITY_TEST ON CACHE INTERNAL "Skip cereal portability tests.")
 set(SKIP_PERFORMANCE_COMPARISON ON CACHE INTERNAL "Skip cereal performance comparison.")
 add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/cereal" "extern/cereal")
 include_directories("${PROJECT_SOURCE_DIR}/vendor/cereal/include")
-
-include(ExternalProject)
-ExternalProject_Add(
-  rk
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
-  CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk/configure --prefix=${CMAKE_BINARY_DIR}/extern/rk
-  PREFIX ${CMAKE_INSTALL_PREFIX}
-  BUILD_COMMAND make
-  BUILD_IN_SOURCE 1
-)
 
 add_subdirectory(tests)
 
