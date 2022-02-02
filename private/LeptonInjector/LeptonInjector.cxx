@@ -9,6 +9,8 @@
 
 #include "earthmodel-service/Path.h"
 
+#include "rk/rk.hh"
+
 // namespace constants = boost::math::constants;
 
 namespace LeptonInjector{
@@ -118,11 +120,13 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord & record) const {
     // Currently assumes Majorana HNL
     // Final state photon added to secondary particle vectors in InteractionRecord
 
-    // Find the HNL in the secondar particle vector and save its momentum/cartesian direction
+    // Find the HNL in the secondary particle vector and save its momentum/cartesian direction
     unsigned int lepton_index = (record.signature.secondary_types[0] == Particle::ParticleType::NuF4 or record.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
     std::array<double, 4> hnl_momentum = record.secondary_momenta[lepton_index];
-    stga3::FourVector<double> pHNL_lab{hnl_momentum[0], hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]};
-    double hnl_mass = std::sqrt(pHNL_lab | pHNL_lab);
+    // stga3::FourVector<double> pHNL_lab{hnl_momentum[0], hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]};
+    // double hnl_mass = std::sqrt(pHNL_lab | pHNL_lab);
+    double hnl_mass = record.secondary_masses[lepton_index];
+    rk::P4 pHNL_lab(geom3::Vector3(hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]), hnl_mass);
     earthmodel::Vector3D hnl_dir(hnl_momentum[1],hnl_momentum[2],hnl_momentum[3]);
     hnl_dir.normalize();
 
@@ -137,22 +141,24 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord & record) const {
     double costh = random->Uniform(-1,1);
     double theta = std::acos(costh);
     double phi = random->Uniform(0,2*Constants::pi);
-    stga3::FourVector<double> pGamma_HNLrest{hnl_mass/2.0,
-                                             hnl_mass/2.0*std::cos(phi)*std::sin(theta),
-                                             hnl_mass/2.0*std::sin(phi)*std::sin(theta),
-                                             hnl_mass/2.0*costh};
+    rk::P4 pGamma_HNLrest(
+            geom3::Vector3(
+                hnl_mass/2.0*std::cos(phi)*std::sin(theta),
+                hnl_mass/2.0*std::sin(phi)*std::sin(theta),
+                hnl_mass/2.0*costh),
+            0.0);
 
     // Boost gamma to lab frame
-    stga3::Beta<double> beta_to_hnl_rest = stga3::beta_to_rest_frame_of(pHNL_lab);
-    stga3::Boost<double> boost_to_lab = stga3::boost_from_beta(-beta_to_hnl_rest);
-    stga3::FourVector<double> pGamma_lab = stga3::apply_boost(boost_to_lab,pGamma_HNLrest);
+    rk::Boost boost_to_lab = pHNL_lab.labBoost();
+    rk::P4 pGamma_lab = boost_to_lab * pGamma_HNLrest;
 
     std::array<double,4> gamma_momentum;
-    gamma_momentum[0] = pGamma_lab.e0();
-    gamma_momentum[1] = pGamma_lab.e1();
-    gamma_momentum[2] = pGamma_lab.e2();
-    gamma_momentum[3] = pGamma_lab.e3();
+    gamma_momentum[0] = pGamma_lab.e();
+    gamma_momentum[1] = pGamma_lab.px();
+    gamma_momentum[2] = pGamma_lab.py();
+    gamma_momentum[3] = pGamma_lab.pz();
     record.secondary_momenta.push_back(gamma_momentum);
+    record.secondary_masses.push_back(0);
     record.signature.secondary_types.push_back(Particle::ParticleType::Gamma);
 }
 

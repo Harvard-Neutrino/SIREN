@@ -53,6 +53,7 @@ struct InteractionRecord {
     std::array<double, 3> interaction_vertex = {0, 0, 0};
     std::array<double, 3> decay_vertex = {0, 0, 0};
     std::vector<std::array<double, 4>> secondary_momenta;
+    std::vector<double> secondary_masses;
     std::vector<double> interaction_parameters;
     friend std::ostream& operator<<(std::ostream& os, InteractionRecord const& record);
     template<class Archive>
@@ -65,6 +66,7 @@ struct InteractionRecord {
             archive(::cereal::make_nvp("TargetMomentum", target_momentum));
             archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
             archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
+            archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
         } else {
             throw std::runtime_error("InteractionRecord only supports version <= 0!");

@@ -214,6 +214,17 @@ set(SKIP_PORTABILITY_TEST ON CACHE INTERNAL "Skip cereal portability tests.")
 set(SKIP_PERFORMANCE_COMPARISON ON CACHE INTERNAL "Skip cereal performance comparison.")
 add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/cereal" "extern/cereal")
 include_directories("${PROJECT_SOURCE_DIR}/vendor/cereal/include")
+
+include(ExternalProject)
+ExternalProject_Add(
+  rk
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
+  CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk/configure --prefix=${CMAKE_BINARY_DIR}/extern/rk
+  PREFIX ${CMAKE_INSTALL_PREFIX}
+  BUILD_COMMAND make
+  BUILD_IN_SOURCE 1
+)
+
 add_subdirectory(tests)
 
 MESSAGE("")
