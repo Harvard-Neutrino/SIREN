@@ -12,7 +12,8 @@
 #include "stga3/Typedefs.h"
 #include "stga3/Utilities.h"
 
-#include "rk/rk.hh"
+#include <rk/rk.hh>
+#include <rk/geom3.hh>
 
 namespace LeptonInjector {
 
@@ -555,7 +556,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     double pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);
     double Eq_lab = E1_lab * final_y;
 
-    geom3::UnitVector3 x_dir = geom3::UnitVector3.xAxis();
+    geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
     geom3::Vector3 p1_mom = p1_lab.momentum();
     geom3::UnitVector3 p1_lab_dir = p1_mom.direction();
     geom3::Rotation3 x_to_p1_lab_rot = geom3::rotationBetween(x_dir, p1_lab_dir);
@@ -567,11 +568,11 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     pq_lab.rotate(x_to_p1_lab_rot);
     pq_lab.rotate(rand_rot);
 
-    geom3::P4 p3_lab((p1_lab - pq_lab).momentum(), m3);
-    geom3::P4 p4_lab = p2_lab + pq_lab;
+    rk::P4 p3_lab((p1_lab - pq_lab).momentum(), m3);
+    rk::P4 p4_lab = p2_lab + pq_lab;
 
-    geom3::P4 p3;
-    geom3::P4 p4;
+    rk::P4 p3;
+    rk::P4 p4;
     if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
         p3 = p3_lab;
         p4 = p4_lab;

@@ -9,7 +9,7 @@
 
 #include "earthmodel-service/Path.h"
 
-#include "rk/rk.hh"
+#include <rk/rk.hh>
 
 // namespace constants = boost::math::constants;
 
