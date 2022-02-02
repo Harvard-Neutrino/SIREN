@@ -114,13 +114,21 @@ ExternalProject_Add(
   BUILD_COMMAND make
   BUILD_IN_SOURCE 0
 )
-include_directories(${CMAKE_BINARY_DIR}/extern/rk/include)
+
+install(DIRECTORY "${CMAKE_BINARY_DIR}/extern/rk/include/rk"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+    FILES_MATCHING PATTERN "*.hh")
+
+install(DIRECTORY "${CMAKE_BINARY_DIR}/extern/rk/lib"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    FILES_MATCHING PATTERN "${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX}*")
 
 
 add_library( lepton_injector SHARED ${core_SOURCES} )
 target_include_directories(lepton_injector PUBLIC
     ${CMAKE_SOURCE_DIR}/public/
 )
+target_include_directories(lepton_injector PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
 add_dependencies(lepton_injector rk)
 
 set_target_properties(lepton_injector PROPERTIES
