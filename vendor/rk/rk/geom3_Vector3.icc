@@ -273,33 +273,48 @@ namespace geom3 {
         return sqrt(dphi*dphi + deta*deta);
     }
 
-    template<typename V1, typename V2>
-    Rotation3 rotationBetween(V1 const & v1, V2 const & v2)
+    template<>
+    inline Rotation3 rotationBetween(UnitVector3 const & v1, UnitVector3 const & v2)
     {
-        double s1 = sqrt(v1.x_*v1.x_ + v1.y_*v1.y_ + v1.z_*v1.z_);
-        UnitVector3 d1(v1.x_/s1, v1.y_/s1, v1.z_/s1);
-        double s2 = sqrt(v2.x_*v2.x_ + v2.y_*v2.y_ + v2.z_*v2.z_);
-        UnitVector3 d2(v2.x_/s2, v2.y_/s2, v2.z_/s2);
+        UnitVector3 d1 = v1;
+        UnitVector3 d2 = v2;
         Vector3 cross = d1.cross(d2);
         double scalar = d1.dot(d2);
         if(abs(1.0 - scalar) < 1e-9) {
             return Rotation3();
         } else if (abs(1.0 + scalar) < 1e-9) {
-            double x = abs(v1.x);
-            double y = abs(v1.y);
-            double z = abs(v1.z);
+            double x = abs(v1.x());
+            double y = abs(v1.y());
+            double z = abs(v1.z());
 
             UnitVector3 other = x < y ? (x < z ? UnitVector3::xAxis() : UnitVector3::zAxis()) : (y < z ? UnitVector3::zAxis() : UnitVector3::zAxis());
-            Vector3 orthogonal = v1.cross(other);
-            orthogonal /= sqrt(vo.x_*vo.x_ + vo.y_*vo.y_ + vo.z_*vo.z_);
-            Rotation3::Quaternion q(orthogonal.x_, orthogonal.y_, orthogonal.z_, 0.0);
+            UnitVector3 vo = v1.cross(other).direction();
+            Rotation3::Quaternion q(vo.x(), vo.y(), vo.z(), 0.0);
             q.normalize();
             return Rotation3(q);
         } else {
-            Rotation3::Quaternion q(cross.x_, cross.y_, cross.z_, 1.0 + scalar);
+            Rotation3::Quaternion q(cross.x(), cross.y(), cross.z(), 1.0 + scalar);
             q.normalize();
             return Rotation3(q);
         }
+    }
+
+    template<>
+    inline Rotation3 rotationBetween(Vector3 const & v1, UnitVector3 const & v2)
+    {
+        return rotationBetween(v1.direction(), v2);
+    }
+
+    template<>
+    inline Rotation3 rotationBetween(UnitVector3 const & v1, Vector3 const & v2)
+    {
+        return rotationBetween(v1, v2.direction());
+    }
+
+    template<>
+    inline Rotation3 rotationBetween(Vector3 const & v1, Vector3 const & v2)
+    {
+        return rotationBetween(v1.direction(), v2.direction());
     }
 }
 
