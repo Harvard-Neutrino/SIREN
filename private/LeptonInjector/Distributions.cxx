@@ -218,11 +218,11 @@ double RangeFunction::operator()(InteractionSignature const & signature, double 
 }
 
 //---------------
-// class DecayRangeFunction : RangeFunction
+// class DecayRangeFunction
 //---------------
-DecayRangeFunction::DecayRangeFunction(double particle_mass, double decay_width, double multiplier) : particle_mass(particle_mass), decay_width(decay_width), multiplier(multiplier) {}
-
-double DecayRangeFunction::operator()(InteractionSignature const & signature, double energy) const {
+//
+//
+double DecayRangeFunction::DecayLength(InteractionSignature const & signature, double energy) const {
     stga3::FourVector<double> lab_momentum{energy, 0.0, 0.0, sqrt(energy*energy - particle_mass*particle_mass)}; // GeV
     double beta = sqrt((lab_momentum[1]*lab_momentum[1] + lab_momentum[2]*lab_momentum[2] + lab_momentum[3]*lab_momentum[3]) / (lab_momentum[0]*lab_momentum[0])); // dimensionless
     double gamma = 1.0 / sqrt(1.0 - beta * beta);
@@ -230,8 +230,31 @@ double DecayRangeFunction::operator()(InteractionSignature const & signature, do
     double time_in_lab_frame = time_in_rest_frame * gamma; // inverse GeV
     constexpr double iGeV_in_m = 1.973269804593025e-16; // meters per inverse GeV
     double length = time_in_lab_frame * beta * iGeV_in_m; // meters = ((inverse GeV * dimensionless) * (meters per inverse GeV))
-    return length * multiplier; // meters
+    return length; // meters
 }
+
+double DecayRangeFunction::Range(InteractionSignature const & signature, double energy) const {
+    return DecayLength(signature, energy) * multiplier;
+}
+
+double DecayRangeFunction::operator()(InteractionSignature const & signature, double energy) const {
+    return Range(signature, energy);
+}
+
+double DecayRangeFunction::Multiplier() const {
+    return multiplier;
+}
+
+double DecayRangeFunction::ParticleMass() const {
+    return particle_mass;
+}
+
+double DecayRangeFunction::DecayWidth() const {
+    return decay_width;
+}
+
+DecayRangeFunction::DecayRangeFunction(double particle_mass, double decay_width, double multiplier) : particle_mass(particle_mass), decay_width(decay_width), multiplier(multiplier) {}
+
 
 //---------------
 // class ColumnDepthPositionDistribution : VertexPositionDistribution
@@ -293,8 +316,7 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
     dir.normalize();
     earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
 
-    double lepton_range = (*range_function)(record.signature, record.primary_momentum[0]);
-    record.decay_length = lepton_range;
+    double lepton_range = range_function->operator()(record.signature, record.primary_momentum[0]);
 
     earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
     earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -322,6 +344,52 @@ std::string RangePositionDistribution::Name() const {
 
 std::shared_ptr<InjectionDistribution> RangePositionDistribution::clone() const {
     return std::shared_ptr<InjectionDistribution>(new RangePositionDistribution(*this));
+}
+
+//---------------
+// class DecayRangePositionDistribution : public VertexPositionDistribution {
+//---------------
+earthmodel::Vector3D DecayRangePositionDistribution::SampleFromDisk(std::shared_ptr<LI_random> rand, earthmodel::Vector3D const & dir) const {
+    double t = rand->Uniform(0, 2 * M_PI);
+    double r = radius * std::sqrt(rand->Uniform());
+    earthmodel::Vector3D pos(r * cos(t), r * sin(t), 0.0);
+    earthmodel::Quaternion q = rotation_between(earthmodel::Vector3D(0,0,1), dir);
+    return q.rotate(pos, false);
+}
+
+earthmodel::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+    earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
+
+    double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
+
+    earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
+    earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
+
+    earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
+    path.ClipToOuterBounds();
+
+    double y = rand->Uniform();
+    double total_distance = path.GetDistance();
+    double dist = -decay_length * log(y * (exp(-total_distance/decay_length) - 1) + 1);
+
+    earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+
+    return vertex;
+}
+
+DecayRangePositionDistribution::DecayRangePositionDistribution() {}
+
+DecayRangePositionDistribution::DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {}
+
+std::string DecayRangePositionDistribution::Name() const {
+    return "DecayRangePositionDistribution";
+}
+
+std::shared_ptr<InjectionDistribution> DecayRangePositionDistribution::clone() const {
+    return std::shared_ptr<InjectionDistribution>(new DecayRangePositionDistribution(*this));
 }
 
 } // namespace LeptonInjector

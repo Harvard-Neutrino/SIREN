@@ -324,6 +324,11 @@ private:
 public:
     DecayRangeFunction(double particle_mass, double decay_width, double multiplier);
     double operator()(InteractionSignature const & signature, double energy) const override;
+    double DecayLength(InteractionSignature const & signature, double energy) const;
+    double Range(InteractionSignature const & signature, double energy) const;
+    double Multiplier() const;
+    double ParticleMass() const;
+    double DecayWidth() const;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -439,6 +444,53 @@ public:
             archive(cereal::virtual_base_class<VertexPositionDistribution>(construct.ptr()));
         } else {
             throw std::runtime_error("RangePositionDistribution only supports version <= 0!");
+        }
+    }
+};
+
+class DecayRangePositionDistribution : public VertexPositionDistribution {
+private:
+    double radius;
+    double endcap_length;
+    std::shared_ptr<DecayRangeFunction> range_function;
+    std::vector<Particle::ParticleType> target_types;
+
+    earthmodel::Vector3D SampleFromDisk(std::shared_ptr<LI_random> rand, earthmodel::Vector3D const & dir) const;
+
+    earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
+public:
+    DecayRangePositionDistribution();
+    DecayRangePositionDistribution(const DecayRangePositionDistribution &) = default;
+    DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::vector<Particle::ParticleType> target_types);
+    std::string Name() const override;
+    virtual std::shared_ptr<InjectionDistribution> clone() const;
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Radius", radius));
+            archive(::cereal::make_nvp("EndcapLength", endcap_length));
+            archive(::cereal::make_nvp("DecayRangeFunction", range_function));
+            archive(::cereal::make_nvp("TargetTypes", target_types));
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+        } else {
+            throw std::runtime_error("DecayRangePositionDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<DecayRangePositionDistribution> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            double r;
+            double l;
+            std::vector<Particle::ParticleType> t;
+            std::shared_ptr<DecayRangeFunction> f;
+            archive(::cereal::make_nvp("Radius", r));
+            archive(::cereal::make_nvp("EndcapLength", l));
+            archive(::cereal::make_nvp("DecayRangeFunction", f));
+            archive(::cereal::make_nvp("TargetTypes", t));
+            construct(r, l, f, t);
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(construct.ptr()));
+        } else {
+            throw std::runtime_error("DecayRangePositionDistribution only supports version <= 0!");
         }
     }
 };
