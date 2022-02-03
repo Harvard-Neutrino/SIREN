@@ -134,6 +134,9 @@ void CrossSectionCollection::InitializeTargetTypes() {
             }
         }
     }
+    std::set<Particle::ParticleType> target_set(target_types.begin(), target_types.end());
+    target_types.resize(target_set.size());
+    std::copy(target_set.begin(), target_set.end(), target_types.begin());
 }
 
 CrossSectionCollection::CrossSectionCollection(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections) : primary_type(primary_type), cross_sections(cross_sections) {
