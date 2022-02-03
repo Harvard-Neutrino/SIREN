@@ -120,10 +120,12 @@ void CrossSectionCollection::InitializeTargetTypes() {
     target_types.clear();
     cross_sections_by_target.clear();
     for(unsigned int i=0; i<cross_sections.size(); ++i) {
+        // Gather target types
         std::vector<Particle::ParticleType> xs_targets = cross_sections[i]->GetPossibleTargets();
         target_types.reserve(target_types.size() + std::distance(xs_targets.begin(), xs_targets.end()));
         target_types.insert(target_types.end(), xs_targets.begin(), xs_targets.end());
 
+        // Track cross sections by their target type
         for(unsigned int j=0; j<xs_targets.size(); ++j) {
             Particle::ParticleType target = xs_targets[j];
             std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>::const_iterator it = cross_sections_by_target.find(target);
@@ -134,6 +136,8 @@ void CrossSectionCollection::InitializeTargetTypes() {
             }
         }
     }
+
+    // Remove duplicate target types
     std::set<Particle::ParticleType> target_set(target_types.begin(), target_types.end());
     target_types.resize(target_set.size());
     std::copy(target_set.begin(), target_set.end(), target_types.begin());
