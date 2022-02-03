@@ -223,7 +223,7 @@ double RangeFunction::operator()(InteractionSignature const & signature, double 
 //
 //
 double DecayRangeFunction::DecayLength(InteractionSignature const & signature, double energy) const {
-    stga3::FourVector<double> lab_momentum{energy, 0.0, 0.0, sqrt(energy*energy - particle_mass*particle_mass)}; // GeV
+    std::array<double, 4> lab_momentum{energy, 0.0, 0.0, sqrt(energy*energy - particle_mass*particle_mass)}; // GeV
     double beta = sqrt((lab_momentum[1]*lab_momentum[1] + lab_momentum[2]*lab_momentum[2] + lab_momentum[3]*lab_momentum[3]) / (lab_momentum[0]*lab_momentum[0])); // dimensionless
     double gamma = 1.0 / sqrt(1.0 - beta * beta);
     double time_in_rest_frame = 1.0 / decay_width; // inverse GeV

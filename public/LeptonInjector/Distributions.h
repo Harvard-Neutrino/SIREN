@@ -23,10 +23,6 @@
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/EarthModel.h"
 
-#include "stga3/STGA3.h"
-#include "stga3/Typedefs.h"
-#include "stga3/Utilities.h"
-
 namespace LeptonInjector {
 
 class InjectionDistribution {

@@ -8,9 +8,6 @@
 
 #include "LeptonInjector/Random.h"
 #include "LeptonInjector/Particle.h"
-#include "stga3/STGA3.h"
-#include "stga3/Typedefs.h"
-#include "stga3/Utilities.h"
 
 #include <rk/rk.hh>
 #include <rk/geom3.hh>

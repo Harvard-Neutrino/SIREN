@@ -123,8 +123,6 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord & record) const {
     // Find the HNL in the secondary particle vector and save its momentum/cartesian direction
     unsigned int lepton_index = (record.signature.secondary_types[0] == Particle::ParticleType::NuF4 or record.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
     std::array<double, 4> hnl_momentum = record.secondary_momenta[lepton_index];
-    // stga3::FourVector<double> pHNL_lab{hnl_momentum[0], hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]};
-    // double hnl_mass = std::sqrt(pHNL_lab | pHNL_lab);
     double hnl_mass = record.secondary_masses[lepton_index];
     rk::P4 pHNL_lab(geom3::Vector3(hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]), hnl_mass);
     earthmodel::Vector3D hnl_dir(hnl_momentum[1],hnl_momentum[2],hnl_momentum[3]);
