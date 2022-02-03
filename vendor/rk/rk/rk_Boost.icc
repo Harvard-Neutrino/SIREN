@@ -1,0 +1,130 @@
+namespace rk {
+    inline Boost::Boost()
+        : dir_(geom3::UnitVector3::xAxis()),
+          rapidity_(0.0),
+          c_(0.0),
+          s_(0.0)
+    {
+    }
+
+    inline Boost::Boost(const geom3::UnitVector3& direction, double r)
+        : dir_(direction),
+          rapidity_(r),
+          c_(fabs(r) < 1.e-4 ? r*r*(12.0 + r*r)/24.0 : cosh(r) - 1.0),
+          s_(sinh(r))
+    {
+    }
+
+    inline Boost::Boost(const geom3::UnitVector3& direction,
+                        double ch, double sh)
+        : dir_(direction),
+          rapidity_(0.0),
+          c_(ch - 1.0),
+          s_(sh)
+    {
+    }
+
+    inline Boost::Boost(const geom3::Vector3& velocity)
+        : dir_(velocity.direction()),
+          rapidity_(0.0)
+    {
+        const double beta(velocity.length());
+        assert(beta < 1.0);
+        const double gamma(1.0/sqrt(1.0 - beta*beta));
+        c_ = gamma - 1.0;
+        s_ = beta*gamma;
+    }
+
+    inline const geom3::UnitVector3& Boost::direction() const
+    {
+        return dir_;
+    }
+
+    inline double Boost::rapidity() const
+    {
+        if (rapidity_ == 0.0 && s_ != 0.0)
+            rapidity_ = asinh(s_);
+        return rapidity_;
+    }
+
+    inline double Boost::beta() const
+    {
+        return s_/(c_ + 1.0);
+    }
+
+    inline double Boost::gamma() const
+    {
+        return c_ + 1.0;
+    }
+
+    inline double Boost::betaGamma() const
+    {
+        return s_;
+    }
+
+    inline geom3::Vector3 Boost::velocity() const
+    {
+        return dir_ * (s_/(c_ + 1.0));
+    }
+
+    inline Boost Boost::inverse() const
+    {
+        Boost b(*this);
+        b.rapidity_ = -rapidity_;
+        b.s_ = -s_;
+        return b;
+    }
+
+    inline P4 operator*(const Boost& b, const P4& p)
+    {
+        const double par(b.dir_.dot(p.p_));
+        return P4(b.dir_*(b.c_*par - p.e_*b.s_) + p.p_, p.m(), p.e_ < 0.0);
+    }
+
+    inline geom3::Vector3 operator*(const Boost& b,
+                                    const geom3::Vector3& p)
+    {
+        const double par(b.dir_.dot(p));
+        return b.dir_*(b.c_*par - p.length()*b.s_) + p;
+    }
+
+    inline geom3::UnitVector3 operator*(const Boost& b,
+                                        const geom3::UnitVector3& p)
+    {
+        const double par(b.dir_.dot(p));
+        return (b.dir_*(b.c_*par - b.s_) + p).direction();
+    }
+
+    inline bool operator==(const Boost& l, const Boost& r)
+    {
+        if (l.s_ == 0.0 && l.c_ == 0.0)
+            return 0.0 == r.c_ && 0.0 == r.s_;
+        else
+            return l.dir_ == r.dir_ && l.c_ == r.c_ && l.s_ == r.s_;
+    }
+
+    inline bool operator!=(const Boost& l, const Boost& r)
+    {
+        return !(l == r);
+    }
+}
+
+namespace rk {
+    inline Boost P4::restBoost() const
+    {
+        ensureMass_();
+        return Boost(p_.direction(), e_/m_, p_.length()/m_);
+    }
+
+    inline Boost P4::labBoost() const
+    {
+        ensureMass_();
+        return Boost(p_.direction(), e_/m_, -p_.length()/m_);
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, const rk::Boost& b)
+{
+    os << '{' << b.direction() << ", " << b.rapidity() << '}';
+    return os;
+}

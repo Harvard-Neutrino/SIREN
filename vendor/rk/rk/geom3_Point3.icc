@@ -1,0 +1,82 @@
+namespace geom3 {
+    inline double Point3::x() const
+    {
+        return x_;
+    }
+
+    inline double Point3::y() const
+    {
+        return y_;
+    }
+
+    inline double Point3::z() const
+    {
+        return z_;
+    }
+
+    inline Point3::Point3()
+        : x_(0.0),
+          y_(0.0),
+          z_(0.0)
+    {
+    }
+
+    inline Point3::Point3(double x, double y, double z)
+        : x_(x),
+          y_(y),
+          z_(z)
+    {
+    }
+
+    inline bool operator==(const Point3& l, const Point3& r)
+    {
+        return l.x_ == r.x_ && l.y_ == r.y_ && l.z_ == r.z_;
+    }
+    
+    inline bool operator!=(const Point3& l, const Point3& r)
+    {
+        return !(l == r);
+    }
+
+    inline Vector3 operator-(const Point3& l, const Point3& r)
+    {
+        return Vector3(l.x_ - r.x_, l.y_ - r.y_, l.z_ - r.z_);
+    }
+
+    inline Point3 operator-(const Point3& l, const Vector3& r)
+    {
+        return Point3(l.x_ - r.x_, l.y_ - r.y_, l.z_ - r.z_);
+    }
+
+    inline Point3 operator+(const Point3& l, const Vector3& r)
+    {
+        return Point3(l.x_ + r.x_, l.y_ + r.y_, l.z_ + r.z_);
+    }
+
+    inline Point3 operator+(const Vector3& l, const Point3& r)
+    {
+        return Point3(l.x_ + r.x_, l.y_ + r.y_, l.z_ + r.z_);
+    }
+
+    inline Point3& Point3::operator+=(const Vector3& r)
+    {
+        x_ += r.x_;
+        y_ += r.y_;
+        z_ += r.z_;
+        return *this;
+    }
+
+    inline Point3& Point3::operator-=(const Vector3& r)
+    {
+        x_ -= r.x_;
+        y_ -= r.y_;
+        z_ -= r.z_;
+        return *this;
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, const geom3::Point3& v)
+{
+    os << '[' << v.x() << ", " << v.y() << ", " << v.z() << ']';
+    return os;
+}

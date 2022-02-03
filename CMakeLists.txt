@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
 cmake_policy(VERSION 3.3.2)
 
+include(ExternalProject)
 
 #TODO
 # + add support for Apple systems (needs an apple part??)
@@ -105,11 +106,30 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/phys-services/CrossSection.cxx
 )
 
+ExternalProject_Add(
+  rk
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
+  CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk/configure --prefix=${CMAKE_BINARY_DIR}/extern/rk
+  PREFIX ${CMAKE_BINARY_DIR}/extern/rk
+  BUILD_COMMAND make
+  BUILD_IN_SOURCE 0
+)
+
+install(DIRECTORY "${CMAKE_BINARY_DIR}/extern/rk/include/rk"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
+    FILES_MATCHING PATTERN "*.hh")
+
+install(DIRECTORY "${CMAKE_BINARY_DIR}/extern/rk/lib"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    FILES_MATCHING PATTERN "${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX}*")
+
 
 add_library( lepton_injector SHARED ${core_SOURCES} )
 target_include_directories(lepton_injector PUBLIC
     ${CMAKE_SOURCE_DIR}/public/
 )
+target_include_directories(lepton_injector PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
+add_dependencies(lepton_injector rk)
 
 set_target_properties(lepton_injector PROPERTIES
     VERSION ${PROJECT_VERSION}
@@ -122,6 +142,7 @@ MESSAGE("    hdf5 ${HDF5_LIBRARIES}")
 MESSAGE("    boost ${Boost_LIBRARIES}")
 target_link_libraries(lepton_injector ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(lepton_injector photospline)
+target_link_libraries(lepton_injector ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
 MESSAGE("")
 
 install(TARGETS lepton_injector
@@ -214,6 +235,7 @@ set(SKIP_PORTABILITY_TEST ON CACHE INTERNAL "Skip cereal portability tests.")
 set(SKIP_PERFORMANCE_COMPARISON ON CACHE INTERNAL "Skip cereal performance comparison.")
 add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/cereal" "extern/cereal")
 include_directories("${PROJECT_SOURCE_DIR}/vendor/cereal/include")
+
 add_subdirectory(tests)
 
 MESSAGE("")

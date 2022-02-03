@@ -1,0 +1,289 @@
+namespace geom3 {
+    inline Matrix3x3::Matrix3x3()
+        : rx_(1.0, 0.0, 0.0),
+          ry_(0.0, 1.0, 0.0),
+          rz_(0.0, 0.0, 1.0)
+    {
+    }
+
+    inline Matrix3x3::Matrix3x3(
+        const double m00, const double m01, const double m02,
+        const double m10, const double m11, const double m12,
+        const double m20, const double m21, const double m22)
+        : rx_(m00, m01, m02),
+          ry_(m10, m11, m12),
+          rz_(m20, m21, m22)
+    {
+    }
+
+    inline Matrix3x3::Matrix3x3(const Vector3& row0,
+                                const Vector3& row1,
+                                const Vector3& row2)
+        : rx_(row0),
+          ry_(row1),
+          rz_(row2)
+    {
+    }
+
+    inline Matrix3x3::Matrix3x3(const double* d)
+        : rx_(d[0], d[1], d[2]),
+          ry_(d[3], d[4], d[5]),
+          rz_(d[6], d[7], d[8])
+    {
+    }
+
+    inline Matrix3x3::Matrix3x3(const UnitVector3& row0,
+                                const UnitVector3& row1,
+                                const UnitVector3& row2)
+        : rx_(row0.x_, row0.y_, row0.z_),
+          ry_(row1.x_, row1.y_, row1.z_),
+          rz_(row2.x_, row2.y_, row2.z_)
+    {
+    }
+
+    inline void Matrix3x3::fillCArray(double* d) const
+    {
+        d[0] = rx_.x_;
+        d[1] = rx_.y_;
+        d[2] = rx_.z_;
+        d[3] = ry_.x_;
+        d[4] = ry_.y_;
+        d[5] = ry_.z_;
+        d[6] = rz_.x_;
+        d[7] = rz_.y_;
+        d[8] = rz_.z_;        
+    }
+
+    inline void Matrix3x3::fillFArray(double* d) const
+    {
+        d[0] = rx_.x_;
+        d[1] = ry_.x_;
+        d[2] = rz_.x_;
+        d[3] = rx_.y_;
+        d[4] = ry_.y_;
+        d[5] = rz_.y_;
+        d[6] = rx_.z_;
+        d[7] = ry_.z_;
+        d[8] = rz_.z_;        
+    }
+
+    inline Matrix3x3 Matrix3x3::T() const
+    {
+        return Matrix3x3(rx_.x_, ry_.x_, rz_.x_,
+                         rx_.y_, ry_.y_, rz_.y_,
+                         rx_.z_, ry_.z_, rz_.z_);
+    }
+
+    inline double Matrix3x3::det() const
+    {
+        return rx_.dot(ry_.cross(rz_));
+    }
+
+    inline Matrix3x3 Matrix3x3::operator-() const
+    {
+        return Matrix3x3(-rx_.x_, -rx_.y_, -rx_.z_,
+                         -ry_.x_, -ry_.y_, -ry_.z_,
+                         -rz_.x_, -rz_.y_, -rz_.z_);
+    }
+
+    inline Matrix3x3 Matrix3x3::operator+() const
+    {
+        return *this;
+    }
+
+    inline double Matrix3x3::tr() const
+    {
+        return rx_.x_ + ry_.y_ + rz_.z_;
+    }
+
+    inline bool operator==(const Matrix3x3& l, const Matrix3x3& r)
+    {
+        return l.rx_ == r.rx_ && l.ry_ == r.ry_ && l.rz_ == r.rz_;
+    }
+
+    inline bool operator!=(const Matrix3x3& l, const Matrix3x3& r)
+    {
+        return !(l == r);
+    }
+
+    inline Matrix3x3 operator*(const Matrix3x3& l, const double& r)
+    {
+        return Matrix3x3(l.rx_.x_*r, l.rx_.y_*r, l.rx_.z_*r, 
+                         l.ry_.x_*r, l.ry_.y_*r, l.ry_.z_*r, 
+                         l.rz_.x_*r, l.rz_.y_*r, l.rz_.z_*r);
+    }
+
+    inline Matrix3x3 operator*(const double& l, const Matrix3x3& r)
+    {
+        return r*l;
+    }
+
+    inline Matrix3x3 operator/(const Matrix3x3& l, const double& r)
+    {
+        assert(r != 0.0);
+        return Matrix3x3(l.rx_.x_/r, l.rx_.y_/r, l.rx_.z_/r, 
+                         l.ry_.x_/r, l.ry_.y_/r, l.ry_.z_/r, 
+                         l.rz_.x_/r, l.rz_.y_/r, l.rz_.z_/r);
+    }
+
+    inline Vector3 operator*(const Matrix3x3& l, const Vector3& r)
+    {
+        return Vector3(l.rx_.dot(r), l.ry_.dot(r), l.rz_.dot(r));
+    }
+
+    inline Vector3 operator*(const Matrix3x3& l, const UnitVector3& r)
+    {
+        return Vector3(l.rx_.dot(r), l.ry_.dot(r), l.rz_.dot(r));
+    }
+
+    inline Matrix3x3 operator*(const Matrix3x3& l, const Matrix3x3& r)
+    {
+        return Matrix3x3(l.rx_.x_*r.rx_.x_+l.rx_.y_*r.ry_.x_+l.rx_.z_*r.rz_.x_,
+                         l.rx_.x_*r.rx_.y_+l.rx_.y_*r.ry_.y_+l.rx_.z_*r.rz_.y_,
+                         l.rx_.x_*r.rx_.z_+l.rx_.y_*r.ry_.z_+l.rx_.z_*r.rz_.z_,
+                         l.ry_.x_*r.rx_.x_+l.ry_.y_*r.ry_.x_+l.ry_.z_*r.rz_.x_,
+                         l.ry_.x_*r.rx_.y_+l.ry_.y_*r.ry_.y_+l.ry_.z_*r.rz_.y_,
+                         l.ry_.x_*r.rx_.z_+l.ry_.y_*r.ry_.z_+l.ry_.z_*r.rz_.z_,
+                         l.rz_.x_*r.rx_.x_+l.rz_.y_*r.ry_.x_+l.rz_.z_*r.rz_.x_,
+                         l.rz_.x_*r.rx_.y_+l.rz_.y_*r.ry_.y_+l.rz_.z_*r.rz_.y_,
+                         l.rz_.x_*r.rx_.z_+l.rz_.y_*r.ry_.z_+l.rz_.z_*r.rz_.z_);
+    }
+
+    inline Matrix3x3 operator/(const Matrix3x3& l, const Matrix3x3& r)
+    {
+        return l*r.inverse();
+    }
+
+    inline Matrix3x3 operator+(const Matrix3x3& l, const Matrix3x3& r)
+    {
+        return Matrix3x3(l.rx_.x_+r.rx_.x_, l.rx_.y_+r.rx_.y_, l.rx_.z_+r.rx_.z_, 
+                         l.ry_.x_+r.ry_.x_, l.ry_.y_+r.ry_.y_, l.ry_.z_+r.ry_.z_, 
+                         l.rz_.x_+r.rz_.x_, l.rz_.y_+r.rz_.y_, l.rz_.z_+r.rz_.z_);
+    }
+
+    inline Matrix3x3 operator-(const Matrix3x3& l, const Matrix3x3& r)
+    {
+        return Matrix3x3(l.rx_.x_-r.rx_.x_, l.rx_.y_-r.rx_.y_, l.rx_.z_-r.rx_.z_, 
+                         l.ry_.x_-r.ry_.x_, l.ry_.y_-r.ry_.y_, l.ry_.z_-r.ry_.z_, 
+                         l.rz_.x_-r.rz_.x_, l.rz_.y_-r.rz_.y_, l.rz_.z_-r.rz_.z_);
+    }
+
+    inline Matrix3x3& Matrix3x3::operator+=(const Matrix3x3& r)
+    {
+        rx_ += r.rx_;
+        ry_ += r.ry_;
+        rz_ += r.rz_;
+        return *this;
+    }
+
+    inline Matrix3x3& Matrix3x3::operator-=(const Matrix3x3& r)
+    {
+        rx_ -= r.rx_;
+        ry_ -= r.ry_;
+        rz_ -= r.rz_;
+        return *this;
+    }
+
+    inline Matrix3x3& Matrix3x3::operator*=(const double d)
+    {
+        rx_ *= d;
+        ry_ *= d;
+        rz_ *= d;
+        return *this;
+    }
+
+    inline Matrix3x3& Matrix3x3::operator/=(const double d)
+    {
+        assert(d != 0.0);
+        rx_ /= d;
+        ry_ /= d;
+        rz_ /= d;
+        return *this;
+    }
+
+    inline Matrix3x3& Matrix3x3::operator*=(const Matrix3x3& r)
+    {
+        const double m00 = r.rx_.x_*rx_.x_+r.rx_.y_*ry_.x_+r.rx_.z_*rz_.x_;
+        const double m01 = r.rx_.x_*rx_.y_+r.rx_.y_*ry_.y_+r.rx_.z_*rz_.y_;
+        const double m02 = r.rx_.x_*rx_.z_+r.rx_.y_*ry_.z_+r.rx_.z_*rz_.z_;
+        const double m10 = r.ry_.x_*rx_.x_+r.ry_.y_*ry_.x_+r.ry_.z_*rz_.x_;
+        const double m11 = r.ry_.x_*rx_.y_+r.ry_.y_*ry_.y_+r.ry_.z_*rz_.y_;
+        const double m12 = r.ry_.x_*rx_.z_+r.ry_.y_*ry_.z_+r.ry_.z_*rz_.z_;
+        const double m20 = r.rz_.x_*rx_.x_+r.rz_.y_*ry_.x_+r.rz_.z_*rz_.x_;
+        const double m21 = r.rz_.x_*rx_.y_+r.rz_.y_*ry_.y_+r.rz_.z_*rz_.y_;
+        const double m22 = r.rz_.x_*rx_.z_+r.rz_.y_*ry_.z_+r.rz_.z_*rz_.z_;
+        rx_.x_ = m00;
+        rx_.y_ = m01;
+        rx_.z_ = m02;
+        ry_.x_ = m10;
+        ry_.y_ = m11;
+        ry_.z_ = m12;
+        rz_.x_ = m20;
+        rz_.y_ = m21;
+        rz_.z_ = m22;
+        return *this;
+    }
+
+    inline Matrix3x3& Matrix3x3::operator/=(const Matrix3x3& rIn)
+    {
+        // This operator can not be implemented using operator*=
+        // because operator*= has reverse multiplication order
+        const Matrix3x3& r = rIn.inverse();
+        double m00 = rx_.x_*r.rx_.x_+rx_.y_*r.ry_.x_+rx_.z_*r.rz_.x_;
+        double m01 = rx_.x_*r.rx_.y_+rx_.y_*r.ry_.y_+rx_.z_*r.rz_.y_;
+        rx_.z_ = rx_.x_*r.rx_.z_+rx_.y_*r.ry_.z_+rx_.z_*r.rz_.z_;
+        rx_.x_ = m00;
+        rx_.y_ = m01;
+        m00 = ry_.x_*r.rx_.x_+ry_.y_*r.ry_.x_+ry_.z_*r.rz_.x_;
+        m01 = ry_.x_*r.rx_.y_+ry_.y_*r.ry_.y_+ry_.z_*r.rz_.y_;
+        ry_.z_ = ry_.x_*r.rx_.z_+ry_.y_*r.ry_.z_+ry_.z_*r.rz_.z_;
+        ry_.x_ = m00;
+        ry_.y_ = m01;
+        m00 = rz_.x_*r.rx_.x_+rz_.y_*r.ry_.x_+rz_.z_*r.rz_.x_;
+        m01 = rz_.x_*r.rx_.y_+rz_.y_*r.ry_.y_+rz_.z_*r.rz_.y_;
+        rz_.z_ = rz_.x_*r.rx_.z_+rz_.y_*r.ry_.z_+rz_.z_*r.rz_.z_;
+        rz_.x_ = m00;
+        rz_.y_ = m01;
+        return *this;
+    }
+
+    inline Matrix3x3 Matrix3x3::diag(const double m00, const double m11,
+                                     const double m22)
+    {
+        return Matrix3x3(m00, 0.0, 0.0,
+                         0.0, m11, 0.0,
+                         0.0, 0.0, m22);
+    }
+
+    inline Matrix3x3 Matrix3x3::null()
+    {
+        return Matrix3x3(0.0, 0.0, 0.0,
+                         0.0, 0.0, 0.0,
+                         0.0, 0.0, 0.0);
+    }
+
+    template <typename V1, typename V2>
+    inline Matrix3x3 outerProduct(const V1& v1, const V2& v2)
+    {
+        const double v1x(v1.x()), v1y(v1.y()), v1z(v1.z());
+        const double v2x(v2.x()), v2y(v2.y()), v2z(v2.z());
+        return Matrix3x3(v1x*v2x, v1x*v2y, v1x*v2z,
+                         v1y*v2x, v1y*v2y, v1y*v2z,
+                         v1z*v2x, v1z*v2y, v1z*v2z);
+    }
+
+    template <typename V1>
+    inline Matrix3x3 outerSquared(const V1& v1)
+    {
+        const double v1x(v1.x()), v1y(v1.y()), v1z(v1.z());
+        return Matrix3x3(v1x*v1x, v1x*v1y, v1x*v1z,
+                         v1y*v1x, v1y*v1y, v1y*v1z,
+                         v1z*v1x, v1z*v1y, v1z*v1z);
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, const geom3::Matrix3x3& m)
+{
+    os << '{' << m[geom3::X] << ", " << m[geom3::Y] << ", " << m[geom3::Z] << '}';
+    return os;
+}

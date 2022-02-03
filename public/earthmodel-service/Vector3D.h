@@ -34,6 +34,8 @@
 
 #include "earthmodel-service/Matrix3D.h"
 
+#include <rk/geom3.hh>
+
 namespace earthmodel {
 
 class Matrix3D;
@@ -47,6 +49,9 @@ public:
     Vector3D(const Vector3D& vector_3d);
     Vector3D(Vector3D&& other);
     Vector3D(std::array<double, 3> const & vec);
+    Vector3D(geom3::UnitVector3 const & vec);
+    Vector3D(geom3::Vector3 const & vec);
+    Vector3D(geom3::Point3 const & vec);
     //Vector3D(const nlohmann::json&);
     ~Vector3D();
 
@@ -55,6 +60,10 @@ public:
     Vector3D& operator=(Vector3D const & vector_3d);
     Vector3D& operator=(Vector3D const && vector_3d);
     Vector3D& operator=(Vector3D && vector_3d);
+
+    operator geom3::UnitVector3() const;
+    operator geom3::Vector3() const;
+    operator geom3::Point3() const;
 
     bool operator==(const Vector3D& vector_3d) const;
     bool operator!=(const Vector3D& vector_3d) const;

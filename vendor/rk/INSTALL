@@ -1,0 +1,25 @@
+
+Set the PKG_CONFIG_PATH environment variable to the name of the
+directory where the rk package should install its "rk.pc" file
+(usually, this directory is /usr/local/lib/pkgconfig ).
+
+A typical rk package installation can proceed as follows.
+If you are using an csh-type shell, do
+
+setenv PKG_CONFIG_PATH /usr/local/lib/pkgconfig
+
+or, for an sh-type shell
+
+export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+
+Then run the following sequence of commands:
+
+./configure --with-pic
+make
+make install
+
+The last step may have to be performed as root. Run
+
+./configure --help
+
+to view available configuration options.
