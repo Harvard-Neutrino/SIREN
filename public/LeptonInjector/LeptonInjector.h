@@ -120,6 +120,21 @@ class RangedLeptonInjector : public InjectorBase {
         std::string Name() const override;
 };
 
+class DecayRangeLeptonInjector : public InjectorBase {
+    private:
+        std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;
+        std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
+        std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
+        std::shared_ptr<DecayRangeFunction> range_func;
+        double disk_radius;
+        double endcap_length;
+        std::shared_ptr<DecayRangePositionDistribution> position_distribution;
+    public:
+        DecayRangeLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<DecayRangeFunction> range_func, double disk_radius, double endcap_length);
+        virtual InteractionRecord GenerateEvent() override;
+        std::string Name() const override;
+};
+
 class VolumeLeptonInjector : public InjectorBase {
     private:
         std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;

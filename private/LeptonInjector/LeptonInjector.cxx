@@ -308,6 +308,64 @@ std::string RangedLeptonInjector::Name() const {
 }
 
 //---------------
+// class DecayRangeLeptonInjector : InjectorBase
+//---------------
+DecayRangeLeptonInjector::DecayRangeLeptonInjector(
+        unsigned int events_to_inject,
+        Particle::ParticleType primary_type,
+        std::vector<std::shared_ptr<CrossSection>> cross_sections,
+        std::shared_ptr<earthmodel::EarthModel> earth_model,
+        std::shared_ptr<LI_random> random,
+        std::shared_ptr<PrimaryEnergyDistribution> edist,
+        std::shared_ptr<PrimaryDirectionDistribution> ddist,
+        std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution,
+        std::shared_ptr<DecayRangeFunction> range_func,
+        double disk_radius,
+        double endcap_length) :
+    energy_distribution(edist),
+    direction_distribution(ddist),
+    target_momentum_distribution(target_momentum_distribution),
+    disk_radius(disk_radius),
+    endcap_length(endcap_length),
+    InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random)
+{
+    std::vector<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
+    position_distribution = std::make_shared<DecayRangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
+}
+
+InteractionRecord DecayRangeLeptonInjector::GenerateEvent() {
+    InteractionRecord event = NewRecord();
+
+    // Choose a target momentum
+    target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
+
+    // Choose an energy
+    energy_distribution->Sample(random, earth_model, cross_sections, event);
+
+    // Pick a direction on the sphere
+    direction_distribution->Sample(random, earth_model, cross_sections, event);
+
+    // Pick a position for the vertex
+    position_distribution->Sample(random, earth_model, cross_sections, event);
+
+    // Sample the cross section and final state
+    SampleCrossSection(event);
+
+    // Sample decay angle of photon
+    SampleSecondaryDecay(event);
+
+    // Sample pair production location
+    SamplePairProduction(event);
+
+    injected_events += 1;
+    return event;
+}
+
+std::string DecayRangeLeptonInjector::Name() const {
+    return("DecayRangeInjector");
+}
+
+//---------------
 // class VolumeLeptonInjector : InjectorBase
 //---------------
 VolumeLeptonInjector::VolumeLeptonInjector(
