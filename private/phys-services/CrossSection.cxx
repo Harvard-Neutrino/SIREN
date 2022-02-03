@@ -768,28 +768,26 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
 
-    stga3::FourVector<double> p1{interaction.primary_momentum[0], interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]};
-    stga3::FourVector<double> p2{interaction.target_momentum[0], interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]};
+    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);                                                                                             rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
 
     // we assume that:
     // the target is stationary so its energy is just its mass
     // the incoming neutrino is massless, so its kinetic energy is its total energy
     // double s = target_mass_ * target_mass_ + 2 * target_mass_ * primary_energy;
-    double s = (p1 + p2) | (p1 + p2);
+    double s = rk::invMass(p1, p2);
 
     double primary_energy;
-    stga3::FourVector<double> p1_lab;
-    stga3::FourVector<double> p2_lab;
+    rk::P4 p1_lab;
+    rk::P4 p2_lab;
     if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
         p1_lab = p1;
         p2_lab = p2;
-        primary_energy = p1_lab.e0();
+        primary_energy = p1_lab.e();
     } else {
-        stga3::Beta<double> beta_start_to_lab = stga3::beta_to_rest_frame_of(p2);
-        stga3::Boost<double> boost_start_to_lab = stga3::boost_from_beta(beta_start_to_lab);
-        p1_lab = stga3::apply_boost(boost_start_to_lab, p1);
-        p2_lab = stga3::apply_boost(boost_start_to_lab, p2);
-        primary_energy = p1_lab.e0();
+        rk::Boost boost_start_to_lab = p2.restBoost();
+        p1_lab = boost_start_to_lab * p1;
+        p2_lab = boost_start_to_lab * p2;
+        primary_energy = p1_lab.e();
     }
 
     unsigned int lepton_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
@@ -801,9 +799,8 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     // double m2 = p2_lab | p2_lab;
     double m2 = interaction.target_mass;
     double m3 = m;
-    double m4 = particleMass(interaction.signature.secondary_types[other_index]);
-    double E1_lab = p1_lab.e0();
-    double E2_lab = p2_lab.e0();
+    double E1_lab = p1_lab.e();
+    double E2_lab = p2_lab.e();
 
     double yMin = DipoleyMin(E1_lab, GetHNLMass(), interaction.target_mass);
     double yMax = DipoleyMax(E1_lab, GetHNLMass(), interaction.target_mass);
@@ -889,8 +886,8 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     interaction.interaction_parameters[1] = final_y;
 
     double Q2 = 2 * E1_lab * E2_lab * final_y;
-    double p1x_lab = std::sqrt(accumulator<double>{p1_lab.e1() * p1_lab.e1(), p1_lab.e2() * p1_lab.e2(), p1_lab.e3() * p1_lab.e3()});
-    double pqx_lab = accumulator<double>{-2*E1_lab*E1_lab, 2*E1_lab*E1_lab*final_y, 2 * E1_lab*E2_lab*final_y, m1*m1, m3*m3, 2*p1_lab.e1()*p1_lab.e1(), 2*p1_lab.e2()*p1_lab.e2(), 2*p1_lab.e3()*p1_lab.e3()}
+    double p1x_lab = std::sqrt(accumulator<double>{p1_lab.px() * p1_lab.px(), p1_lab.py() * p1_lab.py(), p1_lab.pz() * p1_lab.pz()});
+    double pqx_lab = accumulator<double>{-2*E1_lab*E1_lab, 2*E1_lab*E1_lab*final_y, 2 * E1_lab*E2_lab*final_y, m1*m1, m3*m3, 2*p1_lab.px()*p1_lab.px(), 2*p1_lab.py()*p1_lab.py(), 2*p1_lab.pz()*p1_lab.pz()}
         / (2 * p1x_lab);
     double pqy_lab;
     {
@@ -915,9 +912,9 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
         double m33 = m32 * m3;
         double m34 = m33 * m3;
 
-        double p1labe1 = p1_lab.e1();
-        double p1labe2 = p1_lab.e2();
-        double p1labe3 = p1_lab.e3();
+        double p1labe1 = p1_lab.px();
+        double p1labe2 = p1_lab.py();
+        double p1labe3 = p1_lab.pz();
         double p1labe12 = p1labe1*p1labe1;
         double p1labe22 = p1labe2*p1labe2;
         double p1labe32 = p1labe3*p1labe3;
@@ -939,54 +936,52 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     }
     double Eq_lab = E1_lab * final_y;
 
-    stga3::ThreeVector<double> x_dir{1.0, 0.0, 0.0};
-    stga3::Rotation<double> x_to_p1_lab_rot = stga3::rotation_between(x_dir, p1_lab);
+    geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
+    geom3::Vector3 p1_mom = p1_lab.momentum();
+    geom3::UnitVector3 p1_lab_dir = p1_mom.direction();
+    geom3::Rotation3 x_to_p1_lab_rot = geom3::rotationBetween(x_dir, p1_lab_dir);
 
     double phi = random->Uniform(0, 2.0 * M_PI);
-    stga3::Rotation<double> rand_rot = stga3::rotation_about(p1_lab, phi);
+    geom3::Rotation3 rand_rot(p1_lab_dir, phi);
 
-    stga3::FourVector<double> pq_lab{Eq_lab, pqx_lab, pqy_lab, 0};
-    pq_lab = stga3::apply_rotation(x_to_p1_lab_rot, pq_lab);
-    pq_lab = stga3::apply_rotation(rand_rot, pq_lab);
+    rk::P4 pq_lab(Eq_lab, geom3::Vector3(pqx_lab, pqy_lab, 0));
+    pq_lab.rotate(x_to_p1_lab_rot);
+    pq_lab.rotate(rand_rot);
 
-    stga3::FourVector<double> p3_lab = p1_lab - pq_lab;
-    stga3::FourVector<double> p4_lab = p2_lab + pq_lab;
+    rk::P4 p3_lab((p1_lab - pq_lab).momentum(), m3);
+    rk::P4 p4_lab = p2_lab + pq_lab;
 
-    stga3::ThreeVector<double> p3_lab_vec{p3_lab.e1(), p3_lab.e2(), p3_lab.e3()};
-    stga3::ThreeVector<double> p4_lab_vec{p4_lab.e1(), p4_lab.e2(), p4_lab.e3()};
-
-    stga3::FourVector<double> p3;
-    stga3::FourVector<double> p4;
+    rk::P4 p3;
+    rk::P4 p4;
     if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
         p3 = p3_lab;
         p4 = p4_lab;
     } else {
-        stga3::Beta<double> beta_start_to_lab = stga3::beta_to_rest_frame_of(p2);
-        stga3::Boost<double> boost_lab_to_start = stga3::beta_to_boost(-beta_start_to_lab);
-        p3 = stga3::apply_boost(boost_lab_to_start, p3_lab);
-        p4 = stga3::apply_boost(boost_lab_to_start, p4_lab);
+        rk::Boost boost_lab_to_start = p2.restBoost();
+        p3 = boost_lab_to_start * p3_lab;
+        p4 = boost_lab_to_start * p4_lab;
     }
 
-    stga3::FourVector<double> pq_13 = p1 - p3;
-    stga3::FourVector<double> pq_24 = p4 - p2;
+    rk::P4 pq_13 = p1 - p3;
+    rk::P4 pq_24 = p4 - p2;
 
     // Check that computed q2 in the start frame matches up with the specified Q2
-    double check_q2 = double(pq_13 | pq_13);
-    //assert(std::abs(check_q2 + Q2) < std::abs(Q2 * 1e-3));
-    //assert(std::abs(double(pq_24 | pq_24) + Q2) < std::abs(Q2 * 1e-3));
+    //assert(std::abs(double(pq_13.dot(pq_13)) + Q2) < std::abs(Q2 * 1e-3));
+    //assert(std::abs(double(pq_24.dot(pq_24)) + Q2) < std::abs(Q2 * 1e-3));
 
     interaction.secondary_momenta.resize(2);
-    interaction.secondary_momenta[lepton_index][0] = p3.e0(); // p3_energy
-    interaction.secondary_momenta[lepton_index][1] = p3.e1(); // p3_x
-    interaction.secondary_momenta[lepton_index][2] = p3.e2(); // p3_y
-    interaction.secondary_momenta[lepton_index][3] = p3.e3(); // p3_z
-    interaction.secondary_masses[lepton_index] = m3;
+    interaction.secondary_masses.resize(2);
+    interaction.secondary_momenta[lepton_index][0] = p3.e(); // p3_energy
+    interaction.secondary_momenta[lepton_index][1] = p3.px(); // p3_x
+    interaction.secondary_momenta[lepton_index][2] = p3.py(); // p3_y
+    interaction.secondary_momenta[lepton_index][3] = p3.pz(); // p3_z
+    interaction.secondary_masses[lepton_index] = p3.m();
 
-    interaction.secondary_momenta[other_index][0] = p4.e0(); // p4_energy
-    interaction.secondary_momenta[other_index][1] = p4.e1(); // p4_x
-    interaction.secondary_momenta[other_index][2] = p4.e2(); // p4_y
-    interaction.secondary_momenta[other_index][3] = p4.e3(); // p4_z
-    interaction.secondary_masses[other_index] = m4;
+    interaction.secondary_momenta[other_index][0] = p4.e(); // p4_energy
+    interaction.secondary_momenta[other_index][1] = p4.px(); // p4_x
+    interaction.secondary_momenta[other_index][2] = p4.py(); // p4_y
+    interaction.secondary_momenta[other_index][3] = p4.pz(); // p4_z
+    interaction.secondary_masses[other_index] = p4.m();
 }
 
 std::vector<Particle::ParticleType> DipoleFromTable::GetPossibleTargets() const {
