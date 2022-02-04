@@ -25,6 +25,7 @@ namespace earthmodel {
 class MaterialModel {
     static constexpr const int CHAR_BUF_SIZE = 8196;
     static constexpr const double NA = 6.02e23;
+    static const std::map<int, double> molar_mass_table;
 private:
     std::string path_;
     std::vector<std::string> model_files_;
@@ -40,6 +41,8 @@ private:
     std::map<int, double > material_rad_length_;
     std::map<int, std::vector<LeptonInjector::Particle::ParticleType> > material_constituents_;
     std::map<int, double> pne_ratios_;
+
+
 public:
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
