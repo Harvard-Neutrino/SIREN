@@ -69,9 +69,12 @@ struct InteractionRecord {
             archive(::cereal::make_nvp("TargetMass", target_mass));
             archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
             archive(::cereal::make_nvp("TargetMomentum", target_momentum));
+            archive(::cereal::make_nvp("PrimarySpin", primary_spin));
+            archive(::cereal::make_nvp("TargetSpin", target_spin));
             archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
-            archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
             archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
+            archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
+            archive(::cereal::make_nvp("SecondarySpin", secondary_spin));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
         } else {
             throw std::runtime_error("InteractionRecord only supports version <= 0!");
