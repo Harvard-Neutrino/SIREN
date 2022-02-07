@@ -28,6 +28,17 @@ namespace geom3 {
     {
     }
 
+    inline Point3::Point3(std::array<double, 3> const & p)
+        : x_(p[0]),
+          y_(p[1]),
+          z_(p[2])
+    {
+    }
+
+    inline Point3::operator std::array<double, 3>() {
+        return {x_, y_, z_};
+    }
+
     inline bool operator==(const Point3& l, const Point3& r)
     {
         return l.x_ == r.x_ && l.y_ == r.y_ && l.z_ == r.z_;

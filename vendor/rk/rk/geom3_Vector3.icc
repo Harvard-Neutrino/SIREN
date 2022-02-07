@@ -34,6 +34,18 @@ namespace geom3 {
     {
     }
 
+    inline Vector3::Vector3(std::array<double, 3> const & vec)
+        : x_(vec[0]),
+          y_(vec[1]),
+          z_(vec[2]),
+          l_(-1.0)
+    {
+    }
+
+    inline Vector3::operator std::array<double, 3>() {
+        return {x_, y_, z_};
+    }
+
     inline Vector3::Vector3(const Point3& p, const Point3& origin)
         : x_(p.x_ - origin.x_),
           y_(p.y_ - origin.y_),

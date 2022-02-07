@@ -17,6 +17,7 @@
 #ifndef GEOM3_GEOM3_HH_
 #define GEOM3_GEOM3_HH_
 
+#include <array>
 #include <cmath>
 #include <cassert>
 #include <iostream>
@@ -156,6 +157,7 @@ namespace geom3 {
         // all components set to 0. Use with care.
         Vector3();
         Vector3(double x, double y, double z);
+        Vector3(std::array<double, 3> const & vec);
 
         // In the following constructor, negative length argument
         // is permitted. In this case the absolute value of the
@@ -207,6 +209,7 @@ namespace geom3 {
         // Unary operators
         Vector3 operator-() const;
         Vector3 operator+() const;
+        operator std::array<double, 3>();
 
         // Binary operators
         friend bool operator==(const Vector3& l, const Vector3& r);
@@ -262,6 +265,7 @@ namespace geom3 {
         // with all coordinates set to 0
         Point3();
         Point3(double x, double y, double z);
+        Point3(std::array<double, 3> const & p);
 
         // Modifier of the components
         Point3& set(unsigned whichCoord, double value);
@@ -269,6 +273,9 @@ namespace geom3 {
         double x() const;
         double y() const;
         double z() const;
+
+        // Unary operators
+        operator std::array<double, 3>();
 
         // Binary operators
         friend bool operator==(const Point3& l, const Point3& r);
