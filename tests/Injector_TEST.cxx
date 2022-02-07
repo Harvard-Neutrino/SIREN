@@ -21,6 +21,7 @@ using namespace LeptonInjector;
 
 std::string diff_xs(int Z, int A, std::string mHNL) {
   std::stringstream ss;
+  // ss << "/home/austin/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
   ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
     ss << "dxsec_";
     ss << "Z_" << Z << "_";
@@ -116,7 +117,7 @@ TEST(Injector, Generation)
     double energyMax = 1; // in GeV
 
     double hnl_mass = 0.4; // in GeV; The HNL mass we are injecting
-    double d = 1e-7; // in GeV^-1; the effective dipole coupling strength 
+    double d = 1e-7; // in GeV^-1; the effective dipole coupling strength
     std::string mHNL = "0.4";
 
     // Decay parameters used to set the max range when injecting an HNL, decay width is likely wrong, set accordingly...
@@ -136,8 +137,8 @@ TEST(Injector, Generation)
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::vector<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau};
     std::vector<Particle::ParticleType> target_types = gen_TargetPIDs();
-    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass);
-    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass);
+    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, DipoleFromTable::HelicityChannel::Flipping);
+    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, DipoleFromTable::HelicityChannel::Conserving);
     std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL);
     std::vector<std::string> hc_diff_fnames = gen_diff_xs_hc(mHNL);
     std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf(mHNL);
@@ -177,10 +178,13 @@ TEST(Injector, Generation)
     // Let us inject according to the decay distribution
     std::shared_ptr<RangeFunction> range_func = std::make_shared<LeptonInjector::DecayRangeFunction>(hnl_mass, HNL_decay_width, n_decay_lengths);
 
+    // Spin distribution
+    std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution = std::make_shared<LeptonInjector::PrimaryNeutrinoSpinDistribution>();
+
     // Put it all together!
     //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
-    std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
-   
+    std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, spin_distribution);
+
     /*
     Controller cont(injector);
     cont.NameOutfile("injector_test_events.h5");
@@ -195,11 +199,16 @@ TEST(Injector, Generation)
     myFile << "intX intY intZ ";
     myFile << "decX decY decZ ";
     myFile << "ppX ppY ppZ ";
-    myFile << "p4nu_0 p4nu_1 p4nu_2 p4nu_3";
-    myFile << "p4itgt_0 p4itgt_1 p4itgt_2 p4itgt_3";
-    myFile << "p4hnl_0 p4hnl_1 p4hnl_2 p4hnl_3";
-    myFile << "p4ftgt_0 p4ftgt_1 p4ftgt_2 p4ftgt_3";
-    myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3";
+    myFile << "p4nu_0 p4nu_1 p4nu_2 p4nu_3 ";
+    myFile << "snuX snuY snuZ ";
+    myFile << "p4itgt_0 p4itgt_1 p4itgt_2 p4itgt_3 ";
+    myFile << "sitgtX sitgtY sitgtZ ";
+    myFile << "p4hnl_0 p4hnl_1 p4hnl_2 p4hnl_3 ";
+    myFile << "shnlX shnlY shnlZ ";
+    myFile << "p4ftgt_0 p4ftgt_1 p4ftgt_2 p4ftgt_3 ";
+    myFile << "sftgtX sftgtY sftgtZ ";
+    myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
+    myFile << "sgammaX sgammaY sgammaZ ";
     myFile << "decay_length prob_nopairprod target\n";
     int i = 0;
     while(*injector) {
@@ -209,40 +218,60 @@ TEST(Injector, Generation)
           myFile << event.interaction_vertex[0] << " ";
           myFile << event.interaction_vertex[1] << " ";
           myFile << event.interaction_vertex[2] << " ";
-          
+
           myFile << event.decay_vertex[0] << " ";
           myFile << event.decay_vertex[1] << " ";
           myFile << event.decay_vertex[2] << " ";
-          
+
           myFile << event.pairprod_vertex[0] << " ";
           myFile << event.pairprod_vertex[1] << " ";
           myFile << event.pairprod_vertex[2] << " ";
-          
+
           myFile << event.primary_momentum[0] << " ";
           myFile << event.primary_momentum[1] << " ";
           myFile << event.primary_momentum[2] << " ";
           myFile << event.primary_momentum[3] << " ";
-          
+
+          myFile << event.primary_spin[0] << " ";
+          myFile << event.primary_spin[1] << " ";
+          myFile << event.primary_spin[2] << " ";
+
           myFile << event.target_momentum[0] << " ";
           myFile << event.target_momentum[1] << " ";
           myFile << event.target_momentum[2] << " ";
           myFile << event.target_momentum[3] << " ";
-          
+
+          myFile << event.target_spin[0] << " ";
+          myFile << event.target_spin[1] << " ";
+          myFile << event.target_spin[2] << " ";
+
           myFile << event.secondary_momenta[0][0] << " ";
           myFile << event.secondary_momenta[0][1] << " ";
           myFile << event.secondary_momenta[0][2] << " ";
           myFile << event.secondary_momenta[0][3] << " ";
-          
+
+          myFile << event.secondary_spin[0][0] << " ";
+          myFile << event.secondary_spin[0][1] << " ";
+          myFile << event.secondary_spin[0][2] << " ";
+
           myFile << event.secondary_momenta[1][0] << " ";
           myFile << event.secondary_momenta[1][1] << " ";
           myFile << event.secondary_momenta[1][2] << " ";
           myFile << event.secondary_momenta[1][3] << " ";
-          
+
+          myFile << event.secondary_spin[1][0] << " ";
+          myFile << event.secondary_spin[1][1] << " ";
+          myFile << event.secondary_spin[1][2] << " ";
+
           myFile << event.secondary_momenta[2][0] << " ";
           myFile << event.secondary_momenta[2][1] << " ";
           myFile << event.secondary_momenta[2][2] << " ";
           myFile << event.secondary_momenta[2][3] << " ";
-          
+
+          myFile << event.secondary_spin[2][0] << " ";
+          myFile << event.secondary_spin[2][1] << " ";
+          myFile << event.secondary_spin[2][2] << " ";
+
           myFile << event.decay_length << " ";
           myFile << event.prob_nopairprod << " ";
           myFile << event.signature.target_type << "\n";
