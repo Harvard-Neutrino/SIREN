@@ -1,7 +1,7 @@
 #include "phys-services/CrossSection.h"
 
 #include <array>
-//#include <format>
+#include <cmath>
 #include <fstream>
 #include <algorithm>
 #include <functional>
@@ -595,6 +595,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
 
     interaction.secondary_momenta.resize(2);
     interaction.secondary_masses.resize(2);
+    interaction.secondary_spin.resize(2);
 
     interaction.secondary_momenta[lepton_index][0] = p3.e(); // p3_energy
     interaction.secondary_momenta[lepton_index][1] = p3.px(); // p3_x
@@ -602,12 +603,19 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     interaction.secondary_momenta[lepton_index][3] = p3.pz(); // p3_z
     interaction.secondary_masses[lepton_index] = p3.m();
 
+    geom3::Vector3 spin = p3.momentum();
+    spin *= std::copysign(0.5 / spin.length(), p1.momentum().dot(geom3::Vector3(interaction.primary_spin)));
+    interaction.secondary_spin[lepton_index] = spin;
 
     interaction.secondary_momenta[other_index][0] = p4.e(); // p4_energy
     interaction.secondary_momenta[other_index][1] = p4.px(); // p4_x
     interaction.secondary_momenta[other_index][2] = p4.py(); // p4_y
     interaction.secondary_momenta[other_index][3] = p4.pz(); // p4_z
     interaction.secondary_masses[other_index] = p4.m();
+
+    spin = p4.momentum();
+    spin *= std::copysign(geom3::Vector3(interaction.target_spin).length() / spin.length(), p2.momentum().dot(geom3::Vector3(interaction.target_spin)));
+    interaction.secondary_spin[other_index] = spin;
 }
 
 std::vector<Particle::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
@@ -968,17 +976,33 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
 
     interaction.secondary_momenta.resize(2);
     interaction.secondary_masses.resize(2);
+    interaction.secondary_spin.resize(2);
+
     interaction.secondary_momenta[lepton_index][0] = p3.e(); // p3_energy
     interaction.secondary_momenta[lepton_index][1] = p3.px(); // p3_x
     interaction.secondary_momenta[lepton_index][2] = p3.py(); // p3_y
     interaction.secondary_momenta[lepton_index][3] = p3.pz(); // p3_z
     interaction.secondary_masses[lepton_index] = p3.m();
 
+    double spin_mul = 0.0;
+    if(channel == Conserving)
+        spin_mul = 1.0;
+    else if(channel == Flipping)
+        spin_mul = -1.0;
+
+    geom3::Vector3 spin = p3.momentum();
+    spin *= std::copysign(0.5 / spin.length() * spin_mul, p1.momentum().dot(geom3::Vector3(interaction.primary_spin)));
+    interaction.secondary_spin[lepton_index] = spin;
+
     interaction.secondary_momenta[other_index][0] = p4.e(); // p4_energy
     interaction.secondary_momenta[other_index][1] = p4.px(); // p4_x
     interaction.secondary_momenta[other_index][2] = p4.py(); // p4_y
     interaction.secondary_momenta[other_index][3] = p4.pz(); // p4_z
     interaction.secondary_masses[other_index] = p4.m();
+
+    spin = p4.momentum();
+    spin *= std::copysign(geom3::Vector3(interaction.target_spin).length() / spin.length(), p2.momentum().dot(geom3::Vector3(interaction.target_spin)));
+    interaction.secondary_spin[other_index] = spin;
 }
 
 std::vector<Particle::ParticleType> DipoleFromTable::GetPossibleTargets() const {

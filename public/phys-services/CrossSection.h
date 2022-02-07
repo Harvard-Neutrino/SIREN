@@ -50,11 +50,14 @@ struct InteractionRecord {
     double decay_length = 0;
     double prob_nopairprod = 0;
     std::array<double, 4> primary_momentum = {0, 0, 0, 0};
+    std::array<double, 3> primary_spin = {0, 0, 0};
     std::array<double, 4> target_momentum = {0, 0, 0, 0};
+    std::array<double, 3> target_spin = {0, 0, 0};
     std::array<double, 3> interaction_vertex = {0, 0, 0};
     std::array<double, 3> decay_vertex = {0, 0, 0};
     std::array<double, 3> pairprod_vertex = {0, 0, 0};
     std::vector<std::array<double, 4>> secondary_momenta;
+    std::vector<std::array<double, 3>> secondary_spin;
     std::vector<double> secondary_masses;
     std::vector<double> interaction_parameters;
     friend std::ostream& operator<<(std::ostream& os, InteractionRecord const& record);
@@ -887,17 +890,19 @@ public:
 class DipoleFromTable : public CrossSection {
 friend cereal::access;
 public:
+    enum HelicityChannel {Conserving, Flipping};
 private:
     std::map<Particle::ParticleType, Interpolator2D<double>> differential;
     std::map<Particle::ParticleType, Interpolator1D<double>> total;
     const std::set<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau, Particle::ParticleType::NuEBar, Particle::ParticleType::NuMuBar, Particle::ParticleType::NuTauBar};
     double hnl_mass;
+    HelicityChannel channel;
 public:
     double GetHNLMass() const {return hnl_mass;};
     static double DipoleyMin(double Enu, double mHNL, double target_mass);
     static double DipoleyMax(double Enu, double mHNL, double target_mass);
-    DipoleFromTable(double hnl_mass) : hnl_mass(hnl_mass) {};
-    DipoleFromTable(double hnl_mass, std::set<Particle::ParticleType> const & primary_types) : hnl_mass(hnl_mass), primary_types(primary_types) {};
+    DipoleFromTable(double hnl_mass, HelicityChannel channel) : hnl_mass(hnl_mass), channel(channel) {};
+    DipoleFromTable(double hnl_mass, HelicityChannel channel, std::set<Particle::ParticleType> const & primary_types) : hnl_mass(hnl_mass), channel(channel), primary_types(primary_types) {};
     double TotalCrossSection(InteractionRecord const &) const;
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const;
     double DifferentialCrossSection(InteractionRecord const &) const;
@@ -921,6 +926,7 @@ public:
             archive(::cereal::make_nvp("TotalCrossSection", total));
             archive(::cereal::make_nvp("PrimaryTypes", primary_types));
             archive(::cereal::make_nvp("HNLMass", hnl_mass));
+            archive(::cereal::make_nvp("HelicityChannel", static_cast<int>(channel)));
             archive(cereal::virtual_base_class<CrossSection>(this));
         } else {
             throw std::runtime_error("DipoleFromTable only supports version <= 0!");
@@ -933,11 +939,13 @@ public:
             std::map<Particle::ParticleType, Interpolator1D<double>> total;
             std::set<Particle::ParticleType> primary_types;
             double hnl_mass;
+            int channel;
             archive(::cereal::make_nvp("DifferentialCrossSection", differential));
             archive(::cereal::make_nvp("TotalCrossSection", total));
             archive(::cereal::make_nvp("PrimaryTypes", primary_types));
             archive(::cereal::make_nvp("HNLMass", hnl_mass));
-            construct(hnl_mass, primary_types);
+            archive(::cereal::make_nvp("HelicityChannel", channel));
+            construct(hnl_mass, static_cast<HelicityChannel>(channel), primary_types);
             for(auto const & iter : differential) {
                 construct.ptr()->AddDifferentialCrossSection(iter.first, iter.second);
             }
