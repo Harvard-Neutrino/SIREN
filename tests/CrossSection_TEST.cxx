@@ -62,7 +62,7 @@ TEST(DipoleFromTable, Constructor)
     std::string total_xs = "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/xsec_Z_6_A_12_mHNL_0.001_hf.dat";
     std::vector<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau};
     std::vector<Particle::ParticleType> target_types = {Particle::ParticleType::PPlus, Particle::ParticleType::Neutron, Particle::ParticleType::Nucleon};
-    std::shared_ptr<DipoleFromTable> dipole_xs = std::make_shared<DipoleFromTable>(hnl_mass);
+    std::shared_ptr<DipoleFromTable> dipole_xs = std::make_shared<DipoleFromTable>(hnl_mass, DipoleFromTable::HelicityChannel::Flipping);
     dipole_xs->AddDifferentialCrossSectionFile(differential_xs, Particle::ParticleType::C12Nucleus);
     dipole_xs->AddTotalCrossSectionFile(total_xs, Particle::ParticleType::C12Nucleus);
     std::shared_ptr<CrossSection> xs = dipole_xs;
