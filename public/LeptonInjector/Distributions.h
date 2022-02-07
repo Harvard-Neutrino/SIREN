@@ -31,6 +31,7 @@ public:
     virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
+    virtual std::string Name() const = 0;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
@@ -65,6 +66,7 @@ public:
     virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
+    std::string Name() const override;
     template<typename Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
@@ -136,6 +138,7 @@ class IsotropicDirection : public PrimaryDirectionDistribution {
 private:
     earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
+    std::string Name() const override;
     template<typename Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
@@ -156,6 +159,7 @@ private:
     earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
+    std::string Name() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -189,6 +193,7 @@ public:
 private:
     earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
+    std::string Name() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -487,6 +492,32 @@ public:
             archive(cereal::virtual_base_class<VertexPositionDistribution>(construct.ptr()));
         } else {
             throw std::runtime_error("DecayRangePositionDistribution only supports version <= 0!");
+        }
+    }
+};
+
+class PrimaryNeutrinoSpinDistribution : public InjectionDistribution {
+private:
+public:
+    virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
+	PrimaryNeutrinoSpinDistribution();
+	PrimaryNeutrinoSpinDistribution(const PrimaryNeutrinoSpinDistribution &) = default;
+    std::string Name() const override;
+    virtual std::shared_ptr<InjectionDistribution> clone() const;
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("PrimaryNeutrinoSpinDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("PrimaryNeutrinoSpinDistribution only supports version <= 0!");
         }
     }
 };

@@ -45,8 +45,12 @@ std::vector<std::string> TargetAtRest::DensityVariables() const {
 }
 
 std::shared_ptr<InjectionDistribution> TargetAtRest::clone() const {
-    return std::shared_ptr<TargetMomentumDistribution>(new TargetAtRest(*this));
-};
+    return std::shared_ptr<InjectionDistribution>(new TargetAtRest(*this));
+}
+
+std::string TargetAtRest::Name() const {
+    return "TargetAtRest";
+}
 
 //---------------
 // class PrimaryEnergyDistribution : InjectionDistribution
@@ -120,6 +124,10 @@ std::shared_ptr<InjectionDistribution> IsotropicDirection::clone() const {
     return std::shared_ptr<InjectionDistribution>(new IsotropicDirection(*this));
 }
 
+std::string IsotropicDirection::Name() const {
+    return "IsotropicDirection";
+}
+
 //---------------
 // class FixedDirection : PrimaryDirectionDistribution
 //---------------
@@ -133,6 +141,10 @@ std::vector<std::string> FixedDirection::DensityVariables() const {
 
 std::shared_ptr<InjectionDistribution> FixedDirection::clone() const {
     return std::shared_ptr<InjectionDistribution>(new FixedDirection(*this));
+}
+
+std::string FixedDirection::Name() const {
+    return "FixedDirection";
 }
 
 //---------------
@@ -160,6 +172,10 @@ earthmodel::Vector3D Cone::SampleDirection(std::shared_ptr<LI_random> rand, std:
 
 std::shared_ptr<InjectionDistribution> Cone::clone() const {
     return std::shared_ptr<InjectionDistribution>(new Cone(*this));
+}
+
+std::string Cone::Name() const {
+    return "Cone";
 }
 
 //---------------
@@ -190,7 +206,7 @@ earthmodel::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::sha
     return cylinder.LocalToGlobalPosition(pos);
 }
 
-CylinderVolumePositionDistribution::CylinderVolumePositionDistribution(earthmodel::Cylinder) : cylinder(cylinder) {};
+CylinderVolumePositionDistribution::CylinderVolumePositionDistribution(earthmodel::Cylinder) : cylinder(cylinder) {}
 std::string CylinderVolumePositionDistribution::Name() const {
     return "CylinderVolumePositionDistribution";
 }
@@ -202,7 +218,7 @@ std::shared_ptr<InjectionDistribution> CylinderVolumePositionDistribution::clone
 //---------------
 // class DepthFunction
 //---------------
-DepthFunction::DepthFunction() {};
+DepthFunction::DepthFunction() {}
 
 double DepthFunction::operator()(InteractionSignature const & signature, double energy) const {
     return 0.0;
@@ -211,7 +227,7 @@ double DepthFunction::operator()(InteractionSignature const & signature, double 
 //---------------
 // class RangeFunction
 //---------------
-RangeFunction::RangeFunction() {};
+RangeFunction::RangeFunction() {}
 
 double RangeFunction::operator()(InteractionSignature const & signature, double energy) const {
     return 0.0;
@@ -290,7 +306,7 @@ earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared
     return vertex;
 }
 
-ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {};
+ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
 
 std::string ColumnDepthPositionDistribution::Name() const {
     return "ColumnDepthPositionDistribution";
@@ -390,6 +406,31 @@ std::string DecayRangePositionDistribution::Name() const {
 
 std::shared_ptr<InjectionDistribution> DecayRangePositionDistribution::clone() const {
     return std::shared_ptr<InjectionDistribution>(new DecayRangePositionDistribution(*this));
+}
+
+//---------------
+// class PrimaryNeutrinoSpinDistribution : InjectionDistribution
+//---------------
+void PrimaryNeutrinoSpinDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+    std::array<double, 4> & mom = record.primary_momentum;
+    double momentum = sqrt(mom[1]*mom[1] + mom[2]*mom[2] + mom[3]*mom[3]);
+    double factor = 0.5 / momentum;
+    Particle::ParticleType & t = record.signature.primary_type;
+    if(t > 0) // Particles are left handed, anti-particles are right handed
+        factor = -factor;
+    record.primary_spin[0] = 0.5 * mom[1] / momentum;
+    record.primary_spin[1] = 0.5 * mom[2] / momentum;
+    record.primary_spin[2] = 0.5 * mom[3] / momentum;
+}
+
+PrimaryNeutrinoSpinDistribution::PrimaryNeutrinoSpinDistribution() {}
+
+std::string PrimaryNeutrinoSpinDistribution::Name() const {
+    return "PrimaryNeutrinoSpinDistribution";
+}
+
+std::shared_ptr<InjectionDistribution> PrimaryNeutrinoSpinDistribution::clone() const {
+    return std::shared_ptr<PrimaryNeutrinoSpinDistribution>(new PrimaryNeutrinoSpinDistribution(*this));
 }
 
 } // namespace LeptonInjector
