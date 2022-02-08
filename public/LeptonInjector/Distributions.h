@@ -122,10 +122,11 @@ private:
     double (*PDF)(double, std::vector<double>);
     double minE;
     double maxE;
+    std::vector<double> params;
     const size_t burnin = 40;
 public:
     double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
-    ArbPDF(double (*PDF)(double, std::vector<double>));
+    ArbPDF(double, double, std::vector<double>, double (*PDF)(double, std::vector<double>));
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
