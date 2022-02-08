@@ -92,6 +92,45 @@ std::shared_ptr<InjectionDistribution> PowerLaw::clone() const {
 }
 
 //---------------
+// class ArbPDF : PrimaryEnergyDistribution
+//---------------
+ArbPDF::ArbPDF(double minE_, double maxE_, double (*PDF_)(double, std::vector<double>)) {
+		PDF = PDF_;
+		minE = minE_;
+		maxE = maxE_;
+}
+
+double ArbPDF::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+		//Nick TODO: implement Metropolis-Hastings algorithm to sample from PDF. 
+		// Pass in a function pointer for the PDF
+		
+		double E, testE, odds;
+		bool accept;
+		
+		// sample an initial point uniformly
+		E = test->Uniform(minE,maxE);
+
+		// Metropolis Hastings loop
+		for (size_t j = 0; j <= burnin; ++j) {
+				accept = true;
+				testE = rand->Uniform(minE,maxE);
+				odds = (*PDF)(testE)/(*PDF)(E);
+				accept = (odds > 1.) || rand->Uniform(0,1)<odds;
+				if(accept) E = testE;
+		}
+
+		return E;
+}
+
+std::string ArbPDF::Name() const {
+    return "ArbPDF";
+}
+
+std::shared_ptr<InjectionDistribution> ArbPDF::clone() const {
+    return std::shared_ptr<InjectionDistribution>(new ArbPDF(*this));
+}
+
+//---------------
 // class PrimaryDirectionDistribution : InjectionDistribution
 //---------------
 void PrimaryDirectionDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
