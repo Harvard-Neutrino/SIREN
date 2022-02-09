@@ -98,6 +98,7 @@ public:
     virtual std::vector<InteractionSignature> GetPossibleSignatures() const = 0;
 
     virtual std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const = 0;
+    virtual std::set<std::vector<std::string>> DensityVariables() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {};
     template<class Archive>
@@ -192,6 +193,7 @@ public:
     int GetInteractionType() const {return interaction_type_;};
 
 public:
+    virtual std::set<std::vector<std::string>> DensityVariables() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -922,6 +924,7 @@ public:
     void AddDifferentialCrossSection(Particle::ParticleType target, Interpolator2D<double>);
     void AddTotalCrossSection(Particle::ParticleType target, Interpolator1D<double>);
 public:
+    virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
