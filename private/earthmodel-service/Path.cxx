@@ -369,3 +369,10 @@ double Path::GetDistanceFromEndInReverse(double column_depth, std::vector<Lepton
     return distance;
 }
 
+bool Path::IsWithinBounds(Vector3D point) {
+    EnsurePoints();
+    double d0 = earthmodel::scalar_product(direction_, first_point_ - point);
+    double d1 = earthmodel::scalar_product(direction_, last_point_ - point);
+    return d0 <= 0 and d1 >= 0;
+}
+

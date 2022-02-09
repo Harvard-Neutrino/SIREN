@@ -115,6 +115,8 @@ public:
     double GetDistanceFromEndAlongPath(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
     double GetDistanceFromStartInReverse(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
     double GetDistanceFromEndInReverse(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+
+    bool IsWithinBounds(Vector3D point);
 };
 
 } // namespace earthmodel
