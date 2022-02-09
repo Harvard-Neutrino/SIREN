@@ -1,4 +1,5 @@
 #include "LeptonInjector/Distributions.h"
+#include "earthmodel-service/EarthModelCalculator.h"
 
 namespace LeptonInjector {
 
@@ -109,11 +110,20 @@ std::shared_ptr<InjectionDistribution> PowerLaw::clone() const {
 //---------------
 // class ArbPDF : PrimaryEnergyDistribution
 //---------------
-ArbPDF::ArbPDF(double minE_, double maxE_, std::vector<double> params_, double (*PDF_)(double, std::vector<double>)) {
+ArbPDF::ArbPDF(double minE_, double maxE_, std::vector<double> params_, double (*PDF_)(double, std::vector<double>))
+    : PDF(PDF_)
+    , minE(minE_)
+    , maxE(maxE_)
+    , params(params_)
+{
     PDF = PDF_;
     minE = minE_;
     maxE = maxE_;
     params = params_;
+    std::function<double(double)> integrand = [&] (double x) -> double {
+        return (*PDF)(x, params);
+    };
+    integral = earthmodel::Integration::rombergIntegrate(integrand, minE, maxE);
 }
 
 double ArbPDF::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
@@ -136,6 +146,12 @@ double ArbPDF::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<ear
     }
 
     return E;
+}
+
+double ArbPDF::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+
+    double density = (*PDF)(record.primary_momentum[0], params);
+    return density / integral;
 }
 
 std::string ArbPDF::Name() const {

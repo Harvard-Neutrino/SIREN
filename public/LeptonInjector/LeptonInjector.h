@@ -59,7 +59,7 @@ public:
     virtual InteractionRecord GenerateEvent();
     virtual std::string Name() const;
     virtual double GenerationProbability(InteractionRecord const & record) const;
-    virtual std::vector<std::string> DensityVariables() const;
+    virtual std::set<std::vector<std::string>> DensityVariables() const;
     operator bool() const;
 
     template<typename Archive>
