@@ -40,6 +40,10 @@ std::array<double, 4> TargetAtRest::SampleMomentum(
     return std::array<double, 4>{record.target_mass, 0, 0, 0};
 }
 
+double TargetAtRest::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    return 1.0;
+}
+
 std::vector<std::string> TargetAtRest::DensityVariables() const {
     return std::vector<std::string>();
 }
@@ -83,6 +87,17 @@ double PowerLaw::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<e
     }
 }
 
+double PowerLaw::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    if(energyMin == energyMax)
+        return 1.0; // only one allowed energy
+
+    if(powerLawIndex == 1.0)
+        return 1.0 / (record.primary_momentum[0] * log(energyMax / energyMin));
+    else {
+        return pow(record.primary_momentum[0], -powerLawIndex) * (powerLawIndex - 1.0) * (pow(energyMin, powerLawIndex - 1.0) - pow(energyMax, powerLawIndex - 1.0));
+    }
+}
+
 std::string PowerLaw::Name() const {
     return "PowerLaw";
 }
@@ -120,6 +135,10 @@ earthmodel::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI_rand
     return res;
 }
 
+double IsotropicDirection::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    return 1.0 / (4.0 * M_PI);
+}
+
 std::shared_ptr<InjectionDistribution> IsotropicDirection::clone() const {
     return std::shared_ptr<InjectionDistribution>(new IsotropicDirection(*this));
 }
@@ -133,6 +152,15 @@ std::string IsotropicDirection::Name() const {
 //---------------
 earthmodel::Vector3D FixedDirection::SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
     return dir;
+}
+
+double FixedDirection::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    earthmodel::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    event_dir.normalize();
+    if(abs(1.0 - earthmodel::scalar_product(dir, event_dir)) < 1e-9)
+        return 1.0;
+    else
+        return 0.0;
 }
 
 std::vector<std::string> FixedDirection::DensityVariables() const {
@@ -163,11 +191,21 @@ Cone::Cone(earthmodel::Vector3D dir, double opening_angle) : dir(dir), opening_a
 }
 
 earthmodel::Vector3D Cone::SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const{
-    double theta = rand->Uniform(0, opening_angle);
+    double theta = cos(rand->Uniform(acos(opening_angle), 1));
     double phi = rand->Uniform(0, 2.0 * M_PI);
     earthmodel::Quaternion q;
     q.SetEulerAnglesZXZr(phi, theta, 0.0);
     return rotation.rotate(q.rotate(earthmodel::Vector3D(0,0,1), false), false);
+}
+
+double Cone::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    earthmodel::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    event_dir.normalize();
+    double theta = acos(earthmodel::scalar_product(dir, event_dir));
+    if(theta < opening_angle)
+        return 1.0 / (2.0 * M_PI * (1.0 - cos(opening_angle)));
+    else
+        return 0.0;
 }
 
 std::shared_ptr<InjectionDistribution> Cone::clone() const {
@@ -189,7 +227,7 @@ void VertexPositionDistribution::Sample(std::shared_ptr<LI_random> rand, std::sh
 }
 
 std::vector<std::string> VertexPositionDistribution::DensityVariables() const {
-    return std::vector<std::string>{"VertexPosition"};
+    return std::vector<std::string>{"InteractionVertexPosition"};
 }
 
 //---------------
@@ -206,7 +244,22 @@ earthmodel::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::sha
     return cylinder.LocalToGlobalPosition(pos);
 }
 
+double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    earthmodel::Vector3D pos(record.interaction_vertex);
+    double z = pos.GetZ();
+    double r = sqrt(pos.GetX() * pos.GetX() + pos.GetY() * pos.GetY());
+    if(abs(z) >= 0.5 * cylinder.GetZ()
+            or r <= cylinder.GetInnerRadius()
+            or r >= cylinder.GetRadius()) {
+        return 0.0;
+    } else {
+        return 1.0 / ((cylinder.GetRadius() * cylinder.GetRadius() - cylinder.GetInnerRadius() * cylinder.GetInnerRadius()) * cylinder.GetZ());
+    }
+}
+
+
 CylinderVolumePositionDistribution::CylinderVolumePositionDistribution(earthmodel::Cylinder) : cylinder(cylinder) {}
+
 std::string CylinderVolumePositionDistribution::Name() const {
     return "CylinderVolumePositionDistribution";
 }
@@ -306,6 +359,34 @@ earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared
     return vertex;
 }
 
+double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    earthmodel::Vector3D vertex(record.interaction_vertex); // m
+    earthmodel::Vector3D pca = vertex - dir * earthmodel::scalar_product(dir, vertex);
+
+    if(pca.magnitude() >= radius)
+        return 0.0;
+
+    double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
+
+    earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
+    earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
+
+    earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByColumnDepth(lepton_depth, target_types);
+    path.ClipToOuterBounds();
+
+    if(not path.IsWithinBounds(vertex))
+        return 0.0;
+
+    double totalColumnDepth = path.GetColumnDepthInBounds(target_types); // g/cm^2
+    double density = earth_model->GetDensity(vertex, target_types); // g/cm^3
+    double prob_density = density / totalColumnDepth * 100; // (cm^-1 * cm/m) -> m^-1
+    prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
+    return prob_density;
+}
+
 ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
 
 std::string ColumnDepthPositionDistribution::Name() const {
@@ -348,6 +429,34 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
     earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
+}
+
+double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    earthmodel::Vector3D vertex(record.interaction_vertex); // m
+    earthmodel::Vector3D pca = vertex - dir * earthmodel::scalar_product(dir, vertex);
+
+    if(pca.magnitude() >= radius)
+        return 0.0;
+
+    double lepton_range = range_function->operator()(record.signature, record.primary_momentum[0]);
+
+    earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
+    earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
+
+    earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByDistance(lepton_range);
+    path.ClipToOuterBounds();
+
+    if(not path.IsWithinBounds(vertex))
+        return 0.0;
+
+    double totalColumnDepth = path.GetColumnDepthInBounds(target_types); // g/cm^2
+    double density = earth_model->GetDensity(vertex, target_types); // g/cm^3
+    double prob_density = density / totalColumnDepth * 100; // (cm^-1 * cm/m) -> m^-1
+    prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
+    return prob_density;
 }
 
 RangePositionDistribution::RangePositionDistribution() {}
@@ -396,6 +505,35 @@ earthmodel::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_
     return vertex;
 }
 
+double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    earthmodel::Vector3D vertex(record.interaction_vertex); // m
+    earthmodel::Vector3D pca = vertex - dir * earthmodel::scalar_product(dir, vertex);
+
+    if(pca.magnitude() >= radius)
+        return 0.0;
+
+    double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
+
+    earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
+    earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
+
+    earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
+    path.ClipToOuterBounds();
+
+    if(not path.IsWithinBounds(vertex))
+        return 0.0;
+
+    double total_distance = path.GetDistance();
+    double dist = earthmodel::scalar_product(path.GetDirection(), vertex - path.GetFirstPoint());
+
+    double prob_density = exp(-dist / decay_length) / (decay_length * (1.0 - exp(-total_distance / decay_length))); // m^-1
+    prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
+    return prob_density;
+}
+
 DecayRangePositionDistribution::DecayRangePositionDistribution() {}
 
 DecayRangePositionDistribution::DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {}
@@ -418,12 +556,41 @@ void PrimaryNeutrinoSpinDistribution::Sample(std::shared_ptr<LI_random> rand, st
     Particle::ParticleType & t = record.signature.primary_type;
     if(t > 0) // Particles are left handed, anti-particles are right handed
         factor = -factor;
-    record.primary_spin[0] = 0.5 * mom[1] / momentum;
-    record.primary_spin[1] = 0.5 * mom[2] / momentum;
-    record.primary_spin[2] = 0.5 * mom[3] / momentum;
+    record.primary_spin[0] = factor * mom[1];
+    record.primary_spin[1] = factor * mom[2];
+    record.primary_spin[2] = factor * mom[3];
+}
+
+double PrimaryNeutrinoSpinDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    std::array<double, 4> const & mom = record.primary_momentum;
+    earthmodel::Vector3D dir(mom[1], mom[2], mom[3]);
+    dir.normalize();
+    earthmodel::Vector3D spin_dir(record.primary_spin);
+    double spin_magnitude = spin_dir.magnitude();
+    spin_dir.normalize();
+
+    double dot = earthmodel::scalar_product(dir, spin_dir);
+
+    if(abs(0.5 - spin_magnitude) > 1e-9) // Spin magnitude must be 0.5
+        return 0.0;
+
+    Particle::ParticleType const & t = record.signature.primary_type;
+    // Particles are left handed, anti-particles are right handed
+    if(t > 0) {
+        if(abs(1.0 + dot) > 1e-9) // expect opposite direction
+            return 0.0;
+    } else {
+        if(abs(1.0 - dot) > 1e-9) // expect same direction
+            return 0.0;
+    }
+    return 1.0;
 }
 
 PrimaryNeutrinoSpinDistribution::PrimaryNeutrinoSpinDistribution() {}
+
+std::vector<std::string> PrimaryNeutrinoSpinDistribution::DensityVariables() const {
+    return std::vector<std::string>{};
+}
 
 std::string PrimaryNeutrinoSpinDistribution::Name() const {
     return "PrimaryNeutrinoSpinDistribution";

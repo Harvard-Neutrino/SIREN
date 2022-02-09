@@ -29,6 +29,7 @@ class InjectionDistribution {
 private:
 public:
     virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     virtual std::string Name() const = 0;
@@ -45,9 +46,10 @@ public:
 
 class TargetMomentumDistribution : public InjectionDistribution {
 private:
-public:
     virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
+public:
     void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
@@ -62,8 +64,9 @@ public:
 
 class TargetAtRest : public TargetMomentumDistribution {
 private:
-public:
     virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const;
+public:
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     std::string Name() const override;
@@ -83,6 +86,7 @@ private:
     virtual double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
 public:
     void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const = 0;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
@@ -102,6 +106,7 @@ public:
     double energyMin;
     double energyMax;
     double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
@@ -122,6 +127,7 @@ private:
     virtual earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
 public:
     void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     template<typename Archive>
@@ -137,6 +143,7 @@ public:
 class IsotropicDirection : public PrimaryDirectionDistribution {
 private:
     earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     std::string Name() const override;
     template<typename Archive>
@@ -157,6 +164,7 @@ public:
     FixedDirection(earthmodel::Vector3D dir) : dir(dir) {};
 private:
     earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     std::string Name() const override;
@@ -192,6 +200,7 @@ public:
     Cone(earthmodel::Vector3D dir, double opening_angle);
 private:
     earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     std::string Name() const override;
     template<typename Archive>
@@ -224,6 +233,7 @@ private:
     virtual earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const = 0;
 public:
     void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
@@ -251,6 +261,7 @@ private:
     earthmodel::Cylinder cylinder;
     earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
 public:
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     CylinderVolumePositionDistribution(earthmodel::Cylinder);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
@@ -368,6 +379,7 @@ private:
 
     earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
 public:
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::vector<Particle::ParticleType> target_types);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
@@ -413,6 +425,7 @@ private:
 
     earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
 public:
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     RangePositionDistribution();
     RangePositionDistribution(const RangePositionDistribution &) = default;
     RangePositionDistribution(double radius, double endcap_length, std::shared_ptr<RangeFunction> range_function, std::vector<Particle::ParticleType> target_types);
@@ -460,6 +473,7 @@ private:
 
     earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
 public:
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     DecayRangePositionDistribution();
     DecayRangePositionDistribution(const DecayRangePositionDistribution &) = default;
     DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::vector<Particle::ParticleType> target_types);
@@ -500,8 +514,10 @@ class PrimaryNeutrinoSpinDistribution : public InjectionDistribution {
 private:
 public:
     virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
 	PrimaryNeutrinoSpinDistribution();
 	PrimaryNeutrinoSpinDistribution(const PrimaryNeutrinoSpinDistribution &) = default;
+    virtual std::vector<std::string> DensityVariables() const;
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     template<typename Archive>
