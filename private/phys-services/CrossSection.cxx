@@ -643,6 +643,10 @@ std::vector<InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParent
     }
 }
 
+std::vector<std::string> DISFromSpline::DensityVariables() const {
+    return std::vector<std::string>{"Bjorken x", "Bjorken y"};
+}
+
 
 double DipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) {
     double target_mass2 = target_mass * target_mass;
@@ -733,8 +737,6 @@ double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & inter
     std::array<double, 4> q = {p1[0] - p3[0], p1[1] - p3[1], p1[2] - p3[2], p1[3] - p3[3]};
     double Q2 = -dot(q, q);
     double y = dot(p2, q) / dot(p2, p1);
-
-    double lepton_mass = particleMass(interaction.signature.secondary_types[lepton_index]);
 
     return DifferentialCrossSection(primary_type, primary_energy, target_type, y);
 }
@@ -1069,6 +1071,10 @@ std::vector<InteractionSignature> DipoleFromTable::GetPossibleSignaturesFromPare
     } else {
         return std::vector<InteractionSignature>();
     }
+}
+
+std::vector<std::string> DipoleFromTable::DensityVariables() const {
+    return std::vector<std::string>{"Bjorken y"};
 }
 
 namespace {
