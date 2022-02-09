@@ -239,6 +239,33 @@ InteractionRecord InjectorBase::GenerateEvent() {
     return record;
 }
 
+double InjectorBase::GenerationProbability(InteractionRecord const & record) const {
+    double probability = 1.0;
+    for(auto const & dist : distributions) {
+        probability *= dist->GenerationProbability(earth_model, cross_sections, record);
+    }
+}
+
+std::set<std::vector<std::string>> InjectorBase::DensityVariables() const {
+    std::set<std::vector<std::string>> variable_sets;
+    std::vector<std::string> variables;
+    for(auto const & dist : distributions) {
+        std::vector<std::string> new_variables = dist->DensityVariables();
+        variables.reserve(variables.size() + new_variables.size());
+        variables.insert(variables.end(), new_variables.begin(), new_variables.end());
+    }
+    std::vector<std::shared_ptr<CrossSection>> xs_vec = cross_sections.GetCrossSections();
+    for(auto const & xs : xs_vec) {
+        std::vector<std::string> new_variables = xs->DensityVariables();
+        std::vector<std::string> variable_list;
+        variable_list.reserve(variables.size() + new_variables.size());
+        variable_list.insert(variable_list.end(), variables.begin(), variables.end());
+        variable_list.insert(variable_list.end(), new_variables.begin(), new_variables.end());
+        variable_sets.insert(variable_list);
+    }
+    return variable_sets;
+}
+
 std::string InjectorBase::Name() const {
     return("InjectorBase");
 }
