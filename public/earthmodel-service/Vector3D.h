@@ -192,6 +192,10 @@ private:
     SphericalCoordinates spherical_;
 };
 
+double scalar_product(const Vector3D& vec1, const Vector3D& vec2);
+Vector3D vector_product(const Vector3D& vec1, const Vector3D& vec2);
+Vector3D cross_product(const Vector3D& vec1, const Vector3D& vec2);
+
 } // namespace earthmodel
 
 CEREAL_CLASS_VERSION(earthmodel::Vector3D, 0);
