@@ -58,6 +58,8 @@ public:
     virtual void SamplePairProduction(InteractionRecord & record);
     virtual InteractionRecord GenerateEvent();
     virtual std::string Name() const;
+    virtual double GenerationProbability(InteractionRecord const & record) const;
+    virtual std::vector<std::string> DensityVariables() const;
     operator bool() const;
 
     template<typename Archive>
@@ -66,7 +68,7 @@ public:
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             archive(::cereal::make_nvp("PrimaryType", primary_type));
-            archive(::cereal::make_nvp("CrossSectrions", cross_sections));
+            archive(::cereal::make_nvp("CrossSections", cross_sections));
             archive(::cereal::make_nvp("EarthModel", earth_model));
             archive(::cereal::make_nvp("InjectionDistributions", distributions));
         } else {
