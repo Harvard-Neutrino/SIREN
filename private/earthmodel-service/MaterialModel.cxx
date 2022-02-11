@@ -69,8 +69,8 @@ void MaterialModel::AddMaterial(std::string const & name, std::map<int, double> 
 
 
         // Fill particle type map
-        std::vector<LeptonInjector::Particle::ParticleType> ptypes;
-        for (auto& k : matratios) {ptypes.push_back(static_cast<LeptonInjector::Particle::ParticleType>(k.first));}
+        std::set<LeptonInjector::Particle::ParticleType> ptypes;
+        for (auto& k : matratios) {ptypes.insert(static_cast<LeptonInjector::Particle::ParticleType>(k.first));}
         material_constituents_.insert({id,ptypes});
 
         // Fill proton:electron ratio map
@@ -254,7 +254,7 @@ bool MaterialModel::HasMaterial(int id) const {
     return material_names_.size() > id;
 }
 
-std::vector<LeptonInjector::Particle::ParticleType> MaterialModel::GetMaterialConstituents(int id) const {
+std::set<LeptonInjector::Particle::ParticleType> MaterialModel::GetMaterialConstituents(int id) const {
     return material_constituents_.at(id);
 }
 
@@ -282,7 +282,7 @@ double MaterialModel::GetMaterialRadLength(int id) const {
     return material_rad_length_.at(id);
 }
 
-double MaterialModel::GetTargetListMassFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+double MaterialModel::GetTargetListMassFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const {
 
     double sum = 0;
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
@@ -294,7 +294,7 @@ double MaterialModel::GetTargetListMassFrac(int id, std::vector<LeptonInjector::
     return sum;
 }
 
-double MaterialModel::GetTargetListAtomFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+double MaterialModel::GetTargetListAtomFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const {
     double sum = 0;
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_atom_frac_.at(id)) {
@@ -305,7 +305,7 @@ double MaterialModel::GetTargetListAtomFrac(int id, std::vector<LeptonInjector::
     return sum;
 }
 
-double MaterialModel::GetTargetListNucleonFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+double MaterialModel::GetTargetListNucleonFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const {
     double num = 0, dem = 0;
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_atom_frac_.at(id)) {
@@ -317,7 +317,7 @@ double MaterialModel::GetTargetListNucleonFrac(int id, std::vector<LeptonInjecto
     return num/dem;
 }
 
-double MaterialModel::GetTargetListProtonFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+double MaterialModel::GetTargetListProtonFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const {
     double num = 0, dem = 0;
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_atom_frac_.at(id)) {
@@ -329,7 +329,7 @@ double MaterialModel::GetTargetListProtonFrac(int id, std::vector<LeptonInjector
     return num/dem;
 }
 
-double MaterialModel::GetTargetListNeutronFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+double MaterialModel::GetTargetListNeutronFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const {
     double num = 0, dem = 0;
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_atom_frac_.at(id)) {
@@ -341,7 +341,7 @@ double MaterialModel::GetTargetListNeutronFrac(int id, std::vector<LeptonInjecto
     return num/dem;
 }
 
-double MaterialModel::GetTargetListAtomsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+double MaterialModel::GetTargetListAtomsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const {
     double sum = 0;
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_mass_frac_.at(id)) {
@@ -352,7 +352,7 @@ double MaterialModel::GetTargetListAtomsToMass(int id, std::vector<LeptonInjecto
     return NA*sum;
 }
 
-double MaterialModel::GetTargetListNucleonsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+double MaterialModel::GetTargetListNucleonsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const {
     double sum = 0;
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_mass_frac_.at(id)) {
@@ -363,7 +363,7 @@ double MaterialModel::GetTargetListNucleonsToMass(int id, std::vector<LeptonInje
     return NA*sum;
 }
 
-double MaterialModel::GetTargetListProtonsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+double MaterialModel::GetTargetListProtonsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const {
     double sum = 0;
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_mass_frac_.at(id)) {
@@ -374,7 +374,7 @@ double MaterialModel::GetTargetListProtonsToMass(int id, std::vector<LeptonInjec
     return NA*sum;
 }
 
-double MaterialModel::GetTargetListNeutronsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const {
+double MaterialModel::GetTargetListNeutronsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const {
     double sum = 0;
     std::set<LeptonInjector::Particle::ParticleType> t(targets.begin(), targets.end());
     for(auto const & it : material_mass_frac_.at(id)) {

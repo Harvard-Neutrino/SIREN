@@ -64,8 +64,8 @@ void InjectorBase::SetRandom(std::shared_ptr<LI_random> random) {
 }
 
 void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
-    std::vector<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
-    std::vector<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
+    std::set<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
     std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
     earthmodel::Vector3D intVertex(record.interaction_vertex[0],record.interaction_vertex[1],record.interaction_vertex[2]);
@@ -73,17 +73,14 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(intVertex, earthmodel::Vector3D());
 
     double total_prob = 0.0;
-    std::vector<Particle::ParticleType> single;
     std::vector<double> probs;
     std::vector<Particle::ParticleType> matching_targets;
     std::vector<InteractionSignature> matching_signatures;
     std::vector<std::shared_ptr<CrossSection>> matching_cross_sections;
-    for(auto const target : possible_targets) {
-        if(available_targets.find(target) != available_targets.end()) {
+    for(auto const target : available_targets) {
+        if(possible_targets.find(target) != possible_targets.end()) {
             // Get target density
-            single.push_back(target);
-            double target_density = earth_model->GetDensity(intVertex, single);
-            single.clear();
+            double target_density = earth_model->GetDensity(intVertex, std::set<Particle::ParticleType>{target});
             // Loop over cross sections that have this target
             std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections.GetCrossSectionsForTarget(target);
             for(auto const & cross_section : target_cross_sections) {
@@ -298,7 +295,7 @@ RangedLeptonInjector::RangedLeptonInjector(
     spin_distribution(spin_distribution),
     InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random)
 {
-    std::vector<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
+    std::set<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
     position_distribution = std::make_shared<RangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
 }
 
@@ -358,7 +355,7 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
     spin_distribution(spin_distribution),
     InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random)
 {
-    std::vector<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
+    std::set<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
     position_distribution = std::make_shared<DecayRangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
 }
 

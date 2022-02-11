@@ -397,14 +397,14 @@ private:
     double radius;
     double endcap_length;
     std::shared_ptr<DepthFunction> depth_function;
-    std::vector<Particle::ParticleType> target_types;
+    std::set<Particle::ParticleType> target_types;
 
     earthmodel::Vector3D SampleFromDisk(std::shared_ptr<LI_random> rand, earthmodel::Vector3D const & dir) const;
 
     earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
 public:
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
-    ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::vector<Particle::ParticleType> target_types);
+    ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<Particle::ParticleType> target_types);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     template<typename Archive>
@@ -443,7 +443,7 @@ private:
     double radius;
     double endcap_length;
     std::shared_ptr<RangeFunction> range_function;
-    std::vector<Particle::ParticleType> target_types;
+    std::set<Particle::ParticleType> target_types;
 
     earthmodel::Vector3D SampleFromDisk(std::shared_ptr<LI_random> rand, earthmodel::Vector3D const & dir) const;
 
@@ -452,7 +452,7 @@ public:
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     RangePositionDistribution();
     RangePositionDistribution(const RangePositionDistribution &) = default;
-    RangePositionDistribution(double radius, double endcap_length, std::shared_ptr<RangeFunction> range_function, std::vector<Particle::ParticleType> target_types);
+    RangePositionDistribution(double radius, double endcap_length, std::shared_ptr<RangeFunction> range_function, std::set<Particle::ParticleType> target_types);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     template<typename Archive>
@@ -491,7 +491,7 @@ private:
     double radius;
     double endcap_length;
     std::shared_ptr<DecayRangeFunction> range_function;
-    std::vector<Particle::ParticleType> target_types;
+    std::set<Particle::ParticleType> target_types;
 
     earthmodel::Vector3D SampleFromDisk(std::shared_ptr<LI_random> rand, earthmodel::Vector3D const & dir) const;
 
@@ -500,7 +500,7 @@ public:
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     DecayRangePositionDistribution();
     DecayRangePositionDistribution(const DecayRangePositionDistribution &) = default;
-    DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::vector<Particle::ParticleType> target_types);
+    DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::set<Particle::ParticleType> target_types);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     template<typename Archive>

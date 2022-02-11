@@ -113,14 +113,41 @@ namespace {
     };
 }
 
+bool InteractionSignature::operator==(InteractionSignature const & other) const {
+    if(primary_type != other.primary_type or target_type != other.target_type) {
+        return true;
+    } else {
+        std::map<LeptonInjector::Particle::ParticleType, int> m0;
+        for(auto p : secondary_types) {
+            auto it = m0.find(p);
+            if(it == m0.end()) {
+                m0.insert({p, 1});
+            } else {
+                it->second += 1;
+            }
+        }
+        std::map<LeptonInjector::Particle::ParticleType, int> m1;
+        for(auto p : other.secondary_types) {
+            auto it = m1.find(p);
+            if(it == m1.end()) {
+                m1.insert({p, 1});
+            } else {
+                it->second += 1;
+            }
+        }
+        return m0 == m1;
+    }
+}
+
 void CrossSectionCollection::InitializeTargetTypes() {
     target_types.clear();
     cross_sections_by_target.clear();
     for(unsigned int i=0; i<cross_sections.size(); ++i) {
         // Gather target types
         std::vector<Particle::ParticleType> xs_targets = cross_sections[i]->GetPossibleTargets();
-        target_types.reserve(target_types.size() + std::distance(xs_targets.begin(), xs_targets.end()));
-        target_types.insert(target_types.end(), xs_targets.begin(), xs_targets.end());
+        //target_types.reserve(target_types.size() + std::distance(xs_targets.begin(), xs_targets.end()));
+        for(auto xs : xs_targets)
+            target_types.insert(xs);
 
         // Track cross sections by their target type
         for(unsigned int j=0; j<xs_targets.size(); ++j) {
@@ -135,9 +162,9 @@ void CrossSectionCollection::InitializeTargetTypes() {
     }
 
     // Remove duplicate target types
-    std::set<Particle::ParticleType> target_set(target_types.begin(), target_types.end());
-    target_types.resize(target_set.size());
-    std::copy(target_set.begin(), target_set.end(), target_types.begin());
+    // std::set<Particle::ParticleType> target_set(target_types.begin(), target_types.end());
+    // target_types.resize(target_set.size());
+    // std::copy(target_set.begin(), target_set.end(), target_types.begin());
 }
 
 CrossSectionCollection::CrossSectionCollection(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections) : primary_type(primary_type), cross_sections(cross_sections) {
@@ -149,6 +176,26 @@ std::vector<std::shared_ptr<CrossSection>> CrossSectionCollection::GetCrossSecti
         return std::vector<std::shared_ptr<CrossSection>>(cross_sections_by_target.at(p));
     } else {
         return std::vector<std::shared_ptr<CrossSection>>();
+    }
+}
+
+bool CrossSectionCollection::MatchesPrimary(InteractionRecord const & record) const {
+    return primary_type == record.signature.primary_type;
+}
+double CrossSectionCollection::GenerationProbability(InteractionRecord const & record) const {
+    if(not MatchesPrimary(record)) {
+        return 0.0;
+    }
+    auto const target_it = target_types.find(record.signature.target_type);
+    if(target_it == target_types.end()) {
+        return 0.0;
+    }
+    std::vector<double> total_cross_sections;
+    for(auto const xs : cross_sections) {
+        std::vector<InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type);
+        if(std::find(signatures.begin(), signatures.end(), record.signature) != signatures.end()) {
+            total_cross_sections.push_back(xs->TotalCrossSection(record));
+        }
     }
 }
 

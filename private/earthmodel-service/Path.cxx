@@ -41,7 +41,7 @@ bool Path::HasIntersections() {
     return set_intersections_;
 }
 
-bool Path::HasTargetColumnDepth(std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+bool Path::HasTargetColumnDepth(std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     return column_depth_cache_.count(targets) > 0;
 }
 
@@ -178,7 +178,7 @@ void Path::ExtendFromEndByDistance(double distance) {
     column_depth_cache_.clear();
 }
 
-void Path::ExtendFromEndByColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+void Path::ExtendFromEndByColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     double distance = GetDistanceFromEndAlongPath(column_depth, targets);
     ExtendFromEndByDistance(distance);
 }
@@ -193,7 +193,7 @@ void Path::ExtendFromStartByDistance(double distance) {
     column_depth_cache_.clear();
 }
 
-void Path::ExtendFromStartByColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+void Path::ExtendFromStartByColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     double distance = GetDistanceFromStartInReverse(column_depth, targets);
     ExtendFromStartByDistance(distance);
 }
@@ -202,7 +202,7 @@ void Path::ShrinkFromEndByDistance(double distance) {
     ExtendFromEndByDistance(-distance);
 }
 
-void Path::ShrinkFromEndByColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+void Path::ShrinkFromEndByColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     double distance = GetDistanceFromEndInReverse(column_depth, targets);
     ShrinkFromEndByDistance(distance);
 }
@@ -211,7 +211,7 @@ void Path::ShrinkFromStartByDistance(double distance) {
     ExtendFromStartByDistance(-distance);
 }
 
-void Path::ShrinkFromStartByColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+void Path::ShrinkFromStartByColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     double distance = GetDistanceFromStartAlongPath(column_depth, targets);
     ShrinkFromStartByDistance(distance);
 }
@@ -223,7 +223,7 @@ void Path::ExtendFromEndToDistance(double distance) {
     }
 }
 
-void Path::ExtendFromEndToColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+void Path::ExtendFromEndToColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     double shift = column_depth - GetColumnDepthInBounds(targets);
     if(shift > 0) {
         ExtendFromEndByColumnDepth(shift);
@@ -237,7 +237,7 @@ void Path::ExtendFromStartToDistance(double distance) {
     }
 }
 
-void Path::ExtendFromStartToColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+void Path::ExtendFromStartToColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     double shift = column_depth - GetColumnDepthInBounds(targets);
     if(shift > 0) {
         ExtendFromStartByColumnDepth(shift);
@@ -251,7 +251,7 @@ void Path::ShrinkFromEndToDistance(double distance) {
     }
 }
 
-void Path::ShrinkFromEndToColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+void Path::ShrinkFromEndToColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     double shift = GetColumnDepthInBounds(targets) - column_depth;
     if(shift > 0) {
         ShrinkFromEndByColumnDepth(shift);
@@ -265,14 +265,14 @@ void Path::ShrinkFromStartToDistance(double distance) {
     }
 }
 
-void Path::ShrinkFromStartToColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+void Path::ShrinkFromStartToColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     double shift = GetColumnDepthInBounds(targets) - column_depth;
     if(shift > 0) {
         ShrinkFromStartByColumnDepth(shift);
     }
 }
 
-double Path::GetColumnDepthInBounds(std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetColumnDepthInBounds(std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     if(HasTargetColumnDepth(targets)) {
         return column_depth_cache_[targets];
@@ -283,7 +283,7 @@ double Path::GetColumnDepthInBounds(std::vector<LeptonInjector::Particle::Partic
     }
 }
 
-double Path::GetColumnDepthFromStartInBounds(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetColumnDepthFromStartInBounds(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     if(distance > distance_) {
         distance = distance_;
     } else if(distance <= 0) {
@@ -293,7 +293,7 @@ double Path::GetColumnDepthFromStartInBounds(double distance, std::vector<Lepton
     return earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets);
 }
 
-double Path::GetColumnDepthFromEndInBounds(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetColumnDepthFromEndInBounds(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     if(distance > distance_) {
         distance = distance_;
     } else if(distance <= 0) {
@@ -303,27 +303,27 @@ double Path::GetColumnDepthFromEndInBounds(double distance, std::vector<LeptonIn
     return earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets);
 }
 
-double Path::GetColumnDepthFromStartAlongPath(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetColumnDepthFromStartAlongPath(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets), distance);
 }
 
-double Path::GetColumnDepthFromEndAlongPath(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetColumnDepthFromEndAlongPath(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance, targets), distance);
 }
 
-double Path::GetColumnDepthFromStartInReverse(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetColumnDepthFromStartInReverse(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance, targets), distance);
 }
 
-double Path::GetColumnDepthFromEndInReverse(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetColumnDepthFromEndInReverse(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets), distance);
 }
 
-double Path::GetDistanceFromStartInBounds(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetDistanceFromStartInBounds(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth, targets);
     if(distance > distance_) {
@@ -334,7 +334,7 @@ double Path::GetDistanceFromStartInBounds(double column_depth, std::vector<Lepto
     return distance;
 }
 
-double Path::GetDistanceFromEndInBounds(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetDistanceFromEndInBounds(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth, targets);
     if(distance > distance_) {
@@ -345,25 +345,25 @@ double Path::GetDistanceFromEndInBounds(double column_depth, std::vector<LeptonI
     return distance;
 }
 
-double Path::GetDistanceFromStartAlongPath(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetDistanceFromStartAlongPath(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth, targets);
     return distance;
 }
 
-double Path::GetDistanceFromEndAlongPath(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetDistanceFromEndAlongPath(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, direction_, column_depth, targets);
     return distance;
 }
 
-double Path::GetDistanceFromStartInReverse(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetDistanceFromStartInReverse(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, -direction_, column_depth, targets);
     return distance;
 }
 
-double Path::GetDistanceFromEndInReverse(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets) {
+double Path::GetDistanceFromEndInReverse(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth, targets);
     return distance;

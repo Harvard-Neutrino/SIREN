@@ -355,7 +355,7 @@ double EarthModel::GetDensity(Geometry::IntersectionList const & intersections, 
     return density;
 }
 
-double EarthModel::GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0,  std::vector<LeptonInjector::Particle::ParticleType> targets) const {
+double EarthModel::GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0,  std::set<LeptonInjector::Particle::ParticleType> targets) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -402,7 +402,7 @@ double EarthModel::GetDensity(Vector3D const & p0, bool use_electron_density) co
     return GetDensity(intersections, p0, use_electron_density);
 }
 
-double EarthModel::GetDensity(Vector3D const & p0,  std::vector<LeptonInjector::Particle::ParticleType> targets) const {
+double EarthModel::GetDensity(Vector3D const & p0,  std::set<LeptonInjector::Particle::ParticleType> targets) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetDensity(intersections, p0, targets);
@@ -455,7 +455,7 @@ double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & inters
     return column_depth * 100;
 }
 
-double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1,  std::vector<LeptonInjector::Particle::ParticleType> targets) const {
+double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1,  std::set<LeptonInjector::Particle::ParticleType> targets) const {
     if(p0 == p1) {
         return 0.0;
     }
@@ -516,7 +516,7 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1,
     return GetColumnDepthInCGS(intersections, p0, p1, use_electron_density);
 }
 
-double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1, std::vector<LeptonInjector::Particle::ParticleType> targets) const {
+double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1, std::set<LeptonInjector::Particle::ParticleType> targets) const {
     if(p0 == p1) {
         return 0.0;
     }
@@ -652,10 +652,9 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Vector3D const & p0, Vecto
     return GetOuterBounds(intersections);
 }
 
-std::vector<LeptonInjector::Particle::ParticleType> EarthModel::GetAvailableTargets(std::array<double,3>& vertex){
+std::set<LeptonInjector::Particle::ParticleType> EarthModel::GetAvailableTargets(std::array<double,3>& vertex){
 		int matID = GetContainingSector(Vector3D(vertex[0],vertex[1],vertex[2])).material_id;
 		return materials_.GetMaterialConstituents(matID);
-		
 }
 
 
@@ -802,7 +801,7 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
     return total_distance;
 }
 
-double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & dir, double column_depth, std::vector<LeptonInjector::Particle::ParticleType> targets) const {
+double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & dir, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const {
     Vector3D direction = dir;
     column_depth /= 100;
     bool flip = column_depth < 0;
@@ -863,7 +862,7 @@ double EarthModel::DistanceForColumnDepthFromPoint(Vector3D const & p0, Vector3D
     return DistanceForColumnDepthFromPoint(intersections, p0, direction, column_depth, use_electron_density);
 }
 
-double EarthModel::DistanceForColumnDepthFromPoint(Vector3D const & p0, Vector3D const & direction, double column_depth, std::vector<LeptonInjector::Particle::ParticleType> targets) const {
+double EarthModel::DistanceForColumnDepthFromPoint(Vector3D const & p0, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const {
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return DistanceForColumnDepthFromPoint(intersections, p0, direction, column_depth, targets);
 }
@@ -872,7 +871,7 @@ double EarthModel::DistanceForColumnDepthToPoint(Geometry::IntersectionList cons
     return DistanceForColumnDepthFromPoint(intersections, p0, -direction, column_depth, use_electron_density);
 }
 
-double EarthModel::DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double column_depth, std::vector<LeptonInjector::Particle::ParticleType> targets) const {
+double EarthModel::DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const {
     return DistanceForColumnDepthFromPoint(intersections, p0, -direction, column_depth, targets);
 }
 
@@ -880,7 +879,7 @@ double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & p0, Vector3D c
     return DistanceForColumnDepthFromPoint(p0, -direction, column_depth, use_electron_density);
 }
 
-double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & p0, Vector3D const & direction, double column_depth, std::vector<LeptonInjector::Particle::ParticleType> targets) const {
+double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & p0, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const {
     return DistanceForColumnDepthFromPoint(p0, -direction, column_depth, targets);
 }
 

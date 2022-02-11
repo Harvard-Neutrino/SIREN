@@ -39,7 +39,7 @@ private:
     std::map<int, std::map<int, int> > material_num_neutrons_;
     std::map<int, std::map<int, int> > material_num_nucleons_;
     std::map<int, double > material_rad_length_;
-    std::map<int, std::vector<LeptonInjector::Particle::ParticleType> > material_constituents_;
+    std::map<int, std::set<LeptonInjector::Particle::ParticleType> > material_constituents_;
     std::map<int, double> pne_ratios_;
 
 
@@ -74,7 +74,7 @@ public:
     int GetMaterialId(std::string const & name) const;
     bool HasMaterial(std::string const & name) const;
     bool HasMaterial(int) const;
-    std::vector<LeptonInjector::Particle::ParticleType> GetMaterialConstituents(int id) const;
+    std::set<LeptonInjector::Particle::ParticleType> GetMaterialConstituents(int id) const;
     std::map<int, double> GetMaterialMassFracs(int id) const;
     std::map<int, double> GetMaterialAtomFracs(int id) const;
     std::map<int, int> GetMaterialNumNucleons(int id) const;
@@ -82,16 +82,16 @@ public:
     std::map<int, int> GetMaterialNumNeutrons(int id) const;
     double GetMaterialRadLength(int id) const;
     
-    double GetTargetListMassFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListAtomFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListNucleonFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListProtonFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListNeutronFrac(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListMassFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListAtomFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListNucleonFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListProtonFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListNeutronFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
     
-    double GetTargetListAtomsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListNucleonsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListProtonsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListNeutronsToMass(int id, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListAtomsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListNucleonsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListProtonsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
+    double GetTargetListNeutronsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
 private:
     double ComputePNERatio(std::map<int, double> const & matratios) const;
     double ComputeRadLength(int id);

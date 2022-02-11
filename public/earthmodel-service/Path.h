@@ -30,7 +30,7 @@ private:
     double distance_ = 0;
     bool set_points_ = false;
 
-    std::map<std::vector<LeptonInjector::Particle::ParticleType>, double> column_depth_cache_;
+    std::map<std::set<LeptonInjector::Particle::ParticleType>, double> column_depth_cache_;
 
     Geometry::IntersectionList intersections_;
     bool set_intersections_ = false;
@@ -60,7 +60,7 @@ public:
     bool HasEarthModel();
     bool HasPoints();
     bool HasIntersections();
-    bool HasTargetColumnDepth(std::vector<LeptonInjector::Particle::ParticleType> const & targets);
+    bool HasTargetColumnDepth(std::set<LeptonInjector::Particle::ParticleType> const & targets);
 
     std::shared_ptr<const EarthModel> GetEarthModel();
     Vector3D GetFirstPoint();
@@ -84,37 +84,37 @@ public:
 
     void Flip();
     void ExtendFromEndByDistance(double distance);
-    void ExtendFromEndByColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    void ExtendFromEndByColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
     void ExtendFromStartByDistance(double distance);
-    void ExtendFromStartByColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    void ExtendFromStartByColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
     void ShrinkFromEndByDistance(double distance);
-    void ShrinkFromEndByColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    void ShrinkFromEndByColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
     void ShrinkFromStartByDistance(double distance);
-    void ShrinkFromStartByColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    void ShrinkFromStartByColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
 
     void ExtendFromEndToDistance(double distance);
-    void ExtendFromEndToColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    void ExtendFromEndToColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
     void ExtendFromStartToDistance(double distance);
-    void ExtendFromStartToColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    void ExtendFromStartToColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
     void ShrinkFromEndToDistance(double distance);
-    void ShrinkFromEndToColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    void ShrinkFromEndToColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
     void ShrinkFromStartToDistance(double distance);
-    void ShrinkFromStartToColumnDepth(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    void ShrinkFromStartToColumnDepth(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
 
-    double GetColumnDepthInBounds(std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetColumnDepthFromStartInBounds(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetColumnDepthFromEndInBounds(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetColumnDepthFromStartAlongPath(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetColumnDepthFromEndAlongPath(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetColumnDepthFromStartInReverse(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetColumnDepthFromEndInReverse(double distance, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetColumnDepthInBounds(std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetColumnDepthFromStartInBounds(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetColumnDepthFromEndInBounds(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetColumnDepthFromStartAlongPath(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetColumnDepthFromEndAlongPath(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetColumnDepthFromStartInReverse(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetColumnDepthFromEndInReverse(double distance, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
 
-    double GetDistanceFromStartInBounds(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetDistanceFromEndInBounds(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetDistanceFromStartAlongPath(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetDistanceFromEndAlongPath(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetDistanceFromStartInReverse(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
-    double GetDistanceFromEndInReverse(double column_depth, std::vector<LeptonInjector::Particle::ParticleType> const & targets=std::vector<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetDistanceFromStartInBounds(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetDistanceFromEndInBounds(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetDistanceFromStartAlongPath(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetDistanceFromEndAlongPath(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetDistanceFromStartInReverse(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
+    double GetDistanceFromEndInReverse(double column_depth, std::set<LeptonInjector::Particle::ParticleType> const & targets=std::set<LeptonInjector::Particle::ParticleType>{LeptonInjector::Particle::ParticleType::Nucleon});
 
     bool IsWithinBounds(Vector3D point);
 };

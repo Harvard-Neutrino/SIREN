@@ -443,7 +443,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<ea
     return prob_density;
 }
 
-ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
+ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
 
 std::string ColumnDepthPositionDistribution::Name() const {
     return "ColumnDepthPositionDistribution";
@@ -517,7 +517,7 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmod
 
 RangePositionDistribution::RangePositionDistribution() {}
 
-RangePositionDistribution::RangePositionDistribution(double radius, double endcap_length, std::shared_ptr<RangeFunction> range_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {}
+RangePositionDistribution::RangePositionDistribution(double radius, double endcap_length, std::shared_ptr<RangeFunction> range_function, std::set<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {}
 
 std::string RangePositionDistribution::Name() const {
     return "RangePositionDistribution";
@@ -592,7 +592,7 @@ double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<ear
 
 DecayRangePositionDistribution::DecayRangePositionDistribution() {}
 
-DecayRangePositionDistribution::DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::vector<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {}
+DecayRangePositionDistribution::DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::set<Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {}
 
 std::string DecayRangePositionDistribution::Name() const {
     return "DecayRangePositionDistribution";
