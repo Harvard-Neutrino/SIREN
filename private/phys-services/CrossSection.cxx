@@ -396,14 +396,19 @@ double DISFromSpline::DifferentialCrossSection(double energy, double x, double y
     // check preconditions
     if(log_energy < differential_cross_section_.lower_extent(0)
             || log_energy>differential_cross_section_.upper_extent(0))
+        return 0.0;
         throw std::runtime_error("Interaction energy ("+ std::to_string(energy) +
                 ") out of cross section table range: ["
                 + std::to_string(pow(10., differential_cross_section_.lower_extent(0))) + " GeV,"
                 + std::to_string(pow(10., differential_cross_section_.upper_extent(0))) + " GeV]");
-    if(x <= 0 || x >= 1)
+    if(x <= 0 || x >= 1) {
+        return 0.0;
         throw std::runtime_error("Interaction x out of range: " + std::to_string(x));
-    if(y <= 0 || y >= 1)
+    }
+    if(y <= 0 || y >= 1) {
+        return 0.0;
         throw std::runtime_error("Interaction y out of range: " + std::to_string(y));
+    }
 
     // we assume that:
     // the target is stationary so its energy is just its mass
@@ -650,7 +655,13 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
 }
 
 double DISFromSpline::FinalStateProbability(LeptonInjector::InteractionRecord const & interaction) const {
-    return DifferentialCrossSection(interaction) / TotalCrossSection(interaction);
+    double dxs = DifferentialCrossSection(interaction);
+    double txs = TotalCrossSection(interaction);
+    if(dxs == 0) {
+        return 0.0;
+    } else {
+        return dxs / txs;
+    }
 }
 
 std::vector<Particle::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
@@ -755,39 +766,67 @@ double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType
 double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & interaction) const {
     LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
     LeptonInjector::Particle::ParticleType target_type = interaction.signature.target_type;
+    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
+    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
-    std::array<double, 4> p1;
-    std::array<double, 4> p2;
+    rk::P4 p1_lab;
+    rk::P4 p2_lab;
     if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
         primary_energy = interaction.primary_momentum[0];
-        p1 = interaction.primary_momentum;
-        p2 = interaction.target_momentum;
+        p1_lab = interaction.primary_momentum;
+        p2_lab = interaction.target_momentum;
     } else {
-        throw std::runtime_error("Lorentz boost not implemented!");
+        rk::Boost boost_start_to_lab = p2.restBoost();
+        p1_lab = boost_start_to_lab * p1;
+        p2_lab = boost_start_to_lab * p2;
+        primary_energy = p1_lab.e();
     }
     assert(interaction.signature.secondary_types.size() == 2);
     assert(interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[1] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar or interaction.signature.secondary_types[1] == Particle::ParticleType::NuF4Bar);
     unsigned int lepton_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
-    std::array<double, 4> p3 = interaction.secondary_momenta[lepton_index];
-    std::array<double, 4> q = {p1[0] - p3[0], p1[1] - p3[1], p1[2] - p3[2], p1[3] - p3[3]};
-    double Q2 = -dot(q, q);
-    double y = dot(p2, q) / dot(p2, p1);
+
+    std::array<double, 4> const & mom_3 = interaction.secondary_momenta[lepton_index];
+    std::array<double, 4> const & mom_4 = interaction.secondary_momenta[other_index];
+    rk::P4 p3(geom3::Vector3(mom3.px(), mom3.py(), mom3.pz()), interaction.secondary_masses[lepton_index]);
+    rk::P4 p4(geom3::Vector3(mom4.px(), mom4.py(), mom4.pz()), interaction.secondary_masses[other_index]);
+
+    std::function<double(double, double, double, double)> select_small_diff = [] (double a, double b, double c, double d) -> double {
+        if(std::min(abs(a), abs(b)) < std::min(abs(c), abs(d))) {
+            return a - b;
+        } else {
+            return c - d;
+        }
+    };
+
+    rk::P4 q(
+            geom3::Vector3(
+                select_small_diff(p1.px(), p3.px(), p4.px(), p2.px()),
+                select_small_diff(p1.py(), p3.py(), p4.py(), p2.py()),
+                select_small_diff(p1.pz(), p3.pz(), p4.pz(), p2.pz())
+                ),
+            select_small_diff(p1.m(), p3.m(), p4.m(), p2.m()),
+
+    double Q2 = -q.squared();
+    double y = p2.dot(q) / p2.dot(p1);
 
     return DifferentialCrossSection(primary_type, primary_energy, target_type, y);
 }
 
 double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type, double y) const {
     if(not primary_types.count(primary_type)) {
+        return 0.0;
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
 
     if(total.find(target_type) == total.end()) {
+        return 0.0;
         throw std::runtime_error("Supplied target not supported by cross section!");
     }
 
     Interpolator2D<double> const & interp = differential.at(target_type);
 
     if(primary_energy < interp.MinX() or primary_energy > interp.MaxX()) {
+        return 0.0;
         throw std::runtime_error("Interaction energy ("+ std::to_string(primary_energy) +
                 ") out of differential cross section table range: ["
                 + std::to_string(interp.MinX()) + " GeV, "
@@ -795,6 +834,7 @@ double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_
     }
 
     if(y < interp.MinY() or y > interp.MaxY()) {
+        return 0.0;
         throw std::runtime_error("Bjorken y ("+ std::to_string(y) +
                 ") out of cross section table range: ["
                 + std::to_string(interp.MinY()) + ", "
@@ -997,7 +1037,15 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
 }
 
 double DipoleFromTable::FinalStateProbability(LeptonInjector::InteractionRecord const & interaction) const {
-    return 0.0;
+    double dxs = DifferentialCrossSection(interaction);
+    double txs = TotalCrossSection(interaction);
+    if(dxs == 0) {
+        return 0.0;
+    } else if (txs == 0){
+        return 0.0;
+    else {
+        return dxs / txs;
+    }
 }
 
 std::vector<Particle::ParticleType> DipoleFromTable::GetPossibleTargets() const {
