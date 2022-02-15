@@ -773,8 +773,8 @@ double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & inter
     rk::P4 p2_lab;
     if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
         primary_energy = interaction.primary_momentum[0];
-        p1_lab = interaction.primary_momentum;
-        p2_lab = interaction.target_momentum;
+        p1_lab = p1;
+        p2_lab = p2;
     } else {
         rk::Boost boost_start_to_lab = p2.restBoost();
         p1_lab = boost_start_to_lab * p1;
@@ -784,11 +784,12 @@ double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & inter
     assert(interaction.signature.secondary_types.size() == 2);
     assert(interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[1] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar or interaction.signature.secondary_types[1] == Particle::ParticleType::NuF4Bar);
     unsigned int lepton_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
+    unsigned int other_index = 1 - lepton_index;
 
-    std::array<double, 4> const & mom_3 = interaction.secondary_momenta[lepton_index];
-    std::array<double, 4> const & mom_4 = interaction.secondary_momenta[other_index];
-    rk::P4 p3(geom3::Vector3(mom3.px(), mom3.py(), mom3.pz()), interaction.secondary_masses[lepton_index]);
-    rk::P4 p4(geom3::Vector3(mom4.px(), mom4.py(), mom4.pz()), interaction.secondary_masses[other_index]);
+    std::array<double, 4> const & mom3 = interaction.secondary_momenta[lepton_index];
+    std::array<double, 4> const & mom4 = interaction.secondary_momenta[other_index];
+    rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses[lepton_index]);
+    rk::P4 p4(geom3::Vector3(mom4[1], mom4[2], mom4[3]), interaction.secondary_masses[other_index]);
 
     std::function<double(double, double, double, double)> select_small_diff = [] (double a, double b, double c, double d) -> double {
         if(std::min(abs(a), abs(b)) < std::min(abs(c), abs(d))) {
@@ -804,7 +805,8 @@ double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & inter
                 select_small_diff(p1.py(), p3.py(), p4.py(), p2.py()),
                 select_small_diff(p1.pz(), p3.pz(), p4.pz(), p2.pz())
                 ),
-            select_small_diff(p1.m(), p3.m(), p4.m(), p2.m()),
+            select_small_diff(p1.m(), p3.m(), p4.m(), p2.m())
+            );
 
     double Q2 = -q.squared();
     double y = p2.dot(q) / p2.dot(p1);
@@ -1041,9 +1043,9 @@ double DipoleFromTable::FinalStateProbability(LeptonInjector::InteractionRecord 
     double txs = TotalCrossSection(interaction);
     if(dxs == 0) {
         return 0.0;
-    } else if (txs == 0){
+    } else if (txs == 0) {
         return 0.0;
-    else {
+    } else {
         return dxs / txs;
     }
 }
