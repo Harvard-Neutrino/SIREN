@@ -4,14 +4,18 @@
 namespace LeptonInjector {
 
 //---------------
+// class WeightableDistribution
+//---------------
+
+std::vector<std::string> WeightableDistribution::DensityVariables() const {
+    return {};
+}
+
+//---------------
 // class InjectionDistribution
 //---------------
 
 void InjectionDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
-}
-
-std::vector<std::string> InjectionDistribution::DensityVariables() const {
-    return {};
 }
 
 //---------------

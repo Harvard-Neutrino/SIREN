@@ -25,17 +25,30 @@
 
 namespace LeptonInjector {
 
-class InjectionDistribution {
-private:
+class WeightableDistribution {
 public:
-    virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const;
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const;
-    virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     virtual std::string Name() const = 0;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
+        } else {
+            throw std::runtime_error("WeightableDistribution only supports version <= 0!");
+        }
+    }
+
+};
+
+class InjectionDistribution : public WeightableDistribution {
+private:
+public:
+    virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const;
+    virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<WeightableDistribution>(this));
         } else {
             throw std::runtime_error("InjectionDistribution only supports version <= 0!");
         }

@@ -182,22 +182,6 @@ std::vector<std::shared_ptr<CrossSection>> CrossSectionCollection::GetCrossSecti
 bool CrossSectionCollection::MatchesPrimary(InteractionRecord const & record) const {
     return primary_type == record.signature.primary_type;
 }
-double CrossSectionCollection::GenerationProbability(InteractionRecord const & record) const {
-    if(not MatchesPrimary(record)) {
-        return 0.0;
-    }
-    auto const target_it = target_types.find(record.signature.target_type);
-    if(target_it == target_types.end()) {
-        return 0.0;
-    }
-    std::vector<double> total_cross_sections;
-    for(auto const xs : cross_sections) {
-        std::vector<InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type);
-        if(std::find(signatures.begin(), signatures.end(), record.signature) != signatures.end()) {
-            total_cross_sections.push_back(xs->TotalCrossSection(record));
-        }
-    }
-}
 
 DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
     LoadFromMemory(differential_data, total_data);
@@ -665,6 +649,10 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     interaction.secondary_spin[other_index] = spin;
 }
 
+double DISFromSpline::FinalStateProbability(LeptonInjector::InteractionRecord const & interaction) const {
+    return DifferentialCrossSection(interaction) / TotalCrossSection(interaction);
+}
+
 std::vector<Particle::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
     return std::vector<Particle::ParticleType>(primary_types_.begin(), primary_types_.end());
 }
@@ -939,57 +927,6 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     interaction.interaction_parameters[0] = E1_lab;
     interaction.interaction_parameters[1] = final_y;
 
-    double Q2 = 2 * E1_lab * E2_lab * final_y;
-    double p1x_lab = std::sqrt(accumulator<double>{p1_lab.px() * p1_lab.px(), p1_lab.py() * p1_lab.py(), p1_lab.pz() * p1_lab.pz()});
-    double pqx_lab = accumulator<double>{-2*E1_lab*E1_lab, 2*E1_lab*E1_lab*final_y, 2 * E1_lab*E2_lab*final_y, m1*m1, m3*m3, 2*p1_lab.px()*p1_lab.px(), 2*p1_lab.py()*p1_lab.py(), 2*p1_lab.pz()*p1_lab.pz()}
-        / (2 * p1x_lab);
-    double pqy_lab;
-    {
-        double E1lab = E1_lab;
-        double E1lab2 = E1_lab * E1_lab;
-        double E1lab3 = E1lab2 * E1_lab;
-        double E1lab4 = E1lab3 * E1_lab;
-
-        double finaly = final_y;
-        double finaly2 = finaly * finaly;
-
-        double E2lab = E2_lab;
-        double E2lab2 = E2_lab * E2_lab;
-        double E2lab3 = E2lab2 * E2_lab;
-        double E2lab4 = E2lab3 * E2_lab;
-
-        double m12 = m1 * m1;
-        double m13 = m12 * m1;
-        double m14 = m13 * m1;
-
-        double m32 = m3 * m3;
-        double m33 = m32 * m3;
-        double m34 = m33 * m3;
-
-        double p1labe1 = p1_lab.px();
-        double p1labe2 = p1_lab.py();
-        double p1labe3 = p1_lab.pz();
-        double p1labe12 = p1labe1*p1labe1;
-        double p1labe22 = p1labe2*p1labe2;
-        double p1labe32 = p1labe3*p1labe3;
-
-        pqy_lab = accumulator<double>{
-            -4*E1lab4, 8*E1lab4*finaly, 8*E1lab3*E2lab*finaly,
-            -4*E1lab4*finaly2, -8*E1lab3*E2lab*finaly2,
-            -4*E1lab2*E2lab2*finaly2, 4*E1lab2*m12,
-            -4*E1lab2*finaly*m12, -4*E1lab*E2lab*finaly*m12, -m14,
-             4*E1lab2*m32, -4*E1lab2*finaly*m32,
-            -4*E1lab*E2lab*finaly*m32, -2*m12*m32, -m34,
-             4*E1lab2*p1labe12, -8*E1lab2*finaly*p1labe12,
-             4*E1lab2*finaly2*p1labe12, -4*m32*p1labe12,
-             4*E1lab2*p1labe22, -8*E1lab2*finaly*p1labe22,
-             4*E1lab2*finaly2*p1labe22, -4*m32*p1labe22,
-             4*E1lab2*p1labe32, -8*E1lab2*finaly*p1labe32,
-             4*E1lab2*finaly2*p1labe32, -4*m32*p1labe32};
-        pqy_lab /= accumulator<double>{p1labe12, p1labe22, p1labe32};
-    }
-    double Eq_lab = E1_lab * final_y;
-
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
     geom3::Vector3 p1_mom = p1_lab.momentum();
     geom3::UnitVector3 p1_lab_dir = p1_mom.direction();
@@ -998,12 +935,17 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     double phi = random->Uniform(0, 2.0 * M_PI);
     geom3::Rotation3 rand_rot(p1_lab_dir, phi);
 
-    rk::P4 pq_lab(Eq_lab, geom3::Vector3(pqx_lab, pqy_lab, 0));
-    pq_lab.rotate(x_to_p1_lab_rot);
-    pq_lab.rotate(rand_rot);
+    double E3_lab = E1_lab - E1_lab * final_y;
+    double p1x_lab = p1_mom.length();
+    double p3_lab_sq = E3_lab * E3_lab - m3 * m3;
+    double p3x_lab_frac = (p1x_lab * p1x_lab - m3 * m3 + E1_lab * E1_lab * (1.0 - 2.0 * final_y)) / (2.0 * p1x_lab * E3_lab);
+    double p3x_lab = p3x_lab_frac * sqrt(p3_lab_sq);
+    double p3y_lab = sqrt(p3_lab_sq - p3x_lab * p3x_lab);
 
-    rk::P4 p3_lab((p1_lab - pq_lab).momentum(), m3);
-    rk::P4 p4_lab = p2_lab + pq_lab;
+    rk::P4 p3_lab(geom3::Vector3(p3x_lab, p3y_lab, 0), m3);
+    p3_lab.rotate(x_to_p1_lab_rot);
+    p3_lab.rotate(rand_rot);
+    rk::P4 p4_lab = p2_lab + (p1_lab - p3_lab);
 
     rk::P4 p3;
     rk::P4 p4;
@@ -1052,6 +994,10 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     spin = p4.momentum();
     spin *= std::copysign(geom3::Vector3(interaction.target_spin).length() / spin.length(), p2.momentum().dot(geom3::Vector3(interaction.target_spin)));
     interaction.secondary_spin[other_index] = spin;
+}
+
+double DipoleFromTable::FinalStateProbability(LeptonInjector::InteractionRecord const & interaction) const {
+    return 0.0;
 }
 
 std::vector<Particle::ParticleType> DipoleFromTable::GetPossibleTargets() const {

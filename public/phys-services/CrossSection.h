@@ -99,7 +99,7 @@ public:
     virtual std::vector<InteractionSignature> GetPossibleSignatures() const = 0;
 
     virtual std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const = 0;
-    virtual double GenerationProbability(InteractionRecord const & record) const = 0;
+    virtual double FinalStateProbability(InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {};
@@ -125,7 +125,6 @@ public:
         return target_types;
     };
     virtual bool MatchesPrimary(InteractionRecord const & record) const;
-    double GenerationProbability(InteractionRecord const & record) const;
 public:
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
@@ -189,7 +188,7 @@ public:
     std::vector<InteractionSignature> GetPossibleSignatures() const;
     std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const;
 
-    virtual double GenerationProbability(InteractionRecord const & record) const;
+    virtual double FinalStateProbability(InteractionRecord const & record) const;
 
     void LoadFromFile(std::string differential_filename, std::string total_filename);
     void LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data);
@@ -926,7 +925,7 @@ public:
     std::vector<InteractionSignature> GetPossibleSignatures() const;
     std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const;
 
-    virtual double GenerationProbability(InteractionRecord const & record) const;
+    virtual double FinalStateProbability(InteractionRecord const & record) const;
 
     void AddDifferentialCrossSectionFile(std::string filename, Particle::ParticleType target);
     void AddTotalCrossSectionFile(std::string filename, Particle::ParticleType target);

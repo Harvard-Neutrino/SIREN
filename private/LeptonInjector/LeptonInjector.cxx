@@ -112,6 +112,41 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     matching_cross_sections[index]->SampleFinalState(record, random);
 }
 
+double InjectorBase::CrossSectionProbability(InteractionRecord const & record) const {
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
+    std::set<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
+    std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
+
+    earthmodel::Vector3D intVertex(record.interaction_vertex[0],record.interaction_vertex[1],record.interaction_vertex[2]);
+
+    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(intVertex, earthmodel::Vector3D());
+
+    double total_prob = 0.0;
+    double selected_prob = 0.0;
+    for(auto const target : available_targets) {
+        if(possible_targets.find(target) != possible_targets.end()) {
+            // Get target density
+            double target_density = earth_model->GetDensity(intVertex, std::set<Particle::ParticleType>{target});
+            // Loop over cross sections that have this target
+            std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections.GetCrossSectionsForTarget(target);
+            for(auto const & cross_section : target_cross_sections) {
+                // Loop over cross section signatures with the same target
+                std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignatures();
+                for(auto const & signature : signatures) {
+                    // Add total cross section times density to the total prob
+                    double target_prob = target_density * cross_section->TotalCrossSection(record);
+                    total_prob += target_prob;
+                    // Add up total cross section times density times final state prob for matching signatures
+                    if(signature == record.signature) {
+                        selected_prob += target_prob * cross_section->FinalStateProbability(record);
+                    }
+                }
+            }
+        }
+    }
+    return selected_prob / total_prob;
+}
+
 void InjectorBase::SampleSecondaryDecay(InteractionRecord & record) const {
     // This function takes an interaction record containing an HNL and simulates the decay to a photon
     // Currently assumes Majorana HNL
@@ -241,6 +276,8 @@ double InjectorBase::GenerationProbability(InteractionRecord const & record) con
     for(auto const & dist : distributions) {
         probability *= dist->GenerationProbability(earth_model, cross_sections, record);
     }
+    probability *= CrossSectionProbability(record);
+    return probability;
 }
 
 std::set<std::vector<std::string>> InjectorBase::DensityVariables() const {

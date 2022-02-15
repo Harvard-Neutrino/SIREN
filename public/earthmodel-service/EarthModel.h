@@ -128,7 +128,7 @@ public:
 
     static Geometry::IntersectionList GetOuterBounds(Geometry::IntersectionList const & intersections);
     Geometry::IntersectionList GetOuterBounds(Vector3D const & p0, Vector3D const & direction);
-    std::set<LeptonInjector::Particle::ParticleType> GetAvailableTargets(std::array<double,3>& vertex);
+    std::set<LeptonInjector::Particle::ParticleType> GetAvailableTargets(std::array<double,3> const & vertex);
 
     // Added by Nick
     double GetTargetMass(int code);

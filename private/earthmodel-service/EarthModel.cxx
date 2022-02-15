@@ -652,7 +652,7 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Vector3D const & p0, Vecto
     return GetOuterBounds(intersections);
 }
 
-std::set<LeptonInjector::Particle::ParticleType> EarthModel::GetAvailableTargets(std::array<double,3>& vertex){
+std::set<LeptonInjector::Particle::ParticleType> EarthModel::GetAvailableTargets(std::array<double,3> const & vertex){
 		int matID = GetContainingSector(Vector3D(vertex[0],vertex[1],vertex[2])).material_id;
 		return materials_.GetMaterialConstituents(matID);
 }
