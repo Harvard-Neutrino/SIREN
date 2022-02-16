@@ -17,12 +17,17 @@
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/Controller.h"
 
+#define AUSTIN
+
 using namespace LeptonInjector;
 
 std::string diff_xs(int Z, int A, std::string mHNL) {
-  std::stringstream ss;
-  // ss << "/home/austin/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
-  ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
+    std::stringstream ss;
+#ifdef AUSTIN
+    ss << "/home/austin/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
+#else
+    ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
+#endif
     ss << "dxsec_";
     ss << "Z_" << Z << "_";
     ss << "A_" << A << "_";
@@ -31,9 +36,12 @@ std::string diff_xs(int Z, int A, std::string mHNL) {
 }
 
 std::string tot_xs(int Z, int A, std::string mHNL) {
-  std::stringstream ss;
-  // ss << "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
-  ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
+    std::stringstream ss;
+#ifdef AUSTIN
+    ss << "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
+#else
+    ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
+#endif
     ss << "xsec_";
     ss << "Z_" << Z << "_";
     ss << "A_" << A << "_";
@@ -44,15 +52,15 @@ std::string tot_xs(int Z, int A, std::string mHNL) {
 std::vector<std::array<int, 2>> gen_ZA() {
     return std::vector<std::array<int, 2>>{
         {1, 1},
-        {6, 12},
-        {8, 16},
-        {13, 27},
-        {14, 28},
-        {20, 40},
-        {26, 56},
-        {29, 63},
-        {29, 65},
-        {82, 208},
+            {6, 12},
+            {8, 16},
+            {13, 27},
+            {14, 28},
+            {20, 40},
+            {26, 56},
+            {29, 63},
+            {29, 65},
+            {82, 208},
     };
 }
 
@@ -60,15 +68,15 @@ std::vector<LeptonInjector::Particle::ParticleType> gen_TargetPIDs() {
     using ParticleType = LeptonInjector::Particle::ParticleType;
     return std::vector<ParticleType>{
         ParticleType::HNucleus,
-        ParticleType::C12Nucleus,
-        ParticleType::O16Nucleus,
-        ParticleType::Al27Nucleus,
-        ParticleType::Si28Nucleus,
-        ParticleType::Ca40Nucleus,
-        ParticleType::Fe56Nucleus,
-        ParticleType::Cu63Nucleus,
-        ParticleType::Cu65Nucleus,
-        ParticleType::Pb208Nucleus
+            ParticleType::C12Nucleus,
+            ParticleType::O16Nucleus,
+            ParticleType::Al27Nucleus,
+            ParticleType::Si28Nucleus,
+            ParticleType::Ca40Nucleus,
+            ParticleType::Fe56Nucleus,
+            ParticleType::Cu63Nucleus,
+            ParticleType::Cu65Nucleus,
+            ParticleType::Pb208Nucleus
     };
 }
 
@@ -127,10 +135,13 @@ TEST(Injector, Generation)
 {
     using ParticleType = LeptonInjector::Particle::ParticleType;
 
-    // std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
-    // std::string earth_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
+#ifdef AUSTIN
+    std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
+    std::string earth_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
+#else
     std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
     std::string earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
+#endif
     double powerLawIndex = 2;
     double energyMin = 1; // in GeV
     double energyMax = 1; // in GeV
@@ -180,17 +191,20 @@ TEST(Injector, Generation)
     earth_model->LoadMaterialModel(material_file);
     earth_model->LoadEarthModel(earth_file);
 
+    // Setup the primary type and mass
+    std::shared_ptr<LeptonInjector::PrimaryInjector> primary_injector = std::make_shared<LeptonInjector::PrimaryInjector>(primary_type, hnl_mass);
+
     // Setup power law
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
     std::shared_ptr<LeptonInjector::PowerLaw> power_law = std::make_shared<LeptonInjector::PowerLaw>();
     power_law->powerLawIndex = powerLawIndex;
     power_law->energyMin = energyMin;
     power_law->energyMax = energyMax;
-    
+
     // Setup NUMI flux
     std::shared_ptr<LeptonInjector::ArbPDF> arb_pdf = std::make_shared<LeptonInjector::ArbPDF>(2*hnl_mass,20,p_LE_FHC_numu,moyal_exp);
-    
-    // Pick energy distribution 
+
+    // Pick energy distribution
     std::shared_ptr<PrimaryEnergyDistribution> edist = arb_pdf;
 
     // Choose injection direction
@@ -207,12 +221,12 @@ TEST(Injector, Generation)
 
     // Put it all together!
     //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
-    std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
+    std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
 
     /*
-    Controller cont(injector);
-    cont.NameOutfile("injector_test_events.h5");
-    cont.NameLicFile("injector_test_events.lic");
+       Controller cont(injector);
+       cont.NameOutfile("injector_test_events.h5");
+       cont.NameLicFile("injector_test_events.lic");
 
     // Run the program.
     cont.Execute();
@@ -234,62 +248,68 @@ TEST(Injector, Generation)
     myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
     myFile << "helgamma ";
     myFile << "decay_length prob_nopairprod y target\n";
+    myFile << std::endl;
     int i = 0;
     while(*injector) {
         LeptonInjector::InteractionRecord event = injector->GenerateEvent();
-        if(event.secondary_momenta.size() > 0)
-        {
-          myFile << event.interaction_vertex[0] << " ";
-          myFile << event.interaction_vertex[1] << " ";
-          myFile << event.interaction_vertex[2] << " ";
+        LeptonInjector::DecayRecord decay;
+        injector->SampleSecondaryDecay(event, decay, HNL_decay_width);
+        LeptonInjector::InteractionRecord pair_prod;
+        injector->SamplePairProduction(decay, pair_prod);
+        injector->GenerationProbability(event);
+        if(event.secondary_momenta.size() > 0) {
+            myFile << event.interaction_vertex[0] << " ";
+            myFile << event.interaction_vertex[1] << " ";
+            myFile << event.interaction_vertex[2] << " ";
 
-          myFile << event.decay_vertex[0] << " ";
-          myFile << event.decay_vertex[1] << " ";
-          myFile << event.decay_vertex[2] << " ";
+            myFile << decay.decay_vertex[0] << " ";
+            myFile << decay.decay_vertex[1] << " ";
+            myFile << decay.decay_vertex[2] << " ";
 
-          myFile << event.pairprod_vertex[0] << " ";
-          myFile << event.pairprod_vertex[1] << " ";
-          myFile << event.pairprod_vertex[2] << " ";
+            myFile << pair_prod.interaction_vertex[0] << " ";
+            myFile << pair_prod.interaction_vertex[1] << " ";
+            myFile << pair_prod.interaction_vertex[2] << " ";
 
-          myFile << event.primary_momentum[0] << " ";
-          myFile << event.primary_momentum[1] << " ";
-          myFile << event.primary_momentum[2] << " ";
-          myFile << event.primary_momentum[3] << " ";
+            myFile << event.primary_momentum[0] << " ";
+            myFile << event.primary_momentum[1] << " ";
+            myFile << event.primary_momentum[2] << " ";
+            myFile << event.primary_momentum[3] << " ";
 
-          myFile << event.primary_helicity << " ";
+            myFile << event.primary_helicity << " ";
 
-          myFile << event.target_momentum[0] << " ";
-          myFile << event.target_momentum[1] << " ";
-          myFile << event.target_momentum[2] << " ";
-          myFile << event.target_momentum[3] << " ";
+            myFile << event.target_momentum[0] << " ";
+            myFile << event.target_momentum[1] << " ";
+            myFile << event.target_momentum[2] << " ";
+            myFile << event.target_momentum[3] << " ";
 
-          myFile << event.target_helicity << " ";
+            myFile << event.target_helicity << " ";
 
-          myFile << event.secondary_momenta[0][0] << " ";
-          myFile << event.secondary_momenta[0][1] << " ";
-          myFile << event.secondary_momenta[0][2] << " ";
-          myFile << event.secondary_momenta[0][3] << " ";
+            myFile << event.secondary_momenta[0][0] << " ";
+            myFile << event.secondary_momenta[0][1] << " ";
+            myFile << event.secondary_momenta[0][2] << " ";
+            myFile << event.secondary_momenta[0][3] << " ";
 
-          myFile << event.secondary_helicity[0] << " ";
+            myFile << event.secondary_helicity[0] << " ";
 
-          myFile << event.secondary_momenta[1][0] << " ";
-          myFile << event.secondary_momenta[1][1] << " ";
-          myFile << event.secondary_momenta[1][2] << " ";
-          myFile << event.secondary_momenta[1][3] << " ";
+            myFile << event.secondary_momenta[1][0] << " ";
+            myFile << event.secondary_momenta[1][1] << " ";
+            myFile << event.secondary_momenta[1][2] << " ";
+            myFile << event.secondary_momenta[1][3] << " ";
 
-          myFile << event.secondary_helicity[1] << " ";
+            myFile << event.secondary_helicity[1] << " ";
 
-          myFile << event.secondary_momenta[2][0] << " ";
-          myFile << event.secondary_momenta[2][1] << " ";
-          myFile << event.secondary_momenta[2][2] << " ";
-          myFile << event.secondary_momenta[2][3] << " ";
+            myFile << decay.secondary_momenta[0][0] << " ";
+            myFile << decay.secondary_momenta[0][1] << " ";
+            myFile << decay.secondary_momenta[0][2] << " ";
+            myFile << decay.secondary_momenta[0][3] << " ";
 
-          myFile << event.secondary_helicity[2] << " ";
+            myFile << decay.secondary_helicity[0] << " ";
 
-          myFile << event.decay_length << " ";
-          myFile << event.prob_nopairprod << " ";
-          myFile << event.interaction_parameters[1] << " ";
-          myFile << event.signature.target_type << "\n";
+            myFile << decay.decay_parameters[0] << " "; // decay length
+            myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
+            myFile << event.interaction_parameters[1] << " "; // sampled y
+            myFile << event.signature.target_type << "\n"; // target type
+            myFile << "\n";
         }
         std::cout << ++i << std::endl;
     }

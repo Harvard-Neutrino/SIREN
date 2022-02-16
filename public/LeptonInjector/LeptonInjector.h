@@ -43,20 +43,20 @@ protected:
     unsigned int events_to_inject = 0;
     unsigned int injected_events = 0;
     std::shared_ptr<LI_random> random;
-    Particle::ParticleType primary_type;
+    std::shared_ptr<PrimaryInjector> primary_injector;
     CrossSectionCollection cross_sections;
     std::shared_ptr<earthmodel::EarthModel> earth_model;
     std::vector<std::shared_ptr<InjectionDistribution>> distributions;
 public:
-    InjectorBase(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::vector<std::shared_ptr<InjectionDistribution>> distributions, std::shared_ptr<LI_random> random);
-    InjectorBase(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::vector<std::shared_ptr<InjectionDistribution>> distributions, std::shared_ptr<LI_random> random);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random);
     InjectorBase(unsigned int events_to_inject, CrossSectionCollection cross_sections);
     virtual InteractionRecord NewRecord() const;
     void SetRandom(std::shared_ptr<LI_random> random);
     virtual void SampleCrossSection(InteractionRecord & record) const;
     virtual double CrossSectionProbability(InteractionRecord const & record) const;
-    virtual void SampleSecondaryDecay(InteractionRecord & record) const;
-    virtual void SamplePairProduction(InteractionRecord & record);
+    virtual void SampleSecondaryDecay(InteractionRecord const & interaction, DecayRecord & decay, double width) const;
+    virtual void SamplePairProduction(DecayRecord const & decay, InteractionRecord & pairprod) const;
     virtual InteractionRecord GenerateEvent();
     virtual std::string Name() const;
     virtual double GenerationProbability(InteractionRecord const & record) const;
@@ -68,7 +68,7 @@ public:
         if(version == 0) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
-            archive(::cereal::make_nvp("PrimaryType", primary_type));
+            archive(::cereal::make_nvp("PrimaryInjector", primary_injector));
             archive(::cereal::make_nvp("CrossSections", cross_sections));
             archive(::cereal::make_nvp("EarthModel", earth_model));
             archive(::cereal::make_nvp("InjectionDistributions", distributions));
@@ -82,19 +82,19 @@ public:
         if(version == 0) {
             unsigned int events_to_inject;
             unsigned int injected_events;
-            Particle::ParticleType primary_type;
+            std::shared_ptr<PrimaryInjector> primary_injector;
             CrossSectionCollection cross_sections;
             std::shared_ptr<earthmodel::EarthModel> earth_model;
             std::vector<std::shared_ptr<InjectionDistribution>> distributions;
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
-            archive(::cereal::make_nvp("PrimaryType", primary_type));
+            archive(::cereal::make_nvp("PrimaryInjector", primary_injector));
             archive(::cereal::make_nvp("CrossSectrions", cross_sections));
             archive(::cereal::make_nvp("EarthModel", earth_model));
             archive(::cereal::make_nvp("InjectionDistributions", distributions));
             construct(events_to_inject, cross_sections);
             construct.ptr()->injected_events = injected_events;
-            construct.ptr()->primary_type = primary_type;
+            construct.ptr()->primary_injector = primary_injector;
             construct.ptr()->earth_model = earth_model;
             construct.ptr()->distributions = distributions;
         } else {
@@ -114,7 +114,7 @@ class RangedLeptonInjector : public InjectorBase {
         double endcap_length;
         std::shared_ptr<RangePositionDistribution> position_distribution;
     public:
-        RangedLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<RangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
+        RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<RangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override;
 };
@@ -130,7 +130,7 @@ class DecayRangeLeptonInjector : public InjectorBase {
         double endcap_length;
         std::shared_ptr<DecayRangePositionDistribution> position_distribution;
     public:
-        DecayRangeLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<DecayRangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
+        DecayRangeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<DecayRangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override;
 };
@@ -143,7 +143,7 @@ class VolumeLeptonInjector : public InjectorBase {
         std::shared_ptr<CylinderVolumePositionDistribution> position_distribution;
         std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution;
     public:
-        VolumeLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, earthmodel::Cylinder cylinder, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
+        VolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, earthmodel::Cylinder cylinder, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override;
 };

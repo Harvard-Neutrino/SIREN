@@ -282,8 +282,8 @@ BOOST_PYTHON_MODULE(LeptonInjector){
     def("getInteraction", &getInteraction);
 
     class_<InjectorBase, std::shared_ptr<InjectorBase>>("InjectorBase",
-	  init<unsigned int, Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::shared_ptr<earthmodel::EarthModel>, std::vector<std::shared_ptr<InjectionDistribution>>, std::shared_ptr<LI_random>>(
-	    (args("events_to_inject"),args("primary_type"),args("cross_sections"),args("earth_model"),args("distributions"),args("random"))
+	  init<unsigned int, std::shared_ptr<PrimaryInjector>, std::vector<std::shared_ptr<CrossSection>>, std::shared_ptr<earthmodel::EarthModel>, std::vector<std::shared_ptr<InjectionDistribution>>, std::shared_ptr<LI_random>>(
+	    (args("events_to_inject"),args("primary_injector"),args("cross_sections"),args("earth_model"),args("distributions"),args("random"))
 	  )
 	)
 	;

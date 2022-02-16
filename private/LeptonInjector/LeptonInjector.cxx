@@ -21,27 +21,27 @@ namespace LeptonInjector{
 
 InjectorBase::InjectorBase(
         unsigned int events_to_inject,
-        Particle::ParticleType primary_type,
+        std::shared_ptr<PrimaryInjector> primary_injector,
         std::vector<std::shared_ptr<CrossSection>> cross_sections,
         std::shared_ptr<earthmodel::EarthModel> earth_model,
         std::vector<std::shared_ptr<InjectionDistribution>> distributions,
         std::shared_ptr<LI_random> random) :
     events_to_inject(events_to_inject),
-    primary_type(primary_type),
-    cross_sections(primary_type, cross_sections),
+    primary_injector(primary_injector),
+    cross_sections(primary_injector->PrimaryType(), cross_sections),
     earth_model(earth_model),
     distributions(distributions),
     random(random)
 {}
 
 InjectorBase::InjectorBase(unsigned int events_to_inject,
-        Particle::ParticleType primary_type,
+        std::shared_ptr<PrimaryInjector> primary_injector,
         std::vector<std::shared_ptr<CrossSection>> cross_sections,
         std::shared_ptr<earthmodel::EarthModel> earth_model,
         std::shared_ptr<LI_random> random) :
     events_to_inject(events_to_inject),
-    primary_type(primary_type),
-    cross_sections(primary_type, cross_sections),
+    primary_injector(primary_injector),
+    cross_sections(primary_injector->PrimaryType(), cross_sections),
     earth_model(earth_model),
     random(random)
 {}
@@ -54,8 +54,7 @@ InjectorBase::InjectorBase(unsigned int events_to_inject,
 
 InteractionRecord InjectorBase::NewRecord() const {
     InteractionRecord record;
-    record.signature.primary_type = primary_type;
-    record.primary_mass = Particle(primary_type).GetMass();
+    primary_injector->Sample(random, earth_model, cross_sections, record);
     return record;
 }
 
@@ -147,24 +146,32 @@ double InjectorBase::CrossSectionProbability(InteractionRecord const & record) c
     return selected_prob / total_prob;
 }
 
-void InjectorBase::SampleSecondaryDecay(InteractionRecord & record) const {
+void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, DecayRecord & decay, double decay_width) const {
     // This function takes an interaction record containing an HNL and simulates the decay to a photon
     // Currently assumes Majorana HNL
     // Final state photon added to secondary particle vectors in InteractionRecord
 
     // Find the HNL in the secondary particle vector and save its momentum/cartesian direction
-    unsigned int lepton_index = (record.signature.secondary_types[0] == Particle::ParticleType::NuF4 or record.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
-    std::array<double, 4> hnl_momentum = record.secondary_momenta[lepton_index];
-    double hnl_mass = record.secondary_masses[lepton_index];
+    unsigned int lepton_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
+    Particle::ParticleType hnl_type = interaction.signature.secondary_types[lepton_index];
+    double hnl_mass = interaction.secondary_masses[lepton_index];
+    std::array<double, 4> hnl_momentum = interaction.secondary_momenta[lepton_index];
+    double hnl_helicity = interaction.secondary_helicity[lepton_index];
+
+    // Store the HNL as the primary for the decay
+    decay.signature.primary_type = hnl_type;
+    decay.primary_mass = hnl_mass;
+    decay.primary_momentum = hnl_momentum;
+    decay.primary_helicity = hnl_helicity;
+
     rk::P4 pHNL_lab(geom3::Vector3(hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]), hnl_mass);
-    earthmodel::Vector3D hnl_dir(hnl_momentum[1],hnl_momentum[2],hnl_momentum[3]);
+    earthmodel::Vector3D hnl_dir(hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]);
     hnl_dir.normalize();
 
     // Calculate the decay location of the HNL
-    double decay_loc = -1 * record.decay_length * std::log(random->Uniform(0,1));
-    record.decay_vertex = {record.interaction_vertex[0] + decay_loc*hnl_dir.GetX(),
-                           record.interaction_vertex[1] + decay_loc*hnl_dir.GetY(),
-                           record.interaction_vertex[2] + decay_loc*hnl_dir.GetZ()};
+    double decay_length = LeptonInjector::DecayRangeFunction::DecayLength(hnl_mass, decay_width, hnl_momentum[0]);
+    double decay_loc = -1 * decay_length * std::log(random->Uniform(0,1));
+    decay.decay_vertex = earthmodel::Vector3D(interaction.interaction_vertex) + decay_loc * hnl_dir;
 
     // Sample decay angles
     // Majorana Case: Isotropic Decay
@@ -182,41 +189,45 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord & record) const {
     rk::Boost boost_to_lab = pHNL_lab.labBoost();
     rk::P4 pGamma_lab = boost_to_lab * pGamma_HNLrest;
 
-    std::array<double,4> gamma_momentum;
-    gamma_momentum[0] = pGamma_lab.e();
-    gamma_momentum[1] = pGamma_lab.px();
-    gamma_momentum[2] = pGamma_lab.py();
-    gamma_momentum[3] = pGamma_lab.pz();
-    record.secondary_momenta.push_back(gamma_momentum);
-    record.secondary_masses.push_back(0);
-    record.signature.secondary_types.push_back(Particle::ParticleType::Gamma);
+    decay.signature.secondary_types.resize(1);
+    decay.secondary_masses.resize(1);
+    decay.secondary_momenta.resize(1);
+    decay.secondary_helicity.resize(1);
+
+    decay.signature.secondary_types[0] = Particle::ParticleType::Gamma;
+    decay.secondary_masses[0] = 0;
+    decay.secondary_momenta[0][0] = pGamma_lab.e();
+    decay.secondary_momenta[0][1] = pGamma_lab.px();
+    decay.secondary_momenta[0][2] = pGamma_lab.py();
+    decay.secondary_momenta[0][3] = pGamma_lab.pz();
+    decay.secondary_helicity[0] = std::copysign(1.0, decay.primary_helicity);
+
+    decay.decay_parameters.resize(1);
+    decay.decay_parameters[0] = decay_length;
 }
 
-void InjectorBase::SamplePairProduction(InteractionRecord & record) {
+void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRecord & interaction) const {
     // function for simulating the pair production of the photon created in HNL decay
     // considers the different radiation lengths of materials in the detector
     // Nick TODO: comment more
 
     earthmodel::MaterialModel mat_model = earth_model->GetMaterials();
-    earthmodel::Vector3D decay_vtx(record.decay_vertex[0],
-                                   record.decay_vertex[1],
-                                   record.decay_vertex[2]);
-    unsigned int gamma_index = record.secondary_momenta.size() - 1;
-    earthmodel::Vector3D decay_dir(record.secondary_momenta[gamma_index][1],
-                                   record.secondary_momenta[gamma_index][2],
-                                   record.secondary_momenta[gamma_index][3]);
+    earthmodel::Vector3D decay_vtx(decay.decay_vertex);
+    unsigned int gamma_index = 0;
+    earthmodel::Vector3D decay_dir(decay.secondary_momenta[gamma_index][1],
+                                   decay.secondary_momenta[gamma_index][2],
+                                   decay.secondary_momenta[gamma_index][3]);
+
+    interaction.signature.primary_type = decay.signature.secondary_types[gamma_index];
+    interaction.primary_mass = decay.secondary_masses[gamma_index];
+    interaction.primary_momentum = decay.secondary_momenta[gamma_index];
+    interaction.primary_helicity = decay.secondary_helicity[gamma_index];
+
     decay_dir.normalize();
-    if(std::isnan(decay_dir.magnitude())){
-        for(int j = 0; j < record.secondary_momenta.size(); ++j)
-        {
-        std::cout << j << " ";
-        for(int k = 0; k < 4; ++k) std::cout << record.secondary_momenta[j][k] << " ";
-        std::cout << std::endl;
-        }
-        return;
-    }
+
     earthmodel::Path path(earth_model, decay_vtx, decay_dir, 0);
     path.ComputeIntersections();
+
     std::vector<double> X0;
     std::vector<double> P;
     std::vector<double> D;
@@ -224,11 +235,12 @@ void InjectorBase::SamplePairProduction(InteractionRecord & record) {
     D.push_back(0.);
     double N = 0;
     double lnP_nopp = 0; // for calculating the probability that no pair production occurs
-    earthmodel::Geometry::IntersectionList ilist = path.GetIntersections();
+    earthmodel::Geometry::IntersectionList const & ilist = path.GetIntersections();
     earthmodel::Vector3D density_point = decay_vtx;
     int j = 0;
-    for(auto& i : ilist.intersections){
-        if(i.distance<0 || std::isinf(i.distance)) continue;
+    for(auto const & i : ilist.intersections) {
+        if(i.distance<0 || std::isinf(i.distance))
+            continue;
         D.push_back(i.distance);
         x0 = (9./7.)*mat_model.GetMaterialRadLength(i.matID); // in g/cm^2
         density_point += 0.5*(i.position - density_point);
@@ -242,11 +254,12 @@ void InjectorBase::SamplePairProduction(InteractionRecord & record) {
         density_point = i.position;
         ++j;
     }
-    record.prob_nopairprod = std::exp(lnP_nopp);
 
+    interaction.interaction_parameters.resize(1);
+    interaction.interaction_parameters[0] = std::exp(lnP_nopp);
 
     // sample the PDF by inverting the CDF
-    double X = random->Uniform(0,1);
+    double X = random->Uniform(0, 1);
     double C = 0;
     if(P.size() > 0) {
         for(j = 0; j < P.size(); ++j){
@@ -254,11 +267,8 @@ void InjectorBase::SamplePairProduction(InteractionRecord & record) {
             if(C>X) {C -= P[j]/N; break;}
         }
         double pairprod_dist = -X0[j]*std::log(X - C + std::exp(-D[j]/X0[j]));
-        record.pairprod_vertex = {record.decay_vertex[0] + pairprod_dist*decay_dir.GetX(),
-                                  record.decay_vertex[1] + pairprod_dist*decay_dir.GetY(),
-                                  record.decay_vertex[2] + pairprod_dist*decay_dir.GetZ()};
+        interaction.interaction_vertex = earthmodel::Vector3D(decay.decay_vertex) + pairprod_dist * decay_dir;
     }
-
 }
 
 InteractionRecord InjectorBase::GenerateEvent() {
@@ -313,7 +323,7 @@ InjectorBase::operator bool() const {
 //---------------
 RangedLeptonInjector::RangedLeptonInjector(
         unsigned int events_to_inject,
-        Particle::ParticleType primary_type,
+        std::shared_ptr<PrimaryInjector> primary_injector,
         std::vector<std::shared_ptr<CrossSection>> cross_sections,
         std::shared_ptr<earthmodel::EarthModel> earth_model,
         std::shared_ptr<LI_random> random,
@@ -330,10 +340,11 @@ RangedLeptonInjector::RangedLeptonInjector(
     disk_radius(disk_radius),
     endcap_length(endcap_length),
     helicity_distribution(helicity_distribution),
-    InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random)
+    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random)
 {
     std::set<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
     position_distribution = std::make_shared<RangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
+    distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
 }
 
 InteractionRecord RangedLeptonInjector::GenerateEvent() {
@@ -345,6 +356,9 @@ InteractionRecord RangedLeptonInjector::GenerateEvent() {
     // Choose an energy
     energy_distribution->Sample(random, earth_model, cross_sections, event);
 
+    // Choose the helicity
+    helicity_distribution->Sample(random, earth_model, cross_sections, event);
+
     // Pick a direction on the sphere
     direction_distribution->Sample(random, earth_model, cross_sections, event);
 
@@ -353,12 +367,6 @@ InteractionRecord RangedLeptonInjector::GenerateEvent() {
 
     // Sample the cross section and final state
     SampleCrossSection(event);
-
-    // Sample decay angle of photon
-    SampleSecondaryDecay(event);
-
-    // Sample pair production location
-    SamplePairProduction(event);
 
     injected_events += 1;
     return event;
@@ -373,7 +381,7 @@ std::string RangedLeptonInjector::Name() const {
 //---------------
 DecayRangeLeptonInjector::DecayRangeLeptonInjector(
         unsigned int events_to_inject,
-        Particle::ParticleType primary_type,
+        std::shared_ptr<PrimaryInjector> primary_injector,
         std::vector<std::shared_ptr<CrossSection>> cross_sections,
         std::shared_ptr<earthmodel::EarthModel> earth_model,
         std::shared_ptr<LI_random> random,
@@ -390,10 +398,11 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
     disk_radius(disk_radius),
     endcap_length(endcap_length),
     helicity_distribution(helicity_distribution),
-    InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random)
+    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random)
 {
     std::set<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
     position_distribution = std::make_shared<DecayRangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
+    distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
 }
 
 InteractionRecord DecayRangeLeptonInjector::GenerateEvent() {
@@ -405,6 +414,9 @@ InteractionRecord DecayRangeLeptonInjector::GenerateEvent() {
     // Choose an energy
     energy_distribution->Sample(random, earth_model, cross_sections, event);
 
+    // Choose the helicity
+    helicity_distribution->Sample(random, earth_model, cross_sections, event);
+
     // Pick a direction on the sphere
     direction_distribution->Sample(random, earth_model, cross_sections, event);
 
@@ -413,12 +425,6 @@ InteractionRecord DecayRangeLeptonInjector::GenerateEvent() {
 
     // Sample the cross section and final state
     SampleCrossSection(event);
-
-    // Sample decay angle of photon
-    SampleSecondaryDecay(event);
-
-    // Sample pair production location
-    SamplePairProduction(event);
 
     injected_events += 1;
     return event;
@@ -433,7 +439,7 @@ std::string DecayRangeLeptonInjector::Name() const {
 //---------------
 VolumeLeptonInjector::VolumeLeptonInjector(
         unsigned int events_to_inject,
-        Particle::ParticleType primary_type,
+        std::shared_ptr<PrimaryInjector> primary_injector,
         std::vector<std::shared_ptr<CrossSection>> cross_sections,
         std::shared_ptr<earthmodel::EarthModel> earth_model,
         std::shared_ptr<LI_random> random,
@@ -447,8 +453,9 @@ VolumeLeptonInjector::VolumeLeptonInjector(
     target_momentum_distribution(target_momentum_distribution),
     position_distribution(std::make_shared<CylinderVolumePositionDistribution>(cylinder)),
     helicity_distribution(helicity_distribution),
-    InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random)
-{}
+    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random) {
+    distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
+}
 
 InteractionRecord VolumeLeptonInjector::GenerateEvent() {
     InteractionRecord event = NewRecord();
@@ -458,6 +465,9 @@ InteractionRecord VolumeLeptonInjector::GenerateEvent() {
 
     // Choose an energy
     energy_distribution->Sample(random, earth_model, cross_sections, event);
+
+    // Choose the helicity
+    helicity_distribution->Sample(random, earth_model, cross_sections, event);
 
     // Pick a direction on the sphere
     direction_distribution->Sample(random, earth_model, cross_sections, event);

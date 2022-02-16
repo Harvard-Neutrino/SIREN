@@ -18,6 +18,55 @@ std::vector<std::string> WeightableDistribution::DensityVariables() const {
 void InjectionDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
 }
 
+
+//---------------
+// class PrimaryInjector : InjectionDistribution
+//---------------
+
+PrimaryInjector::PrimaryInjector(LeptonInjector::Particle::ParticleType primary_type, double primary_mass) :
+    primary_type(primary_type),
+    primary_mass(primary_mass)
+{}
+
+LeptonInjector::Particle::ParticleType PrimaryInjector::PrimaryType() const {
+    return primary_type;
+}
+
+double PrimaryInjector::PrimaryMass() const {
+    return primary_mass;
+}
+
+void PrimaryInjector::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+    record.signature.primary_type = primary_type;
+    record.primary_mass = primary_mass;
+}
+double PrimaryInjector::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    if(record.signature.primary_type != primary_type)
+        return 0.0;
+    if(2.0 * abs(record.primary_mass - primary_mass) / (record.primary_mass + primary_mass) > 1e-9) {
+        std::cerr << "Event primary mass does not match injector primary mass!" << std::endl;
+        std::cerr << "Event primary_mass: " << record.primary_mass << std::endl;
+        std::cerr << "Injector primary_mass: " << primary_mass << std::endl;
+        std::cerr << "Particle mass definitions should be consistent." << std::endl;
+        std::cerr << "Are you using the wrong simulation?" << std::endl;
+        return 0.0;
+    }
+    return 1.0;
+}
+
+std::vector<std::string> PrimaryInjector::DensityVariables() const {
+    return std::vector<std::string>{};
+}
+
+std::string PrimaryInjector::Name() const {
+    return "PrimaryInjector";
+}
+
+std::shared_ptr<InjectionDistribution> PrimaryInjector::clone() const {
+    return std::shared_ptr<InjectionDistribution>(new PrimaryInjector(*this));
+}
+
+
 //---------------
 // class TargetMomentumDistribution : InjectionDistribution
 //---------------
@@ -351,15 +400,18 @@ double RangeFunction::operator()(InteractionSignature const & signature, double 
 //---------------
 //
 //
-double DecayRangeFunction::DecayLength(InteractionSignature const & signature, double energy) const {
-    std::array<double, 4> lab_momentum{energy, 0.0, 0.0, sqrt(energy*energy - particle_mass*particle_mass)}; // GeV
-    double beta = sqrt((lab_momentum[1]*lab_momentum[1] + lab_momentum[2]*lab_momentum[2] + lab_momentum[3]*lab_momentum[3]) / (lab_momentum[0]*lab_momentum[0])); // dimensionless
-    double gamma = 1.0 / sqrt(1.0 - beta * beta);
+double DecayRangeFunction::DecayLength(double particle_mass, double decay_width, double energy) {
+    double beta = sqrt(energy*energy - particle_mass*particle_mass) / energy;
+    double gamma = energy / particle_mass;
     double time_in_rest_frame = 1.0 / decay_width; // inverse GeV
     double time_in_lab_frame = time_in_rest_frame * gamma; // inverse GeV
     constexpr double iGeV_in_m = 1.973269804593025e-16; // meters per inverse GeV
     double length = time_in_lab_frame * beta * iGeV_in_m; // meters = ((inverse GeV * dimensionless) * (meters per inverse GeV))
     return length; // meters
+}
+
+double DecayRangeFunction::DecayLength(InteractionSignature const & signature, double energy) const {
+    return DecayRangeFunction::DecayLength(particle_mass, decay_width, energy);
 }
 
 double DecayRangeFunction::Range(InteractionSignature const & signature, double energy) const {

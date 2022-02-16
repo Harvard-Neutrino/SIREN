@@ -61,6 +61,7 @@ public:
     Vector3D& operator=(Vector3D const && vector_3d);
     Vector3D& operator=(Vector3D && vector_3d);
 
+    operator std::array<double, 3>() const;
     operator geom3::UnitVector3() const;
     operator geom3::Vector3() const;
     operator geom3::Point3() const;

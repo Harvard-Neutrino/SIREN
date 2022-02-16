@@ -56,6 +56,28 @@ public:
 
 };
 
+class PrimaryInjector : public InjectionDistribution {
+private:
+    LeptonInjector::Particle::ParticleType primary_type;
+    double primary_mass;
+public:
+    PrimaryInjector(LeptonInjector::Particle::ParticleType primary_type, double primary_mass = 0);
+    LeptonInjector::Particle::ParticleType PrimaryType() const;
+    double PrimaryMass() const;
+    void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
+    virtual std::vector<std::string> DensityVariables() const override;
+    virtual std::string Name() const override;
+    virtual std::shared_ptr<InjectionDistribution> clone() const override;
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("PrimaryInjector only supports version <= 0!");
+        }
+    }
+};
 
 class TargetMomentumDistribution : public InjectionDistribution {
 private:
@@ -372,6 +394,7 @@ private:
     double multiplier;
 public:
     DecayRangeFunction(double particle_mass, double decay_width, double multiplier);
+    static double DecayLength(double mass, double width, double energy);
     double operator()(InteractionSignature const & signature, double energy) const override;
     double DecayLength(InteractionSignature const & signature, double energy) const;
     double Range(InteractionSignature const & signature, double energy) const;

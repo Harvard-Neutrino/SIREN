@@ -88,6 +88,10 @@ Vector3D& Vector3D::operator=(Vector3D const && other) {
     return *this;
 }
 
+Vector3D::operator std::array<double, 3>() const {
+    return std::array<double, 3>{cartesian_.x_, cartesian_.y_, cartesian_.z_};
+}
+
 Vector3D::operator geom3::UnitVector3() const {
     return geom3::UnitVector3(cartesian_.x_, cartesian_.y_, cartesian_.z_, true);
 }
