@@ -51,14 +51,14 @@ struct InteractionRecord {
     double decay_length = 0;
     double prob_nopairprod = 0;
     std::array<double, 4> primary_momentum = {0, 0, 0, 0};
-    std::array<double, 3> primary_spin = {0, 0, 0};
+    double primary_helicity = 0;
     std::array<double, 4> target_momentum = {0, 0, 0, 0};
-    std::array<double, 3> target_spin = {0, 0, 0};
+    double target_helicity = 0;
     std::array<double, 3> interaction_vertex = {0, 0, 0};
     std::array<double, 3> decay_vertex = {0, 0, 0};
     std::array<double, 3> pairprod_vertex = {0, 0, 0};
     std::vector<std::array<double, 4>> secondary_momenta;
-    std::vector<std::array<double, 3>> secondary_spin;
+    std::vector<double> secondary_helicity;
     std::vector<double> secondary_masses;
     std::vector<double> interaction_parameters;
     friend std::ostream& operator<<(std::ostream& os, InteractionRecord const& record);
@@ -70,12 +70,12 @@ struct InteractionRecord {
             archive(::cereal::make_nvp("TargetMass", target_mass));
             archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
             archive(::cereal::make_nvp("TargetMomentum", target_momentum));
-            archive(::cereal::make_nvp("PrimarySpin", primary_spin));
-            archive(::cereal::make_nvp("TargetSpin", target_spin));
+            archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));
+            archive(::cereal::make_nvp("TargetHelicity", target_helicity));
             archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
             archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
             archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
-            archive(::cereal::make_nvp("SecondarySpin", secondary_spin));
+            archive(::cereal::make_nvp("SecondaryHelicity", secondary_helicity));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
         } else {
             throw std::runtime_error("InteractionRecord only supports version <= 0!");

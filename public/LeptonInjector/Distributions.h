@@ -547,13 +547,13 @@ public:
     }
 };
 
-class PrimaryNeutrinoSpinDistribution : public InjectionDistribution {
+class PrimaryNeutrinoHelicityDistribution : public InjectionDistribution {
 private:
 public:
     virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
-	PrimaryNeutrinoSpinDistribution();
-	PrimaryNeutrinoSpinDistribution(const PrimaryNeutrinoSpinDistribution &) = default;
+	PrimaryNeutrinoHelicityDistribution();
+	PrimaryNeutrinoHelicityDistribution(const PrimaryNeutrinoHelicityDistribution &) = default;
     virtual std::vector<std::string> DensityVariables() const;
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
@@ -562,7 +562,7 @@ public:
         if(version == 0) {
             archive(cereal::virtual_base_class<InjectionDistribution>(this));
         } else {
-            throw std::runtime_error("PrimaryNeutrinoSpinDistribution only supports version <= 0!");
+            throw std::runtime_error("PrimaryNeutrinoHelicityDistribution only supports version <= 0!");
         }
     }
     template<typename Archive>
@@ -570,7 +570,7 @@ public:
         if(version == 0) {
             archive(cereal::virtual_base_class<InjectionDistribution>(this));
         } else {
-            throw std::runtime_error("PrimaryNeutrinoSpinDistribution only supports version <= 0!");
+            throw std::runtime_error("PrimaryNeutrinoHelicityDistribution only supports version <= 0!");
         }
     }
 };

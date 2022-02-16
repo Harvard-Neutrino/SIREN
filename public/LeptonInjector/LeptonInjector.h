@@ -109,12 +109,12 @@ class RangedLeptonInjector : public InjectorBase {
         std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
         std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
         std::shared_ptr<RangeFunction> range_func;
-        std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution;
+        std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution;
         double disk_radius;
         double endcap_length;
         std::shared_ptr<RangePositionDistribution> position_distribution;
     public:
-        RangedLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<RangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution);
+        RangedLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<RangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override;
 };
@@ -125,12 +125,12 @@ class DecayRangeLeptonInjector : public InjectorBase {
         std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
         std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
         std::shared_ptr<DecayRangeFunction> range_func;
-        std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution;
+        std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution;
         double disk_radius;
         double endcap_length;
         std::shared_ptr<DecayRangePositionDistribution> position_distribution;
     public:
-        DecayRangeLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<DecayRangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution);
+        DecayRangeLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<DecayRangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override;
 };
@@ -141,9 +141,9 @@ class VolumeLeptonInjector : public InjectorBase {
         std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
         std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
         std::shared_ptr<CylinderVolumePositionDistribution> position_distribution;
-        std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution;
+        std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution;
     public:
-        VolumeLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, earthmodel::Cylinder cylinder, std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution);
+        VolumeLeptonInjector(unsigned int events_to_inject, Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, earthmodel::Cylinder cylinder, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override;
 };

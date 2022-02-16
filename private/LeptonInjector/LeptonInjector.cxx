@@ -323,13 +323,13 @@ RangedLeptonInjector::RangedLeptonInjector(
         std::shared_ptr<RangeFunction> range_func,
         double disk_radius,
         double endcap_length,
-        std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution) :
+        std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution) :
     energy_distribution(edist),
     direction_distribution(ddist),
     target_momentum_distribution(target_momentum_distribution),
     disk_radius(disk_radius),
     endcap_length(endcap_length),
-    spin_distribution(spin_distribution),
+    helicity_distribution(helicity_distribution),
     InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random)
 {
     std::set<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
@@ -383,13 +383,13 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
         std::shared_ptr<DecayRangeFunction> range_func,
         double disk_radius,
         double endcap_length,
-        std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution) :
+        std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution) :
     energy_distribution(edist),
     direction_distribution(ddist),
     target_momentum_distribution(target_momentum_distribution),
     disk_radius(disk_radius),
     endcap_length(endcap_length),
-    spin_distribution(spin_distribution),
+    helicity_distribution(helicity_distribution),
     InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random)
 {
     std::set<Particle::ParticleType> target_types = this->cross_sections.TargetTypes();
@@ -441,12 +441,12 @@ VolumeLeptonInjector::VolumeLeptonInjector(
         std::shared_ptr<PrimaryDirectionDistribution> ddist,
         std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution,
         earthmodel::Cylinder cylinder,
-        std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution) :
+        std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution) :
     energy_distribution(edist),
     direction_distribution(ddist),
     target_momentum_distribution(target_momentum_distribution),
     position_distribution(std::make_shared<CylinderVolumePositionDistribution>(cylinder)),
-    spin_distribution(spin_distribution),
+    helicity_distribution(helicity_distribution),
     InjectorBase(events_to_inject, primary_type, cross_sections, earth_model, random)
 {}
 

@@ -607,57 +607,54 @@ std::shared_ptr<InjectionDistribution> DecayRangePositionDistribution::clone() c
 }
 
 //---------------
-// class PrimaryNeutrinoSpinDistribution : InjectionDistribution
+// class PrimaryNeutrinoHelicityDistribution : InjectionDistribution
 //---------------
-void PrimaryNeutrinoSpinDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
     std::array<double, 4> & mom = record.primary_momentum;
     double momentum = sqrt(mom[1]*mom[1] + mom[2]*mom[2] + mom[3]*mom[3]);
-    double factor = 0.5 / momentum;
+    double factor = 0.5;
     Particle::ParticleType & t = record.signature.primary_type;
     if(t > 0) // Particles are left handed, anti-particles are right handed
-        factor = -factor;
-    record.primary_spin[0] = factor * mom[1];
-    record.primary_spin[1] = factor * mom[2];
-    record.primary_spin[2] = factor * mom[3];
+        record.primary_helicity = -0.5;
+    else
+        record.primary_helicity = 0.5;
 }
 
-double PrimaryNeutrinoSpinDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
     std::array<double, 4> const & mom = record.primary_momentum;
     earthmodel::Vector3D dir(mom[1], mom[2], mom[3]);
     dir.normalize();
-    earthmodel::Vector3D spin_dir(record.primary_spin);
-    double spin_magnitude = spin_dir.magnitude();
-    spin_dir.normalize();
 
-    double dot = earthmodel::scalar_product(dir, spin_dir);
-
-    if(abs(0.5 - spin_magnitude) > 1e-9) // Spin magnitude must be 0.5
+    if(abs(0.5 - abs(record.primary_helicity)) > 1e-9) // Helicity magnitude must be 0.5
         return 0.0;
 
     Particle::ParticleType const & t = record.signature.primary_type;
     // Particles are left handed, anti-particles are right handed
     if(t > 0) {
-        if(abs(1.0 + dot) > 1e-9) // expect opposite direction
+        if(record.primary_helicity < 0) // expect opposite direction
+            return 1.0;
+        else
             return 0.0;
     } else {
-        if(abs(1.0 - dot) > 1e-9) // expect same direction
+        if(record.primary_helicity > 0) // expect same direction
+            return 1.0;
+        else
             return 0.0;
     }
-    return 1.0;
 }
 
-PrimaryNeutrinoSpinDistribution::PrimaryNeutrinoSpinDistribution() {}
+PrimaryNeutrinoHelicityDistribution::PrimaryNeutrinoHelicityDistribution() {}
 
-std::vector<std::string> PrimaryNeutrinoSpinDistribution::DensityVariables() const {
+std::vector<std::string> PrimaryNeutrinoHelicityDistribution::DensityVariables() const {
     return std::vector<std::string>{};
 }
 
-std::string PrimaryNeutrinoSpinDistribution::Name() const {
-    return "PrimaryNeutrinoSpinDistribution";
+std::string PrimaryNeutrinoHelicityDistribution::Name() const {
+    return "PrimaryNeutrinoHelicityDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> PrimaryNeutrinoSpinDistribution::clone() const {
-    return std::shared_ptr<PrimaryNeutrinoSpinDistribution>(new PrimaryNeutrinoSpinDistribution(*this));
+std::shared_ptr<InjectionDistribution> PrimaryNeutrinoHelicityDistribution::clone() const {
+    return std::shared_ptr<PrimaryNeutrinoHelicityDistribution>(new PrimaryNeutrinoHelicityDistribution(*this));
 }
 
 } // namespace LeptonInjector

@@ -202,12 +202,12 @@ TEST(Injector, Generation)
     // Let us inject according to the decay distribution
     std::shared_ptr<RangeFunction> range_func = std::make_shared<LeptonInjector::DecayRangeFunction>(hnl_mass, HNL_decay_width, n_decay_lengths);
 
-    // Spin distribution
-    std::shared_ptr<PrimaryNeutrinoSpinDistribution> spin_distribution = std::make_shared<LeptonInjector::PrimaryNeutrinoSpinDistribution>();
+    // Helicity distribution
+    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<LeptonInjector::PrimaryNeutrinoHelicityDistribution>();
 
     // Put it all together!
     //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
-    std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, spin_distribution);
+    std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
 
     /*
     Controller cont(injector);
@@ -224,15 +224,15 @@ TEST(Injector, Generation)
     myFile << "decX decY decZ ";
     myFile << "ppX ppY ppZ ";
     myFile << "p4nu_0 p4nu_1 p4nu_2 p4nu_3 ";
-    myFile << "snuX snuY snuZ ";
+    myFile << "helnu ";
     myFile << "p4itgt_0 p4itgt_1 p4itgt_2 p4itgt_3 ";
-    myFile << "sitgtX sitgtY sitgtZ ";
+    myFile << "helitgt ";
     myFile << "p4hnl_0 p4hnl_1 p4hnl_2 p4hnl_3 ";
-    myFile << "shnlX shnlY shnlZ ";
+    myFile << "helhnl ";
     myFile << "p4ftgt_0 p4ftgt_1 p4ftgt_2 p4ftgt_3 ";
-    myFile << "sftgtX sftgtY sftgtZ ";
+    myFile << "helftgt ";
     myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
-    myFile << "sgammaX sgammaY sgammaZ ";
+    myFile << "helgamma ";
     myFile << "decay_length prob_nopairprod y target\n";
     int i = 0;
     while(*injector) {
@@ -256,45 +256,35 @@ TEST(Injector, Generation)
           myFile << event.primary_momentum[2] << " ";
           myFile << event.primary_momentum[3] << " ";
 
-          myFile << event.primary_spin[0] << " ";
-          myFile << event.primary_spin[1] << " ";
-          myFile << event.primary_spin[2] << " ";
+          myFile << event.primary_helicity << " ";
 
           myFile << event.target_momentum[0] << " ";
           myFile << event.target_momentum[1] << " ";
           myFile << event.target_momentum[2] << " ";
           myFile << event.target_momentum[3] << " ";
 
-          myFile << event.target_spin[0] << " ";
-          myFile << event.target_spin[1] << " ";
-          myFile << event.target_spin[2] << " ";
+          myFile << event.target_helicity << " ";
 
           myFile << event.secondary_momenta[0][0] << " ";
           myFile << event.secondary_momenta[0][1] << " ";
           myFile << event.secondary_momenta[0][2] << " ";
           myFile << event.secondary_momenta[0][3] << " ";
 
-          myFile << event.secondary_spin[0][0] << " ";
-          myFile << event.secondary_spin[0][1] << " ";
-          myFile << event.secondary_spin[0][2] << " ";
+          myFile << event.secondary_helicity[0] << " ";
 
           myFile << event.secondary_momenta[1][0] << " ";
           myFile << event.secondary_momenta[1][1] << " ";
           myFile << event.secondary_momenta[1][2] << " ";
           myFile << event.secondary_momenta[1][3] << " ";
 
-          myFile << event.secondary_spin[1][0] << " ";
-          myFile << event.secondary_spin[1][1] << " ";
-          myFile << event.secondary_spin[1][2] << " ";
+          myFile << event.secondary_helicity[1] << " ";
 
           myFile << event.secondary_momenta[2][0] << " ";
           myFile << event.secondary_momenta[2][1] << " ";
           myFile << event.secondary_momenta[2][2] << " ";
           myFile << event.secondary_momenta[2][3] << " ";
 
-          myFile << event.secondary_spin[2][0] << " ";
-          myFile << event.secondary_spin[2][1] << " ";
-          myFile << event.secondary_spin[2][2] << " ";
+          myFile << event.secondary_helicity[2] << " ";
 
           myFile << event.decay_length << " ";
           myFile << event.prob_nopairprod << " ";
