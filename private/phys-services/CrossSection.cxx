@@ -115,7 +115,7 @@ namespace {
 
 bool InteractionSignature::operator==(InteractionSignature const & other) const {
     if(primary_type != other.primary_type or target_type != other.target_type) {
-        return true;
+        return false;
     } else {
         std::map<LeptonInjector::Particle::ParticleType, int> m0;
         for(auto p : secondary_types) {
