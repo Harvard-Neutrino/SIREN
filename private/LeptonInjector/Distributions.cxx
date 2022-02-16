@@ -131,7 +131,7 @@ ArbPDF::ArbPDF(double minE_, double maxE_, std::vector<double> params_, double (
 }
 
 double ArbPDF::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
-    //Nick TODO: implement Metropolis-Hastings algorithm to sample from PDF. 
+    // Metropolis-Hastings algorithm to sample from PDF. 
     // Pass in a function pointer for the PDF
     
     double E, testE, odds;

@@ -104,6 +104,25 @@ std::vector<std::string> gen_tot_xs_hc(std::string mHNL) {
     return res;
 }
 
+std::vector<double> p_LE_FHC_nue = {1.94e+00, 9.57e-01, 3.86e-01, 1.38e+01, 1.41e-01};
+std::vector<double> p_LE_FHC_numu = {2.06e+00, 6.52e-01, 3.36e-01, 7.50e+00, 1.19e-01};
+std::vector<double> p_LE_FHC_nuebar = {1.80e+00, 2.95e+00, 3.80e-01, 2.19e+01, 3.12e-01};
+std::vector<double> p_LE_FHC_numubar = {2.75e+00, 2.46e+00, 4.90e-01, 4.44e+00, 5.15e-02};
+
+std::vector<double> p_LE_RHC_nue = {2.25e+00, 4.38e+00, 5.82e-01, 2.33e+02, 1.00e+00};
+std::vector<double> p_LE_RHC_numu = {3.75e+00, 3.04e+00, 5.53e-01, 1.50e+02, 3.11e-14};
+std::vector<double> p_LE_RHC_nuebar = {1.89e+00, 9.06e-01, 3.95e-01, 8.79e+00, 1.02e-01};
+std::vector<double> p_LE_RHC_numubar = {1.95e+00, 6.09e-01, 3.49e-01, 5.74e+00, 8.92e-02};
+
+double moyal_exp(double E, std::vector<double> p) {
+    // Modified moyal + exponent
+    // params = {mu,sig,A,l,B}
+    double x = (E-p[0])/p[1];
+    double moyal = (p[2]/p[1])*std::exp(-(x+std::exp(-x))/2)/std::sqrt(2*Constants::pi);
+    double exp = (p[4]/p[3])*std::exp(-E/p[3]);
+    return moyal+exp;
+}
+
 TEST(Injector, Generation)
 {
     using ParticleType = LeptonInjector::Particle::ParticleType;
@@ -130,7 +149,7 @@ TEST(Injector, Generation)
 
 
     // Events to inject
-    unsigned int events_to_inject = 1e3;
+    unsigned int events_to_inject = 1e5;
     Particle::ParticleType primary_type = ParticleType::NuE;
 
     // Load cross sections
@@ -167,7 +186,12 @@ TEST(Injector, Generation)
     power_law->powerLawIndex = powerLawIndex;
     power_law->energyMin = energyMin;
     power_law->energyMax = energyMax;
-    std::shared_ptr<PrimaryEnergyDistribution> edist = power_law;
+    
+    // Setup NUMI flux
+    std::shared_ptr<LeptonInjector::ArbPDF> arb_pdf = std::make_shared<LeptonInjector::ArbPDF>(2*hnl_mass,20,p_LE_FHC_numu,moyal_exp);
+    
+    // Pick energy distribution 
+    std::shared_ptr<PrimaryEnergyDistribution> edist = arb_pdf;
 
     // Choose injection direction
     std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<LeptonInjector::FixedDirection>(earthmodel::Vector3D{0.0, 0.0, 1.0});
@@ -209,7 +233,7 @@ TEST(Injector, Generation)
     myFile << "sftgtX sftgtY sftgtZ ";
     myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
     myFile << "sgammaX sgammaY sgammaZ ";
-    myFile << "decay_length prob_nopairprod target\n";
+    myFile << "decay_length prob_nopairprod y target\n";
     int i = 0;
     while(*injector) {
         LeptonInjector::InteractionRecord event = injector->GenerateEvent();
@@ -274,6 +298,7 @@ TEST(Injector, Generation)
 
           myFile << event.decay_length << " ";
           myFile << event.prob_nopairprod << " ";
+          myFile << event.interaction_parameters[1] << " ";
           myFile << event.signature.target_type << "\n";
         }
         std::cout << ++i << std::endl;
