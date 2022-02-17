@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <algorithm>
 #include <functional>
 
@@ -383,7 +384,7 @@ double DISFromSpline::DifferentialCrossSection(InteractionRecord const & interac
     std::array<double, 4> p3 = interaction.secondary_momenta[lepton_index];
     std::array<double, 4> q = {p1[0] - p3[0], p1[1] - p3[1], p1[2] - p3[2], p1[3] - p3[3]};
     double Q2 = -dot(q, q);
-    double y = dot(p2, q) / dot(p2, p1);
+    double y = 1.0 - dot(p2, p3) / dot(p2, p1);
     double x = Q2 / (2.0 * dot(p2, q));
 
     double lepton_mass = particleMass(interaction.signature.secondary_types[lepton_index]);
@@ -787,25 +788,7 @@ double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & inter
     rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses[lepton_index]);
     rk::P4 p4(geom3::Vector3(mom4[1], mom4[2], mom4[3]), interaction.secondary_masses[other_index]);
 
-    std::function<double(double, double, double, double)> select_small_diff = [] (double a, double b, double c, double d) -> double {
-        if(std::min(abs(a), abs(b)) < std::min(abs(c), abs(d))) {
-            return a - b;
-        } else {
-            return c - d;
-        }
-    };
-
-    rk::P4 q(
-            geom3::Vector3(
-                select_small_diff(p1.px(), p3.px(), p4.px(), p2.px()),
-                select_small_diff(p1.py(), p3.py(), p4.py(), p2.py()),
-                select_small_diff(p1.pz(), p3.pz(), p4.pz(), p2.pz())
-                ),
-            select_small_diff(p1.m(), p3.m(), p4.m(), p2.m())
-            );
-
-    double Q2 = -q.squared();
-    double y = p2.dot(q) / p2.dot(p1);
+    double y = 1.0 - p2.dot(p3) / p2.dot(p1);
 
     return DifferentialCrossSection(primary_type, primary_energy, target_type, y);
 }
