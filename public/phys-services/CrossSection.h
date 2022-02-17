@@ -943,6 +943,7 @@ friend cereal::access;
 public:
     enum HelicityChannel {Conserving, Flipping};
 private:
+    bool z_samp = true;
     std::map<Particle::ParticleType, Interpolator2D<double>> differential;
     std::map<Particle::ParticleType, Interpolator1D<double>> total;
     const std::set<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau, Particle::ParticleType::NuEBar, Particle::ParticleType::NuMuBar, Particle::ParticleType::NuTauBar};
