@@ -871,6 +871,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     double log_yMax = log10(yMax);
     double log_yMin = log10(yMin);
     double min_Q2 = yMin * s;
+    double z; // placeholder for z sampling
 
     bool accept;
 
@@ -901,15 +902,17 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
 
         accept = true;
         //sanity check: demand that the sampled point be within the table extents
-        if(kin_vars[1] < diff_table.MinY()
-                || kin_vars[1] > diff_table.MaxY()) {
+        z = (kin_vars[1]-yMin)/(yMax-yMin);
+        if((!z_samp && (kin_vars[1] < diff_table.MinY() || kin_vars[1] > diff_table.MaxY()))
+            || (z_samp && (z < diff_table.MinY() || z > diff_table.MaxY()))){
             accept = false;
         }
     } while(!accept);
 
     // Bx * By * xs(E, x, y)
     // evalutates the differential spline at that point
-    cross_section = diff_table(kin_vars[0], kin_vars[1]);
+    if(z_samp) test_cross_section = diff_table(kin_vars[0], z);
+    else test_cross_section = diff_table(kin_vars[0], kin_vars[1]);
 
     // this is the magic part. Metropolis Hastings Algorithm.
     // MCMC method!
@@ -925,12 +928,17 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
 
         accept = true;
         //sanity check: demand that the sampled point be within the table extents
-        if(test_kin_vars[1] < diff_table.MinY() || test_kin_vars[1] > diff_table.MaxY())
+        z = (test_kin_vars[1]-yMin)/(yMax-yMin);
+        if((!z_samp && (test_kin_vars[1] < diff_table.MinY() || test_kin_vars[1] > diff_table.MaxY()))
+            || (z_samp && (z < diff_table.MinY() || z > diff_table.MaxY()))){
             accept = false;
+        }
         if(!accept)
             continue;
 
-        test_cross_section = diff_table(test_kin_vars[0], test_kin_vars[1]);
+        // Load the differential cross section depending on sampling variable
+        if(z_samp) test_cross_section = diff_table(test_kin_vars[0], z);
+        else test_cross_section = diff_table(test_kin_vars[0], test_kin_vars[1]);
         if(std::isnan(test_cross_section) or test_cross_section <= 0)
             continue;
 

@@ -17,16 +17,18 @@
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/Controller.h"
 
-#define AUSTIN
+//#define AUSTIN
 
 using namespace LeptonInjector;
+static bool z_samp = true;
 
 std::string diff_xs(int Z, int A, std::string mHNL) {
     std::stringstream ss;
 #ifdef AUSTIN
     ss << "/home/austin/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
 #else
-    ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
+    if(z_samp) ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/diff_xsec_z_Enu/";
+    else ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
 #endif
     ss << "dxsec_";
     ss << "Z_" << Z << "_";
@@ -233,7 +235,7 @@ TEST(Injector, Generation)
     */
 
     std::ofstream myFile("injector_test_events.csv");
-    myFile << std::fixed << std::setprecision(4);
+    myFile << std::fixed << std::setprecision(6);
     myFile << "intX intY intZ ";
     myFile << "decX decY decZ ";
     myFile << "ppX ppY ppZ ";
