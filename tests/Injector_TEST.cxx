@@ -247,7 +247,7 @@ TEST(Injector, Generation)
     myFile << "helftgt ";
     myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
     myFile << "helgamma ";
-    myFile << "decay_length prob_nopairprod y target\n";
+    myFile << "decay_length prob_nopairprod gen_prob y target\n";
     myFile << std::endl;
     int i = 0;
     while(*injector) {
@@ -256,7 +256,7 @@ TEST(Injector, Generation)
         injector->SampleSecondaryDecay(event, decay, HNL_decay_width);
         LeptonInjector::InteractionRecord pair_prod;
         injector->SamplePairProduction(decay, pair_prod);
-        injector->GenerationProbability(event);
+        double gen_prob = injector->GenerationProbability(event);
         if(event.secondary_momenta.size() > 0) {
             myFile << event.interaction_vertex[0] << " ";
             myFile << event.interaction_vertex[1] << " ";
@@ -307,6 +307,7 @@ TEST(Injector, Generation)
 
             myFile << decay.decay_parameters[0] << " "; // decay length
             myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
+            myFile << gen_prob << " "; // Generation probability density
             myFile << event.interaction_parameters[1] << " "; // sampled y
             myFile << event.signature.target_type << "\n"; // target type
             myFile << "\n";
