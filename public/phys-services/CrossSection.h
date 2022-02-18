@@ -159,7 +159,7 @@ public:
     CrossSectionCollection(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
     std::vector<std::shared_ptr<CrossSection>> GetCrossSections() const {return cross_sections;};
     std::vector<std::shared_ptr<CrossSection>> GetCrossSectionsForTarget(Particle::ParticleType p) const;
-    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> GetCrossSectionsByTarget() const {
+    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & GetCrossSectionsByTarget() const {
         return cross_sections_by_target;
     };
     std::set<Particle::ParticleType> const & TargetTypes() const {
