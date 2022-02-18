@@ -132,6 +132,7 @@ public:
     virtual double TotalCrossSection(InteractionRecord const &) const = 0;
     virtual double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const = 0;
     virtual double DifferentialCrossSection(InteractionRecord const &) const = 0;
+    virtual double InteractionThreshold(InteractionRecord const &) const = 0;
     virtual void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random>) const = 0;
 
     virtual std::vector<Particle::ParticleType> GetPossibleTargets() const = 0;
@@ -221,6 +222,7 @@ public:
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const;
     double DifferentialCrossSection(InteractionRecord const &) const;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass) const;
+    double InteractionThreshold(InteractionRecord const &) const;
     void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random> random) const;
 
     std::vector<Particle::ParticleType> GetPossibleTargets() const;
@@ -959,6 +961,7 @@ public:
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const;
     double DifferentialCrossSection(InteractionRecord const &) const;
     double DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type, double y) const;
+    double InteractionThreshold(InteractionRecord const &) const;
     void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random>) const;
 
     std::vector<Particle::ParticleType> GetPossibleTargets() const;

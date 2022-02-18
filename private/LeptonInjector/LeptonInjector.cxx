@@ -84,9 +84,13 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
             std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections.GetCrossSectionsForTarget(target);
             for(auto const & cross_section : target_cross_sections) {
                 // Loop over cross section signatures with the same target
-                std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignatures();
+                std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type,target);
                 for(auto const & signature : signatures) {
                     record.signature = signature;
+                    record.target_mass = earth_model->GetTargetMass(target);
+                    record.target_momentum = {record.target_mass,0,0,0};
+                    // Check if below threshold
+                    if(record.primary_momentum[0] <= 1.01*cross_section->InteractionThreshold(record)) continue;
                     // Add total cross section times density to the total prob
                     total_prob += target_density * cross_section->TotalCrossSection(record);
                     // Add total prob to probs
@@ -104,6 +108,8 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     // Choose the target and cross section
     unsigned int index = 0;
     for(; (index < probs.size()-1) and (r > probs[index]); ++index) {}
+    for(int j = 0; j < probs.size(); ++j) std::cout << j << " " << matching_targets[j] << " " << probs[j] << std::endl;
+    std::cout << index << " " << matching_targets[index] << " " << probs[index] << std::endl;
     record.signature.target_type = matching_targets[index];
     record.signature = matching_signatures[index];
     record.target_mass = earth_model->GetTargetMass(record.signature.target_type);
