@@ -432,6 +432,10 @@ double DISFromSpline::DifferentialCrossSection(double energy, double x, double y
     return result;
 }
 
+double DISFromSpline::InteractionThreshold(InteractionRecord const & interaction) const {
+    // Consider implementing DIS thershold at some point
+    return 0;
+}
 
 void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interaction, std::shared_ptr<LeptonInjector::LI_random> random) const {
     // Uses Metropolis-Hastings Algorithm!
@@ -823,6 +827,10 @@ double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_
     }
 
     return interp(primary_energy, y);
+}
+
+double DipoleFromTable::InteractionThreshold(InteractionRecord const & interaction) const {
+    return hnl_mass + (hnl_mass*hnl_mass)/(2*interaction.target_mass);
 }
 
 void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& interaction, std::shared_ptr<LeptonInjector::LI_random> random) const {

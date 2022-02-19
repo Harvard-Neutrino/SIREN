@@ -194,7 +194,8 @@ TEST(Injector, Generation)
     earth_model->LoadEarthModel(earth_file);
 
     // Setup the primary type and mass
-    std::shared_ptr<LeptonInjector::PrimaryInjector> primary_injector = std::make_shared<LeptonInjector::PrimaryInjector>(primary_type, hnl_mass);
+    //std::shared_ptr<LeptonInjector::PrimaryInjector> primary_injector = std::make_shared<LeptonInjector::PrimaryInjector>(primary_type, hnl_mass);
+    std::shared_ptr<LeptonInjector::PrimaryInjector> primary_injector = std::make_shared<LeptonInjector::PrimaryInjector>(primary_type, 0);
 
     // Setup power law
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
@@ -204,7 +205,7 @@ TEST(Injector, Generation)
     power_law->energyMax = energyMax;
 
     // Setup NUMI flux
-    std::shared_ptr<LeptonInjector::ArbPDF> arb_pdf = std::make_shared<LeptonInjector::ArbPDF>(2*hnl_mass,20,p_LE_FHC_numu,moyal_exp);
+    std::shared_ptr<LeptonInjector::ArbPDF> arb_pdf = std::make_shared<LeptonInjector::ArbPDF>(1.1*hnl_mass,20,p_LE_FHC_numu,moyal_exp);
 
     // Pick energy distribution
     std::shared_ptr<PrimaryEnergyDistribution> edist = arb_pdf;
