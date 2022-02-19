@@ -377,6 +377,21 @@ std::shared_ptr<InjectionDistribution> CylinderVolumePositionDistribution::clone
     return std::shared_ptr<InjectionDistribution>(new CylinderVolumePositionDistribution(*this));
 }
 
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & interaction) const {
+    earthmodel::Vector3D dir(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]);
+    dir.normalize();
+    earthmodel::Vector3D pos(interaction.interaction_vertex);
+    std::vector<earthmodel::Geometry::Intersection> intersections = cylinder.Intersections(pos, dir);
+    earthmodel::EarthModel::SortIntersections(intersections);
+    if(intersections.size() == 0) {
+        return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(earthmodel::Vector3D(0, 0, 0), earthmodel::Vector3D(0, 0, 0));
+    } else if(intersections.size() >= 2) {
+        return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(intersections.front().position, intersections.back().position);
+    } else {
+        throw std::runtime_error("Only found one cylinder intersection!");
+    }
+}
+
 //---------------
 // class DepthFunction
 //---------------
@@ -509,6 +524,26 @@ std::shared_ptr<InjectionDistribution> ColumnDepthPositionDistribution::clone() 
     return std::shared_ptr<InjectionDistribution>(new ColumnDepthPositionDistribution(*this));
 }
 
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    earthmodel::Vector3D vertex(record.interaction_vertex); // m
+    earthmodel::Vector3D pca = vertex - dir * earthmodel::scalar_product(dir, vertex);
+
+    if(pca.magnitude() >= radius)
+        return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(earthmodel::Vector3D(0, 0, 0), earthmodel::Vector3D(0, 0, 0));
+
+    double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
+
+    earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
+    earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
+
+    earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByColumnDepth(lepton_depth, target_types);
+    path.ClipToOuterBounds();
+    return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+}
+
 //---------------
 // class RangePositionDistribution : public VertexPositionDistribution {
 //---------------
@@ -581,6 +616,29 @@ std::string RangePositionDistribution::Name() const {
 
 std::shared_ptr<InjectionDistribution> RangePositionDistribution::clone() const {
     return std::shared_ptr<InjectionDistribution>(new RangePositionDistribution(*this));
+}
+
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> RangePositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    earthmodel::Vector3D vertex(record.interaction_vertex); // m
+    earthmodel::Vector3D pca = vertex - dir * earthmodel::scalar_product(dir, vertex);
+
+    if(pca.magnitude() >= radius)
+        return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(earthmodel::Vector3D(0, 0, 0), earthmodel::Vector3D(0, 0, 0));
+
+    double lepton_range = range_function->operator()(record.signature, record.primary_momentum[0]);
+
+    earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
+    earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
+
+    earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByDistance(lepton_range);
+    path.ClipToOuterBounds();
+
+    if(not path.IsWithinBounds(vertex))
+        return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(earthmodel::Vector3D(0, 0, 0), earthmodel::Vector3D(0, 0, 0));
+    return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 //---------------
@@ -656,6 +714,30 @@ std::string DecayRangePositionDistribution::Name() const {
 
 std::shared_ptr<InjectionDistribution> DecayRangePositionDistribution::clone() const {
     return std::shared_ptr<InjectionDistribution>(new DecayRangePositionDistribution(*this));
+}
+
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    earthmodel::Vector3D vertex(record.interaction_vertex); // m
+    earthmodel::Vector3D pca = vertex - dir * earthmodel::scalar_product(dir, vertex);
+
+    if(pca.magnitude() >= radius)
+        return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(earthmodel::Vector3D(0, 0, 0), earthmodel::Vector3D(0, 0, 0));
+
+    double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
+
+    earthmodel::Vector3D endcap_0 = pca - endcap_length * dir;
+    earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
+
+    earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
+    path.ClipToOuterBounds();
+
+    if(not path.IsWithinBounds(vertex))
+        return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(earthmodel::Vector3D(0, 0, 0), earthmodel::Vector3D(0, 0, 0));
+
+    return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 //---------------

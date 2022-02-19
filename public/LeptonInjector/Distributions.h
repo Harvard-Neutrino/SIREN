@@ -296,6 +296,7 @@ public:
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
+    virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & interaction) const = 0;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -324,6 +325,7 @@ public:
     CylinderVolumePositionDistribution(earthmodel::Cylinder);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
+    virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & interaction) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -443,6 +445,7 @@ public:
     ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<Particle::ParticleType> target_types);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
+    virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & interaction) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -490,6 +493,7 @@ public:
     RangePositionDistribution(const RangePositionDistribution &) = default;
     RangePositionDistribution(double radius, double endcap_length, std::shared_ptr<RangeFunction> range_function, std::set<Particle::ParticleType> target_types);
     std::string Name() const override;
+    virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -538,6 +542,7 @@ public:
     DecayRangePositionDistribution(const DecayRangePositionDistribution &) = default;
     DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::set<Particle::ParticleType> target_types);
     std::string Name() const override;
+    virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
