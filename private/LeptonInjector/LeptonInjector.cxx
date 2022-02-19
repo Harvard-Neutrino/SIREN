@@ -287,6 +287,7 @@ double InjectorBase::GenerationProbability(InteractionRecord const & record) con
         probability *= dist->GenerationProbability(earth_model, cross_sections, record);
     }
     probability *= CrossSectionProbability(record);
+    probability *= events_to_inject;
     return probability;
 }
 
@@ -312,6 +313,18 @@ std::set<std::vector<std::string>> InjectorBase::DensityVariables() const {
 
 std::string InjectorBase::Name() const {
     return("InjectorBase");
+}
+
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectorBase::InjectionBounds(InteractionRecord const & interaction) const {
+    return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(earthmodel::Vector3D(0, 0, 0), earthmodel::Vector3D(0, 0, 0));
+}
+
+unsigned int LeptonInjector::InjectedEvents() const {
+    return injected_events;
+}
+
+unsigned int LeptonInjector::EventsToInject() const {
+    return events_to_inject;
 }
 
 InjectorBase::operator bool() const {
@@ -376,6 +389,10 @@ std::string RangedLeptonInjector::Name() const {
     return("RangedInjector");
 }
 
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> RangedLeptonInjector::InjectionBounds(InteractionRecord const & interaction) const {
+    return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
+}
+
 //---------------
 // class DecayRangeLeptonInjector : InjectorBase
 //---------------
@@ -434,6 +451,10 @@ std::string DecayRangeLeptonInjector::Name() const {
     return("DecayRangeInjector");
 }
 
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> DecayRangeLeptonInjector::InjectionBounds(InteractionRecord const & interaction) const {
+    return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
+}
+
 //---------------
 // class VolumeLeptonInjector : InjectorBase
 //---------------
@@ -483,6 +504,10 @@ InteractionRecord VolumeLeptonInjector::GenerateEvent() {
 
 std::string VolumeLeptonInjector::Name() const {
     return("VolumeInjector");
+}
+
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> VolumeLeptonInjector::InjectionBounds(InteractionRecord const & interaction) const {
+    return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
 }
 
 } // namespace LeptonInjector

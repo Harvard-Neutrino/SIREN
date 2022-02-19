@@ -61,6 +61,9 @@ public:
     virtual std::string Name() const;
     virtual double GenerationProbability(InteractionRecord const & record) const;
     virtual std::set<std::vector<std::string>> DensityVariables() const;
+    virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(InteractionRecord const & interaction) const;
+    unsigned int InjectedEvents() const;
+    unsigned int EventsToInject() const;
     operator bool() const;
 
     template<typename Archive>
@@ -117,6 +120,7 @@ class RangedLeptonInjector : public InjectorBase {
         RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<RangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override;
+        virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(InteractionRecord const & interaction) const override;
 };
 
 class DecayRangeLeptonInjector : public InjectorBase {
@@ -133,6 +137,7 @@ class DecayRangeLeptonInjector : public InjectorBase {
         DecayRangeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<DecayRangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override;
+        virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(InteractionRecord const & interaction) const override;
 };
 
 class VolumeLeptonInjector : public InjectorBase {
@@ -146,6 +151,7 @@ class VolumeLeptonInjector : public InjectorBase {
         VolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, earthmodel::Cylinder cylinder, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
         virtual InteractionRecord GenerateEvent() override;
         std::string Name() const override;
+        virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(InteractionRecord const & interaction) const override;
 };
 
 } //namespace LeptonInjector
