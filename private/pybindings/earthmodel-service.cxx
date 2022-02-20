@@ -118,14 +118,14 @@ BOOST_PYTHON_MODULE(EarthModelService){
         .def_readwrite("density", &EarthSector::density)
 		;
 
-    double (EarthModel::*GetDensity_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0, bool use_electron_density) const = &EarthModel::GetDensity;
-    double (EarthModel::*GetDensity)(Vector3D const & p0, bool use_electron_density) const = &EarthModel::GetDensity;
+    double (EarthModel::*GetDensity_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0) const = &EarthModel::GetDensity;
+    double (EarthModel::*GetDensity)(Vector3D const & p0) const = &EarthModel::GetDensity;
 
-    double (EarthModel::*GetColumnDepthInCGS_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1, bool use_electron_density) const = &EarthModel::GetColumnDepthInCGS;
-    double (EarthModel::*GetColumnDepthInCGS)(Vector3D const & p0, Vector3D const & p1, bool use_electron_density) const = &EarthModel::GetColumnDepthInCGS;
+    double (EarthModel::*GetColumnDepthInCGS_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1) const = &EarthModel::GetColumnDepthInCGS;
+    double (EarthModel::*GetColumnDepthInCGS)(Vector3D const & p0, Vector3D const & p1) const = &EarthModel::GetColumnDepthInCGS;
 
-    double (EarthModel::*DistanceForColumnDepthToPoint_cached)(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density) const = &EarthModel::DistanceForColumnDepthToPoint;
-    double (EarthModel::*DistanceForColumnDepthToPoint)(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density) const = &EarthModel::DistanceForColumnDepthToPoint;
+    double (EarthModel::*DistanceForColumnDepthToPoint_cached)(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth) const = &EarthModel::DistanceForColumnDepthToPoint;
+    double (EarthModel::*DistanceForColumnDepthToPoint)(Vector3D const & end_point, Vector3D const & direction, double column_depth) const = &EarthModel::DistanceForColumnDepthToPoint;
 
 
 	class_<EarthModel>("EarthModel", init<>())

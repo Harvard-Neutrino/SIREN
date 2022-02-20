@@ -78,14 +78,14 @@ public:
     void LoadEarthModel(std::string const & earth_model);
     void LoadMaterialModel(std::string const & material_model);
 
-    double GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, bool use_electron_density=false) const;
-    double GetDensity(Vector3D const & p0, bool use_electron_density=false) const;
-    double GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1, bool use_electron_density=false) const;
-    double GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1, bool use_electron_density=false) const;
-    double DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
-    double DistanceForColumnDepthFromPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
-    double DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
-    double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, bool use_electron_density=false) const;
+    double GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0) const;
+    double GetDensity(Vector3D const & p0) const;
+    double GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1) const;
+    double GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const;
+    double DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth) const;
+    double DistanceForColumnDepthFromPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth) const;
+    double DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth) const;
+    double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth) const;
 
     // Density/CD calculations with general target list, not just nucleon/electron
     double GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, std::set<LeptonInjector::Particle::ParticleType> targets) const;
@@ -96,6 +96,8 @@ public:
     double DistanceForColumnDepthFromPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const;
     double DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const;
     double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const;
+
+    std::vector<double> GetTargetCounts(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1,  std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
 
     EarthSector GetContainingSector(Geometry::IntersectionList const & intersections, Vector3D const & p0) const;
     EarthSector GetContainingSector(Vector3D const & p0) const;
@@ -130,14 +132,13 @@ public:
     Geometry::IntersectionList GetOuterBounds(Vector3D const & p0, Vector3D const & direction);
     std::set<LeptonInjector::Particle::ParticleType> GetAvailableTargets(std::array<double,3> const & vertex);
 
-    // Added by Nick
-    double GetTargetMass(int code);
-
 private:
     void LoadDefaultMaterials();
     void LoadDefaultSectors();
 public:
     void LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_angle=-1);
+
+    double GetTargetMass(LeptonInjector::Particle::ParticleType target) const;
 };
 
 }; // namespace earthmodel
