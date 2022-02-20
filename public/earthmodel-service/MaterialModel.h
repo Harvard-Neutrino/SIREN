@@ -24,35 +24,71 @@ namespace earthmodel {
 
 class MaterialModel {
     static constexpr const int CHAR_BUF_SIZE = 8196;
-    static constexpr const double NA = 6.02e23;
-    static const std::map<int, double> molar_mass_table;
+    static constexpr const double electron_molar_mass = 5.4857990888e-5; // g per mol
+    static const std::map<std::tuple<int, int, int>, double> atomic_masses;
+public:
+    struct Component {
+        LeptonInjector::Particle::ParticleType type = LeptonInjector::Particle::ParticleType::unknown;
+        int neutron_count = 0;
+        int nucleon_count = 0;
+        int proton_count = 0;
+        double molar_mass = 0;
+        bool is_atom = true;
+        Component() {}
+        Component(LeptonInjector::Particle::ParticleType type);
+        template<class Archive>
+        void serialize(Archive & archive, std::uint32_t const version) {
+            if(version == 0) {
+                archive(cereal::make_nvp("ParticleType", type));
+                archive(cereal::make_nvp("NeutronCount", neutron_count));
+                archive(cereal::make_nvp("NucleonCount", nucleon_count));
+                archive(cereal::make_nvp("ProtonCount", proton_count));
+                archive(cereal::make_nvp("MolarMass", molar_mass));
+                archive(cereal::make_nvp("IsAtom", is_atom));
+            } else {
+                throw std::runtime_error("Component only supports version <= 0!");
+            }
+        }
+    };
+    struct MaterialComponent {
+        MaterialComponent() {}
+        Component component;
+        // Represents fraction of material mass that this consists of this component
+        double mass_density_over_total_mass_density; // (g * cm^-3) / (g * cm^-3) --> dimensionless
+        // Represents number of component particles per gram of material
+        double particle_density_over_total_mass_density; // (#particles * cm^-3) / (g * cm^-3) --> (#particles * g^-1)
+        template<class Archive>
+        void serialize(Archive & archive, std::uint32_t const version) {
+            if(version == 0) {
+                archive(cereal::make_nvp("Component", component));
+                archive(cereal::make_nvp("MassFraction", mass_density_over_total_mass_density));
+                archive(cereal::make_nvp("ParticleFraction", particle_density_over_total_mass_density));
+            } else {
+                throw std::runtime_error("MaterialComponent only supports version <= 0!");
+            }
+        }
+    };
 private:
     std::string path_;
     std::vector<std::string> model_files_;
-
     std::vector<std::string> material_names_;
     std::map<std::string, int> material_ids_;
-    std::map<int, std::map<int, double> > material_mass_frac_;
-    std::map<int, std::map<int, double> > material_atom_frac_;
-    std::map<int, std::map<int, double> > material_molar_mass_;
-    std::map<int, std::map<int, int> > material_num_protons_;
-    std::map<int, std::map<int, int> > material_num_neutrons_;
-    std::map<int, std::map<int, int> > material_num_nucleons_;
-    std::map<int, double > material_rad_length_;
-    std::map<int, std::set<LeptonInjector::Particle::ParticleType> > material_constituents_;
-    std::map<int, double> pne_ratios_;
 
-
+    std::vector<std::vector<MaterialComponent>> material_components_;
+    std::map<std::pair<int, LeptonInjector::Particle::ParticleType>, MaterialComponent> material_components_by_id_;
+    std::vector<double> material_radiation_length_;
+    std::map<std::pair<int, LeptonInjector::Particle::ParticleType>, double> component_radiation_length_;
 public:
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::make_nvp("Path", path_));
+            archive(cereal::make_nvp("ModelFiles", model_files_));
             archive(cereal::make_nvp("MaterialNames", material_names_));
             archive(cereal::make_nvp("MaterialIDs", material_ids_));
-            archive(cereal::make_nvp("MaterialMaps", material_mass_frac_));
-            archive(cereal::make_nvp("MaterialConstituents", material_constituents_));
-            archive(cereal::make_nvp("PNERatios", pne_ratios_));
+            archive(cereal::make_nvp("MaterialComponents", material_components_));
+            archive(cereal::make_nvp("MaterialRadiationLength", material_radiation_length_));
+            archive(cereal::make_nvp("ComponentRadiationLength", component_radiation_length_));
         } else {
             throw std::runtime_error("MaterialModel only supports version <= 0!");
         }
@@ -64,45 +100,49 @@ public:
     MaterialModel(std::string const & path, std::vector<std::string> const & files);
 
     void SetPath(std::string const & path);
-    void AddMaterial(std::string const & name, std::map<int, double> matratios);
-    //void AddMaterial(std::string const & name, double pne_ratio);
+    void AddMaterial(std::string const & name, std::map<int, double> const & matratios);
     void AddModelFiles(std::vector<std::string> const & matratios);
     void AddModelFile(std::string matratio);
 
-    double GetPNERatio(int id) const;
-    std::string GetMaterialName(int id) const;
-    int GetMaterialId(std::string const & name) const;
-    bool HasMaterial(std::string const & name) const;
-    bool HasMaterial(int) const;
-    std::set<LeptonInjector::Particle::ParticleType> GetMaterialConstituents(int id) const;
-    std::map<int, double> GetMaterialMassFracs(int id) const;
-    std::map<int, double> GetMaterialAtomFracs(int id) const;
-    std::map<int, int> GetMaterialNumNucleons(int id) const;
-    std::map<int, int> GetMaterialNumProtons(int id) const;
-    std::map<int, int> GetMaterialNumNeutrons(int id) const;
-    double GetMaterialRadLength(int id) const;
-    
-    double GetTargetListMassFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListAtomFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListNucleonFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListProtonFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListNeutronFrac(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
-    
-    double GetTargetListAtomsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListNucleonsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListProtonsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
-    double GetTargetListNeutronsToMass(int id, std::set<LeptonInjector::Particle::ParticleType> const & targets) const;
+    std::vector<LeptonInjector::Particle::ParticleType> GetMaterialTargets(int material_id) const;
+    double GetMaterialRadiationLength(int material_id) const;
+    std::string GetMaterialName(int material_id) const;
+    int GetMaterialId(std::string const & material_name) const;
+    bool HasMaterial(std::string const & material_name) const;
+    bool HasMaterial(int material_id) const;
+
+    double GetTargetMassFraction(int material_id, LeptonInjector::Particle::ParticleType) const;
+    double GetTargetParticleFraction(int material_id, LeptonInjector::Particle::ParticleType) const;
+    std::vector<double> GetTargetMassFraction(int material_id, std::vector<LeptonInjector::Particle::ParticleType> const &) const;
+    std::vector<double> GetTargetParticleFraction(int material_id, std::vector<LeptonInjector::Particle::ParticleType> const &) const;
+
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetTargetMassFraction(int material_id, Iterator begin, Iterator end) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetTargetParticleFraction(int material_id, Iterator begin, Iterator end) const;
+
+    std::vector<double> GetTargetRadiationFraction(int material_id, std::vector<LeptonInjector::Particle::ParticleType> const &) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetTargetRadiationFraction(int material_id, Iterator begin, Iterator end) const;
+
+    std::vector<LeptonInjector::Particle::ParticleType> GetMaterialConstituents(int material_id) const;
 private:
-    double ComputePNERatio(std::map<int, double> const & matratios) const;
-    double ComputeRadLength(int id);
-    std::map<int, double> GetMolarMasses(std::map<int, int> const & pnums) const;
+    double ComputeMaterialRadiationLength(int id) const;
 public:
-    static void GetNucleonContent(int code, int & np, int & nn);
+    static void GetNucleonContent(int code, int & num_neutrons, int & num_protons, int & num_nucleons);
+    static double GetMolarMass(LeptonInjector::Particle::ParticleType particle);
+    static int GetNucleonCount(LeptonInjector::Particle::ParticleType particle);
+    static int GetNeutronCount(LeptonInjector::Particle::ParticleType particle);
+    static int GetProtonCount(LeptonInjector::Particle::ParticleType particle);
 };
 
 } // namespace earthmodel
 
 CEREAL_CLASS_VERSION(earthmodel::MaterialModel, 0);
+CEREAL_CLASS_VERSION(earthmodel::MaterialModel::Component, 0);
+CEREAL_CLASS_VERSION(earthmodel::MaterialModel::MaterialComponent, 0);
+
+#include "earthmodel-service/MaterialModel.tcc"
 
 # endif // LI_MaterialModel_H
 
