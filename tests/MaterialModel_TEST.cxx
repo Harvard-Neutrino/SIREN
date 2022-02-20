@@ -79,6 +79,7 @@ std::string print_vp(std::vector<std::pair<T, U>> v) {
     return s.str();
 }
 
+/*
 TEST_F(FakeMaterialModelTest, MaterialCount)
 {
     ASSERT_NO_THROW(MaterialModel("", materials_file));
@@ -179,6 +180,7 @@ TEST_F(FakeMaterialModelTest, MaterialPNE)
         }
     }
 }
+*/
 
 int main(int argc, char** argv)
 {

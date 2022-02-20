@@ -9,11 +9,12 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/EarthModel.h"
 #include "earthmodel-service/Geometry.h"
+#include "earthmodel-service/EarthModel.h"
+#include "LeptonInjector/Constants.h"
 
-#include "FakeMaterialModel.h"
 #include "FakeEarthModel.h"
+#include "FakeMaterialModel.h"
 
 using namespace earthmodel;
 
@@ -39,14 +40,33 @@ TEST(DefaultMaterials, VacuumOnly)
 
     int id = materials.GetMaterialId(name);
 
-    ASSERT_EQ(0, id);
-    EXPECT_DOUBLE_EQ(7.0/8.0, materials.GetPNERatio(id));
+    double material_nucleons_per_gram = materials.GetTargetParticleFraction(id, LeptonInjector::Particle::ParticleType::Nucleon);
+    double material_neutrons_per_gram = materials.GetTargetParticleFraction(id, LeptonInjector::Particle::ParticleType::Neutron);
+    double material_protons_per_gram = materials.GetTargetParticleFraction(id, LeptonInjector::Particle::ParticleType::PPlus);
+    double material_electrons_per_gram = materials.GetTargetParticleFraction(id, LeptonInjector::Particle::ParticleType::EMinus);
 
-    int component_id = 1000070080;
-    std::map<int, double> material_map = materials.GetMaterialMassFracs(id);
-    ASSERT_EQ(1, material_map.size());
-    ASSERT_EQ(1, material_map.count(component_id));
-    EXPECT_DOUBLE_EQ(1.0, material_map[component_id]);
+    const double nucleons_per_amu = 0.9943511899082073921408545013734389386622278134067745520545013436;
+    const double nucleons_per_gram = nucleons_per_amu * LeptonInjector::Constants::avogadro;
+
+    const double protons_per_amu = 0.8464425697382936033875383253155218234388231142436674312768944729;
+    const double protons_per_gram = protons_per_amu * LeptonInjector::Constants::avogadro;
+
+    const double neutrons_per_amu = 0.2958172403398275775066323521158342304468093983262142415552137415;
+    const double neutrons_per_gram = neutrons_per_amu * LeptonInjector::Constants::avogadro;
+
+    const double electrons_per_gram = protons_per_gram;
+
+    ASSERT_EQ(0, id);
+    EXPECT_DOUBLE_EQ(material_nucleons_per_gram, nucleons_per_gram);
+    EXPECT_DOUBLE_EQ(material_neutrons_per_gram, neutrons_per_gram);
+    EXPECT_DOUBLE_EQ(material_protons_per_gram, protons_per_gram);
+    EXPECT_DOUBLE_EQ(material_electrons_per_gram, electrons_per_gram);
+
+    // int component_id = 1000070080;
+    // std::map<int, double> material_map = materials.GetMaterialMassFracs(id);
+    // ASSERT_EQ(1, material_map.size());
+    // ASSERT_EQ(1, material_map.count(component_id));
+    // EXPECT_DOUBLE_EQ(1.0, material_map[component_id]);
 }
 
 /*
