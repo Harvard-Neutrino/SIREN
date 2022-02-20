@@ -17,7 +17,7 @@
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/Controller.h"
 
-//#define AUSTIN
+#define AUSTIN
 
 using namespace LeptonInjector;
 static bool z_samp = true;
@@ -204,11 +204,13 @@ TEST(Injector, Generation)
     power_law->energyMin = energyMin;
     power_law->energyMax = energyMax;
 
+    std::vector<double> moyal_exp_params = p_LE_FHC_numu;
+
     // Setup NUMI flux
-    std::shared_ptr<LeptonInjector::ArbPDF> arb_pdf = std::make_shared<LeptonInjector::ArbPDF>(1.1*hnl_mass,20,p_LE_FHC_numu,moyal_exp);
+    std::shared_ptr<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution> pdf = std::make_shared<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution>(1.1*hnl_mass, 20, moyal_exp_params[0], moyal_exp_params[1], moyal_exp_params[2], moyal_exp_params[3], moyal_exp_params[4]);
 
     // Pick energy distribution
-    std::shared_ptr<PrimaryEnergyDistribution> edist = arb_pdf;
+    std::shared_ptr<PrimaryEnergyDistribution> edist = pdf;
 
     // Choose injection direction
     std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<LeptonInjector::FixedDirection>(earthmodel::Vector3D{0.0, 0.0, 1.0});
