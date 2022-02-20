@@ -1,6 +1,7 @@
 #ifndef LI_Distributions_H
 #define LI_Distributions_H
 
+#include <cereal/access.hpp>
 #include <cereal/types/array.hpp>
 #include <cereal/types/set.hpp>
 #include <cereal/types/map.hpp>
@@ -26,6 +27,7 @@
 namespace LeptonInjector {
 
 class WeightableDistribution {
+friend cereal::access;
 public:
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const;
@@ -41,6 +43,7 @@ public:
 };
 
 class InjectionDistribution : public WeightableDistribution {
+friend cereal::access;
 private:
 public:
     virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const;
@@ -57,6 +60,9 @@ public:
 };
 
 class PrimaryInjector : public InjectionDistribution {
+friend cereal::access;
+protected:
+    PrimaryInjector() {};
 private:
     LeptonInjector::Particle::ParticleType primary_type;
     double primary_mass;
@@ -70,9 +76,24 @@ public:
     virtual std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
+            archive(::cereal::make_nvp("PrimaryType", primary_type));
+            archive(::cereal::make_nvp("PrimaryMass", primary_mass));
             archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("PrimaryInjector only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<PrimaryInjector> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            LeptonInjector::Particle::ParticleType t;
+            double m;
+            archive(::cereal::make_nvp("PrimaryType", t));
+            archive(::cereal::make_nvp("PrimaryMass", m));
+            construct(t, m);
+            archive(cereal::virtual_base_class<InjectionDistribution>(construct.ptr()));
         } else {
             throw std::runtime_error("PrimaryInjector only supports version <= 0!");
         }
@@ -80,6 +101,7 @@ public:
 };
 
 class TargetMomentumDistribution : public InjectionDistribution {
+friend cereal::access;
 private:
     virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
 public:
@@ -98,6 +120,7 @@ public:
 };
 
 class TargetAtRest : public TargetMomentumDistribution {
+friend cereal::access;
 private:
     virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const;
 public:
@@ -117,6 +140,7 @@ public:
 };
 
 class PrimaryEnergyDistribution : public InjectionDistribution {
+friend cereal::access;
 private:
     virtual double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
 public:
@@ -136,16 +160,21 @@ public:
 };
 
 class PowerLaw : public PrimaryEnergyDistribution {
-public:
+friend cereal::access;
+protected:
+    PowerLaw() {};
+private:
     double powerLawIndex;
     double energyMin;
     double energyMax;
+public:
+    PowerLaw(double powerLawIndex, double energyMin, double energyMax);
     double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(::cereal::make_nvp("PowerLawIndex", powerLawIndex));
             archive(::cereal::make_nvp("EnergyMin", energyMin));
@@ -155,33 +184,81 @@ public:
             throw std::runtime_error("PowerLaw only supports version <= 0!");
         }
     }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<PowerLaw> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            double gamma, min, max;
+            archive(::cereal::make_nvp("PowerLawIndex", gamma));
+            archive(::cereal::make_nvp("EnergyMin", min));
+            archive(::cereal::make_nvp("EnergyMax", max));
+            construct(gamma, min, max);
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(construct.ptr()));
+        } else {
+            throw std::runtime_error("PowerLaw only supports version <= 0!");
+        }
+    }
 };
 
-class ArbPDF : public PrimaryEnergyDistribution {
+class ModifiedMoyalPlusExponentialEnergyDistribution : public PrimaryEnergyDistribution {
+friend cereal::access;
+protected:
+    ModifiedMoyalPlusExponentialEnergyDistribution() {};
 private:
-    double (*PDF)(double, std::vector<double>);
-    double minE;
-    double maxE;
-    std::vector<double> params;
+    double energyMin;
+    double energyMax;
+    double mu;
+    double sigma;
+    double A;
+    double l;
+    double B;
     double integral;
     const size_t burnin = 40;
+    double unnormed_pdf(double energy) const ;
+    double pdf(double energy) const;
 public:
     double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
-    ArbPDF(double, double, std::vector<double>, double (*PDF)(double, std::vector<double>));
+    ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
+            archive(::cereal::make_nvp("EnergyMin", energyMin));
+            archive(::cereal::make_nvp("EnergyMax", energyMax));
+            archive(::cereal::make_nvp("ParameterMu", mu));
+            archive(::cereal::make_nvp("ParameterSigma", sigma));
+            archive(::cereal::make_nvp("ParameterA", A));
+            archive(::cereal::make_nvp("ParameterL", l));
+            archive(::cereal::make_nvp("ParameteB", B));
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
         } else {
-            throw std::runtime_error("ArbPDF only supports version <= 0!");
+            throw std::runtime_error("ModifiedMoyalPlusExponentialEnergyDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<ModifiedMoyalPlusExponentialEnergyDistribution> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            double min, max, mu, s, a, l, b;
+            archive(::cereal::make_nvp("EnergyMin", min));
+            archive(::cereal::make_nvp("EnergyMax", max));
+            archive(::cereal::make_nvp("ParameterMu", mu));
+            archive(::cereal::make_nvp("ParameterSigma", s));
+            archive(::cereal::make_nvp("ParameterA", a));
+            archive(::cereal::make_nvp("ParameterL", l));
+            archive(::cereal::make_nvp("ParameteB", b));
+            construct(min, max, mu, s, a, l, b);
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(construct.ptr()));
+        } else {
+            throw std::runtime_error("ModifiedMoyalPlusExponentialEnergyDistribution only supports version <= 0!");
         }
     }
 };
 
 class PrimaryDirectionDistribution : public InjectionDistribution {
+friend cereal::access;
+protected:
+    PrimaryDirectionDistribution() {};
 private:
     virtual earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
 public:
@@ -200,6 +277,7 @@ public:
 };
 
 class IsotropicDirection : public PrimaryDirectionDistribution {
+friend cereal::access;
 private:
     earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
@@ -217,6 +295,8 @@ private:
 
 class FixedDirection : public PrimaryDirectionDistribution {
 friend cereal::access;
+protected:
+    FixedDirection() {};
 private:
     earthmodel::Vector3D dir;
 public:
@@ -251,6 +331,8 @@ private:
 
 class Cone : public PrimaryDirectionDistribution {
 friend cereal::access;
+protected:
+    Cone() {};
 private:
     earthmodel::Vector3D dir;
     earthmodel::Quaternion rotation;
@@ -288,6 +370,7 @@ private:
 };
 
 class VertexPositionDistribution : public InjectionDistribution {
+friend cereal::access;
 private:
     virtual earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const = 0;
 public:
@@ -317,6 +400,8 @@ public:
 
 class CylinderVolumePositionDistribution : public VertexPositionDistribution {
 friend cereal::access;
+protected:
+    CylinderVolumePositionDistribution() {};
 private:
     earthmodel::Cylinder cylinder;
     earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
@@ -349,6 +434,7 @@ public:
 };
 
 class DepthFunction {
+friend cereal::access;
 public:
     DepthFunction();
     virtual double operator()(InteractionSignature const & signature, double energy) const;
@@ -369,6 +455,7 @@ public:
 };
 
 class RangeFunction {
+friend cereal::access;
 public:
     RangeFunction();
     virtual double operator()(InteractionSignature const & signature, double energy) const;
@@ -390,6 +477,8 @@ public:
 
 class DecayRangeFunction : public RangeFunction {
 friend cereal::access;
+protected:
+    DecayRangeFunction() {};
 private:
     double particle_mass; // GeV
     double decay_width; // GeV
@@ -431,6 +520,9 @@ public:
 };
 
 class ColumnDepthPositionDistribution : public VertexPositionDistribution {
+friend cereal::access;
+protected:
+    ColumnDepthPositionDistribution() {};
 private:
     double radius;
     double endcap_length;
@@ -478,6 +570,7 @@ public:
 };
 
 class RangePositionDistribution : public VertexPositionDistribution {
+friend cereal::access;
 private:
     double radius;
     double endcap_length;
@@ -576,7 +669,7 @@ public:
 };
 
 class PrimaryNeutrinoHelicityDistribution : public InjectionDistribution {
-private:
+friend cereal::access;
 public:
     virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const override;
@@ -605,7 +698,15 @@ public:
 
 } // namespace LeptonInjector
 
+CEREAL_CLASS_VERSION(LeptonInjector::WeightableDistribution, 0);
+
 CEREAL_CLASS_VERSION(LeptonInjector::InjectionDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::InjectionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::WeightableDistribution, LeptonInjector::InjectionDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::PrimaryInjector, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::PrimaryInjector);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectionDistribution, LeptonInjector::PrimaryInjector);
 
 CEREAL_CLASS_VERSION(LeptonInjector::TargetMomentumDistribution, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::TargetMomentumDistribution);
@@ -622,6 +723,10 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectionDistribution, Lept
 CEREAL_CLASS_VERSION(LeptonInjector::PowerLaw, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::PowerLaw);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PrimaryEnergyDistribution, LeptonInjector::PowerLaw);
+
+CEREAL_CLASS_VERSION(LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PrimaryEnergyDistribution, LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution);
 
 CEREAL_CLASS_VERSION(LeptonInjector::PrimaryDirectionDistribution, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::PrimaryDirectionDistribution);
@@ -647,6 +752,8 @@ CEREAL_CLASS_VERSION(LeptonInjector::CylinderVolumePositionDistribution, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::CylinderVolumePositionDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::VertexPositionDistribution, LeptonInjector::CylinderVolumePositionDistribution);
 
+CEREAL_CLASS_VERSION(LeptonInjector::DepthFunction, 0);
+
 CEREAL_CLASS_VERSION(LeptonInjector::RangeFunction, 0);
 
 CEREAL_CLASS_VERSION(LeptonInjector::DecayRangeFunction, 0);
@@ -660,6 +767,14 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::VertexPositionDistribution,
 CEREAL_CLASS_VERSION(LeptonInjector::RangePositionDistribution, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::RangePositionDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::VertexPositionDistribution, LeptonInjector::RangePositionDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::DecayRangePositionDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::DecayRangePositionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::VertexPositionDistribution, LeptonInjector::DecayRangePositionDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::PrimaryNeutrinoHelicityDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::PrimaryNeutrinoHelicityDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectionDistribution, LeptonInjector::PrimaryNeutrinoHelicityDistribution);
 
 #endif // LI_Distributions_H
 

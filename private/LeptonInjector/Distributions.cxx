@@ -161,58 +161,75 @@ std::shared_ptr<InjectionDistribution> PowerLaw::clone() const {
 }
 
 //---------------
-// class ArbPDF : PrimaryEnergyDistribution
+// class ModifiedMoyalPlusExponentialEnergyDistribution : PrimaryEnergyDistribution
 //---------------
-ArbPDF::ArbPDF(double minE_, double maxE_, std::vector<double> params_, double (*PDF_)(double, std::vector<double>))
-    : PDF(PDF_)
-    , minE(minE_)
-    , maxE(maxE_)
-    , params(params_)
-{
-    PDF = PDF_;
-    minE = minE_;
-    maxE = maxE_;
-    params = params_;
-    std::function<double(double)> integrand = [&] (double x) -> double {
-        return (*PDF)(x, params);
-    };
-    integral = earthmodel::Integration::rombergIntegrate(integrand, minE, maxE);
+
+double ModifiedMoyalPlusExponentialEnergyDistribution::unnormed_pdf(double energy) const {
+    double x = (energy - mu) / sigma;
+    double moyal = (A / sigma) * std::exp(-(x + std::exp(-x)/2)) / std::sqrt(2.0 * M_PI);
+    double exponential = (B / l) * std::exp(-energy / l);
+    return moyal + exponential;
 }
 
-double ArbPDF::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
-    // Metropolis-Hastings algorithm to sample from PDF. 
+double ModifiedMoyalPlusExponentialEnergyDistribution::pdf(double energy) const {
+    return unnormed_pdf(energy) / integral;
+}
+
+ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B)
+    : energyMin(energyMin)
+    , energyMax(energyMax)
+    , mu(mu)
+    , sigma(sigma)
+    , A(A)
+    , l(l)
+    , B(B)
+{
+    std::function<double(double)> integrand = [&] (double x) -> double {
+        return unnormed_pdf(x);
+    };
+    integral = earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax);
+}
+
+double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    // Metropolis-Hastings algorithm to sample from PDF.
     // Pass in a function pointer for the PDF
-    
-    double E, testE, odds;
+
+    double energy, density, test_energy, test_density, odds;
     bool accept;
-    
+
     // sample an initial point uniformly
-    E = rand->Uniform(minE,maxE);
+    energy = rand->Uniform(energyMin, energyMax);
+    density = pdf(energy);
 
     // Metropolis Hastings loop
     for (size_t j = 0; j <= burnin; ++j) {
-        accept = true;
-        testE = rand->Uniform(minE,maxE);
-        odds = (*PDF)(testE,params)/(*PDF)(E,params);
-        accept = (odds > 1.) || rand->Uniform(0,1)<odds;
-        if(accept) E = testE;
+        test_energy = rand->Uniform(energyMin, energyMax);
+        test_density = pdf(test_energy);
+        odds = test_density / density;
+        accept = (odds > 1.) or (rand->Uniform(0,1) < odds);
+        if(accept) {
+            energy = test_energy;
+            density = test_density;
+        }
     }
 
-    return E;
+    return energy;
 }
 
-double ArbPDF::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
-
-    double density = (*PDF)(record.primary_momentum[0], params);
-    return density / integral;
+double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+    double const & energy = record.primary_momentum[0];
+    if(energy < energyMin or energy > energyMax)
+        return 0.0;
+    else
+        return pdf(energy);
 }
 
-std::string ArbPDF::Name() const {
-    return "ArbPDF";
+std::string ModifiedMoyalPlusExponentialEnergyDistribution::Name() const {
+    return "ModifiedMoyalPlusExponentialEnergyDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> ArbPDF::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new ArbPDF(*this));
+std::shared_ptr<InjectionDistribution> ModifiedMoyalPlusExponentialEnergyDistribution::clone() const {
+    return std::shared_ptr<InjectionDistribution>(new ModifiedMoyalPlusExponentialEnergyDistribution(*this));
 }
 
 //---------------
