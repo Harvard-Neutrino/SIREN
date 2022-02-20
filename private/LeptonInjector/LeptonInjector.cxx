@@ -13,7 +13,7 @@
 
 // namespace constants = boost::math::constants;
 
-namespace LeptonInjector{
+namespace LeptonInjector {
 
 //---------------
 // class InjectorBase
@@ -217,7 +217,7 @@ void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRe
     // considers the different radiation lengths of materials in the detector
     // Nick TODO: comment more
 
-    earthmodel::MaterialModel mat_model = earth_model->GetMaterials();
+    earthmodel::MaterialModel const & mat_model = earth_model->GetMaterials();
     earthmodel::Vector3D decay_vtx(decay.decay_vertex);
     unsigned int gamma_index = 0;
     earthmodel::Vector3D decay_dir(decay.secondary_momenta[gamma_index][1],
@@ -248,7 +248,7 @@ void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRe
         if(i.distance<0 || std::isinf(i.distance))
             continue;
         D.push_back(i.distance);
-        x0 = (9./7.)*mat_model.GetMaterialRadLength(i.matID); // in g/cm^2
+        x0 = (9./7.)*mat_model.GetMaterialRadiationLength(i.matID); // in g/cm^2
         density_point += 0.5*(i.position - density_point);
         density = earth_model->GetDensity(density_point);
         x0 *= 0.01/density; // in m
@@ -325,11 +325,11 @@ std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectorBase::InjectionBou
     return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(earthmodel::Vector3D(0, 0, 0), earthmodel::Vector3D(0, 0, 0));
 }
 
-unsigned int LeptonInjector::InjectedEvents() const {
+unsigned int InjectorBase::InjectedEvents() const {
     return injected_events;
 }
 
-unsigned int LeptonInjector::EventsToInject() const {
+unsigned int InjectorBase::EventsToInject() const {
     return events_to_inject;
 }
 
