@@ -67,6 +67,7 @@ public:
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::make_nvp("Path", path_));
+            archive(cereal::make_nvp("MaterialModel", materials_));
             archive(cereal::make_nvp("Sectors", sectors_));
             archive(cereal::make_nvp("SectorMap", sector_map_));
             archive(cereal::make_nvp("DetectorOrigin", detector_origin_));
