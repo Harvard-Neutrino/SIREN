@@ -157,6 +157,7 @@ private:
     std::set<Particle::ParticleType> target_types;
     void InitializeTargetTypes();
 public:
+    CrossSectionCollection();
     CrossSectionCollection(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
     std::vector<std::shared_ptr<CrossSection>> GetCrossSections() const {return cross_sections;};
     std::vector<std::shared_ptr<CrossSection>> GetCrossSectionsForTarget(Particle::ParticleType p) const;

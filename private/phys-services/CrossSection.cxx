@@ -168,6 +168,8 @@ void CrossSectionCollection::InitializeTargetTypes() {
     // std::copy(target_set.begin(), target_set.end(), target_types.begin());
 }
 
+CrossSectionCollection::CrossSectionCollection() {}
+
 CrossSectionCollection::CrossSectionCollection(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections) : primary_type(primary_type), cross_sections(cross_sections) {
     InitializeTargetTypes();
 }
@@ -1177,6 +1179,9 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, Part
                 break;
             double file_hnl_mass = std::stod(sub);
             if(std::abs(file_hnl_mass - hnl_mass) / std::max(std::abs(file_hnl_mass), std::abs(hnl_mass)) > 1e-6) {
+                std::cout << std::setprecision(24);
+                std::cout << "File HNL mass: "<< file_hnl_mass << std::endl;
+                std::cout << "Specified HNL mass: "<< hnl_mass << std::endl;
                 throw std::runtime_error("File HNL mass does not match specified HNL mass!");
             }
         }
@@ -1272,6 +1277,9 @@ void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, Particle::P
                 break;
             double file_hnl_mass = std::stod(sub);
             if(std::abs(file_hnl_mass - hnl_mass) / std::max(std::abs(file_hnl_mass), std::abs(hnl_mass)) > 1e-6) {
+                std::cout << std::setprecision(24);
+                std::cout << "File HNL mass: "<< file_hnl_mass << std::endl;
+                std::cout << "Specified HNL mass: "<< hnl_mass << std::endl;
                 throw std::runtime_error("File HNL mass does not match specified HNL mass!");
             }
         }
