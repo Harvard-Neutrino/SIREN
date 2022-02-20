@@ -19,6 +19,8 @@ namespace LeptonInjector {
 // class InjectorBase
 //---------------
 
+InjectorBase::InjectorBase() {}
+
 InjectorBase::InjectorBase(
         unsigned int events_to_inject,
         std::shared_ptr<PrimaryInjector> primary_injector,
@@ -340,6 +342,8 @@ InjectorBase::operator bool() const {
 //---------------
 // class RangedLeptonInjector : InjectorBase
 //---------------
+RangedLeptonInjector::RangedLeptonInjector() {}
+
 RangedLeptonInjector::RangedLeptonInjector(
         unsigned int events_to_inject,
         std::shared_ptr<PrimaryInjector> primary_injector,
@@ -402,6 +406,8 @@ std::pair<earthmodel::Vector3D, earthmodel::Vector3D> RangedLeptonInjector::Inje
 //---------------
 // class DecayRangeLeptonInjector : InjectorBase
 //---------------
+DecayRangeLeptonInjector::DecayRangeLeptonInjector() {}
+
 DecayRangeLeptonInjector::DecayRangeLeptonInjector(
         unsigned int events_to_inject,
         std::shared_ptr<PrimaryInjector> primary_injector,
@@ -464,6 +470,8 @@ std::pair<earthmodel::Vector3D, earthmodel::Vector3D> DecayRangeLeptonInjector::
 //---------------
 // class VolumeLeptonInjector : InjectorBase
 //---------------
+VolumeLeptonInjector::VolumeLeptonInjector() {}
+
 VolumeLeptonInjector::VolumeLeptonInjector(
         unsigned int events_to_inject,
         std::shared_ptr<PrimaryInjector> primary_injector,
