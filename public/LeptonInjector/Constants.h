@@ -39,6 +39,7 @@ static const double isoscalarMass   = 0.5*( protonMass + neutronMass );
 static const double electronMass    = 0.000511;
 static const double muonMass        = 0.105658374;
 static const double tauMass         = 1.77686;
+static const double lambda0Mass     = 1.1156836; // MeV
 
 // confusing units
 // static const double second          = 1.523e15; // [eV^-1 sec^-1]
@@ -76,6 +77,8 @@ static const double MeV             = (1.0e-3)*GeV;
 static const double keV             = (1.0e-6)*GeV;
 static const double  eV             = (1.0e-9)*GeV;
 static const double Joule           = eV/(1.602176634e-19); // eV/J
+
+static const double GeV_per_amu     = 0.9314941024171441;
 
 
 // may need to fix these after setting GeV to 1.0

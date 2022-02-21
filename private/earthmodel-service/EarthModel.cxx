@@ -1137,7 +1137,6 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
 }
 
 double EarthModel::GetTargetMass(LeptonInjector::Particle::ParticleType target) const {
-    const double GeV_per_amu = 0.9314941024171441;
     double molar_mass = materials_.GetMolarMass(target); // grams per mole
-    return molar_mass * GeV_per_amu;
+    return molar_mass * LeptonInjector::Constants::GeV_per_amu;
 }
