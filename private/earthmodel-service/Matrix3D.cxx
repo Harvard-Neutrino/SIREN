@@ -395,7 +395,7 @@ double const & Matrix3D::operator[](std::initializer_list<unsigned int> index) c
         case 10:
             return zz_; break;
         default:
-            throw("Out of bounds!");
+            throw(std::runtime_error("Out of bounds!"));
     }
 }
 

@@ -177,7 +177,7 @@ double EarthModelCalculator::GetLeptonRange(double particle_energy,
      }
 
   } else {
-     throw("The LeptonRange option "+std::to_string(static_cast<int>(option))+" is not supported! ");
+     throw(std::runtime_error("The LeptonRange option "+std::to_string(static_cast<int>(option))+" is not supported! "));
   }
 
   if (isTau) {

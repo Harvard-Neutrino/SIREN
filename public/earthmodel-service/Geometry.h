@@ -56,9 +56,7 @@ class Geometry {
 friend cereal::access;
 public:
     template<class Archive>
-    void save(Archive & archive, std::uint32_t const version) const {};
-    template<class Archive>
-    void load(Archive & archive, std::uint32_t const version) {};
+    void serialize(Archive & archive, std::uint32_t const version) {};
     static constexpr const double GEOMETRY_PRECISION = 1.e-9;
     struct ParticleLocation {
         enum Enum { InfrontGeometry= 0, InsideGeometry, BehindGeometry };
@@ -208,7 +206,7 @@ public:
     Box(const Box&);
 
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) const {
+    void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("XWidth", x_));
             archive(::cereal::make_nvp("YWidth", y_));
@@ -258,7 +256,7 @@ public:
     Cylinder(const Cylinder&);
 
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) const {
+    void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("OuterRadius", radius_));
             archive(::cereal::make_nvp("InnerRadius", inner_radius_));
@@ -308,7 +306,7 @@ public:
     Sphere(const Sphere&);
 
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) const {
+    void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("OuterRadius", radius_));
             archive(::cereal::make_nvp("InnerRadius", inner_radius_));
@@ -368,7 +366,7 @@ public:
                     l.offset[1] == r.offset[1]);
         }
         template<typename Archive>
-        void serialize(Archive & archive, std::uint32_t const version) const {
+        void serialize(Archive & archive, std::uint32_t const version) {
             if(version == 0) {
                 archive(::cereal::make_nvp("ZPosition", zpos));
                 archive(::cereal::make_nvp("Scale", scale));
@@ -382,7 +380,7 @@ public:
     struct plane {
         double a,b,c,d; // a*x + b*y + c*z + d = 0
         template<typename Archive>
-        void serialize(Archive & archive, std::uint32_t const version) const {
+        void serialize(Archive & archive, std::uint32_t const version) {
             if(version == 0) {
                 archive(::cereal::make_nvp("A", a));
                 archive(::cereal::make_nvp("B", b));
@@ -404,7 +402,7 @@ public:
     ExtrPoly(const ExtrPoly&);
 
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) const {
+    void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("Polygons", polygon_));
             archive(::cereal::make_nvp("ZSections", zsections_));

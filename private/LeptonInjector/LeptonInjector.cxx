@@ -84,15 +84,15 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
             double target_density = earth_model->GetDensity(intVertex, std::set<Particle::ParticleType>{target});
             // Loop over cross sections that have this target
             std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections.GetCrossSectionsForTarget(target);
+            unsigned int xs_i = 0;
             for(auto const & cross_section : target_cross_sections) {
                 // Loop over cross section signatures with the same target
                 std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type,target);
+                unsigned int sig_i = 0;
                 for(auto const & signature : signatures) {
                     record.signature = signature;
                     record.target_mass = earth_model->GetTargetMass(target);
                     record.target_momentum = {record.target_mass,0,0,0};
-                    // Check if below threshold
-                    if(record.primary_momentum[0] <= 1.01*cross_section->InteractionThreshold(record)) continue;
                     // Add total cross section times density to the total prob
                     total_prob += target_density * cross_section->TotalCrossSection(record);
                     // Add total prob to probs
@@ -101,7 +101,9 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
                     matching_targets.push_back(target);
                     matching_cross_sections.push_back(cross_section);
                     matching_signatures.push_back(signature);
+                    sig_i += 1;
                 }
+                xs_i += 1;
             }
         }
     }
@@ -110,8 +112,6 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     // Choose the target and cross section
     unsigned int index = 0;
     for(; (index < probs.size()-1) and (r > probs[index]); ++index) {}
-    for(int j = 0; j < probs.size(); ++j) std::cout << j << " " << matching_targets[j] << " " << probs[j] << std::endl;
-    std::cout << index << " " << matching_targets[index] << " " << probs[index] << std::endl;
     record.signature.target_type = matching_targets[index];
     record.signature = matching_signatures[index];
     record.target_mass = earth_model->GetTargetMass(record.signature.target_type);

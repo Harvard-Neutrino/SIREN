@@ -76,7 +76,7 @@ void Path::SetEarthModel(std::shared_ptr<const EarthModel> earth_model) {
 
 void Path::EnsureEarthModel() {
     if(not set_earth_model_) {
-        throw("Earth model not set!");
+        throw(std::runtime_error("Earth model not set!"));
     }
 }
 
@@ -106,7 +106,7 @@ void Path::SetPointsWithRay(Vector3D first_point, Vector3D direction, double dis
 
 void Path::EnsurePoints() {
     if(not set_points_) {
-        throw("Points not set!");
+        throw(std::runtime_error("Points not set!"));
     }
 }
 

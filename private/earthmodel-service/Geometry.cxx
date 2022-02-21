@@ -924,7 +924,7 @@ std::pair<double, double> Cylinder::ComputeDistanceToBorder(const Vector3D& posi
                     break;
                 }
                 else {
-                    throw("There should never be two \"entering\" intersections in a row!");
+                    throw(std::runtime_error("There should never be two \"entering\" intersections in a row!"));
                 }
             }
         }
@@ -1219,7 +1219,7 @@ std::pair<double, double> Sphere::ComputeDistanceToBorder(const Vector3D& positi
                     break;
                 }
                 else {
-                    throw("There should never be two \"entering\" intersections in a row!");
+                    throw(std::runtime_error("There should never be two \"entering\" intersections in a row!"));
                 }
             }
         }
@@ -1500,7 +1500,7 @@ std::pair<double, double> ExtrPoly::ComputeDistanceToBorder(const Vector3D& posi
                     break;
                 }
                 else {
-                    throw("There should never be two \"entering\" intersections in a row!");
+                    throw(std::runtime_error("There should never be two \"entering\" intersections in a row!"));
                 }
             }
         }

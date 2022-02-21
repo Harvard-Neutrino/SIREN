@@ -83,9 +83,7 @@ public:
     virtual double Evaluate(const Vector3D& xi) const = 0;
 
     template<class Archive>
-    void save(Archive & archive, std::uint32_t const version) const {};
-    template<class Archive>
-    void load(Archive & archive, std::uint32_t const version) {};
+    void serialize(Archive & archive, std::uint32_t const version) {};
 };
 
 class Distribution1D {
@@ -101,9 +99,7 @@ public:
     virtual double Evaluate(double x) const = 0;
 
     template<class Archive>
-    void save(Archive & archive, std::uint32_t const version) const {};
-    template<class Archive>
-    void load(Archive & archive, std::uint32_t const version) {};
+    void serialize(Archive & archive, std::uint32_t const version) {};
 };
 
 class ConstantDistribution1D : public Distribution1D {
@@ -134,7 +130,9 @@ protected:
 
 class PolynomialDistribution1D : public Distribution1D {
 friend cereal::access;
+protected:
 public:
+    PolynomialDistribution1D();
     PolynomialDistribution1D(const PolynomialDistribution1D&);
     PolynomialDistribution1D(const Polynom&);
     PolynomialDistribution1D(const std::vector<double>&);
@@ -147,21 +145,12 @@ public:
     double AntiDerivative(double x) const override;
     double Evaluate(double x) const override;
     template<class Archive>
-    void save(Archive & archive, std::uint32_t const version) const {
+    void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
-            archive(::cereal::make_nvp("Polynomial", polynom_.GetCoefficient()));
+            archive(::cereal::make_nvp("Polynomial", polynom_));
+            archive(::cereal::make_nvp("PolynomialIntegral", Ipolynom_));
+            archive(::cereal::make_nvp("PolynomialDerivative", dpolynom_));
             archive(cereal::virtual_base_class<Distribution1D>(this));
-        } else {
-            throw std::runtime_error("PolynomialDistribution1D only supports version <= 0");
-        }
-    };
-    template<class Archive>
-    static void load_and_construct(Archive & archive, cereal::construct<PolynomialDistribution1D> & construct, std::uint32_t const version) {
-        if(version == 0) {
-            std::vector<double> coeff;
-            archive(::cereal::make_nvp("Polynomial", coeff));
-            construct(coeff);
-            archive(cereal::virtual_base_class<Distribution1D>(construct.ptr()));
         } else {
             throw std::runtime_error("PolynomialDistribution1D only supports version <= 0");
         }
@@ -175,6 +164,7 @@ protected:
 class ExponentialDistribution1D : public Distribution1D {
 friend cereal::access;
 public:
+    ExponentialDistribution1D();
     ExponentialDistribution1D(const ExponentialDistribution1D&);
     ExponentialDistribution1D(double sigma);
     bool compare(const Distribution1D& dist) const override;
@@ -186,21 +176,10 @@ public:
     double AntiDerivative(double x) const override;
     double Evaluate(double x) const override;
     template<class Archive>
-    void save(Archive & archive, std::uint32_t const version) const {
+    void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("Sigma", sigma_));
             archive(cereal::virtual_base_class<Distribution1D>(this));
-        } else {
-            throw std::runtime_error("ExponentialDistribution1D only supports version <= 0");
-        }
-    };
-    template<class Archive>
-    static void load_and_construct(Archive & archive, cereal::construct<ExponentialDistribution1D> & construct, std::uint32_t const version) {
-        if(version == 0) {
-            double sigma;
-            archive(::cereal::make_nvp("Sigma", sigma));
-            construct(sigma);
-            archive(cereal::virtual_base_class<Distribution1D>(construct.ptr()));
         } else {
             throw std::runtime_error("ExponentialDistribution1D only supports version <= 0");
         }
@@ -303,10 +282,10 @@ template <typename AxisT, typename DistributionT, class E = typename std::enable
 class DensityDistribution1D
     : public DensityDistribution {
     using T = DensityDistribution1D<AxisT,DistributionT>;
-   private:
+private:
     AxisT axis;
     DistributionT dist;
-   public:
+public:
     DensityDistribution1D() : axis(), dist() {};
     DensityDistribution1D(const AxisT& axis, const DistributionT& dist)
         : axis(axis), dist(dist) {};
@@ -489,6 +468,7 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
     AxisT axis;
     DistributionT dist;
    public:
+    DensityDistribution1D() : axis(), dist() {};
     DensityDistribution1D(const AxisT& axis, const DistributionT& dist)
         : axis(axis), dist(dist) {};
     DensityDistribution1D(const DensityDistribution1D& other)
@@ -595,6 +575,7 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
     AxisT axis;
     DistributionT dist;
    public:
+    DensityDistribution1D() : axis(), dist() {};
     DensityDistribution1D(const AxisT& axis, const DistributionT& dist)
         : axis(axis), dist(dist) {};
     DensityDistribution1D(const AxisT& axis, const Polynom& poly)

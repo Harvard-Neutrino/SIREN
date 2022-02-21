@@ -6,6 +6,7 @@
 #include <random>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 
 #include <gtest/gtest.h>
 
@@ -51,12 +52,16 @@ TEST(DefaultMaterials, VacuumOnly)
     const double protons_per_amu = 0.8464425697382936033875383253155218234388231142436674312768944729;
     const double protons_per_gram = protons_per_amu * LeptonInjector::Constants::avogadro;
 
-    const double neutrons_per_amu = 0.2958172403398275775066323521158342304468093983262142415552137415;
+    const double neutrons_per_amu = 0.1479086201699137887533161760579171152234046991631071207776068707;
     const double neutrons_per_gram = neutrons_per_amu * LeptonInjector::Constants::avogadro;
 
     const double electrons_per_gram = protons_per_gram;
 
     ASSERT_EQ(0, id);
+    std::cerr << "Nucleons: " << material_nucleons_per_gram << std::endl;
+    std::cerr << "Neutrons: " << material_neutrons_per_gram << std::endl;
+    std::cerr << "Protons: " << material_protons_per_gram << std::endl;
+    std::cerr << "Electrons: " << material_electrons_per_gram << std::endl;
     EXPECT_DOUBLE_EQ(material_nucleons_per_gram, nucleons_per_gram);
     EXPECT_DOUBLE_EQ(material_neutrons_per_gram, neutrons_per_gram);
     EXPECT_DOUBLE_EQ(material_protons_per_gram, protons_per_gram);
@@ -94,37 +99,37 @@ TEST(DefaultSectors, VacuumOnly)
 
 TEST_F(FakeMaterialModelTest, EarthModelConstructorEmptyModel)
 {
-    EXPECT_THROW(EarthModel A("", materials_file), char const *);
+    EXPECT_THROW(EarthModel A("", materials_file), std::runtime_error);
 }
 
 TEST_F(FakeMaterialModelTest, EarthModelConstructorEmptyPathEmptyModel)
 {
-    EXPECT_THROW(EarthModel A("", "", materials_file), char const *);
+    EXPECT_THROW(EarthModel A("", "", materials_file), std::runtime_error);
 }
 
 TEST(Constructor, EarthModelConstructorEmptyModelEmptyMaterials)
 {
-    EXPECT_THROW(EarthModel A("", ""), char const *);
+    EXPECT_THROW(EarthModel A("", ""), std::runtime_error);
 }
 
 TEST(Constructor, EarthModelConstructorEmptyPathEmptyModelEmptyMaterials)
 {
-    EXPECT_THROW(EarthModel A("", "", ""), char const *);
+    EXPECT_THROW(EarthModel A("", "", ""), std::runtime_error);
 }
 
 TEST_F(FakeMaterialModelTest, EarthModelConstructorEmptyPathBadModel)
 {
-    EXPECT_THROW(EarthModel("", std::tmpnam(nullptr), materials_file), char const *);
+    EXPECT_THROW(EarthModel("", std::tmpnam(nullptr), materials_file), std::runtime_error);
 }
 
 TEST_F(FakeMaterialModelTest, EarthModelConstructorBadModel)
 {
-    EXPECT_THROW(EarthModel(std::tmpnam(nullptr), materials_file), char const *);
+    EXPECT_THROW(EarthModel(std::tmpnam(nullptr), materials_file), std::runtime_error);
 }
 
 TEST_F(FakeMaterialModelTest, EarthModelConstructorBadModelEmptyMaterial)
 {
-    EXPECT_THROW(EarthModel(std::tmpnam(nullptr), ""), char const *);
+    EXPECT_THROW(EarthModel(std::tmpnam(nullptr), ""), std::runtime_error);
 }
 
 TEST(Path, SetGet)

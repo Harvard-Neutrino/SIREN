@@ -33,7 +33,14 @@ public:
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     template<class Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+        } else {
+            throw std::runtime_error("WeightableDistribution only supports version <= 0!");
+        }
+    }
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
         } else {
             throw std::runtime_error("WeightableDistribution only supports version <= 0!");
@@ -49,7 +56,15 @@ public:
     virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     template<class Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<WeightableDistribution>(this));
+        } else {
+            throw std::runtime_error("InjectionDistribution only supports version <= 0!");
+        }
+    }
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::virtual_base_class<WeightableDistribution>(this));
         } else {
@@ -109,7 +124,15 @@ public:
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("TargetMomentumDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::virtual_base_class<InjectionDistribution>(this));
         } else {
@@ -129,7 +152,15 @@ public:
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     std::string Name() const override;
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<TargetMomentumDistribution>(this));
+        } else {
+            throw std::runtime_error("TargetAtRest only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::virtual_base_class<TargetMomentumDistribution>(this));
         } else {
@@ -150,7 +181,15 @@ public:
     virtual std::string Name() const = 0;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("PrimaryEnergyDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::virtual_base_class<InjectionDistribution>(this));
         } else {
@@ -267,7 +306,15 @@ public:
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+        } else {
+            throw std::runtime_error("PrimaryDirectionDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::virtual_base_class<InjectionDistribution>(this));
         } else {
@@ -284,7 +331,15 @@ private:
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     std::string Name() const override;
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<PrimaryDirectionDistribution>(this));
+        } else {
+            throw std::runtime_error("IsotropicDirection only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::virtual_base_class<PrimaryDirectionDistribution>(this));
         } else {
@@ -555,7 +610,7 @@ public:
         if(version == 0) {
             double r;
             double l;
-            std::vector<Particle::ParticleType> t;
+            std::set<Particle::ParticleType> t;
             std::shared_ptr<DepthFunction> f;
             archive(::cereal::make_nvp("Radius", r));
             archive(::cereal::make_nvp("EndcapLength", l));
@@ -605,7 +660,7 @@ public:
         if(version == 0) {
             double r;
             double l;
-            std::vector<Particle::ParticleType> t;
+            std::set<Particle::ParticleType> t;
             std::shared_ptr<RangeFunction> f;
             archive(::cereal::make_nvp("Radius", r));
             archive(::cereal::make_nvp("EndcapLength", l));
@@ -654,7 +709,7 @@ public:
         if(version == 0) {
             double r;
             double l;
-            std::vector<Particle::ParticleType> t;
+            std::set<Particle::ParticleType> t;
             std::shared_ptr<DecayRangeFunction> f;
             archive(::cereal::make_nvp("Radius", r));
             archive(::cereal::make_nvp("EndcapLength", l));

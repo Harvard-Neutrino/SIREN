@@ -162,6 +162,11 @@ double ConstantDistribution1D::Evaluate(double x) const {
 // %%%%%%%%%%%%%%%%%%% Polynomial-Density %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+PolynomialDistribution1D::PolynomialDistribution1D()
+    : polynom_(std::vector<double>{}),
+      Ipolynom_(polynom_.GetAntiderivative(0)),
+      dpolynom_(polynom_.GetDerivative()) {}
+
 PolynomialDistribution1D::PolynomialDistribution1D(const PolynomialDistribution1D& dist)
     : polynom_(dist.polynom_),
       Ipolynom_(dist.Ipolynom_),
@@ -201,6 +206,9 @@ double PolynomialDistribution1D::Evaluate(double x) const {
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%% Exponential-Density %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ExponentialDistribution1D::ExponentialDistribution1D()
+    : sigma_(1.0) {}
 
 ExponentialDistribution1D::ExponentialDistribution1D(const ExponentialDistribution1D& dist)
     : sigma_(dist.sigma_) {}

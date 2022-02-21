@@ -72,7 +72,7 @@ void EarthModel::SetDetectorOrigin(Vector3D const & detector_origin) {
 
 void EarthModel::AddSector(EarthSector sector) {
     if(sector_map_.count(sector.level) > 0) {
-        throw("Already have a sector of that heirarchy!");
+        throw(std::runtime_error("Already have a sector of that heirarchy!"));
     }
     else {
         sector_map_[sector.level] = sectors_.size();
@@ -110,7 +110,7 @@ bool fexists(const std::string filename)
 
 void EarthModel::LoadEarthModel(std::string const & earth_model) {
     if(earth_model.empty())
-        throw("Received empty earth model filename!");
+        throw(std::runtime_error("Received empty earth model filename!"));
 
     std::string fname;
 
@@ -139,14 +139,14 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
         fname = path_ + "/" + earth_model + ".dat";
     }
     else {
-        throw("Cannot open earth model file!");
+        throw(std::runtime_error("Cannot open earth model file!"));
     }
 
     std::ifstream in(fname.c_str());
 
     // if the earthmodel file doesn't exist, stop simulation
     if(in.fail()){
-        throw("Failed to open " + fname + " Set correct EarthParamsPath.");
+        throw(std::runtime_error("Failed to open " + fname + " Set correct EarthParamsPath."));
     }
 
     ClearSectors();
@@ -233,7 +233,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
                     << shape
                     << "\" not recognized on line:\n"
                     << ss.str();
-                throw(ss_err.str());
+                throw(std::runtime_error(ss_err.str()));
             }
 
             std::string label, medtype;
@@ -246,7 +246,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
                     << medtype
                     << "\" on line:\n"
                     << ss.str();
-                throw(ss_err.str());
+                throw(std::runtime_error(ss_err.str()));
             }
 
             sector.material_id = materials_.GetMaterialId(medtype);
@@ -281,7 +281,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
                     << distribution_type
                     << "\" not recognized on line:\n"
                     << ss.str();
-                throw(ss_err.str());
+                throw(std::runtime_error(ss_err.str()));
             }
 
             AddSector(sector);
@@ -757,19 +757,15 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Geometry::IntersectionList
     int min_hierarchy = std::numeric_limits<int>::min();
     int min_index = 0;
     for(unsigned int i=0; i<intersections.intersections.size(); ++i) {
-        //std::cerr << "Looking at index " << i << " hierarchy " << intersections.intersections[i].hierarchy << std::endl;
         if(intersections.intersections[i].hierarchy > min_hierarchy) {
             result.intersections.push_back(intersections.intersections[i]);
             min_index = i;
-            //std::cerr << "Storing first intersection index " << i << " hierarchy " << intersections.intersections[i].hierarchy << std::endl;
             break;
         }
     }
     for(unsigned int i=intersections.intersections.size()-1; (i >= 0 and i > min_index); --i) {
-        //std::cerr << "Looking at index " << i << " hierarchy " << intersections.intersections[i].hierarchy << std::endl;
         if(intersections.intersections[i].hierarchy > min_hierarchy) {
             result.intersections.push_back(intersections.intersections[i]);
-            //std::cerr << "Storing second intersection index " << i << " hierarchy " << intersections.intersections[i].hierarchy << std::endl;
             break;
         }
     }
@@ -826,7 +822,7 @@ void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersectio
         // The transition point into the next sector
         std::vector<Geometry::Intersection>::const_iterator intersection = intersections.intersections.begin() + i;
         if(intersection == intersections.intersections.end())
-            throw("Reached end of intersections! Should never reach this point!");
+            throw(std::runtime_error("Reached end of intersections! Should never reach this point!"));
         if(intersection->entering ^ reverse) {
             // Entering a sector means it is added to the stack
             stack.insert({intersection->hierarchy, intersection});
@@ -868,7 +864,7 @@ void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersectio
             else {
                 // If we are exiting a sector with larger hierarchy the current_intersection should have been set to match that sector.
                 // Thus, we would not reach this point.
-                throw("Cannot exit a level that we have not entered!");
+                throw(std::runtime_error("Cannot exit a level that we have not entered!"));
             }
         }
     }
@@ -962,7 +958,7 @@ Vector3D EarthModel::GetDetCoordDirFromEarthCoordDir(Vector3D const & direction)
 
 void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, double detector_depth, double ice_cap_angle) {
     if(model_fname.empty())
-        throw("Received empty earth model filename!");
+        throw(std::runtime_error("Received empty earth model filename!"));
 
     std::string fname;
 
@@ -991,14 +987,14 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
         fname = path_ + "/" + model_fname + ".dat";
     }
     else {
-        throw("Cannot open earth model file!");
+        throw(std::runtime_error("Cannot open earth model file!"));
     }
 
     std::ifstream in(fname.c_str());
 
     // if the earthmodel file doesn't exist, stop simulation
     if(in.fail()){
-        throw("Failed to open " + fname + " Set correct EarthParamsPath.");
+        throw(std::runtime_error("Failed to open " + fname + " Set correct EarthParamsPath."));
     }
 
     ClearSectors();
@@ -1036,7 +1032,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
         if(not materials_.HasMaterial(medtype)) {
             std::stringstream ss;
             ss << "Earth model uses undefined material " << medtype;
-            throw(ss.str());
+            throw(std::runtime_error(ss.str()));
         }
 
         EarthSector sector;
@@ -1061,7 +1057,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
 
         // stop the process if layering assumptions are violated
         if(radius < max_radius) {
-            throw("Layers must be radially ordered in file!");
+            throw(std::runtime_error("Layers must be radially ordered in file!"));
         }
         max_radius = radius;
         AddSector(sector);
@@ -1141,8 +1137,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
 }
 
 double EarthModel::GetTargetMass(LeptonInjector::Particle::ParticleType target) const {
-    const double eV_per_kg = LeptonInjector::Constants::c * LeptonInjector::Constants::c / LeptonInjector::Constants::elementaryCharge;
-    const double GeV_per_g = eV_per_kg * 1e-9 * 1e-3;
+    const double GeV_per_amu = 0.9314941024171441;
     double molar_mass = materials_.GetMolarMass(target); // grams per mole
-    double mass_in_GeV = molar_mass * GeV_per_g / LeptonInjector::Constants::avogadro;
+    return molar_mass * GeV_per_amu;
 }

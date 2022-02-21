@@ -20,7 +20,7 @@
 #define AUSTIN
 
 using namespace LeptonInjector;
-static bool z_samp = true;
+static bool z_samp = false;
 
 std::string diff_xs(int Z, int A, std::string mHNL) {
     std::stringstream ss;
@@ -199,10 +199,7 @@ TEST(Injector, Generation)
 
     // Setup power law
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
-    std::shared_ptr<LeptonInjector::PowerLaw> power_law = std::make_shared<LeptonInjector::PowerLaw>();
-    power_law->powerLawIndex = powerLawIndex;
-    power_law->energyMin = energyMin;
-    power_law->energyMax = energyMax;
+    std::shared_ptr<LeptonInjector::PowerLaw> power_law = std::make_shared<LeptonInjector::PowerLaw>(powerLawIndex, energyMin, energyMax);
 
     std::vector<double> moyal_exp_params = p_LE_FHC_numu;
 

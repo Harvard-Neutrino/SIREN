@@ -170,7 +170,7 @@ public:
     virtual bool MatchesPrimary(InteractionRecord const & record) const;
 public:
     template<class Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
+    void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(cereal::make_nvp("PrimaryType", primary_type));
             archive(cereal::make_nvp("CrossSections", cross_sections));
@@ -180,13 +180,10 @@ public:
     }
 
     template<class Archive>
-    static void load_and_construct(Archive & archive, cereal::construct<CrossSectionCollection> & construct, std::uint32_t const version) {
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
-            Particle::ParticleType p;
-            std::vector<std::shared_ptr<CrossSection>> c;
-            archive(cereal::make_nvp("PrimaryType", p));
-            archive(cereal::make_nvp("CrossSections", c));
-            construct(p, c);
+            archive(cereal::make_nvp("PrimaryType", primary_type));
+            archive(cereal::make_nvp("CrossSections", cross_sections));
         } else {
             throw std::runtime_error("CrossSectionCollection only supports version <= 0!");
         }
@@ -279,24 +276,20 @@ public:
         }
     }
     template<typename Archive>
-    static void load_and_construct(Archive & archive, cereal::construct<DISFromSpline> & construct, std::uint32_t version) {
+    void load(Archive & archive, std::uint32_t version) {
         if(version == 0) {
             std::vector<char> differential_data;
             std::vector<char> total_data;
-            int interaction;
-            double target_mass;
-            double minimum_Q2;
-            std::set<LeptonInjector::Particle::ParticleType> primary_types;
-            std::set<LeptonInjector::Particle::ParticleType> target_types;
             archive(::cereal::make_nvp("DifferentialCrossSectionSpline", differential_data));
             archive(::cereal::make_nvp("TotalCrossSectionSpline", total_data));
-            archive(::cereal::make_nvp("PrimaryTypes", primary_types));
-            archive(::cereal::make_nvp("TargetTypes", target_types));
-            archive(::cereal::make_nvp("InteractionType", interaction));
-            archive(::cereal::make_nvp("TargetMass", target_mass));
-            archive(::cereal::make_nvp("MinimumQ2", minimum_Q2));
-            construct(differential_data, total_data, interaction, target_mass, minimum_Q2, primary_types, target_types);
-            archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
+            archive(::cereal::make_nvp("PrimaryTypes", primary_types_));
+            archive(::cereal::make_nvp("TargetTypes", target_types_));
+            archive(::cereal::make_nvp("InteractionType", interaction_type_));
+            archive(::cereal::make_nvp("TargetMass", target_mass_));
+            archive(::cereal::make_nvp("MinimumQ2", minimum_Q2_));
+            LoadFromMemory(differential_data, total_data);
+            InitializeSignatures();
+            archive(cereal::virtual_base_class<CrossSection>(this));
         } else {
             throw std::runtime_error("DISFromSpline only supports version <= 0!");
         }
@@ -943,6 +936,8 @@ public:
 
 class DipoleFromTable : public CrossSection {
 friend cereal::access;
+protected:
+DipoleFromTable() {};
 public:
     enum HelicityChannel {Conserving, Flipping};
 private:
@@ -993,26 +988,15 @@ public:
         }
     }
     template<typename Archive>
-    static void load_and_construct(Archive & archive, cereal::construct<DipoleFromTable> & construct, std::uint32_t version) {
+    void load(Archive & archive, std::uint32_t version) {
         if(version == 0) {
-            std::map<Particle::ParticleType, Interpolator2D<double>> differential;
-            std::map<Particle::ParticleType, Interpolator1D<double>> total;
-            std::set<Particle::ParticleType> primary_types;
-            double hnl_mass;
-            int channel;
             archive(::cereal::make_nvp("DifferentialCrossSection", differential));
             archive(::cereal::make_nvp("TotalCrossSection", total));
-            archive(::cereal::make_nvp("PrimaryTypes", primary_types));
+            std::set<LeptonInjector::Particle::ParticleType> prim;
+            archive(::cereal::make_nvp("PrimaryTypes", prim));
             archive(::cereal::make_nvp("HNLMass", hnl_mass));
             archive(::cereal::make_nvp("HelicityChannel", channel));
-            construct(hnl_mass, static_cast<HelicityChannel>(channel), primary_types);
-            for(auto const & iter : differential) {
-                construct.ptr()->AddDifferentialCrossSection(iter.first, iter.second);
-            }
-            for(auto const & iter : total) {
-                construct.ptr()->AddTotalCrossSection(iter.first, iter.second);
-            }
-            archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
+            archive(cereal::virtual_base_class<CrossSection>(this));
         } else {
             throw std::runtime_error("DipoleFromTable only supports version <= 0!");
         }

@@ -5,18 +5,26 @@
 // Partiles have a type, energy, position, and direction
 
 // !!! Important !!!
-// At the moment, only leptons (charged + uncharged) and hadrons are fully supported 
+// At the moment, only leptons (charged + uncharged) and hadrons are fully supported
 
 #include <string>
 #include <utility> // std::pair
 #include <exception>
 
+#include <cereal/cereal.hpp>
+#include <cereal/access.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+
+#include <cereal/types/set.hpp>
+#include <cereal/types/utility.hpp>
+
 #include "LeptonInjector/Constants.h"
 
 // positions are in Cartesian, centered in the middle of IceCube
 
-namespace LeptonInjector{ 
-    
+namespace LeptonInjector{
+
 
     // simple data structure for particles
     class Particle{
@@ -201,7 +209,7 @@ namespace LeptonInjector{
             };
 
             // There are two kinds of event topologies in IceCube
-            //      cascades 
+            //      cascades
             //      tracks
             enum class ParticleShape{ MCTrack, Cascade, unknown };
 
@@ -211,20 +219,20 @@ namespace LeptonInjector{
 
             Particle(ParticleType type);
 
-            
+
             // what kind of particle is this (see below)
-            ParticleType type; 
+            ParticleType type;
             // what is this event's topology? (see below)
-        
-            double energy; // GeV 
+
+            double energy; // GeV
             std::pair<double, double> direction; //( zenith, azimuth ) in degrees
             double position[3]; // (x,y,z) in meters
-        
+
             double GetMass(); //GeV/c^2
-            bool HasMass(); // .... 
+            bool HasMass(); // ....
             std::string GetTypeString();
         private:
-            int32_t pdgEncoding_; 
+            int32_t pdgEncoding_;
 
     };
 
@@ -241,7 +249,46 @@ namespace LeptonInjector{
     Particle::ParticleType deduceInitialType( Particle::ParticleType pType1, Particle::ParticleType pType2);
     uint8_t getInteraction( Particle::ParticleType final_1 , Particle::ParticleType final_2);
 
-}// end namespace LI_Particle
+} // namespace LeptonInjector
+
+namespace cereal {
+    template <class Archive>
+    int save_minimal(Archive const &, LeptonInjector::Particle::ParticleType const & p) {
+        return static_cast<int>(p);
+    }
+
+    template <class Archive>
+    void load_minimal(Archive const &, LeptonInjector::Particle::ParticleType & p, int const & value )
+    {
+        p = static_cast<LeptonInjector::Particle::ParticleType>(value);
+    }
+
+    template <class Archive, class C, class A> inline
+    void save( Archive & ar, std::set<LeptonInjector::Particle::ParticleType, C, A> const & set )
+    {
+      ar( make_size_tag( static_cast<size_type>(set.size()) ) );
+
+      for( const auto & i : set )
+        ar( i );
+    }
+
+    template <class Archive, class C, class A> inline
+    void load( Archive & ar, std::set<LeptonInjector::Particle::ParticleType, C, A> & set )
+    {
+      size_type size;
+      ar( make_size_tag( size ) );
+
+      set.clear();
+
+      auto hint = set.begin();
+      for( size_type i = 0; i < size; ++i )
+      {
+        typename std::set<LeptonInjector::Particle::ParticleType>::key_type key;
+        ar( key );
+        hint = set.emplace_hint( hint, std::move( key ) );
+      }
+    }
+}
 
 #define PARTICLE_H_Particle_ParticleType                                      \
     (unknown)(Gamma)(EPlus)(EMinus)(MuPlus)(MuMinus)(Pi0) \

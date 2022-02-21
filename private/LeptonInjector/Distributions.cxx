@@ -128,6 +128,12 @@ std::vector<std::string> PrimaryEnergyDistribution::DensityVariables() const {
 //---------------
 // class PowerLaw : PrimaryEnergyDistribution
 //---------------
+PowerLaw::PowerLaw(double powerLawIndex, double energyMin, double energyMax)
+    : powerLawIndex(powerLawIndex)
+    , energyMin(energyMin)
+    , energyMax(energyMax)
+{}
+
 double PowerLaw::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
     if(energyMin == energyMax)
         return energyMin; //return the only allowed energy

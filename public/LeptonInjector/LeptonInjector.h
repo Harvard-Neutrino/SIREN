@@ -70,7 +70,21 @@ public:
     operator bool() const;
 
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) const {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("EventsToInject", events_to_inject));
+            archive(::cereal::make_nvp("InjectedEvents", injected_events));
+            archive(::cereal::make_nvp("PrimaryInjector", primary_injector));
+            archive(::cereal::make_nvp("CrossSections", cross_sections));
+            archive(::cereal::make_nvp("EarthModel", earth_model));
+            archive(::cereal::make_nvp("InjectionDistributions", distributions));
+        } else {
+            throw std::runtime_error("InjectorBase only supports version <= 0!");
+        }
+    }
+
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
@@ -130,7 +144,24 @@ public:
     virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(InteractionRecord const & interaction) const override;
 
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) const {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
+            archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));
+            archive(::cereal::make_nvp("TargetMomentumDistribution", target_momentum_distribution));
+            archive(::cereal::make_nvp("RangeFunction", range_func));
+            archive(::cereal::make_nvp("HelicityDistribution", helicity_distribution));
+            archive(::cereal::make_nvp("DiskRadius", disk_radius));
+            archive(::cereal::make_nvp("EndcapLength", endcap_length));
+            archive(::cereal::make_nvp("PositionDistribution", position_distribution));
+            archive(cereal::virtual_base_class<InjectorBase>(this));
+        } else {
+            throw std::runtime_error("RangedLeptonInjector only supports version <= 0!");
+        }
+    }
+
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
             archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));
@@ -201,7 +232,24 @@ public:
     std::string Name() const override;
     virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(InteractionRecord const & interaction) const override;
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) const {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
+            archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));
+            archive(::cereal::make_nvp("TargetMomentumDistribution", target_momentum_distribution));
+            archive(::cereal::make_nvp("RangeFunction", range_func));
+            archive(::cereal::make_nvp("HelicityDistribution", helicity_distribution));
+            archive(::cereal::make_nvp("DiskRadius", disk_radius));
+            archive(::cereal::make_nvp("EndcapLength", endcap_length));
+            archive(::cereal::make_nvp("PositionDistribution", position_distribution));
+            archive(cereal::virtual_base_class<InjectorBase>(this));
+        } else {
+            throw std::runtime_error("DecayRangeLeptonInjector only supports version <= 0!");
+        }
+    }
+
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
             archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));
@@ -233,7 +281,21 @@ public:
     std::string Name() const override;
     virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(InteractionRecord const & interaction) const override;
     template<typename Archive>
-    void serialize(Archive & archive, std::uint32_t const version) const {
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
+            archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));
+            archive(::cereal::make_nvp("TargetMomentumDistribution", target_momentum_distribution));
+            archive(::cereal::make_nvp("PositionDistribution", position_distribution));
+            archive(::cereal::make_nvp("HelicityDistribution", helicity_distribution));
+            archive(cereal::virtual_base_class<InjectorBase>(this));
+        } else {
+            throw std::runtime_error("VolumeLeptonInjector only supports version <= 0!");
+        }
+    }
+
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
             archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));

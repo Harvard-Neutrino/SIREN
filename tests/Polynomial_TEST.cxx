@@ -19,8 +19,8 @@ double RandomDouble() {
 
 TEST(Comparison, Comparison_equal)
 {
-    Polynom A({});
-    Polynom B({});
+    Polynom A(std::vector<double>{});
+    Polynom B(std::vector<double>{});
     EXPECT_TRUE(A == B);
 
     std::vector<double> params_a{0,1,2,3,4,5};
@@ -48,8 +48,8 @@ TEST(Comparison, Comparison_equal)
 
 TEST(Comparison, Comparison_not_equal)
 {
-    Polynom A({});
-    Polynom B({});
+    Polynom A(std::vector<double>{});
+    Polynom B(std::vector<double>{});
     EXPECT_FALSE(A != B);
 
     std::vector<double> params_a{0,1,2,3,4,5};
@@ -88,7 +88,7 @@ TEST(Assignment, CopyConstructor)
 TEST(Assignment, Operator)
 {
     Polynom A({1, 2, 3});
-    Polynom B({});
+    Polynom B(std::vector<double>{});
     EXPECT_TRUE(A != B);
     B = A;
     EXPECT_TRUE(A == B);

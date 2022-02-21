@@ -45,6 +45,8 @@ namespace earthmodel {
 
 class Polynom {
 friend cereal::access;
+protected:
+    Polynom();
 public:
     Polynom(const std::vector<double>& coefficients);
     Polynom(const Polynom&);
@@ -73,20 +75,10 @@ public:
     // serialization
     //----------------------------------------------//
     template<typename Archive>
-    void save(Archive & archive, std::uint32_t const version) const {
+    void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
+            archive(cereal::make_nvp("N", N_));
             archive(cereal::make_nvp("Coefficients", coeff_));
-        } else {
-            throw std::runtime_error("Polynom only supports version <= 0!");
-        }
-    }
-
-    template<typename Archive>
-    static void load_and_construct(Archive & archive, cereal::construct<Polynom> & construct, std::uint32_t const version) {
-        if(version == 0) {
-            std::vector<double> coeff;
-            archive(cereal::make_nvp("Coefficients", coeff));
-            construct(coeff);
         } else {
             throw std::runtime_error("Polynom only supports version <= 0!");
         }

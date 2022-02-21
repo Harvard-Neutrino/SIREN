@@ -12,6 +12,8 @@
 
 using namespace earthmodel;
 
+Polynom::Polynom() : N_(0) {}
+
 Polynom::Polynom(const std::vector<double>& coefficients) : N_(coefficients.size()) {
     coeff_ = coefficients;
 }

@@ -39,8 +39,8 @@ TEST(Comparison, Comparison_equal)
     delete A;
     delete B;
 
-    A = new PolynomialDistribution1D({});
-    B = new PolynomialDistribution1D({});
+    A = new PolynomialDistribution1D(std::vector<double>{});
+    B = new PolynomialDistribution1D(std::vector<double>{});
     EXPECT_TRUE(*A == *B);
     delete A;
     delete B;
@@ -53,7 +53,7 @@ TEST(Comparison, Comparison_equal)
 
     Distribution1D* C;
     A = new ConstantDistribution1D();
-    B = new PolynomialDistribution1D({});
+    B = new PolynomialDistribution1D(std::vector<double>{});
     C = new ExponentialDistribution1D(1.0);
     EXPECT_FALSE(*A == *B);
     EXPECT_FALSE(*B == *A);
@@ -91,7 +91,7 @@ TEST(Comparison, Comparison_equal)
     delete B;
     delete C;
 
-    A = new PolynomialDistribution1D({});
+    A = new PolynomialDistribution1D(std::vector<double>{});
     B = new PolynomialDistribution1D({1.0});
     C = new PolynomialDistribution1D({1.0,1.0});
     EXPECT_FALSE(*A == *B);
@@ -126,8 +126,8 @@ TEST(Comparison, Comparison_not_equal)
     delete A;
     delete B;
 
-    A = new PolynomialDistribution1D({});
-    B = new PolynomialDistribution1D({});
+    A = new PolynomialDistribution1D(std::vector<double>{});
+    B = new PolynomialDistribution1D(std::vector<double>{});
     EXPECT_FALSE(*A != *B);
     delete A;
     delete B;
@@ -140,7 +140,7 @@ TEST(Comparison, Comparison_not_equal)
 
     Distribution1D* C;
     A = new ConstantDistribution1D();
-    B = new PolynomialDistribution1D({});
+    B = new PolynomialDistribution1D(std::vector<double>{});
     C = new ExponentialDistribution1D(1.0);
     EXPECT_TRUE(*A != *B);
     EXPECT_TRUE(*B != *A);
@@ -178,7 +178,7 @@ TEST(Comparison, Comparison_not_equal)
     delete B;
     delete C;
 
-    A = new PolynomialDistribution1D({});
+    A = new PolynomialDistribution1D(std::vector<double>{});
     B = new PolynomialDistribution1D({1.0});
     C = new PolynomialDistribution1D({1.0,1.0});
     EXPECT_TRUE(*A != *B);
@@ -302,7 +302,7 @@ TEST(Evaluate, Polynomial)
 
         Polynom poly(params);
 
-        PolynomialDistribution1D A({});
+        PolynomialDistribution1D A(std::vector<double>{});
         PolynomialDistribution1D B(poly);
         PolynomialDistribution1D C(params);
         PolynomialDistribution1D D(A);
@@ -387,7 +387,7 @@ TEST(Derivative, Polynomial)
 
         Polynom poly(params);
 
-        PolynomialDistribution1D A({});
+        PolynomialDistribution1D A(std::vector<double>{});
         PolynomialDistribution1D B(poly);
         PolynomialDistribution1D C(params);
         PolynomialDistribution1D D(A);
@@ -472,7 +472,7 @@ TEST(AntiDerivative, Polynomial)
 
         Polynom poly(params);
 
-        PolynomialDistribution1D A({});
+        PolynomialDistribution1D A(std::vector<double>{});
         PolynomialDistribution1D B(poly);
         PolynomialDistribution1D C(params);
         PolynomialDistribution1D D(A);

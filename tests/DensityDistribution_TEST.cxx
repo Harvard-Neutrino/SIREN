@@ -37,7 +37,7 @@ TEST(Constructor, AxisDistribution)
     RadialAxis1D ax_B;
 
     ConstantDistribution1D dist_A;
-    PolynomialDistribution1D dist_B({});
+    PolynomialDistribution1D dist_B(std::vector<double>{});
     ExponentialDistribution1D dist_C(1.0);
 
     auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);
@@ -54,7 +54,7 @@ TEST(Constructor, Other)
     RadialAxis1D ax_B;
 
     ConstantDistribution1D dist_A;
-    PolynomialDistribution1D dist_B({});
+    PolynomialDistribution1D dist_B(std::vector<double>{});
     ExponentialDistribution1D dist_C(1.0);
 
     auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);
@@ -96,7 +96,7 @@ TEST(Constructor, Cartesian)
 {
     CartesianAxis1D ax_A;
 
-    PolynomialDistribution1D dist_A({});
+    PolynomialDistribution1D dist_A(std::vector<double>{});
     ExponentialDistribution1D dist_B(1.0);
 
     auto A = DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D>(ax_A, dist_A);
@@ -111,8 +111,8 @@ TEST(Constructor, RadialPolynomial)
     using T = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>;
 
     RadialAxis1D ax_A;
-    PolynomialDistribution1D dist_A({});
-    Polynom poly({});
+    PolynomialDistribution1D dist_A(std::vector<double>{});
+    Polynom poly(std::vector<double>{});
     std::vector<double> params;
 
     // T A; // Not implemented
@@ -127,13 +127,13 @@ TEST(Comparison, Comparison_equal)
     CartesianAxis1D ax_A0;
     RadialAxis1D ax_B0;
     ConstantDistribution1D dist_A0;
-    PolynomialDistribution1D dist_B0({});
+    PolynomialDistribution1D dist_B0(std::vector<double>{});
     ExponentialDistribution1D dist_C0(1.0);
 
     CartesianAxis1D ax_A1;
     RadialAxis1D ax_B1;
     ConstantDistribution1D dist_A1;
-    PolynomialDistribution1D dist_B1({});
+    PolynomialDistribution1D dist_B1(std::vector<double>{});
     ExponentialDistribution1D dist_C1(1.0);
 
     auto A0 = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A0, dist_A0);
@@ -303,13 +303,13 @@ TEST(Comparison, Comparison_not_equal)
     CartesianAxis1D ax_A0;
     RadialAxis1D ax_B0;
     ConstantDistribution1D dist_A0;
-    PolynomialDistribution1D dist_B0({});
+    PolynomialDistribution1D dist_B0(std::vector<double>{});
     ExponentialDistribution1D dist_C0(1.0);
 
     CartesianAxis1D ax_A1;
     RadialAxis1D ax_B1;
     ConstantDistribution1D dist_A1;
-    PolynomialDistribution1D dist_B1({});
+    PolynomialDistribution1D dist_B1(std::vector<double>{});
     ExponentialDistribution1D dist_C1(1.0);
 
     auto A0 = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A0, dist_A0);
@@ -480,7 +480,7 @@ TEST(Assignment, Copyconstructor)
     RadialAxis1D ax_B;
 
     ConstantDistribution1D dist_A;
-    PolynomialDistribution1D dist_B({});
+    PolynomialDistribution1D dist_B(std::vector<double>{});
     ExponentialDistribution1D dist_C(1.0);
 
     auto A = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(ax_A, dist_A);

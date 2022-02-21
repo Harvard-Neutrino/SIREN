@@ -21,7 +21,6 @@ MaterialModel::Component::Component(LeptonInjector::Particle::ParticleType type)
         proton_count = 1;
         nucleon_count = 1;
         is_atom = false;
-        std::cerr << "AtomicMasses size: " << atomic_masses.size() << std::endl;
         molar_mass = atomic_masses.at({neutron_count, proton_count, nucleon_count});
     } else if (type == LeptonInjector::Particle::ParticleType::Neutron) {
         neutron_count = 1;
@@ -176,7 +175,7 @@ void MaterialModel::AddModelFile(std::string matratio) {
     std::string fname;
 
     if(matratio.empty())
-        throw("Received empty matratio filename!");
+        throw(std::runtime_error("Received empty matratio filename!"));
 
     if(fexists(matratio)) {
         fname = matratio;
@@ -197,14 +196,14 @@ void MaterialModel::AddModelFile(std::string matratio) {
         fname = path_ + "/" + matratio + ".dat";
     }
     else {
-        throw("Cannot open matratio file!");
+        throw(std::runtime_error("Cannot open matratio file!"));
     }
 
     // check earthmodel file
     std::ifstream in(fname.c_str(), std::ifstream::in);
 
     if (in.fail())
-        throw("Failed to open " + fname + ". Set correct path.");
+        throw(std::runtime_error("Failed to open " + fname + ". Set correct path."));
 
     // read the file
     std::string buffer;
@@ -383,7 +382,6 @@ void MaterialModel::GetNucleonContent(int code, int & neutron_count, int & proto
                 "prefix "+std::to_string(prefix)+", A "+std::to_string(nucleon_count)+", Z "+std::to_string(proton_count)+", suffix "+std::to_string(suffix));
     }
     neutron_count = nucleon_count - proton_count;
-    std::cerr << "Code: " << code << ", Neutrons: " << neutron_count << ", Protons: " << proton_count << ", Nucleons: " << nucleon_count << std::endl;
 }
 
 std::vector<LeptonInjector::Particle::ParticleType> MaterialModel::GetMaterialConstituents(int material_id) const {
