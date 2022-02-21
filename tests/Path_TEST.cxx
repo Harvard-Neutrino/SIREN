@@ -2,6 +2,7 @@
 #include <math.h>
 #include <cmath>
 #include <iostream>
+#include <stdexcept>
 
 #include <gtest/gtest.h>
 
@@ -127,7 +128,7 @@ TEST(EarthModel, SetGet) {
 
 TEST(EnsureEarthModel, Throw) {
     Path A;
-    EXPECT_THROW(A.EnsureEarthModel(), const char*);
+    EXPECT_THROW(A.EnsureEarthModel(), std::runtime_error);
 }
 
 TEST(EnsureEarthModel, NoThrow) {
@@ -171,7 +172,7 @@ TEST(Points, SetGetRay) {
 
 TEST(EnsurePoints, Throw) {
     Path A;
-    EXPECT_THROW(A.EnsurePoints(), const char*);
+    EXPECT_THROW(A.EnsurePoints(), std::runtime_error);
 }
 
 TEST(EnsurePoints, NoThrow) {
@@ -203,11 +204,11 @@ TEST(EnsurePoints, NoThrowRay) {
 
 TEST(EnsureIntersections, Throw) {
     Path A;
-    EXPECT_THROW(A.EnsureIntersections(), const char*);
+    EXPECT_THROW(A.EnsureIntersections(), std::runtime_error);
 
     std::shared_ptr<const EarthModel> EMp(new EarthModel());
     A = Path(EMp);
-    EXPECT_THROW(A.EnsureIntersections(), const char*);
+    EXPECT_THROW(A.EnsureIntersections(), std::runtime_error);
 
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
@@ -216,11 +217,11 @@ TEST(EnsureIntersections, Throw) {
     direction.normalize();
     A = Path();
     A.SetPoints(B, C);
-    EXPECT_THROW(A.EnsureIntersections(), const char*);
+    EXPECT_THROW(A.EnsureIntersections(), std::runtime_error);
 
     A = Path();
     A.SetPointsWithRay(B, direction, distance);
-    EXPECT_THROW(A.EnsureIntersections(), const char*);
+    EXPECT_THROW(A.EnsureIntersections(), std::runtime_error);
 }
 
 TEST(EnsureIntersections, NoThrow) {
