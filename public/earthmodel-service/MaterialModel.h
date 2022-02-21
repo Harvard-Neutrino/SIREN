@@ -26,9 +26,10 @@ class MaterialModel {
     static constexpr const int CHAR_BUF_SIZE = 8196;
     static constexpr const double electron_molar_mass = 5.4857990888e-5; // g per mol
 public:
-    static const std::map<std::tuple<int, int, int>, double> atomic_masses;
+    static const std::map<std::tuple<int, int, int, int>, double> atomic_masses;
     struct Component {
         LeptonInjector::Particle::ParticleType type = LeptonInjector::Particle::ParticleType::unknown;
+        int strange_count = 0;
         int neutron_count = 0;
         int nucleon_count = 0;
         int proton_count = 0;
@@ -40,6 +41,7 @@ public:
         void serialize(Archive & archive, std::uint32_t const version) {
             if(version == 0) {
                 archive(cereal::make_nvp("ParticleType", type));
+                archive(cereal::make_nvp("StrangeCount", strange_count));
                 archive(cereal::make_nvp("NeutronCount", neutron_count));
                 archive(cereal::make_nvp("NucleonCount", nucleon_count));
                 archive(cereal::make_nvp("ProtonCount", proton_count));
@@ -129,11 +131,13 @@ public:
 private:
     double ComputeMaterialRadiationLength(int id) const;
 public:
-    static void GetNucleonContent(int code, int & num_neutrons, int & num_protons, int & num_nucleons);
+    static int GetNucleonContent(int code, int & num_strange, int & num_neutrons, int & num_protons, int & num_nucleons);
     static double GetMolarMass(LeptonInjector::Particle::ParticleType particle);
+    static int GetStrangeCount(LeptonInjector::Particle::ParticleType particle);
     static int GetNucleonCount(LeptonInjector::Particle::ParticleType particle);
     static int GetNeutronCount(LeptonInjector::Particle::ParticleType particle);
     static int GetProtonCount(LeptonInjector::Particle::ParticleType particle);
+    static int GetEmpericalNuclearBindingEnergy(int num_strange, int num_neutrons, int num_protons, int num_nucleons);
 };
 
 } // namespace earthmodel

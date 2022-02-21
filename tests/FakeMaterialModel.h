@@ -38,7 +38,7 @@ public:
     std::map<std::string, std::vector<std::pair<std::string, double>>> material_components_;
     unsigned int n_materials_added_ = 0;
 
-    std::vector<std::tuple<int, int, int>> atomic_mass_keys;
+    std::vector<std::tuple<int, int, int, int>> atomic_mass_keys;
 
     void set_possible_material_names(std::vector<std::string> names, unsigned int n_random_names) {
         possible_material_names = names;
@@ -58,7 +58,7 @@ public:
         if(atomic_mass_keys.size() == 0) {
             atomic_mass_keys.reserve(MaterialModel::atomic_masses.size());
             for(auto const & p : MaterialModel::atomic_masses) {
-                std::tuple<int, int, int> key = p.first;
+                std::tuple<int, int, int, int> key = p.first;
                 atomic_mass_keys.push_back(key);
             }
         }
@@ -134,10 +134,10 @@ public:
 
     std::string random_pdg_code() {
         int idx = (int)(RandomDouble() * atomic_mass_keys.size());
-        std::tuple<int, int, int> key = atomic_mass_keys[idx];
-        unsigned int L = 0;
-        unsigned int A = std::get<2>(key);
-        unsigned int Z = std::get<1>(key);
+        std::tuple<int, int, int, int> key = atomic_mass_keys[idx];
+        unsigned int L = (unsigned int)(RandomDouble()*1.001);
+        unsigned int A = std::get<3>(key);
+        unsigned int Z = std::get<2>(key);
         unsigned int I = 0;
         return pdg_code(L, Z, A, I);
     }

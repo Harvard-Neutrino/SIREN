@@ -21,19 +21,19 @@ MaterialModel::Component::Component(LeptonInjector::Particle::ParticleType type)
         proton_count = 1;
         nucleon_count = 1;
         is_atom = false;
-        molar_mass = atomic_masses.at({neutron_count, proton_count, nucleon_count});
+        molar_mass = atomic_masses.at({strange_count, neutron_count, proton_count, nucleon_count});
     } else if (type == LeptonInjector::Particle::ParticleType::Neutron) {
         neutron_count = 1;
         proton_count = 0;
         nucleon_count = 1;
         is_atom = false;
-        molar_mass = atomic_masses.at({neutron_count, proton_count, nucleon_count});
+        molar_mass = atomic_masses.at({strange_count, neutron_count, proton_count, nucleon_count});
     } else if (type == LeptonInjector::Particle::ParticleType::Nucleon) {
         neutron_count = 0;
         proton_count = 0;
         nucleon_count = 1;
         is_atom = false;
-        molar_mass = (atomic_masses.at({1, 0, 1}) + atomic_masses.at({0, 1, 1})) / 2.0;
+        molar_mass = (atomic_masses.at({0, 1, 0, 1}) + atomic_masses.at({0, 0, 1, 1})) / 2.0;
     } else if (type == LeptonInjector::Particle::ParticleType::EMinus) {
         neutron_count = 0;
         proton_count = 0;
@@ -41,9 +41,26 @@ MaterialModel::Component::Component(LeptonInjector::Particle::ParticleType type)
         is_atom = false;
         molar_mass = electron_molar_mass;
     } else {
-        GetNucleonContent(static_cast<int>(type), neutron_count, proton_count, nucleon_count);
-        is_atom = true;
-        molar_mass = atomic_masses.at({neutron_count, proton_count, nucleon_count});
+        try {
+            GetNucleonContent(static_cast<int>(type), strange_count, neutron_count, proton_count, nucleon_count);
+            is_atom = true;
+            std::tuple<int, int, int, int> key(strange_count, neutron_count, proton_count, nucleon_count);
+            auto it = atomic_masses.find(key);
+            if(it != atomic_masses.end())
+                molar_mass = it->second;
+            else {
+                double binding_energy = GetEmpericalNuclearBindingEnergy(strange_count, neutron_count, proton_count, nucleon_count);
+                molar_mass = strange_count * LeptonInjector::Constants::lambda0Mass / LeptonInjector::Constants::GeV_per_amu
+                    + neutron_count * atomic_masses.at({0, 1, 0, 1})
+                    + proton_count * atomic_masses.at({0, 0, 1, 1})
+                    - binding_energy / LeptonInjector::Constants::GeV_per_amu;
+            }
+        } catch (std::runtime_error const & e) {
+            strange_count = 0;
+            neutron_count = 0;
+            proton_count = 0;
+            nucleon_count = 0;
+        }
     }
 }
 
@@ -370,18 +387,19 @@ std::vector<double> MaterialModel::GetTargetRadiationFraction(int material_id, s
     return fractions;
 }
 
-void MaterialModel::GetNucleonContent(int code, int & neutron_count, int & proton_count, int & nucleon_count) {
+int MaterialModel::GetNucleonContent(int code, int & strange_count, int & neutron_count, int & proton_count, int & nucleon_count) {
     int prefix = 0;
-    int suffix = 0;
+    int excitation = 0;
 
     char buf[CHAR_BUF_SIZE];
     sprintf(buf, "%d", code);
-    int nread = sscanf(buf, "%3d%3d%3d%1d", &prefix, &proton_count, &nucleon_count, &suffix);
-    if (nread != 4) {
-        throw std::runtime_error("Failed to convert nuclear pdg to A and Z "
-                "prefix "+std::to_string(prefix)+", A "+std::to_string(nucleon_count)+", Z "+std::to_string(proton_count)+", suffix "+std::to_string(suffix));
+    int nread = sscanf(buf, "%2d%1d%3d%3d%1d", &prefix, &strange_count, &proton_count, &nucleon_count, &excitation);
+    if (nread != 5) {
+        throw std::runtime_error("Failed to convert nuclear pdg to 10LZZZAAAI "
+                "prefix "+std::to_string(prefix)+", L "+std::to_string(strange_count)+", Z "+std::to_string(proton_count)+", A "+std::to_string(nucleon_count)+", I "+std::to_string(excitation));
     }
-    neutron_count = nucleon_count - proton_count;
+    neutron_count = nucleon_count - proton_count - strange_count;
+    return 0;
 }
 
 std::vector<LeptonInjector::Particle::ParticleType> MaterialModel::GetMaterialConstituents(int material_id) const {
@@ -397,6 +415,10 @@ double MaterialModel::GetMolarMass(LeptonInjector::Particle::ParticleType partic
     return Component(particle).molar_mass;
 }
 
+int MaterialModel::GetStrangeCount(LeptonInjector::Particle::ParticleType particle) {
+    return Component(particle).strange_count;
+}
+
 int MaterialModel::GetNucleonCount(LeptonInjector::Particle::ParticleType particle) {
     return Component(particle).nucleon_count;
 }
@@ -409,3 +431,47 @@ int MaterialModel::GetProtonCount(LeptonInjector::Particle::ParticleType particl
     return Component(particle).proton_count;
 }
 
+int MaterialModel::GetEmpericalNuclearBindingEnergy(int strange_count, int neutron_count, int proton_count, int nucleon_count) {
+    // Generalized mass formula and parameters from https://arxiv.org/abs/nucl-th/0504085
+    // Nucleus mass formula parameters comes from least squares fit to experimental data
+    // Hypernucleus correction parameters in the paper result from a two parameter fit of c1 and c2 while keeping c0 fixed
+    // PDG particle codes assume the strange contribution to the hypernucleus comes from lambdas
+    // Here we assume the strange contribution comes from lambda0
+    constexpr const double a_nu = 15.777; // MeV
+    constexpr const double a_s = 18.34; // MeV
+    constexpr const double a_c = 0.71; // MeV
+    constexpr const double a_sym = 23.21; // MeV
+    constexpr const double k = 17;
+    constexpr const double c = 30;
+    const double lambda0_mass = LeptonInjector::Constants::lambda0Mass * 1e3; // GeV --> MeV
+
+    constexpr const double c0 = 0.0335;
+    constexpr const double c1 = 26.7;
+    constexpr const double c2 = 48.7;
+    constexpr const double S = -1; // Strangeness of lambda
+
+
+    double N = neutron_count;
+    double Z = proton_count;
+    double A = nucleon_count;
+    double L = strange_count;
+
+    double delta = 12 * std::pow(A, -0.5);
+    if(proton_count % 2 == 0 and neutron_count % 2 == 0) {
+    } else if (proton_count % 2 == 1 and neutron_count % 2 == 1) {
+        delta = -delta;
+    } else {
+        delta = 0;
+    }
+
+    double delta_new = (1.0 - std::exp(-A/c))*delta;
+
+    double binding_energy_in_MeV =
+        a_nu * A
+        - a_s * std::pow(A, 2.0/3.0)
+        - a_c * Z * (Z - 1) / std::pow(A, 1.0/3.0)
+        - a_sym * std::pow(N - Z, 2) / ((1 + std::exp(-A/k)) * A)
+        + delta_new
+        + L * (c0 * lambda0_mass - c1 - c2 * std::abs(S) / std::pow(A, 2.0/3.0));
+    return binding_energy_in_MeV * 1e-3; // GeV
+}
