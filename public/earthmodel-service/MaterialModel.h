@@ -25,8 +25,8 @@ namespace earthmodel {
 class MaterialModel {
     static constexpr const int CHAR_BUF_SIZE = 8196;
     static constexpr const double electron_molar_mass = 5.4857990888e-5; // g per mol
-    static const std::map<std::tuple<int, int, int>, double> atomic_masses;
 public:
+    static const std::map<std::tuple<int, int, int>, double> atomic_masses;
     struct Component {
         LeptonInjector::Particle::ParticleType type = LeptonInjector::Particle::ParticleType::unknown;
         int neutron_count = 0;
