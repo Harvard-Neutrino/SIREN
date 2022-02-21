@@ -98,9 +98,9 @@ void MaterialModel::AddMaterial(std::string const & material_name, std::map<int,
         material_id = material_ids_[material_name];
     }
 
-    double neutrons_per_gram = 0;
-    double nucleons_per_gram = 0;
-    double protons_per_gram = 0;
+    double neutrons_per_amu = 0;
+    double nucleons_per_amu = 0;
+    double protons_per_amu = 0;
 
     std::vector<MaterialComponent> material_components;
 
@@ -113,40 +113,40 @@ void MaterialModel::AddMaterial(std::string const & material_name, std::map<int,
         material_component.mass_density_over_total_mass_density = component_mass_fraction;
         material_component.particle_density_over_total_mass_density = LeptonInjector::Constants::avogadro * component_mass_fraction / material_component.component.molar_mass;
         material_components.push_back(material_component);
-        neutrons_per_gram += material_component.particle_density_over_total_mass_density * material_component.component.neutron_count;
-        nucleons_per_gram += material_component.particle_density_over_total_mass_density * material_component.component.nucleon_count;
-        protons_per_gram += material_component.particle_density_over_total_mass_density * material_component.component.proton_count;
+        neutrons_per_amu += component_mass_fraction / material_component.component.molar_mass * material_component.component.neutron_count;
+        nucleons_per_amu += component_mass_fraction / material_component.component.molar_mass * material_component.component.nucleon_count;
+        protons_per_amu += component_mass_fraction / material_component.component.molar_mass * material_component.component.proton_count;
     }
 
-    if(neutrons_per_gram > 0) {
+    if(neutrons_per_amu > 0) {
         Component component(LeptonInjector::Particle::ParticleType::Neutron);
         MaterialComponent material_component;
         material_component.component = component;
-        material_component.mass_density_over_total_mass_density = neutrons_per_gram * component.molar_mass;
-        material_component.particle_density_over_total_mass_density = neutrons_per_gram;
+        material_component.mass_density_over_total_mass_density = neutrons_per_amu * component.molar_mass;
+        material_component.particle_density_over_total_mass_density = neutrons_per_amu * LeptonInjector::Constants::avogadro;
         material_components.push_back(material_component);
     }
 
-    if(nucleons_per_gram > 0) {
+    if(nucleons_per_amu > 0) {
         Component component(LeptonInjector::Particle::ParticleType::Nucleon);
         MaterialComponent material_component;
         material_component.component = component;
-        material_component.mass_density_over_total_mass_density = nucleons_per_gram * component.molar_mass;
-        material_component.particle_density_over_total_mass_density = nucleons_per_gram;
+        material_component.mass_density_over_total_mass_density = nucleons_per_amu * component.molar_mass;
+        material_component.particle_density_over_total_mass_density = nucleons_per_amu * LeptonInjector::Constants::avogadro;
         material_components.push_back(material_component);
     }
 
-    if(protons_per_gram > 0) {
+    if(protons_per_amu > 0) {
         Component component(LeptonInjector::Particle::ParticleType::PPlus);
         MaterialComponent material_component;
         material_component.component = component;
-        material_component.mass_density_over_total_mass_density = protons_per_gram * component.molar_mass;
-        material_component.particle_density_over_total_mass_density = protons_per_gram;
+        material_component.mass_density_over_total_mass_density = protons_per_amu * component.molar_mass;
+        material_component.particle_density_over_total_mass_density = protons_per_amu * LeptonInjector::Constants::avogadro;
         material_components.push_back(material_component);
         component = Component(LeptonInjector::Particle::ParticleType::EMinus);
         material_component.component = component;
-        material_component.mass_density_over_total_mass_density = protons_per_gram * component.molar_mass;
-        material_component.particle_density_over_total_mass_density = protons_per_gram;
+        material_component.mass_density_over_total_mass_density = protons_per_amu * component.molar_mass;
+        material_component.particle_density_over_total_mass_density = protons_per_amu * LeptonInjector::Constants::avogadro;
         material_components.push_back(material_component);
     }
 
