@@ -58,10 +58,6 @@ TEST(DefaultMaterials, VacuumOnly)
     const double electrons_per_gram = protons_per_gram;
 
     ASSERT_EQ(0, id);
-    std::cerr << "Nucleons: " << material_nucleons_per_gram << std::endl;
-    std::cerr << "Neutrons: " << material_neutrons_per_gram << std::endl;
-    std::cerr << "Protons: " << material_protons_per_gram << std::endl;
-    std::cerr << "Electrons: " << material_electrons_per_gram << std::endl;
     EXPECT_DOUBLE_EQ(material_nucleons_per_gram, nucleons_per_gram);
     EXPECT_DOUBLE_EQ(material_neutrons_per_gram, neutrons_per_gram);
     EXPECT_DOUBLE_EQ(material_protons_per_gram, protons_per_gram);
