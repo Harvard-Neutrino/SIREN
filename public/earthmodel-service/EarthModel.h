@@ -110,7 +110,6 @@ public:
     double DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const;
     double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const;
 
-    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
     std::vector<double> GetParticleColumnDepth(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
 
     EarthSector GetContainingSector(Geometry::IntersectionList const & intersections, Vector3D const & p0) const;
