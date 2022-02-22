@@ -79,8 +79,10 @@ public:
     void LoadEarthModel(std::string const & earth_model);
     void LoadMaterialModel(std::string const & material_model);
 
-    double GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0) const;
-    double GetDensity(Vector3D const & p0) const;
+    double GetMassDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0) const;
+    double GetMassDensity(Vector3D const & p0) const;
+    double GetParticleDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, LeptonInjector::Particle::ParticleType target) const;
+    double GetParticleDensity(Vector3D const & p0, LeptonInjector::Particle::ParticleType target) const;
     double GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1) const;
     double GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const;
     double DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth) const;
@@ -89,8 +91,18 @@ public:
     double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth) const;
 
     // Density/CD calculations with general target list, not just nucleon/electron
-    double GetDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, std::set<LeptonInjector::Particle::ParticleType> targets) const;
-    double GetDensity(Vector3D const & p0, std::set<LeptonInjector::Particle::ParticleType> targets) const;
+    double GetMassDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, std::set<LeptonInjector::Particle::ParticleType> targets) const;
+    double GetMassDensity(Vector3D const & p0, std::set<LeptonInjector::Particle::ParticleType> targets) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    double GetMassDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    double GetMassDensity(Vector3D const & p0, Iterator begin, Iterator end) const;
+    std::vector<double> GetParticleDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, std::set<LeptonInjector::Particle::ParticleType> targets) const;
+    std::vector<double> GetParticleDensity(Vector3D const & p0, std::set<LeptonInjector::Particle::ParticleType> targets) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetParticleDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetParticleDensity(Vector3D const & p0, Iterator begin, Iterator end) const;
     double GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1, std::set<LeptonInjector::Particle::ParticleType> targets) const;
     double GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1, std::set<LeptonInjector::Particle::ParticleType> targets) const;
     double DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const;
@@ -98,7 +110,8 @@ public:
     double DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const;
     double DistanceForColumnDepthToPoint(Vector3D const & end_point, Vector3D const & direction, double column_depth, std::set<LeptonInjector::Particle::ParticleType> targets) const;
 
-    std::vector<double> GetTargetCounts(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1,  std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetParticleColumnDepth(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1, std::vector<LeptonInjector::Particle::ParticleType> const & targets) const;
 
     EarthSector GetContainingSector(Geometry::IntersectionList const & intersections, Vector3D const & p0) const;
     EarthSector GetContainingSector(Vector3D const & p0) const;
@@ -143,6 +156,8 @@ public:
 };
 
 }; // namespace earthmodel
+
+#include "earthmodel-service/EarthModel.tcc"
 
 CEREAL_CLASS_VERSION(earthmodel::EarthModel, 0);
 

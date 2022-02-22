@@ -531,7 +531,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<ea
         return 0.0;
 
     double totalColumnDepth = path.GetColumnDepthInBounds(target_types); // g/cm^2
-    double density = earth_model->GetDensity(vertex, target_types); // g/cm^3
+    double density = earth_model->GetMassDensity(vertex, target_types); // g/cm^3
     double prob_density = density / totalColumnDepth * 100; // (cm^-1 * cm/m) -> m^-1
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
     return prob_density;
@@ -623,7 +623,7 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmod
         return 0.0;
 
     double totalColumnDepth = path.GetColumnDepthInBounds(target_types); // g/cm^2
-    double density = earth_model->GetDensity(vertex, target_types); // g/cm^3
+    double density = earth_model->GetMassDensity(vertex, target_types); // g/cm^3
     double prob_density = density / totalColumnDepth * 100; // (cm^-1 * cm/m) -> m^-1
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
     return prob_density;

@@ -292,7 +292,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileSectorTypes)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileGetDensityCachedIntersections)
+TEST_F(FakeLegacyEarthModelTest, LegacyFileGetMassDensityCachedIntersections)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
@@ -311,8 +311,8 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileGetDensityCachedIntersections)
         Geometry::IntersectionList intersections = A.GetIntersections(p0, direction);
         for(unsigned int j=0; j<10; ++j) {
             Vector3D p1 = p0 + direction * (FakeLegacyEarthModelFile::RandomDouble()*max_radius*2 - max_radius);
-            double expect = A.GetDensity(p1);
-            double density = A.GetDensity(intersections, p1);
+            double expect = A.GetMassDensity(p1);
+            double density = A.GetMassDensity(intersections, p1);
             EXPECT_DOUBLE_EQ(density, expect) << i << " " << j;
         }
     }
@@ -401,7 +401,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralInternal)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityInternal)
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityInternal)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
@@ -424,7 +424,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityInternal)
         DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_dist = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density_dist);
         double rho = density_dist->Evaluate(Vector3D());
-        double density = A.GetDensity(p0);
+        double density = A.GetMassDensity(p0);
         EXPECT_DOUBLE_EQ(density, rho);
     }
 }
@@ -531,7 +531,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityNested)
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityNested)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
@@ -566,7 +566,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityNested)
         double rho_1 = density_1->Evaluate(Vector3D());
         ASSERT_LE(p0.magnitude(), max_radius);
         bool in_0 = p0.magnitude() <= sphere_0->GetRadius();
-        double density = A.GetDensity(p0);
+        double density = A.GetMassDensity(p0);
         if(in_0) {
             ASSERT_DOUBLE_EQ(density, rho_0);
         }
@@ -871,7 +871,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityIntersecting)
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityIntersecting)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
@@ -928,7 +928,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityIntersecting)
         double rho_lower = density_0->Evaluate(lower_center);
         double rho_upper = density_1->Evaluate(upper_center);
 
-        double density = A.GetDensity(p0);
+        double density = A.GetMassDensity(p0);
 
         bool p0_in_lower = (p0-lower_center).magnitude() < radius;
         bool p0_in_upper = (p0-upper_center).magnitude() < radius;
@@ -1048,7 +1048,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityHidden)
+TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityHidden)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
@@ -1107,7 +1107,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetDensityHidden)
 
         bool p0_in_upper = (p0 - upper_center).magnitude() < radius;
 
-        double density = A.GetDensity(p0);
+        double density = A.GetMassDensity(p0);
         if(p0_in_upper) {
             EXPECT_DOUBLE_EQ(density, rho_upper);
         } else {

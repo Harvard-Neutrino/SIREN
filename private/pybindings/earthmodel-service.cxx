@@ -118,8 +118,8 @@ BOOST_PYTHON_MODULE(EarthModelService){
         .def_readwrite("density", &EarthSector::density)
 		;
 
-    double (EarthModel::*GetDensity_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0) const = &EarthModel::GetDensity;
-    double (EarthModel::*GetDensity)(Vector3D const & p0) const = &EarthModel::GetDensity;
+    double (EarthModel::*GetMassDensity_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0) const = &EarthModel::GetMassDensity;
+    double (EarthModel::*GetMassDensity)(Vector3D const & p0) const = &EarthModel::GetMassDensity;
 
     double (EarthModel::*GetColumnDepthInCGS_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1) const = &EarthModel::GetColumnDepthInCGS;
     double (EarthModel::*GetColumnDepthInCGS)(Vector3D const & p0, Vector3D const & p1) const = &EarthModel::GetColumnDepthInCGS;
@@ -134,8 +134,8 @@ BOOST_PYTHON_MODULE(EarthModelService){
         .def("LoadEarthModel",&EarthModel::LoadEarthModel)
         .def("LoadMaterialModel",&EarthModel::LoadMaterialModel)
         //.def("GetColumnDepthInCGS",&EarthModel::GetColumnDepthInCGS)
-        .def("GetColumnDepthInCGS", GetDensity)
-        .def("GetColumnDepthInCGS", GetDensity_cached)
+        .def("GetColumnDepthInCGS", GetMassDensity)
+        .def("GetColumnDepthInCGS", GetMassDensity_cached)
         .def("DistanceForColumnDepthToPoint", DistanceForColumnDepthToPoint)
         .def("DistanceForColumnDepthToPoint", DistanceForColumnDepthToPoint_cached)
         .def("GetEarthCoordPosFromDetCoordPos",&EarthModel::GetEarthCoordPosFromDetCoordPos)

@@ -69,9 +69,18 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     std::set<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
     std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
-    earthmodel::Vector3D intVertex(record.interaction_vertex[0],record.interaction_vertex[1],record.interaction_vertex[2]);
+    earthmodel::Vector3D interaction_vertex(
+            record.interaction_vertex[0],
+            record.interaction_vertex[1],
+            record.interaction_vertex[2]);
 
-    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(intVertex, earthmodel::Vector3D());
+    earthmodel::Vector3D primary_direction(
+            record.primary_momentum[1],
+            record.primary_momentum[2],
+            record.primary_momentum[3]);
+    primary_direction.normalize();
+
+    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(interaction_vertex, primary_direction);
 
     double total_prob = 0.0;
     std::vector<double> probs;
@@ -81,13 +90,13 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     for(auto const target : available_targets) {
         if(possible_targets.find(target) != possible_targets.end()) {
             // Get target density
-            double target_density = earth_model->GetDensity(intVertex, std::set<Particle::ParticleType>{target});
+            double target_density = earth_model->GetParticleDensity(intersections, interaction_vertex, target);
             // Loop over cross sections that have this target
             std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections.GetCrossSectionsForTarget(target);
             unsigned int xs_i = 0;
             for(auto const & cross_section : target_cross_sections) {
                 // Loop over cross section signatures with the same target
-                std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type,target);
+                std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
                 unsigned int sig_i = 0;
                 for(auto const & signature : signatures) {
                     record.signature = signature;
@@ -124,16 +133,25 @@ double InjectorBase::CrossSectionProbability(InteractionRecord const & record) c
     std::set<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
     std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
-    earthmodel::Vector3D intVertex(record.interaction_vertex[0],record.interaction_vertex[1],record.interaction_vertex[2]);
+    earthmodel::Vector3D interaction_vertex(
+            record.interaction_vertex[0],
+            record.interaction_vertex[1],
+            record.interaction_vertex[2]);
 
-    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(intVertex, earthmodel::Vector3D());
+    earthmodel::Vector3D primary_direction(
+            record.primary_momentum[1],
+            record.primary_momentum[2],
+            record.primary_momentum[3]);
+    primary_direction.normalize();
+
+    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(interaction_vertex, primary_direction);
 
     double total_prob = 0.0;
     double selected_prob = 0.0;
     for(auto const target : available_targets) {
         if(possible_targets.find(target) != possible_targets.end()) {
             // Get target density
-            double target_density = earth_model->GetDensity(intVertex, std::set<Particle::ParticleType>{target});
+            double target_density = earth_model->GetParticleDensity(intersections, interaction_vertex, target);
             // Loop over cross sections that have this target
             std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections.GetCrossSectionsForTarget(target);
             for(auto const & cross_section : target_cross_sections) {
@@ -252,7 +270,7 @@ void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRe
         D.push_back(i.distance);
         x0 = (9./7.)*mat_model.GetMaterialRadiationLength(i.matID); // in g/cm^2
         density_point += 0.5*(i.position - density_point);
-        density = earth_model->GetDensity(density_point);
+        density = earth_model->GetMassDensity(density_point);
         x0 *= 0.01/density; // in m
         X0.push_back(x0);
         p = std::exp(-D[j]/x0) - std::exp(-D[j+1]/x0);

@@ -43,9 +43,18 @@ class LeptonWeighter {
 private:
     std::vector<std::shared_ptr<InjectorBase>> injectors;
     std::shared_ptr<earthmodel::EarthModel> earth_model;
+    //TODO Think about whether we want to pass a CrossSection collection, or a vector of cross sections
+    //TODO Think about what to do with multiple neutrino primary types. Do we want to support mutiple types across one CrossSectionCollection, across one InjectorBase, across one LeptonWeighter?
     std::shared_ptr<CrossSectionCollection> cross_sections;
+    std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions;
+    //TODO Think about the relationship between interaction probability and the positional distribution. Check that the math works out
+    //TODO Add versions of these functions that take precomputed intersections
     double InteractionProbability(std::shared_ptr<InjectorBase const> injector, InteractionRecord const & record) const;
     double InteractionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const;
+    double UnnormalizedPositionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const;
+    double NormalizedPositionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const;
+    //TODO Add a function to check that we have the right match up of variables between generator and physical distribution
+    //TODO Figure out a way to check that physical and generation probabilities match, and ignore those when weighting
 public:
     LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections);
     double EventWeight(InteractionRecord const & record) const;
