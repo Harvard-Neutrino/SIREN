@@ -1,0 +1,193 @@
+namespace geom3 {
+    inline double UnitVector3::x() const
+    {
+        return x_;
+    }
+
+    inline double UnitVector3::y() const
+    {
+        return y_;
+    }
+
+    inline double UnitVector3::z() const
+    {
+        return z_;
+    }
+
+    inline void UnitVector3::normalize()
+    {
+        const double norm = sqrt(x_*x_ + y_*y_ + z_*z_);
+        if (norm > 0.0)
+        {
+            x_ /= norm;
+            y_ /= norm;
+            z_ /= norm;
+        }        
+        else
+        {
+            x_ = 1.0;
+            y_ = 0.0;
+            z_ = 0.0;
+        }
+    }
+
+    inline UnitVector3::UnitVector3(double theta, double phi)
+        : z_(cos(theta))
+    {
+        assert(theta >= 0.0 && theta <= M_PI);
+        const double s(sin(theta));
+        x_ = s*cos(phi);
+        y_ = s*sin(phi);
+    }
+
+    inline UnitVector3::UnitVector3(double phi)
+        : x_(cos(phi)), y_(sin(phi)), z_(0.0)
+    {
+    }
+
+    inline UnitVector3::UnitVector3(double x, double y, double z,
+                                    bool mustNormalize)
+        : x_(x), y_(y), z_(z)
+    {
+        if (mustNormalize)
+            normalize();
+    }
+
+    // The following constructor assumes that "norm" has been calculated
+    // as sqrt(x*x + y*y + z*z). This constructor can be used to save
+    // a little bit of time if the length of the vector is known and
+    // we just need its direction.
+    inline UnitVector3::UnitVector3(double x, double y, double z, double norm)
+        : x_(x), y_(y), z_(z)
+    {
+        if (norm > 0.0)
+        {
+            x_ /= norm;
+            y_ /= norm;
+            z_ /= norm;
+        }
+        else
+        {
+            x_ = 1.0;
+            y_ = 0.0;
+            z_ = 0.0;
+        }
+    }
+
+    inline UnitVector3 UnitVector3::operator-() const
+    {
+        return UnitVector3(-x_, -y_, -z_, false);
+    }
+
+    inline UnitVector3 UnitVector3::operator+() const
+    {
+        return *this;
+    }
+
+    inline bool operator==(const UnitVector3& l, const UnitVector3& r)
+    {
+        return l.x_ == r.x_ && l.y_ == r.y_ && l.z_ == r.z_;
+    }
+
+    inline bool operator!=(const UnitVector3& l, const UnitVector3& r)
+    {
+        return !(l == r);
+    }
+
+    inline Vector3 operator*(const UnitVector3& l, const double& r)
+    {
+        return Vector3(r, l);
+    }
+
+    inline Vector3 operator*(const double& l, const UnitVector3& r)
+    {
+        return r*l;
+    }
+
+    inline Vector3 operator/(const UnitVector3& l, const double& r)
+    {
+        assert(r != 0.0);
+        return l*(1.0/r);
+    }
+
+    inline double UnitVector3::dot(const Vector3& r) const
+    {
+        return x_*r.x_ + y_*r.y_ + z_*r.z_;
+    }
+
+    inline double UnitVector3::dot(const UnitVector3& r) const
+    {
+        return x_*r.x_ + y_*r.y_ + z_*r.z_;
+    }
+
+    inline Vector3 UnitVector3::cross(const Vector3& r) const
+    {
+        return Vector3(y_*r.z_ - z_*r.y_, z_*r.x_ - x_*r.z_, x_*r.y_ - y_*r.x_);
+    }
+
+    inline Vector3 UnitVector3::cross(const UnitVector3& r) const
+    {
+        return Vector3(y_*r.z_ - z_*r.y_, z_*r.x_ - x_*r.z_, x_*r.y_ - y_*r.x_);
+    }
+
+    inline Vector3 operator-(const UnitVector3& l, const UnitVector3& r)
+    {
+        return Vector3(l.x_ - r.x_, l.y_ - r.y_, l.z_ - r.z_);
+    }
+
+    inline Vector3 operator+(const UnitVector3& l, const UnitVector3& r)
+    {
+        return Vector3(l.x_ + r.x_, l.y_ + r.y_, l.z_ + r.z_);
+    }
+
+    inline double UnitVector3::angle(const Vector3& r) const
+    {
+        return angle(r.direction());
+    }
+
+    inline double UnitVector3::cosTheta() const
+    {
+        return z_;
+    }
+
+    inline double UnitVector3::phi() const
+    {
+        return atan2(y_, x_);
+    }
+
+    inline double UnitVector3::eta() const
+    {
+        const double t = sqrt(x_*x_ + y_*y_);
+        assert(t != 0.0);
+        return asinh(z_/t);
+    }
+
+    inline UnitVector3& UnitVector3::setPhi(const double phi)
+    {
+        const double s(sqrt(1.0 - z_*z_));
+        x_ = s*cos(phi);
+        y_ = s*sin(phi);
+        return *this;
+    }
+
+    inline UnitVector3 UnitVector3::xAxis()
+    {
+        return UnitVector3(1.0, 0.0, 0.0, false);
+    }
+
+    inline UnitVector3 UnitVector3::yAxis()
+    {
+        return UnitVector3(0.0, 1.0, 0.0, false);
+    }
+
+    inline UnitVector3 UnitVector3::zAxis()
+    {
+        return UnitVector3(0.0, 0.0, 1.0, false);
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, const geom3::UnitVector3& v)
+{
+    os << '<' << v.x() << ", " << v.y() << ", " << v.z() << '>';
+    return os;
+}

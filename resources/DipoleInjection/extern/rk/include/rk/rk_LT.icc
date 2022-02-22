@@ -1,0 +1,134 @@
+namespace rk {
+    inline LT::Biquaternion::Biquaternion(const Complex& q0, const Complex& q1,
+                                          const Complex& q2, const Complex& q3)
+        : q0_(q0), q1_(q1), q2_(q2), q3_(q3)
+    {
+    }
+
+    inline LT::Biquaternion operator+(const LT::Biquaternion& l,
+                                      const LT::Biquaternion& r)
+    {
+        return LT::Biquaternion(l.q0_+r.q0_,l.q1_+r.q1_,l.q2_+r.q2_,l.q3_+r.q3_);
+    }
+
+    inline LT::Biquaternion operator-(const LT::Biquaternion& l,
+                                      const LT::Biquaternion& r)
+    {
+        return LT::Biquaternion(l.q0_-r.q0_,l.q1_-r.q1_,l.q2_-r.q2_,l.q3_-r.q3_);
+    }
+
+    inline LT::Biquaternion LT::Biquaternion::operator-() const
+    {
+        return LT::Biquaternion(-q0_, -q1_, -q2_, -q3_);
+    }
+
+    inline LT::Biquaternion LT::Biquaternion::biconjugate() const
+    {
+        return LT::Biquaternion(q0_, -q1_, -q2_, -q3_);
+    }
+
+    inline LT::Biquaternion LT::Biquaternion::conj() const
+    {
+        return LT::Biquaternion(std::conj(q0_), std::conj(q1_),
+                                std::conj(q2_), std::conj(q3_));
+    }
+
+    inline LT::Biquaternion LT::Biquaternion::hconjugate() const
+    {
+        return LT::Biquaternion(std::conj(q0_), std::conj(-q1_),
+                                std::conj(-q2_), std::conj(-q3_));
+    }
+
+    inline geom3::Vector3 LT::Biquaternion::momentum() const
+    {
+        return geom3::Vector3(q1_.imag(), q2_.imag(), q3_.imag());
+    }
+
+    inline double LT::Biquaternion::e() const
+    {
+        return q0_.real();
+    }
+
+    inline double LT::Biquaternion::length() const
+    {
+        return std::sqrt(std::norm(q0_) + std::norm(q1_) + 
+                         std::norm(q2_) + std::norm(q3_));
+    }
+
+    inline LT::LT()
+        : q_(Complex(1.0, 0.0), Complex(0.0, 0.0),
+             Complex(0.0, 0.0), Complex(0.0, 0.0)),
+          qdagger_(q_),
+          updated_(true)
+    {
+    }
+
+    inline LT::LT(const LT::Biquaternion& q)
+        : q_(q),
+          qdagger_(std::conj(q_.q0_), std::conj(-q_.q1_),
+                   std::conj(-q_.q2_), std::conj(-q_.q3_)),
+          updated_(true)
+    {
+    }
+
+    inline LT::LT(const geom3::Rotation3& r)
+        : q_(Complex(r.q_.s_, 0.0), Complex(r.q_.v_.x(), 0.0),
+             Complex(r.q_.v_.y(), 0.0), Complex(r.q_.v_.z(), 0.0)),
+          qdagger_(q_.biconjugate()),
+          updated_(true)
+    {
+    }
+
+    inline LT::LT(const Boost& b)
+        : q_(b), qdagger_(q_), updated_(true)
+    {
+    }
+
+    inline LT LT::operator*(const LT& r) const
+    {
+        return LT((q_*r.q_).normalize());
+    }
+
+    inline LT& LT::operator*=(const LT& r)
+    {
+        q_ = r.q_*q_;
+        q_.normalize();
+        updated_ = false;
+        return *this;
+    }
+
+    inline LT LT::inverse() const
+    {
+        return LT(q_.biconjugate());
+    }
+
+    inline double LT::distance(const LT& r) const
+    {
+        return std::min((q_ + r.q_).length(), (q_ - r.q_).length());
+    }
+
+    inline bool operator==(const LT::Biquaternion& l,
+                           const LT::Biquaternion& r)
+    {
+        return l.q0_ == r.q0_ && l.q1_ == r.q1_ &&
+               l.q2_ == r.q2_ && l.q3_ == r.q3_;
+    }
+
+    inline bool operator!=(const LT::Biquaternion& l,
+                           const LT::Biquaternion& r)
+    {
+        return !(l == r);
+    }
+
+    inline bool operator==(const LT& l, const LT& r)
+    {
+        // For the purpose of Lorentz transformations, biquaternions
+        // are meaningfully defined up to a sign
+        return l.q_ == r.q_ || l.q_ == -r.q_;
+    }
+
+    inline bool operator!=(const LT& l, const LT& r)
+    {
+        return !(l == r);
+    }
+}

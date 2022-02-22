@@ -1,0 +1,333 @@
+// Note: e_ and p_ values in P4 must always be correct.
+// m_ value < 0.0 means that m_ is incorrect and must be
+// recalculated.
+//
+// The meaning of "msqIsNonNegative_" flag is actually the
+// following: if the mass squared is known to be non-negative
+// then this flag is set. If the mass squared is not known
+// to be non-negative then this flag is not set (so the mass
+// squared can be either positive or negative). If the flag
+// is set and the actual calculation of mass squared gives
+// a negative result, the mass is set to 0.
+//
+// The "msqIsNonNegative_" flag allows us to avoid subtle
+// problems with round-off errors. In particular, the sum
+// of light-like or time-like 4-vectors with positive energies
+// must always have a non-negative mass. Unfortunately, in the
+// presence of round-off errors, this is not automatically
+// guaranteed. Therefore, the logical "and" of "msqIsNonNegative_"
+// flags is used to carry this information through.
+
+namespace rk {
+    inline P4::P4()
+        : p_(), e_(0.0), m_(0.0), msqIsNonNegative_(true)
+    {
+    }
+
+    inline P4::P4(const geom3::Vector3& p, const double m,
+                  const bool isEnergyNegative)
+        : p_(p),
+          e_(sqrt(m*m + p.lengthSquared()) * (isEnergyNegative ? -1.0 : 1.0)),
+          m_(m),
+          msqIsNonNegative_(true)
+    {
+        assert(m_ >= 0.0);
+    }
+
+    inline P4::P4(const double e, const geom3::Vector3& p)
+        : p_(p), e_(e), m_(-1.0), msqIsNonNegative_(false)
+    {
+    }
+
+    inline P4::P4(const double e, const geom3::Vector3& p,
+                  const double m)
+        : p_(p), e_(e), m_(m), msqIsNonNegative_(m >= 0.0)
+    {
+    }
+
+    inline P4::P4(const double e, const geom3::Vector3& p,
+                  const bool nonNegative)
+        : p_(p), e_(e), m_(-1.0), msqIsNonNegative_(nonNegative)
+    {
+    }
+
+    inline P4::P4(const double e, const geom3::Vector3& p,
+                  const double m, const bool nonNegative)
+        : p_(p), e_(e), m_(m), msqIsNonNegative_(nonNegative)
+    {
+    }
+
+    inline void P4::ensureMass_(void) const
+    {
+        if (m_ <= 0.0)
+        {
+            const double msq(e_*e_ - p_.lengthSquared());
+            assert(msq > 0.0);
+            msqIsNonNegative_ = true;
+            m_ = sqrt(msq);
+        }
+    }
+
+    inline double P4::e() const
+    {
+        return e_;
+    }
+
+    inline double P4::px() const
+    {
+        return p_.x_;
+    }
+
+    inline double P4::py() const
+    {
+        return p_.y_;
+    }
+
+    inline double P4::pz() const
+    {
+        return p_.z_;
+    }
+
+    inline const geom3::Vector3& P4::momentum() const
+    {
+        return p_;
+    }
+
+    inline double P4::p() const
+    {
+        return p_.length();
+    }
+
+    inline double P4::m() const
+    {
+        if (m_ < 0.0)
+        {
+            double msq(e_*e_ - p_.lengthSquared());
+            if (msqIsNonNegative_)
+            {
+                if (msq < 0.0)
+                    msq = 0.0;
+            }
+            else
+            {
+                assert(msq >= 0.0);
+                msqIsNonNegative_ = true;
+            }
+            m_ = sqrt(msq);
+        }
+        return m_;
+    }
+
+    inline double P4::pt() const
+    {
+        return sqrt(p_.x_*p_.x_ + p_.y_*p_.y_);
+    }
+
+    inline geom3::Vector3 P4::transverse() const
+    {
+        return geom3::Vector3(p_.x_, p_.y_, 0.0);
+    }
+
+    inline double P4::et() const
+    {
+        const double mom(p_.length());
+        if (mom > 0.0)
+            return e_*sqrt(p_.x_*p_.x_ + p_.y_*p_.y_)/mom;
+        else
+            return 0.0;
+    }
+
+    inline double P4::rapidity() const
+    {
+        assert(e_);
+        return atanh(p_.z_/e_);
+    }
+
+    inline double P4::eta() const
+    {
+        return p_.eta();
+    }
+
+    inline double P4::phi() const
+    {
+        return p_.phi();
+    }
+
+    inline double P4::theta() const
+    {
+        return p_.theta();
+    }
+
+    inline double P4::cosTheta() const
+    {
+        return p_.cosTheta();
+    }
+
+    inline double P4::beta() const
+    {
+        assert(e_);
+        if (m())
+            return p_.length()/e_;
+        else
+            return e_ > 0.0 ? 1.0 : -1.0;
+    }
+
+    inline geom3::Vector3 P4::velocity() const
+    {
+        assert(e_);
+        return p_/e_;
+    }
+
+    inline double P4::gamma() const
+    {
+        ensureMass_();
+        return fabs(e_)/m_;
+    }
+
+    inline double P4::betaGamma() const
+    {
+        ensureMass_();
+        return p_.length()/m_ * (e_ < 0.0 ? -1.0 : 1.0);
+    }
+
+    inline double P4::dot(const P4& r) const
+    {
+        return e_*r.e_ - p_.dot(r.p_);
+    }
+
+    inline double P4::squared() const
+    {
+        return e_*e_ - p_.lengthSquared();
+    }
+
+    inline bool operator==(const P4& l, const P4& r)
+    {
+        return l.e_ == r.e_ && l.p_ == r.p_;
+    }
+
+    inline bool operator!=(const P4& l, const P4& r)
+    {
+        return !(l == r);
+    }
+
+    inline P4 operator+(const P4& l, const P4& r)
+    {
+        return P4(l.e_ + r.e_, l.p_ + r.p_,
+            l.msqIsNonNegative_ && r.msqIsNonNegative_ && l.e_*r.e_ >= 0.0);
+    }
+
+    inline P4 operator-(const P4& l, const P4& r)
+    {
+        return P4(l.e_ - r.e_, l.p_ - r.p_,
+            l.msqIsNonNegative_ && r.msqIsNonNegative_ && l.e_*r.e_ <= 0.0);
+    }
+
+    inline P4 operator*(const P4& l, const double& r)
+    {
+        return P4(l.e_*r, l.p_*r, l.m_ >= 0.0 ? l.m_*fabs(r) : -1.0);
+    }
+
+    inline P4 operator*(const double& r, const P4& l)
+    {
+        return P4(l.e_*r, l.p_*r, l.m_ >= 0.0 ? l.m_*fabs(r) : -1.0);
+    }
+
+    inline P4 operator/(const P4& l, const double& r)
+    {
+        assert(r);
+        return P4(l.e_/r, l.p_/r, l.m_ >= 0.0 ? l.m_/fabs(r) : -1.0);
+    }
+
+    inline P4 P4::fourVelocity() const
+    {
+        // We assume that the proper time is running
+        // in the same direction as the lab time
+        ensureMass_();
+        return P4(e_/m_, p_/m_, 1.0);
+    }
+
+    inline P4 P4::reverseE() const
+    {
+        return P4(-e_, p_, m_, msqIsNonNegative_);
+    }
+
+    inline P4 P4::reverseP() const
+    {
+        return P4(e_, -p_, m_, msqIsNonNegative_);
+    }
+
+    inline P4 P4::operator-() const
+    {
+        return P4(-e_, -p_, m_, msqIsNonNegative_);
+    }
+
+    inline P4 P4::operator+() const
+    {
+        return *this;
+    }
+
+    inline P4& P4::operator+=(const P4& r)
+    {
+        e_ += r.e_;
+        p_ += r.p_;
+        m_ = -1.0;
+        msqIsNonNegative_ = msqIsNonNegative_ && r.msqIsNonNegative_ &&
+                            e_*r.e_ >= 0.0;
+        return *this;
+    }
+
+    inline P4& P4::operator-=(const P4& r)
+    {
+        e_ -= r.e_;
+        p_ -= r.p_;
+        m_ = -1.0;
+        msqIsNonNegative_ = msqIsNonNegative_ && r.msqIsNonNegative_ &&
+                            e_*r.e_ <= 0.0;
+        return *this;
+    }
+
+    inline P4& P4::operator*=(const double& d)
+    {
+        e_ *= d;
+        p_ *= d;
+        if (m_ >= 0.0)
+            m_ *= fabs(d);
+        return *this;
+    }
+
+    inline P4& P4::operator/=(const double& d)
+    {
+        assert(d);
+        e_ /= d;
+        p_ /= d;
+        if (m_ >= 0.0)
+            m_ /= fabs(d);
+        return *this;
+    }
+
+    inline double invMass(const P4& p1, const P4& p2)
+    {
+        const double m1(p1.m());
+        const double m2(p2.m());
+        const double msq(m1*m1 + m2*m2 + 2.0*p1.dot(p2));
+        assert(msq >= 0.0);
+        return sqrt(msq);
+    }
+
+    inline double invMass(const P4& p1, const P4& p2, const P4& p3)
+    {
+        const double m1(p1.m());
+        const double m2(p2.m());
+        const double m3(p3.m());
+        const double msq(m1*m1 + m2*m2 + m3*m3 + 2.0*(
+                             p1.dot(p2) + p1.dot(p3) + p2.dot(p3)));
+        assert(msq >= 0.0);
+        return sqrt(msq);
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, const rk::P4& v)
+{
+    os << '{' << v.momentum() << ", " << v.m() << '}';
+    return os;
+}
