@@ -5,7 +5,7 @@
 
 namespace earthmodel {
 
-template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+template<typename Iterator, class>
 std::vector<double> MaterialModel::GetTargetMassFraction(int material_id, Iterator begin, Iterator end) const {
     std::vector<double> fractions;
     fractions.reserve(std::distance(begin, end));
@@ -20,7 +20,7 @@ std::vector<double> MaterialModel::GetTargetMassFraction(int material_id, Iterat
     return fractions;
 }
 
-template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+template<typename Iterator, class>
 std::vector<double> MaterialModel::GetTargetParticleFraction(int material_id, Iterator begin, Iterator end) const {
     std::vector<double> fractions;
     fractions.reserve(std::distance(begin, end));
@@ -35,7 +35,7 @@ std::vector<double> MaterialModel::GetTargetParticleFraction(int material_id, It
     return fractions;
 }
 
-template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+template<typename Iterator, class>
 std::vector<double> MaterialModel::GetTargetRadiationFraction(int material_id, Iterator begin, Iterator end) const {
     double X0inv = 0;
     std::vector<double> fractions;

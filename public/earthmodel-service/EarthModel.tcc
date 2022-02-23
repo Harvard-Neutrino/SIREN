@@ -7,8 +7,8 @@
 
 namespace earthmodel {
 
-template<typename Iterator>
-double EarthModel::GetMassDensity<Iterator, typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>(Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
+template<typename Iterator, class>
+double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -50,7 +50,7 @@ double EarthModel::GetMassDensity<Iterator, typename std::enable_if<std::is_same
     return density;
 }
 
-template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+template<typename Iterator, class>
 double EarthModel::GetMassDensity(Vector3D const & p0, Iterator begin, Iterator end) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
@@ -58,7 +58,7 @@ double EarthModel::GetMassDensity(Vector3D const & p0, Iterator begin, Iterator 
 }
 
 
-template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+template<typename Iterator, class>
 std::vector<double> EarthModel::GetParticleDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
