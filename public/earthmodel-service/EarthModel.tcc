@@ -7,8 +7,8 @@
 
 namespace earthmodel {
 
-template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
-double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
+template<typename Iterator>
+double EarthModel::GetMassDensity<Iterator, typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>(Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
