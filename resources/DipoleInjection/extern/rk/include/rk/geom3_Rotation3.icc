@@ -1,0 +1,167 @@
+namespace geom3 {
+    inline Rotation3::Quaternion::Quaternion(const Vector3& v, const double s)
+        : v_(v), s_(s)
+    {
+    }
+
+    inline Rotation3::Quaternion::Quaternion(const UnitVector3& v,
+                                             const double s)
+        : v_(1.0, v), s_(s)
+    {
+    }
+
+    inline Rotation3::Quaternion::Quaternion(const double x, const double y,
+                                             const double z, const double s)
+        : v_(x, y, z), s_(s)
+    {
+    }
+
+    inline double Rotation3::Quaternion::norm() const
+    {
+        return sqrt(v_.lengthSquared() + s_*s_);
+    }
+
+    inline const Rotation3::Quaternion& Rotation3::Quaternion::normalize()
+    {
+        const double n = norm();
+        assert(n > 0.0);
+        v_ /= n;
+        s_ /= n;
+        return *this;
+    }
+
+    inline double Rotation3::Quaternion::dot(
+        const Rotation3::Quaternion& r) const
+    {
+        return s_*r.s_ + v_.dot(r.v_);
+    }
+
+    inline Rotation3::Quaternion Rotation3::Quaternion::operator-() const
+    {
+        return Quaternion(-v_, -s_);
+    }
+
+    inline Rotation3::Quaternion Rotation3::Quaternion::operator*(
+        const double& d) const
+    {
+        return Quaternion(v_*d, s_*d);
+    }
+
+    inline Rotation3::Quaternion operator*(const Rotation3::Quaternion& q1,
+                                           const Rotation3::Quaternion& q2)
+    {
+        return Rotation3::Quaternion(q2.v_*q1.s_ + q1.v_*q2.s_ + 
+                                     q1.v_.cross(q2.v_),
+                                     q1.s_*q2.s_ - q1.v_.dot(q2.v_));
+    }
+
+    inline Rotation3::Quaternion operator+(const Rotation3::Quaternion& q1,
+                                           const Rotation3::Quaternion& q2)
+    {
+        return Rotation3::Quaternion(q1.v_ + q2.v_, q1.s_ + q2.s_);
+    }
+
+    inline Rotation3::Quaternion operator-(const Rotation3::Quaternion& q1,
+                                           const Rotation3::Quaternion& q2)
+    {
+        return Rotation3::Quaternion(q1.v_ - q2.v_, q1.s_ - q2.s_);
+    }
+
+    inline UnitVector3 Rotation3::operator*(const UnitVector3& v) const
+    {
+        return (q_*Quaternion(v,0.0)*qbar_).v_.direction();
+    }
+
+    inline Vector3 Rotation3::operator*(const Vector3& v) const
+    {
+        return (q_*Quaternion(v,0.0)*qbar_).v_.setLength(v.length());
+    }
+
+    inline Vector3 Rotation3::rotate(const Vector3& v) const
+    {
+        return (q_*Quaternion(v,0.0)*qbar_).v_;
+    }
+
+    inline Rotation3::Rotation3()
+        : axis_(UnitVector3::xAxis()),
+          angle_(0.0),
+          q_(0.0, 0.0, 0.0, 1.0),
+          qbar_(-q_.v_, q_.s_)
+    {
+    }
+
+    inline Rotation3::Rotation3(const Rotation3::Quaternion &q)
+        : axis_(q.v_.direction()),
+          angle_(2.0*atan2(q.v_.length(), q.s_)),
+          q_(q),
+          qbar_(-q_.v_, q_.s_)
+    {
+    }
+
+    inline Rotation3 Rotation3::operator*(const Rotation3& r) const
+    {
+        return Rotation3((q_*r.q_).normalize());
+    }
+
+    inline Rotation3::Rotation3(const UnitVector3& axis, double angle)
+        : axis_(axis),
+          angle_(angle),
+          q_(axis*sin(angle/2.0), cos(angle/2.0)),
+          qbar_(-q_.v_, q_.s_)
+    {
+    }
+
+    inline Rotation3 Rotation3::inverse() const
+    {
+        return Rotation3(axis_, -angle_);
+    }
+
+    inline bool operator==(const Rotation3& l, const Rotation3& r)
+    {
+        // Quaternions are defined up to a sign
+        return ((l.q_.v_ == r.q_.v_ && l.q_.s_ == r.q_.s_) ||
+                (l.q_.v_ == -r.q_.v_ && l.q_.s_ == -r.q_.s_));
+    }
+
+    inline bool operator!=(const Rotation3& l, const Rotation3& r)
+    {
+        return !(l == r);
+    }
+
+    inline const UnitVector3& Rotation3::axis() const
+    {
+        return axis_;
+    }
+    
+    inline double Rotation3::angle() const
+    {
+        return angle_;
+    }
+
+    inline Matrix3x3 Rotation3::matrix() const
+    {
+        return Matrix3x3(1.0-2.0*(q_.v_.y_*q_.v_.y_+q_.v_.z_*q_.v_.z_),
+                         2.0*(q_.v_.x_*q_.v_.y_-q_.s_*q_.v_.z_),
+                         2.0*(q_.v_.x_*q_.v_.z_+q_.s_*q_.v_.y_),
+                         2.0*(q_.v_.x_*q_.v_.y_+q_.s_*q_.v_.z_),
+                         1.0-2.0*(q_.v_.x_*q_.v_.x_+q_.v_.z_*q_.v_.z_),
+                         2.0*(q_.v_.y_*q_.v_.z_-q_.s_*q_.v_.x_),
+                         2.0*(q_.v_.x_*q_.v_.z_-q_.s_*q_.v_.y_),
+                         2.0*(q_.v_.y_*q_.v_.z_+q_.s_*q_.v_.x_),
+                         1.0-2.0*(q_.v_.x_*q_.v_.x_+q_.v_.y_*q_.v_.y_));
+    }
+
+    inline double Rotation3::distance(const Rotation3& r) const
+    {
+        if (q_.dot(r.q_) >= 0.0)
+            return (q_ - r.q_).norm();
+        else
+            return (q_ + r.q_).norm();
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, const geom3::Rotation3& r)
+{
+    os << '{' << r.axis() << ", " << r.angle() << '}';
+    return os;
+}

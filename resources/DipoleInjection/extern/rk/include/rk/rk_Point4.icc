@@ -1,0 +1,89 @@
+namespace rk {
+    inline Point4::Point4()
+        : location_(),
+          t_(0.0)
+    {
+    }
+
+    inline Point4::Point4(const double t, const geom3::Point3& location)
+        : location_(location),
+          t_(t)
+    {
+    }
+
+    inline const geom3::Point3& Point4::location() const
+    {
+        return location_;
+    }
+
+    inline double Point4::t() const
+    {
+        return t_;
+    }
+
+    inline double Point4::x() const
+    {
+        return location_.x_;
+    }
+
+    inline double Point4::y() const
+    {
+        return location_.y_;
+    }
+
+    inline double Point4::z() const
+    {
+        return location_.z_;
+    }    
+
+    inline bool operator==(const Point4& l, const Point4& r)
+    {
+        return l.t_ == r.t_ && l.location_ == r.location_;
+    }
+
+    inline bool operator!=(const Point4& l, const Point4& r)
+    {
+        return !(l == r);
+    }
+
+    inline P4 operator-(const Point4& l, const Point4& r)
+    {
+        return P4(l.t_ - r.t_, l.location_ - r.location_);
+    }
+
+    inline Point4 operator-(const Point4& l, const P4& r)
+    {
+        return Point4(l.t_ - r.e_, l.location_ - r.p_);
+    }
+
+    inline Point4 operator+(const Point4& l, const P4& r)
+    {
+        return Point4(l.t_ + r.e_, l.location_ + r.p_);
+    }
+
+    inline Point4 operator+(const P4& l, const Point4& r)
+    {
+        return Point4(r.t_ + l.e_, r.location_ + l.p_);
+    }
+
+    inline Point4& Point4::operator+=(const P4& r)
+    {
+        t_ += r.e_;
+        location_ += r.p_;
+        return *this;
+    }
+
+    inline Point4& Point4::operator-=(const P4& r)
+    {
+        t_ -= r.e_;
+        location_ -= r.p_;
+        return *this;
+    }
+}
+
+inline std::ostream& operator<<(std::ostream& os, const rk::Point4& v)
+{
+    os << '['  << v.t() << ", " << v.x() 
+       << ", " << v.y() << ", " << v.z() << ']';
+    return os;
+}
