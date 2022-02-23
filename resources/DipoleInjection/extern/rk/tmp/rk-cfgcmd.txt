@@ -1,1 +1,0 @@
-cmd='/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/vendor/rk/configure;--prefix=/home/nwkamp/Research/Pheno/Neutrissimos2/buildDUNE/extern/rk'
