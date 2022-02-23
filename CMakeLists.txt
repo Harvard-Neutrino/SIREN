@@ -110,6 +110,7 @@ LIST (APPEND core_SOURCES
 ExternalProject_Add(
   rk
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
+  UPDATE_COMMAND touch aclocal.m4 configure && touch Makefile.am Makefile.in aclocal.m4 m4/* rk.pc.in rk/Makefile.am rk/Makefile.in
   CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk/configure --prefix=${CMAKE_BINARY_DIR}/extern/rk
   PREFIX ${CMAKE_BINARY_DIR}/extern/rk
   BUILD_COMMAND make
