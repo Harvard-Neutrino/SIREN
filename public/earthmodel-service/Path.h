@@ -83,8 +83,6 @@ public:
 
     void Flip();
 
-    //TODO Clean up cxx and then EarthModel
-
     // Extend/Shrink By
     void ExtendFromEndByDistance(double distance);
     void ExtendFromStartByDistance(double distance);
