@@ -5,6 +5,16 @@
 
 namespace LeptonInjector {
 
+namespace {
+    double one_minus_exp_of_negative(double x) {
+        if(x < 1e-1) {
+            return std::exp(std::log(x) - x/2.0 + x*x/24.0 - x*x*x*x/2880.0);
+        } else {
+            return 1.0 - std::exp(-x);
+        }
+    }
+}
+
 //---------------
 // class WeightableDistribution
 //---------------
@@ -707,13 +717,30 @@ earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared
     earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
 
     earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
-    path.ExtendFromStartByColumnDepth(lepton_depth, target_types);
+    path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
-    double totalColumnDepth = path.GetColumnDepthInBounds(target_types);
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
 
-    double traversedColumnDepth = totalColumnDepth * rand->Uniform();
-    double dist = path.GetDistanceFromStartAlongPath(traversedColumnDepth);
+    std::vector<LeptonInjector::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<double> total_cross_sections(targets.size(), 0.0);
+    InteractionRecord fake_record = record;
+    for(unsigned int i=0; i<targets.size(); ++i) {
+        LeptonInjector::Particle::ParticleType const & target = targets[i];
+        fake_record.signature.target_type = target;
+        fake_record.target_mass = earth_model->GetTargetMass(target);
+        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
+        for(auto const & cross_section : cross_sections.GetCrossSectionsForTarget(target)) {
+            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+        }
+    }
+    double totalInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+    double expTotalInteractionDepth = exp(totalInteractionDepth);
+
+    double y = rand->Uniform();
+    double traversedInteractionDepth = totalInteractionDepth - log(y + totalInteractionDepth * (1-y));
+
+    double dist = path.GetDistanceFromStartAlongPath(traversedInteractionDepth, targets, total_cross_sections);
     earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
@@ -734,16 +761,35 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<ea
     earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
 
     earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
-    path.ExtendFromStartByColumnDepth(lepton_depth, target_types);
+    path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(vertex))
         return 0.0;
 
-    double totalColumnDepth = path.GetColumnDepthInBounds(target_types); // g/cm^2
-    double density = earth_model->GetMassDensity(vertex, target_types); // g/cm^3
-    double prob_density = density / totalColumnDepth * 100; // (cm^-1 * cm/m) -> m^-1
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
+
+    std::vector<LeptonInjector::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<double> total_cross_sections(targets.size(), 0.0);
+    InteractionRecord fake_record = record;
+    for(unsigned int i=0; i<targets.size(); ++i) {
+        LeptonInjector::Particle::ParticleType const & target = targets[i];
+        fake_record.signature.target_type = target;
+        fake_record.target_mass = earth_model->GetTargetMass(target);
+        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
+        for(auto const & cross_section : cross_sections.GetCrossSectionsForTarget(target)) {
+            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+        }
+    }
+    double totalInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+
+    path.SetPoints(path.GetFirstPoint(), vertex);
+
+    double traversedInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+
+    double prob_density = exp(-traversedInteractionDepth) / one_minus_exp_of_negative(totalInteractionDepth);
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
+
     return prob_density;
 }
 
@@ -772,7 +818,7 @@ std::pair<earthmodel::Vector3D, earthmodel::Vector3D> ColumnDepthPositionDistrib
     earthmodel::Vector3D endcap_1 = pca + endcap_length * dir;
 
     earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
-    path.ExtendFromStartByColumnDepth(lepton_depth, target_types);
+    path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
     return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
@@ -830,10 +876,27 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
     path.ExtendFromStartByDistance(lepton_range);
     path.ClipToOuterBounds();
 
-    double totalColumnDepth = path.GetColumnDepthInBounds(target_types);
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
 
-    double traversedColumnDepth = totalColumnDepth * rand->Uniform();
-    double dist = path.GetDistanceFromStartAlongPath(traversedColumnDepth, target_types);
+    std::vector<LeptonInjector::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<double> total_cross_sections(targets.size(), 0.0);
+    InteractionRecord fake_record = record;
+    for(unsigned int i=0; i<targets.size(); ++i) {
+        LeptonInjector::Particle::ParticleType const & target = targets[i];
+        fake_record.signature.target_type = target;
+        fake_record.target_mass = earth_model->GetTargetMass(target);
+        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
+        for(auto const & cross_section : cross_sections.GetCrossSectionsForTarget(target)) {
+            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+        }
+    }
+    double totalInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+    double expTotalInteractionDepth = exp(totalInteractionDepth);
+
+    double y = rand->Uniform();
+    double traversedInteractionDepth = totalInteractionDepth - log(y + totalInteractionDepth * (1-y));
+
+    double dist = path.GetDistanceFromStartAlongPath(traversedInteractionDepth, targets, total_cross_sections);
     earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
@@ -860,10 +923,29 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmod
     if(not path.IsWithinBounds(vertex))
         return 0.0;
 
-    double totalColumnDepth = path.GetColumnDepthInBounds(target_types); // g/cm^2
-    double density = earth_model->GetMassDensity(vertex, target_types); // g/cm^3
-    double prob_density = density / totalColumnDepth * 100; // (cm^-1 * cm/m) -> m^-1
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
+
+    std::vector<LeptonInjector::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<double> total_cross_sections(targets.size(), 0.0);
+    InteractionRecord fake_record = record;
+    for(unsigned int i=0; i<targets.size(); ++i) {
+        LeptonInjector::Particle::ParticleType const & target = targets[i];
+        fake_record.signature.target_type = target;
+        fake_record.target_mass = earth_model->GetTargetMass(target);
+        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
+        for(auto const & cross_section : cross_sections.GetCrossSectionsForTarget(target)) {
+            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+        }
+    }
+    double totalInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+
+    path.SetPoints(path.GetFirstPoint(), vertex);
+
+    double traversedInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+
+    double prob_density = exp(-traversedInteractionDepth) / one_minus_exp_of_negative(totalInteractionDepth);
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
+
     return prob_density;
 }
 
