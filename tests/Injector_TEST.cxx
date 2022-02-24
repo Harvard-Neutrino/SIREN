@@ -124,15 +124,6 @@ std::vector<double> p_LE_RHC_numu = {3.75e+00, 3.04e+00, 5.53e-01, 1.50e+02, 3.1
 std::vector<double> p_LE_RHC_nuebar = {1.89e+00, 9.06e-01, 3.95e-01, 8.79e+00, 1.02e-01};
 std::vector<double> p_LE_RHC_numubar = {1.95e+00, 6.09e-01, 3.49e-01, 5.74e+00, 8.92e-02};
 
-double moyal_exp(double E, std::vector<double> p) {
-    // Modified moyal + exponent
-    // params = {mu,sig,A,l,B}
-    double x = (E-p[0])/p[1];
-    double moyal = (p[2]/p[1])*std::exp(-(x+std::exp(-x))/2)/std::sqrt(2*Constants::pi);
-    double exp = (p[4]/p[3])*std::exp(-E/p[3]);
-    return moyal+exp;
-}
-
 TEST(Injector, Generation)
 {
     using ParticleType = LeptonInjector::Particle::ParticleType;
@@ -199,7 +190,6 @@ TEST(Injector, Generation)
 
     // Setup power law
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
-    std::shared_ptr<LeptonInjector::PowerLaw> power_law = std::make_shared<LeptonInjector::PowerLaw>(powerLawIndex, energyMin, energyMax);
 
     std::vector<double> moyal_exp_params = p_LE_FHC_numu;
 
