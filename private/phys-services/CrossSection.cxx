@@ -340,6 +340,8 @@ double DISFromSpline::TotalCrossSection(InteractionRecord const & interaction) c
     } else {
         throw std::runtime_error("Lorentz boost not implemented!");
     }
+    // if we are below threshold, return 0
+    if(primary_energy < InteractionThreshold(interaction)) return 0;
     return TotalCrossSection(primary_type, primary_energy);
 }
 
@@ -744,6 +746,8 @@ double DipoleFromTable::TotalCrossSection(InteractionRecord const & interaction)
     } else {
         throw std::runtime_error("Lorentz boost not implemented!");
     }
+    // if we are below threshold, return 0
+    if(primary_energy < InteractionThreshold(interaction)) return 0;
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
@@ -799,10 +803,19 @@ double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & inter
 
     double y = 1.0 - p2.dot(p3) / p2.dot(p1);
 
-    return DifferentialCrossSection(primary_type, primary_energy, target_type, y);
+    double thresh = InteractionThreshold(interaction);
+
+    return DifferentialCrossSection(primary_type, primary_energy, target_type, y, thresh);
 }
 
 double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type, double y) const {
+    // Assume threshold is first entry of table
+    Interpolator2D<double> const & interp = differential.at(target_type);
+    double thresh = interp.MinX();
+    return DifferentialCrossSection(primary_type, primary_energy, target_type, y, thresh);
+}
+
+double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type, double y, double thresh) const {
     if(not primary_types.count(primary_type)) {
         return 0.0;
         throw std::runtime_error("Supplied primary not supported by cross section!");
@@ -815,7 +828,7 @@ double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_
 
     Interpolator2D<double> const & interp = differential.at(target_type);
 
-    if(primary_energy < interp.MinX() or primary_energy > interp.MaxX()) {
+    if(primary_energy < thresh or primary_energy > interp.MaxX()) {
         return 0.0;
         throw std::runtime_error("Interaction energy ("+ std::to_string(primary_energy) +
                 ") out of differential cross section table range: ["
@@ -869,6 +882,8 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     unsigned int lepton_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
     double m = hnl_mass;
+    double thresh = InteractionThreshold(interaction);
+    assert(primary_energy > thresh);
 
     // double m1 = p1_lab | p1_lab;
     double m1 = interaction.primary_mass;
@@ -898,7 +913,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     kin_vars[0] = test_kin_vars[0] = primary_energy;
 
     // check preconditions
-    if(kin_vars[0] < diff_table.MinX()
+    if(kin_vars[0] < thresh
             || kin_vars[0] > diff_table.MaxX())
         throw std::runtime_error("Sample: Interaction energy out of differential cross section table range: ["
                 + std::to_string(diff_table.MinX()) + " GeV,"
