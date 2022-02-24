@@ -29,7 +29,6 @@ TEST(DefaultConstructor, HasNone)
     EXPECT_FALSE(A.HasEarthModel());
     EXPECT_FALSE(A.HasPoints());
     EXPECT_FALSE(A.HasIntersections());
-    EXPECT_FALSE(A.HasTargetColumnDepth({LeptonInjector::Particle::ParticleType::Nucleon}));
 }
 
 TEST(DefaultConstructor, MembersAreDefault)
