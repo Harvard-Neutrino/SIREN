@@ -119,6 +119,7 @@ public:
     // Operators
     virtual Geometry& operator=(const Geometry&);
     bool operator==(const Geometry& geometry) const;
+    bool operator<(const Geometry& geometry) const;
     bool operator!=(const Geometry& geometry) const;
     friend std::ostream& operator<<(std::ostream&, Geometry const&);
 
@@ -181,7 +182,8 @@ public:
 
 protected:
     // Implemented in child classes to be able to use equality operator
-    virtual bool compare(const Geometry&) const = 0;
+    virtual bool equal(const Geometry&) const = 0;
+    virtual bool less(const Geometry&) const = 0;
     virtual void print(std::ostream&) const     = 0;
     virtual std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const = 0;
     virtual std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const = 0;
@@ -238,9 +240,10 @@ public:
     void SetX(double x) { x_ = x; };
     void SetY(double y) { y_ = y; };
     void SetZ(double z) { z_ = z; };
-
+protected:
+    virtual bool equal(const Geometry&) const override;
+    virtual bool less(const Geometry&) const override;
 private:
-    bool compare(const Geometry&) const override;
     void print(std::ostream&) const override;
 
     double x_; //!< width of box in x-direction
@@ -289,8 +292,10 @@ public:
     void SetRadius(double radius) { radius_ = radius; };
     void SetZ(double z) { z_ = z; };
 
+protected:
+    virtual bool equal(const Geometry&) const override;
+    virtual bool less(const Geometry&) const override;
 private:
-    bool compare(const Geometry&) const override;
     void print(std::ostream&) const override;
 
     double radius_;       //!< the radius of the sphere/ cylinder
@@ -337,8 +342,10 @@ public:
     void SetInnerRadius(double inner_radius) { inner_radius_ = inner_radius; };
     void SetRadius(double radius) { radius_ = radius; };
 
+protected:
+    virtual bool equal(const Geometry&) const override;
+    virtual bool less(const Geometry&) const override;
 private:
-    bool compare(const Geometry&) const override;
     void print(std::ostream&) const override;
 
     double radius_;       //!< the radius of the sphere/ cylinder
@@ -359,6 +366,12 @@ public:
             scale = other.scale;
             offset[0] = other.offset[0];
             offset[1] = other.offset[1];
+        }
+        bool operator<(ZSection const & other) const {
+            return (this != &other) and
+                std::tie(zpos, scale, offset[0], offset[1])
+                <
+                std::tie(other.zpos, other.scale, other.offset[0], other.offset[1]);
         }
         friend bool operator==(ZSection const & l, ZSection const & r) {
             return (l.zpos == r.zpos &&
@@ -436,8 +449,10 @@ public:
 
     void ComputeLateralPlanes();
 
+protected:
+    virtual bool equal(const Geometry&) const override;
+    virtual bool less(const Geometry&) const override;
 private:
-    bool compare(const Geometry&) const override;
     void print(std::ostream&) const override;
 
     std::vector<std::vector<double>> polygon_; //!< vector of (x,y) pairs denoting vertices of polygon

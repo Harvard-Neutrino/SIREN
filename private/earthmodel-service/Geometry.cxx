@@ -89,7 +89,21 @@ bool Geometry::operator==(const Geometry& geometry) const
     if (name_.compare(geometry.name_) != 0 or (placement_ != geometry.placement_))
         return false;
     else
-        return this->compare(geometry);
+        return this->equal(geometry);
+}
+
+// ------------------------------------------------------------------------- //
+bool Geometry::operator<(const Geometry& geometry) const
+{
+    if(typeid(this) == typeid(&geometry)) {
+        if(name_ != geometry.name_)
+            return name_ < geometry.name_;
+        else if(placement_ != geometry.placement_)
+            return placement_ < geometry.placement_;
+        else
+            return this->less(geometry);
+    } else
+        return std::type_index(typeid(this)) < std::type_index(typeid(&geometry));
 }
 
 // ------------------------------------------------------------------------- //
@@ -295,7 +309,7 @@ Box& Box::operator=(const Geometry& geometry)
 }
 
 // ------------------------------------------------------------------------- //
-bool Box::compare(const Geometry& geometry) const
+bool Box::equal(const Geometry& geometry) const
 {
     const Box* box = dynamic_cast<const Box*>(&geometry);
 
@@ -309,6 +323,17 @@ bool Box::compare(const Geometry& geometry) const
         return false;
     else
         return true;
+}
+
+// ------------------------------------------------------------------------- //
+bool Box::less(const Geometry& geometry) const
+{
+    const Box* box = dynamic_cast<const Box*>(&geometry);
+
+    return
+        std::tie(x_, y_, z_)
+        <
+        std::tie(box->x_, box->y_, box->z_);
 }
 
 // ------------------------------------------------------------------------- //
@@ -665,7 +690,7 @@ Cylinder& Cylinder::operator=(const Geometry& geometry)
 }
 
 // ------------------------------------------------------------------------- //
-bool Cylinder::compare(const Geometry& geometry) const
+bool Cylinder::equal(const Geometry& geometry) const
 {
     const Cylinder* cylinder = dynamic_cast<const Cylinder*>(&geometry);
 
@@ -679,6 +704,17 @@ bool Cylinder::compare(const Geometry& geometry) const
         return false;
     else
         return true;
+}
+
+// ------------------------------------------------------------------------- //
+bool Cylinder::less(const Geometry& geometry) const
+{
+    const Cylinder* cylinder = dynamic_cast<const Cylinder*>(&geometry);
+
+    return
+        std::tie(inner_radius_, radius_, z_)
+        <
+        std::tie(cylinder->inner_radius_, cylinder->radius_, cylinder->z_);
 }
 
 void Cylinder::print(std::ostream& os) const
@@ -1081,7 +1117,7 @@ Sphere& Sphere::operator=(const Geometry& geometry)
 }
 
 // ------------------------------------------------------------------------- //
-bool Sphere::compare(const Geometry& geometry) const
+bool Sphere::equal(const Geometry& geometry) const
 {
     const Sphere* sphere = dynamic_cast<const Sphere*>(&geometry);
 
@@ -1093,6 +1129,17 @@ bool Sphere::compare(const Geometry& geometry) const
         return false;
     else
         return true;
+}
+
+// ------------------------------------------------------------------------- //
+bool Sphere::less(const Geometry& geometry) const
+{
+    const Sphere* sphere = dynamic_cast<const Sphere*>(&geometry);
+
+    return
+        std::tie(inner_radius_, radius_)
+        <
+        std::tie(sphere->inner_radius_, sphere->radius_);
 }
 
 // ------------------------------------------------------------------------- //
@@ -1358,7 +1405,7 @@ ExtrPoly& ExtrPoly::operator=(const Geometry& geometry)
 }
 
 // ------------------------------------------------------------------------- //
-bool ExtrPoly::compare(const Geometry& geometry) const
+bool ExtrPoly::equal(const Geometry& geometry) const
 {
     const ExtrPoly* extr = dynamic_cast<const ExtrPoly*>(&geometry);
 
@@ -1370,6 +1417,17 @@ bool ExtrPoly::compare(const Geometry& geometry) const
         return false;
     else
         return true;
+}
+
+// ------------------------------------------------------------------------- //
+bool ExtrPoly::less(const Geometry& geometry) const
+{
+    const ExtrPoly* extr = dynamic_cast<const ExtrPoly*>(&geometry);
+
+    return
+        std::tie(polygon_, zsections_)
+        <
+        std::tie(extr->polygon_, extr->zsections_);
 }
 
 // ------------------------------------------------------------------------- //
