@@ -466,7 +466,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     // the target is stationary so its energy is just its mass
     // the incoming neutrino is massless, so its kinetic energy is its total energy
     // double s = target_mass_ * tinteraction.secondary_momentarget_mass_ + 2 * target_mass_ * primary_energy;
-    double s = rk::invMass(p1, p2);
+    double s = std::pow(rk::invMass(p1, p2), 2);
 
     double primary_energy;
     rk::P4 p1_lab;
@@ -871,7 +871,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     // the target is stationary so its energy is just its mass
     // the incoming neutrino is massless, so its kinetic energy is its total energy
     // double s = target_mass_ * target_mass_ + 2 * target_mass_ * primary_energy;
-    double s = rk::invMass(p1, p2);
+    double s = std::pow(rk::invMass(p1, p2), 2);
 
     double primary_energy;
     rk::P4 p1_lab;
@@ -906,7 +906,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     assert(yMin > 0);
     double log_yMax = log10(yMax);
     double log_yMin = log10(yMin);
-    double min_Q2 = yMin * s;
+    double min_Q2 = yMin * (s - m2 * m2);
     double z; // placeholder for z sampling
 
     bool accept;
