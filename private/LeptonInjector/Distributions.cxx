@@ -259,7 +259,7 @@ bool PowerLaw::less(WeightableDistribution const & other) const {
 
 double ModifiedMoyalPlusExponentialEnergyDistribution::unnormed_pdf(double energy) const {
     double x = (energy - mu) / sigma;
-    double moyal = (A / sigma) * std::exp(-(x + std::exp(-x)/2)) / std::sqrt(2.0 * M_PI);
+    double moyal = (A / sigma) * std::exp(-(x + std::exp(-x))/2) / std::sqrt(2.0 * M_PI);
     double exponential = (B / l) * std::exp(-energy / l);
     return moyal + exponential;
 }
