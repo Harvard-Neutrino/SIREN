@@ -122,6 +122,13 @@ bool Vector3D::operator==(const Vector3D& vector_3d) const
     return true;
 }
 
+bool Vector3D::operator<(const Vector3D& vector_3d) const {
+    return (this != &vector_3d) and
+        std::tie(cartesian_.x_, cartesian_.y_, cartesian_.z_, spherical_.radius_, spherical_.azimuth_, spherical_.zenith_)
+        <
+        std::tie(vector_3d.cartesian_.x_, vector_3d.cartesian_.y_, vector_3d.cartesian_.z_, vector_3d.spherical_.radius_, vector_3d.spherical_.azimuth_, vector_3d.spherical_.zenith_);
+}
+
 bool Vector3D::operator!=(const Vector3D& vector_3d) const
 {
     return !(*this == vector_3d);

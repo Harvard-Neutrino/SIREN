@@ -120,6 +120,13 @@ bool Quaternion::operator!=(const Quaternion& quaternion) const
     return !(*this == quaternion);
 }
 
+bool Quaternion::operator<(const Quaternion& quaternion) const {
+    return (this != &quaternion) and
+        std::tie(x_, y_, z_, w_)
+        <
+        std::tie(quaternion.x_, quaternion.y_, quaternion.z_, quaternion.w_);
+}
+
 void Quaternion::swap(Quaternion& quaternion)
 {
     using std::swap;

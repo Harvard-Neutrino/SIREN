@@ -22,7 +22,6 @@
  *                                                                            *
  ******************************************************************************/
 
-
 #pragma once
 #ifndef LI_Vector3D_H
 #define LI_Vector3D_H
@@ -69,6 +68,7 @@ public:
 
     bool operator==(const Vector3D& vector_3d) const;
     bool operator!=(const Vector3D& vector_3d) const;
+    bool operator<(const Vector3D& vector_3d) const;
 
     void swap(Vector3D& vector_3d);
     friend std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d);
