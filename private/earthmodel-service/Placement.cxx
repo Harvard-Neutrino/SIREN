@@ -90,6 +90,14 @@ bool Placement::operator!=(const Placement& placement) const
     return !(*this == placement);
 }
 
+bool Placement::operator<(const Placement& placement) const
+{
+    return (this != &placement) and
+        std::tie(position_, quaternion_)
+        <
+        std::tie(placement.position_, placement.quaternion_);
+}
+
 void Placement::swap(Placement& placement)
 {
     using std::swap;
