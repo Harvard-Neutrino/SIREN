@@ -2,6 +2,8 @@
 #include <cmath>
 #include <iostream>
 
+#include "earthmodel-service/Matrix3D.h"
+
 #include "earthmodel-service/EulerAngles.h"
 
 using namespace earthmodel;

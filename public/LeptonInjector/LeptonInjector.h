@@ -2,13 +2,11 @@
 #ifndef LI_LeptonInjector_H
 #define LI_LeptonInjector_H
 
-#include <queue>
-#include <memory> // adds shared pointer
-#include <iostream>
-
-#include <photospline/bspline.h>
-#include <photospline/splinetable.h>
-#include <photospline/cinter/splinetable.h>
+#include <memory>
+#include <string>
+#include <vector>
+#include <utility>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/access.hpp>
@@ -23,20 +21,22 @@
 #include <cereal/types/utility.hpp>
 #include "serialization/array.h"
 
-#include "LeptonInjector/Random.h"
-#include "LeptonInjector/Particle.h"
-#include "LeptonInjector/Constants.h"
-#include "LeptonInjector/DataWriter.h"
-#include "LeptonInjector/EventProps.h"
-#include "LeptonInjector/Coordinates.h"
-#include "LeptonInjector/Distributions.h"
-#include "LeptonInjector/BasicInjectionConfiguration.h"
+#include "earthmodel-service/Path.h"
+#include "earthmodel-service/EarthModel.h"
 
 #include "phys-services/CrossSection.h"
 
-#include "earthmodel-service/Path.h"
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/EarthModel.h"
+#include "LeptonInjector/Distributions.h"
+
+namespace earthmodel {
+// #include "earthmodel-service/Vector3D.h"
+class Vector3D;
+} // namespace earthmodel
+
+namespace LeptonInjector {
+//#include "LeptonInjector/Random.h"
+class LI_random;
+} // namespace LeptonInjector
 
 namespace LeptonInjector {
 
@@ -47,14 +47,14 @@ protected:
     unsigned int injected_events = 0;
     std::shared_ptr<LI_random> random;
     std::shared_ptr<PrimaryInjector> primary_injector;
-    CrossSectionCollection cross_sections;
+    std::shared_ptr<CrossSectionCollection> cross_sections;
     std::shared_ptr<earthmodel::EarthModel> earth_model;
     std::vector<std::shared_ptr<InjectionDistribution>> distributions;
     InjectorBase();
 public:
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::vector<std::shared_ptr<InjectionDistribution>> distributions, std::shared_ptr<LI_random> random);
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random);
-    InjectorBase(unsigned int events_to_inject, CrossSectionCollection cross_sections);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<CrossSectionCollection> cross_sections);
     virtual InteractionRecord NewRecord() const;
     void SetRandom(std::shared_ptr<LI_random> random);
     virtual void SampleCrossSection(InteractionRecord & record) const;
@@ -97,33 +97,6 @@ public:
             throw std::runtime_error("InjectorBase only supports version <= 0!");
         }
     }
-
-/*
-    template<typename Archive>
-    static void load_and_construct(Archive & archive, cereal::construct<InjectorBase> & construct, std::uint32_t const version) {
-        if(version == 0) {
-            unsigned int events_to_inject;
-            unsigned int injected_events;
-            std::shared_ptr<PrimaryInjector> primary_injector;
-            CrossSectionCollection cross_sections;
-            std::shared_ptr<earthmodel::EarthModel> earth_model;
-            std::vector<std::shared_ptr<InjectionDistribution>> distributions;
-            archive(::cereal::make_nvp("EventsToInject", events_to_inject));
-            archive(::cereal::make_nvp("InjectedEvents", injected_events));
-            archive(::cereal::make_nvp("PrimaryInjector", primary_injector));
-            archive(::cereal::make_nvp("CrossSections", cross_sections));
-            archive(::cereal::make_nvp("EarthModel", earth_model));
-            archive(::cereal::make_nvp("InjectionDistributions", distributions));
-            construct(events_to_inject, cross_sections);
-            construct.ptr()->injected_events = injected_events;
-            construct.ptr()->primary_injector = primary_injector;
-            construct.ptr()->earth_model = earth_model;
-            construct.ptr()->distributions = distributions;
-        } else {
-            throw std::runtime_error("InjectorBase only supports version <= 0!");
-        }
-    }
-*/
 };
 
 class RangedLeptonInjector : public InjectorBase {
@@ -177,42 +150,6 @@ public:
             throw std::runtime_error("RangedLeptonInjector only supports version <= 0!");
         }
     }
-
-/*
-    template<typename Archive>
-    static void load_and_construct(Archive & archive, cereal::construct<RangedLeptonInjector> & construct, std::uint32_t const version) {
-        if(version == 0) {
-            std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;
-            std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
-            std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
-            std::shared_ptr<RangeFunction> range_func;
-            std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution;
-            double disk_radius;
-            double endcap_length;
-            std::shared_ptr<RangePositionDistribution> position_distribution;
-            archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
-            archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));
-            archive(::cereal::make_nvp("TargetMomentumDistribution", target_momentum_distribution));
-            archive(::cereal::make_nvp("RangeFunction", range_func));
-            archive(::cereal::make_nvp("HelicityDistribution", helicity_distribution));
-            archive(::cereal::make_nvp("DiskRadius", disk_radius));
-            archive(::cereal::make_nvp("EndcapLength", endcap_length));
-            archive(::cereal::make_nvp("PositionDistribution", position_distribution));
-            construct();
-            construct.ptr()->energy_distribution = energy_distribution;
-            construct.ptr()->direction_distribution = direction_distribution;
-            construct.ptr()->target_momentum_distribution = target_momentum_distribution;
-            construct.ptr()->range_func = range_func;
-            construct.ptr()->helicity_distribution = helicity_distribution;
-            construct.ptr()->disk_radius = disk_radius;
-            construct.ptr()->endcap_length = endcap_length;
-            construct.ptr()->position_distribution = position_distribution;
-            archive(cereal::virtual_base_class<InjectorBase>(construct.ptr()));
-        } else {
-            throw std::runtime_error("RangedLeptonInjector only supports version <= 0!");
-        }
-    }
-*/
 };
 
 class DecayRangeLeptonInjector : public InjectorBase {

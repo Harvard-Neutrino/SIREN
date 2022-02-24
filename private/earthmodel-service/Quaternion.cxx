@@ -1,13 +1,16 @@
-
 #include <cmath>
 #include <tuple>
-#include <iostream>
+#include <ostream>
+#include <sstream>
+#include <utility>
 
+#include "earthmodel-service/Matrix3D.h"
 #include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Quaternion.h"
 #include "earthmodel-service/Conversions.h"
 #include "earthmodel-service/EulerAngles.h"
 #include "earthmodel-service/EulerQuaternionConversions.h"
+
+#include "earthmodel-service/Quaternion.h"
 
 using namespace earthmodel;
 

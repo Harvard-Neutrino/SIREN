@@ -1,6 +1,6 @@
 #include "LeptonInjector/Random.h"
 
-namespace LeptonInjector{
+namespace LeptonInjector {
 
     LI_random::LI_random(void){
         // default to boring seed 
@@ -30,4 +30,4 @@ namespace LeptonInjector{
         this->configuration = std::default_random_engine(new_seed);
     }
 
-} //end namespace LeptonInjector 
+} // end namespace LeptonInjector 

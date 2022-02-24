@@ -1,7 +1,15 @@
-#include <tuple>
+
+#include "earthmodel-service/Path.h"
+#include "earthmodel-service/Vector3D.h"
+#include "earthmodel-service/EarthModel.h"
+#include "earthmodel-service/EarthModelCalculator.h"
+
+#include "phys-services/CrossSection.h"
+
+#include "LeptonInjector/Random.h"
+#include "LeptonInjector/Particle.h"
 
 #include "LeptonInjector/Distributions.h"
-#include "earthmodel-service/EarthModelCalculator.h"
 
 namespace LeptonInjector {
 
@@ -41,7 +49,7 @@ bool WeightableDistribution::operator<(WeightableDistribution const & distributi
 // class InjectionDistribution
 //---------------
 
-void InjectionDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+void InjectionDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
 }
 
 
@@ -62,11 +70,11 @@ double PrimaryInjector::PrimaryMass() const {
     return primary_mass;
 }
 
-void PrimaryInjector::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+void PrimaryInjector::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
     record.signature.primary_type = primary_type;
     record.primary_mass = primary_mass;
 }
-double PrimaryInjector::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double PrimaryInjector::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     if(record.signature.primary_type != primary_type)
         return 0.0;
     if(2.0 * abs(record.primary_mass - primary_mass) / (record.primary_mass + primary_mass) > 1e-9) {
@@ -119,8 +127,8 @@ bool PrimaryInjector::less(WeightableDistribution const & other) const {
 
 void TargetMomentumDistribution::Sample(
         std::shared_ptr<LI_random> rand,
-        std::shared_ptr<earthmodel::EarthModel> earth_model,
-        CrossSectionCollection const & cross_sections,
+        std::shared_ptr<earthmodel::EarthModel const> earth_model,
+        std::shared_ptr<CrossSectionCollection const> cross_sections,
         InteractionRecord & record) const {
     record.target_momentum = SampleMomentum(rand, earth_model, cross_sections, record);
 }
@@ -134,13 +142,13 @@ std::vector<std::string> TargetMomentumDistribution::DensityVariables() const {
 //---------------
 std::array<double, 4> TargetAtRest::SampleMomentum(
         std::shared_ptr<LI_random> rand,
-        std::shared_ptr<earthmodel::EarthModel> earth_model,
-        CrossSectionCollection const & cross_sections,
+        std::shared_ptr<earthmodel::EarthModel const> earth_model,
+        std::shared_ptr<CrossSectionCollection const> cross_sections,
         InteractionRecord const & record) const {
     return std::array<double, 4>{record.target_mass, 0, 0, 0};
 }
 
-double TargetAtRest::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double TargetAtRest::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     return 1.0;
 }
 
@@ -174,8 +182,8 @@ bool TargetAtRest::less(WeightableDistribution const & other) const {
 //---------------
 void PrimaryEnergyDistribution::Sample(
         std::shared_ptr<LI_random> rand,
-        std::shared_ptr<earthmodel::EarthModel> earth_model,
-        CrossSectionCollection const & cross_sections,
+        std::shared_ptr<earthmodel::EarthModel const> earth_model,
+        std::shared_ptr<CrossSectionCollection const> cross_sections,
         InteractionRecord & record) const {
     record.primary_momentum[0] = SampleEnergy(rand, earth_model, cross_sections, record);
 }
@@ -193,7 +201,7 @@ PowerLaw::PowerLaw(double powerLawIndex, double energyMin, double energyMax)
     , energyMax(energyMax)
 {}
 
-double PowerLaw::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double PowerLaw::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     if(energyMin == energyMax)
         return energyMin; //return the only allowed energy
 
@@ -206,7 +214,7 @@ double PowerLaw::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<e
     }
 }
 
-double PowerLaw::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double PowerLaw::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     if(energyMin == energyMax)
         return 1.0; // only one allowed energy
 
@@ -275,7 +283,7 @@ ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEner
     integral = earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax);
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     // Metropolis-Hastings algorithm to sample from PDF.
     // Pass in a function pointer for the PDF
 
@@ -301,7 +309,7 @@ double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_
     return energy;
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
     if(energy < energyMin or energy > energyMax)
         return 0.0;
@@ -340,7 +348,7 @@ bool ModifiedMoyalPlusExponentialEnergyDistribution::less(WeightableDistribution
 //---------------
 // class PrimaryDirectionDistribution : InjectionDistribution
 //---------------
-void PrimaryDirectionDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+void PrimaryDirectionDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
     earthmodel::Vector3D dir = SampleDirection(rand, earth_model, cross_sections, record);
     double energy = record.primary_momentum[0];
     double mass = record.primary_mass;
@@ -357,7 +365,7 @@ std::vector<std::string> PrimaryDirectionDistribution::DensityVariables() const 
 //---------------
 // class IsotropicDirection : PrimaryDirectionDistribution
 //---------------
-earthmodel::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+earthmodel::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     double nx = rand->Uniform(0, 1);
     double ny = rand->Uniform(0, 1);
     double nz = rand->Uniform(0, 1);
@@ -366,7 +374,7 @@ earthmodel::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI_rand
     return res;
 }
 
-double IsotropicDirection::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double IsotropicDirection::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     return 1.0 / (4.0 * M_PI);
 }
 
@@ -394,11 +402,11 @@ bool IsotropicDirection::less(WeightableDistribution const & other) const {
 //---------------
 // class FixedDirection : PrimaryDirectionDistribution
 //---------------
-earthmodel::Vector3D FixedDirection::SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+earthmodel::Vector3D FixedDirection::SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     return dir;
 }
 
-double FixedDirection::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double FixedDirection::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     earthmodel::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     event_dir.normalize();
     if(abs(1.0 - earthmodel::scalar_product(dir, event_dir)) < 1e-9)
@@ -461,7 +469,7 @@ Cone::Cone(earthmodel::Vector3D dir, double opening_angle) : dir(dir), opening_a
     }
 }
 
-earthmodel::Vector3D Cone::SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const{
+earthmodel::Vector3D Cone::SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const{
     double theta = cos(rand->Uniform(acos(opening_angle), 1));
     double phi = rand->Uniform(0, 2.0 * M_PI);
     earthmodel::Quaternion q;
@@ -469,7 +477,7 @@ earthmodel::Vector3D Cone::SampleDirection(std::shared_ptr<LI_random> rand, std:
     return rotation.rotate(q.rotate(earthmodel::Vector3D(0,0,1), false), false);
 }
 
-double Cone::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double Cone::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     earthmodel::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     event_dir.normalize();
     double theta = acos(earthmodel::scalar_product(dir, event_dir));
@@ -509,7 +517,7 @@ bool Cone::less(WeightableDistribution const & other) const {
 //---------------
 // class VertexPositionDistribution : InjectionDistribution
 //---------------
-void VertexPositionDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+void VertexPositionDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
     earthmodel::Vector3D pos = SamplePosition(rand, earth_model, cross_sections, record);
     record.interaction_vertex[0] = pos.GetX();
     record.interaction_vertex[1] = pos.GetY();
@@ -523,7 +531,7 @@ std::vector<std::string> VertexPositionDistribution::DensityVariables() const {
 //---------------
 // class CylinderVolumePositionDistribution : public VertexPositionDistribution {
 //---------------
-earthmodel::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+earthmodel::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
     double t = rand->Uniform(0, 2 * M_PI);
     const double outer_radius = cylinder.GetRadius();
     const double inner_radius = cylinder.GetInnerRadius();
@@ -534,7 +542,7 @@ earthmodel::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::sha
     return cylinder.LocalToGlobalPosition(pos);
 }
 
-double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     earthmodel::Vector3D pos(record.interaction_vertex);
     double z = pos.GetZ();
     double r = sqrt(pos.GetX() * pos.GetX() + pos.GetY() * pos.GetY());
@@ -558,7 +566,7 @@ std::shared_ptr<InjectionDistribution> CylinderVolumePositionDistribution::clone
     return std::shared_ptr<InjectionDistribution>(new CylinderVolumePositionDistribution(*this));
 }
 
-std::pair<earthmodel::Vector3D, earthmodel::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & interaction) const {
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & interaction) const {
     earthmodel::Vector3D dir(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D pos(interaction.interaction_vertex);
@@ -706,7 +714,7 @@ earthmodel::Vector3D ColumnDepthPositionDistribution::SampleFromDisk(std::shared
     return q.rotate(pos, false);
 }
 
-earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
     earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
@@ -720,7 +728,7 @@ earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
-    std::set<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
 
     std::vector<LeptonInjector::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
@@ -730,7 +738,7 @@ earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared
         fake_record.signature.target_type = target;
         fake_record.target_mass = earth_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        for(auto const & cross_section : cross_sections.GetCrossSectionsForTarget(target)) {
+        for(auto const & cross_section : cross_sections->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
@@ -746,7 +754,7 @@ earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared
     return vertex;
 }
 
-double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D vertex(record.interaction_vertex); // m
@@ -767,7 +775,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<ea
     if(not path.IsWithinBounds(vertex))
         return 0.0;
 
-    std::set<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
 
     std::vector<LeptonInjector::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
@@ -777,7 +785,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<ea
         fake_record.signature.target_type = target;
         fake_record.target_mass = earth_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        for(auto const & cross_section : cross_sections.GetCrossSectionsForTarget(target)) {
+        for(auto const & cross_section : cross_sections->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
@@ -803,7 +811,7 @@ std::shared_ptr<InjectionDistribution> ColumnDepthPositionDistribution::clone() 
     return std::shared_ptr<InjectionDistribution>(new ColumnDepthPositionDistribution(*this));
 }
 
-std::pair<earthmodel::Vector3D, earthmodel::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D vertex(record.interaction_vertex); // m
@@ -862,7 +870,7 @@ earthmodel::Vector3D RangePositionDistribution::SampleFromDisk(std::shared_ptr<L
     return q.rotate(pos, false);
 }
 
-earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
     earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
@@ -876,7 +884,7 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
     path.ExtendFromStartByDistance(lepton_range);
     path.ClipToOuterBounds();
 
-    std::set<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
 
     std::vector<LeptonInjector::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
@@ -886,7 +894,7 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
         fake_record.signature.target_type = target;
         fake_record.target_mass = earth_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        for(auto const & cross_section : cross_sections.GetCrossSectionsForTarget(target)) {
+        for(auto const & cross_section : cross_sections->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
@@ -902,7 +910,7 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
     return vertex;
 }
 
-double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D vertex(record.interaction_vertex); // m
@@ -923,7 +931,7 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmod
     if(not path.IsWithinBounds(vertex))
         return 0.0;
 
-    std::set<Particle::ParticleType> const & possible_targets = cross_sections.TargetTypes();
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
 
     std::vector<LeptonInjector::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
@@ -933,7 +941,7 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmod
         fake_record.signature.target_type = target;
         fake_record.target_mass = earth_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        for(auto const & cross_section : cross_sections.GetCrossSectionsForTarget(target)) {
+        for(auto const & cross_section : cross_sections->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
@@ -961,7 +969,7 @@ std::shared_ptr<InjectionDistribution> RangePositionDistribution::clone() const 
     return std::shared_ptr<InjectionDistribution>(new RangePositionDistribution(*this));
 }
 
-std::pair<earthmodel::Vector3D, earthmodel::Vector3D> RangePositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> RangePositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D vertex(record.interaction_vertex); // m
@@ -1023,7 +1031,7 @@ earthmodel::Vector3D DecayRangePositionDistribution::SampleFromDisk(std::shared_
     return q.rotate(pos, false);
 }
 
-earthmodel::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+earthmodel::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
     earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
@@ -1046,7 +1054,7 @@ earthmodel::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_
     return vertex;
 }
 
-double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D vertex(record.interaction_vertex); // m
@@ -1087,7 +1095,7 @@ std::shared_ptr<InjectionDistribution> DecayRangePositionDistribution::clone() c
     return std::shared_ptr<InjectionDistribution>(new DecayRangePositionDistribution(*this));
 }
 
-std::pair<earthmodel::Vector3D, earthmodel::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D vertex(record.interaction_vertex); // m
@@ -1142,7 +1150,7 @@ bool DecayRangePositionDistribution::less(WeightableDistribution const & other) 
 //---------------
 // class PrimaryNeutrinoHelicityDistribution : InjectionDistribution
 //---------------
-void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord & record) const {
+void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
     std::array<double, 4> & mom = record.primary_momentum;
     double momentum = sqrt(mom[1]*mom[1] + mom[2]*mom[2] + mom[3]*mom[3]);
     double factor = 0.5;
@@ -1153,7 +1161,7 @@ void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI_random> rand
         record.primary_helicity = 0.5;
 }
 
-double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel> earth_model, CrossSectionCollection const & cross_sections, InteractionRecord const & record) const {
+double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     std::array<double, 4> const & mom = record.primary_momentum;
     earthmodel::Vector3D dir(mom[1], mom[2], mom[3]);
     dir.normalize();

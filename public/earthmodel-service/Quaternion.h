@@ -2,21 +2,20 @@
 #ifndef LI_Quaternion_H
 #define LI_Quaternion_H
 
-#include <sstream>
+#include <tuple>
+#include <ostream>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-#include "earthmodel-service/Matrix3D.h"
-#include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/EulerAngles.h"
 
-#include <rk/geom3.hh>
-
 namespace earthmodel {
-
+// #include "earthmodel-service/Matrix3D.h"
 class Matrix3D;
+// #include "earthmodel-service/Vector3D.h"
 class Vector3D;
 
 class Quaternion

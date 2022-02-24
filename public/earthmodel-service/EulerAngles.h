@@ -8,9 +8,10 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-#include "earthmodel-service/Matrix3D.h"
-
 namespace earthmodel {
+
+//#include "earthmodel-service/Matrix3D.h"
+class Matrix3D;
 
 enum EulerFrame {
     Static = 0,

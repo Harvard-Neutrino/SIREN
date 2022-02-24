@@ -1,3 +1,12 @@
+#include <memory>
+#include <string>
+#include <vector>
+#include <iostream>
+
+#include "phys-services/CrossSection.h"
+
+#include "LeptonInjector/Random.h"
+#include "LeptonInjector/DataWriter.h"
 #include "LeptonInjector/Controller.h"
 
 namespace LeptonInjector {

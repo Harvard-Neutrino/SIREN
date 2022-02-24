@@ -32,8 +32,6 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-#include "earthmodel-service/Matrix3D.h"
-
 #include <rk/geom3.hh>
 
 namespace earthmodel {

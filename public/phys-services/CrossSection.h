@@ -5,7 +5,9 @@
 #include <map>
 #include <set>
 #include <array>
+#include <memory>
 #include <string>
+#include <stdexcept>
 
 #include <photospline/splinetable.h>
 #include <photospline/cinter/splinetable.h>
@@ -23,7 +25,11 @@
 #include "serialization/array.h"
 
 #include "LeptonInjector/Particle.h"
-#include "LeptonInjector/Random.h"
+
+namespace LeptonInjector {
+// #include "LeptonInjector/Random.h"
+class LI_random;
+}
 
 namespace LeptonInjector {
 

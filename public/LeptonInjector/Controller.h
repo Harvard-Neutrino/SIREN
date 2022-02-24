@@ -3,11 +3,15 @@
 #define LI_Controller_H
 
 #include <memory>
-#include <iostream>
+#include <string>
+#include <vector>
 
-#include <LeptonInjector/LeptonInjector.h>
-#include <LeptonInjector/Constants.h> // pi, GeV, degrees, meters, ...
-#include <LeptonInjector/DataWriter.h> // adds DataWriter class
+#include "earthmodel-service/EarthModel.h"
+
+#include "LeptonInjector/Random.h"
+#include "LeptonInjector/Constants.h" // pi, GeV, degrees, meters, ...
+#include "LeptonInjector/DataWriter.h" // adds DataWriter class
+#include "LeptonInjector/LeptonInjector.h"
 
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu

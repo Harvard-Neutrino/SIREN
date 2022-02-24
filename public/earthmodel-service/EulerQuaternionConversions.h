@@ -11,6 +11,7 @@ namespace earthmodel {
 
 class Quaternion;
 class EulerAngles;
+enum EulerOrder;
 
 inline
 Quaternion QFromZXZr(double alpha, double beta, double gamma)
