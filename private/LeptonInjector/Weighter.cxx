@@ -2,6 +2,8 @@
 #include <fstream>
 #include <algorithm>
 
+#include "LeptonInjector/Weighter.h"
+
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/EventProps.h"
 
@@ -11,7 +13,7 @@
 
 #include <rk/rk.hh>
 
-namespace LeptonInjector{
+namespace LeptonInjector {
 
 //---------------
 // class LeptonWeighter
@@ -73,7 +75,7 @@ double LeptonWeighter::InteractionProbability(std::pair<earthmodel::Vector3D, ea
 
     earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(interaction_vertex, primary_direction);
     std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
-    std::vector<LeptonWeighter::Particle::ParticleType> targets;
+    std::vector<LeptonInjector::Particle::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
     for(auto const & target_xs : cross_sections_by_target) {
@@ -112,7 +114,7 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<earthmodel::Vec
 
     unsigned int n_targets = cross_sections_by_target.size();
 
-    std::vector<LeptonWeighter::Particle::ParticleType> targets; targets.reserve(n_targets);
+    std::vector<LeptonInjector::Particle::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
@@ -132,7 +134,7 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<earthmodel::Vec
     double exponent = accumulate(interaction_probabilities.begin(), interaction_probabilities.end());
     double density = std::exp(-exponent);
 
-    std::vector<double> particle_densities = earth_model->GetParticleDensities(intersections, iteraction_vertex, targets);
+    std::vector<double> particle_densities = earth_model->GetParticleDensity(intersections, interaction_vertex, targets.begin(), targets.end());
     std::vector<double> jacobians; jacobians.reserve(n_targets);
     for(unsigned int i=0; i<n_targets; ++ i) {
         jacobians.push_back(particle_densities[i] * total_cross_sections[i]);
@@ -145,6 +147,10 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<earthmodel::Vec
 double LeptonWeighter::NormalizedPositionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const {
     double norm = InteractionProbability(bounds, record);
     return UnnormalizedPositionProbability(bounds, record) / norm;
+}
+
+void LeptonWeighter::Initialize() {
+    
 }
 
 LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections) {

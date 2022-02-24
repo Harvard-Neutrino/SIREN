@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_LeptonInjector_H
-#define LI_LeptonInjector_H
+#ifndef LI_Weighter_H
+#define LI_Weighter_H
 
 #include <queue>
 #include <memory> // adds shared pointer
@@ -56,10 +56,11 @@ private:
     double NormalizedPositionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const;
     //TODO Add a function to check that we have the right match up of variables between generator and physical distribution
     //TODO Figure out a way to check that physical and generation probabilities match, and ignore those when weighting
+    void Initialize();
 public:
     LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections);
     double EventWeight(InteractionRecord const & record) const;
-}
+};
 
 } //namespace LeptonInjector
 

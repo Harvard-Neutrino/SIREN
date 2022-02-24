@@ -83,6 +83,7 @@ include(GNUInstallDirs)
 LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/BasicInjectionConfiguration.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/LeptonInjector.cxx
+    ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Weighter.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Controller.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Coordinates.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/DataWriter.cxx
