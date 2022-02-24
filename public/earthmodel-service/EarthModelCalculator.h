@@ -9,6 +9,7 @@
  * @date $Date: 2012-03-13 10:40:52 -0500 (Tue, 13 Mar 2012) $
  * @author Kotoyo Hoshina <hoshina@icecube.wisc.edu>
  */
+#pragma once
 #ifndef EarthModelCalculator_h
 #define EarthModelCalculator_h
 

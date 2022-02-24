@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_EulerQuaternionConversions_H
 #define LI_EulerQuaternionConversions_H
 

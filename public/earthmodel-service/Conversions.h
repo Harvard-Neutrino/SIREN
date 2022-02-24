@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Conversions_H
 #define LI_Conversions_H
 

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_EulerAngles_H
 #define LI_EulerAngles_H
 

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_EarthModel_TCC
 #define LI_EarthModel_TCC
 

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Matrix3D_H
 #define LI_Matrix3D_H
 

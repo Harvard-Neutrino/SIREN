@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_MaterialModel_H
 #define LI_MaterialModel_H
 

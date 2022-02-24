@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Constants_H
 #define LI_Constants_H
 

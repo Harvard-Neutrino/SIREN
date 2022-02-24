@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Path_H
 #define LI_Path_H
 

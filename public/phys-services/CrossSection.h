@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_CrossSection_H
 #define LI_CrossSection_H
 

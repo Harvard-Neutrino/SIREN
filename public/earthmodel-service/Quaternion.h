@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Quaternion_H
 #define LI_Quaternion_H
 

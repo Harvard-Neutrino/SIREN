@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Placement_H
 #define LI_Placement_H
 

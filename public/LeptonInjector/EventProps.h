@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_EventProps_H
 #define LI_EventProps_H
 

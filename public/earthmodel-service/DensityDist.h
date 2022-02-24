@@ -25,6 +25,7 @@
  *                                                                            *
  ******************************************************************************/
 
+#pragma once
 #ifndef LI_DensityDist_H
 #define LI_DensityDist_H
 #include <memory>

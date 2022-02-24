@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Coordinates_H
 #define LI_Coordinates_H
 

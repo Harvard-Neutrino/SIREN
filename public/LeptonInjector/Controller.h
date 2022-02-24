@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Controller_H
 #define LI_Controller_H
 

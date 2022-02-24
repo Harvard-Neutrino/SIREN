@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Distributions_H
 #define LI_Distributions_H
 

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Random_H
 #define LI_Random_H
 

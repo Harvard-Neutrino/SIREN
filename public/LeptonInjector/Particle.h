@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_Particle_H
 #define LI_Particle_H
 

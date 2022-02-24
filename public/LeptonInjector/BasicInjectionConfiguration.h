@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_BasicInjectionConfiguration_H
 #define LI_BasicInjectionConfiguration_H
 

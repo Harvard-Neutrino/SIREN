@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_DataWriter_H
 #define LI_DataWriter_H
 

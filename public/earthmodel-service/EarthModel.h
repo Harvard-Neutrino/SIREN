@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_EarthModel_H
 #define LI_EarthModel_H
 

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_LeptonInjector_H
 #define LI_LeptonInjector_H
 

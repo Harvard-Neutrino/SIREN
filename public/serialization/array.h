@@ -1,3 +1,4 @@
+#pragma once
 #ifndef LI_serialization_array_H
 #define LI_serialization_array_H
 
