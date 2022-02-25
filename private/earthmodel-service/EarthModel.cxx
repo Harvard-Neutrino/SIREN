@@ -1,3 +1,4 @@
+#include <tuple>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -77,6 +78,10 @@ public:
 };
 }
 
+bool EarthSector::operator==(EarthSector const & o) const {
+    return name == o.name and material_id == o.material_id and level == o.level and geo == o.geo and density == o.density;
+}
+
 EarthModel::EarthModel() {
     LoadDefaultMaterials();
     LoadDefaultSectors();
@@ -94,6 +99,13 @@ EarthModel::EarthModel(std::string const & path, std::string const & earth_model
     LoadDefaultSectors();
     LoadMaterialModel(material_model);
     LoadEarthModel(earth_model);
+}
+
+bool EarthModel::operator==(EarthModel const & o) const {
+    return
+        std::tie(materials_, sectors_, sector_map_, detector_origin_)
+        ==
+        std::tie(o.materials_, o.sectors_, o.sector_map_, o.detector_origin_);
 }
 
 std::string EarthModel::GetPath() const {

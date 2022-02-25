@@ -123,6 +123,11 @@ namespace {
 }
 
 bool InteractionSignature::operator==(InteractionSignature const & other) const {
+    return
+        std::tie(primary_type, target_type, secondary_types)
+        ==
+        std::tie(other.primary_type, other.target_type, other.secondary_types);
+    /*
     if(primary_type != other.primary_type or target_type != other.target_type) {
         return false;
     } else {
@@ -146,6 +151,77 @@ bool InteractionSignature::operator==(InteractionSignature const & other) const 
         }
         return m0 == m1;
     }
+    */
+}
+
+bool InteractionRecord::operator==(InteractionRecord const & other) const {
+    return std::tie(
+        signature,
+        primary_mass,
+        primary_momentum,
+        primary_helicity,
+        target_mass,
+        target_momentum,
+        target_helicity,
+        interaction_vertex,
+        secondary_masses,
+        secondary_momenta,
+        secondary_helicity,
+        interaction_parameters)
+        ==
+        std::tie(
+        other.signature,
+        other.primary_mass,
+        other.primary_momentum,
+        other.primary_helicity,
+        other.target_mass,
+        other.target_momentum,
+        other.target_helicity,
+        other.interaction_vertex,
+        other.secondary_masses,
+        other.secondary_momenta,
+        other.secondary_helicity,
+        other.interaction_parameters);
+}
+
+bool DecaySignature::operator==(DecaySignature const & other) const {
+    return
+        std::tie(primary_type, secondary_types)
+        ==
+        std::tie(other.primary_type, other.secondary_types);
+}
+
+bool DecayRecord::operator==(DecayRecord const & other) const {
+    return std::tie(
+        signature,
+        primary_mass,
+        primary_momentum,
+        primary_helicity,
+        decay_vertex,
+        secondary_masses,
+        secondary_momenta,
+        secondary_helicity,
+        decay_parameters)
+        ==
+        std::tie(
+        other.signature,
+        other.primary_mass,
+        other.primary_momentum,
+        other.primary_helicity,
+        other.decay_vertex,
+        other.secondary_masses,
+        other.secondary_momenta,
+        other.secondary_helicity,
+        other.decay_parameters);
+}
+
+CrossSection::CrossSection() {}
+
+bool CrossSection::operator==(CrossSection const & other) const {
+    if(this == &other)
+        return true;
+    else
+        return this->equal(other);
 }
 
 void CrossSectionCollection::InitializeTargetTypes() {
@@ -184,6 +260,13 @@ CrossSectionCollection::CrossSectionCollection(Particle::ParticleType primary_ty
     InitializeTargetTypes();
 }
 
+bool CrossSectionCollection::operator==(CrossSectionCollection const & other) const {
+    return
+        std::tie(primary_type, target_types, cross_sections)
+        ==
+        std::tie(other.primary_type, other.target_types, other.cross_sections);
+}
+
 std::vector<std::shared_ptr<CrossSection>> const & CrossSectionCollection::GetCrossSectionsForTarget(Particle::ParticleType p) const {
     std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>::const_iterator it = cross_sections_by_target.find(p);
     if(it != cross_sections_by_target.end()) {
@@ -196,6 +279,8 @@ std::vector<std::shared_ptr<CrossSection>> const & CrossSectionCollection::GetCr
 bool CrossSectionCollection::MatchesPrimary(InteractionRecord const & record) const {
     return primary_type == record.signature.primary_type;
 }
+
+DISFromSpline::DISFromSpline() {}
 
 DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
     LoadFromMemory(differential_data, total_data);
@@ -227,6 +312,34 @@ DISFromSpline::DISFromSpline(std::string differential_filename, std::string tota
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
+}
+
+bool DISFromSpline::equal(CrossSection const & other) const {
+    const DISFromSpline* x = dynamic_cast<const DISFromSpline*>(&other);
+
+    if(!x)
+        return false;
+    else
+        return
+            std::tie(
+            interaction_type_,
+            target_mass_,
+            minimum_Q2_,
+            signatures_,
+            primary_types_,
+            target_types_,
+            differential_cross_section_,
+            total_cross_section_)
+            ==
+            std::tie(
+            x->interaction_type_,
+            x->target_mass_,
+            x->minimum_Q2_,
+            x->signatures_,
+            x->primary_types_,
+            x->target_types_,
+            x->differential_cross_section_,
+            x->total_cross_section_);
 }
 
 void DISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::string total_crossSectionFile) {
@@ -709,6 +822,30 @@ std::vector<std::string> DISFromSpline::DensityVariables() const {
     return std::vector<std::string>{"Bjorken x", "Bjorken y"};
 }
 
+
+bool DipoleFromTable::equal(CrossSection const & other) const {
+    const DipoleFromTable* x = dynamic_cast<const DipoleFromTable*>(&other);
+
+    if(!x)
+        return false;
+    else
+        return
+            std::tie(
+                z_samp,
+                primary_types,
+                hnl_mass,
+                channel,
+                differential,
+                total)
+            ==
+            std::tie(
+                x->z_samp,
+                x->primary_types,
+                x->hnl_mass,
+                x->channel,
+                x->differential,
+                x->total);
+}
 
 double DipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) {
     double target_mass2 = target_mass * target_mass;

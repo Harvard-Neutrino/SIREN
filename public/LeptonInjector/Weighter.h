@@ -48,6 +48,13 @@ private:
     //TODO Think about what to do with multiple neutrino primary types. Do we want to support mutiple types across one CrossSectionCollection, across one InjectorBase, across one LeptonWeighter?
     std::shared_ptr<CrossSectionCollection> cross_sections;
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions;
+
+
+    std::vector<std::vector<std::shared_ptr<WeightableDistribution>>> distinct_physical_distributions;
+    std::vector<std::vector<std::shared_ptr<InjectionDistribution>>> distinct_generation_distributions;
+    std::vector<std::shared_ptr<WeightableDistribution>> common_physical_distributions;
+    std::vector<std::shared_ptr<InjectionDistribution>> common_generation_distributions;
+
     //TODO Think about the relationship between interaction probability and the positional distribution. Check that the math works out
     //TODO Add versions of these functions that take precomputed intersections
     double InteractionProbability(std::shared_ptr<InjectorBase const> injector, InteractionRecord const & record) const;
@@ -58,7 +65,7 @@ private:
     //TODO Figure out a way to check that physical and generation probabilities match, and ignore those when weighting
     void Initialize();
 public:
-    LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections);
+    LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections, std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions);
     double EventWeight(InteractionRecord const & record) const;
 };
 

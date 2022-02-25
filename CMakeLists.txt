@@ -106,6 +106,7 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/AtomicMasses.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/LICrossSection.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/CrossSection.cxx
+    ${CMAKE_SOURCE_DIR}/private/phys-services/Interpolator.cxx
 )
 
 execute_process(

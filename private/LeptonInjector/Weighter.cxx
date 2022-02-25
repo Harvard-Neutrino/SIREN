@@ -153,11 +153,52 @@ void LeptonWeighter::Initialize() {
     
 }
 
-LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections) {
-}
+LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections, std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions)
+    : injectors(injectors)
+    , earth_model(earth_model)
+    , cross_sections(cross_sections)
+    , physical_distributions(physical_distributions)
+{}
 
 double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
+    // The weight is given by
+    //  w = (\sum_i p_gen^i / p_phys^i)^-1
 
+    // The generation probabilities are different between each injector.
+    // Most of the physical probabilities are common between all injectors.
+    // The physical interaction probability and physical position distribution
+    //  depend on the position boundaries of the injection
+    //  and thus are different for each injection.
+    // Thus the weighting can be given by
+    //  w = p_physCommon / (\sum_i p_gen^i / (p_physPos^i * p_physInt^i))
+
+    // However, the normalization of the physical position distribution is identical to the interaction probability.
+    // Thus, the two will cancel out and we are left with only the unnormalized position probability
+    //  w = p_physCommon / (\sum_i p_gen^i / p_physPosNonNorm^i)
+
+    // The ratio between physical and generation probabilities that differ between injectors
+    std::vector<double> gen_over_phys;
+    gen_over_phys.reserve(injectors.size());
+
+    // From each injector we need the generation probability and the unnormalized position probability (interaction probability * position probability)
+    for(auto injector : injectors) {
+        double generation_probability = injector->GenerationProbability(record);
+        std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds = injector->InjectionBounds(record);
+        double physical_probability = UnnormalizedPositionProbability(bounds, record);
+
+        gen_over_phys.push_back(generation_probability / physical_probability);
+    }
+
+    // The denominator is the sum over the ratios for each injector
+    double injection_specific_factors = accumulate(gen_over_phys.begin(), gen_over_phys.end());
+
+    // One physical probability density is computed for each distribution, independent of the injectors
+    double common_physical_probability = 1.0;
+    for(auto physical_distribution : physical_distributions) {
+        common_physical_probability *= physical_distribution->GenerationProbability(earth_model, cross_sections, record);
+    }
+
+    return common_physical_probability / injection_specific_factors;
 }
 
 } // namespace LeptonInjector

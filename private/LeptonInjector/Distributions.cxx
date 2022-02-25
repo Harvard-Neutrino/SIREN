@@ -45,6 +45,10 @@ bool WeightableDistribution::operator<(WeightableDistribution const & distributi
         return std::type_index(typeid(this)) < std::type_index(typeid(&distribution));
 }
 
+bool WeightableDistribution::AreEquivalent(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, WeightableDistribution const & distribution, std::shared_ptr<earthmodel::EarthModel const> second_earth_model, std::shared_ptr<CrossSectionCollection const> second_cross_sections) const {
+    return this->operator==(distribution);
+}
+
 //---------------
 // class InjectionDistribution
 //---------------
@@ -528,6 +532,10 @@ std::vector<std::string> VertexPositionDistribution::DensityVariables() const {
     return std::vector<std::string>{"InteractionVertexPosition"};
 }
 
+bool VertexPositionDistribution::AreEquivalent(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, WeightableDistribution const & distribution, std::shared_ptr<earthmodel::EarthModel const> second_earth_model, std::shared_ptr<CrossSectionCollection const> second_cross_sections) const {
+    return this->operator==(distribution) and earth_model->operator==(*second_earth_model) and cross_sections->operator==(*second_cross_sections);
+}
+
 //---------------
 // class CylinderVolumePositionDistribution : public VertexPositionDistribution {
 //---------------
@@ -593,6 +601,10 @@ bool CylinderVolumePositionDistribution::equal(WeightableDistribution const & ot
 bool CylinderVolumePositionDistribution::less(WeightableDistribution const & other) const {
     const CylinderVolumePositionDistribution* x = dynamic_cast<const CylinderVolumePositionDistribution*>(&other);
     return cylinder < x->cylinder;
+}
+
+bool CylinderVolumePositionDistribution::AreEquivalent(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, WeightableDistribution const & distribution, std::shared_ptr<earthmodel::EarthModel const> second_earth_model, std::shared_ptr<CrossSectionCollection const> second_cross_sections) const {
+    return this->operator==(distribution);
 }
 
 //---------------
@@ -1145,6 +1157,10 @@ bool DecayRangePositionDistribution::less(WeightableDistribution const & other) 
         std::tie(radius, endcap_length, f, target_types)
         <
         std::tie(radius, x->endcap_length, range_less, x->target_types);
+}
+
+bool DecayRangePositionDistribution::AreEquivalent(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, WeightableDistribution const & distribution, std::shared_ptr<earthmodel::EarthModel const> second_earth_model, std::shared_ptr<CrossSectionCollection const> second_cross_sections) const {
+    return this->operator==(distribution);
 }
 
 //---------------

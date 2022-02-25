@@ -15,7 +15,7 @@
 #include "LeptonInjector/Constants.h"
 #include "LeptonInjector/Particle.h"
 #include "LeptonInjector/LeptonInjector.h"
-#include "LeptonInjector/Controller.h"
+#include "LeptonInjector/Weighter.h"
 
 #define AUSTIN
 
@@ -214,15 +214,6 @@ TEST(Injector, Generation)
     // Put it all together!
     //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
     std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
-
-    /*
-       Controller cont(injector);
-       cont.NameOutfile("injector_test_events.h5");
-       cont.NameLicFile("injector_test_events.lic");
-
-    // Run the program.
-    cont.Execute();
-    */
 
     std::ofstream myFile("injector_test_events.csv");
     myFile << std::fixed << std::setprecision(6);

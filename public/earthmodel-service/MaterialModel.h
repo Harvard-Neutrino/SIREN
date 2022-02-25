@@ -38,6 +38,7 @@ public:
         bool is_atom = true;
         Component() {}
         Component(LeptonInjector::Particle::ParticleType type);
+        bool operator==(Component const & component) const;
         template<class Archive>
         void serialize(Archive & archive, std::uint32_t const version) {
             if(version == 0) {
@@ -60,6 +61,7 @@ public:
         double mass_density_over_total_mass_density; // (g * cm^-3) / (g * cm^-3) --> dimensionless
         // Represents number of component particles per gram of material
         double particle_density_over_total_mass_density; // (#particles * cm^-3) / (g * cm^-3) --> (#particles * g^-1)
+        bool operator==(MaterialComponent const & component) const;
         template<class Archive>
         void serialize(Archive & archive, std::uint32_t const version) {
             if(version == 0) {
@@ -82,6 +84,7 @@ private:
     std::vector<double> material_radiation_length_;
     std::map<std::pair<int, LeptonInjector::Particle::ParticleType>, double> component_radiation_length_;
 public:
+    bool operator==(MaterialModel const & component) const;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {

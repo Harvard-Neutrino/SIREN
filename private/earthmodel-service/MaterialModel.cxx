@@ -64,6 +64,27 @@ MaterialModel::Component::Component(LeptonInjector::Particle::ParticleType type)
     }
 }
 
+bool MaterialModel::Component::operator==(MaterialModel::Component const & component) const {
+    return type == component.type;
+}
+
+bool MaterialModel::MaterialComponent::operator==(MaterialModel::MaterialComponent const & other) const {
+    return
+        std::tie(
+                component,
+                mass_density_over_total_mass_density,
+                particle_density_over_total_mass_density)
+        ==
+        std::tie(
+                other.component,
+                other.mass_density_over_total_mass_density,
+                other.particle_density_over_total_mass_density);
+}
+
+bool MaterialModel::operator==(MaterialModel const & other) const {
+    return material_components_ == other.material_components_;
+}
+
 MaterialModel::MaterialModel() {}
 
 MaterialModel::MaterialModel(std::string const & file) {
