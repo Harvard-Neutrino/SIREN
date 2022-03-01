@@ -215,6 +215,16 @@ TEST(Injector, Generation)
     //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
     std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
 
+    std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
+        std::shared_ptr<WeightableDistribution>(edist),
+        std::shared_ptr<WeightableDistribution>(ddist),
+        std::shared_ptr<WeightableDistribution>(target_momentum_distribution),
+        std::shared_ptr<WeightableDistribution>(helicity_distribution)
+    };
+
+
+    LeptonWeighter weighter(std::vector<std::shared_ptr<InjectorBase>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
+
     std::ofstream myFile("injector_test_events.csv");
     myFile << std::fixed << std::setprecision(6);
     myFile << "intX intY intZ ";
@@ -230,7 +240,7 @@ TEST(Injector, Generation)
     myFile << "helftgt ";
     myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
     myFile << "helgamma ";
-    myFile << "decay_length prob_nopairprod gen_prob y target\n";
+    myFile << "decay_length prob_nopairprod basic_weight simplified_weight y target\n";
     myFile << std::endl;
     int i = 0;
     while(*injector) {
@@ -239,7 +249,8 @@ TEST(Injector, Generation)
         injector->SampleSecondaryDecay(event, decay, HNL_decay_width);
         LeptonInjector::InteractionRecord pair_prod;
         injector->SamplePairProduction(decay, pair_prod);
-        double gen_prob = injector->GenerationProbability(event);
+        double basic_weight = weighter.EventWeight(event);
+        double simplified_weight = weighter.SimplifiedEventWeight(event);
         if(event.secondary_momenta.size() > 0) {
             myFile << event.interaction_vertex[0] << " ";
             myFile << event.interaction_vertex[1] << " ";
@@ -290,12 +301,13 @@ TEST(Injector, Generation)
 
             myFile << decay.decay_parameters[0] << " "; // decay length
             myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
-            myFile << gen_prob << " "; // Generation probability density
+            myFile << basic_weight << " ";
+            myFile << simplified_weight << " ";
             myFile << event.interaction_parameters[1] << " "; // sampled y
             myFile << event.signature.target_type << "\n"; // target type
             myFile << "\n";
         }
-        std::cout << ++i << std::endl;
+        //std::cout << ++i << std::endl;
     }
     myFile.close();
 }
