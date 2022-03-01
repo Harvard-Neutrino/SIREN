@@ -17,7 +17,7 @@
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/Weighter.h"
 
-#define AUSTIN
+//#define AUSTIN
 
 using namespace LeptonInjector;
 static bool z_samp = false;
@@ -307,7 +307,7 @@ TEST(Injector, Generation)
             myFile << event.signature.target_type << "\n"; // target type
             myFile << "\n";
         }
-        //std::cout << ++i << std::endl;
+				if((++i)%(events_to_inject/10)==0) std::cout << i/(events_to_inject) << "%" << std::endl;
     }
     myFile.close();
 }
