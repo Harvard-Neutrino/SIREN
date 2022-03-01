@@ -49,16 +49,19 @@ private:
     std::shared_ptr<CrossSectionCollection> cross_sections;
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions;
 
+    std::vector<std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>> unique_distributions;
+    std::vector<unsigned int> common_gen_idxs;
+    std::vector<unsigned int> common_phys_idxs;
+    std::vector<std::vector<unsigned int>> distinct_gen_idxs_by_injector;
+    std::vector<std::vector<unsigned int>> distinct_physical_idxs_by_injector;
 
-    std::vector<std::vector<std::shared_ptr<WeightableDistribution>>> distinct_physical_distributions;
-    std::vector<std::vector<std::shared_ptr<InjectionDistribution>>> distinct_generation_distributions;
-    std::vector<std::shared_ptr<WeightableDistribution>> common_physical_distributions;
-    std::vector<std::shared_ptr<InjectionDistribution>> common_generation_distributions;
+    bool user_supplied_position_distribution = false;
 
     //TODO Think about the relationship between interaction probability and the positional distribution. Check that the math works out
     //TODO Add versions of these functions that take precomputed intersections
     double InteractionProbability(std::shared_ptr<InjectorBase const> injector, InteractionRecord const & record) const;
     double InteractionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const;
+    double UnnormalizedPositionProbability(std::shared_ptr<InjectorBase const> injector, InteractionRecord const & record) const;
     double UnnormalizedPositionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const;
     double NormalizedPositionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const;
     //TODO Add a function to check that we have the right match up of variables between generator and physical distribution
@@ -67,6 +70,7 @@ private:
 public:
     LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections, std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions);
     double EventWeight(InteractionRecord const & record) const;
+    double SimplifiedEventWeight(InteractionRecord const & record) const;
 };
 
 } //namespace LeptonInjector

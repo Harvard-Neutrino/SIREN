@@ -1,3 +1,4 @@
+#include <tuple>
 #include <cassert>
 #include <fstream>
 #include <algorithm>
@@ -97,6 +98,11 @@ double LeptonWeighter::InteractionProbability(std::pair<earthmodel::Vector3D, ea
     return one_minus_exp_of_negative(exponent);
 }
 
+double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<InjectorBase const> injector, InteractionRecord const & record) const {
+    std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds = injector->InjectionBounds(record);
+    return UnnormalizedPositionProbability(bounds, record);
+}
+
 double LeptonWeighter::UnnormalizedPositionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const {
     earthmodel::Vector3D interaction_vertex(
             record.interaction_vertex[0],
@@ -150,7 +156,335 @@ double LeptonWeighter::NormalizedPositionProbability(std::pair<earthmodel::Vecto
 }
 
 void LeptonWeighter::Initialize() {
-    
+    // Clear distributions
+    unique_distributions.clear();
+    common_gen_idxs.clear();
+    common_phys_idxs.clear();
+    distinct_gen_idxs_by_injector.clear();
+    distinct_physical_idxs_by_injector.clear();
+
+    // Weights are is given by
+    //  w = (\sum_i (\prod_j p_gen^ij / p_phys^ij) )^-1
+    // We first want to determine which pairs of p_gen^ij and p_phys^ij cancel
+    // Secondly we want to determine which p_gen^j are common across all injectors {i}
+    //  and similarly which p_phys^j are common across all injectors {i}
+    // The calculation can then be simplified by not computing terms that cancel,
+    //  pulling out common terms, and finding duplicate terms
+
+    // To do this we will track unique terms in each ratio
+    // Initially we assume all term are unique
+
+    // Initialize the state for physical distributions
+    // true ==> distribution does not cancel and is not common
+    std::cerr << "##### Initializing physical distribution states;" << std::endl;
+    std::vector<std::pair<bool, std::shared_ptr<WeightableDistribution>>> physical_init_state;
+    for(auto physical_dist : physical_distributions) {
+        physical_init_state.push_back(std::make_pair(true, physical_dist));
+    }
+    std::vector<std::vector<std::pair<bool, std::shared_ptr<WeightableDistribution>>>> physical_distribution_state(injectors.size(), physical_init_state);
+    assert(physical_distribution_state.size() == injectors.size());
+    std::cerr << "##### Initialized physical distribution states;" << std::endl;
+
+    // Initialize the state for generation distributions
+    // true ==> distribution does not cancel and is not common
+    std::cerr << "##### Initializing generation distribution states;" << std::endl;
+    std::vector<std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>>> generation_distribution_state;
+    generation_distribution_state.reserve(injectors.size());
+    unsigned int __injector_idx = 0;
+    for(auto injector : injectors) {
+        std::vector<std::shared_ptr<InjectionDistribution>> dists = injector->GetInjectionDistributions();
+        std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> dist_state;
+        dist_state.reserve(dists.size());
+        for(auto dist : dists) {
+            dist_state.push_back(std::make_pair(true, dist));
+        }
+        generation_distribution_state.push_back(dist_state);
+    }
+    assert(generation_distribution_state.size() == injectors.size());
+    std::cerr << "##### Initialized generation distribution states;" << std::endl;
+
+
+    std::cerr << "##### Looking for terms that cancel;" << std::endl;
+    // Now we can try to identify term that cancel
+    for(unsigned int i=0; i<injectors.size(); ++i) {
+        std::cerr << "Working with terms from injector " << i << std::endl;
+        // Consider each injector separately
+        std::vector<std::pair<bool, std::shared_ptr<WeightableDistribution>>> & phys_dists = physical_distribution_state[i];
+        std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> & gen_dists = generation_distribution_state[i];
+        // Must check every pair of physical and injection distribution (unless already cancelled)
+        for(unsigned int phys_idx=0; phys_idx<phys_dists.size(); ++phys_idx) {
+            std::cerr << "Working with physical dist "<< phys_idx << std::endl;
+            std::pair<bool, std::shared_ptr<WeightableDistribution>> & phys_dist = phys_dists[phys_idx];
+            if(phys_dist.second)
+                std::cerr << "Named: " << phys_dist.second->Name() << std::endl;
+            else
+                std::cerr << "Named: NULL" << std::endl;
+            if(not phys_dist.first) // Skip if already cancelled
+                continue;
+            for(unsigned int gen_idx=0; gen_idx<gen_dists.size(); ++gen_idx) {
+                std::pair<bool, std::shared_ptr<InjectionDistribution>> & gen_dist = gen_dists[gen_idx];
+                std::cerr << "Working with gen dist "<< phys_idx << std::endl;
+                if(gen_dist.second) {
+                    std::cerr << "Named: " << gen_dist.second->Name() << std::endl;
+                } else {
+                    std::cerr << "Named: NULL" << std::endl;
+                }
+                if(not gen_dist.first) { // Skip if already cancelled
+                    std::cerr << gen_dist.second->Name() << " already cancelled" << std::endl;
+                    continue;
+                }
+                // Check if dists are equivalent
+                // Must consider the EarthModel and CrossSectionCollection context in the comparison
+                std::shared_ptr<WeightableDistribution> gen_dist_ptr(gen_dist.second);
+                bool equivalent_dists =
+                    phys_dist.second->AreEquivalent( // physical dist
+                            earth_model, // physical context
+                            cross_sections, // physical context
+                            gen_dist_ptr, // generation dist
+                            injectors[i]->GetEarthModel(), // generation context
+                            injectors[i]->GetCrossSections()); // generation context
+                if(not equivalent_dists) {
+                    std::cerr << phys_dist.second->Name() << " != " << gen_dist.second->Name() << std::endl;
+                    continue;
+                }
+                std::cerr << phys_dist.second->Name() << " == " << gen_dist.second->Name() << std::endl;
+                phys_dist.first = false;
+                gen_dist.first = false;
+                break; // This physical dist is cancelled out so we can skip additional comparisons
+            }
+        }
+    }
+    std::cerr << "##### Done looking for terms that cancel;" << std::endl;
+
+    for(unsigned int i=0; i<injectors.size(); ++i) {
+        std::cerr << "Injector " << i << std::endl;
+        // Consider each injector separately
+        std::vector<std::pair<bool, std::shared_ptr<WeightableDistribution>>> & phys_dists = physical_distribution_state[i];
+        std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> & gen_dists = generation_distribution_state[i];
+        std::cerr << "\tGeneration:" << std::endl;
+        for(unsigned int j=0; j<gen_dists.size(); ++j) {
+            std::cerr << "\t\t" << (gen_dists[j].first?"True":"False") << " " << gen_dists[j].second->Name() << std::endl;
+        }
+        std::cerr << "\tPhysical:" << std::endl;
+        for(unsigned int j=0; j<phys_dists.size(); ++j) {
+            std::cerr << "\t\t" << (gen_dists[j].first?"True":"False") << " " << phys_dists[j].second->Name() << std::endl;
+        }
+    }
+
+
+
+    // With cancelled terms marked, we can now collect distributions that are common across all terms
+    // The one exception to this is vertex position distributions
+    // Physical vertex position distributions depend on the injection bounds and so cannot be common across terms
+
+    // Physical distributions have the same EarthModel+CrossSection context so we do not need to compare them
+    // We just need to check that these distributions have not been cancelled out for any terms
+    std::cerr << "##### Looking for physical common terms that have not cancelled;" << std::endl;
+    std::vector<unsigned int> common_physical_dist_idxs;
+    for(unsigned int phys_idx=0; phys_idx<physical_distributions.size(); ++phys_idx) {
+        std::cerr << "Looking at physical distribution " << phys_idx << std::endl;
+        bool has_been_cancelled = false;
+        std::cerr << "Checking if dist has been cancelled already" << std::endl;
+        for(unsigned int i=0; i<injectors.size() and not has_been_cancelled; ++i) {
+            has_been_cancelled |= (not physical_distribution_state[i][phys_idx].first);
+        }
+        // Skip distributions that are cancelled out
+        if(has_been_cancelled)
+            continue;
+        // Skip vertex position distributions and note that it is user-supplied
+        std::cerr << "Checking if distribution is a VertexPositionDistribution" << std::endl;
+        if(dynamic_cast<const VertexPositionDistribution*>(physical_distributions[phys_idx].get())) {
+            user_supplied_position_distribution = true;
+            continue;
+        }
+        // Remove distribution from distinct distributions
+        std::cerr << "Removing common distribution" << std::endl;
+        for(unsigned int i=0; i<injectors.size() and not has_been_cancelled; ++i) {
+            physical_distribution_state[i][phys_idx].first = false;
+        }
+        // Add distriution to common distributions
+        common_physical_dist_idxs.push_back(phys_idx);
+    }
+    std::cerr << "##### Done looking for physical common terms that have not cancelled;" << std::endl;
+
+    std::vector<unsigned int> common_generation_dist_idxs;
+
+    unsigned int i=0;
+    std::cerr << "##### Looking for generation common terms that have not cancelled;" << std::endl;
+    std::cerr << "Looking at injector " << i << std::endl;
+    std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> & gen_dists_0 = generation_distribution_state[i];
+    for(unsigned int gen_idx_0=0; gen_idx_0<gen_dists_0.size(); ++gen_idx_0) {
+        std::cerr << "Term 0: injector " << i << " gen " << gen_idx_0 << std::endl;
+        std::pair<bool, std::shared_ptr<InjectionDistribution>> & gen_dist_0 = gen_dists_0[gen_idx_0];
+        if(not gen_dist_0.first)
+            continue;
+        bool is_common = true;
+        std::vector<unsigned int> common_idxs(injectors.size(), 0);
+        common_idxs[i] = gen_idx_0;
+        for(unsigned int j=i+1; j<injectors.size(); ++j) {
+            std::cerr << "Looking at injector " << j << std::endl;
+            bool found_common = false;
+            std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> & gen_dists_1 = generation_distribution_state[j];
+            for(unsigned int gen_idx_1=0; gen_idx_1<gen_dists_1.size(); ++gen_idx_1) {
+                std::cerr << "Term 1: injector " << j << " gen " << gen_idx_1 << std::endl;
+                std::pair<bool, std::shared_ptr<InjectionDistribution>> & gen_dist_1 = gen_dists_1[gen_idx_1];
+                if(not gen_dist_1.first)
+                    continue;
+                bool equivalent_dists =
+                    gen_dist_0.second->AreEquivalent( // gen dist 0
+                            injectors[i]->GetEarthModel(), // gen dist 0 context
+                            injectors[i]->GetCrossSections(), // gen dist 0 context
+                            (std::shared_ptr<WeightableDistribution>)(gen_dist_1.second), // gen dist 1
+                            injectors[j]->GetEarthModel(), // gen dist 1 context
+                            injectors[j]->GetCrossSections()); // gen dist 1 context
+                if(not equivalent_dists)
+                    continue;
+                found_common = true;
+                common_idxs[j] = gen_idx_1;
+                break; // We found a gen dist cancelled out so we can skip additional comparisons
+            }
+            if(not found_common) {
+                // No matching distribution in this injector
+                // Term is not common across injectors
+                is_common = false;
+                // We can stop checking other injectors for this term
+                break;
+            }
+        }
+        if(not is_common)
+            continue;
+        // Remove distribution from distinct distribution list
+        std::cerr << "Removing common gen distribution" << std::endl;
+        for(unsigned int inj_idx=0; inj_idx<injectors.size(); ++inj_idx) {
+            generation_distribution_state[inj_idx][common_idxs[inj_idx]].first = false;
+        }
+        // Add distribution to list of common distriubtions
+        common_generation_dist_idxs.push_back(common_idxs[0]); // Use the position in the first injector as an ID
+    }
+    std::cerr << "##### Done looking for generation common terms that have not cancelled;" << std::endl;
+
+    // Now we can collect all the unique distributions
+    std::cerr << "##### Gathering unique gen distributions;" << std::endl;
+    for(unsigned int gen_idx : common_generation_dist_idxs) {
+        // These are common to all injectors, so we pull information from the first injector
+        std::shared_ptr<WeightableDistribution> dist = generation_distribution_state[0][gen_idx].second;
+        std::shared_ptr<earthmodel::EarthModel> dist_earth = injectors[0]->GetEarthModel();
+        std::shared_ptr<CrossSectionCollection> dist_cross_sections = injectors[0]->GetCrossSections();
+        std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>> p) -> bool {
+            return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_earth, dist_cross_sections);
+        };
+        auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
+        if(it != unique_distributions.end()) {
+            unsigned int index = std::distance(unique_distributions.begin(), it);
+            common_gen_idxs.push_back(index);
+        } else {
+            unique_distributions.push_back(std::make_tuple(dist, injectors[0]->GetEarthModel(), injectors[0]->GetCrossSections()));
+            common_gen_idxs.push_back(unique_distributions.size()-1);
+        }
+    }
+    std::cerr << "##### Done gathering unique gen distributions;" << std::endl;
+
+    std::cerr << "##### Gathering unique physical distributions;" << std::endl;
+    for(unsigned int phys_idx : common_physical_dist_idxs) {
+        std::shared_ptr<WeightableDistribution> dist = physical_distributions[phys_idx];
+        std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>> p) -> bool {
+            return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, earth_model, cross_sections);
+        };
+        auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
+        if(it != unique_distributions.end()) {
+            unsigned int index = std::distance(unique_distributions.begin(), it);
+            common_phys_idxs.push_back(index);
+        } else {
+            unique_distributions.push_back(std::make_tuple(dist, earth_model, cross_sections));
+            common_phys_idxs.push_back(unique_distributions.size()-1);
+        }
+    }
+    std::cerr << "##### Done gathering unique physical distributions;" << std::endl;
+
+    std::cerr << "##### Gathering unique distinct distributions;" << std::endl;
+    for(unsigned int injector_idx=0; injector_idx<injectors.size(); ++injector_idx) {
+        std::cerr << "Looking at injector " << injector_idx << std::endl;
+        std::vector<std::pair<bool, std::shared_ptr<WeightableDistribution>>> & phys_dists = physical_distribution_state[injector_idx];
+        std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> & gen_dists = generation_distribution_state[injector_idx];
+
+        std::vector<unsigned int> gen_idxs;
+        std::vector<unsigned int> phys_idxs;
+        std::cerr << "Looking at gen dists" << std::endl;
+        for(unsigned int gen_idx=0; gen_idx<gen_dists.size(); ++gen_idx) {
+            bool included = gen_dists[gen_idx].first;
+            if(not included)
+                continue;
+            std::shared_ptr<WeightableDistribution> dist = gen_dists[gen_idx].second;
+            if(dist) {
+                std::cerr << "Named: " << dist->Name() << std::endl;
+            } else {
+                std::cerr << "Named: NULL" << std::endl;
+            }
+            // These are common to all injectors, so we pull information from the first injector
+            std::shared_ptr<earthmodel::EarthModel> dist_earth = injectors[injector_idx]->GetEarthModel();
+            std::shared_ptr<CrossSectionCollection> dist_cross_sections = injectors[injector_idx]->GetCrossSections();
+            std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>> p) -> bool {
+                return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_earth, dist_cross_sections);
+            };
+            auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
+            if(it != unique_distributions.end()) {
+                unsigned int index = std::distance(unique_distributions.begin(), it);
+                gen_idxs.push_back(index);
+            } else {
+                unique_distributions.push_back(std::make_tuple(dist, injectors[injector_idx]->GetEarthModel(), injectors[injector_idx]->GetCrossSections()));
+                gen_idxs.push_back(unique_distributions.size()-1);
+            }
+        }
+        std::cerr << "Done looking at gen dists" << std::endl;
+
+        std::cerr << "Looking at physical dists" << std::endl;
+        for(unsigned int phys_idx=0; phys_idx<phys_dists.size(); ++phys_idx) {
+            bool included = phys_dists[phys_idx].first;
+            if(not included)
+                continue;
+            std::shared_ptr<WeightableDistribution> dist = phys_dists[phys_idx].second;
+            if(dist) {
+                std::cerr << "Named: " << dist->Name() << std::endl;
+            } else {
+                std::cerr << "Named: NULL" << std::endl;
+            }
+            std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>> p) -> bool {
+                return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, earth_model, cross_sections);
+            };
+            auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
+            if(it != unique_distributions.end()) {
+                unsigned int index = std::distance(unique_distributions.begin(), it);
+                phys_idxs.push_back(index);
+            } else {
+                unique_distributions.push_back(std::make_tuple(dist, earth_model, cross_sections));
+                phys_idxs.push_back(unique_distributions.size()-1);
+            }
+        }
+        distinct_gen_idxs_by_injector.push_back(gen_idxs);
+        distinct_physical_idxs_by_injector.push_back(phys_idxs);
+        std::cerr << "Done looking at physical dists" << std::endl;
+    }
+    std::cerr << "##### Done gathering unique distinct distributions;" << std::endl;
+
+    std::cerr << "Common generation distributions:" << std::endl;
+    for(unsigned int i=0; i<common_gen_idxs.size(); ++i) {
+        std::cerr << "\t" << std::get<0>(unique_distributions[common_gen_idxs[i]])->Name() << std::endl;
+    }
+    std::cerr << "Common physical distributions:" << std::endl;
+    for(unsigned int i=0; i<common_phys_idxs.size(); ++i) {
+        std::cerr << "\t" << std::get<0>(unique_distributions[common_phys_idxs[i]])->Name() << std::endl;
+    }
+    for(unsigned int i=0; i<injectors.size(); ++i) {
+        std::cerr << "Injector " << i << ":" << std::endl;
+        std::cerr << "\t" << "Generation:" << std::endl;
+        for(unsigned int j=0; j<distinct_gen_idxs_by_injector[i].size(); ++j) {
+            std::cerr << "\t\t" << std::get<0>(unique_distributions[distinct_gen_idxs_by_injector[i][j]])->Name() << std::endl;
+        }
+        std::cerr << "\t" << "Physical:" << std::endl;
+        for(unsigned int j=0; j<distinct_physical_idxs_by_injector[i].size(); ++j) {
+            std::cerr << "\t\t" << std::get<0>(unique_distributions[distinct_physical_idxs_by_injector[i][j]])->Name() << std::endl;
+        }
+    }
 }
 
 LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections, std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions)
@@ -158,7 +492,9 @@ LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> inject
     , earth_model(earth_model)
     , cross_sections(cross_sections)
     , physical_distributions(physical_distributions)
-{}
+{
+    Initialize();
+}
 
 double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
     // The weight is given by
@@ -199,6 +535,58 @@ double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
     }
 
     return common_physical_probability / injection_specific_factors;
+}
+
+double LeptonWeighter::SimplifiedEventWeight(InteractionRecord const & record) const {
+    std::vector<double> probs;
+    probs.reserve(unique_distributions.size());
+    std::cerr << "Computing all probs" << std::endl;
+    for(unsigned int i=0; i<unique_distributions.size(); ++i) {
+        std::tuple<
+            std::shared_ptr<WeightableDistribution>,
+            std::shared_ptr<earthmodel::EarthModel>,
+            std::shared_ptr<CrossSectionCollection>
+        > const & p = unique_distributions[i];
+        probs.push_back(std::get<0>(p)->GenerationProbability(std::get<1>(p), std::get<2>(p), record));
+    }
+
+    std::cerr << "Common physical probs" << std::endl;
+    double phys_over_gen = 1.0;
+    for(unsigned int i=0; i<common_phys_idxs.size(); ++i) {
+        phys_over_gen *= probs[common_phys_idxs[i]];
+    }
+    std::cerr << "Common gen probs" << std::endl;
+    for(unsigned int i=0; i<common_gen_idxs.size(); ++i) {
+        phys_over_gen /= probs[common_gen_idxs[i]];
+    }
+
+    std::vector<double> gen_over_phys;
+    gen_over_phys.reserve(injectors.size());
+    std::cerr << "Injector specific probs" << std::endl;
+    for(unsigned int i=0; i<injectors.size(); ++i) {
+        double prob = 1.0;
+        for(unsigned int j=0; j<distinct_gen_idxs_by_injector[i].size(); ++j) {
+            prob *= probs[distinct_gen_idxs_by_injector[i][j]];
+        }
+        for(unsigned int j=0; j<distinct_physical_idxs_by_injector[i].size(); ++j) {
+            prob /= probs[distinct_physical_idxs_by_injector[i][j]];
+        }
+        if(user_supplied_position_distribution) {
+            // Need pos_prob * int_prob
+            // pos_prob already supplied
+            // just need int_prob
+            prob /= InteractionProbability((std::shared_ptr<InjectorBase const>)injectors[i], record);
+        } else {
+            // Need pos_prob * int_prob
+            // nothing is already supplied
+            // need pos_prob and int_prob
+            // pos_prob * int_prob == unnormalized pos_prob
+            prob /= UnnormalizedPositionProbability((std::shared_ptr<InjectorBase const>)injectors[i], record);
+        }
+        gen_over_phys.push_back(prob);
+    }
+
+    return phys_over_gen / accumulate(gen_over_phys.begin(), gen_over_phys.end());
 }
 
 } // namespace LeptonInjector
