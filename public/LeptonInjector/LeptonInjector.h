@@ -66,6 +66,9 @@ public:
     virtual double GenerationProbability(InteractionRecord const & record) const;
     virtual std::set<std::vector<std::string>> DensityVariables() const;
     virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(InteractionRecord const & interaction) const;
+    virtual std::vector<std::shared_ptr<InjectionDistribution>> GetInjectionDistributions() const;
+    virtual std::shared_ptr<earthmodel::EarthModel> GetEarthModel() const;
+    virtual std::shared_ptr<CrossSectionCollection> GetCrossSections() const;
     unsigned int InjectedEvents() const;
     unsigned int EventsToInject() const;
     operator bool() const;

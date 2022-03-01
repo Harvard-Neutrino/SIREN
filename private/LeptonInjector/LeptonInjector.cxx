@@ -350,6 +350,18 @@ std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectorBase::InjectionBou
     return std::pair<earthmodel::Vector3D, earthmodel::Vector3D>(earthmodel::Vector3D(0, 0, 0), earthmodel::Vector3D(0, 0, 0));
 }
 
+std::vector<std::shared_ptr<InjectionDistribution>> InjectorBase::GetInjectionDistributions() const {
+    return distributions;
+}
+
+std::shared_ptr<earthmodel::EarthModel> InjectorBase::GetEarthModel() const {
+    return earth_model;
+}
+
+std::shared_ptr<CrossSectionCollection> InjectorBase::GetCrossSections() const {
+    return cross_sections;
+}
+
 unsigned int InjectorBase::InjectedEvents() const {
     return injected_events;
 }
