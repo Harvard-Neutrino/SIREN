@@ -1,4 +1,5 @@
 
+#include <ios>
 #include <cmath>
 #include <math.h>
 #include <memory>
@@ -226,7 +227,8 @@ TEST(Injector, Generation)
     LeptonWeighter weighter(std::vector<std::shared_ptr<InjectorBase>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
 
     std::ofstream myFile("injector_test_events.csv");
-    myFile << std::fixed << std::setprecision(6);
+    // myFile << std::fixed << std::setprecision(6);
+    myFile << std::scientific << std::setprecision(16);
     myFile << "intX intY intZ ";
     myFile << "decX decY decZ ";
     myFile << "ppX ppY ppZ ";

@@ -755,10 +755,10 @@ earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared
         }
     }
     double totalInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
-    double expTotalInteractionDepth = exp(totalInteractionDepth);
+    double expMTotalInteractionDepth = exp(-totalInteractionDepth);
 
     double y = rand->Uniform();
-    double traversedInteractionDepth = totalInteractionDepth - log(y + totalInteractionDepth * (1-y));
+    double traversedInteractionDepth = -log(y * expMTotalInteractionDepth + (1.0 - y));
 
     double dist = path.GetDistanceFromStartAlongPath(traversedInteractionDepth, targets, total_cross_sections);
     earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
@@ -911,10 +911,10 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
         }
     }
     double totalInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
-    double expTotalInteractionDepth = exp(totalInteractionDepth);
+    double expMTotalInteractionDepth = exp(-totalInteractionDepth);
 
     double y = rand->Uniform();
-    double traversedInteractionDepth = totalInteractionDepth - log(y + totalInteractionDepth * (1-y));
+    double traversedInteractionDepth = -log(y * expMTotalInteractionDepth + (1.0 - y));
 
     double dist = path.GetDistanceFromStartAlongPath(traversedInteractionDepth, targets, total_cross_sections);
     earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());

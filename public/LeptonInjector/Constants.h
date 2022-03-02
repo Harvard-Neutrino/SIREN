@@ -80,6 +80,7 @@ static const double  eV             = (1.0e-9)*GeV;
 static const double Joule           = eV/(1.602176634e-19); // eV/J
 
 static const double GeV_per_amu     = 0.9314941024171441;
+static const double invGeVsq_per_cmsq = 2.568189461147501e27;
 
 
 // may need to fix these after setting GeV to 1.0
