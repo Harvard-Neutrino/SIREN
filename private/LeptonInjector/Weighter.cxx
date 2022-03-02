@@ -539,7 +539,7 @@ double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
             physical_probability *= UnnormalizedPositionProbability((std::shared_ptr<InjectorBase const>)injector, record);
             std::cerr << "\t\tUnnormalizedPositionProbability: " << physical_probability << std::endl;
         }
-        double num_events = injector->InjectedEvents();
+        double num_events = injector->EventsToInject();
         std::cerr << "\t\tNumEvents: " << num_events << std::endl;
         gen_over_phys.push_back(num_events * generation_probability / physical_probability);
     }
@@ -592,7 +592,7 @@ double LeptonWeighter::SimplifiedEventWeight(InteractionRecord const & record) c
     for(unsigned int i=0; i<injectors.size(); ++i) {
         std::cerr << "\tNew Injector" << std::endl;
         double prob = 1.0;
-        prob *= injectors[i]->InjectedEvents();
+        prob *= injectors[i]->EventsToInject();
         std::cerr << "\t\tNumEvents: " << prob << std::endl;
         for(unsigned int j=0; j<distinct_gen_idxs_by_injector[i].size(); ++j) {
             std::cerr << "\t\t" << std::get<0>(unique_distributions[distinct_gen_idxs_by_injector[i][j]])->Name() << ": " << probs[distinct_gen_idxs_by_injector[i][j]] << std::endl;
