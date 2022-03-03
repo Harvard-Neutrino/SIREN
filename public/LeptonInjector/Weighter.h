@@ -54,6 +54,8 @@ private:
     std::vector<unsigned int> common_phys_idxs;
     std::vector<std::vector<unsigned int>> distinct_gen_idxs_by_injector;
     std::vector<std::vector<unsigned int>> distinct_physical_idxs_by_injector;
+    std::vector<std::tuple<std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>> unique_contexts;
+    std::vector<unsigned int> context_idx_by_injector;
 
     bool user_supplied_position_distribution = false;
 
@@ -71,6 +73,7 @@ public:
     LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections, std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions);
     double EventWeight(InteractionRecord const & record) const;
     double SimplifiedEventWeight(InteractionRecord const & record) const;
+    static double CrossSectionProbability(std::shared_ptr<earthmodel::EarthModel const>, std::shared_ptr<CrossSectionCollection const>, InteractionRecord const &);
 };
 
 } //namespace LeptonInjector

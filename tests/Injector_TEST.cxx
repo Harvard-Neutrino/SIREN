@@ -18,7 +18,7 @@
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/Weighter.h"
 
-//#define AUSTIN
+#define AUSTIN
 
 using namespace LeptonInjector;
 static bool z_samp = false;

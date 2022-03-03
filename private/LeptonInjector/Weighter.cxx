@@ -145,7 +145,7 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<earthmodel::Vec
     for(unsigned int i=0; i<n_targets; ++ i) {
         jacobians.push_back(particle_densities[i] * total_cross_sections[i]);
     }
-    double mass_density = earth_model->GetMassDensity(intersections, interaction_vertex)
+    double mass_density = earth_model->GetMassDensity(intersections, interaction_vertex);
     double jacobian = mass_density * accumulate(jacobians.begin(), jacobians.end()) * 100; // cm^-1 --> m^-1
 
     return probability_density * jacobian;
@@ -163,6 +163,8 @@ void LeptonWeighter::Initialize() {
     common_phys_idxs.clear();
     distinct_gen_idxs_by_injector.clear();
     distinct_physical_idxs_by_injector.clear();
+    unique_contexts.clear();
+    context_idx_by_injector.clear();
 
     // Weights are is given by
     //  w = (\sum_i (\prod_j p_gen^ij / p_phys^ij) )^-1
@@ -486,6 +488,11 @@ void LeptonWeighter::Initialize() {
             std::cerr << "\t\t" << std::get<0>(unique_distributions[distinct_physical_idxs_by_injector[i][j]])->Name() << std::endl;
         }
     }
+
+    //TODO
+    // Find unique contexts
+    // std::vector<std::tuple<std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>> unique_contexts;
+    // std::vector<unsigned int> context_idx_by_injector;
 }
 
 LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections, std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions)
@@ -539,9 +546,10 @@ double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
             physical_probability *= UnnormalizedPositionProbability((std::shared_ptr<InjectorBase const>)injector, record);
             std::cerr << "\t\tUnnormalizedPositionProbability: " << physical_probability << std::endl;
         }
-        double num_events = injector->EventsToInject();
-        std::cerr << "\t\tNumEvents: " << num_events << std::endl;
-        gen_over_phys.push_back(num_events * generation_probability / physical_probability);
+        // Number of events is already in GenerationProbability
+        // double num_events = injector->EventsToInject();
+        // std::cerr << "\t\tNumEvents: " << num_events << std::endl;
+        gen_over_phys.push_back(generation_probability / physical_probability);
     }
 
     // The denominator is the sum over the ratios for each injector
@@ -558,7 +566,9 @@ double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
     }
     std::cerr << "\tCommonPhysicalProbability: " << common_physical_probability << std::endl;
 
-    return common_physical_probability / injection_specific_factors;
+    double weight = common_physical_probability / injection_specific_factors;
+    std::cerr << "\tWeight: " << weight << std::endl;
+    return weight;
 }
 
 double LeptonWeighter::SimplifiedEventWeight(InteractionRecord const & record) const {
@@ -618,13 +628,65 @@ double LeptonWeighter::SimplifiedEventWeight(InteractionRecord const & record) c
             std::cerr << "\t\tUnnormalizedPositionProbability: " << pos_prob << std::endl;
             prob /= pos_prob;
         }
+
+        // TODO
+        // Use unique contexts to compute cross section probability
+        double cross_section_prob = CrossSectionProbability(injectors[i]->GetEarthModel(), injectors[i]->GetCrossSections(), record);
+        std::cerr << "\t\tCrossSectionProbability: " << cross_section_prob << std::endl;
+        prob *= cross_section_prob;
         gen_over_phys.push_back(prob);
     }
 
     double gen_over_phys_d = accumulate(gen_over_phys.begin(), gen_over_phys.end());
     std::cerr << "\tPhysOverGen: " << phys_over_gen << std::endl;
     std::cerr << "\tGenOverPhys: " << gen_over_phys_d << std::endl;
-    return phys_over_gen / gen_over_phys_d;
+    double weight = phys_over_gen / gen_over_phys_d;
+    std::cerr << "\tWeight: " << weight << std::endl;
+    return weight;
+}
+
+double LeptonWeighter::CrossSectionProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections,  InteractionRecord const & record) {
+    std::set<Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
+    std::set<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
+    std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
+
+    earthmodel::Vector3D interaction_vertex(
+            record.interaction_vertex[0],
+            record.interaction_vertex[1],
+            record.interaction_vertex[2]);
+
+    earthmodel::Vector3D primary_direction(
+            record.primary_momentum[1],
+            record.primary_momentum[2],
+            record.primary_momentum[3]);
+    primary_direction.normalize();
+
+    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(interaction_vertex, primary_direction);
+
+    double total_prob = 0.0;
+    double selected_prob = 0.0;
+    for(auto const target : available_targets) {
+        if(possible_targets.find(target) != possible_targets.end()) {
+            // Get target density
+            double target_density = earth_model->GetParticleDensity(intersections, interaction_vertex, target);
+            // Loop over cross sections that have this target
+            std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections->GetCrossSectionsForTarget(target);
+            for(auto const & cross_section : target_cross_sections) {
+                // Loop over cross section signatures with the same target
+                std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignatures();
+                for(auto const & signature : signatures) {
+                    // Add total cross section times density to the total prob
+                    double target_prob = target_density * cross_section->TotalCrossSection(record);
+                    total_prob += target_prob;
+                    // Add up total cross section times density times final state prob for matching signatures
+                    if(signature == record.signature) {
+                        selected_prob += target_prob * cross_section->FinalStateProbability(record);
+                    }
+                }
+            }
+        }
+    }
+    return selected_prob / total_prob;
 }
 
 } // namespace LeptonInjector

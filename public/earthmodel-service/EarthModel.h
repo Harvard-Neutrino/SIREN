@@ -157,8 +157,8 @@ public:
     static void SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections, bool reverse=false);
 
     static Geometry::IntersectionList GetOuterBounds(Geometry::IntersectionList const & intersections);
-    Geometry::IntersectionList GetOuterBounds(Vector3D const & p0, Vector3D const & direction);
-    std::set<LeptonInjector::Particle::ParticleType> GetAvailableTargets(std::array<double,3> const & vertex);
+    Geometry::IntersectionList GetOuterBounds(Vector3D const & p0, Vector3D const & direction) const;
+    std::set<LeptonInjector::Particle::ParticleType> GetAvailableTargets(std::array<double,3> const & vertex) const;
 
 private:
     void LoadDefaultMaterials();

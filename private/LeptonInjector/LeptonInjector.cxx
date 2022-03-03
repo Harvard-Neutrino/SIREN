@@ -11,6 +11,7 @@
 #include "phys-services/CrossSection.h"
 
 #include "LeptonInjector/Random.h"
+#include "LeptonInjector/Weighter.h"
 #include "LeptonInjector/Distributions.h"
 
 #include "LeptonInjector/LeptonInjector.h"
@@ -131,50 +132,6 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     record.target_mass = earth_model->GetTargetMass(record.signature.target_type);
     record.target_momentum = {record.target_mass,0,0,0};
     matching_cross_sections[index]->SampleFinalState(record, random);
-}
-
-double InjectorBase::CrossSectionProbability(InteractionRecord const & record) const {
-    std::set<Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
-    std::set<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
-    std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
-
-    earthmodel::Vector3D interaction_vertex(
-            record.interaction_vertex[0],
-            record.interaction_vertex[1],
-            record.interaction_vertex[2]);
-
-    earthmodel::Vector3D primary_direction(
-            record.primary_momentum[1],
-            record.primary_momentum[2],
-            record.primary_momentum[3]);
-    primary_direction.normalize();
-
-    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(interaction_vertex, primary_direction);
-
-    double total_prob = 0.0;
-    double selected_prob = 0.0;
-    for(auto const target : available_targets) {
-        if(possible_targets.find(target) != possible_targets.end()) {
-            // Get target density
-            double target_density = earth_model->GetParticleDensity(intersections, interaction_vertex, target);
-            // Loop over cross sections that have this target
-            std::vector<std::shared_ptr<CrossSection>> const & target_cross_sections = cross_sections->GetCrossSectionsForTarget(target);
-            for(auto const & cross_section : target_cross_sections) {
-                // Loop over cross section signatures with the same target
-                std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignatures();
-                for(auto const & signature : signatures) {
-                    // Add total cross section times density to the total prob
-                    double target_prob = target_density * cross_section->TotalCrossSection(record);
-                    total_prob += target_prob;
-                    // Add up total cross section times density times final state prob for matching signatures
-                    if(signature == record.signature) {
-                        selected_prob += target_prob * cross_section->FinalStateProbability(record);
-                    }
-                }
-            }
-        }
-    }
-    return selected_prob / total_prob;
 }
 
 void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, DecayRecord & decay, double decay_width) const {
@@ -317,7 +274,7 @@ double InjectorBase::GenerationProbability(InteractionRecord const & record) con
     for(auto const & dist : distributions) {
         probability *= dist->GenerationProbability(earth_model, cross_sections, record);
     }
-    probability *= CrossSectionProbability(record);
+    probability *= LeptonInjector::LeptonWeighter::CrossSectionProbability(earth_model, cross_sections, record);
     probability *= events_to_inject;
     return probability;
 }

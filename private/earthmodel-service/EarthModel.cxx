@@ -952,12 +952,12 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Geometry::IntersectionList
     return result;
 }
 
-Geometry::IntersectionList EarthModel::GetOuterBounds(Vector3D const & p0, Vector3D const & direction) {
+Geometry::IntersectionList EarthModel::GetOuterBounds(Vector3D const & p0, Vector3D const & direction) const {
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetOuterBounds(intersections);
 }
 
-std::set<LeptonInjector::Particle::ParticleType> EarthModel::GetAvailableTargets(std::array<double,3> const & vertex) {
+std::set<LeptonInjector::Particle::ParticleType> EarthModel::GetAvailableTargets(std::array<double,3> const & vertex) const {
 		int matID = GetContainingSector(Vector3D(vertex[0],vertex[1],vertex[2])).material_id;
         std::vector<LeptonInjector::Particle::ParticleType> particles = materials_.GetMaterialConstituents(matID);
         return std::set<LeptonInjector::Particle::ParticleType>(particles.begin(), particles.end());

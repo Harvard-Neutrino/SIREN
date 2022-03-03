@@ -58,7 +58,6 @@ public:
     virtual InteractionRecord NewRecord() const;
     void SetRandom(std::shared_ptr<LI_random> random);
     virtual void SampleCrossSection(InteractionRecord & record) const;
-    virtual double CrossSectionProbability(InteractionRecord const & record) const;
     virtual void SampleSecondaryDecay(InteractionRecord const & interaction, DecayRecord & decay, double width) const;
     virtual void SamplePairProduction(DecayRecord const & decay, InteractionRecord & pairprod) const;
     virtual InteractionRecord GenerateEvent();
