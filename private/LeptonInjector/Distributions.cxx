@@ -21,6 +21,17 @@ namespace {
             return 1.0 - std::exp(-x);
         }
     }
+    bool fexists(const char *filename)
+		{
+				std::ifstream ifile(filename);
+				return (bool)ifile;
+		}
+		bool fexists(const std::string filename)
+		{
+				std::ifstream ifile(filename.c_str());
+				return (bool)ifile;
+		}
+
 }
 
 //---------------
@@ -347,6 +358,134 @@ bool ModifiedMoyalPlusExponentialEnergyDistribution::less(WeightableDistribution
         std::tie(energyMin, energyMax, mu, sigma, A, l, B)
         <
         std::tie(x->energyMin, x->energyMax, x->mu, x->sigma, x->A, x->l, x->B);
+}
+
+//---------------
+// class TabulatedFluxDistribution : PrimaryEnergyDistribution
+//---------------
+
+void TabulatedFluxDistribution::SetFluxTable() {
+
+   if(fexists(fluxTableFilename)) {
+       std::ifstream in(fluxTableFilename.c_str());
+       std::string buf;
+       TableData1D<double> table_data;
+       while(std::getline(in, buf)) {
+           // Ignore comments and blank lines
+           if((pos = buf.find('#')) != std::string::npos)
+                buf.erase(pos);
+					 const char* whitespace=" \n\r\t\v";
+					 if((pos=buf.find_first_not_of(whitespace))!=0)
+							  buf.erase(0,pos);
+					 if(!buf.empty() && (pos=buf.find_last_not_of(whitespace))!=buf.size()-1)
+							  buf.erase(pos+1);
+					 if(buf.empty())
+							  continue;
+          
+          std::stringstream ss(buf);
+					double x, f;
+					ss >> x >> f;
+					table_data.x.push_back(x);
+					table_data.f.push_back(f);
+       }
+       energyMin_phys = table_data.x[0];
+       energyMax_phys = table_data.x[table_data.x.size()-1];
+       fluxTable = Interpolator1D<double>(table_data);
+   } else {
+       throw std::runtime_error("Failed to open flux table file!");
+   }
+
+}
+
+double TabulatedFluxDistribution::unnormed_pdf(double energy) const {
+    return fluxTable(energy);
+}
+
+double TabulatedFluxDistribution::pdf(double energy) const {
+    return unnormed_pdf(energy) / integral;
+}
+
+TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename)
+    : energyMin_gen(energyMin)
+    , energyMax_gen(energyMax)
+    , fluxTableFilename(fluxTableFilename)
+{
+    SetFluxTable();
+    std::function<double(double)> integrand = [&] (double x) -> double {
+        return unnormed_pdf(x);
+    };
+    integral_gen = earthmodel::Integration::rombergIntegrate(integrand, energyMin_gen, energyMax_gen);
+    integral_phys = earthmodel::Integration::rombergIntegrate(integrand, energyMin_phys, energyMax_phys);
+}
+
+double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
+    // Metropolis-Hastings algorithm to sample from PDF.
+    // Pass in a function pointer for the PDF
+
+    double energy, density, test_energy, test_density, odds;
+    bool accept;
+
+    // sample an initial point uniformly
+    energy = rand->Uniform(energyMin_gen, energyMax_gen);
+    density = pdf(energy);
+
+    // Metropolis Hastings loop
+    for (size_t j = 0; j <= burnin; ++j) {
+        test_energy = rand->Uniform(energyMin_gen, energyMax_gen);
+        test_density = pdf(test_energy);
+        odds = test_density / density;
+        accept = (odds > 1.) or (rand->Uniform(0,1) < odds);
+        if(accept) {
+            energy = test_energy;
+            density = test_density;
+        }
+    }
+
+    return energy;
+}
+
+double TabulatedFluxDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
+    double const & energy = record.primary_momentum[0];
+    if(energy < energyMin_gen or energy > energyMax_gen)
+        return 0.0;
+    else
+        return pdf(energy);
+}
+
+std::string TabulatedFluxDistribution::Name() const {
+    return "TabulatedFluxDistribution";
+}
+
+std::shared_ptr<InjectionDistribution> TabulatedFluxDistribution::clone() const {
+    return std::shared_ptr<InjectionDistribution>(new TabulatedFluxDistribution(*this));
+}
+
+bool TabulatedFluxDistribution::equal(WeightableDistribution const & other) const {
+    const TabulatedFluxDistribution* x = dynamic_cast<const TabulatedFluxDistribution*>(&other);
+
+    if(!x)
+        return false;
+    else
+        return
+            std::tie(energyMin_gen, energyMax_gen, fluxTableFilename)
+            ==
+            std::tie(x->energyMin_gen, x->energyMax_gen, x->fluxTableFilename);
+}
+
+bool TabulatedFluxDistribution::less(WeightableDistribution const & other) const {
+    const TabulatedFluxDistribution* x = dynamic_cast<const TabulatedFluxDistribution*>(&other);
+    return
+        std::tie(energyMin_gen, energyMax_gen, integral_gen)
+        <
+        std::tie(x->energyMin_gen, x->energyMax_gen, x->integral_gen);
+}
+
+double TablulatedFluxDistribution::GetGenIntegral() const {
+    return integral_gen;
+}
+
+double TablulatedFluxDistribution::GetPhysIntegral() const {
+    return integral_phys;
 }
 
 //---------------

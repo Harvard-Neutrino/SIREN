@@ -19,6 +19,8 @@
 
 #include "LeptonInjector/Particle.h"
 
+#include "phys-services/Interpolator.h"
+
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/EarthModel.h"
 
@@ -313,6 +315,62 @@ public:
             archive(::cereal::make_nvp("ParameterL", l));
             archive(::cereal::make_nvp("ParameteB", b));
             construct(min, max, mu, s, a, l, b);
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(construct.ptr()));
+        } else {
+            throw std::runtime_error("ModifiedMoyalPlusExponentialEnergyDistribution only supports version <= 0!");
+        }
+    }
+protected:
+    virtual bool equal(WeightableDistribution const & distribution) const override;
+    virtual bool less(WeightableDistribution const & distribution) const override;
+};
+
+class TabulatedFluxDistribution : public PrimaryEnergyDistribution {
+
+// Assumes table is in units of nu cm^-2 GeV^-1 Livetime^-1
+
+friend cereal::access;
+protected:
+    TabulatedFluxDistribution() {};
+private:
+    double energyMin_gen, energyMin_phys;
+    double energyMax_gen, energyMax_phys;
+    std::string fluxTableFilename;
+    Interpolator1D<double> fluxTable;
+    double integral_gen;
+    double integral_phys;
+    const size_t burnin = 40;
+    double unnormed_pdf(double energy) const ;
+    double pdf(double energy) const;
+    void SetFluxTable();
+public:
+    double GetGenIntegral() const;
+    double GetPhysIntegral() const;
+    double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
+    TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename);
+    std::string Name() const override;
+    virtual std::shared_ptr<InjectionDistribution> clone() const override;
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("EnergyMinGen", energyMin_gen));
+            archive(::cereal::make_nvp("EnergyMaxGen", energyMax_gen));
+            archive(::cereal::make_nvp("FluxTableFilename", fluxTableFilename));
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
+        } else {
+            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<ModifiedMoyalPlusExponentialEnergyDistribution> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            double ming, maxg;
+            std::string ftf;
+            archive(::cereal::make_nvp("EnergyMin", ming));
+            archive(::cereal::make_nvp("EnergyMax", maxg));
+            archive(::cereal::make_nvp("FluxTableFilename", ftf));
+            construct(ming, maxg, ftf);
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(construct.ptr()));
         } else {
             throw std::runtime_error("ModifiedMoyalPlusExponentialEnergyDistribution only supports version <= 0!");
