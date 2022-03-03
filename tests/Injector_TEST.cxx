@@ -309,7 +309,8 @@ TEST(Injector, Generation)
             myFile << event.signature.target_type << "\n"; // target type
             myFile << "\n";
         }
-				if((++i)%(events_to_inject/10)==0) std::cout << i/(events_to_inject) << "%" << std::endl;
+        if((++i) % (events_to_inject/10)==0)
+            std::cerr << (int)(i*100 / (events_to_inject)) << "%" << std::endl;
     }
     myFile.close();
 }
