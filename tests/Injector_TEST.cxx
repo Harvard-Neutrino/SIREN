@@ -18,10 +18,10 @@
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/Weighter.h"
 
-#define AUSTIN
+//#define AUSTIN
 
 using namespace LeptonInjector;
-static bool z_samp = false;
+static bool z_samp = true;
 
 std::string diff_xs(int Z, int A, std::string mHNL) {
     std::stringstream ss;
@@ -132,9 +132,11 @@ TEST(Injector, Generation)
 #ifdef AUSTIN
     std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
     std::string earth_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
+    std::string flux_file = "";
 #else
     std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
     std::string earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
+    std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/LE_FHC_nue.txt";
 #endif
     double powerLawIndex = 2;
     double energyMin = 1; // in GeV
@@ -168,13 +170,13 @@ TEST(Injector, Generation)
     std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf(mHNL);
     std::vector<std::string> hc_tot_fnames = gen_tot_xs_hc(mHNL);
     for(unsigned int i=0; i < target_types.size(); ++i) {
-        std::cerr << hf_diff_fnames[i] << std::endl;
+        //std::cerr << hf_diff_fnames[i] << std::endl;
         hf_xs->AddDifferentialCrossSectionFile(hf_diff_fnames[i], target_types[i]);
-        std::cerr << hf_tot_fnames[i] << std::endl;
+        ////std::cerr << hf_tot_fnames[i] << std::endl;
         hf_xs->AddTotalCrossSectionFile(hf_tot_fnames[i], target_types[i]);
-        std::cerr << hc_diff_fnames[i] << std::endl;
+        //std::cerr << hc_diff_fnames[i] << std::endl;
         hc_xs->AddDifferentialCrossSectionFile(hc_diff_fnames[i], target_types[i]);
-        std::cerr << hc_tot_fnames[i] << std::endl;
+        //std::cerr << hc_tot_fnames[i] << std::endl;
         hc_xs->AddTotalCrossSectionFile(hc_tot_fnames[i], target_types[i]);
     }
     cross_sections.push_back(hf_xs);
@@ -196,9 +198,12 @@ TEST(Injector, Generation)
 
     // Setup NUMI flux
     std::shared_ptr<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution> pdf = std::make_shared<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution>(1.1*hnl_mass, 20, moyal_exp_params[0], moyal_exp_params[1], moyal_exp_params[2], moyal_exp_params[3], moyal_exp_params[4]);
+    
+    // Setup tabulated flux
+    std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(hnl_mass, 20, flux_file);
 
     // Pick energy distribution
-    std::shared_ptr<PrimaryEnergyDistribution> edist = pdf;
+    std::shared_ptr<PrimaryEnergyDistribution> edist = tab_pdf;
 
     // Choose injection direction
     std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<LeptonInjector::FixedDirection>(earthmodel::Vector3D{0.0, 0.0, 1.0});
@@ -248,11 +253,14 @@ TEST(Injector, Generation)
     while(*injector) {
         LeptonInjector::InteractionRecord event = injector->GenerateEvent();
         LeptonInjector::DecayRecord decay;
-        injector->SampleSecondaryDecay(event, decay, HNL_decay_width);
         LeptonInjector::InteractionRecord pair_prod;
-        injector->SamplePairProduction(decay, pair_prod);
-        double basic_weight = weighter.EventWeight(event);
-        double simplified_weight = weighter.SimplifiedEventWeight(event);
+        double basic_weight, simplified_weight = 0;
+        if(event.signature.target_type != LeptonInjector::Particle::ParticleType::unknown) {
+            injector->SampleSecondaryDecay(event, decay, HNL_decay_width);
+            injector->SamplePairProduction(decay, pair_prod);
+            basic_weight = weighter.EventWeight(event);
+            simplified_weight = weighter.SimplifiedEventWeight(event);
+				}
         if(event.secondary_momenta.size() > 0) {
             myFile << event.interaction_vertex[0] << " ";
             myFile << event.interaction_vertex[1] << " ";

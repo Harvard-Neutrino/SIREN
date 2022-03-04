@@ -915,7 +915,7 @@ double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType
                 + std::to_string(interp.MaxX()) + " GeV]");
     }
 
-    return interp(primary_energy);
+    return interp(primary_energy) * std::pow(Constants::hbarc,2);
 }
 
 double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & interaction) const {

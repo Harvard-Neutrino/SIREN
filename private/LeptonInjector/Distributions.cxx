@@ -364,11 +364,24 @@ bool ModifiedMoyalPlusExponentialEnergyDistribution::less(WeightableDistribution
 // class TabulatedFluxDistribution : PrimaryEnergyDistribution
 //---------------
 
-void TabulatedFluxDistribution::SetFluxTable() {
+
+//For compatability with Normalization parent class later on
+void TabulatedFluxDistribution::SetNormalization(double norm) {
+    integral_phys = norm;
+}
+
+double TabulatedFluxDistribution::GetNormalization() {
+    return integral_phys;
+}
+
+void TabulatedFluxDistribution::SetFluxTable(bool setPhysBounds) {
+   
+   // if no physical bounds provided, use first/last entry of table
 
    if(fexists(fluxTableFilename)) {
        std::ifstream in(fluxTableFilename.c_str());
        std::string buf;
+       std::string::size_type pos;
        TableData1D<double> table_data;
        while(std::getline(in, buf)) {
            // Ignore comments and blank lines
@@ -388,8 +401,10 @@ void TabulatedFluxDistribution::SetFluxTable() {
 					table_data.x.push_back(x);
 					table_data.f.push_back(f);
        }
-       energyMin_phys = table_data.x[0];
-       energyMax_phys = table_data.x[table_data.x.size()-1];
+       if(setPhysBounds) {
+           energyMin_phys = table_data.x[0];
+           energyMax_phys = table_data.x[table_data.x.size()-1];
+       }
        fluxTable = Interpolator1D<double>(table_data);
    } else {
        throw std::runtime_error("Failed to open flux table file!");
@@ -402,20 +417,35 @@ double TabulatedFluxDistribution::unnormed_pdf(double energy) const {
 }
 
 double TabulatedFluxDistribution::pdf(double energy) const {
-    return unnormed_pdf(energy) / integral;
+    return unnormed_pdf(energy) / integral_gen;
 }
 
-TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename)
-    : energyMin_gen(energyMin)
-    , energyMax_gen(energyMax)
+TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin_gen, double energyMax_gen, std::string fluxTableFilename)
+    : energyMin_gen(energyMin_gen)
+    , energyMax_gen(energyMax_gen)
     , fluxTableFilename(fluxTableFilename)
 {
-    SetFluxTable();
+    SetFluxTable(true);
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
     integral_gen = earthmodel::Integration::rombergIntegrate(integrand, energyMin_gen, energyMax_gen);
-    integral_phys = earthmodel::Integration::rombergIntegrate(integrand, energyMin_phys, energyMax_phys);
+    SetNormalization(earthmodel::Integration::rombergIntegrate(integrand, energyMin_phys, energyMax_phys));
+}
+
+TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin_gen, double energyMax_gen, double energyMin_phys, double energyMax_phys, std::string fluxTableFilename)
+    : energyMin_gen(energyMin_gen)
+    , energyMax_gen(energyMax_gen)
+    , energyMin_phys(energyMin_phys)
+    , energyMax_phys(energyMax_phys)
+    , fluxTableFilename(fluxTableFilename)
+{
+    SetFluxTable(false);
+    std::function<double(double)> integrand = [&] (double x) -> double {
+        return unnormed_pdf(x);
+    };
+    integral_gen = earthmodel::Integration::rombergIntegrate(integrand, energyMin_gen, energyMax_gen);
+    SetNormalization(earthmodel::Integration::rombergIntegrate(integrand, energyMin_phys, energyMax_phys));
 }
 
 double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
@@ -478,14 +508,6 @@ bool TabulatedFluxDistribution::less(WeightableDistribution const & other) const
         std::tie(energyMin_gen, energyMax_gen, integral_gen)
         <
         std::tie(x->energyMin_gen, x->energyMax_gen, x->integral_gen);
-}
-
-double TablulatedFluxDistribution::GetGenIntegral() const {
-    return integral_gen;
-}
-
-double TablulatedFluxDistribution::GetPhysIntegral() const {
-    return integral_phys;
 }
 
 //---------------

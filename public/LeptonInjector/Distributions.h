@@ -342,13 +342,14 @@ private:
     const size_t burnin = 40;
     double unnormed_pdf(double energy) const ;
     double pdf(double energy) const;
-    void SetFluxTable();
+    void SetFluxTable(bool setPhysBounds);
 public:
-    double GetGenIntegral() const;
-    double GetPhysIntegral() const;
+    double GetNormalization();
+    void SetNormalization(double norm);
     double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
-    TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename);
+    TabulatedFluxDistribution(double energyMin_gen, double energyMax_gen, std::string fluxTableFilename);
+    TabulatedFluxDistribution(double energyMin_gen, double energyMax_gen, double energyMin_phys, double energyMax_phys, std::string fluxTableFilename);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>

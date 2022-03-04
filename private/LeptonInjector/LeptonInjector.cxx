@@ -71,6 +71,16 @@ void InjectorBase::SetRandom(std::shared_ptr<LI_random> random) {
 }
 
 void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
+    
+    // Make sure the particle has interacted
+    if(std::isnan(record.interaction_vertex[0]) ||
+       std::isnan(record.interaction_vertex[1]) ||
+       std::isnan(record.interaction_vertex[2])) {
+    
+		    std::cerr << "No particle interaction!\n";
+		    return;
+    }
+    
     std::set<Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
     std::set<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
     std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
@@ -86,6 +96,7 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
             record.primary_momentum[3]);
     primary_direction.normalize();
 
+    
     earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(interaction_vertex, primary_direction);
 
     double total_prob = 0.0;
@@ -93,6 +104,7 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     std::vector<Particle::ParticleType> matching_targets;
     std::vector<InteractionSignature> matching_signatures;
     std::vector<std::shared_ptr<CrossSection>> matching_cross_sections;
+    InteractionRecord fake_record = record;
     for(auto const target : available_targets) {
         if(possible_targets.find(target) != possible_targets.end()) {
             // Get target density
@@ -105,11 +117,11 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
                 std::vector<InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
                 unsigned int sig_i = 0;
                 for(auto const & signature : signatures) {
-                    record.signature = signature;
-                    record.target_mass = earth_model->GetTargetMass(target);
-                    record.target_momentum = {record.target_mass,0,0,0};
+                    fake_record.signature = signature;
+                    fake_record.target_mass = earth_model->GetTargetMass(target);
+                    fake_record.target_momentum = {fake_record.target_mass,0,0,0};
                     // Add total cross section times density to the total prob
-                    total_prob += target_density * cross_section->TotalCrossSection(record);
+                    total_prob += target_density * cross_section->TotalCrossSection(fake_record);
                     // Add total prob to probs
                     probs.push_back(total_prob);
                     // Add target and cross section pointer to the lists
@@ -363,7 +375,8 @@ RangedLeptonInjector::RangedLeptonInjector(
 }
 
 InteractionRecord RangedLeptonInjector::GenerateEvent() {
-    InteractionRecord event = NewRecord();
+    InteractionRecord event;
+    event = NewRecord();
 
     // Choose a target momentum
     target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
@@ -427,7 +440,8 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
 }
 
 InteractionRecord DecayRangeLeptonInjector::GenerateEvent() {
-    InteractionRecord event = NewRecord();
+    InteractionRecord event;
+    event = NewRecord();
 
     // Choose a target momentum
     target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
@@ -485,7 +499,8 @@ VolumeLeptonInjector::VolumeLeptonInjector(
 }
 
 InteractionRecord VolumeLeptonInjector::GenerateEvent() {
-    InteractionRecord event = NewRecord();
+    InteractionRecord event;
+    event = NewRecord();
 
     // Choose a target momentum
     target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
