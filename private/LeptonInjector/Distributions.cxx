@@ -24,6 +24,30 @@ namespace {
 }
 
 //---------------
+// PhysicallyNormalizedDistribution
+//---------------
+PhysicallyNormalizedDistribution::PhysicallyNormalizedDistribution() {
+    SetNormalization(1.0);
+}
+
+PhysicallyNormalizedDistribution::PhysicallyNormalizedDistribution(double norm) {
+    SetNormalization(norm);
+}
+
+void PhysicallyNormalizedDistribution::SetNormalization(double norm) {
+    normalization = norm;
+}
+
+double PhysicallyNormalizedDistribution::GetNormalization() {
+    return normalization;
+}
+
+bool PhysicallyNormalizedDistribution::IsNormalizationSet() {
+    return normalization != 1.0;
+}
+
+
+//---------------
 // class WeightableDistribution
 //---------------
 
@@ -218,15 +242,19 @@ double PowerLaw::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<e
     }
 }
 
-double PowerLaw::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
+double PowerLaw::pdf(double energy) const {
     if(energyMin == energyMax)
         return 1.0; // only one allowed energy
 
     if(powerLawIndex == 1.0)
-        return 1.0 / (record.primary_momentum[0] * log(energyMax / energyMin));
+        return 1.0 / (energy * log(energyMax / energyMin));
     else {
-        return pow(record.primary_momentum[0], -powerLawIndex) * (powerLawIndex - 1.0) * (pow(energyMin, powerLawIndex - 1.0) - pow(energyMax, powerLawIndex - 1.0));
+        return pow(energy, -powerLawIndex) * (powerLawIndex - 1.0) * (pow(energyMin, powerLawIndex - 1.0) - pow(energyMax, powerLawIndex - 1.0));
     }
+}
+
+double PowerLaw::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
+    return pdf(record.primary_momentum[0]);
 }
 
 std::string PowerLaw::Name() const {
@@ -244,17 +272,21 @@ bool PowerLaw::equal(WeightableDistribution const & other) const {
         return false;
     else
         return
-            std::tie(energyMin, energyMax, powerLawIndex)
+            std::tie(energyMin, energyMax, powerLawIndex, normalization)
             ==
-            std::tie(x->energyMin, x->energyMax, x->powerLawIndex);
+            std::tie(x->energyMin, x->energyMax, x->powerLawIndex, x->normalization);
 }
 
 bool PowerLaw::less(WeightableDistribution const & other) const {
     const PowerLaw* x = dynamic_cast<const PowerLaw*>(&other);
     return
-        std::tie(energyMin, energyMax, powerLawIndex)
+        std::tie(energyMin, energyMax, powerLawIndex, normalization)
         <
-        std::tie(x->energyMin, x->energyMax, x->powerLawIndex);
+        std::tie(x->energyMin, x->energyMax, x->powerLawIndex, x->normalization);
+}
+
+void PowerLaw::SetNormalizationAtEnergy(double norm, double energy) {
+    SetNormalization(norm / pdf(energy));
 }
 
 //---------------
@@ -272,7 +304,7 @@ double ModifiedMoyalPlusExponentialEnergyDistribution::pdf(double energy) const 
     return unnormed_pdf(energy) / integral;
 }
 
-ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B)
+ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B, bool has_physical_normalization)
     : energyMin(energyMin)
     , energyMax(energyMax)
     , mu(mu)
@@ -285,6 +317,9 @@ ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEner
         return unnormed_pdf(x);
     };
     integral = earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax);
+    if(has_physical_normalization) {
+        SetNormalization(integral);
+    }
 }
 
 double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
@@ -534,6 +569,45 @@ std::vector<std::string> VertexPositionDistribution::DensityVariables() const {
 
 bool VertexPositionDistribution::AreEquivalent(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<earthmodel::EarthModel const> second_earth_model, std::shared_ptr<CrossSectionCollection const> second_cross_sections) const {
     return this->operator==(*distribution) and earth_model->operator==(*second_earth_model) and cross_sections->operator==(*second_cross_sections);
+}
+
+//---------------
+// class OrientedCylinderPositionDistribution : VertexPositionDistribution
+//---------------
+//
+earthmodel::Vector3D OrientedCylinderPositionDistribution::SampleFromDisk(std::shared_ptr<LI_random> rand, earthmodel::Vector3D const & dir) const {
+    double t = rand->Uniform(0, 2 * M_PI);
+    double r = radius * std::sqrt(rand->Uniform());
+    earthmodel::Vector3D pos(r * cos(t), r * sin(t), 0.0);
+    earthmodel::Quaternion q = rotation_between(earthmodel::Vector3D(0,0,1), dir);
+    return q.rotate(pos, false);
+}
+
+earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
+    earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
+
+    std::pair<earthmodel::Vector3D, earthmodel::Vector3D> GetBounds(earth_model, cross_sections, record, point_of_closest_approach);
+
+    earthmodel::Vector3D p0;
+    earthmodel::Vector3D p1;
+
+    earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByColumnDepth(lepton_depth);
+    path.ClipToOuterBounds();
+}
+
+double OrientedCylinderPositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
+
+}
+
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> OrientedCylinderPositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & interaction) const {
+
+}
+
+bool OrientedCylinderPositionDistribution::AreEquivalent(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<earthmodel::EarthModel const> second_earth_model, std::shared_ptr<CrossSectionCollection const> second_cross_sections) const {
+
 }
 
 //---------------

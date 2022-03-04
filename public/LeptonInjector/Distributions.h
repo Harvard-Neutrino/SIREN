@@ -35,6 +35,34 @@ class CrossSectionCollection;
 
 namespace LeptonInjector {
 
+class PhysicallyNormalizedDistribution {
+friend cereal::access;
+protected:
+    double normalization = 1.0;
+public:
+    PhysicallyNormalizedDistribution();
+    PhysicallyNormalizedDistribution(double norm);
+    virtual void SetNormalization(double norm);
+    virtual double GetNormalization();
+    virtual bool IsNormalizationSet();
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Normalization", normalization));
+        } else {
+            throw std::runtime_error("PhysicallyNormalizedDistribution only supports version <= 0!");
+        }
+    }
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Normalization", normalization));
+        } else {
+            throw std::runtime_error("PhysicallyNormalizedDistribution only supports version <= 0!");
+        }
+    }
+};
+
 class WeightableDistribution {
 friend cereal::access;
 public:
@@ -63,7 +91,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const = 0;
 };
 
-class InjectionDistribution : public WeightableDistribution {
+class InjectionDistribution : virtual public WeightableDistribution {
 friend cereal::access;
 private:
 public:
@@ -87,7 +115,7 @@ public:
     }
 };
 
-class PrimaryInjector : public InjectionDistribution {
+class PrimaryInjector : virtual public InjectionDistribution {
 friend cereal::access;
 protected:
     PrimaryInjector() {};
@@ -131,7 +159,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class TargetMomentumDistribution : public InjectionDistribution {
+class TargetMomentumDistribution : virtual public InjectionDistribution {
 friend cereal::access;
 private:
     virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const = 0;
@@ -160,7 +188,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const = 0;
 };
 
-class TargetAtRest : public TargetMomentumDistribution {
+class TargetAtRest : virtual public TargetMomentumDistribution {
 friend cereal::access;
 private:
     virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const;
@@ -190,7 +218,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class PrimaryEnergyDistribution : public InjectionDistribution {
+class PrimaryEnergyDistribution : virtual public InjectionDistribution, virtual public PhysicallyNormalizedDistribution {
 friend cereal::access;
 private:
     virtual double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const = 0;
@@ -204,6 +232,7 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(cereal::virtual_base_class<InjectionDistribution>(this));
+            archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
         } else {
             throw std::runtime_error("PrimaryEnergyDistribution only supports version <= 0!");
         }
@@ -212,6 +241,7 @@ public:
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::virtual_base_class<InjectionDistribution>(this));
+            archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
         } else {
             throw std::runtime_error("PrimaryEnergyDistribution only supports version <= 0!");
         }
@@ -221,7 +251,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const = 0;
 };
 
-class PowerLaw : public PrimaryEnergyDistribution {
+class PowerLaw : virtual public PrimaryEnergyDistribution {
 friend cereal::access;
 protected:
     PowerLaw() {};
@@ -231,9 +261,11 @@ private:
     double energyMax;
 public:
     PowerLaw(double powerLawIndex, double energyMin, double energyMax);
+    double pdf(double energy) const;
     double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
     std::string Name() const override;
+    void SetNormalizationAtEnergy(double normalization, double energy);
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -264,7 +296,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class ModifiedMoyalPlusExponentialEnergyDistribution : public PrimaryEnergyDistribution {
+class ModifiedMoyalPlusExponentialEnergyDistribution : virtual public PrimaryEnergyDistribution {
 friend cereal::access;
 protected:
     ModifiedMoyalPlusExponentialEnergyDistribution() {};
@@ -283,7 +315,7 @@ private:
 public:
     double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
-    ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B);
+    ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B, bool has_physical_normalization=true);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
@@ -323,7 +355,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class PrimaryDirectionDistribution : public InjectionDistribution {
+class PrimaryDirectionDistribution : virtual public InjectionDistribution {
 friend cereal::access;
 protected:
     PrimaryDirectionDistribution() {};
@@ -355,7 +387,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const = 0;
 };
 
-class IsotropicDirection : public PrimaryDirectionDistribution {
+class IsotropicDirection : virtual public PrimaryDirectionDistribution {
 friend cereal::access;
 private:
     earthmodel::Vector3D SampleDirection(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
@@ -383,7 +415,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class FixedDirection : public PrimaryDirectionDistribution {
+class FixedDirection : virtual public PrimaryDirectionDistribution {
 friend cereal::access;
 protected:
     FixedDirection() {};
@@ -422,7 +454,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class Cone : public PrimaryDirectionDistribution {
+class Cone : virtual public PrimaryDirectionDistribution {
 friend cereal::access;
 protected:
     Cone() {};
@@ -465,7 +497,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class VertexPositionDistribution : public InjectionDistribution {
+class VertexPositionDistribution : virtual public InjectionDistribution {
 friend cereal::access;
 private:
     virtual earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const = 0;
@@ -498,7 +530,44 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const = 0;
 };
 
-class CylinderVolumePositionDistribution : public VertexPositionDistribution {
+class OrientedCylinderPositionDistribution : virtual public VertexPositionDistribution {
+friend cereal::access;
+private:
+    double radius;
+
+    earthmodel::Vector3D SampleFromDisk(std::shared_ptr<LI_random> rand, earthmodel::Vector3D const & dir) const;
+    virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> GetBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record, earthmodel::Vector3D & point_of_closest_approach) const = 0;
+    virtual SampleWithinBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record, std::pair<earthmodel::Vector3D, earthmodel::Vector3D> boundaries) const = 0;
+    virtual earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const;
+public:
+    virtual double PositionProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record, std::pair<earthmodel::Vector3D, earthmodel::Vector3D> boundaries) const = 0;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const;
+    virtual std::string Name() const = 0;
+    virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
+    virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & interaction) const;
+    virtual bool AreEquivalent(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<earthmodel::EarthModel const> second_earth_model, std::shared_ptr<CrossSectionCollection const> second_cross_sections) const;
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+        } else {
+            throw std::runtime_error("OrientedCylinderPositionDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
+        } else {
+            throw std::runtime_error("OrientedCylinderPositionDistribution only supports version <= 0!");
+        }
+    }
+protected:
+    virtual bool equal(WeightableDistribution const & distribution) const override = 0;
+    virtual bool less(WeightableDistribution const & distribution) const = 0;
+};
+
+class CylinderVolumePositionDistribution : virtual public VertexPositionDistribution {
 friend cereal::access;
 protected:
     CylinderVolumePositionDistribution() {};
@@ -589,7 +658,7 @@ protected:
     virtual bool less(RangeFunction const & distribution) const = 0;
 };
 
-class DecayRangeFunction : public RangeFunction {
+class DecayRangeFunction : virtual public RangeFunction {
 friend cereal::access;
 protected:
     DecayRangeFunction() {};
@@ -636,7 +705,7 @@ protected:
     virtual bool less(RangeFunction const & distribution) const override;
 };
 
-class ColumnDepthPositionDistribution : public VertexPositionDistribution {
+class ColumnDepthPositionDistribution : virtual public VertexPositionDistribution {
 friend cereal::access;
 protected:
     ColumnDepthPositionDistribution() {};
@@ -689,7 +758,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class RangePositionDistribution : public VertexPositionDistribution {
+class RangePositionDistribution : virtual public VertexPositionDistribution {
 friend cereal::access;
 private:
     double radius;
@@ -742,7 +811,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class DecayRangePositionDistribution : public VertexPositionDistribution {
+class DecayRangePositionDistribution : virtual public VertexPositionDistribution {
 private:
     double radius;
     double endcap_length;
@@ -795,7 +864,7 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class PrimaryNeutrinoHelicityDistribution : public InjectionDistribution {
+class PrimaryNeutrinoHelicityDistribution : virtual public InjectionDistribution {
 friend cereal::access;
 public:
     virtual void Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const override;
