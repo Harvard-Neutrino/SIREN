@@ -54,6 +54,21 @@ namespace {
             return 1.0 - std::exp(-x);
         }
     }
+    double log_one_minus_exp_of_negative(double x) {
+        if(x < 1e-1) {
+            return std::log(x) - x/2.0 + x*x/24.0 - x*x*x*x/2880.0;
+        } else if(x > 3) {
+            double ex = std::exp(-x);
+            double ex2 = ex * ex;
+            double ex3 = ex2 * ex;
+            double ex4 = ex3 * ex;
+            double ex5 = ex4 * ex;
+            double ex6 = ex5 * ex;
+            return -(ex + ex2 / 2.0 + ex3 / 3.0 + ex4 / 4.0 + ex5 / 5.0 + ex6 / 6.0);
+        } else {
+            return std::log(1.0 - std::exp(-x));
+        }
+    }
 }
 
 
@@ -79,17 +94,32 @@ double LeptonWeighter::InteractionProbability(std::pair<earthmodel::Vector3D, ea
     std::vector<LeptonInjector::Particle::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
+    InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
+        fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
+        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         std::vector<std::shared_ptr<CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            total_xs += xs->TotalCrossSection(record);
+            std::vector<InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            for(auto const & signature : signatures) {
+                fake_record.signature = signature;
+                // Add total cross section
+                total_xs += xs->TotalCrossSection(fake_record);
+            }
         }
         total_cross_sections.push_back(total_xs);
     }
-    double interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections);
-    return one_minus_exp_of_negative(interaction_depth);
+
+    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections);
+    double interaction_probability;
+    if(total_interaction_depth < 1e-6) {
+        interaction_probability = total_interaction_depth;
+    } else {
+        interaction_probability = one_minus_exp_of_negative(total_interaction_depth);
+    }
+    return interaction_probability;
 }
 
 double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<InjectorBase const> injector, InteractionRecord const & record) const {
@@ -116,29 +146,87 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<earthmodel::Vec
 
     std::vector<LeptonInjector::Particle::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
+    InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
+        fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
+        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         std::vector<std::shared_ptr<CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            total_xs += xs->TotalCrossSection(record);
+            std::vector<InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            for(auto const & signature : signatures) {
+                fake_record.signature = signature;
+                // Add total cross section
+                total_xs += xs->TotalCrossSection(fake_record);
+            }
         }
         total_cross_sections.push_back(total_xs);
     }
 
-    double interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections);
+    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections);
+    double traversed_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections);
     double interaction_density = earth_model->GetInteractionDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections);
 
-    std::cerr << "TraversedInteractionDepth: " << interaction_depth << std::endl;
-    std::cerr << "InteractionDensity: " << interaction_density << std::endl;
+    double prob_density;
+    if(total_interaction_depth < 1e-6) {
+        prob_density = interaction_density;
+    } else {
+        prob_density = interaction_density * exp(-traversed_interaction_depth);
+    }
 
-    double probability_density = interaction_density * std::exp(-interaction_depth);
-    return probability_density;
+    return prob_density;
 }
 
 double LeptonWeighter::NormalizedPositionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const {
-    double norm = InteractionProbability(bounds, record);
-    return UnnormalizedPositionProbability(bounds, record) / norm;
+    earthmodel::Vector3D interaction_vertex(
+            record.interaction_vertex[0],
+            record.interaction_vertex[1],
+            record.interaction_vertex[2]);
+
+    earthmodel::Vector3D primary_direction(
+            record.primary_momentum[1],
+            record.primary_momentum[2],
+            record.primary_momentum[3]);
+    primary_direction.normalize();
+
+    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
+    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
+
+    unsigned int n_targets = cross_sections_by_target.size();
+
+    std::vector<LeptonInjector::Particle::ParticleType> targets; targets.reserve(n_targets);
+    std::vector<double> total_cross_sections;
+    InteractionRecord fake_record = record;
+    for(auto const & target_xs : cross_sections_by_target) {
+        targets.push_back(target_xs.first);
+        fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
+        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
+        std::vector<std::shared_ptr<CrossSection>> const & xs_list = target_xs.second;
+        double total_xs = 0.0;
+        for(auto const & xs : xs_list) {
+            std::vector<InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            for(auto const & signature : signatures) {
+                fake_record.signature = signature;
+                // Add total cross section
+                total_xs += xs->TotalCrossSection(fake_record);
+            }
+        }
+        total_cross_sections.push_back(total_xs);
+    }
+
+    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections);
+    double traversed_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections);
+    double interaction_density = earth_model->GetInteractionDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections);
+
+    double prob_density;
+    if(total_interaction_depth < 1e-6) {
+        prob_density = interaction_density / total_interaction_depth;
+    } else {
+        prob_density = interaction_density * exp(-log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
+    }
+
+    return prob_density;
 }
 
 void LeptonWeighter::Initialize() {
@@ -150,6 +238,7 @@ void LeptonWeighter::Initialize() {
     distinct_physical_idxs_by_injector.clear();
     unique_contexts.clear();
     context_idx_by_injector.clear();
+    normalization = 1.0;
 
     // Weights are is given by
     //  w = (\sum_i (\prod_j p_gen^ij / p_phys^ij) )^-1
@@ -164,18 +253,21 @@ void LeptonWeighter::Initialize() {
 
     // Initialize the state for physical distributions
     // true ==> distribution does not cancel and is not common
-    ///std::cerr << "##### Initializing physical distribution states;" << std::endl;
     std::vector<std::pair<bool, std::shared_ptr<WeightableDistribution>>> physical_init_state;
     for(auto physical_dist : physical_distributions) {
         physical_init_state.push_back(std::make_pair(true, physical_dist));
+        const PhysicallyNormalizedDistribution* p = dynamic_cast<const PhysicallyNormalizedDistribution*>(physical_dist.get());
+        if(p) {
+            if(p->IsNormalizationSet()) {
+                normalization *= p->GetNormalization();
+            }
+        }
     }
     std::vector<std::vector<std::pair<bool, std::shared_ptr<WeightableDistribution>>>> physical_distribution_state(injectors.size(), physical_init_state);
     assert(physical_distribution_state.size() == injectors.size());
-    ///std::cerr << "##### Initialized physical distribution states;" << std::endl;
 
     // Initialize the state for generation distributions
     // true ==> distribution does not cancel and is not common
-    ///std::cerr << "##### Initializing generation distribution states;" << std::endl;
     std::vector<std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>>> generation_distribution_state;
     generation_distribution_state.reserve(injectors.size());
     unsigned int __injector_idx = 0;
@@ -189,36 +281,20 @@ void LeptonWeighter::Initialize() {
         generation_distribution_state.push_back(dist_state);
     }
     assert(generation_distribution_state.size() == injectors.size());
-    ///std::cerr << "##### Initialized generation distribution states;" << std::endl;
 
-
-    ///std::cerr << "##### Looking for terms that cancel;" << std::endl;
     // Now we can try to identify term that cancel
     for(unsigned int i=0; i<injectors.size(); ++i) {
-        ///std::cerr << "Working with terms from injector " << i << std::endl;
         // Consider each injector separately
         std::vector<std::pair<bool, std::shared_ptr<WeightableDistribution>>> & phys_dists = physical_distribution_state[i];
         std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> & gen_dists = generation_distribution_state[i];
         // Must check every pair of physical and injection distribution (unless already cancelled)
         for(unsigned int phys_idx=0; phys_idx<phys_dists.size(); ++phys_idx) {
-            ///std::cerr << "Working with physical dist "<< phys_idx << std::endl;
             std::pair<bool, std::shared_ptr<WeightableDistribution>> & phys_dist = phys_dists[phys_idx];
-            ///if(phys_dist.second)
-                ///std::cerr << "Named: " << phys_dist.second->Name() << std::endl;
-            ///else
-                ///std::cerr << "Named: NULL" << std::endl;
             if(not phys_dist.first) // Skip if already cancelled
                 continue;
             for(unsigned int gen_idx=0; gen_idx<gen_dists.size(); ++gen_idx) {
                 std::pair<bool, std::shared_ptr<InjectionDistribution>> & gen_dist = gen_dists[gen_idx];
-                ///std::cerr << "Working with gen dist "<< phys_idx << std::endl;
-                ///if(gen_dist.second) {
-                    ///std::cerr << "Named: " << gen_dist.second->Name() << std::endl;
-                ///} else {
-                    ///std::cerr << "Named: NULL" << std::endl;
-                ///}
                 if(not gen_dist.first) { // Skip if already cancelled
-                    ///std::cerr << gen_dist.second->Name() << " already cancelled" << std::endl;
                     continue;
                 }
                 // Check if dists are equivalent
@@ -232,34 +308,14 @@ void LeptonWeighter::Initialize() {
                             injectors[i]->GetEarthModel(), // generation context
                             injectors[i]->GetCrossSections()); // generation context
                 if(not equivalent_dists) {
-                    ///std::cerr << phys_dist.second->Name() << " != " << gen_dist.second->Name() << std::endl;
                     continue;
                 }
-                ///std::cerr << phys_dist.second->Name() << " == " << gen_dist.second->Name() << std::endl;
                 phys_dist.first = false;
                 gen_dist.first = false;
                 break; // This physical dist is cancelled out so we can skip additional comparisons
             }
         }
     }
-    ///std::cerr << "##### Done looking for terms that cancel;" << std::endl;
-
-    for(unsigned int i=0; i<injectors.size(); ++i) {
-        ///std::cerr << "Injector " << i << std::endl;
-        // Consider each injector separately
-        std::vector<std::pair<bool, std::shared_ptr<WeightableDistribution>>> & phys_dists = physical_distribution_state[i];
-        std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> & gen_dists = generation_distribution_state[i];
-        ///std::cerr << "\tGeneration:" << std::endl;
-        for(unsigned int j=0; j<gen_dists.size(); ++j) {
-            ///std::cerr << "\t\t" << (gen_dists[j].first?"True":"False") << " " << gen_dists[j].second->Name() << std::endl;
-        }
-        ///std::cerr << "\tPhysical:" << std::endl;
-        for(unsigned int j=0; j<phys_dists.size(); ++j) {
-            ///std::cerr << "\t\t" << (gen_dists[j].first?"True":"False") << " " << phys_dists[j].second->Name() << std::endl;
-        }
-    }
-
-
 
     // With cancelled terms marked, we can now collect distributions that are common across all terms
     // The one exception to this is vertex position distributions
@@ -267,12 +323,9 @@ void LeptonWeighter::Initialize() {
 
     // Physical distributions have the same EarthModel+CrossSection context so we do not need to compare them
     // We just need to check that these distributions have not been cancelled out for any terms
-    ///std::cerr << "##### Looking for physical common terms that have not cancelled;" << std::endl;
     std::vector<unsigned int> common_physical_dist_idxs;
     for(unsigned int phys_idx=0; phys_idx<physical_distributions.size(); ++phys_idx) {
-        ///std::cerr << "Looking at physical distribution " << phys_idx << std::endl;
         bool has_been_cancelled = false;
-        ///std::cerr << "Checking if dist has been cancelled already" << std::endl;
         for(unsigned int i=0; i<injectors.size() and not has_been_cancelled; ++i) {
             has_been_cancelled |= (not physical_distribution_state[i][phys_idx].first);
         }
@@ -280,29 +333,23 @@ void LeptonWeighter::Initialize() {
         if(has_been_cancelled)
             continue;
         // Skip vertex position distributions and note that it is user-supplied
-        ///std::cerr << "Checking if distribution is a VertexPositionDistribution" << std::endl;
         if(dynamic_cast<const VertexPositionDistribution*>(physical_distributions[phys_idx].get())) {
             user_supplied_position_distribution = true;
             continue;
         }
         // Remove distribution from distinct distributions
-        ///std::cerr << "Removing common distribution" << std::endl;
         for(unsigned int i=0; i<injectors.size() and not has_been_cancelled; ++i) {
             physical_distribution_state[i][phys_idx].first = false;
         }
         // Add distriution to common distributions
         common_physical_dist_idxs.push_back(phys_idx);
     }
-    ///std::cerr << "##### Done looking for physical common terms that have not cancelled;" << std::endl;
 
     std::vector<unsigned int> common_generation_dist_idxs;
 
     unsigned int i=0;
-    ///std::cerr << "##### Looking for generation common terms that have not cancelled;" << std::endl;
-    ///std::cerr << "Looking at injector " << i << std::endl;
     std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> & gen_dists_0 = generation_distribution_state[i];
     for(unsigned int gen_idx_0=0; gen_idx_0<gen_dists_0.size(); ++gen_idx_0) {
-        ///std::cerr << "Term 0: injector " << i << " gen " << gen_idx_0 << std::endl;
         std::pair<bool, std::shared_ptr<InjectionDistribution>> & gen_dist_0 = gen_dists_0[gen_idx_0];
         if(not gen_dist_0.first)
             continue;
@@ -310,11 +357,9 @@ void LeptonWeighter::Initialize() {
         std::vector<unsigned int> common_idxs(injectors.size(), 0);
         common_idxs[i] = gen_idx_0;
         for(unsigned int j=i+1; j<injectors.size(); ++j) {
-            ///std::cerr << "Looking at injector " << j << std::endl;
             bool found_common = false;
             std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> & gen_dists_1 = generation_distribution_state[j];
             for(unsigned int gen_idx_1=0; gen_idx_1<gen_dists_1.size(); ++gen_idx_1) {
-                ///std::cerr << "Term 1: injector " << j << " gen " << gen_idx_1 << std::endl;
                 std::pair<bool, std::shared_ptr<InjectionDistribution>> & gen_dist_1 = gen_dists_1[gen_idx_1];
                 if(not gen_dist_1.first)
                     continue;
@@ -342,17 +387,14 @@ void LeptonWeighter::Initialize() {
         if(not is_common)
             continue;
         // Remove distribution from distinct distribution list
-        ///std::cerr << "Removing common gen distribution" << std::endl;
         for(unsigned int inj_idx=0; inj_idx<injectors.size(); ++inj_idx) {
             generation_distribution_state[inj_idx][common_idxs[inj_idx]].first = false;
         }
         // Add distribution to list of common distriubtions
         common_generation_dist_idxs.push_back(common_idxs[0]); // Use the position in the first injector as an ID
     }
-    ///std::cerr << "##### Done looking for generation common terms that have not cancelled;" << std::endl;
 
     // Now we can collect all the unique distributions
-    ///std::cerr << "##### Gathering unique gen distributions;" << std::endl;
     for(unsigned int gen_idx : common_generation_dist_idxs) {
         // These are common to all injectors, so we pull information from the first injector
         std::shared_ptr<WeightableDistribution> dist = generation_distribution_state[0][gen_idx].second;
@@ -370,9 +412,7 @@ void LeptonWeighter::Initialize() {
             common_gen_idxs.push_back(unique_distributions.size()-1);
         }
     }
-    ///std::cerr << "##### Done gathering unique gen distributions;" << std::endl;
 
-    ///std::cerr << "##### Gathering unique physical distributions;" << std::endl;
     for(unsigned int phys_idx : common_physical_dist_idxs) {
         std::shared_ptr<WeightableDistribution> dist = physical_distributions[phys_idx];
         std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>> p) -> bool {
@@ -387,27 +427,18 @@ void LeptonWeighter::Initialize() {
             common_phys_idxs.push_back(unique_distributions.size()-1);
         }
     }
-    ///std::cerr << "##### Done gathering unique physical distributions;" << std::endl;
 
-    ///std::cerr << "##### Gathering unique distinct distributions;" << std::endl;
     for(unsigned int injector_idx=0; injector_idx<injectors.size(); ++injector_idx) {
-        ///std::cerr << "Looking at injector " << injector_idx << std::endl;
         std::vector<std::pair<bool, std::shared_ptr<WeightableDistribution>>> & phys_dists = physical_distribution_state[injector_idx];
         std::vector<std::pair<bool, std::shared_ptr<InjectionDistribution>>> & gen_dists = generation_distribution_state[injector_idx];
 
         std::vector<unsigned int> gen_idxs;
         std::vector<unsigned int> phys_idxs;
-        ///std::cerr << "Looking at gen dists" << std::endl;
         for(unsigned int gen_idx=0; gen_idx<gen_dists.size(); ++gen_idx) {
             bool included = gen_dists[gen_idx].first;
             if(not included)
                 continue;
             std::shared_ptr<WeightableDistribution> dist = gen_dists[gen_idx].second;
-            if(dist) {
-                ///std::cerr << "Named: " << dist->Name() << std::endl;
-            } else {
-                ///std::cerr << "Named: NULL" << std::endl;
-            }
             // These are common to all injectors, so we pull information from the first injector
             std::shared_ptr<earthmodel::EarthModel> dist_earth = injectors[injector_idx]->GetEarthModel();
             std::shared_ptr<CrossSectionCollection> dist_cross_sections = injectors[injector_idx]->GetCrossSections();
@@ -423,19 +454,12 @@ void LeptonWeighter::Initialize() {
                 gen_idxs.push_back(unique_distributions.size()-1);
             }
         }
-        ///std::cerr << "Done looking at gen dists" << std::endl;
 
-        ///std::cerr << "Looking at physical dists" << std::endl;
         for(unsigned int phys_idx=0; phys_idx<phys_dists.size(); ++phys_idx) {
             bool included = phys_dists[phys_idx].first;
             if(not included)
                 continue;
             std::shared_ptr<WeightableDistribution> dist = phys_dists[phys_idx].second;
-            if(dist) {
-                ///std::cerr << "Named: " << dist->Name() << std::endl;
-            } else {
-                ///std::cerr << "Named: NULL" << std::endl;
-            }
             std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>> p) -> bool {
                 return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, earth_model, cross_sections);
             };
@@ -450,28 +474,6 @@ void LeptonWeighter::Initialize() {
         }
         distinct_gen_idxs_by_injector.push_back(gen_idxs);
         distinct_physical_idxs_by_injector.push_back(phys_idxs);
-        ///std::cerr << "Done looking at physical dists" << std::endl;
-    }
-    ///std::cerr << "##### Done gathering unique distinct distributions;" << std::endl;
-
-    ///std::cerr << "Common generation distributions:" << std::endl;
-    for(unsigned int i=0; i<common_gen_idxs.size(); ++i) {
-        ///std::cerr << "\t" << std::get<0>(unique_distributions[common_gen_idxs[i]])->Name() << std::endl;
-    }
-    ///std::cerr << "Common physical distributions:" << std::endl;
-    for(unsigned int i=0; i<common_phys_idxs.size(); ++i) {
-        ///std::cerr << "\t" << std::get<0>(unique_distributions[common_phys_idxs[i]])->Name() << std::endl;
-    }
-    for(unsigned int i=0; i<injectors.size(); ++i) {
-        ///std::cerr << "Injector " << i << ":" << std::endl;
-        ///std::cerr << "\t" << "Generation:" << std::endl;
-        for(unsigned int j=0; j<distinct_gen_idxs_by_injector[i].size(); ++j) {
-            ///std::cerr << "\t\t" << std::get<0>(unique_distributions[distinct_gen_idxs_by_injector[i][j]])->Name() << std::endl;
-        }
-        ///std::cerr << "\t" << "Physical:" << std::endl;
-        for(unsigned int j=0; j<distinct_physical_idxs_by_injector[i].size(); ++j) {
-            ///std::cerr << "\t\t" << std::get<0>(unique_distributions[distinct_physical_idxs_by_injector[i][j]])->Name() << std::endl;
-        }
     }
 
     //TODO
@@ -490,7 +492,6 @@ LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> inject
 }
 
 double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
-    ///std::cerr << "Basic event weight" << std::endl;
     // The weight is given by
     //  w = (\sum_i p_gen^i / p_phys^i)^-1
 
@@ -511,55 +512,62 @@ double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
     gen_over_phys.reserve(injectors.size());
 
     // From each injector we need the generation probability and the unnormalized position probability (interaction probability * position probability)
+    std::cerr << "#### EventWeight ####" << std::endl;
     for(auto injector : injectors) {
-        ///std::cerr << "\tNew Injector" << std::endl;
+        std::cerr << "Generation:" << std::endl;
         double generation_probability = injector->GenerationProbability(record);
-        ///std::cerr << "\t\tGenerationProbability: " << generation_probability << std::endl;
         std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds = injector->InjectionBounds(record);
         double physical_probability = 1.0;
+
+        /*
         if(user_supplied_position_distribution) {
             // Need pos_prob * int_prob
             // pos_prob already supplied
             // just need int_prob
             physical_probability *= InteractionProbability((std::shared_ptr<InjectorBase const>)injector, record);
-            ///std::cerr << "\t\tInteractionProbability: " << physical_probability << std::endl;
         } else {
             // Need pos_prob * int_prob
             // nothing is already supplied
             // need pos_prob and int_prob
             // pos_prob * int_prob == unnormalized pos_prob
             physical_probability *= UnnormalizedPositionProbability((std::shared_ptr<InjectorBase const>)injector, record);
-            ///std::cerr << "\t\tUnnormalizedPositionProbability: " << physical_probability << std::endl;
         }
+        */
+        std::cerr << "Physical:" << std::endl;
+        double prob = InteractionProbability(bounds, record);
+        std::cerr << "\tInteractionProbability: " << prob << std::endl;
+        physical_probability *= prob;
+        prob = NormalizedPositionProbability(bounds, record);
+        std::cerr << "\tPositionProbability: " << prob << std::endl;
+        physical_probability *= prob;
+        prob = CrossSectionProbability(injector->GetEarthModel(), injector->GetCrossSections(), record);
+        std::cerr << "\tCrossSectionProbability: " << prob << std::endl;
+        physical_probability *= prob;
         // Number of events is already in GenerationProbability
         // double num_events = injector->EventsToInject();
-        // ///std::cerr << "\t\tNumEvents: " << num_events << std::endl;
         gen_over_phys.push_back(generation_probability / physical_probability);
     }
 
     // The denominator is the sum over the ratios for each injector
     double injection_specific_factors = accumulate(gen_over_phys.begin(), gen_over_phys.end());
-    ///std::cerr << "\tInjectionSpecificFactors: " << injection_specific_factors << std::endl;
 
     // One physical probability density is computed for each distribution, independent of the injectors
     double common_physical_probability = 1.0;
-    ///std::cerr << "\tPhysicalProbabilities" << std::endl;
     for(auto physical_distribution : physical_distributions) {
         double prob = physical_distribution->GenerationProbability(earth_model, cross_sections, record);
-        ///std::cerr << "\t\t" << physical_distribution->Name() << ": " << prob << std::endl;
+        std::cerr << "\t" << physical_distribution->Name() << ": " << prob << std::endl;
         common_physical_probability *= prob;
     }
-    ///std::cerr << "\tCommonPhysicalProbability: " << common_physical_probability << std::endl;
 
     double weight = common_physical_probability / injection_specific_factors;
-    ///std::cerr << "\tWeight: " << weight << std::endl;
-    return weight;
+    std::cerr << "\tNormalization: " << normalization << std::endl;
+    std::cerr << std::endl;
+    return normalization * weight;
 }
 
 double LeptonWeighter::SimplifiedEventWeight(InteractionRecord const & record) const {
     std::vector<double> probs;
     probs.reserve(unique_distributions.size());
-    ///std::cerr << "Simplified Event Weight" << std::endl;
     for(unsigned int i=0; i<unique_distributions.size(); ++i) {
         std::tuple<
             std::shared_ptr<WeightableDistribution>,
@@ -569,40 +577,47 @@ double LeptonWeighter::SimplifiedEventWeight(InteractionRecord const & record) c
         probs.push_back(std::get<0>(p)->GenerationProbability(std::get<1>(p), std::get<2>(p), record));
     }
 
-    std::cerr << "\tCommon physical probs" << std::endl;
+    std::cerr << "#### SimplifiedEventWeight ####" << std::endl;
+    std::cerr << "Physical:" << std::endl;
     double phys_over_gen = 1.0;
     for(unsigned int i=0; i<common_phys_idxs.size(); ++i) {
-        std::cerr << "\t\t" << std::get<0>(unique_distributions[common_phys_idxs[i]])->Name() << ": " << probs[common_phys_idxs[i]] << std::endl;
         phys_over_gen *= probs[common_phys_idxs[i]];
+        std::cerr << "\t" << std::get<0>(unique_distributions[common_phys_idxs[i]])->Name() << ": " << probs[common_phys_idxs[i]] << std::endl;
     }
-    std::cerr << "\tCommon gen probs" << std::endl;
+    double prob = CrossSectionProbability(earth_model, cross_sections, record);
+    std::cerr << "\tCrossSectionProbability: " << prob << std::endl;
+    phys_over_gen *= prob;
+    std::cerr << "Generation:" << std::endl;
     for(unsigned int i=0; i<common_gen_idxs.size(); ++i) {
-        std::cerr << "\t\t" << std::get<0>(unique_distributions[common_gen_idxs[i]])->Name() << ": " << probs[common_gen_idxs[i]] << std::endl;
         phys_over_gen /= probs[common_gen_idxs[i]];
+        std::cerr << "\t" << std::get<0>(unique_distributions[common_gen_idxs[i]])->Name() << ": " << probs[common_gen_idxs[i]] << std::endl;
     }
 
     std::vector<double> gen_over_phys;
     gen_over_phys.reserve(injectors.size());
-    std::cerr << "\tInjector specific probs" << std::endl;
     for(unsigned int i=0; i<injectors.size(); ++i) {
-        ///std::cerr << "\tNew Injector" << std::endl;
         double prob = 1.0;
+        std::cerr << "Generation:" << std::endl;
+        std::cerr << "\tNumEvents: " << injectors[i]->EventsToInject() << std::endl;
         prob *= injectors[i]->EventsToInject();
-        ///std::cerr << "\t\tNumEvents: " << prob << std::endl;
         for(unsigned int j=0; j<distinct_gen_idxs_by_injector[i].size(); ++j) {
-            std::cerr << "\t\t" << std::get<0>(unique_distributions[distinct_gen_idxs_by_injector[i][j]])->Name() << ": " << probs[distinct_gen_idxs_by_injector[i][j]] << std::endl;
             prob *= probs[distinct_gen_idxs_by_injector[i][j]];
+            std::cerr << "\t" << std::get<0>(unique_distributions[distinct_gen_idxs_by_injector[i][j]])->Name() << ": " << probs[distinct_gen_idxs_by_injector[i][j]] << std::endl;
         }
+        double cross_section_probability = CrossSectionProbability(injectors[i]->GetEarthModel(), injectors[i]->GetCrossSections(), record);
+        std::cerr << "\tCrossSectionProbability: " << cross_section_probability << std::endl;
+        prob *= cross_section_probability;
+        std::cerr << "Physical:" << std::endl;
         for(unsigned int j=0; j<distinct_physical_idxs_by_injector[i].size(); ++j) {
-            std::cerr << "\t\t" << std::get<0>(unique_distributions[distinct_physical_idxs_by_injector[i][j]])->Name() << ": " << probs[distinct_physical_idxs_by_injector[i][j]] << std::endl;
             prob /= probs[distinct_physical_idxs_by_injector[i][j]];
+            std::cerr << "\t" << std::get<0>(unique_distributions[distinct_physical_idxs_by_injector[i][j]])->Name() << ": " << probs[distinct_physical_idxs_by_injector[i][j]] << std::endl;
         }
+        /*
         if(user_supplied_position_distribution) {
             // Need pos_prob * int_prob
             // pos_prob already supplied
             // just need int_prob
             double int_prob = InteractionProbability((std::shared_ptr<InjectorBase const>)injectors[i], record);
-            std::cerr << "\t\tInteractionProbability: " << int_prob << std::endl;
             prob /= int_prob;
         } else {
             // Need pos_prob * int_prob
@@ -610,24 +625,26 @@ double LeptonWeighter::SimplifiedEventWeight(InteractionRecord const & record) c
             // need pos_prob and int_prob
             // pos_prob * int_prob == unnormalized pos_prob
             double pos_prob = UnnormalizedPositionProbability((std::shared_ptr<InjectorBase const>)injectors[i], record);
-            std::cerr << "\t\tUnnormalizedPositionProbability: " << pos_prob << std::endl;
             prob /= pos_prob;
-        }
+        }*/
+        std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds = injectors[i]->InjectionBounds(record);
+        double interaction_probability = InteractionProbability(bounds, record);
+        std::cerr << "\tInteractionProbability: " << interaction_probability << std::endl;
+        double normalized_position_probability = NormalizedPositionProbability(bounds, record);
+        std::cerr << "\tNormalizedPositionProbability: " << normalized_position_probability << std::endl;
+        prob /= interaction_probability;
+        prob /= normalized_position_probability;
 
         // TODO
         // Use unique contexts to compute cross section probability
-        double cross_section_prob = CrossSectionProbability(injectors[i]->GetEarthModel(), injectors[i]->GetCrossSections(), record);
-        std::cerr << "\t\tCrossSectionProbability: " << cross_section_prob << std::endl;
-        prob *= cross_section_prob;
         gen_over_phys.push_back(prob);
     }
 
+    std::cerr << "\tNormalization: " << normalization << std::endl;
+    std::cerr << std::endl;
     double gen_over_phys_d = accumulate(gen_over_phys.begin(), gen_over_phys.end());
-    ///std::cerr << "\tPhysOverGen: " << phys_over_gen << std::endl;
-    ///std::cerr << "\tGenOverPhys: " << gen_over_phys_d << std::endl;
     double weight = phys_over_gen / gen_over_phys_d;
-    ///std::cerr << "\tWeight: " << weight << std::endl;
-    return weight;
+    return normalization * weight;
 }
 
 double LeptonWeighter::CrossSectionProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections,  InteractionRecord const & record) {
@@ -677,9 +694,6 @@ double LeptonWeighter::CrossSectionProbability(std::shared_ptr<earthmodel::Earth
             }
         }
     }
-    std::cerr << "SelectedFinalState: " << selected_final_state << std::endl;
-    std::cerr << "SelectedProb: " << selected_prob << std::endl;
-    std::cerr << "TotalProb: " << total_prob << std::endl;
     return selected_prob / total_prob;
 }
 

@@ -64,11 +64,11 @@ void PhysicallyNormalizedDistribution::SetNormalization(double norm) {
     normalization = norm;
 }
 
-double PhysicallyNormalizedDistribution::GetNormalization() {
+double PhysicallyNormalizedDistribution::GetNormalization() const {
     return normalization;
 }
 
-bool PhysicallyNormalizedDistribution::IsNormalizationSet() {
+bool PhysicallyNormalizedDistribution::IsNormalizationSet() const {
     return normalization != 1.0;
 }
 
@@ -1000,6 +1000,9 @@ earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+    if(total_interaction_depth == 0) {
+        throw(InjectionFailure("No available interactions along path!"));
+    }
 
     double traversed_interaction_depth;
     if(total_interaction_depth < 1e-6) {
@@ -1064,7 +1067,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<ea
     if(total_interaction_depth < 1e-6) {
         prob_density = interaction_density / total_interaction_depth;
     } else {
-        prob_density = interaction_density * exp(log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
+        prob_density = interaction_density * exp(-log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
     }
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
 
@@ -1169,6 +1172,9 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+    if(total_interaction_depth == 0) {
+        throw(InjectionFailure("No available interactions along path!"));
+    }
     double traversed_interaction_depth;
     if(total_interaction_depth < 1e-6) {
         traversed_interaction_depth = rand->Uniform() * total_interaction_depth;
@@ -1182,10 +1188,7 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections);
     earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
-    std::cerr << "SampleTotalInteractionDepth: " << total_interaction_depth << std::endl;
-    std::cerr << "SampleTraversedInteractionDepth: " << traversed_interaction_depth << std::endl;
-    double interaction_density = earth_model->GetInteractionDensity(earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections);
-    std::cerr << "SampleInteractionDensity: " << interaction_density << std::endl;
+    double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections);
 
     return vertex;
 }
@@ -1233,15 +1236,11 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmod
 
     double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections);
 
-    std::cerr << "GenProbTotalInteractionDepth: " << total_interaction_depth << std::endl;
-    std::cerr << "GenProbTraversedInteractionDepth: " << traversed_interaction_depth << std::endl;
-    std::cerr << "GenProbInteractionDensity: " << interaction_density << std::endl;
-
     double prob_density;
     if(total_interaction_depth < 1e-6) {
         prob_density = interaction_density / total_interaction_depth;
     } else {
-        prob_density = interaction_density * exp(log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
+        prob_density = interaction_density * exp(-log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
     }
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
 

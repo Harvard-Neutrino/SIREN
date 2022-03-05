@@ -52,8 +52,8 @@ public:
     PhysicallyNormalizedDistribution();
     PhysicallyNormalizedDistribution(double norm);
     virtual void SetNormalization(double norm);
-    virtual double GetNormalization();
-    virtual bool IsNormalizationSet();
+    virtual double GetNormalization() const;
+    virtual bool IsNormalizationSet() const;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

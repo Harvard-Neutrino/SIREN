@@ -147,8 +147,6 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     }
     if(total_prob == 0 or selected_prob == 0)
         throw(InjectionFailure("No valid interactions for this event!"));
-    std::cerr << "SampleSelectedProb: " << selected_prob << std::endl;
-    std::cerr << "SampleTotalProb: " << total_prob << std::endl;
     record.target_mass = earth_model->GetTargetMass(record.signature.target_type);
     record.target_momentum = {record.target_mass,0,0,0};
     matching_cross_sections[index]->SampleFinalState(record, random);
@@ -300,9 +298,14 @@ InteractionRecord InjectorBase::GenerateEvent() {
 double InjectorBase::GenerationProbability(InteractionRecord const & record) const {
     double probability = 1.0;
     for(auto const & dist : distributions) {
-        probability *= dist->GenerationProbability(earth_model, cross_sections, record);
+        double prob = dist->GenerationProbability(earth_model, cross_sections, record);
+        std::cerr << "\t" << dist->Name() << ": " << prob << std::endl;
+        probability *= prob;
     }
-    probability *= LeptonInjector::LeptonWeighter::CrossSectionProbability(earth_model, cross_sections, record);
+    double prob = LeptonInjector::LeptonWeighter::CrossSectionProbability(earth_model, cross_sections, record);
+    std::cerr << "\tCrossSectionProbability: " << prob << std::endl;
+    probability *= prob;
+    std::cerr << "\tNumEvents: " << events_to_inject << std::endl;
     probability *= events_to_inject;
     return probability;
 }

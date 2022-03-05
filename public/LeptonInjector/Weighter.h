@@ -56,6 +56,7 @@ private:
     std::vector<std::vector<unsigned int>> distinct_physical_idxs_by_injector;
     std::vector<std::tuple<std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>> unique_contexts;
     std::vector<unsigned int> context_idx_by_injector;
+    double normalization;
 
     bool user_supplied_position_distribution = false;
 

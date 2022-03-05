@@ -228,7 +228,6 @@ TEST(Injector, Generation)
         std::shared_ptr<WeightableDistribution>(helicity_distribution)
     };
 
-
     LeptonWeighter weighter(std::vector<std::shared_ptr<InjectorBase>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
 
     std::ofstream myFile("injector_test_events.csv");
