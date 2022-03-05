@@ -299,13 +299,10 @@ double InjectorBase::GenerationProbability(InteractionRecord const & record) con
     double probability = 1.0;
     for(auto const & dist : distributions) {
         double prob = dist->GenerationProbability(earth_model, cross_sections, record);
-        std::cerr << "\t" << dist->Name() << ": " << prob << std::endl;
         probability *= prob;
     }
     double prob = LeptonInjector::LeptonWeighter::CrossSectionProbability(earth_model, cross_sections, record);
-    std::cerr << "\tCrossSectionProbability: " << prob << std::endl;
     probability *= prob;
-    std::cerr << "\tNumEvents: " << events_to_inject << std::endl;
     probability *= events_to_inject;
     return probability;
 }
