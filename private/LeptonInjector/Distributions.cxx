@@ -99,6 +99,32 @@ bool WeightableDistribution::AreEquivalent(std::shared_ptr<earthmodel::EarthMode
 }
 
 //---------------
+// class NormalizationConstant : WeightableDistribution, PhysicallyNormalizedDistribution
+//---------------
+//
+NormalizationConstant::NormalizationConstant() {}
+
+NormalizationConstant::NormalizationConstant(double norm) {
+    SetNormalization(norm);
+}
+
+double NormalizationConstant::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
+    return 1.0;
+}
+
+std::string NormalizationConstant::Name() const {
+    return "NormalizationConstant";
+}
+
+bool NormalizationConstant::equal(WeightableDistribution const & distribution) const {
+    return false;
+}
+
+bool NormalizationConstant::less(WeightableDistribution const & distribution) const {
+    return false;
+}
+
+//---------------
 // class InjectionDistribution
 //---------------
 
@@ -918,7 +944,7 @@ double DecayRangeFunction::DecayLength(InteractionSignature const & signature, d
 }
 
 double DecayRangeFunction::Range(InteractionSignature const & signature, double energy) const {
-    return DecayLength(signature, energy) * multiplier;
+    return std::min(DecayLength(signature, energy) * multiplier, max_distance);
 }
 
 double DecayRangeFunction::operator()(InteractionSignature const & signature, double energy) const {
@@ -937,7 +963,11 @@ double DecayRangeFunction::DecayWidth() const {
     return decay_width;
 }
 
-DecayRangeFunction::DecayRangeFunction(double particle_mass, double decay_width, double multiplier) : particle_mass(particle_mass), decay_width(decay_width), multiplier(multiplier) {}
+double DecayRangeFunction::MaxDistance() const {
+    return max_distance;
+}
+
+DecayRangeFunction::DecayRangeFunction(double particle_mass, double decay_width, double multiplier, double max_distance) : particle_mass(particle_mass), decay_width(decay_width), multiplier(multiplier), max_distance(max_distance) {}
 
 bool DecayRangeFunction::equal(RangeFunction const & other) const {
     const DecayRangeFunction* x = dynamic_cast<const DecayRangeFunction*>(&other);
@@ -946,18 +976,18 @@ bool DecayRangeFunction::equal(RangeFunction const & other) const {
         return false;
     else
         return
-            std::tie(particle_mass, decay_width, multiplier)
+            std::tie(particle_mass, decay_width, multiplier, max_distance)
             ==
-            std::tie(x->particle_mass, x->decay_width, x->multiplier);
+            std::tie(x->particle_mass, x->decay_width, x->multiplier, x->max_distance);
 }
 
 bool DecayRangeFunction::less(RangeFunction const & other) const {
     const DecayRangeFunction* x = dynamic_cast<const DecayRangeFunction*>(&other);
 
     return
-        std::tie(particle_mass, decay_width, multiplier)
+        std::tie(particle_mass, decay_width, multiplier, max_distance)
         <
-        std::tie(x->particle_mass, x->decay_width, x->multiplier);
+        std::tie(x->particle_mass, x->decay_width, x->multiplier, x->max_distance);
 }
 
 //---------------

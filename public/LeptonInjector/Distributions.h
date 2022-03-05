@@ -100,6 +100,37 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const = 0;
 };
 
+class NormalizationConstant : virtual public WeightableDistribution, virtual public PhysicallyNormalizedDistribution {
+friend cereal::access;
+protected:
+    NormalizationConstant();
+public:
+    NormalizationConstant(double norm);
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const;
+    virtual std::string Name() const;
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<WeightableDistribution>(this));
+            archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
+        } else {
+            throw std::runtime_error("NormalizationConstant only supports version <= 0!");
+        }
+    }
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<WeightableDistribution>(this));
+            archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
+        } else {
+            throw std::runtime_error("NormalizationConstant only supports version <= 0!");
+        }
+    }
+protected:
+    virtual bool equal(WeightableDistribution const & distribution) const;
+    virtual bool less(WeightableDistribution const & distribution) const;
+};
+
 class InjectionDistribution : virtual public WeightableDistribution {
 friend cereal::access;
 private:
@@ -726,8 +757,9 @@ private:
     double particle_mass; // GeV
     double decay_width; // GeV
     double multiplier;
+    double max_distance;
 public:
-    DecayRangeFunction(double particle_mass, double decay_width, double multiplier);
+    DecayRangeFunction(double particle_mass, double decay_width, double multiplier, double max_distance);
     static double DecayLength(double mass, double width, double energy);
     double operator()(InteractionSignature const & signature, double energy) const override;
     double DecayLength(InteractionSignature const & signature, double energy) const;
@@ -735,11 +767,14 @@ public:
     double Multiplier() const;
     double ParticleMass() const;
     double DecayWidth() const;
+    double MaxDistance() const;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(::cereal::make_nvp("ParticleMass", particle_mass));
             archive(::cereal::make_nvp("DecayWidth", decay_width));
+            archive(::cereal::make_nvp("Multiplier", multiplier));
+            archive(::cereal::make_nvp("MaxDistance", max_distance));
             archive(cereal::virtual_base_class<RangeFunction>(this));
         } else {
             throw std::runtime_error("DecayRangeFunction only supports version <= 0!");
@@ -751,10 +786,12 @@ public:
             double mass;
             double width;
             double multiplier;
+            double max_distance;
             archive(::cereal::make_nvp("ParticleMass", mass));
             archive(::cereal::make_nvp("DecayWidth", width));
             archive(::cereal::make_nvp("Multiplier", multiplier));
-            construct(mass, width, multiplier);
+            archive(::cereal::make_nvp("MaxDistance", max_distance));
+            construct(mass, width, multiplier, max_distance);
             archive(cereal::virtual_base_class<RangeFunction>(construct.ptr()));
         } else {
             throw std::runtime_error("DecayRangeFunction only supports version <= 0!");
