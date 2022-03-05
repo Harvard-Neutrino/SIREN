@@ -138,9 +138,6 @@ TEST(Injector, Generation)
     std::string earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
     std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/LE_FHC_numu.txt";
 #endif
-    double powerLawIndex = 2;
-    double energyMin = 1; // in GeV
-    double energyMax = 1; // in GeV
 
     double hnl_mass = 0.4; // in GeV; The HNL mass we are injecting
     double d = 1e-7; // in GeV^-1; the effective dipole coupling strength
@@ -149,6 +146,7 @@ TEST(Injector, Generation)
     // Decay parameters used to set the max range when injecting an HNL, decay width is likely wrong, set accordingly...
     double HNL_decay_width = std::pow(d,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)
     double n_decay_lengths = 3.0;
+    double max_distance = 240;
 
     // This should encompass Minerva, should probably be smaller? Depends on how long Minerva is...
     double disk_radius = 1; // in meters
@@ -202,6 +200,9 @@ TEST(Injector, Generation)
     // Setup tabulated flux
     std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(flux_file, true);
 
+    // Change the flux units from cm^-2 to m^-2
+    std::shared_ptr<LeptonInjector::WeightableDistribution> flux_units = std::make_shared<LeptonInjector::NormalizationConstant>(1e4);
+
     // Pick energy distribution
     std::shared_ptr<PrimaryEnergyDistribution> edist = pdf;
 
@@ -212,7 +213,7 @@ TEST(Injector, Generation)
     std::shared_ptr<LeptonInjector::TargetMomentumDistribution> target_momentum_distribution = std::make_shared<LeptonInjector::TargetAtRest>();
 
     // Let us inject according to the decay distribution
-    std::shared_ptr<RangeFunction> range_func = std::make_shared<LeptonInjector::DecayRangeFunction>(hnl_mass, HNL_decay_width, n_decay_lengths);
+    std::shared_ptr<RangeFunction> range_func = std::make_shared<LeptonInjector::DecayRangeFunction>(hnl_mass, HNL_decay_width, n_decay_lengths, max_distance);
 
     // Helicity distribution
     std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<LeptonInjector::PrimaryNeutrinoHelicityDistribution>();
@@ -223,6 +224,7 @@ TEST(Injector, Generation)
 
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
         std::shared_ptr<WeightableDistribution>(tab_pdf),
+        std::shared_ptr<WeightableDistribution>(flux_units),
         std::shared_ptr<WeightableDistribution>(ddist),
         std::shared_ptr<WeightableDistribution>(target_momentum_distribution),
         std::shared_ptr<WeightableDistribution>(helicity_distribution)
