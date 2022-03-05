@@ -19,6 +19,8 @@
 
 #include "LeptonInjector/Particle.h"
 
+#include "phys-services/Interpolator.h"
+
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/EarthModel.h"
 
@@ -34,6 +36,13 @@ class CrossSectionCollection;
 } // namespace LeptonInjector
 
 namespace LeptonInjector {
+
+class InjectionFailure : public std::runtime_error {
+public:
+    InjectionFailure() : std::runtime_error("") {};
+    InjectionFailure(const std::string& s) : std::runtime_error(s) {};
+    InjectionFailure(const char * s) : std::runtime_error(s) {};
+};
 
 class PhysicallyNormalizedDistribution {
 friend cereal::access;
@@ -315,7 +324,7 @@ private:
 public:
     double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
     virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
-    ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B, bool has_physical_normalization=true);
+    ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B, bool has_physical_normalization=false);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
@@ -348,6 +357,57 @@ public:
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(construct.ptr()));
         } else {
             throw std::runtime_error("ModifiedMoyalPlusExponentialEnergyDistribution only supports version <= 0!");
+        }
+    }
+protected:
+    virtual bool equal(WeightableDistribution const & distribution) const override;
+    virtual bool less(WeightableDistribution const & distribution) const override;
+};
+
+class TabulatedFluxDistribution : virtual public PrimaryEnergyDistribution {
+// Assumes table is in units of nu cm^-2 GeV^-1 Livetime^-1
+friend cereal::access;
+protected:
+    TabulatedFluxDistribution();
+private:
+    double energyMin;
+    double energyMax;
+    bool bounds_set;
+    std::string fluxTableFilename;
+    Interpolator1D<double> fluxTable;
+    double integral;
+    const size_t burnin = 40;
+    double unnormed_pdf(double energy) const;
+    double pdf(double energy) const;
+    void LoadFluxTable();
+public:
+    double SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const override;
+    void SetEnergyBounds(double energyMin, double energyMax);
+    TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
+    TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false);
+    std::string Name() const override;
+    virtual std::shared_ptr<InjectionDistribution> clone() const override;
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("EnergyMin", energyMin));
+            archive(::cereal::make_nvp("EnergyMax", energyMax));
+            archive(::cereal::make_nvp("FluxTable", fluxTable));
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
+        } else {
+            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("EnergyMin", energyMin));
+            archive(::cereal::make_nvp("EnergyMax", energyMax));
+            archive(::cereal::make_nvp("FluxTable", fluxTable));
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
+        } else {
+            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 0!");
         }
     }
 protected:
@@ -537,7 +597,7 @@ private:
 
     earthmodel::Vector3D SampleFromDisk(std::shared_ptr<LI_random> rand, earthmodel::Vector3D const & dir) const;
     virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> GetBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record, earthmodel::Vector3D & point_of_closest_approach) const = 0;
-    virtual SampleWithinBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record, std::pair<earthmodel::Vector3D, earthmodel::Vector3D> boundaries) const = 0;
+    virtual void SampleWithinBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record, std::pair<earthmodel::Vector3D, earthmodel::Vector3D> boundaries) const = 0;
     virtual earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const;
 public:
     virtual double PositionProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record, std::pair<earthmodel::Vector3D, earthmodel::Vector3D> boundaries) const = 0;
