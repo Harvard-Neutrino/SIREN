@@ -62,11 +62,11 @@ public:
     bool HasColumnDepth();
 
     std::shared_ptr<const EarthModel> GetEarthModel();
-    Vector3D GetFirstPoint();
-    Vector3D GetLastPoint();
-    Vector3D GetDirection();
+    Vector3D const & GetFirstPoint();
+    Vector3D const & GetLastPoint();
+    Vector3D const & GetDirection();
     double GetDistance();
-    Geometry::IntersectionList GetIntersections();
+    Geometry::IntersectionList const & GetIntersections();
 
     void SetEarthModel(std::shared_ptr<const EarthModel> earth_model);
     void EnsureEarthModel();
@@ -196,6 +196,7 @@ public:
     //
 
     bool IsWithinBounds(Vector3D point);
+    double GetDistanceFromStartInBounds(Vector3D point);
 };
 
 } // namespace earthmodel

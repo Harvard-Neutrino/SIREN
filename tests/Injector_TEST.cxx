@@ -18,7 +18,7 @@
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/Weighter.h"
 
-//#define AUSTIN
+#define AUSTIN
 
 using namespace LeptonInjector;
 static bool z_samp = true;
@@ -132,11 +132,11 @@ TEST(Injector, Generation)
 #ifdef AUSTIN
     std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
     std::string earth_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
-    std::string flux_file = "";
+    std::string flux_file = "/home/austin/nu-dipole/fluxes/LE_FHC_numu.txt";
 #else
     std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
     std::string earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
-    std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/LE_FHC_nue.txt";
+    std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/LE_FHC_numu.txt";
 #endif
     double powerLawIndex = 2;
     double energyMin = 1; // in GeV
@@ -157,7 +157,7 @@ TEST(Injector, Generation)
 
     // Events to inject
     unsigned int events_to_inject = 1e5;
-    Particle::ParticleType primary_type = ParticleType::NuE;
+    Particle::ParticleType primary_type = ParticleType::NuMu;
 
     // Load cross sections
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
@@ -197,13 +197,13 @@ TEST(Injector, Generation)
     std::vector<double> moyal_exp_params = p_LE_FHC_numu;
 
     // Setup NUMI flux
-    std::shared_ptr<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution> pdf = std::make_shared<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution>(1.1*hnl_mass, 20, moyal_exp_params[0], moyal_exp_params[1], moyal_exp_params[2], moyal_exp_params[3], moyal_exp_params[4]);
-    
+    std::shared_ptr<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution> pdf = std::make_shared<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution>(hnl_mass, 20, moyal_exp_params[0], moyal_exp_params[1], moyal_exp_params[2], moyal_exp_params[3], moyal_exp_params[4]);
+
     // Setup tabulated flux
-    std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(hnl_mass, 20, flux_file);
+    std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(flux_file, true);
 
     // Pick energy distribution
-    std::shared_ptr<PrimaryEnergyDistribution> edist = tab_pdf;
+    std::shared_ptr<PrimaryEnergyDistribution> edist = pdf;
 
     // Choose injection direction
     std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<LeptonInjector::FixedDirection>(earthmodel::Vector3D{0.0, 0.0, 1.0});
@@ -222,7 +222,7 @@ TEST(Injector, Generation)
     std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
 
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
-        std::shared_ptr<WeightableDistribution>(edist),
+        std::shared_ptr<WeightableDistribution>(tab_pdf),
         std::shared_ptr<WeightableDistribution>(ddist),
         std::shared_ptr<WeightableDistribution>(target_momentum_distribution),
         std::shared_ptr<WeightableDistribution>(helicity_distribution)

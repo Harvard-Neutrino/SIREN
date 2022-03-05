@@ -21,6 +21,21 @@ namespace {
             return 1.0 - std::exp(-x);
         }
     }
+    double log_one_minus_exp_of_negative(double x) {
+        if(x < 1e-1) {
+            return std::log(x) - x/2.0 + x*x/24.0 - x*x*x*x/2880.0;
+        } else if(x > 3) {
+            double ex = std::exp(-x);
+            double ex2 = ex * ex;
+            double ex3 = ex2 * ex;
+            double ex4 = ex3 * ex;
+            double ex5 = ex4 * ex;
+            double ex6 = ex5 * ex;
+            return -(ex + ex2 / 2.0 + ex3 / 3.0 + ex4 / 4.0 + ex5 / 5.0 + ex6 / 6.0);
+        } else {
+            return std::log(1.0 - std::exp(-x));
+        }
+    }
     bool fexists(const char *filename)
 		{
 				std::ifstream ifile(filename);
@@ -61,7 +76,6 @@ bool PhysicallyNormalizedDistribution::IsNormalizationSet() {
 //---------------
 // class WeightableDistribution
 //---------------
-
 std::vector<std::string> WeightableDistribution::DensityVariables() const {
     return {};
 }
@@ -283,17 +297,17 @@ bool PowerLaw::equal(WeightableDistribution const & other) const {
         return false;
     else
         return
-            std::tie(energyMin, energyMax, powerLawIndex, normalization)
+            std::tie(energyMin, energyMax, powerLawIndex)
             ==
-            std::tie(x->energyMin, x->energyMax, x->powerLawIndex, x->normalization);
+            std::tie(x->energyMin, x->energyMax, x->powerLawIndex);
 }
 
 bool PowerLaw::less(WeightableDistribution const & other) const {
     const PowerLaw* x = dynamic_cast<const PowerLaw*>(&other);
     return
-        std::tie(energyMin, energyMax, powerLawIndex, normalization)
+        std::tie(energyMin, energyMax, powerLawIndex)
         <
-        std::tie(x->energyMin, x->energyMax, x->powerLawIndex, x->normalization);
+        std::tie(x->energyMin, x->energyMax, x->powerLawIndex);
 }
 
 void PowerLaw::SetNormalizationAtEnergy(double norm, double energy) {
@@ -398,53 +412,41 @@ bool ModifiedMoyalPlusExponentialEnergyDistribution::less(WeightableDistribution
 //---------------
 // class TabulatedFluxDistribution : PrimaryEnergyDistribution
 //---------------
+TabulatedFluxDistribution::TabulatedFluxDistribution() {}
 
-
-//For compatability with Normalization parent class later on
-void TabulatedFluxDistribution::SetNormalization(double norm) {
-    integral_phys = norm;
-}
-
-double TabulatedFluxDistribution::GetNormalization() {
-    return integral_phys;
-}
-
-void TabulatedFluxDistribution::SetFluxTable(bool setPhysBounds) {
-   
-   // if no physical bounds provided, use first/last entry of table
-
-   if(fexists(fluxTableFilename)) {
-       std::ifstream in(fluxTableFilename.c_str());
-       std::string buf;
-       std::string::size_type pos;
-       TableData1D<double> table_data;
-       while(std::getline(in, buf)) {
-           // Ignore comments and blank lines
-           if((pos = buf.find('#')) != std::string::npos)
+void TabulatedFluxDistribution::LoadFluxTable() {
+    if(fexists(fluxTableFilename)) {
+        std::ifstream in(fluxTableFilename.c_str());
+        std::string buf;
+        std::string::size_type pos;
+        TableData1D<double> table_data;
+        while(std::getline(in, buf)) {
+            // Ignore comments and blank lines
+            if((pos = buf.find('#')) != std::string::npos)
                 buf.erase(pos);
-					 const char* whitespace=" \n\r\t\v";
-					 if((pos=buf.find_first_not_of(whitespace))!=0)
-							  buf.erase(0,pos);
-					 if(!buf.empty() && (pos=buf.find_last_not_of(whitespace))!=buf.size()-1)
-							  buf.erase(pos+1);
-					 if(buf.empty())
-							  continue;
-          
-          std::stringstream ss(buf);
-					double x, f;
-					ss >> x >> f;
-					table_data.x.push_back(x);
-					table_data.f.push_back(f);
-       }
-       if(setPhysBounds) {
-           energyMin_phys = table_data.x[0];
-           energyMax_phys = table_data.x[table_data.x.size()-1];
-       }
-       fluxTable = Interpolator1D<double>(table_data);
-   } else {
-       throw std::runtime_error("Failed to open flux table file!");
-   }
+            const char* whitespace=" \n\r\t\v";
+            if((pos=buf.find_first_not_of(whitespace))!=0)
+                buf.erase(0,pos);
+            if(!buf.empty() && (pos=buf.find_last_not_of(whitespace))!=buf.size()-1)
+                buf.erase(pos+1);
+            if(buf.empty())
+                continue;
 
+            std::stringstream ss(buf);
+            double x, f;
+            ss >> x >> f;
+            table_data.x.push_back(x);
+            table_data.f.push_back(f);
+        }
+        // If no physical are manually set, use first/last entry of table
+        if(not bounds_set) {
+            energyMin = table_data.x[0];
+            energyMax = table_data.x[table_data.x.size()-1];
+        }
+        fluxTable = Interpolator1D<double>(table_data);
+    } else {
+        throw std::runtime_error("Failed to open flux table file!");
+    }
 }
 
 double TabulatedFluxDistribution::unnormed_pdf(double energy) const {
@@ -452,35 +454,41 @@ double TabulatedFluxDistribution::unnormed_pdf(double energy) const {
 }
 
 double TabulatedFluxDistribution::pdf(double energy) const {
-    return unnormed_pdf(energy) / integral_gen;
+    return unnormed_pdf(energy) / integral;
 }
 
-TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin_gen, double energyMax_gen, std::string fluxTableFilename)
-    : energyMin_gen(energyMin_gen)
-    , energyMax_gen(energyMax_gen)
+void TabulatedFluxDistribution::SetEnergyBounds(double eMin, double eMax) {
+    energyMin = eMin;
+    energyMax = eMax;
+    bounds_set = true;
+}
+
+TabulatedFluxDistribution::TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization)
+    : bounds_set(false)
     , fluxTableFilename(fluxTableFilename)
 {
-    SetFluxTable(true);
+    LoadFluxTable();
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    integral_gen = earthmodel::Integration::rombergIntegrate(integrand, energyMin_gen, energyMax_gen);
-    SetNormalization(earthmodel::Integration::rombergIntegrate(integrand, energyMin_phys, energyMax_phys));
+    integral = earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax);
+    if(has_physical_normalization)
+        SetNormalization(earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax));
 }
 
-TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin_gen, double energyMax_gen, double energyMin_phys, double energyMax_phys, std::string fluxTableFilename)
-    : energyMin_gen(energyMin_gen)
-    , energyMax_gen(energyMax_gen)
-    , energyMin_phys(energyMin_phys)
-    , energyMax_phys(energyMax_phys)
+TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization)
+    : energyMin(energyMin)
+    , energyMax(energyMax)
+    , bounds_set(true)
     , fluxTableFilename(fluxTableFilename)
 {
-    SetFluxTable(false);
+    LoadFluxTable();
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    integral_gen = earthmodel::Integration::rombergIntegrate(integrand, energyMin_gen, energyMax_gen);
-    SetNormalization(earthmodel::Integration::rombergIntegrate(integrand, energyMin_phys, energyMax_phys));
+    integral = earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax);
+    if(has_physical_normalization)
+        SetNormalization(earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax));
 }
 
 double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
@@ -491,12 +499,12 @@ double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI_random> rand, 
     bool accept;
 
     // sample an initial point uniformly
-    energy = rand->Uniform(energyMin_gen, energyMax_gen);
+    energy = rand->Uniform(energyMin, energyMax);
     density = pdf(energy);
 
     // Metropolis Hastings loop
     for (size_t j = 0; j <= burnin; ++j) {
-        test_energy = rand->Uniform(energyMin_gen, energyMax_gen);
+        test_energy = rand->Uniform(energyMin, energyMax);
         test_density = pdf(test_energy);
         odds = test_density / density;
         accept = (odds > 1.) or (rand->Uniform(0,1) < odds);
@@ -511,7 +519,7 @@ double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI_random> rand, 
 
 double TabulatedFluxDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
-    if(energy < energyMin_gen or energy > energyMax_gen)
+    if(energy < energyMin or energy > energyMax)
         return 0.0;
     else
         return pdf(energy);
@@ -532,17 +540,17 @@ bool TabulatedFluxDistribution::equal(WeightableDistribution const & other) cons
         return false;
     else
         return
-            std::tie(energyMin_gen, energyMax_gen, fluxTableFilename)
+            std::tie(energyMin, energyMax, fluxTableFilename)
             ==
-            std::tie(x->energyMin_gen, x->energyMax_gen, x->fluxTableFilename);
+            std::tie(x->energyMin, x->energyMax, x->fluxTableFilename);
 }
 
 bool TabulatedFluxDistribution::less(WeightableDistribution const & other) const {
     const TabulatedFluxDistribution* x = dynamic_cast<const TabulatedFluxDistribution*>(&other);
     return
-        std::tie(energyMin_gen, energyMax_gen, integral_gen)
+        std::tie(energyMin, energyMax, integral)
         <
-        std::tie(x->energyMin_gen, x->energyMax_gen, x->integral_gen);
+        std::tie(x->energyMin, x->energyMax, x->integral);
 }
 
 //---------------
@@ -744,12 +752,13 @@ earthmodel::Vector3D OrientedCylinderPositionDistribution::SampleFromDisk(std::s
     return q.rotate(pos, false);
 }
 
-earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
+earthmodel::Vector3D OrientedCylinderPositionDistribution::SamplePosition(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
     earthmodel::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     earthmodel::Vector3D pca = SampleFromDisk(rand, dir);
 
-    std::pair<earthmodel::Vector3D, earthmodel::Vector3D> GetBounds(earth_model, cross_sections, record, point_of_closest_approach);
+    /*
+    std::pair<earthmodel::Vector3D, earthmodel::Vector3D> GetBounds(earth_model, cross_sections, pca);
 
     earthmodel::Vector3D p0;
     earthmodel::Vector3D p1;
@@ -757,6 +766,7 @@ earthmodel::Vector3D SamplePosition(std::shared_ptr<LI_random> rand, std::shared
     earthmodel::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
+    */
 }
 
 double OrientedCylinderPositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
@@ -1036,13 +1046,15 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<ea
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
-    double totalInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+    double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
 
-    path.SetPoints(path.GetFirstPoint(), vertex);
+    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(earth_model->GetEarthCoordPosFromDetCoordPos(vertex)));
 
-    double traversedInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+    double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
 
-    double prob_density = exp(-traversedInteractionDepth) / one_minus_exp_of_negative(totalInteractionDepth);
+    double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections);
+
+    double prob_density = interaction_density * exp(log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
 
     return prob_density;
@@ -1145,14 +1157,19 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
-    double totalInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
-    double expMTotalInteractionDepth = exp(-totalInteractionDepth);
+    double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+    double exp_m_total_interaction_depth = exp(-total_interaction_depth);
 
     double y = rand->Uniform();
-    double traversedInteractionDepth = -log(y * expMTotalInteractionDepth + (1.0 - y));
+    double traversed_interaction_depth = -log(y * exp_m_total_interaction_depth + (1.0 - y));
 
-    double dist = path.GetDistanceFromStartAlongPath(traversedInteractionDepth, targets, total_cross_sections);
+    double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections);
     earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+
+    std::cerr << "SampleTotalInteractionDepth: " << total_interaction_depth << std::endl;
+    std::cerr << "SampleTraversedInteractionDepth: " << traversed_interaction_depth << std::endl;
+    double interaction_density = earth_model->GetInteractionDensity(earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections);
+    std::cerr << "SampleInteractionDensity: " << interaction_density << std::endl;
 
     return vertex;
 }
@@ -1175,7 +1192,7 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmod
     path.ExtendFromStartByDistance(lepton_range);
     path.ClipToOuterBounds();
 
-    if(not path.IsWithinBounds(vertex))
+    if(not path.IsWithinBounds(earth_model->GetEarthCoordPosFromDetCoordPos(vertex)))
         return 0.0;
 
     std::set<Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
@@ -1192,13 +1209,19 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmod
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
-    double totalInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+    double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
 
-    path.SetPoints(path.GetFirstPoint(), vertex);
+    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(earth_model->GetEarthCoordPosFromDetCoordPos(vertex)));
 
-    double traversedInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
+    double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
 
-    double prob_density = exp(-traversedInteractionDepth) / one_minus_exp_of_negative(totalInteractionDepth);
+    double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections);
+
+    std::cerr << "GenProbTotalInteractionDepth: " << total_interaction_depth << std::endl;
+    std::cerr << "GenProbTraversedInteractionDepth: " << traversed_interaction_depth << std::endl;
+    std::cerr << "GenProbInteractionDensity: " << interaction_density << std::endl;
+
+    double prob_density = interaction_density * exp(log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
 
     return prob_density;

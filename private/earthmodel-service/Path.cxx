@@ -49,15 +49,15 @@ std::shared_ptr<const EarthModel> Path::GetEarthModel() {
     return earth_model_;
 }
 
-Vector3D Path::GetFirstPoint() {
+Vector3D const & Path::GetFirstPoint() {
     return first_point_;
 }
 
-Vector3D Path::GetLastPoint() {
+Vector3D const & Path::GetLastPoint() {
     return last_point_;
 }
 
-Vector3D Path::GetDirection() {
+Vector3D const & Path::GetDirection() {
     return direction_;
 }
 
@@ -65,7 +65,7 @@ double Path::GetDistance() {
     return distance_;
 }
 
-Geometry::IntersectionList Path::GetIntersections() {
+Geometry::IntersectionList const & Path::GetIntersections() {
     return intersections_;
 }
 
@@ -605,5 +605,11 @@ bool Path::IsWithinBounds(Vector3D point) {
     double d0 = earthmodel::scalar_product(direction_, first_point_ - point);
     double d1 = earthmodel::scalar_product(direction_, last_point_ - point);
     return d0 <= 0 and d1 >= 0;
+}
+
+double Path::GetDistanceFromStartInBounds(Vector3D point) {
+    EnsurePoints();
+    double d0 = earthmodel::scalar_product(direction_, first_point_ - point);
+    return std::max(0.0, d0);
 }
 

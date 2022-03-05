@@ -18,6 +18,7 @@
 
 #include "LeptonInjector/Random.h"
 #include "LeptonInjector/Particle.h"
+#include "LeptonInjector/Distributions.h"
 
 #include "phys-services/CrossSection.h"
 
@@ -152,6 +153,13 @@ bool InteractionSignature::operator==(InteractionSignature const & other) const 
         return m0 == m1;
     }
     */
+}
+
+bool InteractionSignature::operator<(InteractionSignature const & other) const {
+    return
+        std::tie(primary_type, target_type, secondary_types)
+        <
+        std::tie(other.primary_type, other.target_type, other.secondary_types);
 }
 
 bool InteractionRecord::operator==(InteractionRecord const & other) const {
@@ -1028,7 +1036,9 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     unsigned int other_index = 1 - lepton_index;
     double m = hnl_mass;
     double thresh = InteractionThreshold(interaction);
-    assert(primary_energy > thresh);
+    if(primary_energy < thresh) {
+        throw(LeptonInjector::InjectionFailure("Primary is below interaction threshold!"));
+    }
 
     // double m1 = p1_lab | p1_lab;
     double m1 = interaction.primary_mass;

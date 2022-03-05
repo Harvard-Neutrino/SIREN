@@ -144,6 +144,8 @@ set_target_properties(lepton_injector PROPERTIES
     SOVERSION 1
     OUTPUT_NAME LeptonInjector)
 
+set_property(TARGET lepton_injector PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 MESSAGE("")
 MESSAGE("Linking ...")
 MESSAGE("    hdf5 ${HDF5_LIBRARIES}")

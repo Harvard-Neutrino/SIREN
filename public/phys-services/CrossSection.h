@@ -40,6 +40,7 @@ struct InteractionSignature {
     LeptonInjector::Particle::ParticleType target_type;
     std::vector<LeptonInjector::Particle::ParticleType> secondary_types;
     bool operator==(InteractionSignature const & other) const;
+    bool operator<(InteractionSignature const & other) const;
     friend std::ostream& operator<<(std::ostream& os, InteractionSignature const& signature);
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {

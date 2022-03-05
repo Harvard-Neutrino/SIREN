@@ -71,16 +71,14 @@ void InjectorBase::SetRandom(std::shared_ptr<LI_random> random) {
 }
 
 void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
-    
+
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
        std::isnan(record.interaction_vertex[1]) ||
        std::isnan(record.interaction_vertex[2])) {
-    
-		    std::cerr << "No particle interaction!\n";
-		    return;
+	    throw(InjectionFailure("No particle interaction!"));
     }
-    
+
     std::set<Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
     std::set<Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
     std::set<Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
@@ -96,7 +94,7 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    
+
     earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(interaction_vertex, primary_direction);
 
     double total_prob = 0.0;
@@ -141,6 +139,16 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     for(; (index < probs.size()-1) and (r > probs[index]); ++index) {}
     record.signature.target_type = matching_targets[index];
     record.signature = matching_signatures[index];
+    double selected_prob = 0.0;
+    for(unsigned int i=0; i<probs.size(); ++i) {
+        if(matching_signatures[index] == matching_signatures[i]) {
+            selected_prob += (i > 0 ? probs[i] - probs[i - 1] : probs[i]);
+        }
+    }
+    if(total_prob == 0 or selected_prob == 0)
+        throw(InjectionFailure("No valid interactions for this event!"));
+    std::cerr << "SampleSelectedProb: " << selected_prob << std::endl;
+    std::cerr << "SampleTotalProb: " << total_prob << std::endl;
     record.target_mass = earth_model->GetTargetMass(record.signature.target_type);
     record.target_momentum = {record.target_mass,0,0,0};
     matching_cross_sections[index]->SampleFinalState(record, random);
@@ -272,11 +280,19 @@ void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRe
 }
 
 InteractionRecord InjectorBase::GenerateEvent() {
-    InteractionRecord record = this->NewRecord();
-    for(auto & distribution : distributions) {
-        distribution->Sample(random, earth_model, cross_sections, record);
+    InteractionRecord record;
+    while(true) {
+        try {
+            record = this->NewRecord();
+            for(auto & distribution : distributions) {
+                distribution->Sample(random, earth_model, cross_sections, record);
+            }
+            SampleCrossSection(record);
+            break;
+        } catch(InjectionFailure const & e) {
+            continue;
+        }
     }
-    SampleCrossSection(record);
     injected_events += 1;
     return record;
 }
@@ -376,26 +392,32 @@ RangedLeptonInjector::RangedLeptonInjector(
 
 InteractionRecord RangedLeptonInjector::GenerateEvent() {
     InteractionRecord event;
-    event = NewRecord();
+    while(true) {
+        try {
+            event = NewRecord();
 
-    // Choose a target momentum
-    target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
+            // Choose a target momentum
+            target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Choose an energy
-    energy_distribution->Sample(random, earth_model, cross_sections, event);
+            // Choose an energy
+            energy_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Choose the helicity
-    helicity_distribution->Sample(random, earth_model, cross_sections, event);
+            // Choose the helicity
+            helicity_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Pick a direction on the sphere
-    direction_distribution->Sample(random, earth_model, cross_sections, event);
+            // Pick a direction on the sphere
+            direction_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Pick a position for the vertex
-    position_distribution->Sample(random, earth_model, cross_sections, event);
+            // Pick a position for the vertex
+            position_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Sample the cross section and final state
-    SampleCrossSection(event);
-
+            // Sample the cross section and final state
+            SampleCrossSection(event);
+            break;
+        } catch(InjectionFailure const & e) {
+            continue;
+        }
+    }
     injected_events += 1;
     return event;
 }
@@ -441,26 +463,32 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
 
 InteractionRecord DecayRangeLeptonInjector::GenerateEvent() {
     InteractionRecord event;
-    event = NewRecord();
+    while(true) {
+        try {
+            event = NewRecord();
 
-    // Choose a target momentum
-    target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
+            // Choose a target momentum
+            target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Choose an energy
-    energy_distribution->Sample(random, earth_model, cross_sections, event);
+            // Choose an energy
+            energy_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Choose the helicity
-    helicity_distribution->Sample(random, earth_model, cross_sections, event);
+            // Choose the helicity
+            helicity_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Pick a direction on the sphere
-    direction_distribution->Sample(random, earth_model, cross_sections, event);
+            // Pick a direction on the sphere
+            direction_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Pick a position for the vertex
-    position_distribution->Sample(random, earth_model, cross_sections, event);
+            // Pick a position for the vertex
+            position_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Sample the cross section and final state
-    SampleCrossSection(event);
-
+            // Sample the cross section and final state
+            SampleCrossSection(event);
+            break;
+        } catch(InjectionFailure const & e) {
+            continue;
+        }
+    }
     injected_events += 1;
     return event;
 }
@@ -500,25 +528,32 @@ VolumeLeptonInjector::VolumeLeptonInjector(
 
 InteractionRecord VolumeLeptonInjector::GenerateEvent() {
     InteractionRecord event;
-    event = NewRecord();
+    while(true) {
+        try {
+            event = NewRecord();
 
-    // Choose a target momentum
-    target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
+            // Choose a target momentum
+            target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Choose an energy
-    energy_distribution->Sample(random, earth_model, cross_sections, event);
+            // Choose an energy
+            energy_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Choose the helicity
-    helicity_distribution->Sample(random, earth_model, cross_sections, event);
+            // Choose the helicity
+            helicity_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Pick a direction on the sphere
-    direction_distribution->Sample(random, earth_model, cross_sections, event);
+            // Pick a direction on the sphere
+            direction_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Pick a position for the vertex
-    position_distribution->Sample(random, earth_model, cross_sections, event);
+            // Pick a position for the vertex
+            position_distribution->Sample(random, earth_model, cross_sections, event);
 
-    // Sample the cross section and final state
-    SampleCrossSection(event);
+            // Sample the cross section and final state
+            SampleCrossSection(event);
+            break;
+        } catch(InjectionFailure const & e) {
+            continue;
+        }
+    }
     injected_events += 1;
     return event;
 }

@@ -84,6 +84,12 @@ public:
     double GetMassDensity(Vector3D const & p0) const;
     double GetParticleDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, LeptonInjector::Particle::ParticleType target) const;
     double GetParticleDensity(Vector3D const & p0, LeptonInjector::Particle::ParticleType target) const;
+    double GetInteractionDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0,
+            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<double> const & total_cross_sections) const;
+    double GetInteractionDensity(Vector3D const & p0,
+            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<double> const & total_cross_sections) const;
 
     double GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1) const;
     double GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const;
