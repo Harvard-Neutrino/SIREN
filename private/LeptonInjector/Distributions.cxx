@@ -999,13 +999,19 @@ earthmodel::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
-    double totalInteractionDepth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
-    double expMTotalInteractionDepth = exp(-totalInteractionDepth);
+    double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
 
-    double y = rand->Uniform();
-    double traversedInteractionDepth = -log(y * expMTotalInteractionDepth + (1.0 - y));
+    double traversed_interaction_depth;
+    if(total_interaction_depth < 1e-6) {
+        traversed_interaction_depth = rand->Uniform() * total_interaction_depth;
+    } else {
+        double exp_m_total_interaction_depth = exp(-total_interaction_depth);
 
-    double dist = path.GetDistanceFromStartAlongPath(traversedInteractionDepth, targets, total_cross_sections);
+        double y = rand->Uniform();
+        traversed_interaction_depth = -log(y * exp_m_total_interaction_depth + (1.0 - y));
+    }
+
+    double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections);
     earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
@@ -1054,7 +1060,12 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<ea
 
     double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections);
 
-    double prob_density = interaction_density * exp(log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
+    double prob_density;
+    if(total_interaction_depth < 1e-6) {
+        prob_density = interaction_density / total_interaction_depth;
+    } else {
+        prob_density = interaction_density * exp(log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
+    }
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
 
     return prob_density;
@@ -1158,10 +1169,15 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections);
-    double exp_m_total_interaction_depth = exp(-total_interaction_depth);
+    double traversed_interaction_depth;
+    if(total_interaction_depth < 1e-6) {
+        traversed_interaction_depth = rand->Uniform() * total_interaction_depth;
+    } else {
+        double exp_m_total_interaction_depth = exp(-total_interaction_depth);
 
-    double y = rand->Uniform();
-    double traversed_interaction_depth = -log(y * exp_m_total_interaction_depth + (1.0 - y));
+        double y = rand->Uniform();
+        traversed_interaction_depth = -log(y * exp_m_total_interaction_depth + (1.0 - y));
+    }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections);
     earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
@@ -1221,7 +1237,12 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<earthmod
     std::cerr << "GenProbTraversedInteractionDepth: " << traversed_interaction_depth << std::endl;
     std::cerr << "GenProbInteractionDensity: " << interaction_density << std::endl;
 
-    double prob_density = interaction_density * exp(log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
+    double prob_density;
+    if(total_interaction_depth < 1e-6) {
+        prob_density = interaction_density / total_interaction_depth;
+    } else {
+        prob_density = interaction_density * exp(log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
+    }
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
 
     return prob_density;
