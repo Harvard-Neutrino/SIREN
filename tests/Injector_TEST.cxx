@@ -115,6 +115,44 @@ std::vector<std::string> gen_tot_xs_hc(std::string mHNL) {
     return res;
 }
 
+double ComputeInteractionLengths(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<LeptonInjector::CrossSectionCollection const> cross_sections, std::pair<earthmodel::Vector3D, earthmodel::Vector3D> const & bounds, InteractionRecord const & record) {
+    earthmodel::Vector3D interaction_vertex = record.interaction_vertex;
+    earthmodel::Vector3D direction(
+            record.primary_momentum[1],
+            record.primary_momentum[2],
+            record.primary_momentum[3]);
+    direction.normalize();
+
+    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), direction);
+	std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
+    std::vector<double> total_cross_sections;
+    std::vector<LeptonInjector::Particle::ParticleType> targets;
+	InteractionRecord fake_record = record;
+	for(auto const & target_xs : cross_sections_by_target) {
+        targets.push_back(target_xs.first);
+		fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
+		fake_record.target_momentum = {fake_record.target_mass,0,0,0};
+		std::vector<std::shared_ptr<CrossSection>> const & xs_list = target_xs.second;
+		double total_xs = 0.0;
+		for(auto const & xs : xs_list) {
+			std::vector<InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+			for(auto const & signature : signatures) {
+				fake_record.signature = signature;
+				// Add total cross section
+				total_xs += xs->TotalCrossSection(fake_record);
+			}
+		}
+		total_cross_sections.push_back(total_xs);
+	}
+    std::vector<double> particle_depths = earth_model->GetParticleColumnDepth(intersections, bounds.first, bounds.second, targets);
+
+    double interaction_depth = 0.0;
+    for(unsigned int i=0; i<targets.size(); ++i) {
+        interaction_depth += particle_depths[i] * total_cross_sections[i];
+    }
+    return interaction_depth;
+}
+
 std::vector<double> p_LE_FHC_nue = {1.94e+00, 9.57e-01, 3.86e-01, 1.38e+01, 1.41e-01};
 std::vector<double> p_LE_FHC_numu = {2.06e+00, 6.52e-01, 3.36e-01, 7.50e+00, 1.19e-01};
 std::vector<double> p_LE_FHC_nuebar = {1.80e+00, 2.95e+00, 3.80e-01, 2.19e+01, 3.12e-01};
@@ -140,13 +178,13 @@ TEST(Injector, Generation)
 #endif
 
     double hnl_mass = 0.4; // in GeV; The HNL mass we are injecting
-    double d = 1e-7; // in GeV^-1; the effective dipole coupling strength
+    double dipole_coupling = 1e-7; // in GeV^-1; the effective dipole coupling strength
     std::string mHNL = "0.4";
 
-    // Decay parameters used to set the max range when injecting an HNL, decay width is likely wrong, set accordingly...
-    double HNL_decay_width = std::pow(d,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)
-    double n_decay_lengths = 3.0;
-    double max_distance = 240;
+    // Decay parameters used to set the max range when injecting an HNL
+    double HNL_decay_width = std::pow(dipole_coupling,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)
+    double n_decay_lengths = 3.0; // Number of decay lengths to consider
+    double max_distance = 240; // Maximum distance, set by distance from Minerva to the decay pipe
 
     // This should encompass Minerva, should probably be smaller? Depends on how long Minerva is...
     double disk_radius = 1; // in meters
@@ -161,8 +199,8 @@ TEST(Injector, Generation)
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::vector<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau};
     std::vector<Particle::ParticleType> target_types = gen_TargetPIDs();
-    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, DipoleFromTable::HelicityChannel::Flipping);
-    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, DipoleFromTable::HelicityChannel::Conserving);
+    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Flipping);
+    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Conserving);
     std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL);
     std::vector<std::string> hc_diff_fnames = gen_diff_xs_hc(mHNL);
     std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf(mHNL);
@@ -248,20 +286,22 @@ TEST(Injector, Generation)
     myFile << "helftgt ";
     myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
     myFile << "helgamma ";
-    myFile << "decay_length prob_nopairprod basic_weight simplified_weight y target\n";
+    myFile << "decay_length prob_nopairprod basic_weight simplified_weight interaction_lengths interaction_prob y target\n";
     myFile << std::endl;
     int i = 0;
     while(*injector) {
         LeptonInjector::InteractionRecord event = injector->GenerateEvent();
         LeptonInjector::DecayRecord decay;
         LeptonInjector::InteractionRecord pair_prod;
-        double basic_weight, simplified_weight = 0;
+        double basic_weight, simplified_weight, interaction_lengths, interaction_prob = 0;
         if(event.signature.target_type != LeptonInjector::Particle::ParticleType::unknown) {
             injector->SampleSecondaryDecay(event, decay, HNL_decay_width);
             injector->SamplePairProduction(decay, pair_prod);
             basic_weight = weighter.EventWeight(event);
             simplified_weight = weighter.SimplifiedEventWeight(event);
-				}
+            interaction_lengths = ComputeInteractionLengths(earth_model, injector->GetCrossSections(), injector->InjectionBounds(event), event);
+            interaction_prob = weighter.InteractionProbability(injector->InjectionBounds(event), event);
+        }
         if(event.secondary_momenta.size() > 0) {
             myFile << event.interaction_vertex[0] << " ";
             myFile << event.interaction_vertex[1] << " ";
@@ -314,6 +354,8 @@ TEST(Injector, Generation)
             myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
             myFile << basic_weight << " ";
             myFile << simplified_weight << " ";
+            myFile << interaction_lengths << " ";
+            myFile << interaction_prob << " ";
             myFile << event.interaction_parameters[1] << " "; // sampled y
             myFile << event.signature.target_type << "\n"; // target type
             myFile << "\n";

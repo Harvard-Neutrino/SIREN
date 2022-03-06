@@ -330,14 +330,15 @@ private:
     std::map<Particle::ParticleType, Interpolator1D<double>> total;
     const std::set<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau, Particle::ParticleType::NuEBar, Particle::ParticleType::NuMuBar, Particle::ParticleType::NuTauBar};
     double hnl_mass;
+    double dipole_coupling;
     HelicityChannel channel;
 public:
     virtual bool equal(CrossSection const & other) const override;
     double GetHNLMass() const {return hnl_mass;};
     static double DipoleyMin(double Enu, double mHNL, double target_mass);
     static double DipoleyMax(double Enu, double mHNL, double target_mass);
-    DipoleFromTable(double hnl_mass, HelicityChannel channel) : hnl_mass(hnl_mass), channel(channel) {};
-    DipoleFromTable(double hnl_mass, HelicityChannel channel, std::set<Particle::ParticleType> const & primary_types) : hnl_mass(hnl_mass), channel(channel), primary_types(primary_types) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, std::set<Particle::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel), primary_types(primary_types) {};
     double TotalCrossSection(InteractionRecord const &) const;
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const;
     double DifferentialCrossSection(InteractionRecord const &) const;
