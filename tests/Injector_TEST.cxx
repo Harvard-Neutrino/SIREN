@@ -184,20 +184,6 @@ TEST(Injector, Generation)
     double dipole_coupling = 1e-7; // in GeV^-1; the effective dipole coupling strength
     std::string mHNL = "0.4";
 
-#ifdef AUSTIN
-    // Cross section files are in cm^2, and cross section class expects cm^2
-    // Original cross section calculation used a coupling of 1.0 GeV^-1
-    // Therefore, to get the right "coupling" we should multiply by
-    // (dipole_coupling in GeV^-1) / (1.0 GeV^-1)
-    dipole_coupling *= 1.0;
-#else
-    // Cross section files are in GeV^-2, and cross section class expects cm^2
-    // Original cross section calculation used a coupling of 1.0 GeV^-1
-    // Therefore, to get the right "coupling" we should multiply by
-    // (dipole_coupling in GeV^-1) / (1.0 GeV^-1) * (cm / GeV^-1)
-    dipole_coupling *= 1.0 / std::sqrt(Constants::invGeVsq_per_cmsq)
-#endif
-
     // Decay parameters used to set the max range when injecting an HNL
     double HNL_decay_width = std::pow(dipole_coupling,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)
     double n_decay_lengths = 3.0; // Number of decay lengths to consider
