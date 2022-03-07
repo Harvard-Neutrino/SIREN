@@ -186,15 +186,15 @@ TEST(Injector, Generation)
 
 #ifdef AUSTIN
     // Cross section files are in cm^2, and cross section class expects cm^2
-    // Original cross section calculation used a coupling of 1.0 GeV
+    // Original cross section calculation used a coupling of 1.0 GeV^-1
     // Therefore, to get the right "coupling" we should multiply by
-    // (dipole_coupling in GeV) / (1.0 GeV)
+    // (dipole_coupling in GeV^-1) / (1.0 GeV^-1)
     dipole_coupling *= 1.0;
 #else
     // Cross section files are in GeV^-2, and cross section class expects cm^2
-    // Original cross section calculation used a coupling of 1.0 GeV
+    // Original cross section calculation used a coupling of 1.0 GeV^-1
     // Therefore, to get the right "coupling" we should multiply by
-    // (dipole_coupling in GeV) / (1.0 GeV) * (cm / GeV^-1)
+    // (dipole_coupling in GeV^-1) / (1.0 GeV^-1) * (cm / GeV^-1)
     dipole_coupling *= 1.0 / std::sqrt(Constants::invGeVsq_per_cmsq)
 #endif
 
