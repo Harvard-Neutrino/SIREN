@@ -22,7 +22,7 @@
 
 using namespace LeptonInjector;
 bool z_samp = true;
-bool in_cm2 = true;
+bool in_invGeV = true;
 
 std::string diff_xs(int Z, int A, std::string mHNL) {
     std::stringstream ss;
@@ -173,7 +173,7 @@ TEST(Injector, Generation)
     std::string earth_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
     std::string flux_file = "/home/austin/nu-dipole/fluxes/LE_FHC_numu.txt";
     z_samp = false;
-    in_cm2 = false;
+    in_invGeV = false;
 #else
     std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
     std::string earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
@@ -216,8 +216,8 @@ TEST(Injector, Generation)
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::vector<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau};
     std::vector<Particle::ParticleType> target_types = gen_TargetPIDs();
-    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_cm2);
-    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_cm2);
+    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV);
+    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV);
     std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL);
     std::vector<std::string> hc_diff_fnames = gen_diff_xs_hc(mHNL);
     std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf(mHNL);

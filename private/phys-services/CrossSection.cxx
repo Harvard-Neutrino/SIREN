@@ -923,8 +923,8 @@ double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType
                 + std::to_string(interp.MaxX()) + " GeV]");
     }
 
-    if(in_cm2) 
-        return std::pow(dipole_coupling, 2) * interp(primary_energy) * std::pow(Constants::hbarc,2);
+    if(in_invGeV) 
+        return std::pow(dipole_coupling, 2) * interp(primary_energy) / Constants::invGeVsq_per_cmsq;
     else 
         return std::pow(dipole_coupling, 2) * interp(primary_energy);
 }
