@@ -326,6 +326,7 @@ public:
     enum HelicityChannel {Conserving, Flipping};
 private:
     bool z_samp = true;
+    bool in_cm2 = true;
     std::map<Particle::ParticleType, Interpolator2D<double>> differential;
     std::map<Particle::ParticleType, Interpolator1D<double>> total;
     const std::set<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau, Particle::ParticleType::NuEBar, Particle::ParticleType::NuMuBar, Particle::ParticleType::NuTauBar};
@@ -338,7 +339,9 @@ public:
     static double DipoleyMin(double Enu, double mHNL, double target_mass);
     static double DipoleyMax(double Enu, double mHNL, double target_mass);
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_cm2) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel), z_samp(z_samp), in_cm2(in_cm2) {};
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, std::set<Particle::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel), primary_types(primary_types) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_cm2, std::set<Particle::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel), z_samp(z_samp), in_cm2(in_cm2), primary_types(primary_types) {};
     double TotalCrossSection(InteractionRecord const &) const;
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const;
     double DifferentialCrossSection(InteractionRecord const &) const;
