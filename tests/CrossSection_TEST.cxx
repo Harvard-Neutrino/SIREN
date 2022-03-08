@@ -70,7 +70,7 @@ TEST(DipoleFromTable, Constructor)
     std::cerr << "Test cross section" << std::endl << "y    XS" << std::endl;
     for(unsigned int i=0; i<100; ++i) {
         double y = 1e-8 * std::pow(10, i/100.0);
-        double test_cross_section = dipole_xs->DifferentialCrossSection(Particle::ParticleType::NuE, 10.0, Particle::ParticleType::C12Nucleus,y);
+        double test_cross_section = dipole_xs->DifferentialCrossSection(Particle::ParticleType::NuE, 10.0, Particle::ParticleType::C12Nucleus, 12., y);
         std::cerr << y << " " << test_cross_section << std::endl;
     }
     // return;
