@@ -923,9 +923,9 @@ double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType
                 + std::to_string(interp.MaxX()) + " GeV]");
     }
 
-    if(in_invGeV) 
+    if(in_invGeV)
         return std::pow(dipole_coupling, 2) * interp(primary_energy) / Constants::invGeVsq_per_cmsq;
-    else 
+    else
         return std::pow(dipole_coupling, 2) * interp(primary_energy);
 }
 
@@ -964,43 +964,44 @@ double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & inter
     return DifferentialCrossSection(primary_type, primary_energy, target_type, y, thresh);
 }
 
-double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type, double y) const {
+double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type, double target_mass, double y) const {
     // Assume threshold is first entry of table
     Interpolator2D<double> const & interp = differential.at(target_type);
     double thresh = interp.MinX();
-    return DifferentialCrossSection(primary_type, primary_energy, target_type, y, thresh);
+    return DifferentialCrossSection(primary_type, primary_energy, target_type, target_mass, y, thresh);
 }
 
-double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type, double y, double thresh) const {
-    if(not primary_types.count(primary_type)) {
+double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type, double target_mass, double y, double thresh) const {
+    if(not primary_types.count(primary_type))
         return 0.0;
-        throw std::runtime_error("Supplied primary not supported by cross section!");
-    }
 
-    if(total.find(target_type) == total.end()) {
+    if(total.find(target_type) == total.end())
         return 0.0;
-        throw std::runtime_error("Supplied target not supported by cross section!");
-    }
 
     Interpolator2D<double> const & interp = differential.at(target_type);
 
-    if(primary_energy < thresh or primary_energy > interp.MaxX()) {
+    if(primary_energy < thresh or primary_energy > interp.MaxX())
         return 0.0;
-        throw std::runtime_error("Interaction energy ("+ std::to_string(primary_energy) +
-                ") out of differential cross section table range: ["
-                + std::to_string(interp.MinX()) + " GeV, "
-                + std::to_string(interp.MaxX()) + " GeV]");
-    }
 
-    if(y < interp.MinY() or y > interp.MaxY()) {
+
+    double yMin = DipoleyMin(primary_energy, GetHNLMass(), target_mass);
+    double yMax = DipoleyMax(primary_energy, GetHNLMass(), target_mass);
+    double differential_cross_section = 0.0;
+    if(y < yMin or y > yMax)
         return 0.0;
-        throw std::runtime_error("Bjorken y ("+ std::to_string(y) +
-                ") out of cross section table range: ["
-                + std::to_string(interp.MinY()) + ", "
-                + std::to_string(interp.MaxY()) + "]");
+    if(z_samp) {
+        double z = (y - yMin) / (yMax - yMin);
+        if(z < interp.MinY() or z > interp.MaxY())
+            return 0.0;
+        differential_cross_section = interp(primary_energy, z);
+    } else {
+        if(y < interp.MinY() or y > interp.MaxY())
+            return 0.0;
+        differential_cross_section = interp(primary_energy, y);
     }
-
-    return std::pow(dipole_coupling, 2) * interp(primary_energy, y);
+    if(in_invGeV)
+        differential_cross_section /= Constants::invGeVsq_per_cmsq;
+    return std::pow(dipole_coupling, 2) * differential_cross_section;
 }
 
 double DipoleFromTable::InteractionThreshold(InteractionRecord const & interaction) const {
