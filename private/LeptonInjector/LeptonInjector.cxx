@@ -390,38 +390,6 @@ RangedLeptonInjector::RangedLeptonInjector(
     distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
 }
 
-InteractionRecord RangedLeptonInjector::GenerateEvent() {
-    InteractionRecord event;
-    while(true) {
-        try {
-            event = NewRecord();
-
-            // Choose a target momentum
-            target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Choose an energy
-            energy_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Choose the helicity
-            helicity_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Pick a direction on the sphere
-            direction_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Pick a position for the vertex
-            position_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Sample the cross section and final state
-            SampleCrossSection(event);
-            break;
-        } catch(InjectionFailure const & e) {
-            continue;
-        }
-    }
-    injected_events += 1;
-    return event;
-}
-
 std::string RangedLeptonInjector::Name() const {
     return("RangedInjector");
 }
@@ -461,38 +429,6 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
     distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
 }
 
-InteractionRecord DecayRangeLeptonInjector::GenerateEvent() {
-    InteractionRecord event;
-    while(true) {
-        try {
-            event = NewRecord();
-
-            // Choose a target momentum
-            target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Choose an energy
-            energy_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Choose the helicity
-            helicity_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Pick a direction on the sphere
-            direction_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Pick a position for the vertex
-            position_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Sample the cross section and final state
-            SampleCrossSection(event);
-            break;
-        } catch(InjectionFailure const & e) {
-            continue;
-        }
-    }
-    injected_events += 1;
-    return event;
-}
-
 std::string DecayRangeLeptonInjector::Name() const {
     return("DecayRangeInjector");
 }
@@ -524,38 +460,6 @@ VolumeLeptonInjector::VolumeLeptonInjector(
     helicity_distribution(helicity_distribution),
     InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random) {
     distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
-}
-
-InteractionRecord VolumeLeptonInjector::GenerateEvent() {
-    InteractionRecord event;
-    while(true) {
-        try {
-            event = NewRecord();
-
-            // Choose a target momentum
-            target_momentum_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Choose an energy
-            energy_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Choose the helicity
-            helicity_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Pick a direction on the sphere
-            direction_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Pick a position for the vertex
-            position_distribution->Sample(random, earth_model, cross_sections, event);
-
-            // Sample the cross section and final state
-            SampleCrossSection(event);
-            break;
-        } catch(InjectionFailure const & e) {
-            continue;
-        }
-    }
-    injected_events += 1;
-    return event;
 }
 
 std::string VolumeLeptonInjector::Name() const {
