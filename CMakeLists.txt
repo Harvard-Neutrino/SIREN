@@ -81,13 +81,9 @@ include(GNUInstallDirs)
 
 #core files 
 LIST (APPEND core_SOURCES
-    ${CMAKE_SOURCE_DIR}/private/LeptonInjector/BasicInjectionConfiguration.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/LeptonInjector.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Weighter.cxx
-    ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Controller.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Coordinates.cxx
-    ${CMAKE_SOURCE_DIR}/private/LeptonInjector/DataWriter.cxx
-    ${CMAKE_SOURCE_DIR}/private/LeptonInjector/EventProps.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Particle.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Random.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Distributions.cxx
@@ -104,7 +100,6 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Quaternion.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/EulerAngles.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/AtomicMasses.cxx
-    ${CMAKE_SOURCE_DIR}/private/phys-services/LICrossSection.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/CrossSection.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/Interpolator.cxx
 )
