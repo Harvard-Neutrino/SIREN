@@ -18,11 +18,16 @@
 #include "LeptonInjector/LeptonInjector.h"
 #include "LeptonInjector/Weighter.h"
 
+#include "earthmodel-service/Geometry.h"
+#include "earthmodel-service/EulerQuaternionConversions.h"
+#include "earthmodel-service/Placement.h"
+
 //#define AUSTIN
 
 using namespace LeptonInjector;
 bool z_samp = true;
 bool in_invGeV = true;
+
 
 std::string diff_xs(int Z, int A, std::string mHNL) {
     std::stringstream ss;
@@ -116,6 +121,12 @@ std::vector<std::string> gen_tot_xs_hc(std::string mHNL) {
     return res;
 }
 
+bool inMINERvAfiducial(std::array<double,3> & int_vtx, earthmodel::ExtrPoly & fidVol) {
+    earthmodel::Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
+    earthmodel::Vector3D dir(0,0,1);
+    return fidVol.IsInside(pos,dir);
+}
+
 double ComputeInteractionLengths(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<LeptonInjector::CrossSectionCollection const> cross_sections, std::pair<earthmodel::Vector3D, earthmodel::Vector3D> const & bounds, InteractionRecord const & record) {
     earthmodel::Vector3D interaction_vertex = record.interaction_vertex;
     earthmodel::Vector3D direction(
@@ -164,6 +175,7 @@ std::vector<double> p_LE_RHC_numu = {3.75e+00, 3.04e+00, 5.53e-01, 1.50e+02, 3.1
 std::vector<double> p_LE_RHC_nuebar = {1.89e+00, 9.06e-01, 3.95e-01, 8.79e+00, 1.02e-01};
 std::vector<double> p_LE_RHC_numubar = {1.95e+00, 6.09e-01, 3.49e-01, 5.74e+00, 8.92e-02};
 
+
 TEST(Injector, Generation)
 {
     using ParticleType = LeptonInjector::Particle::ParticleType;
@@ -190,7 +202,7 @@ TEST(Injector, Generation)
     double max_distance = 240; // Maximum distance, set by distance from Minerva to the decay pipe
 
     // This should encompass Minerva, should probably be smaller? Depends on how long Minerva is...
-    double disk_radius = 1; // in meters
+    double disk_radius = 1.2; // in meters
     double endcap_length = 5; // in meters
 
 
@@ -273,6 +285,23 @@ TEST(Injector, Generation)
 
     LeptonWeighter weighter(std::vector<std::shared_ptr<InjectorBase>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
 
+    // MINERvA Fiducial Volume
+    std::vector<std::vector<double>> poly; 
+    poly.push_back({0.0, 1.01758});
+    poly.push_back({0.88125, 0.50879});
+    poly.push_back({0.88125, -0.50879});
+    poly.push_back({0.0, -1.01758});
+    poly.push_back({-0.88125, -0.50879});
+    poly.push_back({-0.88125, 0.50879});
+     
+    double offset[2];
+    offset[0], offset[1]= 0;
+    std::vector<earthmodel::ExtrPoly::ZSection> zsecs;
+    zsecs.push_back(earthmodel::ExtrPoly::ZSection(-2.0672,offset,1));
+    zsecs.push_back(earthmodel::ExtrPoly::ZSection(2.0672,offset,1));
+    earthmodel::Placement placement(earthmodel::Vector3D(0,0,2.0672), earthmodel::QFromZXZr(0,0,0));
+    earthmodel::ExtrPoly MINERvA_fiducial = earthmodel::ExtrPoly(placement, poly, zsecs);
+
     std::ofstream myFile("injector_test_events.csv");
     // myFile << std::fixed << std::setprecision(6);
     myFile << std::scientific << std::setprecision(16);
@@ -288,8 +317,9 @@ TEST(Injector, Generation)
     myFile << "p4ftgt_0 p4ftgt_1 p4ftgt_2 p4ftgt_3 ";
     myFile << "helftgt ";
     myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
+    myFile << "p4gamma_hnlRest_0 p4gamma_hnlRest_1 p4gamma_hnlRest_2 p4gamma_hnlRest_3 ";
     myFile << "helgamma ";
-    myFile << "decay_length prob_nopairprod basic_weight simplified_weight interaction_lengths interaction_prob y target\n";
+    myFile << "decay_length decay_weight prob_nopairprod basic_weight simplified_weight interaction_lengths interaction_prob y target fid\n";
     myFile << std::endl;
     int i = 0;
     while(*injector) {
@@ -298,7 +328,7 @@ TEST(Injector, Generation)
         LeptonInjector::InteractionRecord pair_prod;
         double basic_weight, simplified_weight, interaction_lengths, interaction_prob = 0;
         if(event.signature.target_type != LeptonInjector::Particle::ParticleType::unknown) {
-            injector->SampleSecondaryDecay(event, decay, HNL_decay_width);
+            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0);
             injector->SamplePairProduction(decay, pair_prod);
             basic_weight = weighter.EventWeight(event);
             simplified_weight = weighter.SimplifiedEventWeight(event);
@@ -350,17 +380,24 @@ TEST(Injector, Generation)
             myFile << decay.secondary_momenta[0][1] << " ";
             myFile << decay.secondary_momenta[0][2] << " ";
             myFile << decay.secondary_momenta[0][3] << " ";
+            
+            myFile << decay.secondary_momenta[1][0] << " ";
+            myFile << decay.secondary_momenta[1][1] << " ";
+            myFile << decay.secondary_momenta[1][2] << " ";
+            myFile << decay.secondary_momenta[1][3] << " ";
 
             myFile << decay.secondary_helicity[0] << " ";
 
             myFile << decay.decay_parameters[0] << " "; // decay length
+            myFile << decay.decay_parameters[1] << " "; // decay weight
             myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
             myFile << basic_weight << " ";
             myFile << simplified_weight << " ";
             myFile << interaction_lengths << " ";
             myFile << interaction_prob << " ";
             myFile << event.interaction_parameters[1] << " "; // sampled y
-            myFile << event.signature.target_type << "\n"; // target type
+            myFile << event.signature.target_type << " "; // target type
+            myFile << int(inMINERvAfiducial(pair_prod.interaction_vertex, MINERvA_fiducial)) << "\n"; // fid vol
             myFile << "\n";
         }
         if((++i) % (events_to_inject/10)==0)
