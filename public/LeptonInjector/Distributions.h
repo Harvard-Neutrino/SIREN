@@ -994,7 +994,14 @@ protected:
 
 } // namespace LeptonInjector
 
+CEREAL_CLASS_VERSION(LeptonInjector::PhysicallyNormalizedDistribution, 0);
+
 CEREAL_CLASS_VERSION(LeptonInjector::WeightableDistribution, 0);
+
+CEREAL_CLASS_VERSION(LeptonInjector::NormalizationConstant, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::NormalizationConstant);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::WeightableDistribution, LeptonInjector::NormalizationConstant);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PhysicallyNormalizedDistribution, LeptonInjector::NormalizationConstant);
 
 CEREAL_CLASS_VERSION(LeptonInjector::InjectionDistribution, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::InjectionDistribution);
@@ -1015,6 +1022,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::TargetMomentumDistribution,
 CEREAL_CLASS_VERSION(LeptonInjector::PrimaryEnergyDistribution, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::PrimaryEnergyDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectionDistribution, LeptonInjector::PrimaryEnergyDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PhysicallyNormalizedDistribution, LeptonInjector::PrimaryEnergyDistribution);
 
 CEREAL_CLASS_VERSION(LeptonInjector::PowerLaw, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::PowerLaw);
@@ -1023,6 +1031,10 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PrimaryEnergyDistribution, 
 CEREAL_CLASS_VERSION(LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PrimaryEnergyDistribution, LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution);
+
+CEREAL_CLASS_VERSION(LeptonInjector::TabulatedFluxDistribution, 0);
+CEREAL_REGISTER_TYPE(LeptonInjector::TabulatedFluxDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::PrimaryEnergyDistribution, LeptonInjector::TabulatedFluxDistribution);
 
 CEREAL_CLASS_VERSION(LeptonInjector::PrimaryDirectionDistribution, 0);
 CEREAL_REGISTER_TYPE(LeptonInjector::PrimaryDirectionDistribution);
