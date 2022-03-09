@@ -463,14 +463,19 @@ void DISFromSpline::InitializeSignatures() {
 
 double DISFromSpline::TotalCrossSection(InteractionRecord const & interaction) const {
     LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
+    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
     if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
         primary_energy = interaction.primary_momentum[0];
     } else {
-        throw std::runtime_error("Lorentz boost not implemented!");
+        rk::Boost boost_start_to_lab = p2.restBoost();
+        rk::P4 p1_lab = boost_start_to_lab * p1;
+        primary_energy = p1_lab.e();
     }
     // if we are below threshold, return 0
-    if(primary_energy < InteractionThreshold(interaction)) return 0;
+    if(primary_energy < InteractionThreshold(interaction))
+        return 0;
     return TotalCrossSection(primary_type, primary_energy);
 }
 
@@ -504,25 +509,36 @@ double DISFromSpline::TotalCrossSection(LeptonInjector::Particle::ParticleType p
 
 double DISFromSpline::DifferentialCrossSection(InteractionRecord const & interaction) const {
     LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LeptonInjector::Particle::ParticleType target_type = interaction.signature.target_type;
+    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
+    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
-    std::array<double, 4> p1;
-    std::array<double, 4> p2;
+    rk::P4 p1_lab;
+    rk::P4 p2_lab;
     if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
         primary_energy = interaction.primary_momentum[0];
-        p1 = interaction.primary_momentum;
-        p2 = interaction.target_momentum;
+        p1_lab = p1;
+        p2_lab = p2;
     } else {
-        throw std::runtime_error("Lorentz boost not implemented!");
+        rk::Boost boost_start_to_lab = p2.restBoost();
+        p1_lab = boost_start_to_lab * p1;
+        p2_lab = boost_start_to_lab * p2;
+        primary_energy = p1_lab.e();
     }
     assert(interaction.signature.secondary_types.size() == 2);
-    assert(isLepton(interaction.signature.secondary_types[0]) or isLepton(interaction.signature.secondary_types[1]));
     unsigned int lepton_index = (isLepton(interaction.signature.secondary_types[0])) ? 0 : 1;
-    std::array<double, 4> p3 = interaction.secondary_momenta[lepton_index];
-    std::array<double, 4> q = {p1[0] - p3[0], p1[1] - p3[1], p1[2] - p3[2], p1[3] - p3[3]};
-    double Q2 = -dot(q, q);
-    double y = 1.0 - dot(p2, p3) / dot(p2, p1);
-    double x = Q2 / (2.0 * dot(p2, q));
+    unsigned int other_index = 1 - lepton_index;
 
+    std::array<double, 4> const & mom3 = interaction.secondary_momenta[lepton_index];
+    std::array<double, 4> const & mom4 = interaction.secondary_momenta[other_index];
+    rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses[lepton_index]);
+    rk::P4 p4(geom3::Vector3(mom4[1], mom4[2], mom4[3]), interaction.secondary_masses[other_index]);
+
+    rk::P4 q = p1 - p3;
+
+    double Q2 = -q.dot(q);
+    double y = 1.0 - p2.dot(p3) / p2.dot(p1);
+    double x = Q2 / (2.0 * p2.dot(q));
     double lepton_mass = particleMass(interaction.signature.secondary_types[lepton_index]);
 
     return DifferentialCrossSection(primary_energy, x, y, lepton_mass);
@@ -893,14 +909,19 @@ double DipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) 
 double DipoleFromTable::TotalCrossSection(InteractionRecord const & interaction) const {
     LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
     LeptonInjector::Particle::ParticleType target_type = interaction.signature.target_type;
+    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
+    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
     if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
         primary_energy = interaction.primary_momentum[0];
     } else {
-        throw std::runtime_error("Lorentz boost not implemented!");
+        rk::Boost boost_start_to_lab = p2.restBoost();
+        rk::P4 p1_lab = boost_start_to_lab * p1;
+        primary_energy = p1_lab.e();
     }
     // if we are below threshold, return 0
-    if(primary_energy < InteractionThreshold(interaction)) return 0;
+    if(primary_energy < InteractionThreshold(interaction))
+        return 0;
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
