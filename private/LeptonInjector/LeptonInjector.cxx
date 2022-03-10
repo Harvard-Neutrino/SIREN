@@ -155,9 +155,9 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     matching_cross_sections[index]->SampleFinalState(record, random);
 }
 
-void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, DecayRecord & decay, double decay_width) const {
+void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys) const {
     // This function takes an interaction record containing an HNL and simulates the decay to a photon
-    // Currently assumes Majorana HNL
+    // Samples according to (1 + alpha * cos(theta))/2 and returns physical weight
     // Final state photon added to secondary particle vectors in InteractionRecord
 
     // Find the HNL in the secondary particle vector and save its momentum/cartesian direction
@@ -183,8 +183,17 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, D
     decay.decay_vertex = earthmodel::Vector3D(interaction.interaction_vertex) + decay_loc * hnl_dir;
 
     // Sample decay angles
-    // Majorana Case: Isotropic Decay
-    double costh = random->Uniform(-1,1);
+    double X = random->Uniform(0,1);
+    double costh;
+    // Majorana Case
+    if(alpha_gen==0) {
+        costh = 2*X - 1;
+    }
+    // Dirac case (alpha = 1,-1 based for L/R handed HNLs)
+    else {
+        costh = -1./alpha_gen + sqrt(1./std::pow(alpha_gen,2) + (4*X - 2)/alpha_gen + 1);
+    }
+
     double theta = std::acos(costh);
     double phi = random->Uniform(0,2*Constants::pi);
     rk::P4 pGamma_HNLrest(
