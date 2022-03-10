@@ -14,6 +14,9 @@
 #include "LeptonInjector/Weighter.h"
 #include "LeptonInjector/Distributions.h"
 
+// For CrossSectionProbability
+#include "LeptonInjector/WeightingUtils.h"
+
 #include "LeptonInjector/LeptonInjector.h"
 
 
@@ -35,11 +38,11 @@ InjectorBase::InjectorBase(
         std::vector<std::shared_ptr<InjectionDistribution>> distributions,
         std::shared_ptr<LI_random> random) :
     events_to_inject(events_to_inject),
+    random(random),
     primary_injector(primary_injector),
     cross_sections(std::make_shared<CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections)),
     earth_model(earth_model),
-    distributions(distributions),
-    random(random)
+    distributions(distributions)
 {}
 
 InjectorBase::InjectorBase(unsigned int events_to_inject,
@@ -48,10 +51,10 @@ InjectorBase::InjectorBase(unsigned int events_to_inject,
         std::shared_ptr<earthmodel::EarthModel> earth_model,
         std::shared_ptr<LI_random> random) :
     events_to_inject(events_to_inject),
+    random(random),
     primary_injector(primary_injector),
     cross_sections(std::make_shared<CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections)),
-    earth_model(earth_model),
-    random(random)
+    earth_model(earth_model)
 {}
 
 InjectorBase::InjectorBase(unsigned int events_to_inject,
@@ -243,13 +246,13 @@ void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRe
     double lnP_nopp = 0; // for calculating the probability that no pair production occurs
     earthmodel::Geometry::IntersectionList const & ilist = path.GetIntersections();
     earthmodel::Vector3D density_point = decay_vtx;
-    int j = 0;
-    for(auto const & i : ilist.intersections) {
-        if(i.distance<0 || std::isinf(i.distance))
+    for(unsigned int j=0; ilist.intersections.size(); ++j) {
+        auto const & intersection = ilist.intersections[j];
+        if(intersection.distance<0 || std::isinf(intersection.distance))
             continue;
-        D.push_back(i.distance);
-        x0 = (9./7.)*mat_model.GetMaterialRadiationLength(i.matID); // in g/cm^2
-        density_point += 0.5*(i.position - density_point);
+        D.push_back(intersection.distance);
+        x0 = (9./7.)*mat_model.GetMaterialRadiationLength(intersection.matID); // in g/cm^2
+        density_point += 0.5*(intersection.position - density_point);
         density = earth_model->GetMassDensity(density_point);
         x0 *= 0.01/density; // in m
         X0.push_back(x0);
@@ -257,8 +260,7 @@ void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRe
         P.push_back(p);
         N += p;
         lnP_nopp += -(D[j+1] - D[j])/x0;
-        density_point = i.position;
-        ++j;
+        density_point = intersection.position;
     }
 
     interaction.interaction_parameters.resize(1);
@@ -268,7 +270,8 @@ void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRe
     double X = random->Uniform(0, 1);
     double C = 0;
     if(P.size() > 0) {
-        for(j = 0; j < P.size(); ++j){
+        unsigned int j=0;
+        for(; j < P.size(); ++j){
             C += P[j]/N;
             if(C>X) {C -= P[j]/N; break;}
         }
@@ -301,7 +304,7 @@ double InjectorBase::GenerationProbability(InteractionRecord const & record) con
         double prob = dist->GenerationProbability(earth_model, cross_sections, record);
         probability *= prob;
     }
-    double prob = LeptonInjector::LeptonWeighter::CrossSectionProbability(earth_model, cross_sections, record);
+    double prob = CrossSectionProbability(earth_model, cross_sections, record);
     probability *= prob;
     probability *= events_to_inject;
     return probability;
@@ -377,13 +380,14 @@ RangedLeptonInjector::RangedLeptonInjector(
         double disk_radius,
         double endcap_length,
         std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution) :
+    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random),
     energy_distribution(edist),
     direction_distribution(ddist),
     target_momentum_distribution(target_momentum_distribution),
-    disk_radius(disk_radius),
-    endcap_length(endcap_length),
+    range_func(range_func),
     helicity_distribution(helicity_distribution),
-    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random)
+    disk_radius(disk_radius),
+    endcap_length(endcap_length)
 {
     std::set<Particle::ParticleType> target_types = this->cross_sections->TargetTypes();
     position_distribution = std::make_shared<RangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
@@ -416,13 +420,14 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
         double disk_radius,
         double endcap_length,
         std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution) :
+    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random),
     energy_distribution(edist),
     direction_distribution(ddist),
     target_momentum_distribution(target_momentum_distribution),
-    disk_radius(disk_radius),
-    endcap_length(endcap_length),
+    range_func(range_func),
     helicity_distribution(helicity_distribution),
-    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random)
+    disk_radius(disk_radius),
+    endcap_length(endcap_length)
 {
     std::set<Particle::ParticleType> target_types = this->cross_sections->TargetTypes();
     position_distribution = std::make_shared<DecayRangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
@@ -453,12 +458,12 @@ VolumeLeptonInjector::VolumeLeptonInjector(
         std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution,
         earthmodel::Cylinder cylinder,
         std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution) :
+    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random),
     energy_distribution(edist),
     direction_distribution(ddist),
     target_momentum_distribution(target_momentum_distribution),
     position_distribution(std::make_shared<CylinderVolumePositionDistribution>(cylinder)),
-    helicity_distribution(helicity_distribution),
-    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random) {
+    helicity_distribution(helicity_distribution) {
     distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
 }
 

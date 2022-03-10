@@ -6,6 +6,7 @@
 #include <random>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 
 #include <gtest/gtest.h>
 
@@ -22,7 +23,9 @@ TEST(Constructor, Default)
 
 TEST_F(FakeMaterialModelTest, FileConstructor)
 {
-    ASSERT_NO_THROW(MaterialModel(materials_file));
+    ASSERT_NO_THROW(
+        MaterialModel materials_file;
+    );
     MaterialModel A(materials_file);
     ASSERT_NO_THROW(MaterialModel("", materials_file));
     MaterialModel B("", materials_file);
@@ -30,17 +33,19 @@ TEST_F(FakeMaterialModelTest, FileConstructor)
 
 TEST(Constructor, EmptyFile)
 {
-    EXPECT_THROW(MaterialModel A(""), char const *);
+    EXPECT_THROW(MaterialModel A(""), std::runtime_error);
 }
 
 TEST(Constructor, BadFile)
 {
-    EXPECT_THROW(MaterialModel A(std::tmpnam(nullptr)), char const *);
+    EXPECT_THROW(MaterialModel A(std::tmpnam(nullptr)), std::runtime_error);
 }
 
 TEST_F(FakeMaterialModelTest, DuplicateFile)
 {
-    ASSERT_NO_THROW(MaterialModel(materials_file));
+    ASSERT_NO_THROW(
+            MaterialModel materials_file;
+    );
     MaterialModel A(materials_file);
     ASSERT_NO_THROW(A.AddModelFile(materials_file));
     ASSERT_NO_THROW(MaterialModel(std::vector<std::string>{materials_file, materials_file}));

@@ -166,11 +166,6 @@ void EarthModel::ClearSectors() {
 }
 
 namespace {
-bool fexists(const char *filename)
-{
-    std::ifstream ifile(filename);
-    return (bool)ifile;
-}
 bool fexists(const std::string filename)
 {
     std::ifstream ifile(filename.c_str());
@@ -330,7 +325,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
                 sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(param).create();
             } else if (distribution_type.find("radial_polynomial") != std::string::npos) {
                 double xc, yc, zc;
-                ss >> xc, yc, zc;
+                ss >> xc >> yc >> zc;
                 Vector3D center(xc, yc, zc);
                 RadialAxis1D radial_ax(center);
 
@@ -991,7 +986,7 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Geometry::IntersectionList
     result.position = intersections.position;
     result.direction = intersections.direction;
     int min_hierarchy = std::numeric_limits<int>::min();
-    int min_index = 0;
+    unsigned int min_index = 0;
     for(unsigned int i=0; i<intersections.intersections.size(); ++i) {
         if(intersections.intersections[i].hierarchy > min_hierarchy) {
             result.intersections.push_back(intersections.intersections[i]);
@@ -1054,7 +1049,7 @@ void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersectio
     // Integration only begins once we are inside a sector
     stack.insert({current_intersection->hierarchy, current_intersection});
 
-    for(unsigned int i=start_index; i!=end_index; i += increment) {
+    for(int i=start_index; i!=end_index; i += increment) {
         // The transition point into the next sector
         std::vector<Geometry::Intersection>::const_iterator intersection = intersections.intersections.begin() + i;
         if(intersection == intersections.intersections.end())

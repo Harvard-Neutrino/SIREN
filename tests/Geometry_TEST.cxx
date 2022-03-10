@@ -237,10 +237,12 @@ TEST(IsInside, Box)
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, rnd_theta * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
 
-        if (particle_direction.GetTheta() < 0.5 * M_PI)
+        if (particle_direction.GetTheta() < 0.5 * M_PI) {
             EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
-        if (particle_direction.GetTheta() > 0.5 * M_PI)
+        }
+        if (particle_direction.GetTheta() > 0.5 * M_PI) {
             EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
+        }
     }
 
     // Make this test for every surface of the box
@@ -255,10 +257,12 @@ TEST(IsInside, Box)
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, rnd_theta * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
 
-        if (particle_direction.GetTheta() > 0.5 * M_PI)
+        if (particle_direction.GetTheta() > 0.5 * M_PI) {
             EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
-        if (particle_direction.GetTheta() < 0.5 * M_PI)
+        }
+        if (particle_direction.GetTheta() < 0.5 * M_PI) {
             EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
+        }
     }
 
     // Surface in positiv x direction
@@ -456,7 +460,6 @@ TEST(IsInside, Cylinder)
 
     double cos;
 
-    int excluded = 0;
     for (int i = 0; i < 1e4; i++)
     {
         rnd_x = RandomDouble();
@@ -501,10 +504,12 @@ TEST(IsInside, Cylinder)
                 inner_radius * inner_radius ==
             0)
         {
-            if (particle_direction.GetTheta() < M_PI / 2.)
+            if (particle_direction.GetTheta() < M_PI / 2.) {
                 EXPECT_FALSE(C.IsInside(particle_position, particle_direction));
-            if (particle_direction.GetTheta() > M_PI / 2.)
+            }
+            if (particle_direction.GetTheta() > M_PI / 2.) {
                 EXPECT_TRUE(C.IsInside(particle_position, particle_direction));
+            }
         }
     }
 
@@ -520,10 +525,12 @@ TEST(IsInside, Cylinder)
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, rnd_theta * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
 
-        if (particle_direction.GetTheta() > M_PI / 2.)
+        if (particle_direction.GetTheta() > M_PI / 2.) {
             EXPECT_FALSE(C.IsInside(particle_position, particle_direction));
-        if (particle_direction.GetTheta() < M_PI / 2.)
+        }
+        if (particle_direction.GetTheta() < M_PI / 2.) {
             EXPECT_TRUE(C.IsInside(particle_position, particle_direction));
+        }
     }
 
     // Test inner border
@@ -532,8 +539,6 @@ TEST(IsInside, Cylinder)
     // The values are divided by 100 to convert the units...
     // Init functions expects m but here everthing is in cm
     Cylinder A(Vector3D(0, 0, 0), radius, inner_radius, height);
-
-    excluded = 0;
 
     for (int i = 0; i < 1e4; i++)
     {
@@ -659,7 +664,6 @@ TEST(IsInside, Sphere)
 
     double cos;
 
-    int excluded = 0;
     for (int i = 0; i < 1e4; i++)
     {
         rnd_x = RandomDouble();
@@ -687,8 +691,6 @@ TEST(IsInside, Sphere)
     // The values are divided by 100 to convert the units...
     // Init functions expects m but here everthing is in cm
     Sphere B(Vector3D(0, 0, 0), radius, inner_radius);
-
-    excluded = 0;
 
     for (int i = 0; i < 1e4; i++)
     {

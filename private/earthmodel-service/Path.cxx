@@ -137,7 +137,6 @@ void Path::ClipToOuterBounds() {
         Vector3D p0 = bounds.intersections[0].position;
         Vector3D p1 = bounds.intersections[1].position;
         Vector3D direction = p1 - p0;
-        double distance = direction.magnitude();
         direction.normalize();
         double dot = direction_ * direction;
         assert(std::abs(1.0 - std::abs(dot)) < 1e-6);

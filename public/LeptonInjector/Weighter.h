@@ -14,27 +14,17 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-#include "serialization/array.h"
 
-#include "LeptonInjector/Random.h"
-#include "LeptonInjector/Particle.h"
-#include "LeptonInjector/Constants.h"
-#include "LeptonInjector/DataWriter.h"
-#include "LeptonInjector/EventProps.h"
 #include "LeptonInjector/Coordinates.h"
 #include "LeptonInjector/Distributions.h"
 #include "LeptonInjector/LeptonInjector.h"
-#include "LeptonInjector/BasicInjectionConfiguration.h"
+#include "LeptonInjector/WeightingUtils.h"
 
 #include "phys-services/CrossSection.h"
 
-#include "earthmodel-service/Path.h"
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/EarthModel.h"
 
@@ -74,12 +64,11 @@ public:
     LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections, std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions);
     double EventWeight(InteractionRecord const & record) const;
     double SimplifiedEventWeight(InteractionRecord const & record) const;
-    static double CrossSectionProbability(std::shared_ptr<earthmodel::EarthModel const>, std::shared_ptr<CrossSectionCollection const>, InteractionRecord const &);
 };
 
 } //namespace LeptonInjector
 
 CEREAL_CLASS_VERSION(LeptonInjector::LeptonWeighter, 0);
 
-#endif // LI_LeptonInjector_H
+#endif // LI_Weighter_H
 

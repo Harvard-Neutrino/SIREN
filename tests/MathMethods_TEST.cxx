@@ -30,7 +30,6 @@ TEST(NewtonRaphson, Comparison_equal)
 {
 
 double real1 = pow(2., 2./3);
-double real2 = 0;
 
 double aux1 = NewtonRaphson(f1, df1, -5, 15, 5);
 double aux2 = NewtonRaphson(f2, df2, -3./4 * M_PI, 1./2 * M_PI, -1./8 * M_PI);

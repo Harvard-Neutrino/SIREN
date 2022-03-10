@@ -197,11 +197,6 @@ void MaterialModel::AddModelFiles(std::vector<std::string> const & matratios) {
 }
 
 namespace {
-    bool fexists(const char *filename)
-    {
-        std::ifstream ifile(filename);
-        return (bool)ifile;
-    }
     bool fexists(const std::string filename)
     {
         std::ifstream ifile(filename.c_str());
@@ -316,7 +311,10 @@ bool MaterialModel::HasMaterial(std::string const & name) const {
 }
 
 bool MaterialModel::HasMaterial(int id) const {
-    return material_names_.size() > id;
+    if(id < 0) {
+        return false;
+    }
+    return material_names_.size() > (unsigned int)(id);
 }
 
 double MaterialModel::GetTargetMassFraction(int material_id, LeptonInjector::Particle::ParticleType particle_type) const {

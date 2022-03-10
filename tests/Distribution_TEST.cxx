@@ -356,7 +356,6 @@ TEST(Evaluate, Exponential)
 TEST(Derivative, Constant)
 {
     unsigned int N_RAND = 100;
-    double default_val = 1e-25;
     double val = 2.0;
     ConstantDistribution1D A;
     ConstantDistribution1D B(val);

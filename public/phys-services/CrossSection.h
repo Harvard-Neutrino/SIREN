@@ -339,9 +339,9 @@ public:
     static double DipoleyMin(double Enu, double mHNL, double target_mass);
     static double DipoleyMax(double Enu, double mHNL, double target_mass);
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel), z_samp(z_samp), in_invGeV(in_invGeV) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, std::set<Particle::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel), primary_types(primary_types) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, std::set<Particle::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel), z_samp(z_samp), in_invGeV(in_invGeV), primary_types(primary_types) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV) : z_samp(z_samp), in_invGeV(in_invGeV), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, std::set<Particle::ParticleType> const & primary_types) : primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, std::set<Particle::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     double TotalCrossSection(InteractionRecord const &) const;
     double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const;
     double DifferentialCrossSection(InteractionRecord const &) const;

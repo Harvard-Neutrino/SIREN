@@ -27,12 +27,12 @@ std::vector<double> logspace(double x_min, double x_max, unsigned int n_edges) {
     edges.reserve(n_edges);
     double edge;
 
-    for(int i=0; i < half; ++i) {
+    for(unsigned int i=0; i < half; ++i) {
         edge = log_x_min + i*delta_log_x;
         edge = std::pow(10.0, edge);
         edges.push_back(edge);
     }
-    for(int i=half; i < n_edges; ++i) {
+    for(unsigned int i=half; i < n_edges; ++i) {
         edge = log_x_max + (i - int(n_edges) + 1)*delta_log_x;
         edge = std::pow(10.0, edge);
         edges.push_back(edge);
@@ -49,11 +49,11 @@ std::vector<double> linspace(double x_min, double x_max, unsigned int n_edges) {
     edges.reserve(n_edges);
     double edge;
 
-    for(int i=0; i < half; ++i) {
+    for(unsigned int i=0; i < half; ++i) {
         edge = x_min + i*delta_x;
         edges.push_back(edge);
     }
-    for(int i=half; i < n_edges; ++i) {
+    for(unsigned int i=half; i < n_edges; ++i) {
         edge = x_max + (i - int(n_edges) + 1)*delta_x;
         edges.push_back(edge);
     }
@@ -70,7 +70,7 @@ TEST(Table1D, Constructor)
     table_data.x = logspace(x_min, x_max, n_divisions+1);
     table_data.f = std::vector<double>(n_divisions+1, 1.0);
     std::cerr << table_data.f[0] << std::endl;
-    for(int i=1; i<table_data.f.size(); ++i) {
+    for(unsigned int i=1; i<table_data.f.size(); ++i) {
         table_data.f[i] = table_data.f[i-1] + 2;
         std::cerr << table_data.f[i] << std::endl;
     }

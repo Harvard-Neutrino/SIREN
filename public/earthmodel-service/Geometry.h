@@ -355,8 +355,8 @@ private:
 class ExtrPoly : public Geometry {
 public:
     struct ZSection {
-        ZSection(double zpos_, double offset_[2], double scale_)
-            : zpos(zpos_), offset{offset_[0],offset_[1]}, scale(scale_) {}
+        ZSection(double zpos, double offset[2], double scale)
+            : zpos(zpos), scale(scale), offset{offset[0],offset[1]} {}
 
         double zpos;
         double scale;

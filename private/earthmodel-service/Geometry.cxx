@@ -753,8 +753,6 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D cons
     double intersection_x;
     double intersection_y;
     double intersection_z;
-    bool entering;
-
 
     std::vector<Intersection> dist;
 

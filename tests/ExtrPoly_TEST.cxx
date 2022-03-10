@@ -299,10 +299,12 @@ TEST(IsInside, ExtrPoly)
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, rnd_theta * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
 
-        if (particle_direction.GetTheta() < 0.5 * M_PI)
+        if (particle_direction.GetTheta() < 0.5 * M_PI) {
             EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
-        if (particle_direction.GetTheta() > 0.5 * M_PI)
+        }
+        if (particle_direction.GetTheta() > 0.5 * M_PI) {
             EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
+        }
     }
 
     // Make this test for every surface of the box
@@ -317,10 +319,12 @@ TEST(IsInside, ExtrPoly)
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, rnd_theta * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
 
-        if (particle_direction.GetTheta() > 0.5 * M_PI)
+        if (particle_direction.GetTheta() > 0.5 * M_PI) {
             EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
-        if (particle_direction.GetTheta() < 0.5 * M_PI)
+        }
+        if (particle_direction.GetTheta() < 0.5 * M_PI) {
             EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
+        }
     }
 
     // Surface 1: along x axis

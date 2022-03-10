@@ -116,10 +116,5 @@ std::ostream& operator<<(std::ostream& os, EulerAngles const& euler)
     return os;
 }
 
-Matrix3D EulerAngles::GetMatrix() const
-{
-
-}
-
 } // namespace earthmodel
 

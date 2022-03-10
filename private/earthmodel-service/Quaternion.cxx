@@ -244,7 +244,6 @@ Quaternion Quaternion::rotate(Quaternion const & p, bool inv = false) const
     double y1 = p.GetY();
     double z1 = p.GetZ();
 
-    double wx = w0 * x1, wy = w0 * y1, wz = w0 * z1;
     double xx = x0 * x1, xy = x0 * y1, xz = x0 * z1;
     double yx = y0 * x1, yy = y0 * y1, yz = y0 * z1;
     double zx = z0 * x1, zy = z0 * y1, zz = z0 * z1;
@@ -263,7 +262,7 @@ Quaternion Quaternion::rotate(Quaternion const & p, bool inv = false) const
 
 Vector3D Quaternion::rotate(Vector3D const & p, bool inv = false) const
 {
-    double w, x, y, z;
+    double x, y, z;
 
     double w0, x0, y0, z0;
 
@@ -286,7 +285,6 @@ Vector3D Quaternion::rotate(Vector3D const & p, bool inv = false) const
     double y1 = p.GetY();
     double z1 = p.GetZ();
 
-    double wx = w0 * x1, wy = w0 * y1, wz = w0 * z1;
     double xx = x0 * x1, xy = x0 * y1, xz = x0 * z1;
     double yx = y0 * x1, yy = y0 * y1, yz = y0 * z1;
     double zx = z0 * x1, zy = z0 * y1, zz = z0 * z1;

@@ -234,7 +234,7 @@ TEST(CalculateSphericalCoordinates, Conversion)
     bool test_z = std::abs(A.GetZ() - B.GetZ()) < std::max(std::abs(A.GetZ()), std::abs(B.GetZ())) * epsilon * error_factor;
     bool test_theta = std::abs(A.GetTheta() - B.GetTheta()) < std::max(std::abs(A.GetTheta()), std::abs(B.GetTheta())) * epsilon * error_factor;
     bool test_phi = std::abs(A.GetPhi() - B.GetPhi()) < std::max(std::abs(A.GetPhi()), std::abs(B.GetPhi())) * epsilon * error_factor;
-    EXPECT_TRUE(B == A || (test_x && test_y && test_z));
+    EXPECT_TRUE(B == A || (test_x && test_y && test_z && test_theta && test_phi));
 }
 
 TEST(CalculateCartesianFromSpherical, Conversion)

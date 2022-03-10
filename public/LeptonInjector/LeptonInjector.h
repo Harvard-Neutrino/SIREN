@@ -21,7 +21,6 @@
 #include <cereal/types/utility.hpp>
 #include "serialization/array.h"
 
-#include "earthmodel-service/Path.h"
 #include "earthmodel-service/EarthModel.h"
 
 #include "phys-services/CrossSection.h"

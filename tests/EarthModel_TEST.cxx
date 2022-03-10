@@ -265,8 +265,9 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileSectorTypes)
             }
             else {
                 EXPECT_GT(sphere->GetRadius()+ice_offset, max_radius);
-                if(sphere->GetInnerRadius() > 0)
+                if(sphere->GetInnerRadius() > 0) {
                     EXPECT_LE(sphere->GetInnerRadius()+ice_offset, max_radius);
+                }
             }
             double layer_thickness = layer_thicknesses[layer_index];
             double layer_radius = layer_radii[layer_index];
@@ -557,7 +558,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityNested)
         double min_radius = sphere_0->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
-        double distance = (p1-p0).magnitude();
         DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
         DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_0);
@@ -589,7 +589,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
             material_count += 1;
         }
         double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
-        double ice_angle = -1;
 
         EarthSector upper_sector;
         Vector3D upper_center(-radius/4.0,0,0);
@@ -744,7 +743,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
                     integral += rho_vacuum*distance_in_vacuum;
                 } else { // Goes straight to vacuum
                     double dist_in_lower = std::max(lower_intersections[0].distance, lower_intersections[1].distance);
-                    double dist_in_vacuum = distance - dist_in_vacuum;
+                    double dist_in_vacuum = distance - dist_in_lower;
                     integral += rho_lower*dist_in_lower;
                     integral += rho_vacuum*dist_in_vacuum;
                 }
@@ -884,7 +883,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityIntersecting)
             material_count += 1;
         }
         double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
-        double ice_angle = -1;
 
         EarthSector upper_sector;
         Vector3D upper_center(-radius/4.0,0,0);
@@ -956,7 +954,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
             material_count += 1;
         }
         double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
-        double ice_angle = -1;
 
         EarthSector upper_sector;
         Vector3D upper_center(0,0,0);
@@ -1061,7 +1058,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityHidden)
             material_count += 1;
         }
         double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
-        double ice_angle = -1;
 
         EarthSector upper_sector;
         Vector3D upper_center(0,0,0);
@@ -1102,7 +1098,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityHidden)
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
         double rho_vacuum = density_vacuum->Evaluate(Vector3D());
-        double rho_lower = density_0->Evaluate(lower_center);
         double rho_upper = density_1->Evaluate(upper_center);
 
         bool p0_in_upper = (p0 - upper_center).magnitude() < radius;
@@ -1165,7 +1160,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
             material_count += 1;
         }
         double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
-        double ice_angle = -1;
 
         EarthSector upper_sector;
         Vector3D upper_center(0,0,0);
@@ -1218,9 +1212,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
         ASSERT_TRUE(density_vacuum);
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
-        double rho_vacuum = 100 * density_vacuum->Evaluate(Vector3D());
-        double rho_lower = 100 * density_0->Evaluate(lower_center);
-        double rho_upper = 100 * density_1->Evaluate(upper_center);
 
         double integral = A.GetColumnDepthInCGS(p0, p1);
 
@@ -1242,7 +1233,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
             material_count += 1;
         }
         double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
-        double ice_angle = -1;
 
         EarthSector upper_sector;
         Vector3D upper_center(-radius/4.0,0,0);
@@ -1295,9 +1285,6 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
         ASSERT_TRUE(density_vacuum);
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
-        double rho_vacuum = density_vacuum->Evaluate(Vector3D());
-        double rho_lower = density_0->Evaluate(lower_center);
-        double rho_upper = density_1->Evaluate(upper_center);
 
         double integral = A.GetColumnDepthInCGS(p0, p1);
 
@@ -1358,12 +1345,8 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralNested)
         DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
-        double rho_0 = density_0->Evaluate(Vector3D());
-        double rho_1 = density_1->Evaluate(Vector3D());
         ASSERT_LE(p0.magnitude(), max_radius);
         ASSERT_LE(p1.magnitude(), max_radius);
-        bool in_0 = p0.magnitude() <= sphere_0->GetRadius();
-        bool in_1 = p1.magnitude() <= sphere_0->GetRadius();
         double integral = A.GetColumnDepthInCGS(p0, p1);
 
         double found_distance = A.DistanceForColumnDepthFromPoint(p0, direction, integral);

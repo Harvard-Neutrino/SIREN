@@ -23,7 +23,6 @@ Quaternion QFromZXZr(double alpha, double beta, double gamma)
     double cb = cos(beta);
     double sb = sin(beta);
 
-    double res[4];
     return Quaternion(
             sb * cos(alpha - gamma),
             sb * sin(alpha - gamma),
@@ -80,7 +79,6 @@ Quaternion QFromXYZs(double alpha, double beta, double gamma)
     double sc = sa*cg;
     double ss = sa*sg;
 
-    double res[4];
     return Quaternion(
             cb * sc - sb * cs,
             sb * cc - cb * ss,
@@ -97,7 +95,6 @@ EulerAngles XYZsFromQ(Quaternion const & quaternion) {
     double y =  quaternion.GetY();
     double z =  quaternion.GetZ();
     double w =  quaternion.GetW();
-    double ww = w * w * s;
     double xs = x * s,   ys = y * s,   zs = z * s;
     double wx = w * xs,  wy = w * ys,  wz = w * zs;
     double xx = x * xs,  xy = x * ys,  xz = x * zs;

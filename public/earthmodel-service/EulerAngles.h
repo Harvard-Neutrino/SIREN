@@ -130,8 +130,6 @@ public:
     void SetBeta(double beta) {beta_ = beta;}
     void SetGamma(double gamma) {gamma_ = gamma;}
 
-    Matrix3D GetMatrix() const;
-
     //-------------------------------------//
     // serialization
     //----------------------------------------------//

@@ -58,6 +58,7 @@ class DensityDistribution {
 friend cereal::access;
 public:
     DensityDistribution();
+    virtual ~DensityDistribution() = default;
     DensityDistribution(const DensityDistribution&);
 
     bool operator==(const DensityDistribution& dens_distr) const;
@@ -90,6 +91,7 @@ public:
 class Distribution1D {
 friend cereal::access;
 public:
+    virtual ~Distribution1D() = default;
     bool operator==(const Distribution1D& dist) const;
     bool operator!=(const Distribution1D& dist) const;
     virtual bool compare(const Distribution1D& dist) const = 0;

@@ -26,7 +26,6 @@ Quaternion QuaternionFromEulerAngles(EulerAngles const & euler)
     EulerAxis i = GetEulerAxisI(order);
     EulerAxis j = GetEulerAxisJ(order);
     EulerAxis k = GetEulerAxisK(order);
-    EulerAxis h = GetEulerAxisH(order);
     EulerParity n = GetEulerParity(order);
     EulerRepetition s = GetEulerRepetition(order);
     EulerFrame f = GetEulerFrame(order);
@@ -83,7 +82,6 @@ EulerAngles EulerAnglesFromMatrix3D(Matrix3D const & matrix, EulerOrder const & 
     EulerAxis i = GetEulerAxisI(order);
     EulerAxis j = GetEulerAxisJ(order);
     EulerAxis k = GetEulerAxisK(order);
-    EulerAxis h = GetEulerAxisH(order);
     EulerParity n = GetEulerParity(order);
     EulerRepetition s = GetEulerRepetition(order);
     EulerFrame f = GetEulerFrame(order);
@@ -133,7 +131,6 @@ Matrix3D Matrix3DFromEulerAngles(EulerAngles const & euler) {
     EulerAxis i = GetEulerAxisI(order);
     EulerAxis j = GetEulerAxisJ(order);
     EulerAxis k = GetEulerAxisK(order);
-    EulerAxis h = GetEulerAxisH(order);
     EulerParity n = GetEulerParity(order);
     EulerRepetition s = GetEulerRepetition(order);
     EulerFrame f = GetEulerFrame(order);

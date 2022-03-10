@@ -21,7 +21,8 @@ set(CMAKE_BUILD_TYPE Debug)
 INCLUDE (SuiteSparse)
 INCLUDE (Python)
 
-set(CMAKE_CXX_FLAGS_DEBUG  "-g -O0")
+set(CMAKE_CXX_FLAGS "-O2 -Wall -fPIC")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O2 -Wall -fPIC")
 
 if(CMAKE_VERSION VERSION_LESS 3.12.0)
     if(Python_ROOT_DIR)
@@ -87,6 +88,7 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Particle.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Random.cxx
     ${CMAKE_SOURCE_DIR}/private/LeptonInjector/Distributions.cxx
+    ${CMAKE_SOURCE_DIR}/private/LeptonInjector/WeightingUtils.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/EarthModelCalculator.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Geometry.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Vector3D.cxx

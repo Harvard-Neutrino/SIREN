@@ -782,17 +782,17 @@ TEST(Derivative, RadialPolynomial)
 
 struct Quadrature
 {
+protected:
    //Abstract base class for elementary quadrature algorithms.
    int n; // Current level of refinement.
-
+public:
    virtual double next() = 0;
    //Returns the value of the integral at the nth stage of refinement.
    //The function next() must be defined in the derived class.
 };
 
 template<class T>
-struct Trapzd: Quadrature
-{
+struct Trapzd: public Quadrature {
     double a, b, s; // Limits of integration and current value of integral.
     T &func;
 
@@ -800,8 +800,7 @@ struct Trapzd: Quadrature
 
     // func is function or functor to be integrated between limits: a and b
     Trapzd(T &funcc, const double aa, const double bb)
-        : func(funcc), a(aa), b(bb)
-    {
+        : a(aa), b(bb), s(0), func(funcc) {
         n = 0;
     }
 
@@ -809,31 +808,24 @@ struct Trapzd: Quadrature
     // On the first call (n = 1), the routine returns the crudest estimate
     // of integral of f x / dx in [a,b]. Subsequent calls set n=2,3,... and
     // improve the accuracy by adding 2n - 2 additional interior points.
-    double next()
-    {
+    double next() {
         double x, tnm, sum, del;
         int it, j;
         n++;
 
-        if (n == 1)
-        {
+        if (n == 1) {
             return (s = 0.5 * (b-a) * (func(a) + func(b)));
         }
-        else
-        {
+        else {
             for (it = 1, j = 1; j < n - 1; j++)
-            {
                 it <<= 1;
-            }
             tnm = it;
             // This is the spacing of the points to be added.
             del = (b - a) / tnm;
             x = a + 0.5 * del;
 
             for (sum = 0.0,j = 0; j < it; j++, x += del)
-            {
                 sum += func(x);
-            }
             // This replaces s by its refined value.
             s = 0.5 * (s + (b - a) * sum / tnm);
             return s;
@@ -868,6 +860,7 @@ double qtrap(T &func, const double a, const double b, const double eps = 1.0e-8)
         olds = s;
     }
     EXPECT_TRUE(false) << "Too many steps in routine qtrap";
+    return true;
 }
 
 TEST(Integral, Axis_to_Distribution_connection)
@@ -901,10 +894,6 @@ TEST(Integral, Axis_to_Distribution_connection)
             Vector3D direction = p1 - p0;
             double R = direction.magnitude();
             direction.normalize();
-            double x0_A = ax_A.GetX(p0);
-            double x0_B = ax_B.GetX(p0);
-            double x1_A = ax_A.GetX(p1);
-            double x1_B = ax_B.GetX(p1);
             std::function<double(double)> fA = [&](double x)->double {
                 Vector3D pos = p0 + direction*x;
                 return dist_A.Evaluate(ax_A.GetX(pos));
@@ -1292,10 +1281,6 @@ TEST(InverseIntegral, Axis_to_Distribution_connection)
             double E_int = E.Integral(p0, p1)*int_fraction;
             double F_int = F.Integral(p0, p1)*int_fraction;
             direction.normalize();
-            double x0_A = ax_A.GetX(p0);
-            double x0_B = ax_B.GetX(p0);
-            double x1_A = ax_A.GetX(p1);
-            double x1_B = ax_B.GetX(p1);
             std::function<double(double)> fA = [&](double x)->double {
                 Vector3D pos = p0 + direction*x;
                 return dist_A.Evaluate(ax_A.GetX(pos));

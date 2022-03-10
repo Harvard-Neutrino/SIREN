@@ -34,8 +34,8 @@ TEST(DISFromSpline, Constructor)
     double energy = 1e4; // 10TeV
     event.primary_momentum[0] = energy; // 10TeV
     double target_mass = dis_xs->GetTargetMass();
+    event.target_mass = target_mass;
     event.target_momentum[0] = target_mass;
-    event.target_momentum[1] = 0.1;
 
     std::shared_ptr<LI_random> rand = std::make_shared<LI_random>();
 
@@ -83,9 +83,9 @@ TEST(DipoleFromTable, Constructor)
     event.signature = signature;
     double energy = 10; // 10GeV
     event.primary_momentum[0] = energy; // 10GeV
-    double lead_mass = 207976652.005;
     double carbon_mass = 12000000.0;
     double target_mass = carbon_mass * 0.9314941 * 1e-6;
+    event.target_mass = target_mass;
     event.target_momentum[0] = target_mass;
     event.target_mass = target_mass;
 

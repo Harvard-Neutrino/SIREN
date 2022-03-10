@@ -290,17 +290,17 @@ bool CrossSectionCollection::MatchesPrimary(InteractionRecord const & record) co
 
 DISFromSpline::DISFromSpline() {}
 
-DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
+DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
 }
 
-DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<LeptonInjector::Particle::ParticleType> primary_types, std::vector<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
+DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<LeptonInjector::Particle::ParticleType> primary_types, std::vector<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
+DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
 }
@@ -311,7 +311,7 @@ DISFromSpline::DISFromSpline(std::string differential_filename, std::string tota
     InitializeSignatures();
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<LeptonInjector::Particle::ParticleType> primary_types, std::vector<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), minimum_Q2_(minimum_Q2), target_mass_(target_mass), interaction_type_(interaction) {
+DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<LeptonInjector::Particle::ParticleType> primary_types, std::vector<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
 }
@@ -483,7 +483,6 @@ double DISFromSpline::TotalCrossSection(LeptonInjector::Particle::ParticleType p
     if(not primary_types_.count(primary_type)) {
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
-    double target_mass = target_mass_;
     double log_energy = log10(primary_energy);
 
     if(log_energy < total_cross_section_.lower_extent(0)
@@ -508,8 +507,6 @@ double DISFromSpline::TotalCrossSection(LeptonInjector::Particle::ParticleType p
 
 
 double DISFromSpline::DifferentialCrossSection(InteractionRecord const & interaction) const {
-    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    LeptonInjector::Particle::ParticleType target_type = interaction.signature.target_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
@@ -550,18 +547,10 @@ double DISFromSpline::DifferentialCrossSection(double energy, double x, double y
     if(log_energy < differential_cross_section_.lower_extent(0)
             || log_energy>differential_cross_section_.upper_extent(0))
         return 0.0;
-        throw std::runtime_error("Interaction energy ("+ std::to_string(energy) +
-                ") out of cross section table range: ["
-                + std::to_string(pow(10., differential_cross_section_.lower_extent(0))) + " GeV,"
-                + std::to_string(pow(10., differential_cross_section_.upper_extent(0))) + " GeV]");
-    if(x <= 0 || x >= 1) {
+    if(x <= 0 || x >= 1)
         return 0.0;
-        throw std::runtime_error("Interaction x out of range: " + std::to_string(x));
-    }
-    if(y <= 0 || y >= 1) {
+    if(y <= 0 || y >= 1)
         return 0.0;
-        throw std::runtime_error("Interaction y out of range: " + std::to_string(y));
-    }
 
     // we assume that:
     // the target is stationary so its energy is just its mass
@@ -774,7 +763,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
         p3 = p3_lab;
         p4 = p4_lab;
     } else {
-        rk::Boost boost_lab_to_start = p2.restBoost();
+        rk::Boost boost_lab_to_start = p2.labBoost();
         p3 = boost_lab_to_start * p3_lab;
         p4 = boost_lab_to_start * p4_lab;
     }
@@ -1065,8 +1054,6 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
         throw(LeptonInjector::InjectionFailure("Primary is below interaction threshold!"));
     }
 
-    // double m1 = p1_lab | p1_lab;
-    double m1 = interaction.primary_mass;
     // double m2 = p2_lab | p2_lab;
     double m2 = interaction.target_mass;
     double m3 = m;
@@ -1121,6 +1108,8 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     // evalutates the differential spline at that point
     if(z_samp) test_cross_section = diff_table(kin_vars[0], z);
     else test_cross_section = diff_table(kin_vars[0], kin_vars[1]);
+
+    cross_section = test_cross_section;
 
     // this is the magic part. Metropolis Hastings Algorithm.
     // MCMC method!
@@ -1190,17 +1179,10 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
         p3 = p3_lab;
         p4 = p4_lab;
     } else {
-        rk::Boost boost_lab_to_start = p2.restBoost();
+        rk::Boost boost_lab_to_start = p2.labBoost();
         p3 = boost_lab_to_start * p3_lab;
         p4 = boost_lab_to_start * p4_lab;
     }
-
-    rk::P4 pq_13 = p1 - p3;
-    rk::P4 pq_24 = p4 - p2;
-
-    // Check that computed q2 in the start frame matches up with the specified Q2
-    //assert(std::abs(double(pq_13.dot(pq_13)) + Q2) < std::abs(Q2 * 1e-3));
-    //assert(std::abs(double(pq_24.dot(pq_24)) + Q2) < std::abs(Q2 * 1e-3));
 
     interaction.secondary_momenta.resize(2);
     interaction.secondary_masses.resize(2);
@@ -1312,11 +1294,6 @@ std::vector<std::string> DipoleFromTable::DensityVariables() const {
 }
 
 namespace {
-bool fexists(const char *filename)
-{
-    std::ifstream ifile(filename);
-    return (bool)ifile;
-}
 bool fexists(const std::string filename)
 {
     std::ifstream ifile(filename.c_str());

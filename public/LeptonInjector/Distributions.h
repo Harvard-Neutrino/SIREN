@@ -400,6 +400,7 @@ class TabulatedFluxDistribution : virtual public PrimaryEnergyDistribution {
 friend cereal::access;
 protected:
     TabulatedFluxDistribution();
+    void ComputeIntegral();
 private:
     double energyMin;
     double energyMax;
@@ -437,6 +438,7 @@ public:
             archive(::cereal::make_nvp("EnergyMax", energyMax));
             archive(::cereal::make_nvp("FluxTable", fluxTable));
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
+            ComputeIntegral();
         } else {
             throw std::runtime_error("TabulatedFluxDistribution only supports version <= 0!");
         }

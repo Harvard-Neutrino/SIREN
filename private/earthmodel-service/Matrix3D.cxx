@@ -270,6 +270,7 @@ Matrix3D operator/(const Matrix3D& mat1, const double factor1)
     product.zx_ = mat1.zx_ / factor1;
     product.zy_ = mat1.zy_ / factor1;
     product.zz_ = mat1.zz_ / factor1;
+    return product;
 }
 
 Matrix3D& operator*=(Matrix3D& mat1, const double factor1)

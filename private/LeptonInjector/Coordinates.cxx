@@ -398,8 +398,6 @@ namespace LeptonInjector {
 
         // Replace with endcap intersections otherwise
         if(bb) {
-            double nr = sqrt(nr2);
-            double r0 = sqrt(r0_2);
 			if (bb_lower){
 				double t1 = (cz1-z0)/nz;
 				double xx = x0+nx*t1;

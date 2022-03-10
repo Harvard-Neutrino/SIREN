@@ -178,7 +178,6 @@ TEST(EnsurePoints, NoThrow) {
     Vector3D A(1,2,3);
     Vector3D B(4,6,8);
     Vector3D direction = B - A;
-    double distance = direction.magnitude();
     direction.normalize();
     Path C;
     C.SetPoints(A, B);
@@ -808,7 +807,6 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndToColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         double extra_distance = distance/3.0;
-        double extra_column_depth = extra_distance * rho * 100;
         double target_distance = distance + extra_distance;
         double target_column_depth = target_distance * rho * 100;
         target_distance = A->DistanceForColumnDepthFromPoint(inner_p0, direction, target_column_depth);
@@ -822,7 +820,6 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndToColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance/3.0;
-        extra_column_depth = extra_distance * rho * 100;
         target_distance = distance + extra_distance;
         target_column_depth = target_distance * rho * 100;
         target_distance = A->DistanceForColumnDepthFromPoint(inner_p0, direction, target_column_depth);
@@ -836,7 +833,6 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndToColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance*1.5;
-        extra_column_depth = extra_distance * rho * 100;
         target_distance = distance + extra_distance;
         target_column_depth = target_distance * rho * 100;
         target_distance = A->DistanceForColumnDepthFromPoint(inner_p0, direction, target_column_depth);
@@ -931,7 +927,6 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromStartToColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         double extra_distance = distance/3.0;
-        double extra_column_depth = extra_distance * rho * 100;
         double target_distance = distance + extra_distance;
         double target_column_depth = target_distance * rho * 100;
         target_distance = A->DistanceForColumnDepthFromPoint(inner_p1, -direction, target_column_depth);
@@ -947,7 +942,6 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromStartToColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance/3.0;
-        extra_column_depth = extra_distance * rho * 100;
         target_distance = distance + extra_distance;
         target_column_depth = target_distance * rho * 100;
         target_distance = A->DistanceForColumnDepthFromPoint(inner_p1, -direction, target_column_depth);
@@ -961,7 +955,6 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromStartToColumnDepth) {
         P = Path(A, inner_p0, inner_p1);
         P.EnsureIntersections();
         extra_distance = -distance*1.5;
-        extra_column_depth = extra_distance * rho * 100;
         target_distance = distance + extra_distance;
         target_column_depth = target_distance * rho * 100;
         target_distance = A->DistanceForColumnDepthFromPoint(inner_p1, -direction, target_column_depth);

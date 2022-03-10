@@ -121,9 +121,6 @@ BOOST_PYTHON_MODULE(EarthModelService){
     double (EarthModel::*GetMassDensity_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0) const = &EarthModel::GetMassDensity;
     double (EarthModel::*GetMassDensity)(Vector3D const & p0) const = &EarthModel::GetMassDensity;
 
-    double (EarthModel::*GetColumnDepthInCGS_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1) const = &EarthModel::GetColumnDepthInCGS;
-    double (EarthModel::*GetColumnDepthInCGS)(Vector3D const & p0, Vector3D const & p1) const = &EarthModel::GetColumnDepthInCGS;
-
     double (EarthModel::*DistanceForColumnDepthToPoint_cached)(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth) const = &EarthModel::DistanceForColumnDepthToPoint;
     double (EarthModel::*DistanceForColumnDepthToPoint)(Vector3D const & end_point, Vector3D const & direction, double column_depth) const = &EarthModel::DistanceForColumnDepthToPoint;
 

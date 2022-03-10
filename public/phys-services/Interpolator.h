@@ -31,7 +31,12 @@ struct TableData1D {
 
     template<typename U>
     bool operator==(TableData1D<U> const & other) const {
-        return false;
+        return std::tie(x, f) == std::tie(other.x, other.f);
+    }
+
+    template<typename U>
+    bool operator<(TableData1D<U> const & other) const {
+        return std::tie(x, f) < std::tie(other.x, other.f);
     }
 
     template<class Archive>
@@ -53,7 +58,12 @@ struct TableData2D {
 
     template<typename U>
     bool operator==(TableData2D<U> const & other) const {
-        return false;
+        return std::tie(x, y, f) == std::tie(other.x, other.y, other.f);
+    }
+
+    template<typename U>
+    bool operator<(TableData2D<U> const & other) const {
+        return std::tie(x, y, f) < std::tie(other.x, other.y, other.f);
     }
 
     template<class Archive>
@@ -165,7 +175,7 @@ struct IndexFinderRegular {
         int i = (int)alt_floor<T>()((x - low) / range * (n_points - 1));
         if(i < 0)
             i = 0;
-        else if(i >= n_points - 1)
+        else if(i >= int(n_points) - 1)
             i = n_points - 2;
         T lower_edge = low + i * delta;
         return std::tuple<unsigned int, T, T, T>(i, x, lower_edge, delta);
@@ -337,7 +347,12 @@ public:
 
     template<typename U>
     bool operator==(Interpolator1D<U> const & other) const {
-        return false;
+        return original_table == other.original_table;
+    }
+
+    template<typename U>
+    bool operator<(Interpolator1D<U> const & other) const {
+        return original_table < other.original_table;
     }
 
     template<typename Archive>
@@ -468,7 +483,12 @@ public:
 
     template<typename U>
     bool operator==(Interpolator2D<U> const & other) const {
-        return false;
+        return original_table == other.original_table;
+    }
+
+    template<typename U>
+    bool operator<(Interpolator2D<U> const & other) const {
+        return original_table < other.original_table;
     }
 
     template<typename Archive>

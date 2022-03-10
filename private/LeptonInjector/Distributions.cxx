@@ -14,13 +14,6 @@
 namespace LeptonInjector {
 
 namespace {
-    double one_minus_exp_of_negative(double x) {
-        if(x < 1e-1) {
-            return std::exp(std::log(x) - x/2.0 + x*x/24.0 - x*x*x*x/2880.0);
-        } else {
-            return 1.0 - std::exp(-x);
-        }
-    }
     double log_one_minus_exp_of_negative(double x) {
         if(x < 1e-1) {
             return std::log(x) - x/2.0 + x*x/24.0 - x*x*x*x/2880.0;
@@ -36,16 +29,11 @@ namespace {
             return std::log(1.0 - std::exp(-x));
         }
     }
-    bool fexists(const char *filename)
-		{
-				std::ifstream ifile(filename);
-				return (bool)ifile;
-		}
-		bool fexists(const std::string filename)
-		{
-				std::ifstream ifile(filename.c_str());
-				return (bool)ifile;
-		}
+    bool fexists(const std::string filename)
+    {
+            std::ifstream ifile(filename.c_str());
+            return (bool)ifile;
+    }
 
 }
 
@@ -440,6 +428,13 @@ bool ModifiedMoyalPlusExponentialEnergyDistribution::less(WeightableDistribution
 //---------------
 TabulatedFluxDistribution::TabulatedFluxDistribution() {}
 
+void TabulatedFluxDistribution::ComputeIntegral() {
+    std::function<double(double)> integrand = [&] (double x) -> double {
+        return unnormed_pdf(x);
+    };
+    integral = earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax);
+}
+
 void TabulatedFluxDistribution::LoadFluxTable() {
     if(fexists(fluxTableFilename)) {
         std::ifstream in(fluxTableFilename.c_str());
@@ -487,6 +482,7 @@ void TabulatedFluxDistribution::SetEnergyBounds(double eMin, double eMax) {
     energyMin = eMin;
     energyMax = eMax;
     bounds_set = true;
+    ComputeIntegral();
 }
 
 TabulatedFluxDistribution::TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization)
@@ -497,9 +493,9 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(std::string fluxTableFilena
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    integral = earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax);
+    ComputeIntegral();
     if(has_physical_normalization)
-        SetNormalization(earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax));
+        SetNormalization(integral);
 }
 
 TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization)
@@ -512,9 +508,9 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    integral = earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax);
+    ComputeIntegral();
     if(has_physical_normalization)
-        SetNormalization(earthmodel::Integration::rombergIntegrate(integrand, energyMin, energyMax));
+        SetNormalization(integral);
 }
 
 double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
@@ -574,9 +570,9 @@ bool TabulatedFluxDistribution::equal(WeightableDistribution const & other) cons
 bool TabulatedFluxDistribution::less(WeightableDistribution const & other) const {
     const TabulatedFluxDistribution* x = dynamic_cast<const TabulatedFluxDistribution*>(&other);
     return
-        std::tie(energyMin, energyMax, integral)
+        std::tie(energyMin, energyMax, fluxTable)
         <
-        std::tie(x->energyMin, x->energyMax, x->integral);
+        std::tie(x->energyMin, x->energyMax, x->fluxTable);
 }
 
 //---------------
@@ -793,18 +789,19 @@ earthmodel::Vector3D OrientedCylinderPositionDistribution::SamplePosition(std::s
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
     */
+    return earthmodel::Vector3D();
 }
 
 double OrientedCylinderPositionDistribution::GenerationProbability(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & record) const {
-
+    return 0.0;
 }
 
 std::pair<earthmodel::Vector3D, earthmodel::Vector3D> OrientedCylinderPositionDistribution::InjectionBounds(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord const & interaction) const {
-
+    return std::make_pair(earthmodel::Vector3D(), earthmodel::Vector3D());
 }
 
 bool OrientedCylinderPositionDistribution::AreEquivalent(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<earthmodel::EarthModel const> second_earth_model, std::shared_ptr<CrossSectionCollection const> second_cross_sections) const {
-
+    return false;
 }
 
 //---------------
@@ -835,7 +832,7 @@ double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr
 }
 
 
-CylinderVolumePositionDistribution::CylinderVolumePositionDistribution(earthmodel::Cylinder) : cylinder(cylinder) {}
+CylinderVolumePositionDistribution::CylinderVolumePositionDistribution(earthmodel::Cylinder cylinder) : cylinder(cylinder) {}
 
 std::string CylinderVolumePositionDistribution::Name() const {
     return "CylinderVolumePositionDistribution";
@@ -1218,8 +1215,6 @@ earthmodel::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<L
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections);
     earthmodel::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
-    double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections);
-
     return vertex;
 }
 
@@ -1475,9 +1470,6 @@ bool DecayRangePositionDistribution::AreEquivalent(std::shared_ptr<earthmodel::E
 // class PrimaryNeutrinoHelicityDistribution : InjectionDistribution
 //---------------
 void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI_random> rand, std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, InteractionRecord & record) const {
-    std::array<double, 4> & mom = record.primary_momentum;
-    double momentum = sqrt(mom[1]*mom[1] + mom[2]*mom[2] + mom[3]*mom[3]);
-    double factor = 0.5;
     Particle::ParticleType & t = record.signature.primary_type;
     if(t > 0) // Particles are left handed, anti-particles are right handed
         record.primary_helicity = -0.5;
@@ -1532,7 +1524,6 @@ bool PrimaryNeutrinoHelicityDistribution::equal(WeightableDistribution const & o
 }
 
 bool PrimaryNeutrinoHelicityDistribution::less(WeightableDistribution const & other) const {
-    const PrimaryNeutrinoHelicityDistribution* x = dynamic_cast<const PrimaryNeutrinoHelicityDistribution*>(&other);
     return false;
 }
 

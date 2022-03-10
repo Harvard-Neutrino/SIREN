@@ -33,13 +33,16 @@ TEST(Constructor, Coordinates)
 TEST(Constructor, ConstRef)
 {
     Quaternion const A;
-    ASSERT_NO_THROW(Quaternion(A));
+    ASSERT_NO_THROW(
+        Quaternion B(A)
+    );
 }
 
 TEST(Constructor, RRef)
 {
-    Quaternion const A;
-    ASSERT_NO_THROW(Quaternion(Quaterion()));
+    ASSERT_NO_THROW(
+        Quaternion A(Quaternion());
+    );
 }
 
 TEST(Constructor, DefaultCheckWXYZ)
