@@ -286,16 +286,17 @@ TEST(Injector, Generation)
     LeptonWeighter weighter(std::vector<std::shared_ptr<InjectorBase>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
 
     // MINERvA Fiducial Volume
-    std::vector<std::vector<double>> poly; 
+    std::vector<std::vector<double>> poly;
     poly.push_back({0.0, 1.01758});
     poly.push_back({0.88125, 0.50879});
     poly.push_back({0.88125, -0.50879});
     poly.push_back({0.0, -1.01758});
     poly.push_back({-0.88125, -0.50879});
     poly.push_back({-0.88125, 0.50879});
-     
+
     double offset[2];
-    offset[0], offset[1]= 0;
+    offset[0] = 0;
+    offset[1] = 0;
     std::vector<earthmodel::ExtrPoly::ZSection> zsecs;
     zsecs.push_back(earthmodel::ExtrPoly::ZSection(-2.0672,offset,1));
     zsecs.push_back(earthmodel::ExtrPoly::ZSection(2.0672,offset,1));
@@ -380,7 +381,7 @@ TEST(Injector, Generation)
             myFile << decay.secondary_momenta[0][1] << " ";
             myFile << decay.secondary_momenta[0][2] << " ";
             myFile << decay.secondary_momenta[0][3] << " ";
-            
+
             myFile << decay.secondary_momenta[1][0] << " ";
             myFile << decay.secondary_momenta[1][1] << " ";
             myFile << decay.secondary_momenta[1][2] << " ";
