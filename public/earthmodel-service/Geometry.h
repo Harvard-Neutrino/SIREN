@@ -179,6 +179,8 @@ public:
     void SetPlacement(Placement const & placement) { placement_ = placement; }
 
     //void SetPosition(const Vector3D& position) { position_ = position; };
+    
+    virtual std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const = 0;
 
 protected:
     // Implemented in child classes to be able to use equality operator
@@ -186,7 +188,6 @@ protected:
     virtual bool less(const Geometry&) const = 0;
     virtual void print(std::ostream&) const     = 0;
     virtual std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const = 0;
-    virtual std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const = 0;
 
     //Vector3D position_; //!< x,y,z-coordinate of origin ( center of box, cylinder, sphere)
 

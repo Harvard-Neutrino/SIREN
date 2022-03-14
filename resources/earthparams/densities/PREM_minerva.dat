@@ -45,7 +45,7 @@
 #
 
 # Dirt
-object box       0 0 -122.07            0 0 0      100 100 244.14    surr_earth           ROCK         constant    2.900 
+object box       0 0 -100            0 0 0      100 100 300    surr_earth           ROCK         constant    2.900 
 
 # Detector Hall
 object sphere    0 0 0            0 0 0      10    surr_air           AIR         constant    0.001225   # 0.673atm x 1.205e-3(g/cm3 for 1atm)

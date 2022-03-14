@@ -49,7 +49,7 @@ std::string tot_xs(int Z, int A, std::string mHNL) {
 #ifdef AUSTIN
     ss << "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
 #else
-    ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
+    ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/tot_xsec_Enu/";
 #endif
     ss << "xsec_";
     ss << "Z_" << Z << "_";
@@ -61,15 +61,15 @@ std::string tot_xs(int Z, int A, std::string mHNL) {
 std::vector<std::array<int, 2>> gen_ZA() {
     return std::vector<std::array<int, 2>>{
         {1, 1},
-            {6, 12},
-            {8, 16},
-            {13, 27},
-            {14, 28},
-            {20, 40},
-            {26, 56},
-            {29, 63},
-            {29, 65},
-            {82, 208},
+				{6, 12},
+				{8, 16},
+				{13, 27},
+				{14, 28},
+				{20, 40},
+				{26, 56},
+				{29, 63},
+				{29, 65},
+				{82, 208},
     };
 }
 
@@ -175,6 +175,8 @@ std::vector<double> p_LE_RHC_numu = {3.75e+00, 3.04e+00, 5.53e-01, 1.50e+02, 3.1
 std::vector<double> p_LE_RHC_nuebar = {1.89e+00, 9.06e-01, 3.95e-01, 8.79e+00, 1.02e-01};
 std::vector<double> p_LE_RHC_numubar = {1.95e+00, 6.09e-01, 3.49e-01, 5.74e+00, 8.92e-02};
 
+std::vector<double> p_ME_FHC_numu = {4.65e+00, 1.35e+00, 7.24e-02, 3.07e+00, 4.45e-03};
+
 
 TEST(Injector, Generation)
 {
@@ -189,11 +191,11 @@ TEST(Injector, Generation)
 #else
     std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
     std::string earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
-    std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/LE_FHC_numu.txt";
+    std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/ME_FHC_numu.txt";
 #endif
 
     double hnl_mass = 0.4; // in GeV; The HNL mass we are injecting
-    double dipole_coupling = 1e-7; // in GeV^-1; the effective dipole coupling strength
+    double dipole_coupling = 3e-7; // in GeV^-1; the effective dipole coupling strength
     std::string mHNL = "0.4";
 
     // Decay parameters used to set the max range when injecting an HNL
@@ -202,7 +204,7 @@ TEST(Injector, Generation)
     double max_distance = 240; // Maximum distance, set by distance from Minerva to the decay pipe
 
     // This should encompass Minerva, should probably be smaller? Depends on how long Minerva is...
-    double disk_radius = 1.2; // in meters
+    double disk_radius = 1.24; // in meters
     double endcap_length = 5; // in meters
 
 
@@ -245,7 +247,7 @@ TEST(Injector, Generation)
     // Setup power law
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
 
-    std::vector<double> moyal_exp_params = p_LE_FHC_numu;
+    std::vector<double> moyal_exp_params = p_ME_FHC_numu;
 
     // Setup NUMI flux
     std::shared_ptr<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution> pdf = std::make_shared<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution>(hnl_mass, 20, moyal_exp_params[0], moyal_exp_params[1], moyal_exp_params[2], moyal_exp_params[3], moyal_exp_params[4]);
@@ -320,7 +322,7 @@ TEST(Injector, Generation)
     myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
     myFile << "p4gamma_hnlRest_0 p4gamma_hnlRest_1 p4gamma_hnlRest_2 p4gamma_hnlRest_3 ";
     myFile << "helgamma ";
-    myFile << "decay_length decay_weight prob_nopairprod basic_weight simplified_weight interaction_lengths interaction_prob y target fid\n";
+    myFile << "decay_length decay_fid_weight decay_ang_weight prob_nopairprod basic_weight simplified_weight interaction_lengths interaction_prob y target fid\n";
     myFile << std::endl;
     int i = 0;
     while(*injector) {
@@ -329,9 +331,9 @@ TEST(Injector, Generation)
         LeptonInjector::InteractionRecord pair_prod;
         double basic_weight, simplified_weight, interaction_lengths, interaction_prob = 0;
         if(event.signature.target_type != LeptonInjector::Particle::ParticleType::unknown) {
-            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0);
+            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MINERvA_fiducial, 0.1);
             injector->SamplePairProduction(decay, pair_prod);
-            basic_weight = weighter.EventWeight(event);
+            //basic_weight = weighter.EventWeight(event);
             simplified_weight = weighter.SimplifiedEventWeight(event);
             interaction_lengths = ComputeInteractionLengths(earth_model, injector->GetCrossSections(), injector->InjectionBounds(event), event);
             interaction_prob = weighter.InteractionProbability(injector->InjectionBounds(event), event);
@@ -390,7 +392,8 @@ TEST(Injector, Generation)
             myFile << decay.secondary_helicity[0] << " ";
 
             myFile << decay.decay_parameters[0] << " "; // decay length
-            myFile << decay.decay_parameters[1] << " "; // decay weight
+            myFile << decay.decay_parameters[1] << " "; // decay fid weight
+            myFile << decay.decay_parameters[2] << " "; // decay anglular weight
             myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
             myFile << basic_weight << " ";
             myFile << simplified_weight << " ";

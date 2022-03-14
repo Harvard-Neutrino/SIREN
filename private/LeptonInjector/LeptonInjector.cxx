@@ -155,7 +155,7 @@ void InjectorBase::SampleCrossSection(InteractionRecord & record) const {
     matching_cross_sections[index]->SampleFinalState(record, random);
 }
 
-void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys) const {
+void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys, earthmodel::Geometry *fiducial = nullptr, double buffer = 0) const {
     // This function takes an interaction record containing an HNL and simulates the decay to a photon
     // Samples according to (1 + alpha * cos(theta))/2 and returns physical weight
     // Final state photon added to secondary particle vectors in InteractionRecord
@@ -178,8 +178,22 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, D
     hnl_dir.normalize();
 
     // Calculate the decay location of the HNL
+    // Require the decay to happen within a fid vol if possible
     double decay_length = LeptonInjector::DecayRangeFunction::DecayLength(hnl_mass, decay_width, hnl_momentum[0]);
-    double decay_loc = -1 * decay_length * std::log(random->Uniform(0,1));
+    double decay_weight = 1.0;
+    double a=0,b=0;
+    double C = random->Uniform(0,1);
+    if(fiducial) {
+				std::vector<earthmodel::Geometry::Intersection> ints = fiducial->ComputeIntersections(interaction.interaction_vertex,hnl_dir);
+				if(ints.size()!=0) {
+						a = ints[0].distance - buffer;
+						b = ints[ints.size()-1].distance;
+						C*=(1-std::exp(-(b-a)/decay_length));
+						decay_weight = std::exp(-a/decay_length) - std::exp(-b/decay_length);
+				}
+    }
+
+    double decay_loc = a + -1 * decay_length * std::log(1-C);
     decay.decay_vertex = earthmodel::Vector3D(interaction.interaction_vertex) + decay_loc * hnl_dir;
 
     // Sample decay angles
@@ -209,7 +223,7 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, D
 
     decay.signature.secondary_types.resize(1);
     decay.secondary_masses.resize(1);
-    decay.secondary_momenta.resize(1);
+    decay.secondary_momenta.resize(2);
     decay.secondary_helicity.resize(1);
 
     decay.signature.secondary_types[0] = Particle::ParticleType::Gamma;
@@ -218,10 +232,16 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, D
     decay.secondary_momenta[0][1] = pGamma_lab.px();
     decay.secondary_momenta[0][2] = pGamma_lab.py();
     decay.secondary_momenta[0][3] = pGamma_lab.pz();
+    decay.secondary_momenta[1][0] = pGamma_HNLrest.e();
+    decay.secondary_momenta[1][1] = pGamma_HNLrest.px();
+    decay.secondary_momenta[1][2] = pGamma_HNLrest.py();
+    decay.secondary_momenta[1][3] = pGamma_HNLrest.pz();
     decay.secondary_helicity[0] = std::copysign(1.0, decay.primary_helicity);
 
-    decay.decay_parameters.resize(1);
+    decay.decay_parameters.resize(3);
     decay.decay_parameters[0] = decay_length;
+    decay.decay_parameters[1] = decay_weight;
+    decay.decay_parameters[2] = (1+alpha_phys*costh)/(1+alpha_gen*costh);
 }
 
 void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRecord & interaction) const {
@@ -255,7 +275,8 @@ void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRe
     double lnP_nopp = 0; // for calculating the probability that no pair production occurs
     earthmodel::Geometry::IntersectionList const & ilist = path.GetIntersections();
     earthmodel::Vector3D density_point = decay_vtx;
-    for(unsigned int j=0; ilist.intersections.size(); ++j) {
+    unsigned int i = 0;
+    for(unsigned int j=0; j < ilist.intersections.size(); ++j) {
         auto const & intersection = ilist.intersections[j];
         if(intersection.distance<0 || std::isinf(intersection.distance))
             continue;
@@ -265,11 +286,12 @@ void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRe
         density = earth_model->GetMassDensity(density_point);
         x0 *= 0.01/density; // in m
         X0.push_back(x0);
-        p = std::exp(-D[j]/x0) - std::exp(-D[j+1]/x0);
+        p = std::exp(-D[i]/x0) - std::exp(-D[i+1]/x0);
         P.push_back(p);
         N += p;
-        lnP_nopp += -(D[j+1] - D[j])/x0;
+        lnP_nopp += -(D[i+1] - D[i])/x0;
         density_point = intersection.position;
+        ++i;
     }
 
     interaction.interaction_parameters.resize(1);
