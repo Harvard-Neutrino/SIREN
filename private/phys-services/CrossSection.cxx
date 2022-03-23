@@ -623,7 +623,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     double logYMax = log10(yMax);
 
     // The minimum allowed value of y occurs when x = 1 and Q is minimized
-    double yMin = minimum_Q2_ / s;
+    double yMin = minimum_Q2_ / (2 * E1_lab * E2_lab);
     double logYMin = log10(yMin);
     // The minimum allowed value of x occurs when y = yMax and Q is minimized
     // double xMin = minimum_Q2_ / ((s - target_mass_ * target_mass_) * yMax);
@@ -878,7 +878,7 @@ double DipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) 
         return m2 * r4 / m2sub1sq;
     else {
         double root = std::sqrt(m2sub1sq + (r4 - 2 * (1 + m2) * r2));
-        return 0.5 * (1 + m4 - r2 - root + m2 * (-2 - r2 + root));
+        return 0.5 * (1 + m4 - r2 - root + m2 * (-2 - r2 + root)) * s / (2 * Enu * target_mass);
     }
 }
 
@@ -891,7 +891,7 @@ double DipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) 
     double s = 2 * Enu * target_mass + target_mass2;
     double s2 = s * s;
 
-    return 0.5 * (target_mass4 - mHNL2*s + s2 - target_mass2*(mHNL2+2*s) + (s - target_mass2) * std::sqrt(target_mass4 + std::pow(mHNL2 - s, 2) - 2*target_mass2*(mHNL2+s))) / s2;
+    return 0.5 * (target_mass4 - mHNL2*s + s2 - target_mass2*(mHNL2+2*s) + (s - target_mass2) * std::sqrt(target_mass4 + std::pow(mHNL2 - s, 2) - 2*target_mass2*(mHNL2+s))) / (s * (2 * Enu * target_mass));
 }
 
 
