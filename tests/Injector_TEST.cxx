@@ -194,9 +194,9 @@ TEST(Injector, Generation)
     std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/ME_FHC_numu.txt";
 #endif
 
-    double hnl_mass = 0.4; // in GeV; The HNL mass we are injecting
+    double hnl_mass = 1.0; // in GeV; The HNL mass we are injecting
     double dipole_coupling = 3e-7; // in GeV^-1; the effective dipole coupling strength
-    std::string mHNL = "0.4";
+    std::string mHNL = "1.0";
 
     // Decay parameters used to set the max range when injecting an HNL
     double HNL_decay_width = std::pow(dipole_coupling,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)

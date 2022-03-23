@@ -1162,10 +1162,11 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     geom3::Rotation3 rand_rot(p1_lab_dir, phi);
 
     double E3_lab = E1_lab - E1_lab * final_y;
-    double p1x_lab = p1_mom.length();
+    //double p1x_lab = p1_mom.length();
     double p3_lab_sq = E3_lab * E3_lab - m3 * m3;
-    double p3x_lab_frac = (p1x_lab * p1x_lab - m3 * m3 + E1_lab * E1_lab * (1.0 - 2.0 * final_y)) / (2.0 * p1x_lab * E3_lab);
-    double p3x_lab = p3x_lab_frac * sqrt(p3_lab_sq);
+    //double p3x_lab_frac = (p1x_lab * p1x_lab - m3 * m3 + E1_lab * E1_lab * (1.0 - 2.0 * final_y)) / (2.0 * p1x_lab * E3_lab);
+    //double p3x_lab = p3x_lab_frac * sqrt(p3_lab_sq);
+    double p3x_lab = E3_lab - m2*final_y - m3*m3/(2*E1_lab);
     double p3y_lab = sqrt(p3_lab_sq - p3x_lab * p3x_lab);
 
     rk::P4 p3_lab(geom3::Vector3(p3x_lab, p3y_lab, 0), m3);
