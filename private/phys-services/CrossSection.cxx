@@ -861,6 +861,7 @@ bool DipoleFromTable::equal(CrossSection const & other) const {
 }
 
 double DipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) {
+    double yMin = 0;
     double target_mass2 = target_mass * target_mass;
     double mHNL2 = mHNL * mHNL;
 
@@ -873,13 +874,28 @@ double DipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) 
     double m4 = target_mass2 * target_mass2 / s2;
     double m2sub1sq = std::pow(m2 - 1, 2);
     bool small_r = r2 < 1e-6;
+    
+    // require cos(theta)<=1
+    double root_term = 4*Enu*Enu*target_mass2 - 4*Enu*target_mass*mHNL2 - 4*target_mass2*mHNL2 + mHNL2*mHNL2;
+    double costh_bound = (1./(2*s)) * (2*Enu*target_mass - mHNL2 - target_mass*mHNL2/Enu - std::sqrt(root_term));
 
     if(small_r)
-        return m2 * r4 / m2sub1sq;
+        yMin = (s * m2 * r4 / m2sub1sq) / (2 * Enu * target_mass);
     else {
         double root = std::sqrt(m2sub1sq + (r4 - 2 * (1 + m2) * r2));
-        return 0.5 * (1 + m4 - r2 - root + m2 * (-2 - r2 + root)) * s / (2 * Enu * target_mass);
+        yMin = 0.5 * (1 + m4 - r2 - root + m2 * (-2 - r2 + root)) * s / (2 * Enu * target_mass);
     }
+   // std::cout << std::endl;
+   // std::cout << Enu << std::endl;
+   // std::cout << Enu << std::endl;
+   // std::cout << target_mass << std::endl;
+   // std::cout << target_mass2 << std::endl;
+   // std::cout << mHNL << std::endl;
+   // std::cout << mHNL2 << std::endl;
+   // std::cout << root_term << std::endl;
+   // std::cout << yMin << std::endl;
+   // std::cout << costh_bound << std::endl;
+    return std::max(yMin,costh_bound);
 }
 
 
@@ -890,8 +906,12 @@ double DipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) 
 
     double s = 2 * Enu * target_mass + target_mass2;
     double s2 = s * s;
+    
+    // require cos(theta)>=-1
+    double root_term = 4*Enu*Enu*target_mass2 - 4*Enu*target_mass*mHNL2 - 4*target_mass2*mHNL2 + mHNL2*mHNL2;
+    double costh_bound = (1./(2*s)) * (2*Enu*target_mass - mHNL2 - target_mass*mHNL2/Enu) + std::sqrt(root_term);
 
-    return 0.5 * (target_mass4 - mHNL2*s + s2 - target_mass2*(mHNL2+2*s) + (s - target_mass2) * std::sqrt(target_mass4 + std::pow(mHNL2 - s, 2) - 2*target_mass2*(mHNL2+s))) / (s * (2 * Enu * target_mass));
+    return std::min(costh_bound,0.5 * (target_mass4 - mHNL2*s + s2 - target_mass2*(mHNL2+2*s) + (s - target_mass2) * std::sqrt(target_mass4 + std::pow(mHNL2 - s, 2) - 2*target_mass2*(mHNL2+s))) / (s * (2 * Enu * target_mass)));
 }
 
 
@@ -1147,7 +1167,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
             cross_section = test_cross_section;
         }
     }
-    double final_y = kin_vars[1];
+    double final_y = kin_vars[1] + 1e-16; // to account for machine epsilon when adding to O(1) numbers
 
     interaction.interaction_parameters.resize(2);
     interaction.interaction_parameters[0] = E1_lab;
@@ -1161,7 +1181,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     double phi = random->Uniform(0, 2.0 * M_PI);
     geom3::Rotation3 rand_rot(p1_lab_dir, phi);
 
-    double E3_lab = E1_lab - E1_lab * final_y;
+    double E3_lab = E1_lab * (1.0 - final_y);
     //double p1x_lab = p1_mom.length();
     double p3_lab_sq = E3_lab * E3_lab - m3 * m3;
     //double p3x_lab_frac = (p1x_lab * p1x_lab - m3 * m3 + E1_lab * E1_lab * (1.0 - 2.0 * final_y)) / (2.0 * p1x_lab * E3_lab);
