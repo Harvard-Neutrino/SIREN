@@ -27,6 +27,7 @@
 using namespace LeptonInjector;
 bool z_samp = true;
 bool in_invGeV = true;
+bool miniboone = true;
 
 
 std::string diff_xs(int Z, int A, std::string mHNL) {
@@ -121,7 +122,13 @@ std::vector<std::string> gen_tot_xs_hc(std::string mHNL) {
     return res;
 }
 
-bool inMINERvAfiducial(std::array<double,3> & int_vtx, earthmodel::ExtrPoly & fidVol) {
+bool inFiducial(std::array<double,3> & int_vtx, earthmodel::ExtrPoly & fidVol) {
+    earthmodel::Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
+    earthmodel::Vector3D dir(0,0,1);
+    return fidVol.IsInside(pos,dir);
+}
+
+bool inFiducial(std::array<double,3> & int_vtx, earthmodel::Sphere & fidVol) {
     earthmodel::Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
     earthmodel::Vector3D dir(0,0,1);
     return fidVol.IsInside(pos,dir);
@@ -192,11 +199,16 @@ TEST(Injector, Generation)
     std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
     std::string earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
     std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/ME_FHC_numu.txt";
+    if(miniboone) {
+			material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/materials/MiniBooNE.dat";
+			earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_miniboone.dat";
+			flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/BNB_Flux_Tables/BNB_numu_flux.txt";
+    }
 #endif
 
-    double hnl_mass = 0.01173; // in GeV; The HNL mass we are injecting
-    double dipole_coupling = 5e-7; // in GeV^-1; the effective dipole coupling strength
-    std::string mHNL = "0.01173";
+    double hnl_mass = 0.4; // in GeV; The HNL mass we are injecting
+    double dipole_coupling = 3e-7; // in GeV^-1; the effective dipole coupling strength
+    std::string mHNL = "0.4";
 
     // Decay parameters used to set the max range when injecting an HNL
     double HNL_decay_width = std::pow(dipole_coupling,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)
@@ -204,8 +216,8 @@ TEST(Injector, Generation)
     double max_distance = 240; // Maximum distance, set by distance from Minerva to the decay pipe
 
     // This should encompass Minerva, should probably be smaller? Depends on how long Minerva is...
-    double disk_radius = 1.24; // in meters
-    double endcap_length = 5; // in meters
+    double disk_radius = 6.2; // in meters
+    double endcap_length = 6.2; // in meters
 
 
     // Events to inject
@@ -254,12 +266,13 @@ TEST(Injector, Generation)
 
     // Setup tabulated flux
     std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(flux_file, true);
+    std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf_gen = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(hnl_mass, 10, flux_file);
 
     // Change the flux units from cm^-2 to m^-2
     std::shared_ptr<LeptonInjector::WeightableDistribution> flux_units = std::make_shared<LeptonInjector::NormalizationConstant>(1e4);
 
     // Pick energy distribution
-    std::shared_ptr<PrimaryEnergyDistribution> edist = pdf;
+    std::shared_ptr<PrimaryEnergyDistribution> edist = tab_pdf_gen;
 
     // Choose injection direction
     std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<LeptonInjector::FixedDirection>(earthmodel::Vector3D{0.0, 0.0, 1.0});
@@ -304,6 +317,10 @@ TEST(Injector, Generation)
     zsecs.push_back(earthmodel::ExtrPoly::ZSection(2.0672,offset,1));
     earthmodel::Placement placement(earthmodel::Vector3D(0,0,2.0672), earthmodel::QFromZXZr(0,0,0));
     earthmodel::ExtrPoly MINERvA_fiducial = earthmodel::ExtrPoly(placement, poly, zsecs);
+    
+    // MiniBooNE Fiducial Volume
+    earthmodel::Placement placementMB(earthmodel::Vector3D(0,0,0), earthmodel::QFromZXZr(0,0,0));
+    earthmodel::Sphere MiniBooNE_fiducial = earthmodel::Sphere(placement, 5.0, 0.0);
 
     std::ofstream myFile("injector_test_events.csv");
     // myFile << std::fixed << std::setprecision(6);
@@ -331,7 +348,7 @@ TEST(Injector, Generation)
         LeptonInjector::InteractionRecord pair_prod;
         double basic_weight, simplified_weight, interaction_lengths, interaction_prob = 0;
         if(event.signature.target_type != LeptonInjector::Particle::ParticleType::unknown) {
-            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MINERvA_fiducial, 0.1);
+            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MiniBooNE_fiducial, 0.1);
             injector->SamplePairProduction(decay, pair_prod);
             //basic_weight = weighter.EventWeight(event);
             simplified_weight = weighter.SimplifiedEventWeight(event);
@@ -401,7 +418,8 @@ TEST(Injector, Generation)
             myFile << interaction_prob << " ";
             myFile << event.interaction_parameters[1] << " "; // sampled y
             myFile << event.signature.target_type << " "; // target type
-            myFile << int(inMINERvAfiducial(pair_prod.interaction_vertex, MINERvA_fiducial)) << "\n"; // fid vol
+            if(miniboone) myFile << int(inFiducial(pair_prod.interaction_vertex, MiniBooNE_fiducial)) << "\n"; // fid vol
+            else myFile << int(inFiducial(pair_prod.interaction_vertex, MINERvA_fiducial)) << "\n"; // fid vol
             myFile << "\n";
         }
         if((++i) % (events_to_inject/10)==0)

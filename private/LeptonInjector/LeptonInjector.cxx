@@ -185,12 +185,13 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, D
     double C = random->Uniform(0,1);
     if(fiducial) {
 				std::vector<earthmodel::Geometry::Intersection> ints = fiducial->Intersections(interaction.interaction_vertex,hnl_dir);
-				if(ints.size()!=0) {
+				if(ints.size()!=0 && ints[ints.size()-1].distance > 0) {
 						a = std::max(0.,ints[0].distance - buffer);
 						b = ints[ints.size()-1].distance;
 						C*=(1-std::exp(-(b-a)/decay_length));
 						decay_weight = std::exp(-a/decay_length) - std::exp(-b/decay_length);
 				}
+
     }
 
     double decay_loc = a + -1 * decay_length * std::log(1-C);

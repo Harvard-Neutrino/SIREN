@@ -111,7 +111,13 @@ std::vector<std::string> gen_tot_xs_hc(std::string mHNL, std::string tot_path) {
     return res;
 }
 
-bool inMINERvAfiducial(std::array<double,3> & int_vtx, earthmodel::ExtrPoly & fidVol) {
+bool inFiducial(std::array<double,3> & int_vtx, earthmodel::ExtrPoly & fidVol) {
+    earthmodel::Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
+    earthmodel::Vector3D dir(0,0,1);
+    return fidVol.IsInside(pos,dir);
+}
+
+bool inFiducial(std::array<double,3> & int_vtx, earthmodel::Sphere & fidVol) {
     earthmodel::Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
     earthmodel::Vector3D dir(0,0,1);
     return fidVol.IsInside(pos,dir);
@@ -407,25 +413,40 @@ int main(int argc, char ** argv) {
     
     // MINERvA Fiducial Volume
     std::vector<std::vector<double>> poly;
-    poly.push_back({0.0, 1.01758});
-    poly.push_back({0.88125, 0.50879});
-    poly.push_back({0.88125, -0.50879});
-    poly.push_back({0.0, -1.01758});
-    poly.push_back({-0.88125, -0.50879});
-    poly.push_back({-0.88125, 0.50879});
+    // 88.125 cm apothem
+    //poly.push_back({0.0, 1.01758});
+    //poly.push_back({0.88125, 0.50879});
+    //poly.push_back({0.88125, -0.50879});
+    //poly.push_back({0.0, -1.01758});
+    //poly.push_back({-0.88125, -0.50879});
+    //poly.push_back({-0.88125, 0.50879});
+    
+    // 81.125 cm apothem
+    poly.push_back({0.0, 0.93675});
+    poly.push_back({0.81125, 0.46838});
+    poly.push_back({0.81125, -0.46838});
+    poly.push_back({0.0, -0.93675});
+    poly.push_back({-0.81125, -0.46838});
+    poly.push_back({-0.81125, 0.46838});
 
     double offset[2];
     offset[0] = 0;
     offset[1] = 0;
     std::vector<earthmodel::ExtrPoly::ZSection> zsecs;
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(-2.0672,offset,1));
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(2.0672,offset,1));
-    earthmodel::Placement placement(earthmodel::Vector3D(0,0,2.0672), earthmodel::QFromZXZr(0,0,0));
+    zsecs.push_back(earthmodel::ExtrPoly::ZSection(0.125,offset,1));
+    zsecs.push_back(earthmodel::ExtrPoly::ZSection(4.1344,offset,1));
+    earthmodel::Placement placement(earthmodel::Vector3D(0,0,0), earthmodel::QFromZXZr(0,0,0));
     earthmodel::ExtrPoly MINERvA_fiducial = earthmodel::ExtrPoly(placement, poly, zsecs);
+
+    // MiniBooNE Fiducial Volume
+    earthmodel::Placement placementMB(earthmodel::Vector3D(0,0,0), earthmodel::QFromZXZr(0,0,0));
+    earthmodel::Sphere MiniBooNE_fiducial = earthmodel::Sphere(placement, 5.0, 0.0);
+
     
-    std::ofstream myFile("Outputs/"+args["output"].as<std::string>()+".csv");
+    std::ofstream myFile("Outputs_MB/"+args["output"].as<std::string>()+".csv");
     //myFile << std::fixed << std::setprecision(6);
     myFile << std::scientific << std::setprecision(6);
+    /*
     myFile << "intX intY intZ ";
     myFile << "decX decY decZ ";
     myFile << "ppX ppY ppZ ";
@@ -437,10 +458,12 @@ int main(int argc, char ** argv) {
     myFile << "helhnl ";
     myFile << "p4ftgt_0 p4ftgt_1 p4ftgt_2 p4ftgt_3 ";
     myFile << "helftgt ";
+    */
     myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
-    myFile << "p4gamma_hnlRest_0 p4gamma_hnlRest_1 p4gamma_hnlRest_2 p4gamma_hnlRest_3 ";
-    myFile << "helgamma ";
-    myFile << "decay_length decay_fid_weight decay_ang_weight prob_nopairprod simplified_weight y target fid\n";
+    //myFile << "p4gamma_hnlRest_0 p4gamma_hnlRest_1 p4gamma_hnlRest_2 p4gamma_hnlRest_3 ";
+    //myFile << "helgamma ";
+    //myFile << "decay_length decay_fid_weight decay_ang_weight prob_nopairprod simplified_weight y target fid\n";
+    myFile << "decay_fid_weight decay_ang_weight simplified_weight fid\n";
     myFile << std::endl;
     int i=0;
     while(*injector) {
@@ -454,6 +477,7 @@ int main(int argc, char ** argv) {
             injector->SamplePairProduction(decay, pair_prod);
             simplified_weight = weighter.SimplifiedEventWeight(event);
             
+            /*
             myFile << event.interaction_vertex[0] << " ";
             myFile << event.interaction_vertex[1] << " ";
             myFile << event.interaction_vertex[2] << " ";
@@ -493,27 +517,28 @@ int main(int argc, char ** argv) {
             myFile << event.secondary_momenta[1][3] << " ";
 
             myFile << event.secondary_helicity[1] << " ";
-
+						*/
             myFile << decay.secondary_momenta[0][0] << " ";
             myFile << decay.secondary_momenta[0][1] << " ";
             myFile << decay.secondary_momenta[0][2] << " ";
             myFile << decay.secondary_momenta[0][3] << " ";
-
+						/*
             myFile << decay.secondary_momenta[1][0] << " ";
             myFile << decay.secondary_momenta[1][1] << " ";
             myFile << decay.secondary_momenta[1][2] << " ";
             myFile << decay.secondary_momenta[1][3] << " ";
 
             myFile << decay.secondary_helicity[0] << " ";
-
-            myFile << decay.decay_parameters[0] << " "; // decay length
+						*/
+            //myFile << decay.decay_parameters[0] << " "; // decay length
             myFile << decay.decay_parameters[1] << " "; // decay fid weight
             myFile << decay.decay_parameters[2] << " "; // decay ang weight
-            myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
+            //myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
             myFile << simplified_weight << " ";
-            myFile << event.interaction_parameters[1] << " "; // sampled y
-            myFile << event.signature.target_type << " "; // target type
-            myFile << int(inMINERvAfiducial(pair_prod.interaction_vertex, MINERvA_fiducial)) << "\n"; // fid vol
+            //myFile << event.interaction_parameters[1] << " "; // sampled y
+            //myFile << event.signature.target_type << " "; // target type
+            //myFile << int(inFiducial(pair_prod.interaction_vertex, MINERvA_fiducial)) << "\n"; // fid vol
+            myFile << int(inFiducial(pair_prod.interaction_vertex, MiniBooNE_fiducial)) << "\n"; // fid vol
             myFile << "\n";
         }
         if((++i)%int(events_to_inject/10.)==0) 
