@@ -450,6 +450,8 @@ void DISFromSpline::InitializeSignatures() {
         } else {
             throw std::runtime_error("InitializeSignatures: Unkown interaction type!");
         }
+
+        signature.secondary_types.push_back(Particle::ParticleType::Hadrons);
         for(auto target_type : target_types_) {
             signature.target_type = target_type;
 
@@ -767,13 +769,6 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
         p3 = boost_lab_to_start * p3_lab;
         p4 = boost_lab_to_start * p4_lab;
     }
-
-    rk::P4 pq_13 = p1 - p3;
-    rk::P4 pq_24 = p4 - p2;
-
-    // Check that computed q2 in the start frame matches up with the specified Q2
-    assert(std::abs(double(pq_13.dot(pq_13)) + Q2) < std::abs(Q2 * 1e-3));
-    assert(std::abs(double(pq_24.dot(pq_24)) + Q2) < std::abs(Q2 * 1e-3));
 
     interaction.secondary_momenta.resize(2);
     interaction.secondary_masses.resize(2);

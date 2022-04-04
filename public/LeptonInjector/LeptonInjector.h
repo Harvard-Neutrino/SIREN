@@ -152,6 +152,58 @@ public:
     }
 };
 
+class ColumnDepthLeptonInjector : public InjectorBase {
+friend cereal::access;
+protected:
+    std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;
+    std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
+    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
+    std::shared_ptr<DepthFunction> depth_func;
+    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution;
+    double disk_radius;
+    double endcap_length;
+    std::shared_ptr<ColumnDepthPositionDistribution> position_distribution;
+    ColumnDepthLeptonInjector();
+public:
+    ColumnDepthLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<DepthFunction> depth_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
+    std::string Name() const override;
+    virtual std::pair<earthmodel::Vector3D, earthmodel::Vector3D> InjectionBounds(InteractionRecord const & interaction) const override;
+
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("TargetMomentumDistribution", target_momentum_distribution));
+            archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
+            archive(::cereal::make_nvp("HelicityDistribution", helicity_distribution));
+            archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));
+            archive(::cereal::make_nvp("DepthFunction", depth_func));
+            archive(::cereal::make_nvp("DiskRadius", disk_radius));
+            archive(::cereal::make_nvp("EndcapLength", endcap_length));
+            archive(::cereal::make_nvp("PositionDistribution", position_distribution));
+            archive(cereal::virtual_base_class<InjectorBase>(this));
+        } else {
+            throw std::runtime_error("ColumnDepthLeptonInjector only supports version <= 0!");
+        }
+    }
+
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("TargetMomentumDistribution", target_momentum_distribution));
+            archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
+            archive(::cereal::make_nvp("HelicityDistribution", helicity_distribution));
+            archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));
+            archive(::cereal::make_nvp("DepthFunction", depth_func));
+            archive(::cereal::make_nvp("DiskRadius", disk_radius));
+            archive(::cereal::make_nvp("EndcapLength", endcap_length));
+            archive(::cereal::make_nvp("PositionDistribution", position_distribution));
+            archive(cereal::virtual_base_class<InjectorBase>(this));
+        } else {
+            throw std::runtime_error("ColumnDepthLeptonInjector only supports version <= 0!");
+        }
+    }
+};
+
 class DecayRangeLeptonInjector : public InjectorBase {
 friend cereal::access;
 protected:
