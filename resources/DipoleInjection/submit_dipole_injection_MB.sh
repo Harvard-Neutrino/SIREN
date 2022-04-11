@@ -1,5 +1,5 @@
-TOT_XSEC_PATH="/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/tot_xsec_Enu/"
-DIF_XSEC_PATH="/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/diff_xsec_z_Enu/"
+TOT_XSEC_PATH="/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables_dipoleFF/tot_xsec_Enu/"
+DIF_XSEC_PATH="/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables_dipoleFF/diff_xsec_z_Enu/"
 LI_PATH="/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/"
 FLUX_PATH="/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/BNB_Flux_Tables/"
 FLUX_FILE="${FLUX_PATH}BNB_numu_flux.txt"
@@ -14,8 +14,8 @@ SEED="7"
 
 cat mHNL_input_float.txt | while read M; do
 cat dDipole_input.txt | while read D; do
-		OUTPUT="MB_mHNL_${M}_d_${D}"
-		FILE="Outputs_MB/${OUTPUT}.csv"
+		OUTPUT="Outputs_MB/MB_mHNL_${M}_d_${D}"
+		FILE="${OUTPUT}.csv"
 		echo "M = ${M} GeV; D = ${D} GeV^-1"
 		if test -f "$FILE"; then
 				echo "$FILE exists"

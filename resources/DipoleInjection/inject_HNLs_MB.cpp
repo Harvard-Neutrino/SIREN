@@ -162,6 +162,10 @@ int main(int argc, char ** argv) {
             "flag to sample the differential cross section in z", 1,
         },
         {
+            "sparse", {"--sparse","-s"},
+            "flag for sparse output", 1,
+        },
+        {
             "n_inj", {"--n-inj","-n"},
             "number of events to inject", 1,
         },
@@ -270,11 +274,11 @@ int main(int argc, char ** argv) {
     // Decay parameters used to set the max range when injecting an HNL    
     double HNL_decay_width = std::pow(d_dipole,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)
     double n_decay_lengths = 3.0;
-    double max_distance = 240;
+    double max_distance = 541;
 
-    // This should encompass Minerva, change to input argument if considering other detectors
-    double disk_radius = 1.24; // in meters
-    double endcap_length = 5; // in meters
+    // This should encompass MiniBooNE, change to input argument if considering other detectors
+    double disk_radius = 6.2; // in meters
+    double endcap_length = 6.2; // in meters
 
     // Events to inject
     int events_to_inject = int(args["n_inj"].as<float>(float(1e5)));
@@ -372,60 +376,34 @@ int main(int argc, char ** argv) {
 
     LeptonWeighter weighter(std::vector<std::shared_ptr<InjectorBase>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
     
-    // MINERvA Fiducial Volume
-    std::vector<std::vector<double>> poly;
-    // 88.125 cm apothem
-    //poly.push_back({0.0, 1.01758});
-    //poly.push_back({0.88125, 0.50879});
-    //poly.push_back({0.88125, -0.50879});
-    //poly.push_back({0.0, -1.01758});
-    //poly.push_back({-0.88125, -0.50879});
-    //poly.push_back({-0.88125, 0.50879});
-    
-    // 81.125 cm apothem
-    poly.push_back({0.0, 0.93675});
-    poly.push_back({0.81125, 0.46838});
-    poly.push_back({0.81125, -0.46838});
-    poly.push_back({0.0, -0.93675});
-    poly.push_back({-0.81125, -0.46838});
-    poly.push_back({-0.81125, 0.46838});
-
-    double offset[2];
-    offset[0] = 0;
-    offset[1] = 0;
-    std::vector<earthmodel::ExtrPoly::ZSection> zsecs;
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(0.125,offset,1));
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(4.1344,offset,1));
-    earthmodel::Placement placement(earthmodel::Vector3D(0,0,0), earthmodel::QFromZXZr(0,0,0));
-    earthmodel::ExtrPoly MINERvA_fiducial = earthmodel::ExtrPoly(placement, poly, zsecs);
-
     // MiniBooNE Fiducial Volume
-    earthmodel::Placement placementMB(earthmodel::Vector3D(0,0,0), earthmodel::QFromZXZr(0,0,0));
+    earthmodel::Placement placement(earthmodel::Vector3D(0,0,0), earthmodel::QFromZXZr(0,0,0));
     earthmodel::Sphere MiniBooNE_fiducial = earthmodel::Sphere(placement, 5.0, 0.0);
 
     
-    std::ofstream myFile("Outputs_MB/"+args["output"].as<std::string>()+".csv");
-    //myFile << std::fixed << std::setprecision(6);
+    std::ofstream myFile(args["output"].as<std::string>()+".csv");
     myFile << std::scientific << std::setprecision(6);
-    /*
     myFile << "intX intY intZ ";
-    myFile << "decX decY decZ ";
-    myFile << "ppX ppY ppZ ";
-    myFile << "p4nu_0 p4nu_1 p4nu_2 p4nu_3 ";
-    myFile << "helnu ";
-    myFile << "p4itgt_0 p4itgt_1 p4itgt_2 p4itgt_3 ";
-    myFile << "helitgt ";
-    myFile << "p4hnl_0 p4hnl_1 p4hnl_2 p4hnl_3 ";
-    myFile << "helhnl ";
-    myFile << "p4ftgt_0 p4ftgt_1 p4ftgt_2 p4ftgt_3 ";
-    myFile << "helftgt ";
-    */
     myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
-    //myFile << "p4gamma_hnlRest_0 p4gamma_hnlRest_1 p4gamma_hnlRest_2 p4gamma_hnlRest_3 ";
-    //myFile << "helgamma ";
-    //myFile << "decay_length decay_fid_weight decay_ang_weight prob_nopairprod simplified_weight y target fid\n";
-    myFile << "decay_fid_weight decay_ang_weight simplified_weight fid\n";
-    myFile << std::endl;
+    myFile << "gamma_costh_hnlRest ";
+    myFile << "decay_fid_weight prob_nopairprod simplified_weight fid ";
+    if(!args["sparse"]) {
+			myFile << "decX decY decZ ";
+			myFile << "ppX ppY ppZ ";
+			myFile << "p4nu_0 p4nu_1 p4nu_2 p4nu_3 ";
+			myFile << "helnu ";
+			myFile << "p4itgt_0 p4itgt_1 p4itgt_2 p4itgt_3 ";
+			myFile << "helitgt ";
+			myFile << "p4hnl_0 p4hnl_1 p4hnl_2 p4hnl_3 ";
+			myFile << "helhnl ";
+			myFile << "p4ftgt_0 p4ftgt_1 p4ftgt_2 p4ftgt_3 ";
+			myFile << "helftgt ";
+			myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
+			myFile << "p4gamma_hnlRest_0 p4gamma_hnlRest_1 p4gamma_hnlRest_2 p4gamma_hnlRest_3 ";
+			myFile << "helgamma ";
+			myFile << "decay_length decay_ang_weight y target ";
+		}
+    myFile << std::endl << std::endl;
     int i=0;
     while(*injector) {
         LeptonInjector::InteractionRecord event = injector->GenerateEvent();
@@ -434,73 +412,74 @@ int main(int argc, char ** argv) {
         double simplified_weight = 0;
         if(event.secondary_momenta.size() > 0) {
             
-            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MINERvA_fiducial, 0.1);
+            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 0, 0, &MiniBooNE_fiducial, 0.1);
             injector->SamplePairProduction(decay, pair_prod);
             simplified_weight = weighter.SimplifiedEventWeight(event);
             
-            /*
             myFile << event.interaction_vertex[0] << " ";
             myFile << event.interaction_vertex[1] << " ";
             myFile << event.interaction_vertex[2] << " ";
-
-            myFile << decay.decay_vertex[0] << " ";
-            myFile << decay.decay_vertex[1] << " ";
-            myFile << decay.decay_vertex[2] << " ";
-
-            myFile << pair_prod.interaction_vertex[0] << " ";
-            myFile << pair_prod.interaction_vertex[1] << " ";
-            myFile << pair_prod.interaction_vertex[2] << " ";
-
-            myFile << event.primary_momentum[0] << " ";
-            myFile << event.primary_momentum[1] << " ";
-            myFile << event.primary_momentum[2] << " ";
-            myFile << event.primary_momentum[3] << " ";
-
-            myFile << event.primary_helicity << " ";
-
-            myFile << event.target_momentum[0] << " ";
-            myFile << event.target_momentum[1] << " ";
-            myFile << event.target_momentum[2] << " ";
-            myFile << event.target_momentum[3] << " ";
-
-            myFile << event.target_helicity << " ";
-
-            myFile << event.secondary_momenta[0][0] << " ";
-            myFile << event.secondary_momenta[0][1] << " ";
-            myFile << event.secondary_momenta[0][2] << " ";
-            myFile << event.secondary_momenta[0][3] << " ";
-
-            myFile << event.secondary_helicity[0] << " ";
-
-            myFile << event.secondary_momenta[1][0] << " ";
-            myFile << event.secondary_momenta[1][1] << " ";
-            myFile << event.secondary_momenta[1][2] << " ";
-            myFile << event.secondary_momenta[1][3] << " ";
-
-            myFile << event.secondary_helicity[1] << " ";
-						*/
+            
             myFile << decay.secondary_momenta[0][0] << " ";
             myFile << decay.secondary_momenta[0][1] << " ";
             myFile << decay.secondary_momenta[0][2] << " ";
             myFile << decay.secondary_momenta[0][3] << " ";
-						/*
-            myFile << decay.secondary_momenta[1][0] << " ";
-            myFile << decay.secondary_momenta[1][1] << " ";
-            myFile << decay.secondary_momenta[1][2] << " ";
-            myFile << decay.secondary_momenta[1][3] << " ";
-
-            myFile << decay.secondary_helicity[0] << " ";
-						*/
-            //myFile << decay.decay_parameters[0] << " "; // decay length
+            myFile << decay.secondary_momenta[1][3]/decay.secondary_momenta[1][0] << " ";
+            
             myFile << decay.decay_parameters[1] << " "; // decay fid weight
-            myFile << decay.decay_parameters[2] << " "; // decay ang weight
-            //myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
+            myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
             myFile << simplified_weight << " ";
-            //myFile << event.interaction_parameters[1] << " "; // sampled y
-            //myFile << event.signature.target_type << " "; // target type
-            //myFile << int(inFiducial(pair_prod.interaction_vertex, MINERvA_fiducial)) << "\n"; // fid vol
-            myFile << int(inFiducial(pair_prod.interaction_vertex, MiniBooNE_fiducial)) << "\n"; // fid vol
-            myFile << "\n";
+            myFile << int(inFiducial(pair_prod.interaction_vertex, MiniBooNE_fiducial)) << " "; // fid vol
+    
+						if(!args["sparse"]) {
+							myFile << decay.decay_vertex[0] << " ";
+							myFile << decay.decay_vertex[1] << " ";
+							myFile << decay.decay_vertex[2] << " ";
+
+							myFile << pair_prod.interaction_vertex[0] << " ";
+							myFile << pair_prod.interaction_vertex[1] << " ";
+							myFile << pair_prod.interaction_vertex[2] << " ";
+
+							myFile << event.primary_momentum[0] << " ";
+							myFile << event.primary_momentum[1] << " ";
+							myFile << event.primary_momentum[2] << " ";
+							myFile << event.primary_momentum[3] << " ";
+							
+							myFile << event.primary_helicity << " ";
+
+							myFile << event.target_momentum[0] << " ";
+							myFile << event.target_momentum[1] << " ";
+							myFile << event.target_momentum[2] << " ";
+							myFile << event.target_momentum[3] << " ";
+
+							myFile << event.target_helicity << " ";
+
+							myFile << event.secondary_momenta[0][0] << " ";
+							myFile << event.secondary_momenta[0][1] << " ";
+							myFile << event.secondary_momenta[0][2] << " ";
+							myFile << event.secondary_momenta[0][3] << " ";
+
+							myFile << event.secondary_helicity[0] << " ";
+
+							myFile << event.secondary_momenta[1][0] << " ";
+							myFile << event.secondary_momenta[1][1] << " ";
+							myFile << event.secondary_momenta[1][2] << " ";
+							myFile << event.secondary_momenta[1][3] << " ";
+
+							myFile << event.secondary_helicity[1] << " ";
+							myFile << decay.secondary_momenta[1][0] << " ";
+							myFile << decay.secondary_momenta[1][1] << " ";
+							myFile << decay.secondary_momenta[1][2] << " ";
+							myFile << decay.secondary_momenta[1][3] << " ";
+
+							myFile << decay.secondary_helicity[0] << " ";
+							
+							myFile << decay.decay_parameters[0] << " "; // decay length
+							myFile << decay.decay_parameters[2] << " "; // decay ang weight
+							myFile << event.interaction_parameters[1] << " "; // sampled y
+							myFile << event.signature.target_type << " "; // target type
+            }
+            myFile << "\n\n";
         }
         if((++i)%int(events_to_inject/10.)==0) 
             std::cout << (int)(100*i/float(events_to_inject)) << "%" << std::endl;

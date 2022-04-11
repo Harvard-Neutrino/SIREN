@@ -35,7 +35,7 @@ std::string diff_xs(int Z, int A, std::string mHNL) {
 #ifdef AUSTIN
     ss << "/home/austin/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
 #else
-    if(z_samp) ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/diff_xsec_z_Enu/";
+    if(z_samp) ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables_dipoleFF/diff_xsec_z_Enu/";
     else ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/";
 #endif
     ss << "dxsec_";
@@ -50,7 +50,7 @@ std::string tot_xs(int Z, int A, std::string mHNL) {
 #ifdef AUSTIN
     ss << "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/";
 #else
-    ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/tot_xsec_Enu/";
+    ss << "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables_dipoleFF/tot_xsec_Enu/";
 #endif
     ss << "xsec_";
     ss << "Z_" << Z << "_";
@@ -206,18 +206,22 @@ TEST(Injector, Generation)
     }
 #endif
 
-    double hnl_mass = 0.4; // in GeV; The HNL mass we are injecting
-    double dipole_coupling = 3e-7; // in GeV^-1; the effective dipole coupling strength
-    std::string mHNL = "0.4";
+    double hnl_mass = 0.01173; // in GeV; The HNL mass we are injecting
+    double dipole_coupling = 1.303e-6; // in GeV^-1; the effective dipole coupling strength
+    std::string mHNL = "0.01173";
 
     // Decay parameters used to set the max range when injecting an HNL
     double HNL_decay_width = std::pow(dipole_coupling,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)
     double n_decay_lengths = 3.0; // Number of decay lengths to consider
-    double max_distance = 240; // Maximum distance, set by distance from Minerva to the decay pipe
-
+    double max_distance = 240; // Maximum distance, set by distance from MiniBooNE to the decay pipe
     // This should encompass Minerva, should probably be smaller? Depends on how long Minerva is...
-    double disk_radius = 6.2; // in meters
-    double endcap_length = 6.2; // in meters
+    double disk_radius = 1.4; // in meters
+    double endcap_length = 5; // in meters
+    if(miniboone) {
+			max_distance = 541;
+			disk_radius = 6.2;
+			endcap_length = 6.2;
+    }
 
 
     // Events to inject

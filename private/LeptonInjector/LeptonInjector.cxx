@@ -307,7 +307,7 @@ void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRe
             C += P[j]/N;
             if(C>X) {C -= P[j]/N; break;}
         }
-        double pairprod_dist = -X0[j]*std::log(X - C + std::exp(-D[j]/X0[j]));
+        double pairprod_dist = -X0[j]*std::log(-N*(X - C) + std::exp(-D[j]/X0[j]));
         interaction.interaction_vertex = earthmodel::Vector3D(decay.decay_vertex) + pairprod_dist * decay_dir;
     }
 }
