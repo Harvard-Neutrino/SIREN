@@ -435,6 +435,46 @@ std::pair<earthmodel::Vector3D, earthmodel::Vector3D> RangedLeptonInjector::Inje
 }
 
 //---------------
+// class ColumnDepthLeptonInjector : InjectorBase
+//---------------
+ColumnDepthLeptonInjector::ColumnDepthLeptonInjector() {}
+
+ColumnDepthLeptonInjector::ColumnDepthLeptonInjector(
+        unsigned int events_to_inject,
+        std::shared_ptr<PrimaryInjector> primary_injector,
+        std::vector<std::shared_ptr<CrossSection>> cross_sections,
+        std::shared_ptr<earthmodel::EarthModel> earth_model,
+        std::shared_ptr<LI_random> random,
+        std::shared_ptr<PrimaryEnergyDistribution> edist,
+        std::shared_ptr<PrimaryDirectionDistribution> ddist,
+        std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution,
+        std::shared_ptr<DepthFunction> depth_func,
+        double disk_radius,
+        double endcap_length,
+        std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution) :
+    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random),
+    energy_distribution(edist),
+    direction_distribution(ddist),
+    target_momentum_distribution(target_momentum_distribution),
+    depth_func(depth_func),
+    helicity_distribution(helicity_distribution),
+    disk_radius(disk_radius),
+    endcap_length(endcap_length)
+{
+    std::set<Particle::ParticleType> target_types = this->cross_sections->TargetTypes();
+    position_distribution = std::make_shared<ColumnDepthPositionDistribution>(disk_radius, endcap_length, depth_func, target_types);
+    distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
+}
+
+std::string ColumnDepthLeptonInjector::Name() const {
+    return("ColumnDepthInjector");
+}
+
+std::pair<earthmodel::Vector3D, earthmodel::Vector3D> ColumnDepthLeptonInjector::InjectionBounds(InteractionRecord const & interaction) const {
+    return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
+}
+
+//---------------
 // class DecayRangeLeptonInjector : InjectorBase
 //---------------
 DecayRangeLeptonInjector::DecayRangeLeptonInjector() {}
