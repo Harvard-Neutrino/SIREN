@@ -22,6 +22,8 @@
 
 #include "phys-services/CrossSection.h"
 
+#include "earthmodel-service/MaterialModel.h"
+
 namespace LeptonInjector {
 
 namespace {
@@ -947,11 +949,22 @@ double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType
                 + std::to_string(interp.MinX()) + " GeV,"
                 + std::to_string(interp.MaxX()) + " GeV]");
     }
+    
+    Interpolator1D<double> const & interp_proton = total.at(LeptonInjector::Particle::ParticleType::HNucleus);
+    int nprotons = earthmodel::MaterialModel::GetProtonCount(target_type);
+    if(target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
+				nprotons = 0;
+    }
+    double proton_inelastic_xsec = 0;
+    if(primary_energy > interp_proton.MinX() and primary_energy < interp_proton.MaxX()) {
+				proton_inelastic_xsec = interp_proton(primary_energy);
+    }
+    double xsec = interp(primary_energy) + nprotons*proton_inelastic_xsec;
 
     if(in_invGeV)
-        return std::pow(dipole_coupling, 2) * interp(primary_energy) / Constants::invGeVsq_per_cmsq;
+        return std::pow(dipole_coupling, 2) * xsec / Constants::invGeVsq_per_cmsq;
     else
-        return std::pow(dipole_coupling, 2) * interp(primary_energy);
+        return std::pow(dipole_coupling, 2) * xsec;
 }
 
 double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & interaction) const {
@@ -1004,6 +1017,13 @@ double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_
         return 0.0;
 
     Interpolator2D<double> const & interp = differential.at(target_type);
+    
+    Interpolator2D<double> const & interp_proton = differential.at(LeptonInjector::Particle::ParticleType::HNucleus);
+    
+    int nprotons = earthmodel::MaterialModel::GetProtonCount(target_type);
+    if(target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
+				nprotons = 0;
+    }
 
     if(primary_energy < thresh or primary_energy > interp.MaxX())
         return 0.0;
@@ -1018,11 +1038,11 @@ double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_
         double z = (y - yMin) / (yMax - yMin);
         if(z < interp.MinY() or z > interp.MaxY())
             return 0.0;
-        differential_cross_section = interp(primary_energy, z);
+        differential_cross_section = interp(primary_energy, z) + nprotons*interp_proton(primary_energy,z);
     } else {
         if(y < interp.MinY() or y > interp.MaxY())
             return 0.0;
-        differential_cross_section = interp(primary_energy, y);
+        differential_cross_section = interp(primary_energy, y) + nprotons*interp_proton(primary_energy,y);
     }
     if(in_invGeV)
         differential_cross_section /= Constants::invGeVsq_per_cmsq;
@@ -1035,6 +1055,12 @@ double DipoleFromTable::InteractionThreshold(InteractionRecord const & interacti
 
 void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& interaction, std::shared_ptr<LeptonInjector::LI_random> random) const {
     Interpolator2D<double> const & diff_table = differential.at(interaction.signature.target_type);
+    Interpolator2D<double> const & diff_table_proton = differential.at(LeptonInjector::Particle::ParticleType::HNucleus);
+    int nprotons = earthmodel::MaterialModel::GetProtonCount(interaction.signature.target_type);
+    // Avoid double counting for true H nuclei
+    if(interaction.signature.target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
+				nprotons = 0;
+    }
 
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
@@ -1123,6 +1149,18 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     // evalutates the differential spline at that point
     if(z_samp) test_cross_section = diff_table(kin_vars[0], z);
     else test_cross_section = diff_table(kin_vars[0], kin_vars[1]);
+    if(kin_vars[0] > diff_table_proton.MinX() and kin_vars[0] < diff_table_proton.MaxX()) {
+				if(z_samp) {
+						if(z > diff_table_proton.MinY() and z < diff_table_proton.MaxY()) {
+								test_cross_section += nprotons*diff_table_proton(kin_vars[0],z);
+						}
+				}
+				else {
+						if(kin_vars[1] > diff_table_proton.MinY() and kin_vars[1] < diff_table_proton.MaxY()) {
+								test_cross_section += nprotons*diff_table_proton(kin_vars[0],kin_vars[1]);
+						}
+				}
+    }		
 
     cross_section = test_cross_section;
 
@@ -1151,6 +1189,18 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
         // Load the differential cross section depending on sampling variable
         if(z_samp) test_cross_section = diff_table(test_kin_vars[0], z);
         else test_cross_section = diff_table(test_kin_vars[0], test_kin_vars[1]);
+				if(test_kin_vars[0] > diff_table_proton.MinX() and test_kin_vars[0] < diff_table_proton.MaxX()) {
+						if(z_samp) {
+								if(z > diff_table_proton.MinY() and z < diff_table_proton.MaxY()) {
+										test_cross_section += nprotons*diff_table_proton(test_kin_vars[0],z);
+								}
+						}
+						else {
+								if(test_kin_vars[1] > diff_table_proton.MinY() and test_kin_vars[1] < diff_table_proton.MaxY()) {
+										test_cross_section += nprotons*diff_table_proton(test_kin_vars[0],test_kin_vars[1]);
+								}
+						}
+				}		
         if(std::isnan(test_cross_section) or test_cross_section <= 0)
             continue;
 
