@@ -239,10 +239,12 @@ void InjectorBase::SampleSecondaryDecay(InteractionRecord const & interaction, D
     decay.secondary_momenta[1][3] = pGamma_HNLrest.pz();
     decay.secondary_helicity[0] = std::copysign(1.0, decay.primary_helicity);
 
-    decay.decay_parameters.resize(3);
+    decay.decay_parameters.resize(5);
     decay.decay_parameters[0] = decay_length;
     decay.decay_parameters[1] = decay_weight;
     decay.decay_parameters[2] = (1+alpha_phys*costh)/(1+alpha_gen*costh);
+    decay.decay_parameters[3] = a;
+    decay.decay_parameters[4] = b;
 }
 
 void InjectorBase::SamplePairProduction(DecayRecord const & decay, InteractionRecord & interaction) const {

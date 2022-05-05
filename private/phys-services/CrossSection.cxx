@@ -952,7 +952,7 @@ double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType
     
     Interpolator1D<double> const & interp_proton = total.at(LeptonInjector::Particle::ParticleType::HNucleus);
     int nprotons = earthmodel::MaterialModel::GetProtonCount(target_type);
-    if(target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
+    if(inelastic || target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
 				nprotons = 0;
     }
     double proton_inelastic_xsec = 0;
@@ -1021,7 +1021,7 @@ double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_
     Interpolator2D<double> const & interp_proton = differential.at(LeptonInjector::Particle::ParticleType::HNucleus);
     
     int nprotons = earthmodel::MaterialModel::GetProtonCount(target_type);
-    if(target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
+    if(inelastic || target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
 				nprotons = 0;
     }
 
@@ -1058,7 +1058,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     Interpolator2D<double> const & diff_table_proton = differential.at(LeptonInjector::Particle::ParticleType::HNucleus);
     int nprotons = earthmodel::MaterialModel::GetProtonCount(interaction.signature.target_type);
     // Avoid double counting for true H nuclei
-    if(interaction.signature.target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
+    if(inelastic || interaction.signature.target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
 				nprotons = 0;
     }
 

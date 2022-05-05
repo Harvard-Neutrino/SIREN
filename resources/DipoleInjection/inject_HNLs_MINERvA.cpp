@@ -21,6 +21,7 @@
 using namespace LeptonInjector;
 bool z_samp = true;
 bool in_invGeV = true;
+bool inelastic = false;
 
 template <class Precision>
 std::string getISOCurrentTimestamp() {
@@ -331,8 +332,8 @@ int main(int argc, char ** argv) {
     // Load cross sections
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::vector<Particle::ParticleType> target_types = gen_TargetPIDs();
-    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV);
-    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV);
+    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV, inelastic);
+    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV, inelastic);
     std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL,dif_xs_base);
     std::vector<std::string> hc_diff_fnames = gen_diff_xs_hc(mHNL,dif_xs_base);
     std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf(mHNL,tot_xs_base);
@@ -445,26 +446,29 @@ int main(int argc, char ** argv) {
 
     
     std::ofstream myFile(args["output"].as<std::string>()+".csv");
-    myFile << std::scientific << std::setprecision(6);
-    myFile << "intX intY intZ ";
-    myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
+    myFile << std::scientific << std::setprecision(4);
+    myFile << "p4nu_0 ";
+    myFile << "helhnl ";
+    myFile << "p4gamma_0 ";
+    myFile << "gamma_costh_lab ";
     myFile << "gamma_costh_hnlRest ";
-    myFile << "decay_fid_weight prob_nopairprod simplified_weight fid ";
+    myFile << "weight decay_length decay_enter decay_exit y ";
     if(!args["sparse"]) {
+			myFile << "intX intY intZ ";
       myFile << "decX decY decZ ";
       myFile << "ppX ppY ppZ ";
-      myFile << "p4nu_0 p4nu_1 p4nu_2 p4nu_3 ";
+      myFile << "p4nu_1 p4nu_2 p4nu_3 ";
       myFile << "helnu ";
       myFile << "p4itgt_0 p4itgt_1 p4itgt_2 p4itgt_3 ";
       myFile << "helitgt ";
       myFile << "p4hnl_0 p4hnl_1 p4hnl_2 p4hnl_3 ";
-      myFile << "helhnl ";
       myFile << "p4ftgt_0 p4ftgt_1 p4ftgt_2 p4ftgt_3 ";
       myFile << "helftgt ";
-      myFile << "p4gamma_0 p4gamma_1 p4gamma_2 p4gamma_3 ";
+      myFile << "p4gamma_1 p4gamma_2 p4gamma_3 ";
       myFile << "p4gamma_hnlRest_0 p4gamma_hnlRest_1 p4gamma_hnlRest_2 p4gamma_hnlRest_3 ";
       myFile << "helgamma ";
-      myFile << "decay_length decay_ang_weight y target ";
+      myFile << "decay_ang_weight target ";
+			myFile << "decay_fid_weight prob_nopairprod simplified_weight fid ";
     }
     myFile << std::endl << std::endl;
     int i=0;
@@ -472,28 +476,36 @@ int main(int argc, char ** argv) {
         LeptonInjector::InteractionRecord event = injector->GenerateEvent();
         LeptonInjector::DecayRecord decay;
         LeptonInjector::InteractionRecord pair_prod;
-        double simplified_weight = 0;
+        double w = 0, simplified_weight = 0;
         if(event.secondary_momenta.size() > 0) {
             
             injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 0, 0, &MINERvA_fiducial, 0.1);
             injector->SamplePairProduction(decay, pair_prod);
             simplified_weight = weighter.SimplifiedEventWeight(event);
             
-            myFile << event.interaction_vertex[0] << " ";
-            myFile << event.interaction_vertex[1] << " ";
-            myFile << event.interaction_vertex[2] << " ";
+            if(args["sparse"] && !int(inFiducial(pair_prod.interaction_vertex, MINERvA_fiducial))) continue; // fid vol
 
+            myFile << event.primary_momentum[0] << " ";
+            myFile << event.secondary_helicity[0] << " ";
             myFile << decay.secondary_momenta[0][0] << " ";
-            myFile << decay.secondary_momenta[0][1] << " ";
-            myFile << decay.secondary_momenta[0][2] << " ";
-            myFile << decay.secondary_momenta[0][3] << " ";
+            myFile << decay.secondary_momenta[0][3]/decay.secondary_momenta[0][0] << " ";
             myFile << decay.secondary_momenta[1][3]/decay.secondary_momenta[1][0] << " ";
 
-            myFile << decay.decay_parameters[1] << " "; // decay fid weight
-            myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
-            myFile << simplified_weight << " ";
-            myFile << int(inFiducial(pair_prod.interaction_vertex, MINERvA_fiducial)) << " "; // fid vol
+            w = decay.decay_parameters[1]*(1-pair_prod.interaction_parameters[0])*simplified_weight;
+            
+            myFile << w << " ";
+
+            myFile << decay.decay_parameters[0] << " "; // decay length
+            myFile << decay.decay_parameters[3] << " "; // entry point
+            myFile << decay.decay_parameters[4] << " "; // exit point
+            
+            myFile << event.interaction_parameters[1] << " "; // sampled y
+            
             if(!args["sparse"]) {
+							myFile << event.interaction_vertex[0] << " ";
+							myFile << event.interaction_vertex[1] << " ";
+							myFile << event.interaction_vertex[2] << " ";
+              
               myFile << decay.decay_vertex[0] << " ";
               myFile << decay.decay_vertex[1] << " ";
               myFile << decay.decay_vertex[2] << " ";
@@ -502,7 +514,6 @@ int main(int argc, char ** argv) {
               myFile << pair_prod.interaction_vertex[1] << " ";
               myFile << pair_prod.interaction_vertex[2] << " ";
 
-              myFile << event.primary_momentum[0] << " ";
               myFile << event.primary_momentum[1] << " ";
               myFile << event.primary_momentum[2] << " ";
               myFile << event.primary_momentum[3] << " ";
@@ -521,7 +532,6 @@ int main(int argc, char ** argv) {
               myFile << event.secondary_momenta[0][2] << " ";
               myFile << event.secondary_momenta[0][3] << " ";
 
-              myFile << event.secondary_helicity[0] << " ";
 
               myFile << event.secondary_momenta[1][0] << " ";
               myFile << event.secondary_momenta[1][1] << " ";
@@ -529,6 +539,11 @@ int main(int argc, char ** argv) {
               myFile << event.secondary_momenta[1][3] << " ";
 
               myFile << event.secondary_helicity[1] << " ";
+              
+              myFile << decay.secondary_momenta[0][1] << " ";
+              myFile << decay.secondary_momenta[0][2] << " ";
+              myFile << decay.secondary_momenta[0][3] << " ";
+              
               myFile << decay.secondary_momenta[1][0] << " ";
               myFile << decay.secondary_momenta[1][1] << " ";
               myFile << decay.secondary_momenta[1][2] << " ";
@@ -536,10 +551,12 @@ int main(int argc, char ** argv) {
 
               myFile << decay.secondary_helicity[0] << " ";
               
-              myFile << decay.decay_parameters[0] << " "; // decay length
               myFile << decay.decay_parameters[2] << " "; // decay ang weight
-              myFile << event.interaction_parameters[1] << " "; // sampled y
               myFile << event.signature.target_type << " "; // target type
+							myFile << decay.decay_parameters[1] << " "; // decay fid weight
+              myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
+              myFile << simplified_weight << " ";
+              myFile << int(inFiducial(pair_prod.interaction_vertex, MINERvA_fiducial)) << " "; // fid vol
             }
             myFile << "\n\n";
         }
