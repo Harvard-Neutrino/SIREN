@@ -27,7 +27,8 @@
 using namespace LeptonInjector;
 bool z_samp = true;
 bool in_invGeV = true;
-bool miniboone = true;
+bool inelastic = false;
+bool miniboone = false;
 
 
 std::string diff_xs(int Z, int A, std::string mHNL) {
@@ -203,11 +204,12 @@ TEST(Injector, Generation)
 			material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/materials/MiniBooNE.dat";
 			earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_miniboone.dat";
 			flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/BNB_Flux_Tables/BNB_numu_flux.txt";
+			inelastic = true;
     }
 #endif
 
     double hnl_mass = 0.3906; // in GeV; The HNL mass we are injecting
-    double dipole_coupling = 3.0e-7; // in GeV^-1; the effective dipole coupling strength
+    double dipole_coupling = 1.0e-6; // in GeV^-1; the effective dipole coupling strength
     std::string mHNL = "0.3906";
 
     // Decay parameters used to set the max range when injecting an HNL
@@ -225,15 +227,15 @@ TEST(Injector, Generation)
 
 
     // Events to inject
-    unsigned int events_to_inject = 1e5;
+    unsigned int events_to_inject = 5e5;
     Particle::ParticleType primary_type = ParticleType::NuMu;
 
     // Load cross sections
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::vector<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau};
     std::vector<Particle::ParticleType> target_types = gen_TargetPIDs();
-    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV);
-    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV);
+    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV, inelastic);
+    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV, inelastic);
     std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL);
     std::vector<std::string> hc_diff_fnames = gen_diff_xs_hc(mHNL);
     std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf(mHNL);
