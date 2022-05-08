@@ -23,6 +23,7 @@
 #include "phys-services/CrossSection.h"
 
 #include "earthmodel-service/MaterialModel.h"
+#include "earthmodel-service/EarthModelCalculator.h"
 
 namespace LeptonInjector {
 
@@ -1065,7 +1066,8 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
 
-    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);                                                                                             rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
+    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
 
     // we assume that:
     // the target is stationary so its energy is just its mass
@@ -1576,6 +1578,120 @@ void DipoleFromTable::AddDifferentialCrossSection(Particle::ParticleType target,
 void DipoleFromTable::AddTotalCrossSection(Particle::ParticleType target, Interpolator1D<double> interp) {
     total.insert(std::make_pair(target, interp));
 }
+
+// Start ElasticScattering class
+
+bool ElasticScattering::equal(CrossSection const & other) const {
+    const ElasticScattering* x = dynamic_cast<const ElasticScattering*>(&other);
+
+    if(!x)
+        return false;
+    else
+        return primary_types == x->primary_types;
+}
+
+double ElasticScattering::InteractionThreshold(InteractionRecord const & record) const {
+		return 0.0;
+}
+
+double ElasticScattering::DifferentialCrossSection(InteractionRecord const & interaction) const {
+    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    double CLL;
+    if(primary_type==Particle::ParticleType::NuE) CLL = 0.7276;
+    else if(primary_type==Particle::ParticleType::NuMu) CLL = -0.2730;
+    else {
+				std::cout << "Faulty primary: " << primary_type << std::endl;
+        throw std::runtime_error("Supplied primary not supported by cross section!");
+    }
+    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
+    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+    double s = std::pow(rk::invMass(p1, p2), 2);
+    double primary_energy;
+    rk::P4 p1_lab;
+    rk::P4 p2_lab;
+    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
+        primary_energy = interaction.primary_momentum[0];
+        p1_lab = p1;
+        p2_lab = p2;
+    } else {
+        rk::Boost boost_start_to_lab = p2.restBoost();
+        p1_lab = boost_start_to_lab * p1;
+        p2_lab = boost_start_to_lab * p2;
+        primary_energy = p1_lab.e();
+    }
+    assert(interaction.signature.secondary_types.size() == 2);
+    assert(interaction.signature.secondary_types[0] == Particle::ParticleType::NuE or interaction.signature.secondary_types[1] == Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == Particle::ParticleType::NuMu or interaction.signature.secondary_types[1] == Particle::ParticleType::NuMu);
+    unsigned int nu_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == Particle::ParticleType::NuMu) ? 0 : 1;
+    unsigned int electron_index = 1 - nu_index;
+
+    std::array<double, 4> const & mom3 = interaction.secondary_momenta[nu_index];
+    std::array<double, 4> const & mom4 = interaction.secondary_momenta[electron_index];
+    rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses[nu_index]);
+    rk::P4 p4(geom3::Vector3(mom4[1], mom4[2], mom4[3]), interaction.secondary_masses[electron_index]);
+
+    double y = 1.0 - p2.dot(p3) / p2.dot(p1);
+    double m = interaction.secondary_masses[electron_index];
+    double E = primary_energy;
+
+    double X1 = -2./3. * std::log(2*y*E/m) + y*y/24. - 5.*y/12. - std::pow(Constants::pi,2)/6. + 23./72.;
+    double X2 = -2./3. * std::log(2*y*E/m) - y*y / (18*(1-y)*(1-y)) - std::pow(Constants::pi,2)/6. - 2*y / (9*(1-y)*(1-y)) + 23./(72*(1-y)*(1-y));
+    double X3 = -3./2. * std::log(2*y*E/m) + 1./4. + 3./(4.*y) - 3./(4.*y*y) - std::pow(Constants::pi,2)/6.;
+    double term1 = CLL*CLL * (1 + Constants::fineStructure / Cosntants::pi * X1);
+    double term2 = CLR*CLR * (1-y)*(1-y) * ( 1 + Constants::fineStructure / Cosntants::pi * X2);
+    double term3 = -CLL*CLR*m*y/E * (1 + Constants::fineStructure / Cosntants::pi * X3);
+    return std::pow(Constants::FermiConstant,2) * s / Constants::pi * (term1 + term2 + term3) / Constants::invGeVsq_per_cmsq;
+}
+
+// Assume initial electron at rest
+double ElasticScattering::DifferentialCrossSection(LeptonInjector::ParticleType primary_type, double primary_energy, double y) const {
+    double CLL;
+    if(primary_type==Particle::ParticleType::NuE) CLL = 0.7276;
+    else if(primary_type==Particle::ParticleType::NuMu) CLL = -0.2730;
+    else {
+				std::cout << "Faulty primary: " << primary_type << std::endl;
+        throw std::runtime_error("Supplied primary not supported by cross section!");
+    }
+
+    double m = interaction.secondary_masses[electron_index];
+    double E = primary_energy;
+    double s = 2*m*E + m*m;
+
+    double X1 = -2./3. * std::log(2*y*E/m) + y*y/24. - 5.*y/12. - std::pow(Constants::pi,2)/6. + 23./72.;
+    double X2 = -2./3. * std::log(2*y*E/m) - y*y / (18*(1-y)*(1-y)) - std::pow(Constants::pi,2)/6. - 2*y / (9*(1-y)*(1-y)) + 23./(72*(1-y)*(1-y));
+    double X3 = -3./2. * std::log(2*y*E/m) + 1./4. + 3./(4.*y) - 3./(4.*y*y) - std::pow(Constants::pi,2)/6.;
+    double term1 = CLL*CLL * (1 + Constants::fineStructure / Cosntants::pi * X1);
+    double term2 = CLR*CLR * (1-y)*(1-y) * ( 1 + Constants::fineStructure / Cosntants::pi * X2);
+    double term3 = -CLL*CLR*m*y/E * (1 + Constants::fineStructure / Cosntants::pi * X3);
+    return std::pow(Constants::FermiConstant,2) * s / Constants::pi * (term1 + term2 + term3) / Constants::invGeVsq_per_cmsq;
+}
+
+double ElasticScattering::TotalCrossSection(InteractionRecord const & interaction) const {
+    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LeptonInjector::Particle::ParticleType target_type = interaction.signature.target_type;
+    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
+    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+    double primary_energy;
+    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
+        primary_energy = interaction.primary_momentum[0];
+    } else {
+        rk::Boost boost_start_to_lab = p2.restBoost();
+        rk::P4 p1_lab = boost_start_to_lab * p1;
+        primary_energy = p1_lab.e();
+    }
+    // if we are below threshold, return 0
+    if(primary_energy < InteractionThreshold(interaction))
+        return 0;
+    return TotalCrossSection(primary_type, primary_energy, target_type);
+}
+
+double ElasticScattering::TotalCrossSection(LeptonInjector::Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type) const {
+		double ymax = 2*primary_energy / (2*primary_energy + Constants::electronMass);
+		std::function<double(double)> integrand = [&] (double y) -> double {
+        return DifferentialCrossSection(primary_type, primary_energy, y);
+    };
+		return earthmodel::Integration::rombergIntegrate(integrand, 0, ymax);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
