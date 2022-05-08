@@ -317,6 +317,51 @@ private:
     void InitializeSignatures();
 };
 
+// For details, see appendix A of 1906.00111v4
+class ElasticScattering : public CrossSection {
+friend cereal::access;
+protected:
+ElasticScattering() {};
+private:
+		const double CLR = 0.2334; // at one loop
+    const std::set<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu};
+public:
+		virtual bool equal(CrossSection const & other) const override;
+		double DifferentialCrossSection(InteractionRecord const &) const;
+    double DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, double y) const;
+    double TotalCrossSection(InteractionRecord const &) const;
+    double TotalCrossSection(LeptonInjector::Particle::ParticleType primary, double energy, Particle::ParticleType target) const;
+    double InteractionThreshold(InteractionRecord const &) const;
+    void SampleFinalState(InteractionRecord &, std::shared_ptr<LeptonInjector::LI_random>) const;
+
+    std::vector<Particle::ParticleType> GetPossibleTargets() const;
+    std::vector<Particle::ParticleType> GetPossibleTargetsFromPrimary(Particle::ParticleType primary_type) const;
+    std::vector<Particle::ParticleType> GetPossiblePrimaries() const;
+    std::vector<InteractionSignature> GetPossibleSignatures() const;
+    std::vector<InteractionSignature> GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const;
+
+    virtual double FinalStateProbability(InteractionRecord const & record) const;
+    virtual std::vector<std::string> DensityVariables() const override;
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("PrimaryTypes", primary_types));
+            archive(cereal::virtual_base_class<CrossSection>(this));
+        } else {
+            throw std::runtime_error("ElasticScattering only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t version) {
+        if(version == 0) {
+            std::set<LeptonInjector::Particle::ParticleType> prim;
+            archive(::cereal::make_nvp("PrimaryTypes", prim));
+            archive(cereal::virtual_base_class<CrossSection>(this));
+        } else {
+            throw std::runtime_error("ElasticScattering only supports version <= 0!");
+        }
+    }
+};
 
 class DipoleFromTable : public CrossSection {
 friend cereal::access;
