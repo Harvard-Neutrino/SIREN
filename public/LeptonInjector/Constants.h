@@ -84,7 +84,7 @@ static const double invGeVsq_per_cmsq = 2.568189461147501e27;
 
 
 // may need to fix these after setting GeV to 1.0
-static const double FermiConstant   = 1.16639e-23/pow(GeV,2); // [GeV^-2] 
+static const double FermiConstant   = 1.16639e-23/pow(eV,2); // [GeV^-2] 
 static const double avogadro        = 6.0221415e+23; // [mol cm^-3]
 static const double thetaWeinberg   = 0.2312; // dimensionless 
 static const double gravConstant    = 6.6700e-11; // [m^3 kg^-1 s^-2]

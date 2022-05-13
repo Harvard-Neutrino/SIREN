@@ -1639,7 +1639,8 @@ double ElasticScattering::DifferentialCrossSection(InteractionRecord const & int
     double term1 = CLL*CLL * (1 + Constants::fineStructure / Cosntants::pi * X1);
     double term2 = CLR*CLR * (1-y)*(1-y) * ( 1 + Constants::fineStructure / Cosntants::pi * X2);
     double term3 = -CLL*CLR*m*y/E * (1 + Constants::fineStructure / Cosntants::pi * X3);
-    return std::pow(Constants::FermiConstant,2) * s / Constants::pi * (term1 + term2 + term3) / Constants::invGeVsq_per_cmsq;
+    double ret =  std::pow(Constants::FermiConstant,2) * s / Constants::pi * (term1 + term2 + term3) / Constants::invGeVsq_per_cmsq;
+    return std::max(ret,0);
 }
 
 // Assume initial electron at rest
@@ -1652,7 +1653,7 @@ double ElasticScattering::DifferentialCrossSection(LeptonInjector::ParticleType 
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
 
-    double m = interaction.secondary_masses[electron_index];
+    double m = Constants::electronMass;
     double E = primary_energy;
     double s = 2*m*E + m*m;
 
@@ -1662,7 +1663,8 @@ double ElasticScattering::DifferentialCrossSection(LeptonInjector::ParticleType 
     double term1 = CLL*CLL * (1 + Constants::fineStructure / Cosntants::pi * X1);
     double term2 = CLR*CLR * (1-y)*(1-y) * ( 1 + Constants::fineStructure / Cosntants::pi * X2);
     double term3 = -CLL*CLR*m*y/E * (1 + Constants::fineStructure / Cosntants::pi * X3);
-    return std::pow(Constants::FermiConstant,2) * s / Constants::pi * (term1 + term2 + term3) / Constants::invGeVsq_per_cmsq;
+    double ret = std::pow(Constants::FermiConstant,2) * s / Constants::pi * (term1 + term2 + term3) / Constants::invGeVsq_per_cmsq;
+    return std::max(ret,0);
 }
 
 double ElasticScattering::TotalCrossSection(InteractionRecord const & interaction) const {
@@ -1690,6 +1692,138 @@ double ElasticScattering::TotalCrossSection(LeptonInjector::Particle::ParticleTy
         return DifferentialCrossSection(primary_type, primary_energy, y);
     };
 		return earthmodel::Integration::rombergIntegrate(integrand, 0, ymax);
+}
+
+void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& interaction, std::shared_ptr<LeptonInjector::LI_random> random) const {
+
+    // Uses Metropolis-Hastings Algorithm!
+    // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
+
+    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    double CLL;
+    if(primary_type==Particle::ParticleType::NuE) CLL = 0.7276;
+    else if(primary_type==Particle::ParticleType::NuMu) CLL = -0.2730;
+    else {
+				std::cout << "Faulty primary: " << primary_type << std::endl;
+        throw std::runtime_error("Supplied primary not supported by cross section!");
+    }
+    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
+    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+    double primary_energy;
+    rk::P4 p1_lab;
+    rk::P4 p2_lab;
+    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
+        primary_energy = interaction.primary_momentum[0];
+        p1_lab = p1;
+        p2_lab = p2;
+    } else {
+        rk::Boost boost_start_to_lab = p2.restBoost();
+        p1_lab = boost_start_to_lab * p1;
+        p2_lab = boost_start_to_lab * p2;
+        primary_energy = p1_lab.e();
+    }
+
+    double yMin = 1e-15;
+    double yMax = 2*primary_energy / (2*primary_energy + Constants::electronMass);
+    assert(yMin > 0);
+    double log_yMax = log10(yMax);
+    double log_yMin = log10(yMin);
+
+    bool accept;
+
+    double y, test_y;
+
+    // values of cross_section from the table
+    double cross_section, test_cross_section;
+
+    // sample an intial point
+    test_y = std::pow(10.0,random->Uniform(log_yMin, log_yMax));
+
+    // evalutates the differential spline at that point
+    test_cross_section = ElasticScattering::DifferentialCrossSection(primary_type, primary_energy, test_y);
+
+    cross_section = test_cross_section;
+
+    // this is the magic part. Metropolis Hastings Algorithm.
+    // MCMC method!
+    const size_t burnin = 40; // converges to the correct distribution over multiple samplings.
+    // big number means more accurate, but slower
+    for(size_t j = 0; j <= burnin; j++) {
+        // repeat the sampling from above to get a new valid point
+        test_y = std::pow(10.0,random->Uniform(log_yMin, log_yMax));
+
+        // Load the differential cross section depending on sampling variable
+        test_cross_section = ElasticScattering::DifferentialCrossSection(primary_type, primary_energy, test_y);
+        if(std::isnan(test_cross_section) or test_cross_section <= 0)
+            continue;
+
+        double odds = (test_cross_section / cross_section);
+        accept = (cross_section == 0 || (odds > 1.) || random->Uniform(0, 1) < odds);
+
+        if(accept) {
+            y  = test_y;
+            cross_section = test_cross_section;
+        }
+    }
+    double final_y = y + 1e-16; // to account for machine epsilon when adding to O(1) numbers
+
+    interaction.interaction_parameters.resize(1);
+    interaction.interaction_parameters[0] = final_y;
+
+    geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
+    geom3::Vector3 p1_mom = p1_lab.momentum();
+    geom3::UnitVector3 p1_lab_dir = p1_mom.direction();
+    geom3::Rotation3 x_to_p1_lab_rot = geom3::rotationBetween(x_dir, p1_lab_dir);
+
+    double phi = random->Uniform(0, 2.0 * M_PI);
+    geom3::Rotation3 rand_rot(p1_lab_dir, phi);
+
+    double E3_lab = primary_energy * (1.0 - final_y);
+    double p3_lab_sq = E3_lab * E3_lab - m3 * m3;
+    double p3x_lab = E3_lab - m2*final_y - m3*m3/(2*primary_energy);
+    double p3y_lab = sqrt(p3_lab_sq - p3x_lab * p3x_lab);
+
+    rk::P4 p3_lab(geom3::Vector3(p3x_lab, p3y_lab, 0), m3);
+    p3_lab.rotate(x_to_p1_lab_rot);
+    p3_lab.rotate(rand_rot);
+    rk::P4 p4_lab = p2_lab + (p1_lab - p3_lab);
+
+    rk::P4 p3;
+    rk::P4 p4;
+    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
+        p3 = p3_lab;
+        p4 = p4_lab;
+    } else {
+        rk::Boost boost_lab_to_start = p2.labBoost();
+        p3 = boost_lab_to_start * p3_lab;
+        p4 = boost_lab_to_start * p4_lab;
+    }
+
+    interaction.secondary_momenta.resize(2);
+    interaction.secondary_masses.resize(2);
+    interaction.secondary_helicity.resize(2);
+
+    interaction.secondary_momenta[lepton_index][0] = p3.e(); // p3_energy
+    interaction.secondary_momenta[lepton_index][1] = p3.px(); // p3_x
+    interaction.secondary_momenta[lepton_index][2] = p3.py(); // p3_y
+    interaction.secondary_momenta[lepton_index][3] = p3.pz(); // p3_z
+    interaction.secondary_masses[lepton_index] = p3.m();
+
+    double helicity_mul = 0.0;
+    if(channel == Conserving)
+        helicity_mul = 1.0;
+    else if(channel == Flipping)
+        helicity_mul = -1.0;
+
+    interaction.secondary_helicity[lepton_index] = std::copysign(0.5, interaction.primary_helicity * helicity_mul);
+
+    interaction.secondary_momenta[other_index][0] = p4.e(); // p4_energy
+    interaction.secondary_momenta[other_index][1] = p4.px(); // p4_x
+    interaction.secondary_momenta[other_index][2] = p4.py(); // p4_y
+    interaction.secondary_momenta[other_index][3] = p4.pz(); // p4_z
+    interaction.secondary_masses[other_index] = p4.m();
+
+    interaction.secondary_helicity[other_index] = std::copysign(interaction.target_helicity, interaction.target_helicity * helicity_mul);
 }
 
 
