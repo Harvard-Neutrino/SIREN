@@ -1701,6 +1701,8 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
 
     LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
     double CLL;
+    unsigned int nu_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == Particle::ParticleType::NuMu) ? 0 : 1;
+    unsigned int electron_index = 1 - nu_index;
     if(primary_type==Particle::ParticleType::NuE) CLL = 0.7276;
     else if(primary_type==Particle::ParticleType::NuMu) CLL = -0.2730;
     else {
@@ -1778,9 +1780,12 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
     double phi = random->Uniform(0, 2.0 * M_PI);
     geom3::Rotation3 rand_rot(p1_lab_dir, phi);
 
-    double E3_lab = primary_energy * (1.0 - final_y);
-    double p3_lab_sq = E3_lab * E3_lab - m3 * m3;
-    double p3x_lab = E3_lab - m2*final_y - m3*m3/(2*primary_energy);
+    double m3 = Constants::electronMass;
+
+    double E3_lab = primary_energy * (final_y);
+    double p3_lab_sq = E3_lab * E3_lab- m3 * m3;
+    double costh_lab = (m3+primary_energy)/primary_energy * sqrt((E3_lab - m3)/(E3_lab + m3));
+    double p3x_lab = costh_lab * sqrt(E3_lab*E3_lab - m3*m3);
     double p3y_lab = sqrt(p3_lab_sq - p3x_lab * p3x_lab);
 
     rk::P4 p3_lab(geom3::Vector3(p3x_lab, p3y_lab, 0), m3);
@@ -1803,29 +1808,92 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
     interaction.secondary_masses.resize(2);
     interaction.secondary_helicity.resize(2);
 
-    interaction.secondary_momenta[lepton_index][0] = p3.e(); // p3_energy
-    interaction.secondary_momenta[lepton_index][1] = p3.px(); // p3_x
-    interaction.secondary_momenta[lepton_index][2] = p3.py(); // p3_y
-    interaction.secondary_momenta[lepton_index][3] = p3.pz(); // p3_z
-    interaction.secondary_masses[lepton_index] = p3.m();
+    interaction.secondary_momenta[electron_index][0] = p3.e(); // p3_energy
+    interaction.secondary_momenta[electron_index][1] = p3.px(); // p3_x
+    interaction.secondary_momenta[electron_index][2] = p3.py(); // p3_y
+    interaction.secondary_momenta[electron_index][3] = p3.pz(); // p3_z
+    interaction.secondary_masses[electron_index] = p3.m();
 
-    double helicity_mul = 0.0;
-    if(channel == Conserving)
-        helicity_mul = 1.0;
-    else if(channel == Flipping)
-        helicity_mul = -1.0;
 
-    interaction.secondary_helicity[lepton_index] = std::copysign(0.5, interaction.primary_helicity * helicity_mul);
+    interaction.secondary_helicity[electron_index] = interaction.target_helicity;
 
-    interaction.secondary_momenta[other_index][0] = p4.e(); // p4_energy
-    interaction.secondary_momenta[other_index][1] = p4.px(); // p4_x
-    interaction.secondary_momenta[other_index][2] = p4.py(); // p4_y
-    interaction.secondary_momenta[other_index][3] = p4.pz(); // p4_z
-    interaction.secondary_masses[other_index] = p4.m();
+    interaction.secondary_momenta[nu_index][0] = p4.e(); // p4_energy
+    interaction.secondary_momenta[nu_index][1] = p4.px(); // p4_x
+    interaction.secondary_momenta[nu_index][2] = p4.py(); // p4_y
+    interaction.secondary_momenta[nu_index][3] = p4.pz(); // p4_z
+    interaction.secondary_masses[nu_index] = p4.m();
 
-    interaction.secondary_helicity[other_index] = std::copysign(interaction.target_helicity, interaction.target_helicity * helicity_mul);
+    interaction.secondary_helicity[nu_index] = interaction.primary_helicity;
 }
 
+std::vector<Particle::ParticleType> ElasticScattering::GetPossibleTargets() const {
+    std::vector<Particle::ParticleType> res;
+    res.push_back(Particle::ParticleType::Eminus);
+    return res;
+}
+
+std::vector<Particle::ParticleType> ElasticScattering::GetPossibleTargetsFromPrimary(Particle::ParticleType primary_type) const {
+    if(not primary_types.count(primary_type)) {
+        return std::vector<Particle::ParticleType>();
+    }
+    return GetPossibleTargets();
+}
+
+std::vector<Particle::ParticleType> ElasticScattering::GetPossiblePrimaries() const {
+    return std::vector<Particle::ParticleType>(primary_types.begin(), primary_types.end());
+}
+
+std::vector<InteractionSignature> ElasticScattering::GetPossibleSignatures() const {
+    std::vector<Particle::ParticleType> targets = GetPossibleTargets();
+    std::vector<InteractionSignature> signatures;
+    InteractionSignature signature;
+    signature.secondary_types.resize(2);
+
+    for(auto primary : primary_types) {
+        signature.primary_type = primary;
+        signature.secondary_types[0] = primary;
+        for(auto target : targets) {
+            signature.target_type = target;
+            signature.secondary_types[1] = target;
+            signatures.push_back(signature);
+        }
+    }
+    return signatures;
+}
+
+std::vector<InteractionSignature> ElasticScattering::GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const {
+    std::vector<Particle::ParticleType> targets = GetPossibleTargets();
+    if(primary_types.count(primary_type) > 0 and std::find(targets.begin(), targets.end(), target_type) != targets.end()) {
+        InteractionSignature signature;
+        signature.secondary_types.resize(2);
+        signature.primary_type = primary_type;
+        signature.target_type = target_type;
+        signature.secondary_types[1] = target_type;
+        if(particle_types.count(primary_type))
+            signature.secondary_types[0] = primary_type;
+        else
+            throw std::runtime_error("Primary type not in primary_types!");
+        return std::vector<InteractionSignature>{signature};
+    } else {
+        return std::vector<InteractionSignature>();
+    }
+}
+
+double ElasticScattering::FinalStateProbability(LeptonInjector::InteractionRecord const & interaction) const {
+    double dxs = DifferentialCrossSection(interaction);
+    double txs = TotalCrossSection(interaction);
+    if(dxs == 0) {
+        return 0.0;
+    } else if (txs == 0) {
+        return 0.0;
+    } else {
+        return dxs / txs;
+    }
+}
+
+std::vector<std::string> ElasticScattering::DensityVariables() const {
+    return std::vector<std::string>{"Bjorken y"};
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
