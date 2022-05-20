@@ -27,8 +27,8 @@
 using namespace LeptonInjector;
 bool z_samp = true;
 bool in_invGeV = true;
-bool inelastic = false;
-bool miniboone = false;
+bool inelastic = true;
+bool miniboone = true;
 
 
 std::string diff_xs(int Z, int A, std::string mHNL) {

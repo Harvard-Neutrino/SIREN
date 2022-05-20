@@ -25,7 +25,7 @@ namespace earthmodel {
 
 class MaterialModel {
     static constexpr const int CHAR_BUF_SIZE = 8196;
-    static constexpr const double electron_molar_mass = 5.4857990888e-5; // g per mol
+    static constexpr const double electron_molar_mass = 5.4857990888e-4; // g per mol
 public:
     static const std::map<std::tuple<int, int, int, int>, double> atomic_masses;
     struct Component {

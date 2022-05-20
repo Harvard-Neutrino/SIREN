@@ -1206,7 +1206,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
         if(std::isnan(test_cross_section) or test_cross_section <= 0)
             continue;
 
-        double odds = (test_cross_section / cross_section);
+        double odds = ((test_kin_vars[1]*test_cross_section) / (kin_vars[1]*cross_section));
         accept = (cross_section == 0 || (odds > 1.) || random->Uniform(0, 1) < odds);
 
         if(accept) {
@@ -1636,15 +1636,16 @@ double ElasticScattering::DifferentialCrossSection(InteractionRecord const & int
     double X1 = -2./3. * std::log(2*y*E/m) + y*y/24. - 5.*y/12. - std::pow(Constants::pi,2)/6. + 23./72.;
     double X2 = -2./3. * std::log(2*y*E/m) - y*y / (18*(1-y)*(1-y)) - std::pow(Constants::pi,2)/6. - 2*y / (9*(1-y)*(1-y)) + 23./(72*(1-y)*(1-y));
     double X3 = -3./2. * std::log(2*y*E/m) + 1./4. + 3./(4.*y) - 3./(4.*y*y) - std::pow(Constants::pi,2)/6.;
-    double term1 = CLL*CLL * (1 + Constants::fineStructure / Cosntants::pi * X1);
-    double term2 = CLR*CLR * (1-y)*(1-y) * ( 1 + Constants::fineStructure / Cosntants::pi * X2);
-    double term3 = -CLL*CLR*m*y/E * (1 + Constants::fineStructure / Cosntants::pi * X3);
+    // use tree level result
+    double term1 = CLL*CLL;// * (1 + Constants::fineStructure / Constants::pi * X1);
+    double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + Constants::fineStructure / Constants::pi * X2);
+    double term3 = -CLL*CLR*m*y/E;// * (1 + Constants::fineStructure / Constants::pi * X3);
     double ret =  std::pow(Constants::FermiConstant,2) * s / Constants::pi * (term1 + term2 + term3) / Constants::invGeVsq_per_cmsq;
-    return std::max(ret,0);
+    return std::max(ret,0.);
 }
 
 // Assume initial electron at rest
-double ElasticScattering::DifferentialCrossSection(LeptonInjector::ParticleType primary_type, double primary_energy, double y) const {
+double ElasticScattering::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, double y) const {
     double CLL;
     if(primary_type==Particle::ParticleType::NuE) CLL = 0.7276;
     else if(primary_type==Particle::ParticleType::NuMu) CLL = -0.2730;
@@ -1660,16 +1661,16 @@ double ElasticScattering::DifferentialCrossSection(LeptonInjector::ParticleType 
     double X1 = -2./3. * std::log(2*y*E/m) + y*y/24. - 5.*y/12. - std::pow(Constants::pi,2)/6. + 23./72.;
     double X2 = -2./3. * std::log(2*y*E/m) - y*y / (18*(1-y)*(1-y)) - std::pow(Constants::pi,2)/6. - 2*y / (9*(1-y)*(1-y)) + 23./(72*(1-y)*(1-y));
     double X3 = -3./2. * std::log(2*y*E/m) + 1./4. + 3./(4.*y) - 3./(4.*y*y) - std::pow(Constants::pi,2)/6.;
-    double term1 = CLL*CLL * (1 + Constants::fineStructure / Cosntants::pi * X1);
-    double term2 = CLR*CLR * (1-y)*(1-y) * ( 1 + Constants::fineStructure / Cosntants::pi * X2);
-    double term3 = -CLL*CLR*m*y/E * (1 + Constants::fineStructure / Cosntants::pi * X3);
+    double term1 = CLL*CLL;// * (1 + Constants::fineStructure / Constants::pi * X1);
+    double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + Constants::fineStructure / Constants::pi * X2);
+    double term3 = -CLL*CLR*m*y/E;// * (1 + Constants::fineStructure / Constants::pi * X3);
     double ret = std::pow(Constants::FermiConstant,2) * s / Constants::pi * (term1 + term2 + term3) / Constants::invGeVsq_per_cmsq;
-    return std::max(ret,0);
+    return std::max(ret,0.);
 }
 
 double ElasticScattering::TotalCrossSection(InteractionRecord const & interaction) const {
-    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    LeptonInjector::Particle::ParticleType target_type = interaction.signature.target_type;
+    Particle::ParticleType primary_type = interaction.signature.primary_type;
+    Particle::ParticleType target_type = interaction.signature.target_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
@@ -1686,7 +1687,7 @@ double ElasticScattering::TotalCrossSection(InteractionRecord const & interactio
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
-double ElasticScattering::TotalCrossSection(LeptonInjector::Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type) const {
+double ElasticScattering::TotalCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type) const {
 		double ymax = 2*primary_energy / (2*primary_energy + Constants::electronMass);
 		std::function<double(double)> integrand = [&] (double y) -> double {
         return DifferentialCrossSection(primary_type, primary_energy, y);
@@ -1699,16 +1700,10 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
 
-    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    double CLL;
+    Particle::ParticleType primary_type = interaction.signature.primary_type;
+    
     unsigned int nu_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == Particle::ParticleType::NuMu) ? 0 : 1;
     unsigned int electron_index = 1 - nu_index;
-    if(primary_type==Particle::ParticleType::NuE) CLL = 0.7276;
-    else if(primary_type==Particle::ParticleType::NuMu) CLL = -0.2730;
-    else {
-				std::cout << "Faulty primary: " << primary_type << std::endl;
-        throw std::runtime_error("Supplied primary not supported by cross section!");
-    }
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
@@ -1733,7 +1728,7 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
 
     bool accept;
 
-    double y, test_y;
+    double y = 0, test_y;
 
     // values of cross_section from the table
     double cross_section, test_cross_section;
@@ -1759,7 +1754,7 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
         if(std::isnan(test_cross_section) or test_cross_section <= 0)
             continue;
 
-        double odds = (test_cross_section / cross_section);
+        double odds = ((test_y*test_cross_section) / (y*cross_section));
         accept = (cross_section == 0 || (odds > 1.) || random->Uniform(0, 1) < odds);
 
         if(accept) {
@@ -1782,16 +1777,18 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
 
     double m3 = Constants::electronMass;
 
-    double E3_lab = primary_energy * (final_y);
+    double E3_lab = primary_energy * (final_y) + m3;
     double p3_lab_sq = E3_lab * E3_lab- m3 * m3;
     double costh_lab = (m3+primary_energy)/primary_energy * sqrt((E3_lab - m3)/(E3_lab + m3));
-    double p3x_lab = costh_lab * sqrt(E3_lab*E3_lab - m3*m3);
+    //std::cout << final_y << " " << costh_lab << std::endl;
+    double p3x_lab = costh_lab * sqrt(p3_lab_sq);
     double p3y_lab = sqrt(p3_lab_sq - p3x_lab * p3x_lab);
 
     rk::P4 p3_lab(geom3::Vector3(p3x_lab, p3y_lab, 0), m3);
     p3_lab.rotate(x_to_p1_lab_rot);
     p3_lab.rotate(rand_rot);
-    rk::P4 p4_lab = p2_lab + (p1_lab - p3_lab);
+    // doing something dumb, ignore outgoing neutrino
+    rk::P4 p4_lab = p1_lab;//p2_lab + (p1_lab - p3_lab);
 
     rk::P4 p3;
     rk::P4 p4;
@@ -1828,7 +1825,7 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
 
 std::vector<Particle::ParticleType> ElasticScattering::GetPossibleTargets() const {
     std::vector<Particle::ParticleType> res;
-    res.push_back(Particle::ParticleType::Eminus);
+    res.push_back(Particle::ParticleType::EMinus);
     return res;
 }
 
@@ -1869,7 +1866,7 @@ std::vector<InteractionSignature> ElasticScattering::GetPossibleSignaturesFromPa
         signature.primary_type = primary_type;
         signature.target_type = target_type;
         signature.secondary_types[1] = target_type;
-        if(particle_types.count(primary_type))
+        if(primary_types.count(primary_type))
             signature.secondary_types[0] = primary_type;
         else
             throw std::runtime_error("Primary type not in primary_types!");

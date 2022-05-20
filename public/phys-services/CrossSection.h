@@ -321,11 +321,11 @@ private:
 class ElasticScattering : public CrossSection {
 friend cereal::access;
 protected:
-ElasticScattering() {};
 private:
 		const double CLR = 0.2334; // at one loop
     const std::set<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu};
 public:
+		ElasticScattering() {};
 		virtual bool equal(CrossSection const & other) const override;
 		double DifferentialCrossSection(InteractionRecord const &) const;
     double DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, double y) const;
