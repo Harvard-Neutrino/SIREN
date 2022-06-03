@@ -179,7 +179,7 @@ public:
     void SetPlacement(Placement const & placement) { placement_ = placement; }
 
     //void SetPosition(const Vector3D& position) { position_ = position; };
-    
+
     virtual std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const = 0;
 
 protected:
@@ -464,20 +464,34 @@ private:
 } // namespace earthmodel
 
 namespace earthmodel {
-    enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY};
+    enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY, TRIANGULARMESH};
 } // namespace earthmodel
 
 namespace earthmodel {
-    const std::array<std::string, 4>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly"};
+    const std::array<std::string, 4>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh"};
 } // namespace earthmodel
 
 CEREAL_CLASS_VERSION(earthmodel::Geometry, 0);
 CEREAL_CLASS_VERSION(earthmodel::Geometry::Intersection, 0);
 CEREAL_CLASS_VERSION(earthmodel::Geometry::IntersectionList, 0);
 
+CEREAL_CLASS_VERSION(earthmodel::Sphere, 0);
+CEREAL_REGISTER_TYPE(earthmodel::Sphere)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Geometry, earthmodel::Sphere);
+
 CEREAL_CLASS_VERSION(earthmodel::Box, 0);
 CEREAL_REGISTER_TYPE(earthmodel::Box)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Geometry, earthmodel::Box);
+
+CEREAL_CLASS_VERSION(earthmodel::Cylinder, 0);
+CEREAL_REGISTER_TYPE(earthmodel::Cylinder)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Geometry, earthmodel::Cylinder);
+
+CEREAL_CLASS_VERSION(earthmodel::ExtrPoly, 0);
+CEREAL_REGISTER_TYPE(earthmodel::ExtrPoly)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Geometry, earthmodel::ExtrPoly);
+
+#include "earthmodel-service/GeometryMesh.h"
 
 #endif // LI_Geometry_H
 
