@@ -5,12 +5,17 @@
 #include <tuple>
 #include <algorithm>
 
+#include "earthmodel-service/MeshBuilder.h"
+
 /******************************************************************************
  *                                  OStream                                    *
  ******************************************************************************/
 
 namespace earthmodel {
 namespace Mesh {
+
+#define INSIDE 0
+#define OUTSIDE 1
 
 void Voxel::AddPoint(Point const & point) {
 	if(n_points == 0) {
@@ -59,7 +64,7 @@ double Voxel::EmptyVoxelBias(int NTrianglesLeft, int NTrianglesRight) {
 }
 
 double Voxel::VoxelSAHSplitCost(double probability_left, double probability_right, int num_left, int num_right, double traversal_cost, double intersection_cost) {
-	return Voxel::EmptyVoxelBias(NTrianglesLeft, NTrianglesRight) * (
+	return Voxel::EmptyVoxelBias(num_left, num_right) * (
 			traversal_cost + intersection_cost
 			* (probability_left * num_left + probability_right * num_right)
 			);
@@ -101,7 +106,7 @@ std::tuple<AxisAlignedPlane, PlanarEventSide, double> Voxel::FindSplitPlane(int 
 		AxisAlignedPlane plane;
 		plane.axis = events[i].axis;
 		plane.position = events[i].position;
-		int dim = int(axis);
+		int dim = int(plane.axis);
 		int p_start = 0;
 		int p_end = 0;
 		int p_planar = 0;
@@ -134,7 +139,7 @@ std::tuple<AxisAlignedPlane, PlanarEventSide, double> Voxel::FindSplitPlane(int 
 }
 
 bool Voxel::Intersects(TData const & triangle) const {
-	Point lengths = sub(this->max_extent, this->min_extent);
+	Point lengths = subtract(this->max_extent, this->min_extent);
 
 	TData scaled_tri = triangle;
 
@@ -157,7 +162,7 @@ bool Voxel::Intersects(Voxel const & voxel) const {
         double min1 = this->min_extent[i];
         double max1 = this->max_extent[i];
         double min2 = voxel.min_extent[i];
-        double max2 = voxle.max_extent[i];
+        double max2 = voxel.max_extent[i];
         status &= not (max1 < min2 || min1 > max2);
     }  // END for all dimensions
 
@@ -197,13 +202,13 @@ PolygonData Voxel::Clip(TData const & tri) const {
 		// Optimization note: we should be able to save some work based on
 		// the clipping plane and the triangle's bounding box
 
-		if(triBox.max_extent[dim] > bbox.min_extent[dim]) {
-			swap(prevPoly, currentPoly);
-			clipAxisPlane(prevPoly, currentPoly, 2 * dim + 0, bbox.min_extent[dim]);
+		if(triBox.max_extent[dim] > this->min_extent[dim]) {
+            Mesh::swap(prevPoly, currentPoly);
+			clipAxisPlane(prevPoly, currentPoly, 2 * dim + 0, this->min_extent[dim]);
 		}
-		if(triBox.min_extent[dim] < bbox.max_extent[dim]) {
-			swap(prevPoly, currentPoly);
-			clipAxisPlane(prevPoly, currentPoly, 2 * dim + 1, bbox.max_extent[dim]);
+		if(triBox.min_extent[dim] < this->max_extent[dim]) {
+            Mesh::swap(prevPoly, currentPoly);
+			clipAxisPlane(prevPoly, currentPoly, 2 * dim + 1, this->max_extent[dim]);
 		}
 	}
 
@@ -235,8 +240,6 @@ PolygonData Voxel::Clip(TData const & tri) const {
 #define LERP( A, B, C) ((B)+(A)*((C)-(B)))
 #define MIN3(a,b,c) ((((a)<(b))&&((a)<(c))) ? (a) : (((b)<(c)) ? (b) : (c)))
 #define MAX3(a,b,c) ((((a)>(b))&&((a)>(c))) ? (a) : (((b)>(c)) ? (b) : (c)))
-#define INSIDE 0
-#define OUTSIDE 1
 
 /*___________________________________________________________________________*/
 
@@ -399,7 +402,7 @@ long point_triangle_intersection(Point p, TData t) {
 /* intersects or does not intersect the cube. */
 /**********************************************/
 
-long t_c_intersection(TData t) {
+IntersectionResut t_c_intersection(TData t) {
     long v1_test,v2_test,v3_test;
     float d,denom;
     Point vect12,vect13,norm;
@@ -508,8 +511,8 @@ long t_c_intersection(TData t) {
     return(OUTSIDE);
 }
 
-#undef OUTSIDE
 #undef INSIDE
+#undef OUTSIDE
 #undef MAX3
 #undef MIN3
 #undef LERP
@@ -539,7 +542,7 @@ Point add(Point const & a, Point const & b) {
     ret[0] += b[0];
     ret[1] += b[1];
     ret[2] += b[2];
-    return ret
+    return ret;
 }
 
 Point subtract(Point const & a, Point const & b) {
@@ -547,7 +550,7 @@ Point subtract(Point const & a, Point const & b) {
     ret[0] -= b[0];
     ret[1] -= b[1];
     ret[2] -= b[2];
-    return ret
+    return ret;
 }
 
 
@@ -555,7 +558,7 @@ bool isEven(int i) {
 	return i % 2 == 0;
 }
 
-int classifyPointAxisPlane(Point const & pt,
+OrientationResult classifyPointAxisPlane(Point const & pt,
 		int index,
 		double val,
 		const double eps) {
@@ -565,13 +568,13 @@ int classifyPointAxisPlane(Point const & pt,
 	double dist = isEven(index) ? val - pt[index / 2] : pt[index / 2] - val;
 
 	if(dist > eps) {
-		return ON_POSITIVE_SIDE;
+		return OrientationResult::ON_POSITIVE_SIDE;
 	}
 	if(dist < -eps) {
-		return ON_NEGATIVE_SIDE;
+		return OrientationResult::ON_NEGATIVE_SIDE;
 	}
 
-	return ON_BOUNDARY;
+	return OrientationResult::ON_BOUNDARY;
 }
 
 Point findIntersectionPoint(Point const & a,
@@ -605,19 +608,19 @@ void clipAxisPlane(PolygonData const * prevPoly,
 		const Point* b = &(*prevPoly)[i];
 		int bSide = classifyPointAxisPlane(*b, index, val);
 		switch(bSide) {
-			case ON_POSITIVE_SIDE:
-				if(aSide == ON_NEGATIVE_SIDE) {
+            case OrientationResult::ON_POSITIVE_SIDE:
+				if(aSide == OrientationResult::ON_NEGATIVE_SIDE) {
 					currentPoly->push_back(findIntersectionPoint(*a, *b, index, val));
 				}
 				break;
 			case ON_BOUNDARY:
-				if(aSide == ON_NEGATIVE_SIDE) {
+				if(aSide == OrientationResult::ON_NEGATIVE_SIDE) {
 					currentPoly->push_back(*b);
 				}
 				break;
-			case ON_NEGATIVE_SIDE:
+			case OrientationResult::ON_NEGATIVE_SIDE:
 				switch(aSide) {
-					case ON_POSITIVE_SIDE:
+                    case OrientationResult::ON_POSITIVE_SIDE:
 						currentPoly->push_back(findIntersectionPoint(*a, *b, index, val));
 						currentPoly->push_back(*b);
 						break;
@@ -625,7 +628,7 @@ void clipAxisPlane(PolygonData const * prevPoly,
 						currentPoly->push_back(*a);
 						currentPoly->push_back(*b);
 						break;
-					case ON_NEGATIVE_SIDE:
+					case OrientationResult::ON_NEGATIVE_SIDE:
 						currentPoly->push_back(*b);
 						break;
 				}
@@ -644,30 +647,30 @@ void clipAxisPlane(PolygonData const * prevPoly,
 void ClassifyEventLeftRightBoth(std::vector<Event> & E, AxisAlignedPlane const & p, PlanarEventSide side) {
     for(unsigned int i=0; i<E.size(); ++i) {
         Event & e = E[i];
-        E[i].side = AxisAlignedPlaneSide::BOTH;
+        E[i].side = EventPlaneSide::BOTH;
     }
-    PlaneSide default_planar_side;
+    EventPlaneSide default_planar_side;
     if(side == PlanarEventSide::LEFT) {
-        default_planar_side = PlaneSide::LEFT;
+        default_planar_side = EventPlaneSide::LEFT;
     } else {
-        default_planar_side = PlaneSide::RIGHT;
+        default_planar_side = EventPlaneSide::RIGHT;
     }
     for(unsigned int i=0; i<E.size(); ++i) {
         Event & e = E[i];
         if(e.type == EventType::END
                 and e.axis == p.axis
                 and e.position <= p.position) {
-            e.side = PlaneSide::LEFT;
+            e.side = EventPlaneSide::LEFT;
         } else if (e.type == EventType::START
                 and e.axis == p.axis
                 and e.position >= p.position) {
-            e.side = PlaneSide::RIGHT
+            e.side = EventPlaneSide::RIGHT
         } else if (e.type == EventType::PLANAR
                 and e.axis == p.axis) {
             if(e.position < p.position) {
-                e.side = PlaneSide::LEFT;
+                e.side = EventPlaneSide::LEFT;
             } else if(e.position > p.position) {
-                e.side = PlaneSide::RIGHT;
+                e.side = EventPlaneSide::RIGHT;
             } else if(e.position == p.position) {
                 e.side = default_planar_side;
             }
@@ -682,7 +685,7 @@ void AddPlanarEvent(std::vector<Event> & events, Voxel const & tri_box, Axis axi
     e.axis = axis;
     e.type = EventType::PLANAR;
     e.triangle = triangle;
-    e.side = PlaneSide::BOTH;
+    e.side = EventPlaneSide::BOTH;
     events.push_back(e);
 }
 
@@ -693,7 +696,7 @@ void AddStartEndEvents(std::vector<Event> & events, Voxel const & tri_box, Axis 
     e.axis = axis;
     e.type = EventType::START;
     e.triangle = triangle;
-    e.side = PlaneSide::BOTH;
+    e.side = EventPlaneSide::BOTH;
     events.push_back(e);
     Event e_end;
     e.position = tri_box.max_extent[dim];
@@ -776,11 +779,11 @@ void SplitEventsByPlane(std::vector<Event> const & events,
     std::vector<Triangle> intersecting_tris;
     for(unsigned int i=0; i<events.size(); ++i) {
         Event & e = events[i];
-        if(e.side == PlaneSide::BOTH) {
+        if(e.side == EventPlaneSide::BOTH) {
             intersecting_tris.push_back(e.triangle);
-        } else if (e.side == PlaneSide::LEFT) {
+        } else if (e.side == EventPlaneSide::LEFT) {
             ELtemp.push_back(e);
-        } else if (e.side == PlaneSide::RIGHT) {
+        } else if (e.side == EventPlaneSide::RIGHT) {
             ERtemp.push_back(e);
         }
     }

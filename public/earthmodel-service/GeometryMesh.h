@@ -23,24 +23,24 @@
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/Placement.h"
 #include "earthmodel-service/Geometry.h"
+#include "earthmodel-service/MeshBuilder.h"
 
 namespace earthmodel {
 
 class TriangularMesh : public Geometry {
 public:
-
     TriangularMesh();
-    TriangularMesh(TMesh const &);
+    TriangularMesh(Mesh::TMesh const &);
     TriangularMesh(Placement const &);
-    TriangularMesh(Placement const &, TMesh const &);
+    TriangularMesh(Placement const &, Mesh::TMesh const &);
     TriangularMesh(TriangularMesh const &);
 
-    VAttribute & GetVertex(Vertex v);
-    EAttribute & GetEdge(Edge v);
-    TAttribute & GetTriangle(Triangle t);
-    VAttribute const & GetVertex(Vertex v) const;
-    EAttribute const & GetEdge(Edge v) const;
-    TAttribute const & GetTriangle(Triangle t) const;
+    Mesh::VAttribute & GetVertex(Mesh::Vertex v);
+    Mesh::EAttribute & GetEdge(Mesh::Edge e);
+    Mesh::TAttribute & GetTriangle(Mesh::Triangle t);
+    Mesh::VAttribute const & GetVertex(Mesh::Vertex v) const;
+    Mesh::EAttribute const & GetEdge(Mesh::Edge v) const;
+    Mesh::TAttribute const & GetTriangle(Mesh::Triangle t) const;
 
     template<typename Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
@@ -71,7 +71,7 @@ protected:
 private:
     void print(std::ostream&) const override;
 
-    TMesh mesh;
+    Mesh::TMesh mesh;
 };
 
 } // namespace earthmodel

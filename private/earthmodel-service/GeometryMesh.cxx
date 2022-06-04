@@ -5,6 +5,7 @@
 #include "earthmodel-service/Vector3D.h"
 #include "earthmodel-service/Geometry.h"
 #include "earthmodel-service/Placement.h"
+#include "earthmodel-service/MeshBuilder.h"
 #include "earthmodel-service/GeometryMesh.h"
 
 using namespace earthmodel;
@@ -15,17 +16,13 @@ using namespace earthmodel;
 
 namespace earthmodel {
 
-bool TriangularMesh::TMesh::operator<(TriangularMesh::TMesh other) {
-    return false;
-}
-
 TriangularMesh::TriangularMesh()
     : Geometry((std::string)("TriangularMesh"))
 {
     // Do nothing here
 }
 
-TriangularMesh::TriangularMesh(TriangularMesh::TMesh const & mesh)
+TriangularMesh::TriangularMesh(Mesh::TMesh const & mesh)
     : Geometry("TriangularMesh")
     , mesh(mesh)
 {
@@ -38,7 +35,7 @@ TriangularMesh::TriangularMesh(Placement const & placement)
     // Do nothing here
 }
 
-TriangularMesh::TriangularMesh(Placement const & placement, TriangularMesh const & mesh)
+TriangularMesh::TriangularMesh(Placement const & placement, Mesh::TMesh const & mesh)
     : Geometry((std::string)("TriangularMesh"), placement)
     , mesh(mesh)
 {
@@ -46,34 +43,34 @@ TriangularMesh::TriangularMesh(Placement const & placement, TriangularMesh const
 }
 
 TriangularMesh::TriangularMesh(const TriangularMesh& tmesh)
-    : Geometry(box)
+    : Geometry()
     , mesh(tmesh.mesh)
 {
     // Nothing to do here
 }
 
-TriangularMesh::VAttribute & TriangularMesh::GetVertex(TriangularMesh::Vertex v) {
+Mesh::VAttribute & TriangularMesh::GetVertex(Mesh::Vertex v) {
     return mesh.vmap[v];
 }
 
-TriangularMesh::EAttribute & TriangularMesh::GetEdge(TriangularMesh::Edge e) {
+Mesh::EAttribute & TriangularMesh::GetEdge(Mesh::Edge e) {
     return mesh.emap[e];
 }
 
-TriangularMesh::TAttribute & TriangularMesh::GetTriangle(TriangularMesh::Triangle t) {
+Mesh::TAttribute & TriangularMesh::GetTriangle(Mesh::Triangle t) {
     return mesh.tmap[t];
 }
 
-TriangularMesh::VAttribute const & TriangularMesh::GetVertex(TriangularMesh::Vertex v) const {
+Mesh::VAttribute const & TriangularMesh::GetVertex(Mesh::Vertex v) const {
     return mesh.vmap[v];
 }
 
-TriangularMesh::EAttribute const & TriangularMesh::GetEdge(TriangularMesh::Edge e) const {
-    return mesh.emap[e];
+Mesh::EAttribute const & TriangularMesh::GetEdge(Mesh::Edge e) const {
+    return mesh.emap.at(e);
 }
 
-TriangularMesh::TAttribute const & TriangularMesh::GetTriangle(TriangularMesh::Triangle t) const {
-    return mesh.tmap[t];
+Mesh::TAttribute const & TriangularMesh::GetTriangle(Mesh::Triangle t) const {
+    return mesh.tmap.at(t);
 }
 
 // ------------------------------------------------------------------------- //
@@ -97,7 +94,7 @@ TriangularMesh& TriangularMesh::operator=(const Geometry& geometry)
     if (this != &geometry)
     {
         const TriangularMesh* tmesh = dynamic_cast<const TriangularMesh*>(&geometry);
-        if (!box)
+        if (!tmesh)
         {
             //log_warn("Cannot assign Sphere!");
             return *this;

@@ -356,6 +356,7 @@ private:
 class ExtrPoly : public Geometry {
 public:
     struct ZSection {
+        ZSection() {}
         ZSection(double zpos, double offset[2], double scale)
             : zpos(zpos), scale(scale), offset{offset[0],offset[1]} {}
 
@@ -468,7 +469,7 @@ namespace earthmodel {
 } // namespace earthmodel
 
 namespace earthmodel {
-    const std::array<std::string, 4>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh"};
+    const std::array<std::string, 5>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh"};
 } // namespace earthmodel
 
 CEREAL_CLASS_VERSION(earthmodel::Geometry, 0);

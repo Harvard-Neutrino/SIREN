@@ -102,6 +102,8 @@ LIST (APPEND core_SOURCES
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/Quaternion.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/EulerAngles.cxx
     ${CMAKE_SOURCE_DIR}/private/earthmodel-service/AtomicMasses.cxx
+    ${CMAKE_SOURCE_DIR}/private/earthmodel-service/GeometryMesh.cxx
+    ${CMAKE_SOURCE_DIR}/private/earthmodel-service/MeshBuilder.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/CrossSection.cxx
     ${CMAKE_SOURCE_DIR}/private/phys-services/Interpolator.cxx
 )
