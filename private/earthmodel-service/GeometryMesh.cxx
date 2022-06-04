@@ -77,7 +77,7 @@ Mesh::TAttribute const & TriangularMesh::GetTriangle(Mesh::Triangle t) const {
 void TriangularMesh::swap(Geometry& geometry)
 {
     TriangularMesh* tmesh = dynamic_cast<TriangularMesh*>(&geometry);
-    if (!mesh)
+    if (!tmesh)
     {
         //log_warn("Cannot swap TriangularMesh!");
         return;

@@ -3,6 +3,7 @@
 #include <array>
 #include <memory>
 #include <tuple>
+#include <numeric>
 #include <algorithm>
 
 #include "earthmodel-service/MeshBuilder.h"
@@ -13,6 +14,99 @@
 
 namespace earthmodel {
 namespace Mesh {
+
+
+bool VAttribute::operator==(VAttribute const & other) const {
+    return std::tie(
+            this->data,
+            this->eset,
+            this->tset
+            ) == std::tie(
+                other.data,
+                other.eset,
+                other.tset
+                );
+}
+
+bool VAttribute::operator!=(VAttribute const & other) const {
+    return not (*this == other);
+}
+
+bool VAttribute::operator<(VAttribute const & other) const {
+    return std::tie(
+            this->data,
+            this->eset,
+            this->tset
+            ) < std::tie(
+                other.data,
+                other.eset,
+                other.tset
+                );
+}
+
+bool EAttribute::operator==(EAttribute const & other) const {
+    return std::tie(
+            this->data,
+            this->tset
+            ) == std::tie(
+                other.data,
+                other.tset
+                );
+}
+
+bool EAttribute::operator!=(EAttribute const & other) const {
+    return not (*this == other);
+}
+
+bool EAttribute::operator<(EAttribute const & other) const {
+    return std::tie(
+            this->data,
+            this->tset
+            ) < std::tie(
+                other.data,
+                other.tset
+                );
+}
+
+bool TAttribute::operator==(TAttribute const & other) const {
+    return this->data == other.data;
+}
+
+bool TAttribute::operator!=(TAttribute const & other) const {
+    return this->data != other.data;
+}
+
+bool TAttribute::operator<(TAttribute const & other) const {
+    return this->data < other.data;
+}
+
+bool TMesh::operator==(TMesh const & other) const {
+    return std::tie(
+            this->vmap,
+            this->emap,
+            this->tmap
+            ) == std::tie(
+                other.vmap,
+                other.emap,
+                other.tmap
+                );
+}
+
+bool TMesh::operator!=(TMesh const & other) const {
+    return not (*this == other);
+}
+
+bool TMesh::operator<(TMesh const & other) const {
+    return std::tie(
+            this->vmap,
+            this->emap,
+            this->tmap
+            ) < std::tie(
+                other.vmap,
+                other.emap,
+                other.tmap
+                );
+}
 
 #define INSIDE 0
 #define OUTSIDE 1
@@ -203,11 +297,11 @@ PolygonData Voxel::Clip(TData const & tri) const {
 		// the clipping plane and the triangle's bounding box
 
 		if(triBox.max_extent[dim] > this->min_extent[dim]) {
-            Mesh::swap(prevPoly, currentPoly);
+            std::swap(prevPoly, currentPoly);
 			clipAxisPlane(prevPoly, currentPoly, 2 * dim + 0, this->min_extent[dim]);
 		}
 		if(triBox.min_extent[dim] < this->max_extent[dim]) {
-            Mesh::swap(prevPoly, currentPoly);
+            std::swap(prevPoly, currentPoly);
 			clipAxisPlane(prevPoly, currentPoly, 2 * dim + 1, this->max_extent[dim]);
 		}
 	}
@@ -402,7 +496,7 @@ long point_triangle_intersection(Point p, TData t) {
 /* intersects or does not intersect the cube. */
 /**********************************************/
 
-IntersectionResut t_c_intersection(TData t) {
+long t_c_intersection(TData t) {
     long v1_test,v2_test,v3_test;
     float d,denom;
     Point vect12,vect13,norm;
@@ -603,17 +697,17 @@ void clipAxisPlane(PolygonData const * prevPoly,
 	}
 	// Initialize point a with the last vertex of the polygon
 	const Point* a = &(*prevPoly)[numVerts - 1];
-	int aSide = classifyPointAxisPlane(*a, index, val);
+	OrientationResult aSide = classifyPointAxisPlane(*a, index, val);
 	for(int i = 0; i < numVerts; ++i) {
 		const Point* b = &(*prevPoly)[i];
-		int bSide = classifyPointAxisPlane(*b, index, val);
+		OrientationResult bSide = classifyPointAxisPlane(*b, index, val);
 		switch(bSide) {
             case OrientationResult::ON_POSITIVE_SIDE:
 				if(aSide == OrientationResult::ON_NEGATIVE_SIDE) {
 					currentPoly->push_back(findIntersectionPoint(*a, *b, index, val));
 				}
 				break;
-			case ON_BOUNDARY:
+            case OrientationResult::ON_BOUNDARY:
 				if(aSide == OrientationResult::ON_NEGATIVE_SIDE) {
 					currentPoly->push_back(*b);
 				}
@@ -624,7 +718,7 @@ void clipAxisPlane(PolygonData const * prevPoly,
 						currentPoly->push_back(findIntersectionPoint(*a, *b, index, val));
 						currentPoly->push_back(*b);
 						break;
-					case ON_BOUNDARY:
+                    case OrientationResult::ON_BOUNDARY:
 						currentPoly->push_back(*a);
 						currentPoly->push_back(*b);
 						break;
@@ -644,11 +738,8 @@ void clipAxisPlane(PolygonData const * prevPoly,
 // Split events
 ///////////////
 
-void ClassifyEventLeftRightBoth(std::vector<Event> & E, AxisAlignedPlane const & p, PlanarEventSide side) {
-    for(unsigned int i=0; i<E.size(); ++i) {
-        Event & e = E[i];
-        E[i].side = EventPlaneSide::BOTH;
-    }
+std::vector<EventPlaneSide> ClassifyEventLeftRightBoth(std::vector<Event> const & E, AxisAlignedPlane const & p, PlanarEventSide side) {
+    std::vector<EventPlaneSide> sides(E.size(), EventPlaneSide::BOTH);
     EventPlaneSide default_planar_side;
     if(side == PlanarEventSide::LEFT) {
         default_planar_side = EventPlaneSide::LEFT;
@@ -656,55 +747,54 @@ void ClassifyEventLeftRightBoth(std::vector<Event> & E, AxisAlignedPlane const &
         default_planar_side = EventPlaneSide::RIGHT;
     }
     for(unsigned int i=0; i<E.size(); ++i) {
-        Event & e = E[i];
+        Event const & e = E[i];
+        EventPlaneSide & eside = sides[i];
         if(e.type == EventType::END
                 and e.axis == p.axis
                 and e.position <= p.position) {
-            e.side = EventPlaneSide::LEFT;
+            eside = EventPlaneSide::LEFT;
         } else if (e.type == EventType::START
                 and e.axis == p.axis
                 and e.position >= p.position) {
-            e.side = EventPlaneSide::RIGHT
+            eside = EventPlaneSide::RIGHT;
         } else if (e.type == EventType::PLANAR
                 and e.axis == p.axis) {
             if(e.position < p.position) {
-                e.side = EventPlaneSide::LEFT;
+                eside = EventPlaneSide::LEFT;
             } else if(e.position > p.position) {
-                e.side = EventPlaneSide::RIGHT;
+                eside = EventPlaneSide::RIGHT;
             } else if(e.position == p.position) {
-                e.side = default_planar_side;
+                eside = default_planar_side;
             }
         }
     }
+    return sides;
 }
 
-void AddPlanarEvent(std::vector<Event> & events, Voxel const & tri_box, Axis axis, Triangle triangle) {
+void AddPlanarEvent(std::vector<Event> & events, Voxel const & tri_box, Axis axis, TriangleID triangle) {
     Event e;
     int dim = int(axis);
     e.position = tri_box.min_extent[dim];
     e.axis = axis;
     e.type = EventType::PLANAR;
     e.triangle = triangle;
-    e.side = EventPlaneSide::BOTH;
     events.push_back(e);
 }
 
-void AddStartEndEvents(std::vector<Event> & events, Voxel const & tri_box, Axis axis, Triangle triangle) {
+void AddStartEndEvents(std::vector<Event> & events, Voxel const & tri_box, Axis axis, TriangleID triangle) {
     Event e;
     int dim = int(axis);
     e.position = tri_box.min_extent[dim];
     e.axis = axis;
     e.type = EventType::START;
     e.triangle = triangle;
-    e.side = EventPlaneSide::BOTH;
     events.push_back(e);
-    Event e_end;
     e.position = tri_box.max_extent[dim];
     e.type = EventType::END;
     events.push_back(e);
 }
 
-void GenerateNonClippedTriangleVoxelEvents(std::vector<Event> & events, TData const & tri_data, Triangle triangle) {
+void GenerateNonClippedTriangleVoxelEvents(std::vector<Event> & events, TData const & tri_data, TriangleID triangle) {
     Voxel box;
     for(unsigned int point_i=0; point_i<3; ++point_i) {
         box.AddPoint(tri_data[point_i]);
@@ -721,7 +811,7 @@ void GenerateNonClippedTriangleVoxelEvents(std::vector<Event> & events, TData co
     }
 }
 
-void GenerateClippedTriangleVoxelEvents(std::vector<Event> & events, TData const & tri_data, Triangle triangle, Voxel const & voxel_box) {
+void GenerateClippedTriangleVoxelEvents(std::vector<Event> & events, TData const & tri_data, TriangleID triangle, Voxel const & voxel_box) {
     PolygonData p = voxel_box.Clip(tri_data);
 
     Voxel box;
@@ -740,12 +830,12 @@ void GenerateClippedTriangleVoxelEvents(std::vector<Event> & events, TData const
     }
 }
 
-void GeneratePlaneEvents(std::vector<Event> & events_L, std::vector<Event> & events_R, std::vector<TData> const & triangle_data, std::vector<Triangle> const & intersecting_tris, Voxel const & voxel, AxisAlignedPlane const & plane) {
+void GeneratePlaneEvents(std::vector<Event> & events_L, std::vector<Event> & events_R, std::vector<TData> const & triangle_data, std::vector<TriangleID> const & intersecting_tris, Voxel const & voxel, AxisAlignedPlane const & plane) {
     Voxel VL;
     Voxel VR;
-    voxel.SplitBox(plane, VL, VR);
+    voxel.Split(plane, VL, VR);
 
-    for(unsigned int i=0; i<triangles.size()) {
+    for(unsigned int i=0; i<intersecting_tris.size(); ++i) {
         GenerateClippedTriangleVoxelEvents(events_L, triangle_data[intersecting_tris[i]], intersecting_tris[i], VL);
         GenerateClippedTriangleVoxelEvents(events_R, triangle_data[intersecting_tris[i]], intersecting_tris[i], VR);
     }
@@ -759,7 +849,7 @@ int TauEventType(EventType etype) {
 bool EventCompare(Event const & a, Event const & b) {
     // Is a < b
     return (a.position < b.position)
-        or (a.position == b.position and TauEventType(a) < TauEventType(b));
+        or (a.position == b.position and TauEventType(a.type) < TauEventType(b.type));
 }
 
 void SplitEventsByPlane(std::vector<Event> const & events,
@@ -768,22 +858,23 @@ void SplitEventsByPlane(std::vector<Event> const & events,
         AxisAlignedPlane const & plane,
         std::vector<Event> & EL,
         std::vector<Event> & ER,
-        std::vector<Triangle> & TL,
-        std::vector<Triangle> & TR,
+        std::vector<TriangleID> & TL,
+        std::vector<TriangleID> & TR,
         PlanarEventSide const & side) {
     std::vector<Event> ELtemp;
     std::vector<Event> ERtemp;
     std::vector<Event> EBLtemp;
     std::vector<Event> EBRtemp;
-    ClassifyEventLeftRightBoth(events, plane, side);
-    std::vector<Triangle> intersecting_tris;
+    std::vector<EventPlaneSide> sides = ClassifyEventLeftRightBoth(events, plane, side);
+    std::vector<TriangleID> intersecting_tris;
     for(unsigned int i=0; i<events.size(); ++i) {
-        Event & e = events[i];
-        if(e.side == EventPlaneSide::BOTH) {
+        Event const & e = events[i];
+        EventPlaneSide const & eside = sides[i];
+        if(eside == EventPlaneSide::BOTH) {
             intersecting_tris.push_back(e.triangle);
-        } else if (e.side == EventPlaneSide::LEFT) {
+        } else if (eside == EventPlaneSide::LEFT) {
             ELtemp.push_back(e);
-        } else if (e.side == EventPlaneSide::RIGHT) {
+        } else if (eside == EventPlaneSide::RIGHT) {
             ERtemp.push_back(e);
         }
     }
@@ -792,17 +883,17 @@ void SplitEventsByPlane(std::vector<Event> const & events,
     std::sort(EBRtemp.begin(), EBRtemp.end(), EventCompare);
     std::merge(ELtemp.begin(), ELtemp.end(), EBLtemp.begin(), EBLtemp.end(), EL.begin(), EventCompare);
     std::merge(ERtemp.begin(), ERtemp.end(), EBRtemp.begin(), EBRtemp.end(), ER.begin(), EventCompare);
-	for(unsigned int i=0; ++i; i<EL.size()) {
+	for(unsigned int i=0; i<EL.size(); ++i) {
         Event const & e = EL[i];
         if(e.axis != plane.axis)
             continue;
-        TL.append(e.triangle);
+        TL.push_back(e.triangle);
     }
-	for(unsigned int i=0; ++i; i<ER.size()) {
+	for(unsigned int i=0; i<ER.size(); ++i) {
         Event const & e = ER[i];
         if(e.axis != plane.axis)
             continue;
-        TR.append(e.triangle);
+        TR.push_back(e.triangle);
     }
 }
 
@@ -810,7 +901,7 @@ void SplitEventsByPlane(std::vector<Event> const & events,
 // Build KD Tree
 ///////////////
 
-std::shared_ptr<KDNode> RecBuild(std::vector<TData> const & triangle_data, std::vector<Triangle> const & T, Voxel & V, std::vector<Event> const & events, double traversal_cost, double intersection_cost, int max_depth) {
+std::shared_ptr<KDNode> RecBuild(std::vector<TData> const & triangle_data, std::vector<TriangleID> const & T, Voxel & V, std::vector<Event> const & events, double traversal_cost, double intersection_cost, int max_depth) {
     std::tuple<AxisAlignedPlane, PlanarEventSide, double> plane_side_cost = V.FindSplitPlane(T.size(), events, traversal_cost, intersection_cost);
     double cost = std::get<2>(plane_side_cost);
     double termination_cost = intersection_cost * T.size();
@@ -823,10 +914,10 @@ std::shared_ptr<KDNode> RecBuild(std::vector<TData> const & triangle_data, std::
     PlanarEventSide const & side = std::get<1>(plane_side_cost);
 
     std::vector<Event> EL, ER;
-    std::vector<Triangle> TL, TR;
+    std::vector<TriangleID> TL, TR;
     SplitEventsByPlane(events, triangle_data, V, plane, EL, ER, TL, TR, side);
     Voxel VL, VR;
-    V.SplitBox(plane, VL, VR);
+    V.Split(plane, VL, VR);
     return std::make_shared<KDNode>(V, RecBuild(triangle_data, TL, VL, EL, traversal_cost, intersection_cost, max_depth), RecBuild(triangle_data, TR, VR, ER, traversal_cost, intersection_cost, max_depth));
 }
 
@@ -834,11 +925,11 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangle_data, do
     // Generate all events and compute world bounding box
     Voxel V;
     std::vector<Event> events;
-    for(unsigned int i=0; i<triangles.size(); ++i) {
-        GenerateNonClippedTriangleVoxelEvents(events, triangles[i], i);
-        box.addPoint(triangles[i][0]);
-        box.addPoint(triangles[i][1]);
-        box.addPoint(triangles[i][2]);
+    for(unsigned int i=0; i<triangle_data.size(); ++i) {
+        GenerateNonClippedTriangleVoxelEvents(events, triangle_data[i], i);
+        V.AddPoint(triangle_data[i][0]);
+        V.AddPoint(triangle_data[i][1]);
+        V.AddPoint(triangle_data[i][2]);
     }
     V.depth = 0;
 
@@ -846,11 +937,11 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangle_data, do
     std::sort(std::begin(events), std::end(events), EventCompare);
 
     // Start with all triangle IDs
-    std::vector<int> T(triangles.size());
+    std::vector<TriangleID> T(triangle_data.size());
     std::iota(std::begin(T), std::end(T), 0); // Fill T with 0, 1, ..., triangles.size()
 
     // Recursively build the tree
-    return RecBuild(triangles, T, V, events, traversal_cost, intersection_cost);
+    return RecBuild(triangle_data, T, V, events, traversal_cost, intersection_cost, max_depth);
 }
 
 } // namespace Mesh
