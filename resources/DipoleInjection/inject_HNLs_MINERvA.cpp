@@ -19,7 +19,6 @@
 #include "date.h"
 
 using namespace LeptonInjector;
-bool z_samp = true;
 bool in_invGeV = true;
 bool inelastic = false;
 
@@ -244,6 +243,8 @@ int main(int argc, char ** argv) {
     }
 
     double seed = args["seed"].as<int>(-1);
+		
+		bool z_samp = args["z_samp"].as<bool>(true);
 
     if(seed < 0) {
         std::cerr << "--seed requires positive integer!" << std::endl << argparser;
@@ -439,8 +440,8 @@ int main(int argc, char ** argv) {
     offset[0] = 0;
     offset[1] = 0;
     std::vector<earthmodel::ExtrPoly::ZSection> zsecs;
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(0.125,offset,1));
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(4.1344,offset,1));
+    zsecs.push_back(earthmodel::ExtrPoly::ZSection(1.45,offset,1));
+    zsecs.push_back(earthmodel::ExtrPoly::ZSection(4.0,offset,1));
     earthmodel::Placement placement(earthmodel::Vector3D(0,0,0), earthmodel::QFromZXZr(0,0,0));
     earthmodel::ExtrPoly MINERvA_fiducial = earthmodel::ExtrPoly(placement, poly, zsecs);
 
@@ -479,7 +480,8 @@ int main(int argc, char ** argv) {
         double w = 0, simplified_weight = 0;
         if(event.secondary_momenta.size() > 0) {
             
-            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 0, 0, &MINERvA_fiducial, 0.1);
+            //injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 0, 0, &MINERvA_fiducial, 0.1);
+            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 0, 0, &MINERvA_fiducial, 1.0);
             injector->SamplePairProduction(decay, pair_prod);
             simplified_weight = weighter.SimplifiedEventWeight(event);
             
