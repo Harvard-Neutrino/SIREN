@@ -243,8 +243,8 @@ int main(int argc, char ** argv) {
     }
 
     double seed = args["seed"].as<int>(-1);
-		
-		bool z_samp = args["z_samp"].as<bool>(true);
+    
+    bool z_samp = args["z_samp"].as<bool>(true);
 
     if(seed < 0) {
         std::cerr << "--seed requires positive integer!" << std::endl << argparser;
