@@ -1,0 +1,47 @@
+# 
+# crust model file
+# PREM + mmc crust setup
+# crust data is consistent with MMC mediadef.
+#
+#   format :
+#   MediumType[string] number_of_materials[int]
+#   material_pdg[int] weight[double]
+#   .....
+#
+#    - no space before first column
+#    - delimiter must be whitespaces
+#    - data must include at least 6 materials
+#      "INNERCORE", "OUTERCORE", "MANTLE", 
+#      "ROCK", "ICE", "AIR", and "VACUUM"
+#    - MediumType must be consistent with EarthModelService::MediumType
+#    - number_of_materials is the number of atm type in the medium
+#    - weight must be normalized to 1 within a MediumType
+#    - lines start from '#' or whitespace are treated
+#      as comments
+#
+
+ARGON 4 # CCM Argon
+1000260400    1.0000000     # Ar40 100.0%%
+
+STEEL 4 # Mostly Fe
+1000060120    0.0013000     # C12 0.13%
+1000140280    0.0020000     # Si48 0.2%
+1000250550    0.0100000     # Mn55 1.0%
+1000260560    0.9870000     # Fe56 98.7%
+
+
+LEAD 2 # Mostly Pb
+1000822080    0.9995000     # Pb207 99.95%
+1000290630    0.0005000     # Cu63 0.05%
+
+GRAPHITE 1 # Essentially Carbon
+1000060120    1.0000000     # C12 100%%
+
+WATER 2 # H20
+1000010010    0.1150000     # H1 11.5%
+1000060120    0.8850000     # 016 88.5%
+
+AIR 2       # N2 + O2
+1000070140    0.7562326     # N2 78% in volume
+1000080160    0.2437674     # O2 22% in volume
+
