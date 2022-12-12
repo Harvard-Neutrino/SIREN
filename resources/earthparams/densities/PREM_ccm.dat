@@ -101,4 +101,5 @@ object cylinder  23 0 -0.875          0 0 0      1.29 0 2.25    ccm_cryostat STE
 # CCM argon (dimensions give ~10 tons LAr before fiducialization)
 object cylinder  23 0 -0.875          0 0 0      1.00 0 2.0     ccm_argon    ARGON     constant   1.3954
 
+detector 23 0 0
 

@@ -207,12 +207,12 @@ IF(PYTHON_FOUND)
 	find_package(Boost COMPONENTS python QUIET)
     endif()
 
-    LIST( APPEND python_private
-        ${CMAKE_SOURCE_DIR}/private/pybindings/LeptonInjector.cxx
-    )
-    LIST( APPEND earth_python_private
-        ${CMAKE_SOURCE_DIR}/private/pybindings/earthmodel-service.cxx
-    )
+    #LIST( APPEND python_private
+    #    ${CMAKE_SOURCE_DIR}/private/pybindings/LeptonInjector.cxx
+    #)
+    #LIST( APPEND earth_python_private
+    #    ${CMAKE_SOURCE_DIR}/private/pybindings/earthmodel-service.cxx
+    #)
 
     add_library( LeptonInjector SHARED ${python_private})
     add_library( EarthModelService SHARED ${earth_python_private})

@@ -266,9 +266,9 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
                 sector.geo = Box(placement, dx, dy, dz).create();
             }
             else if(shape.find("cylinder")!=std::string::npos) {
-                double or, ir, z; // For Cylinder shapes
-                ss >> or >> ir >> z;
-                sector.geo = Cylinder(placement, or, ir, z).create();
+                double _or, ir, z; // For Cylinder shapes
+                ss >> _or >> ir >> z;
+                sector.geo = Cylinder(placement, _or, ir, z).create();
             }
             else if(shape.find("extr")!=std::string::npos) {
                 int nverts;
