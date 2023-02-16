@@ -4,12 +4,13 @@
 
 #include <numeric>
 
-#include "earthmodel-service/EarthModel.h"
+#include "LeptonInjector/detector/EarthModel.h"
 
-namespace earthmodel {
+namespace LI {
+namespace detector {
 
 template<typename Iterator, class>
-double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
+double EarthModel::GetMassDensity(geometry::Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -27,8 +28,8 @@ double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersectio
     }
     double density = std::numeric_limits<double>::quiet_NaN();
 
-    std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
-        [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
+    std::function<bool(std::vector<geometry::Geometry::Intersection>::const_iterator, std::vector<geometry::Geometry::Intersection>::const_iterator, double)> callback =
+        [&] (std::vector<geometry::Geometry::Intersection>::const_iterator current_intersection, std::vector<geometry::Geometry::Intersection>::const_iterator intersection, double last_point) {
         // The local integration is bounded on the upper end by the intersection
         double end_point = offset + dot * intersection->distance;
         // whereas the lower end is bounded by the end of the last line segment, and the entry into the sector
@@ -54,13 +55,13 @@ double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersectio
 template<typename Iterator, class>
 double EarthModel::GetMassDensity(Vector3D const & p0, Iterator begin, Iterator end) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    geometry::Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetMassDensity(intersections, p0, begin, end);
 }
 
 
 template<typename Iterator, class>
-std::vector<double> EarthModel::GetParticleDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
+std::vector<double> EarthModel::GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -79,8 +80,8 @@ std::vector<double> EarthModel::GetParticleDensity(Geometry::IntersectionList co
     double density = std::numeric_limits<double>::quiet_NaN();
     std::vector<double> particle_fractions;
 
-    std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
-        [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
+    std::function<bool(std::vector<geometry::Geometry::Intersection>::const_iterator, std::vector<geometry::Geometry::Intersection>::const_iterator, double)> callback =
+        [&] (std::vector<geometry::Geometry::Intersection>::const_iterator current_intersection, std::vector<geometry::Geometry::Intersection>::const_iterator intersection, double last_point) {
         // The local integration is bounded on the upper end by the intersection
         double end_point = offset + dot * intersection->distance;
         // whereas the lower end is bounded by the end of the last line segment, and the entry into the sector
@@ -106,14 +107,15 @@ std::vector<double> EarthModel::GetParticleDensity(Geometry::IntersectionList co
     return particle_fractions;
 }
 
-template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::utilities::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
 std::vector<double> EarthModel::GetParticleDensity(Vector3D const & p0, Iterator begin, Iterator end) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    geometry::Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetParticleDensity(intersections, p0, begin, end);
 }
 
 
-} // namespace earthmodel
+} // namespace detector
+} // namespace LI
 
 #endif

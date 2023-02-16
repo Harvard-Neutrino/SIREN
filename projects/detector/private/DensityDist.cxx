@@ -1,11 +1,12 @@
 
 #include <iostream>
 #include <cmath>
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/DensityDist.h"
-#include "earthmodel-service/Polynomial.h"
+#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/geometry/Polynomial.h"
+#include "LeptonInjector/detector/DensityDist.h"
 
-using namespace earthmodel;
+using namespace LI::detector;
+using namespace LI::geometry;
 
 DensityDistribution::DensityDistribution() {}
 

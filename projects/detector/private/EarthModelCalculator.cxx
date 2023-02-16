@@ -10,18 +10,19 @@
     @todo
 
 */
-#include "earthmodel-service/EarthModelCalculator.h"
+#include "LeptonInjector/detector/EarthModelCalculator.h"
 
 using namespace std;
 //------------------------------------------------------
 // Oct.22 2012 K.Hoshina
-// Following params and functions are used for finding 
+// Following params and functions are used for finding
 // intersections between a cylinder and a particle.
 // They are techinical tolerances and internal functions,
 // so that I define it here as static for internal linkage.
 //------------------------------------------------------
 
-namespace earthmodel {
+namespace LI {
+namespace detector {
 
 static double TOLERANCE = 1e-6;
 
@@ -110,7 +111,7 @@ int EarthModelCalculator::GetIntersectionsWithSphere(
             "startpos=(%e, %e, %e), endpos=(%e, %e, %e)\n",
                 impact_param, r, startPos.GetX(),
                 startPos.GetY(), startPos.GetZ(),
-                endPos.GetX(), 
+                endPos.GetX(),
                 endPos.GetY(), startPos.GetZ());
   */
 
@@ -130,7 +131,7 @@ int EarthModelCalculator::GetDistsToIntersectionsWithSphere(
    LeptonInjector::LI_Position startp, endp;
    int n = GetIntersectionsWithSphere(pos, dir, r, startp, endp);
 
-   if (n == 0) return 0; 
+   if (n == 0) return 0;
 
    enterdist = (startp - pos)*dir;
    exitdist  = (endp - pos)*dir;
@@ -138,7 +139,7 @@ int EarthModelCalculator::GetDistsToIntersectionsWithSphere(
 }
 
 //_____________________________________________________________
-double EarthModelCalculator::GetLeptonRange(double particle_energy, 
+double EarthModelCalculator::GetLeptonRange(double particle_energy,
                                    bool   isTau,
                                    LeptonRangeOption option,
                                    double scale)
@@ -159,11 +160,11 @@ double EarthModelCalculator::GetLeptonRange(double particle_energy,
 
   } else if (option == DEFAULT) {
      // 10 < option < 20
-     // use original parameters from Dima's internal report (2011 Mar 29) 
+     // use original parameters from Dima's internal report (2011 Mar 29)
      static const double new_dima_a = 0.212/1.2;
      static const double new_dima_b = 0.251e-3/1.2;
      range = log(1 + particle_energy * new_dima_b/new_dima_a) / new_dima_b;
-     
+
   } else if (option == NUSIM) {
      // 20 < option < 30
      // use Gary's NuSim parameter
@@ -196,16 +197,17 @@ double EarthModelCalculator::GetLeptonRange(double particle_energy,
 }
 
 //_____________________________________________________________
-double EarthModelCalculator::ColumnDepthCGStoMWE(double cdep_CGS) 
+double EarthModelCalculator::ColumnDepthCGStoMWE(double cdep_CGS)
 {
-   return cdep_CGS/100.;   
+   return cdep_CGS/100.;
 }
 
 //_____________________________________________________________
-double EarthModelCalculator::MWEtoColumnDepthCGS(double cdep_MWE) 
+double EarthModelCalculator::MWEtoColumnDepthCGS(double cdep_MWE)
 {
-   return cdep_MWE*100.;   
+   return cdep_MWE*100.;
 }
 
+}
 }
 

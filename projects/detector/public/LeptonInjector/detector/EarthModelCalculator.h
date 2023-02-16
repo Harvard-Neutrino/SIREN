@@ -2,7 +2,7 @@
 /**
  * copyright  (C) 2004
  * the icecube collaboration
- * $Id: EarthModelCalculator.h $ 
+ * $Id: EarthModelCalculator.h $
  *
  * @file EarthModelCalculator.h
  * @version $Revision: 1.16 $
@@ -16,29 +16,29 @@
 #include <cmath>
 #include <vector>
 #include <cassert>
-#include "LeptonInjector/Coordinates.h"
-#include "LeptonInjector/Constants.h"
+
+#include "LeptonInjector/geometry/Coordinates.h"
+#include "LeptonInjector/utilities/Constants.h"
 
 /**
- * @brief This is a namespace which provides a collection of stand-alone 
- * functions that calculate various geometrical information 
- * for particle propagation of the Earth. 
+ * @brief This is a namespace which provides a collection of stand-alone
+ * functions that calculate various geometrical information
+ * for particle propagation of the Earth.
  */
 
-namespace earthmodel {
-
-namespace EarthModelCalculator
-{
+namespace LI {
+namespace detector {
+namespace EarthModelCalculator {
    enum LeptonRangeOption {DEFAULT, LEGACY, NUSIM};
 
   /**
-   * calculate impact parameter with rewpect to origin 
-   * and scalar value t that fulfills p = p0 + t*d, 
-   * where p0 is start position of a track, d is 
+   * calculate impact parameter with rewpect to origin
+   * and scalar value t that fulfills p = p0 + t*d,
+   * where p0 is start position of a track, d is
    * direction of the track, and p is most closest position
    * on a track from origin.
    * this function should work in any Cartecian coordinate
-   * 
+   *
    * @param[in] p0  particle start position
    *
    * @param[in] d  particle direction (unit vector)
@@ -58,13 +58,13 @@ namespace EarthModelCalculator
   /**
    * This function returns intersection-positions between a track
    * and a sphere with radius r.
-   * Note that the origin of track position and direction must be 
+   * Note that the origin of track position and direction must be
    * at the center of the sphere. Return positions are in same
    * coordinate as input.
    * If there is only one intersection, it will be stored in both
    * output parameters.
-   * 
-   * @param[in] pos track position 
+   *
+   * @param[in] pos track position
    * @param[in] dir track direction (unit vector)
    * @param[in] r   radius
    *
@@ -82,8 +82,8 @@ namespace EarthModelCalculator
 
   /**
    * wrapper function of GetIntersectionsWithSphere
-   * 
-   * @param[in] pos track position 
+   *
+   * @param[in] pos track position
    * @param[in] dir track direction (unit vector)
    * @param[in] r   radius
    *
@@ -105,7 +105,7 @@ namespace EarthModelCalculator
   /**
    * @brief Returns muon range in m.w.e.
    * If you need surviving length [m] of muon/tau, use
-   * EarthModelService::GetLeptonRangeInMeter(). 
+   * EarthModelService::GetLeptonRangeInMeter().
    *
    * @return range [m.w.e]
    *
@@ -122,7 +122,7 @@ namespace EarthModelCalculator
    * NUSIM
    *    -> use Gary's fitting function (used in NUSIM)
    *
-   * scale gives 
+   * scale gives
    * a scaling factor for MuonRange in Meter.
    * See GetLeptonRangeInMeter().
    *
@@ -131,7 +131,7 @@ namespace EarthModelCalculator
    * muon and tau: R = (1/b)*log[(bE/a)+1]
    * for the equation see arXiv:hep-ph/0407075, section 6.2 P16.
    *
-   * muon: (legacy nugen parameter)  
+   * muon: (legacy nugen parameter)
    * b~3.4*10^-4 [1/m]
    * a~2*10^-1 [GeV/m]
    * R_mu ~ 3000 * log(1.0 + 1.7*10^-3*E[GeV]) [mwe]
@@ -153,11 +153,11 @@ namespace EarthModelCalculator
    * }
    *
    */
-   double GetLeptonRange(double particle_energy, 
+   double GetLeptonRange(double particle_energy,
                        bool   isTau = false,
                        LeptonRangeOption option = DEFAULT,
                        double scale = 1);
-    
+
    /**
     * @brief unit conversion from g/cm2 to m.w.e
     */
@@ -169,7 +169,7 @@ namespace EarthModelCalculator
    double MWEtoColumnDepthCGS(double range_MWE);
 
 }
-   
+
 namespace Integration{
 
    /**
@@ -201,7 +201,7 @@ namespace Integration{
        * The current approximation of the integral
        */
       double value;
-      
+
       /**
        * Add one level of detail to the integral approximation
        */
@@ -219,7 +219,7 @@ namespace Integration{
 			value=(value+(b-a)*sum/npoints)/2;
          }
       }
-      
+
    public:
       /**
        * @param f the function to be integrated
@@ -231,13 +231,13 @@ namespace Integration{
          if(a>b)
 			std::swap(a,b);
       }
-      
+
       /**
-       * Get the integral approximation, updating it with higher 
+       * Get the integral approximation, updating it with higher
        * detail if necessary
        *
        * @param detail how finely to approximate the integral.
-       *               A detail level of n requires 1+2^n function evaluations, 
+       *               A detail level of n requires 1+2^n function evaluations,
        *               but reuses any evaluations already performed when lower
        *               detail levels were calculated.
        */
@@ -247,18 +247,18 @@ namespace Integration{
 			update();
          return(value);
       }
-      
+
       /**
        * Get the current detail level of the ingral approximation.
        */
       unsigned int getDetail() const{ return(currentDetail); }
    };
 
-   
+
    /**
-    * @brief Performs a fifth order Romberg integration of a function to a chosen tolerance. 
+    * @brief Performs a fifth order Romberg integration of a function to a chosen tolerance.
     *
-    * This routine is rather simplistic and not suitable for complicated functions, 
+    * This routine is rather simplistic and not suitable for complicated functions,
     * particularly not ones with discontinuities, but it is very fast for smooth functions.
     *
     * @param func the function to integrate
@@ -272,21 +272,21 @@ namespace Integration{
       const unsigned int maxIter=20;
       if(tol<0)
          throw(std::runtime_error("Integration tolerance must be positive"));
-      
+
       std::vector<double> stepSizes, estimates, c(order), d(order);
       stepSizes.push_back(1);
-      
+
       TrapezoidalIntegrator<FuncType> t(func,a,b);
       for(unsigned int i=0; i<maxIter; i++){
          //refine the integral estimate
          estimates.push_back(t.integrate(t.getDetail()));
-         
+
          if(i>=(order-1)){ //if enough estimates have been accumulated
 			//extrapolate to zero step size
 			const unsigned int baseIdx=i-(order-1);
 			std::copy(estimates.begin()+baseIdx,estimates.begin()+baseIdx+order, c.begin());
 			std::copy(estimates.begin()+baseIdx,estimates.begin()+baseIdx+order, d.begin());
-			
+
 			double ext=estimates.back(), extErr;
 			for(unsigned int m=1; m<order; m++){
                for(unsigned int j=0; j<order-m; j++){
@@ -302,7 +302,7 @@ namespace Integration{
                extErr=d[order-1-m];
                ext+=extErr;
 			}
-			
+
             //declare victory if the tolerance criterion is met
 			if(std::abs(extErr)<=tol*std::abs(ext))
                return(ext);
@@ -312,9 +312,10 @@ namespace Integration{
       }
       throw(std::runtime_error("Integral failed to converge"));
    }
-   
-}
 
 }
+
+} // namespace detector
+} // namespace LI
 
 #endif

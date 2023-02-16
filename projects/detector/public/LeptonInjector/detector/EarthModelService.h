@@ -1,5 +1,5 @@
-#ifndef LI_EarthModelService_H  
-#define LI_EarthModelService_H  
+#ifndef LI_EarthModelService_H
+#define LI_EarthModelService_H
 /**
  *@file EarthModelService.h
  *@brief A class for managing Earth's density profile and ice geometry.
@@ -8,16 +8,16 @@
  *
  *  - GetDensityInCGS(pos) function
  *  - GetMedium(pos) function (currently returns ROCK or ICE)
- *  - Convert position & direction in Earth-centered coordinate to 
+ *  - Convert position & direction in Earth-centered coordinate to
  *    Detector Coordinate, and vice vasa
- *  
+ *
  * This class requires a crust data file (ascii format).
  * see resources/earthparam/PREM_mmc.dat for details
- * 
+ *
  * CAUTION :
  * The internal units of the module are [m] for length and
  * [g/cm^3] for density, as in the data format mentioned above.
- * The unit conversion is done inside the module so that 
+ * The unit conversion is done inside the module so that
  * you need to set density etc. with IceCube units.
  *
  *@author Kotoyo Hoshina (hoshina@icecube.wisc.edu)
@@ -37,13 +37,14 @@
 #include <iostream>
 
 // include custom LI headers
-#include "LeptonInjector/Constants.h"
-#include "LeptonInjector/Coordinates.h"
+#include "LeptonInjector/utilities/Constants.h"
+#include "LeptonInjector/geometry/Coordinates.h"
 
-// earthmodel! 
-#include "earthmodel-service/EarthModelCalculator.h"
+// earthmodel!
+#include "LeptonInjector/detector/EarthModelCalculator.h"
 
-namespace earthmodel {
+namespace LI {
+namespace detector {
 
 //______________________________________________________________
 class EarthModelService
@@ -51,13 +52,13 @@ class EarthModelService
 
  public:
 
-   enum MediumType {INNERCORE=1, 
-                    OUTERCORE=2, 
-                    MANTLE=3, 
-                    ROCK=4, 
-                    ICE=5, 
-                    AIR=6, 
-                    VACUUM=7, 
+   enum MediumType {INNERCORE=1,
+                    OUTERCORE=2,
+                    MANTLE=3,
+                    ROCK=4,
+                    ICE=5,
+                    AIR=6,
+                    VACUUM=7,
                     WATER=8,
                     LOWERMANTLE = 31,
                     UPPERMANTLE = 32,
@@ -69,7 +70,7 @@ class EarthModelService
    enum IntegType {PATH, RADIUS, CIRCLE, SPHERE};
 
    typedef std::map<MediumType, std::map<int, double> > MatRatioMap;
-   
+
    /**
     * A representation of one spherical shell of material.
     */
@@ -77,7 +78,7 @@ class EarthModelService
    {
    public:
       EarthParam() {}
-      EarthParam(const EarthParam &p) : 
+      EarthParam(const EarthParam &p) :
          fUpperRadius_(p.fUpperRadius_), fZOffset_(p.fZOffset_),
          fBoundaryName_(p.fBoundaryName_), fMediumType_(p.fMediumType_)
          { std::copy(p.fParams_.begin(), p.fParams_.end(), back_inserter(fParams_) ); }
@@ -107,7 +108,7 @@ class EarthModelService
        * function of radius in this shell
        */
       std::vector<double> fParams_;
-      
+
       /**
        * Evaluates the density within this shell
        *
@@ -120,7 +121,7 @@ class EarthModelService
          double den = fParams_[n];
          while (n>0) den = den * x + fParams_[--n];
          return den;
-      }  
+      }
 
       const double GetDensityGrad(double x) const
       {
@@ -132,7 +133,7 @@ class EarthModelService
              res += den;
          }
          return res;
-      }  
+      }
 
       /**
        * print density in density file format
@@ -140,7 +141,7 @@ class EarthModelService
       std::string PrintDensity() const
       {
          std::stringstream ss;
-         ss << fUpperRadius_ << "\t" << fBoundaryName_ << "\t" 
+         ss << fUpperRadius_ << "\t" << fBoundaryName_ << "\t"
             << EarthModelService::GetMediumTypeString(fMediumType_)
             << "\t" << fParams_.size() << "\t";
          for (unsigned int n=0; n<fParams_.size(); ++ n) {
@@ -153,20 +154,20 @@ class EarthModelService
 
    typedef  std::map<double, EarthParam> EarthParamMap;
 
-   /** 
-    *@brief Constructor - 
+   /**
+    *@brief Constructor -
     */
    EarthModelService();
 
-   /** 
+   /**
     *@brief constructor for pybinding
     * @param [in] name : (dummy) name to pass to I3ServiceBase
     * @param [in] tablepath : path to table dir. blank: use default path
-    * @param [in] earthmodels : list of earthmodel files. 
+    * @param [in] earthmodels : list of earthmodel files.
     *             You may add muliple files, and latter one overwrites
     *             former value. e.g. PREM_mmc + FLATCORE = PREM earth
     *             with flat density at core
-    * @param [in] materialmodels : list of material files. 
+    * @param [in] materialmodels : list of material files.
     *             You may add muliple files, and latter one overwrites
     *             former value.
     * @param [in] icecapname : type of icecap shape.
@@ -180,17 +181,17 @@ class EarthModelService
           const std::vector<std::string>& earthmodels = std::vector<std::string>(),
           const std::vector<std::string>& materialmodels = std::vector<std::string>(),
           const std::string &icecapname = "SimpleIceCap",
-          double icecapangle = 20.0*LeptonInjector::Constants::degrees,
-          double detectordepth = 1948.0*LeptonInjector::Constants::m);
+          double icecapangle = 20.0*LI::utilities::Constantsdegrees,
+          double detectordepth = 1948.0*LI::utilities::Constantsm);
 
    /**
-    * Destructor - 
+    * Destructor -
     */
    virtual ~EarthModelService();
 
    /**
     * configure - unnecessary in standalone
-    */  
+    */
    //void Configure();
 
    //-----------------
@@ -199,7 +200,7 @@ class EarthModelService
 
    static std::string GetMediumTypeString(MediumType m);
    static MediumType  ConvertMediumTypeString(const std::string &s);
-   
+
    /**
     * @brief Finds the material layer containing p_CE
     *
@@ -210,16 +211,16 @@ class EarthModelService
 
 
    /**
-    * @brief Computes the material density in the given layer. 
-    * 
-    * This function is useful when multiple density queries are needed which 
-    * are known to all be within the same layer, since the layer can be cached 
-    * and reused for each query. It is the user's responsibility to ensure that 
-    * ep is actually the correct material layer for p_CE (most likey by ensuring 
+    * @brief Computes the material density in the given layer.
+    *
+    * This function is useful when multiple density queries are needed which
+    * are known to all be within the same layer, since the layer can be cached
+    * and reused for each query. It is the user's responsibility to ensure that
+    * ep is actually the correct material layer for p_CE (most likey by ensuring
     * that it is the result of a call to `GetEarthParam(p_CE)`).
     *
     * @param ep the material layer in which the density should be computed
-    * @param posi3 the position at which the density is to be evaluated. 
+    * @param posi3 the position at which the density is to be evaluated.
     *             This must be in detector-centered coordinates.
     * @return the density in g/cm^3
     */
@@ -242,23 +243,23 @@ class EarthModelService
     * @return the density in g/cm^3
     */
    const double GetEarthDensityInCGS(const LeptonInjector::LI_Position& p_CE) const;
-   
+
    /**
-    * @brief Computes the material density in the given layer. 
-    * 
-    * This function is useful when multiple density queries are needed which 
-    * are known to all be within the same layer, since the layer can be cached 
-    * and reused for each query. It is the user's responsibility to ensure that 
-    * ep is actually the correct material layer for p_CE (most likey by ensuring 
+    * @brief Computes the material density in the given layer.
+    *
+    * This function is useful when multiple density queries are needed which
+    * are known to all be within the same layer, since the layer can be cached
+    * and reused for each query. It is the user's responsibility to ensure that
+    * ep is actually the correct material layer for p_CE (most likey by ensuring
     * that it is the result of a call to `GetEarthParam(p_CE)`).
     *
     * @param ep the material layer in which the density should be computed
-    * @param p_CE the position at which the density is to be evaluated. 
+    * @param p_CE the position at which the density is to be evaluated.
     *             This must be in Earth-centered coordinates.
     * @return the density in g/cm^3
     */
    static double GetEarthDensityInCGS(const EarthParam& ep, const LeptonInjector::LI_Position& p_CE);
-   
+
    /**
     * GetColumnDepthInCGS
     *
@@ -277,23 +278,23 @@ class EarthModelService
    /**
     * IntegrateDensityInCGS
     *
-    * @brief integrate density 
+    * @brief integrate density
     *
     * @param[in] from_posCE from position in Earth centered coordinate
     *
     * @param[in] to_posCE to position in Earth centered coordinate
     *
     * @param[in] intg_type : integrate density with
-    *  PATH : along a path from from_posCE to to_posCE. [g/cm2] 
+    *  PATH : along a path from from_posCE to to_posCE. [g/cm2]
     *  RADIUS : similar to PATH but projected on radial direction [g/cm2]
     *  CIRCLE : 2*pi*r x RADIUS option [g/cm]
     *  SPHERE : 4*pi*r^2 x RADIUS option (volume mass)[g]
     *
-    * @param[in] use_electron_density to use a scaling factor on the density, yielding an adjusted column density based off of the electron number density 
+    * @param[in] use_electron_density to use a scaling factor on the density, yielding an adjusted column density based off of the electron number density
     */
    const double IntegrateDensityInCGS(
                     const  LeptonInjector::LI_Position &from_posCE,
-                    const  LeptonInjector::LI_Position &to_posCE, 
+                    const  LeptonInjector::LI_Position &to_posCE,
                     IntegType intg_type = PATH,
                     const  bool use_electron_density = false) const;
 
@@ -305,8 +306,8 @@ class EarthModelService
     const std::vector<std::tuple<double,double,double>> GetEarthDensitySegments(
                  const  LeptonInjector::LI_Position &from_posCE,
                  const  LeptonInjector::LI_Position &to_posCE) const;
- 
-   
+
+
    /**
     * @brief Computes the distance along the given direction, ending at the given point,
     *        which must be traversed to accumulate the specified column depth.
@@ -321,7 +322,7 @@ class EarthModelService
                     const  LeptonInjector::LI_Direction& dirI3,
                     double cDepth,
                     const  bool use_electron_density = false) const;
-   
+
    /**
     * @brief Computes the distance along the given direction, starting at the given point,
     *        which must be traversed to accumulate the specified column depth.
@@ -341,7 +342,7 @@ class EarthModelService
     * GetLeptonRangeInMeterFrom
     *
     * @brief This function calculates MuonRange [m.w.e] and convert
-    * it to distance [m] with given particle info, earth model and 
+    * it to distance [m] with given particle info, earth model and
     * the start position (o)
     *
     *           d[m]
@@ -356,7 +357,7 @@ class EarthModelService
     * @param[in] energy particle energy
     *
     * @param[in] isTau if set the lepton will be treated as a tau, otherwsie as a muon.
-    * 
+    *
     * @param[in] opt, scale
     * Used by EarthModelCalculator::GetLeptonRange() function.
     * Leave it as defaut unless you understand well about
@@ -370,7 +371,7 @@ class EarthModelService
                     const  LeptonInjector::LI_Direction &dirI3,
                     double energy,
                     bool   isTau = false,
-                    EarthModelCalculator::LeptonRangeOption 
+                    EarthModelCalculator::LeptonRangeOption
                            opt = EarthModelCalculator::DEFAULT,
                     double scale = 1.0) const;
 
@@ -378,13 +379,13 @@ class EarthModelService
     * GetLeptonRangeInMeterTo
     *
     * @brief This function calculates MuonRange [m.w.e] and convert
-    * it to distance [m] with given particle info, earth model and 
+    * it to distance [m] with given particle info, earth model and
     * the end position (o)
     *
     *           d[m]
     *   |-----------------|
     *   o<----------------|
-    * end pos     dir      
+    * end pos     dir
     *
     * @param[in] posI3 end position of the conversion
     *
@@ -393,7 +394,7 @@ class EarthModelService
     * @param[in] energy particle energy
     *
     * @param[in] isTau if set the lepton will be treated as a tau, otherwsie as a muon.
-    * 
+    *
     * @param[in] opt, scale
     * Used by EarthModelCalculator::GetLeptonRange() function.
     * Leave it as defaut unless you understand well about
@@ -407,10 +408,10 @@ class EarthModelService
                     const  LeptonInjector::LI_Direction &dirI3,
                     double energy,
                     bool   isTau = false,
-                    EarthModelCalculator::LeptonRangeOption 
+                    EarthModelCalculator::LeptonRangeOption
                            opt = EarthModelCalculator::DEFAULT,
                     double scale = 1.0) const;
-   
+
    /**
     * @brief Computes the disance to the next boundary between material
     *        layers along the given track.
@@ -464,31 +465,31 @@ class EarthModelService
 
    /**
     * Get Earth Params.
-    */ 
+    */
     //currently borked
     /*
-   boost::python::list GetEarthParamsList() 
-   { 
+   boost::python::list GetEarthParamsList()
+   {
       boost::python::list py_list;
       BOOST_FOREACH(EarthParamMap::value_type param, fEarthParams_) {
          py_list.append(param.second);
       }
       return py_list;
-   } 
+   }
    */
 
    /**
-    * Earth model function. 
+    * Earth model function.
     * CAUTION : Return unit is [g/cm3] !
     */
-   const double GetPREM(double r) const; 
+   const double GetPREM(double r) const;
 
 
    //-----------------
-   // util functions 
+   // util functions
    //-----------------
 
-   // position conversion 
+   // position conversion
 
    /**
     * convert LI_Position in detector coordinate to Earth Center Coordinate
@@ -500,7 +501,7 @@ class EarthModelService
     */
    const LeptonInjector::LI_Position GetDetCoordPosFromEarthCoordPos(const LeptonInjector::LI_Position &p) const;
 
-   // direction conversion 
+   // direction conversion
 
    /**
     * convert I3Direction in Detector Coordinate to Earth Center Coordinate
@@ -524,17 +525,17 @@ class EarthModelService
    /**
     * Set name of Earth Model
     */
-   void SetEarthModel(const std::vector<std::string> & s); 
+   void SetEarthModel(const std::vector<std::string> & s);
 
    /**
     * Set Material Model
     */
-   void SetMaterialModel(const std::vector<std::string> & s); 
+   void SetMaterialModel(const std::vector<std::string> & s);
 
    /**
     * Set IceCap type
     *  - "NoIce" ... no ice at all
-    *  - "IceSheet" ... use ice sheet wrapps entirely the Earth 
+    *  - "IceSheet" ... use ice sheet wrapps entirely the Earth
     *  - "SimpleIceCap" ... use simple spherical dorm ice
     */
    void SetIceCapTypeString(std::string s);
@@ -542,10 +543,10 @@ class EarthModelService
    /**
     * Set open angle of ice cap
     */
-   void SetIceCapSimpleAngle(double cap_angle); 
+   void SetIceCapSimpleAngle(double cap_angle);
 
    /**
-    * Set detector depth 
+    * Set detector depth
     */
    void SetDetectorDepth(double d);
 
@@ -650,7 +651,7 @@ class EarthModelService
     *
     * @param[in] energy particle energy
     *
-    * @param[in] posI3 anchor point of the range which is normally the beginning, 
+    * @param[in] posI3 anchor point of the range which is normally the beginning,
     *  but will be the end if isReverse is set to true.
     *
     * @param[in] dirI3 the direction the particle is traveling.
@@ -667,7 +668,7 @@ class EarthModelService
     * Used by EarthModelCalculator::GetLeptonRange() function.
     * Leave it as defaut unless you understand well about
     * the parameters.
-    * 
+    *
     * @return distance[m]
     *
     */
@@ -676,8 +677,8 @@ class EarthModelService
                     const  LeptonInjector::LI_Position &posI3,
                     const  LeptonInjector::LI_Direction &dirI3,
                     bool   isTau = false,
-                    bool   isReverse = false,  
-                    EarthModelCalculator::LeptonRangeOption 
+                    bool   isReverse = false,
+                    EarthModelCalculator::LeptonRangeOption
                            opt = EarthModelCalculator::DEFAULT,
                     double scale = 1.0) const;
 
@@ -688,7 +689,7 @@ class EarthModelService
                                     const LeptonInjector::LI_Position &topos_CE,
                                     double density,
                                     IntegType intg_type) const;
-   
+
    /**
     * @brief A dummy variable used as a sink for ignored results.
     *
@@ -699,7 +700,7 @@ class EarthModelService
    /**
     @brief path to data file
     */
-   std::string  fPath_; 
+   std::string  fPath_;
 
    /**
     @brief name of EarthModel data file
@@ -726,7 +727,7 @@ class EarthModelService
    // option for icecap at south pole
    // NoIce        : no ice option
    // IceSheet     : sheet of ice covers whole Earth (default)
-   // SimpleIceCap : simple spherical ice cap 
+   // SimpleIceCap : simple spherical ice cap
    //
 
    EarthModelService::IceCapType fIceCapType_;
@@ -736,14 +737,14 @@ class EarthModelService
    double  fIceCapSimpleRadius_; // [m] radius of shpere of simple icecap
    double  fIceCapSimpleZshift_; // [m] z-pos of icecap sphere
 
-   // density data map  
+   // density data map
    EarthParamMap    fEarthParams_;
    EarthParamMap    fIceParams_;
 
    /**
     * @brief map of materials and their WEIGHT ratio in unit volume.
     * used by Genie
-    * format : map<MediumType, map<int(pdg nuclear code), double> > 
+    * format : map<MediumType, map<int(pdg nuclear code), double> >
     * example :
     * [Ice]
     *    [1000080160][0.8881016]  // O
@@ -753,8 +754,8 @@ class EarthModelService
 
    /**
     * @brief map of light particles and their NUMBER ratio in unit volume
-    * used by NuGen or may be by oscillation calculation 
-    * format : map<MediumType, map<int(pdg code), double> > 
+    * used by NuGen or may be by oscillation calculation
+    * format : map<MediumType, map<int(pdg code), double> >
     * example :
     * [Ice]
     *    [2212][0.5555555555]  // proton
@@ -765,24 +766,24 @@ class EarthModelService
    MatRatioMap fPNERatioMap_;
 
    /**
-    * convert material pdg code to 
+    * convert material pdg code to
     * number of protons and neutrons
     */
     void GetAZ(int pdgcode, int& np, int& nn);
-   
+
    /**
-    * Computes the next point at which a track intersects the given material layer. 
-    * This function exists as a helper for DistanceToNextBoundaryCrossing, and 
-    * should probably not be used from other places. 
+    * Computes the next point at which a track intersects the given material layer.
+    * This function exists as a helper for DistanceToNextBoundaryCrossing, and
+    * should probably not be used from other places.
     *
     * @param posCE the starting point of the track in EarthCenter coordinate
     * @param dirCE the direction of the track in EarthCenter coordinate
     * @param ep    the layer to check for intersection
-    * @param[out]  closestBoundary if the distance to ep is smaller than closestDist 
+    * @param[out]  closestBoundary if the distance to ep is smaller than closestDist
     *              ep will be copied to this variable
-    * @param[out]  closestDist the closest boundary crossing yet found, which will be 
+    * @param[out]  closestDist the closest boundary crossing yet found, which will be
     *              updated if the crossing point for this boundary is closer
-    * @param[out]  willExit whether the next crossing will involve the track leaving 
+    * @param[out]  willExit whether the next crossing will involve the track leaving
     *              this layer (ep)
     */
    bool CheckIntersectionWithLayer(
@@ -792,7 +793,7 @@ class EarthModelService
                 EarthParamMap::const_iterator& closestBoundary,
                 double& closestDist,
                 bool& willExit) const;
-   
+
    ///A helper structure for path integration of density
    struct densityPathIntegrand {
 
@@ -806,10 +807,10 @@ class EarthModelService
       LeptonInjector::LI_Direction dir;
 
       IntegType intg_type;
-      
+
       densityPathIntegrand(const EarthParam& e, const LeptonInjector::LI_Position& p, const LeptonInjector::LI_Direction& d, IntegType integ_type):
       medium(e),pos(p),dir(d),intg_type(integ_type) {}
-      
+
       ///Evaluates the density at the appropriate point along the parameterized track
       // returns in cgs unit
       double operator()(double dist) const {
@@ -820,16 +821,16 @@ class EarthModelService
             return density;  // [g/cm^3]
          }
 
-         double r_cm = curpos.Magnitude() * LeptonInjector::Constants::m / LeptonInjector::Constants::cm;
+         double r_cm = curpos.Magnitude() * LI::utilities::Constantsm / LI::utilities::Constantscm;
          if (intg_type == SPHERE) {
             // calculate sphere * density [g/cm]
-            // we assume dist is small ehough 
-            return 4 * r_cm * r_cm * LeptonInjector::Constants::pi * density;
+            // we assume dist is small ehough
+            return 4 * r_cm * r_cm * LI::utilities::Constantspi * density;
 
          } else if (intg_type == CIRCLE) {
             // calculate circle line * density  [g/cm^2]
-            // we assume dist is small ehough 
-            return 2 * r_cm * LeptonInjector::Constants::pi * density;
+            // we assume dist is small ehough
+            return 2 * r_cm * LI::utilities::Constantspi * density;
          }
          throw("wrong intg type " +std::to_string(static_cast<int>(intg_type)));
          return -1;
@@ -839,6 +840,7 @@ class EarthModelService
 
 };
 
+}
 }
 
 #endif

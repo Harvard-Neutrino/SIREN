@@ -6,35 +6,35 @@
 #include <sstream>
 #include <iostream>
 
-#include "LeptonInjector/Particle.h"
-#include "LeptonInjector/Constants.h"
+#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/utilities/Constants.h"
 
-#include "earthmodel-service/MaterialModel.h"
+#include "LeptonInjector/detector/MaterialModel.h"
 
-using namespace earthmodel;
+using namespace LI::detector ;
 
-MaterialModel::Component::Component(LeptonInjector::Particle::ParticleType type)
+MaterialModel::Component::Component(LI::utilities::Particle::ParticleType type)
     : type(type)
 {
-    if(type == LeptonInjector::Particle::ParticleType::PPlus) {
+    if(type == LI::utilities::Particle::ParticleType::PPlus) {
         neutron_count = 0;
         proton_count = 1;
         nucleon_count = 1;
         is_atom = false;
         molar_mass = atomic_masses.at({strange_count, neutron_count, proton_count, nucleon_count});
-    } else if (type == LeptonInjector::Particle::ParticleType::Neutron) {
+    } else if (type == LI::utilities::Particle::ParticleType::Neutron) {
         neutron_count = 1;
         proton_count = 0;
         nucleon_count = 1;
         is_atom = false;
         molar_mass = atomic_masses.at({strange_count, neutron_count, proton_count, nucleon_count});
-    } else if (type == LeptonInjector::Particle::ParticleType::Nucleon) {
+    } else if (type == LI::utilities::Particle::ParticleType::Nucleon) {
         neutron_count = 0;
         proton_count = 0;
         nucleon_count = 1;
         is_atom = false;
         molar_mass = (atomic_masses.at({0, 1, 0, 1}) + atomic_masses.at({0, 0, 1, 1})) / 2.0;
-    } else if (type == LeptonInjector::Particle::ParticleType::EMinus) {
+    } else if (type == LI::utilities::Particle::ParticleType::EMinus) {
         neutron_count = 0;
         proton_count = 0;
         nucleon_count = 0;
@@ -50,10 +50,10 @@ MaterialModel::Component::Component(LeptonInjector::Particle::ParticleType type)
                 molar_mass = it->second;
             else {
                 double binding_energy = GetEmpericalNuclearBindingEnergy(strange_count, neutron_count, proton_count, nucleon_count);
-                molar_mass = strange_count * LeptonInjector::Constants::lambda0Mass / LeptonInjector::Constants::GeV_per_amu
+                molar_mass = strange_count * LI::utilities::Constants::lambda0Mass / LI::utilities::Constants::GeV_per_amu
                     + neutron_count * atomic_masses.at({0, 1, 0, 1})
                     + proton_count * atomic_masses.at({0, 0, 1, 1})
-                    - binding_energy / LeptonInjector::Constants::GeV_per_amu;
+                    - binding_energy / LI::utilities::Constants::GeV_per_amu;
             }
         } catch (std::runtime_error const & e) {
             strange_count = 0;
@@ -128,11 +128,11 @@ void MaterialModel::AddMaterial(std::string const & material_name, std::map<int,
     for(auto const & mass_frac_it : component_mass_fractions) {
         int component_id = mass_frac_it.first;
         double component_mass_fraction = mass_frac_it.second;
-        Component component(static_cast<LeptonInjector::Particle::ParticleType>(component_id));
+        Component component(static_cast<LI::utilities::Particle::ParticleType>(component_id));
         MaterialComponent material_component;
         material_component.component = component;
         material_component.mass_density_over_total_mass_density = component_mass_fraction;
-        material_component.particle_density_over_total_mass_density = LeptonInjector::Constants::avogadro * component_mass_fraction / material_component.component.molar_mass;
+        material_component.particle_density_over_total_mass_density = LI::utilities::Constants::avogadro * component_mass_fraction / material_component.component.molar_mass;
         material_components.push_back(material_component);
         neutrons_per_amu += component_mass_fraction / material_component.component.molar_mass * material_component.component.neutron_count;
         nucleons_per_amu += component_mass_fraction / material_component.component.molar_mass * material_component.component.nucleon_count;
@@ -140,34 +140,34 @@ void MaterialModel::AddMaterial(std::string const & material_name, std::map<int,
     }
 
     if(neutrons_per_amu > 0) {
-        Component component(LeptonInjector::Particle::ParticleType::Neutron);
+        Component component(LI::utilities::Particle::ParticleType::Neutron);
         MaterialComponent material_component;
         material_component.component = component;
         material_component.mass_density_over_total_mass_density = neutrons_per_amu * component.molar_mass;
-        material_component.particle_density_over_total_mass_density = neutrons_per_amu * LeptonInjector::Constants::avogadro;
+        material_component.particle_density_over_total_mass_density = neutrons_per_amu * LI::utilities::Constants::avogadro;
         material_components.push_back(material_component);
     }
 
     if(nucleons_per_amu > 0) {
-        Component component(LeptonInjector::Particle::ParticleType::Nucleon);
+        Component component(LI::utilities::Particle::ParticleType::Nucleon);
         MaterialComponent material_component;
         material_component.component = component;
         material_component.mass_density_over_total_mass_density = nucleons_per_amu * component.molar_mass;
-        material_component.particle_density_over_total_mass_density = nucleons_per_amu * LeptonInjector::Constants::avogadro;
+        material_component.particle_density_over_total_mass_density = nucleons_per_amu * LI::utilities::Constants::avogadro;
         material_components.push_back(material_component);
     }
 
     if(protons_per_amu > 0) {
-        Component component(LeptonInjector::Particle::ParticleType::PPlus);
+        Component component(LI::utilities::Particle::ParticleType::PPlus);
         MaterialComponent material_component;
         material_component.component = component;
         material_component.mass_density_over_total_mass_density = protons_per_amu * component.molar_mass;
-        material_component.particle_density_over_total_mass_density = protons_per_amu * LeptonInjector::Constants::avogadro;
+        material_component.particle_density_over_total_mass_density = protons_per_amu * LI::utilities::Constants::avogadro;
         material_components.push_back(material_component);
-        component = Component(LeptonInjector::Particle::ParticleType::EMinus);
+        component = Component(LI::utilities::Particle::ParticleType::EMinus);
         material_component.component = component;
         material_component.mass_density_over_total_mass_density = protons_per_amu * component.molar_mass;
-        material_component.particle_density_over_total_mass_density = protons_per_amu * LeptonInjector::Constants::avogadro;
+        material_component.particle_density_over_total_mass_density = protons_per_amu * LI::utilities::Constants::avogadro;
         material_components.push_back(material_component);
     }
 
@@ -283,8 +283,8 @@ void MaterialModel::AddModelFile(std::string matratio) {
     in.close();
 }
 
-std::vector<LeptonInjector::Particle::ParticleType> MaterialModel::GetMaterialTargets(int material_id) const {
-    std::vector<LeptonInjector::Particle::ParticleType> targets;
+std::vector<LI::utilities::Particle::ParticleType> MaterialModel::GetMaterialTargets(int material_id) const {
+    std::vector<LI::utilities::Particle::ParticleType> targets;
     std::vector<MaterialComponent> const & components = material_components_[material_id];
     targets.reserve(components.size());
     for(auto const & comp : components) {
@@ -317,27 +317,27 @@ bool MaterialModel::HasMaterial(int id) const {
     return material_names_.size() > (unsigned int)(id);
 }
 
-double MaterialModel::GetTargetMassFraction(int material_id, LeptonInjector::Particle::ParticleType particle_type) const {
-    std::pair<int, LeptonInjector::Particle::ParticleType> key(material_id, particle_type);
+double MaterialModel::GetTargetMassFraction(int material_id, LI::utilities::Particle::ParticleType particle_type) const {
+    std::pair<int, LI::utilities::Particle::ParticleType> key(material_id, particle_type);
     if(material_components_by_id_.find(key) != material_components_by_id_.end())
         return material_components_by_id_.at(key).mass_density_over_total_mass_density;
     else
         return 0.0;
 }
 
-double MaterialModel::GetTargetParticleFraction(int material_id, LeptonInjector::Particle::ParticleType particle_type) const {
-    std::pair<int, LeptonInjector::Particle::ParticleType> key(material_id, particle_type);
+double MaterialModel::GetTargetParticleFraction(int material_id, LI::utilities::Particle::ParticleType particle_type) const {
+    std::pair<int, LI::utilities::Particle::ParticleType> key(material_id, particle_type);
     if(material_components_by_id_.find(key) != material_components_by_id_.end())
         return material_components_by_id_.at(key).particle_density_over_total_mass_density;
     else
         return 0.0;
 }
 
-std::vector<double> MaterialModel::GetTargetMassFraction(int material_id, std::vector<LeptonInjector::Particle::ParticleType> const & particle_types) const {
+std::vector<double> MaterialModel::GetTargetMassFraction(int material_id, std::vector<LI::utilities::Particle::ParticleType> const & particle_types) const {
     std::vector<double> fractions;
     fractions.reserve(particle_types.size());
     for(auto const & particle_type : particle_types) {
-        std::pair<int, LeptonInjector::Particle::ParticleType> key(material_id, particle_type);
+        std::pair<int, LI::utilities::Particle::ParticleType> key(material_id, particle_type);
         if(material_components_by_id_.find(key) != material_components_by_id_.end())
             fractions.push_back(material_components_by_id_.at(key).mass_density_over_total_mass_density);
         else
@@ -346,11 +346,11 @@ std::vector<double> MaterialModel::GetTargetMassFraction(int material_id, std::v
     return fractions;
 }
 
-std::vector<double> MaterialModel::GetTargetParticleFraction(int material_id, std::vector<LeptonInjector::Particle::ParticleType> const & particle_types) const {
+std::vector<double> MaterialModel::GetTargetParticleFraction(int material_id, std::vector<LI::utilities::Particle::ParticleType> const & particle_types) const {
     std::vector<double> fractions;
     fractions.reserve(particle_types.size());
     for(auto const & particle_type : particle_types) {
-        std::pair<int, LeptonInjector::Particle::ParticleType> key(material_id, particle_type);
+        std::pair<int, LI::utilities::Particle::ParticleType> key(material_id, particle_type);
         if(material_components_by_id_.find(key) != material_components_by_id_.end())
             fractions.push_back(material_components_by_id_.at(key).particle_density_over_total_mass_density);
         else
@@ -377,12 +377,12 @@ double MaterialModel::ComputeMaterialRadiationLength(int material_id) const {
     return 1.0 / X0inv;
 }
 
-std::vector<double> MaterialModel::GetTargetRadiationFraction(int material_id, std::vector<LeptonInjector::Particle::ParticleType> const & particle_types) const {
+std::vector<double> MaterialModel::GetTargetRadiationFraction(int material_id, std::vector<LI::utilities::Particle::ParticleType> const & particle_types) const {
     double X0inv = 0;
     std::vector<double> fractions;
     fractions.reserve(particle_types.size());
     for(auto const & particle_type : particle_types) {
-        std::pair<int, LeptonInjector::Particle::ParticleType> key(material_id, particle_type);
+        std::pair<int, LI::utilities::Particle::ParticleType> key(material_id, particle_type);
         if(material_components_by_id_.find(key) != material_components_by_id_.end()) {
             fractions.push_back(0.0);
             continue;
@@ -421,8 +421,8 @@ int MaterialModel::GetNucleonContent(int code, int & strange_count, int & neutro
     return 0;
 }
 
-std::vector<LeptonInjector::Particle::ParticleType> MaterialModel::GetMaterialConstituents(int material_id) const {
-    std::vector<LeptonInjector::Particle::ParticleType> particles;;
+std::vector<LI::utilities::Particle::ParticleType> MaterialModel::GetMaterialConstituents(int material_id) const {
+    std::vector<LI::utilities::Particle::ParticleType> particles;;
     particles.reserve(material_components_[material_id].size());
     for (auto const & component : material_components_[material_id]) {
         particles.push_back(component.component.type);
@@ -430,23 +430,23 @@ std::vector<LeptonInjector::Particle::ParticleType> MaterialModel::GetMaterialCo
     return particles;
 }
 
-double MaterialModel::GetMolarMass(LeptonInjector::Particle::ParticleType particle) {
+double MaterialModel::GetMolarMass(LI::utilities::Particle::ParticleType particle) {
     return Component(particle).molar_mass;
 }
 
-int MaterialModel::GetStrangeCount(LeptonInjector::Particle::ParticleType particle) {
+int MaterialModel::GetStrangeCount(LI::utilities::Particle::ParticleType particle) {
     return Component(particle).strange_count;
 }
 
-int MaterialModel::GetNucleonCount(LeptonInjector::Particle::ParticleType particle) {
+int MaterialModel::GetNucleonCount(LI::utilities::Particle::ParticleType particle) {
     return Component(particle).nucleon_count;
 }
 
-int MaterialModel::GetNeutronCount(LeptonInjector::Particle::ParticleType particle) {
+int MaterialModel::GetNeutronCount(LI::utilities::Particle::ParticleType particle) {
     return Component(particle).neutron_count;
 }
 
-int MaterialModel::GetProtonCount(LeptonInjector::Particle::ParticleType particle) {
+int MaterialModel::GetProtonCount(LI::utilities::Particle::ParticleType particle) {
     return Component(particle).proton_count;
 }
 
@@ -462,7 +462,7 @@ int MaterialModel::GetEmpericalNuclearBindingEnergy(int strange_count, int neutr
     constexpr const double a_sym = 23.21; // MeV
     constexpr const double k = 17;
     constexpr const double c = 30;
-    const double lambda0_mass = LeptonInjector::Constants::lambda0Mass * 1e3; // GeV --> MeV
+    const double lambda0_mass = LI::utilities::Constants::lambda0Mass * 1e3; // GeV --> MeV
 
     constexpr const double c0 = 0.0335;
     constexpr const double c1 = 26.7;

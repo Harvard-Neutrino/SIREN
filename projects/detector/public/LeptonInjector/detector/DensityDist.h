@@ -39,11 +39,15 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Polynomial.h"
-#include "earthmodel-service/EarthModelCalculator.h"
+#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/geometry/Polynomial.h"
+#include "LeptonInjector/detector/EarthModelCalculator.h"
 
-namespace earthmodel {
+namespace LI {
+namespace detector {
+
+using LI::geometry::Vector3D;
+using LI::geometry::Polynom;
 
 class DensityException : public std::exception {
    public:
@@ -355,8 +359,8 @@ public:
             if(std::isinf(init)) {
                 init = dF(0.0);
             }
-            res = NewtonRaphson(F, dF, 0, max_distance, init);
-        } catch(MathException& e) {
+            res = LI::geometry::NewtonRaphson(F, dF, 0, max_distance, init);
+        } catch(LI::geometry::MathException& e) {
             res = -1;
         }
         return res;
@@ -544,9 +548,9 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
         };
 
         try {
-            double b_res = NewtonRaphson(F, dF, a, b, (a+b)/2.0);
+            double b_res = LI::geometry::NewtonRaphson(F, dF, a, b, (a+b)/2.0);
             return (b_res - a)/dxdt;
-        } catch(MathException& e) {
+        } catch(LI::geometry::MathException& e) {
             return -1;
         }
 
@@ -651,8 +655,8 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
             if(std::isinf(init)) {
                 init = dF(0.0);
             }
-            res = NewtonRaphson(F, dF, 0, max_distance, init);
-        } catch(MathException& e) {
+            res = LI::geometry::NewtonRaphson(F, dF, 0, max_distance, init);
+        } catch(LI::geometry::MathException& e) {
             res = -1;
         }
         return res;
@@ -674,59 +678,60 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
     };
 };
 
-}  // namespace earthmodel
+} // namespace detector
+} // namespace LI
 
-CEREAL_CLASS_VERSION(earthmodel::DensityDistribution, 0);
+CEREAL_CLASS_VERSION(LI::detector::DensityDistribution, 0);
 
-CEREAL_CLASS_VERSION(earthmodel::Distribution1D, 0);
+CEREAL_CLASS_VERSION(LI::detector::Distribution1D, 0);
 
-CEREAL_CLASS_VERSION(earthmodel::ConstantDistribution1D, 0);
-CEREAL_REGISTER_TYPE(earthmodel::ConstantDistribution1D);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Distribution1D, earthmodel::ConstantDistribution1D);
+CEREAL_CLASS_VERSION(LI::detector::ConstantDistribution1D, 0);
+CEREAL_REGISTER_TYPE(LI::detector::ConstantDistribution1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::Distribution1D, LI::detector::ConstantDistribution1D);
 
-CEREAL_CLASS_VERSION(earthmodel::PolynomialDistribution1D, 0);
-CEREAL_REGISTER_TYPE(earthmodel::PolynomialDistribution1D);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Distribution1D, earthmodel::PolynomialDistribution1D);
+CEREAL_CLASS_VERSION(LI::detector::PolynomialDistribution1D, 0);
+CEREAL_REGISTER_TYPE(LI::detector::PolynomialDistribution1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::Distribution1D, LI::detector::PolynomialDistribution1D);
 
-CEREAL_CLASS_VERSION(earthmodel::ExponentialDistribution1D, 0);
-CEREAL_REGISTER_TYPE(earthmodel::ExponentialDistribution1D);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Distribution1D, earthmodel::ExponentialDistribution1D);
+CEREAL_CLASS_VERSION(LI::detector::ExponentialDistribution1D, 0);
+CEREAL_REGISTER_TYPE(LI::detector::ExponentialDistribution1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::Distribution1D, LI::detector::ExponentialDistribution1D);
 
-CEREAL_CLASS_VERSION(earthmodel::Axis1D, 0);
+CEREAL_CLASS_VERSION(LI::detector::Axis1D, 0);
 
-CEREAL_CLASS_VERSION(earthmodel::RadialAxis1D, 0);
-CEREAL_REGISTER_TYPE(earthmodel::RadialAxis1D);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Axis1D, earthmodel::RadialAxis1D);
+CEREAL_CLASS_VERSION(LI::detector::RadialAxis1D, 0);
+CEREAL_REGISTER_TYPE(LI::detector::RadialAxis1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::Axis1D, LI::detector::RadialAxis1D);
 
-CEREAL_CLASS_VERSION(earthmodel::CartesianAxis1D, 0);
-CEREAL_REGISTER_TYPE(earthmodel::CartesianAxis1D);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Axis1D, earthmodel::CartesianAxis1D);
+CEREAL_CLASS_VERSION(LI::detector::CartesianAxis1D, 0);
+CEREAL_REGISTER_TYPE(LI::detector::CartesianAxis1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::Axis1D, LI::detector::CartesianAxis1D);
 
 #define COMMA ,
 
-CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ConstantDistribution1D>, 0);
-CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ConstantDistribution1D>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ConstantDistribution1D>);
+CEREAL_CLASS_VERSION(LI::detector::DensityDistribution1D<LI::detector::RadialAxis1D COMMA LI::detector::ConstantDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(LI::detector::DensityDistribution1D<LI::detector::RadialAxis1D COMMA LI::detector::ConstantDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::DensityDistribution, LI::detector::DensityDistribution1D<LI::detector::RadialAxis1D COMMA LI::detector::ConstantDistribution1D>);
 
-CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ConstantDistribution1D>, 0);
-CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ConstantDistribution1D>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ConstantDistribution1D>);
+CEREAL_CLASS_VERSION(LI::detector::DensityDistribution1D<LI::detector::CartesianAxis1D COMMA LI::detector::ConstantDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(LI::detector::DensityDistribution1D<LI::detector::CartesianAxis1D COMMA LI::detector::ConstantDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::DensityDistribution, LI::detector::DensityDistribution1D<LI::detector::CartesianAxis1D COMMA LI::detector::ConstantDistribution1D>);
 
-CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::PolynomialDistribution1D>, 0);
-CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::PolynomialDistribution1D>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::PolynomialDistribution1D>);
+CEREAL_CLASS_VERSION(LI::detector::DensityDistribution1D<LI::detector::RadialAxis1D COMMA LI::detector::PolynomialDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(LI::detector::DensityDistribution1D<LI::detector::RadialAxis1D COMMA LI::detector::PolynomialDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::DensityDistribution, LI::detector::DensityDistribution1D<LI::detector::RadialAxis1D COMMA LI::detector::PolynomialDistribution1D>);
 
-CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::PolynomialDistribution1D>, 0);
-CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::PolynomialDistribution1D>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::PolynomialDistribution1D>);
+CEREAL_CLASS_VERSION(LI::detector::DensityDistribution1D<LI::detector::CartesianAxis1D COMMA LI::detector::PolynomialDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(LI::detector::DensityDistribution1D<LI::detector::CartesianAxis1D COMMA LI::detector::PolynomialDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::DensityDistribution, LI::detector::DensityDistribution1D<LI::detector::CartesianAxis1D COMMA LI::detector::PolynomialDistribution1D>);
 
-CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ExponentialDistribution1D>, 0);
-CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ExponentialDistribution1D>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::RadialAxis1D COMMA earthmodel::ExponentialDistribution1D>);
+CEREAL_CLASS_VERSION(LI::detector::DensityDistribution1D<LI::detector::RadialAxis1D COMMA LI::detector::ExponentialDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(LI::detector::DensityDistribution1D<LI::detector::RadialAxis1D COMMA LI::detector::ExponentialDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::DensityDistribution, LI::detector::DensityDistribution1D<LI::detector::RadialAxis1D COMMA LI::detector::ExponentialDistribution1D>);
 
-CEREAL_CLASS_VERSION(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ExponentialDistribution1D>, 0);
-CEREAL_REGISTER_TYPE(earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ExponentialDistribution1D>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::DensityDistribution, earthmodel::DensityDistribution1D<earthmodel::CartesianAxis1D COMMA earthmodel::ExponentialDistribution1D>);
+CEREAL_CLASS_VERSION(LI::detector::DensityDistribution1D<LI::detector::CartesianAxis1D COMMA LI::detector::ExponentialDistribution1D>, 0);
+CEREAL_REGISTER_TYPE(LI::detector::DensityDistribution1D<LI::detector::CartesianAxis1D COMMA LI::detector::ExponentialDistribution1D>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::detector::DensityDistribution, LI::detector::DensityDistribution1D<LI::detector::CartesianAxis1D COMMA LI::detector::ExponentialDistribution1D>);
 
 #endif // LI_DensityDist_H
 

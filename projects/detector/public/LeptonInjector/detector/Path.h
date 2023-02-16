@@ -14,11 +14,12 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-#include "serialization/array.h"
 
-#include "earthmodel-service/EarthModel.h"
+#include "LeptonInjector/serialization/array.h"
+#include "LeptonInjector/detector/EarthModel.h"
 
-namespace earthmodel {
+namespace LI {
+namespace detector {
 
 class Path {
 private:
@@ -34,7 +35,7 @@ private:
     double column_depth_cached_;
     bool set_column_depth_ = false;
 
-    Geometry::IntersectionList intersections_;
+    geometry::Geometry::IntersectionList intersections_;
     bool set_intersections_ = false;
 public:
     Path();
@@ -66,7 +67,7 @@ public:
     Vector3D const & GetLastPoint();
     Vector3D const & GetDirection();
     double GetDistance();
-    Geometry::IntersectionList const & GetIntersections();
+    geometry::Geometry::IntersectionList const & GetIntersections();
 
     void SetEarthModel(std::shared_ptr<const EarthModel> earth_model);
     void EnsureEarthModel();
@@ -75,7 +76,7 @@ public:
     void SetPointsWithRay(Vector3D first_point, Vector3D direction, double distance);
     void EnsurePoints();
 
-    void SetIntersections(Geometry::IntersectionList const & intersections);
+    void SetIntersections(geometry::Geometry::IntersectionList const & intersections);
     void ComputeIntersections();
     void EnsureIntersections();
 
@@ -95,16 +96,16 @@ public:
     void ShrinkFromStartByColumnDepth(double column_depth);
 
     void ExtendFromEndByInteractionDepth(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ExtendFromStartByInteractionDepth(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ShrinkFromEndByInteractionDepth(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ShrinkFromStartByInteractionDepth(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
 
     // Extend/Shrink To
@@ -119,23 +120,23 @@ public:
     void ShrinkFromStartToColumnDepth(double column_depth);
 
     void ExtendFromEndToInteractionDepth(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ExtendFromStartToInteractionDepth(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ShrinkFromEndToInteractionDepth(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ShrinkFromStartToInteractionDepth(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     //
 
     // Get
     double GetColumnDepthInBounds();
     double GetInteractionDepthInBounds(
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     //
 
@@ -148,22 +149,22 @@ public:
     double GetColumnDepthFromEndInReverse(double distance);
 
     double GetInteractionDepthFromStartInBounds(double distance,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetInteractionDepthFromEndInBounds(double distance,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetInteractionDepthFromStartAlongPath(double distance,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetInteractionDepthFromEndAlongPath(double distance,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetInteractionDepthFromStartInReverse(double distance,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetInteractionDepthFromEndInReverse(double distance,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     //
 
@@ -176,22 +177,22 @@ public:
     double GetDistanceFromEndInReverse(double column_depth);
 
     double GetDistanceFromStartInBounds(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetDistanceFromEndInBounds(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetDistanceFromStartAlongPath(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetDistanceFromEndAlongPath(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetDistanceFromStartInReverse(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetDistanceFromEndInReverse(double interaction_depth,
-            std::vector<LeptonInjector::Particle::ParticleType> const & targets,
+            std::vector<LI::utilities::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     //
 
@@ -199,9 +200,10 @@ public:
     double GetDistanceFromStartInBounds(Vector3D point);
 };
 
-} // namespace earthmodel
+} // namespace detector
+} // namespace LI
 
-CEREAL_CLASS_VERSION(earthmodel::Path, 0);
+CEREAL_CLASS_VERSION(LI::detector::Path, 0);
 
 # endif // LI_Path_H
 

@@ -6,7 +6,6 @@
 
 #include <LeptonInjector/LeptonInjector.h>
 #include <LeptonInjector/Coordinates.h>
-#include <LeptonInjector/Controller.h>
 #include <LeptonInjector/Random.h>
 #include <LeptonInjector/Constants.h>
 #include <earthmodel-service/EarthModelCalculator.h>

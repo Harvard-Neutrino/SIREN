@@ -16,12 +16,13 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-#include "serialization/array.h"
 
-#include "LeptonInjector/Particle.h"
-#include "LeptonInjector/Constants.h"
+#include "LeptonInjector/serialization/array.h"
+#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/utilities/Constants.h"
 
-namespace earthmodel {
+namespace LI {
+namespace detector {
 
 class MaterialModel {
     static constexpr const int CHAR_BUF_SIZE = 8196;
@@ -29,7 +30,7 @@ class MaterialModel {
 public:
     static const std::map<std::tuple<int, int, int, int>, double> atomic_masses;
     struct Component {
-        LeptonInjector::Particle::ParticleType type = LeptonInjector::Particle::ParticleType::unknown;
+        LI::utilities::Particle::ParticleType type = LI::utilities::Particle::ParticleType::unknown;
         int strange_count = 0;
         int neutron_count = 0;
         int nucleon_count = 0;
@@ -37,7 +38,7 @@ public:
         double molar_mass = 0;
         bool is_atom = true;
         Component() {}
-        Component(LeptonInjector::Particle::ParticleType type);
+        Component(LI::utilities::Particle::ParticleType type);
         bool operator==(Component const & component) const;
         template<class Archive>
         void serialize(Archive & archive, std::uint32_t const version) {
@@ -80,9 +81,9 @@ private:
     std::map<std::string, int> material_ids_;
 
     std::vector<std::vector<MaterialComponent>> material_components_;
-    std::map<std::pair<int, LeptonInjector::Particle::ParticleType>, MaterialComponent> material_components_by_id_;
+    std::map<std::pair<int, LI::utilities::Particle::ParticleType>, MaterialComponent> material_components_by_id_;
     std::vector<double> material_radiation_length_;
-    std::map<std::pair<int, LeptonInjector::Particle::ParticleType>, double> component_radiation_length_;
+    std::map<std::pair<int, LI::utilities::Particle::ParticleType>, double> component_radiation_length_;
 public:
     bool operator==(MaterialModel const & component) const;
     template<class Archive>
@@ -110,47 +111,48 @@ public:
     void AddModelFiles(std::vector<std::string> const & matratios);
     void AddModelFile(std::string matratio);
 
-    std::vector<LeptonInjector::Particle::ParticleType> GetMaterialTargets(int material_id) const;
+    std::vector<LI::utilities::Particle::ParticleType> GetMaterialTargets(int material_id) const;
     double GetMaterialRadiationLength(int material_id) const;
     std::string GetMaterialName(int material_id) const;
     int GetMaterialId(std::string const & material_name) const;
     bool HasMaterial(std::string const & material_name) const;
     bool HasMaterial(int material_id) const;
 
-    double GetTargetMassFraction(int material_id, LeptonInjector::Particle::ParticleType) const;
-    double GetTargetParticleFraction(int material_id, LeptonInjector::Particle::ParticleType) const;
-    std::vector<double> GetTargetMassFraction(int material_id, std::vector<LeptonInjector::Particle::ParticleType> const &) const;
-    std::vector<double> GetTargetParticleFraction(int material_id, std::vector<LeptonInjector::Particle::ParticleType> const &) const;
+    double GetTargetMassFraction(int material_id, LI::utilities::Particle::ParticleType) const;
+    double GetTargetParticleFraction(int material_id, LI::utilities::Particle::ParticleType) const;
+    std::vector<double> GetTargetMassFraction(int material_id, std::vector<LI::utilities::Particle::ParticleType> const &) const;
+    std::vector<double> GetTargetParticleFraction(int material_id, std::vector<LI::utilities::Particle::ParticleType> const &) const;
 
-    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::utilities::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
     std::vector<double> GetTargetMassFraction(int material_id, Iterator begin, Iterator end) const;
-    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::utilities::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
     std::vector<double> GetTargetParticleFraction(int material_id, Iterator begin, Iterator end) const;
 
-    std::vector<double> GetTargetRadiationFraction(int material_id, std::vector<LeptonInjector::Particle::ParticleType> const &) const;
-    template<typename Iterator, typename = typename std::enable_if<std::is_same<LeptonInjector::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetTargetRadiationFraction(int material_id, std::vector<LI::utilities::Particle::ParticleType> const &) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::utilities::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
     std::vector<double> GetTargetRadiationFraction(int material_id, Iterator begin, Iterator end) const;
 
-    std::vector<LeptonInjector::Particle::ParticleType> GetMaterialConstituents(int material_id) const;
+    std::vector<LI::utilities::Particle::ParticleType> GetMaterialConstituents(int material_id) const;
 private:
     double ComputeMaterialRadiationLength(int id) const;
 public:
     static int GetNucleonContent(int code, int & num_strange, int & num_neutrons, int & num_protons, int & num_nucleons);
-    static double GetMolarMass(LeptonInjector::Particle::ParticleType particle);
-    static int GetStrangeCount(LeptonInjector::Particle::ParticleType particle);
-    static int GetNucleonCount(LeptonInjector::Particle::ParticleType particle);
-    static int GetNeutronCount(LeptonInjector::Particle::ParticleType particle);
-    static int GetProtonCount(LeptonInjector::Particle::ParticleType particle);
+    static double GetMolarMass(LI::utilities::Particle::ParticleType particle);
+    static int GetStrangeCount(LI::utilities::Particle::ParticleType particle);
+    static int GetNucleonCount(LI::utilities::Particle::ParticleType particle);
+    static int GetNeutronCount(LI::utilities::Particle::ParticleType particle);
+    static int GetProtonCount(LI::utilities::Particle::ParticleType particle);
     static int GetEmpericalNuclearBindingEnergy(int num_strange, int num_neutrons, int num_protons, int num_nucleons);
 };
 
-} // namespace earthmodel
+} // namespace detector
+} // namespace LI
 
-CEREAL_CLASS_VERSION(earthmodel::MaterialModel, 0);
-CEREAL_CLASS_VERSION(earthmodel::MaterialModel::Component, 0);
-CEREAL_CLASS_VERSION(earthmodel::MaterialModel::MaterialComponent, 0);
+CEREAL_CLASS_VERSION(LI::detector::MaterialModel, 0);
+CEREAL_CLASS_VERSION(LI::detector::MaterialModel::Component, 0);
+CEREAL_CLASS_VERSION(LI::detector::MaterialModel::MaterialComponent, 0);
 
-#include "earthmodel-service/MaterialModel.tcc"
+#include "LeptonInjector/detector/MaterialModel.tcc"
 
 # endif // LI_MaterialModel_H
 
