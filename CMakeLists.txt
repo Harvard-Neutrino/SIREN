@@ -106,6 +106,7 @@ add_subdirectory(projects/serialization)
 add_subdirectory(projects/geometry)
 add_subdirectory(projects/detector)
 add_subdirectory(projects/crosssections)
+add_subdirectory(projects/injection)
 
 #add_subdirectory(tests)
 

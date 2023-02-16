@@ -28,7 +28,7 @@
 #include "LeptonInjector/utilities/Particle.h"
 
 namespace LI {
-namespace injector {
+namespace utilities {
 class LI_random;
 }
 }

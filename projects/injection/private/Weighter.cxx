@@ -3,11 +3,11 @@
 #include <fstream>
 #include <algorithm>
 
-#include "LeptonInjector/Weighter.h"
+#include "LeptonInjector/injection/Weighter.h"
 
-#include "LeptonInjector/LeptonInjector.h"
+#include "LeptonInjector/injection/LeptonInjector.h"
 
-#include "phys-services/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSection.h"
 
 #include <rk/rk.hh>
 
@@ -69,37 +69,37 @@ namespace {
 }
 
 
-double LeptonWeighter::InteractionProbability(std::shared_ptr<InjectorBase const> injector, InteractionRecord const & record) const {
-    std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds = injector->InjectionBounds(record);
+double LeptonWeighter::InteractionProbability(std::shared_ptr<InjectorBase const> injector, LI::crosssections::InteractionRecord const & record) const {
+    std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds = injector->InjectionBounds(record);
     return InteractionProbability(bounds, record);
 }
 
-double LeptonWeighter::InteractionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const {
-    earthmodel::Vector3D interaction_vertex(
+double LeptonWeighter::InteractionProbability(std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const {
+    LI::geometry::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    earthmodel::Vector3D primary_direction(
+    LI::geometry::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), earth_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
-    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
-    std::vector<LeptonInjector::Particle::ParticleType> targets;
+    LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), earth_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
+    std::map<LI::utilities::Particle::ParticleType, std::vector<std::shared_ptr<LI::crosssections::CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
+    std::vector<LI::utilities::Particle::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
-    InteractionRecord fake_record = record;
+    LI::crosssections::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        std::vector<std::shared_ptr<CrossSection>> const & xs_list = target_xs.second;
+        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            std::vector<InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            std::vector<LI::crosssections::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
             for(auto const & signature : signatures) {
                 fake_record.signature = signature;
                 // Add total cross section
@@ -119,39 +119,39 @@ double LeptonWeighter::InteractionProbability(std::pair<earthmodel::Vector3D, ea
     return interaction_probability;
 }
 
-double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<InjectorBase const> injector, InteractionRecord const & record) const {
-    std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds = injector->InjectionBounds(record);
+double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<InjectorBase const> injector, LI::crosssections::InteractionRecord const & record) const {
+    std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds = injector->InjectionBounds(record);
     return UnnormalizedPositionProbability(bounds, record);
 }
 
-double LeptonWeighter::UnnormalizedPositionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const {
-    earthmodel::Vector3D interaction_vertex(
+double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const {
+    LI::geometry::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    earthmodel::Vector3D primary_direction(
+    LI::geometry::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
-    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
+    LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
+    std::map<LI::utilities::Particle::ParticleType, std::vector<std::shared_ptr<LI::crosssections::CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
 
-    std::vector<LeptonInjector::Particle::ParticleType> targets; targets.reserve(n_targets);
+    std::vector<LI::utilities::Particle::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
-    InteractionRecord fake_record = record;
+    LI::crosssections::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        std::vector<std::shared_ptr<CrossSection>> const & xs_list = target_xs.second;
+        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            std::vector<InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            std::vector<LI::crosssections::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
             for(auto const & signature : signatures) {
                 fake_record.signature = signature;
                 // Add total cross section
@@ -175,34 +175,34 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<earthmodel::Vec
     return prob_density;
 }
 
-double LeptonWeighter::NormalizedPositionProbability(std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds, InteractionRecord const & record) const {
-    earthmodel::Vector3D interaction_vertex(
+double LeptonWeighter::NormalizedPositionProbability(std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const {
+    LI::geometry::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    earthmodel::Vector3D primary_direction(
+    LI::geometry::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
-    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
+    LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
+    std::map<LI::utilities::Particle::ParticleType, std::vector<std::shared_ptr<LI::crosssections::CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
 
-    std::vector<LeptonInjector::Particle::ParticleType> targets; targets.reserve(n_targets);
+    std::vector<LI::utilities::Particle::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
-    InteractionRecord fake_record = record;
+    LI::crosssections::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        std::vector<std::shared_ptr<CrossSection>> const & xs_list = target_xs.second;
+        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            std::vector<InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            std::vector<LI::crosssections::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
             for(auto const & signature : signatures) {
                 fake_record.signature = signature;
                 // Add total cross section
@@ -394,9 +394,9 @@ void LeptonWeighter::Initialize() {
     for(unsigned int gen_idx : common_generation_dist_idxs) {
         // These are common to all injectors, so we pull information from the first injector
         std::shared_ptr<WeightableDistribution> dist = generation_distribution_state[0][gen_idx].second;
-        std::shared_ptr<earthmodel::EarthModel> dist_earth = injectors[0]->GetEarthModel();
-        std::shared_ptr<CrossSectionCollection> dist_cross_sections = injectors[0]->GetCrossSections();
-        std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>> p) -> bool {
+        std::shared_ptr<LI::detector::EarthModel> dist_earth = injectors[0]->GetEarthModel();
+        std::shared_ptr<LI::crosssections::CrossSectionCollection> dist_cross_sections = injectors[0]->GetCrossSections();
+        std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>> p) -> bool {
             return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_earth, dist_cross_sections);
         };
         auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -411,7 +411,7 @@ void LeptonWeighter::Initialize() {
 
     for(unsigned int phys_idx : common_physical_dist_idxs) {
         std::shared_ptr<WeightableDistribution> dist = physical_distributions[phys_idx];
-        std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>> p) -> bool {
+        std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>> p) -> bool {
             return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, earth_model, cross_sections);
         };
         auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -436,9 +436,9 @@ void LeptonWeighter::Initialize() {
                 continue;
             std::shared_ptr<WeightableDistribution> dist = gen_dists[gen_idx].second;
             // These are common to all injectors, so we pull information from the first injector
-            std::shared_ptr<earthmodel::EarthModel> dist_earth = injectors[injector_idx]->GetEarthModel();
-            std::shared_ptr<CrossSectionCollection> dist_cross_sections = injectors[injector_idx]->GetCrossSections();
-            std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>> p) -> bool {
+            std::shared_ptr<LI::detector::EarthModel> dist_earth = injectors[injector_idx]->GetEarthModel();
+            std::shared_ptr<LI::crosssections::CrossSectionCollection> dist_cross_sections = injectors[injector_idx]->GetCrossSections();
+            std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>> p) -> bool {
                 return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_earth, dist_cross_sections);
             };
             auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -456,7 +456,7 @@ void LeptonWeighter::Initialize() {
             if(not included)
                 continue;
             std::shared_ptr<WeightableDistribution> dist = phys_dists[phys_idx].second;
-            std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>> p) -> bool {
+            std::function<bool(std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>> p) -> bool {
                 return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, earth_model, cross_sections);
             };
             auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -474,11 +474,11 @@ void LeptonWeighter::Initialize() {
 
     //TODO
     // Find unique contexts
-    // std::vector<std::tuple<std::shared_ptr<earthmodel::EarthModel>, std::shared_ptr<CrossSectionCollection>>> unique_contexts;
+    // std::vector<std::tuple<std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>>> unique_contexts;
     // std::vector<unsigned int> context_idx_by_injector;
 }
 
-LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<earthmodel::EarthModel> earth_model, std::shared_ptr<CrossSectionCollection> cross_sections, std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions)
+LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections, std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions)
     : injectors(injectors)
     , earth_model(earth_model)
     , cross_sections(cross_sections)
@@ -487,7 +487,7 @@ LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> inject
     Initialize();
 }
 
-double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
+double LeptonWeighter::EventWeight(LI::crosssections::InteractionRecord const & record) const {
     // The weight is given by
     //  w = (\sum_i p_gen^i / p_phys^i)^-1
 
@@ -510,7 +510,7 @@ double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
     // From each injector we need the generation probability and the unnormalized position probability (interaction probability * position probability)
     for(auto injector : injectors) {
         double generation_probability = injector->GenerationProbability(record);
-        std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds = injector->InjectionBounds(record);
+        std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds = injector->InjectionBounds(record);
         double physical_probability = 1.0;
 
         /*
@@ -552,14 +552,14 @@ double LeptonWeighter::EventWeight(InteractionRecord const & record) const {
     return normalization * weight;
 }
 
-double LeptonWeighter::SimplifiedEventWeight(InteractionRecord const & record) const {
+double LeptonWeighter::SimplifiedEventWeight(LI::crosssections::InteractionRecord const & record) const {
     std::vector<double> probs;
     probs.reserve(unique_distributions.size());
     for(unsigned int i=0; i<unique_distributions.size(); ++i) {
         std::tuple<
             std::shared_ptr<WeightableDistribution>,
-            std::shared_ptr<earthmodel::EarthModel>,
-            std::shared_ptr<CrossSectionCollection>
+            std::shared_ptr<LI::detector::EarthModel>,
+            std::shared_ptr<LI::crosssections::CrossSectionCollection>
         > const & p = unique_distributions[i];
         probs.push_back(std::get<0>(p)->GenerationProbability(std::get<1>(p), std::get<2>(p), record));
     }
@@ -602,7 +602,7 @@ double LeptonWeighter::SimplifiedEventWeight(InteractionRecord const & record) c
             double pos_prob = UnnormalizedPositionProbability((std::shared_ptr<InjectorBase const>)injectors[i], record);
             prob /= pos_prob;
         }*/
-        std::pair<earthmodel::Vector3D, earthmodel::Vector3D> bounds = injectors[i]->InjectionBounds(record);
+        std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds = injectors[i]->InjectionBounds(record);
         double interaction_probability = InteractionProbability(bounds, record);
         double normalized_position_probability = NormalizedPositionProbability(bounds, record);
         prob /= interaction_probability;

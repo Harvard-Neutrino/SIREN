@@ -3,7 +3,6 @@
 #include <utility>
 
 #include <LeptonInjector/LeptonInjector.h>
-#include <LeptonInjector/Controller.h>
 #include <LeptonInjector/Random.h>
 #include <LeptonInjector/Constants.h>
 
@@ -81,19 +80,6 @@ BOOST_PYTHON_MODULE(LeptonInjector){
     def("RotateZ", &RotateZ);
     def("rotateRelative", &rotateRelative);
     def("computeCylinderIntersections", &computeCylinderIntersections);
-
-
-    class_<Controller>("Controller", init<std::shared_ptr<InjectorBase>>(
-        (args("injector")))
-        )
-        .def("Execute",&Controller::Execute)
-        .def("AddInjector",&Controller::AddInjector)
-        .def("NameOutfile",&Controller::NameOutfile)
-        .def("NameLicFile",&Controller::NameLicFile)
-        .def("Overwrite",&Controller::Overwrite)
-        .def("setSeed",&Controller::setSeed)
-     ;
-
 
     {
     scope particle = class_<Particle>("Particle", init<>())
@@ -282,7 +268,7 @@ BOOST_PYTHON_MODULE(LeptonInjector){
     def("getInteraction", &getInteraction);
 
     class_<InjectorBase, std::shared_ptr<InjectorBase>>("InjectorBase",
-	  init<unsigned int, std::shared_ptr<PrimaryInjector>, std::vector<std::shared_ptr<CrossSection>>, std::shared_ptr<earthmodel::EarthModel>, std::vector<std::shared_ptr<InjectionDistribution>>, std::shared_ptr<LI_random>>(
+	  init<unsigned int, std::shared_ptr<PrimaryInjector>, std::vector<std::shared_ptr<CrossSection>>, std::shared_ptr<LI::detector::EarthModel>, std::vector<std::shared_ptr<InjectionDistribution>>, std::shared_ptr<LI_random>>(
 	    (args("events_to_inject"),args("primary_injector"),args("cross_sections"),args("earth_model"),args("distributions"),args("random"))
 	  )
 	)

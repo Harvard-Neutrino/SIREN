@@ -5,7 +5,7 @@
 
 namespace LeptonInjector {
 
-double CrossSectionProbability(std::shared_ptr<earthmodel::EarthModel const>, std::shared_ptr<CrossSectionCollection const>, InteractionRecord const &);
+double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::crosssections::InteractionRecord const &);
 
 } // namespace LeptonInjector
 
