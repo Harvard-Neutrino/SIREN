@@ -1,16 +1,17 @@
 #include <map>
 #include <math.h> // adds sqrt, power functions
 #include <assert.h>
-#include "LeptonInjector/Particle.h"
+#include "LeptonInjector/utilities/Particle.h"
 
-namespace LeptonInjector{
+namespace LI {
+namespace utilities {
     Particle::Particle(void){
-        // Just sit it at the origin 
-        
+        // Just sit it at the origin
+
         // note that
         // static_cast<int32_t>(ParticleType::EMinus) == 11
         type        = ParticleType::unknown;
-        
+
         // instantiate with minimum energy
         energy      = 0.0;
         direction   = std::make_pair( 0.0, 0.0) ;
@@ -18,7 +19,7 @@ namespace LeptonInjector{
 			position[var] = 0.0;
 		}
     }
-    
+
     // constructor for specific type
     Particle::Particle( ParticleType type ){
         this->type  = type;
@@ -33,12 +34,12 @@ namespace LeptonInjector{
 
 
 
-	// returns name for particle of known type. 
+	// returns name for particle of known type.
 	// If this code is to be expanded, this should really be modified to use the boost preprocessor libraries
-	// atm, only implemented for the particles relevant to LeptonInjector 
+	// atm, only implemented for the particles relevant to LeptonInjector
 	std::string Particle::GetTypeString(){
 
-		// there is a way to do this better with boost preprocessor libraries, but I think that's a little unnecessary given the scope of what LI does. 
+		// there is a way to do this better with boost preprocessor libraries, but I think that's a little unnecessary given the scope of what LI does.
 
 		// this just casts the particle type to its pdg code, and uses a switch to grab the name
 		switch( static_cast<int32_t>(this->type) ){
@@ -64,7 +65,7 @@ namespace LeptonInjector{
 
     bool Particle::HasMass(){
         // return the negation of the bool that (particle is massless)
-        return(!( this->type == ParticleType::Gamma || 
+        return(!( this->type == ParticleType::Gamma ||
                this->type == ParticleType::NuE   || this->type==ParticleType::NuEBar   ||
                this->type == ParticleType::NuMu  || this->type==ParticleType::NuMuBar  ||
                this->type == ParticleType::NuTau || this->type==ParticleType::NuTauBar ||
@@ -75,28 +76,28 @@ namespace LeptonInjector{
     double Particle::GetMass(){
         switch(this->type){
             case ParticleType::EPlus:
-                return( Constants::electronMass );
+                return( LI::utilities::Constants::electronMass );
                 break;
             case ParticleType::EMinus:
-                return( Constants::electronMass );
+                return( LI::utilities::Constants::electronMass );
                 break;
             case ParticleType::MuPlus:
-                return( Constants::muonMass );
+                return( LI::utilities::Constants::muonMass );
                 break;
             case ParticleType::MuMinus:
-                return( Constants::muonMass );
+                return( LI::utilities::Constants::muonMass );
                 break;
             case ParticleType::TauPlus:
-                return( Constants::tauMass );
+                return( LI::utilities::Constants::tauMass );
                 break;
             case ParticleType::TauMinus:
-                return( Constants::tauMass );
+                return( LI::utilities::Constants::tauMass );
                 break;
 			case ParticleType::PPlus:
-				return( Constants::protonMass );
+				return( LI::utilities::Constants::protonMass );
 				break;
 			case ParticleType::Neutron:
-				return( Constants::neutronMass);
+				return( LI::utilities::Constants::neutronMass);
             default:
                 return(0.0);
         }
@@ -104,7 +105,7 @@ namespace LeptonInjector{
 
 
 
-    // Helper functions for dealing with particle types  
+    // Helper functions for dealing with particle types
     bool isNeutrino(Particle::ParticleType p) {
         return (
 			   p==Particle::ParticleType::NuE      || p==Particle::ParticleType::NuEBar ||
@@ -122,15 +123,15 @@ namespace LeptonInjector{
 			   p==Particle::ParticleType::NuMu     || p==Particle::ParticleType::NuMuBar ||
 			   p==Particle::ParticleType::NuTau    || p==Particle::ParticleType::NuTauBar);
 	}
-	
+
     // returns true if the particle is either
-    //        a charged lepton 
+    //        a charged lepton
     //   (OR) a "hadrons" particle
 	bool isCharged(Particle::ParticleType p){
 		if( !(isLepton(p) || p==Particle::ParticleType::Hadrons) ){
 			throw std::runtime_error("You should only be using Leptons or Hadrons!");
 		}
-		
+
 		// keeps this within scope. Shouldn't be getting some other kind of charged particle
 		return(p==Particle::ParticleType::EMinus   || p==Particle::ParticleType::EPlus ||
 			   p==Particle::ParticleType::MuMinus  || p==Particle::ParticleType::MuPlus ||
@@ -143,7 +144,7 @@ namespace LeptonInjector{
 	std::string particleName(Particle::ParticleType p){
 		return(Particle(p).GetTypeString());
 	}
-	
+
 
     // gets the mass of a particle for a given type
 	double particleMass(Particle::ParticleType type){
@@ -153,7 +154,7 @@ namespace LeptonInjector{
 		}
 		return(p.GetMass());
 	}
-	
+
     // Uses a particle's type (mass) and total energy to calculate kinetic energy
 	double kineticEnergy(Particle::ParticleType type, double totalEnergy){
 		double mass=particleMass(type);
@@ -162,13 +163,13 @@ namespace LeptonInjector{
 		}
 		return(sqrt(totalEnergy*totalEnergy-mass*mass));
 	}
-	
+
     // uses the particle type and kinetic energy to calculate the speed of the particle
-    // relies on the constants! 
+    // relies on the constants!
 	double particleSpeed(Particle::ParticleType type, double kineticEnergy){
 		Particle p=Particle(type);
 		if(!p.HasMass()){
-			return(Constants::c);
+			return(LI::utilities::Constants::c);
 		}
 		double mass=p.GetMass();
 		if(kineticEnergy<0){
@@ -177,9 +178,9 @@ namespace LeptonInjector{
 
         // IF mass>0 THEN return mass/(stuff) ... ELSE return 0
 		double r=(mass>0 ? mass/(kineticEnergy+mass) : 0.);
-		return(Constants::c*sqrt(1-r*r));
+		return(LI::utilities::Constants::c*sqrt(1-r*r));
 	}
-	
+
 	Particle::ParticleShape decideShape(Particle::ParticleType t){
 		switch(t){
 			case Particle::ParticleType::MuMinus:  case Particle::ParticleType::MuPlus:
@@ -208,7 +209,7 @@ namespace LeptonInjector{
 		(final_2==Particle::ParticleType::MuMinus && final_1 == Particle::ParticleType::NuMuBar)||
 		(final_2==Particle::ParticleType::TauMinus && final_1 == Particle::ParticleType::NuTauBar)||
 		(final_1==Particle::ParticleType::Hadrons && final_2 == Particle::ParticleType::Hadrons)){
-			return( 2 ); // glashow resonance 
+			return( 2 ); // glashow resonance
 		}else if( ((final_2==Particle::ParticleType::Hadrons) and (
 			final_1==Particle::Particle::EPlus || final_1==Particle::Particle::EMinus ||
 			final_1==Particle::Particle::MuPlus || final_1==Particle::Particle::MuMinus ||
@@ -228,24 +229,24 @@ namespace LeptonInjector{
 			final_2==Particle::Particle::NuTauBar || final_2==Particle::Particle::NuTau ))){
 			return( 1 ); // neutral current
 		}
-		
+
 		throw std::runtime_error("Interaction type not recognized");
 	}
 
     // This function returns the primary particle type given the final state particles
-    // returns a particle type object    
+    // returns a particle type object
 	Particle::ParticleType deduceInitialType(Particle::ParticleType pType1, Particle::ParticleType pType2){
 		//only accept certain particle types in general
 		if(!isLepton(pType1) && pType1!=Particle::ParticleType::Hadrons)
-            throw std::runtime_error("BadParticle"); 
+            throw std::runtime_error("BadParticle");
 		if(!isLepton(pType2) && pType2!=Particle::ParticleType::Hadrons)
             throw std::runtime_error("BadParticle");
-		
+
 		bool c1=isCharged(pType1);
 		bool c2=isCharged(pType2);
 		bool l1=isLepton(pType1);
 		bool l2=isLepton(pType2);
-		
+
 		//at least one particle should be charged
 		if(!c1 && !c2)
 			throw std::runtime_error("Final state should have at least one charged particle");
@@ -265,7 +266,7 @@ namespace LeptonInjector{
 			}
             throw std::runtime_error("BadFinal");
 		}
-		
+
 		//first particle is neutral, second is charged
 		if(!c1 && c2){
 			if(l1 && pType2==Particle::ParticleType::Hadrons){
@@ -274,7 +275,7 @@ namespace LeptonInjector{
 			}
             throw std::runtime_error("BadFinal");
 		}
-		
+
 		//have two charged particles
 		if(c1 && c2){
 			//no two charged lepton states
@@ -304,4 +305,5 @@ namespace LeptonInjector{
 
     // Particle-based exceptions:
 
-} // end namespace LI_Particle
+} // namespace utilities
+} // namespace LI

@@ -7,9 +7,10 @@
 
 // this implements a class to sample numbers just like in an i3 service
 
-#include <random> // default_random_engine, uniform_real_distribution 
+#include <random> // default_random_engine, uniform_real_distribution
 
-namespace LeptonInjector {
+namespace LI {
+namespace utilities {
 
     class LI_random{
         public:
@@ -19,15 +20,16 @@ namespace LeptonInjector {
             // this naming convention is used to
             double Uniform( double from=0.0, double to=1.0);
 
-            // in case this is set up without a seed! 
+            // in case this is set up without a seed!
             void set_seed(unsigned int new_seed);
 
-        private: 
+        private:
             std::default_random_engine configuration;
             std::uniform_real_distribution<double> generator;
     };
 
-} //end namespace LeptonInjector
+} // namespace utilities
+} // namespace LI
 
 #endif // LI_Random_H
 

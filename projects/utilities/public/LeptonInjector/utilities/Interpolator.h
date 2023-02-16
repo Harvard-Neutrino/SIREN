@@ -22,7 +22,8 @@
 #include <cereal/types/utility.hpp>
 
 
-namespace LeptonInjector {
+namespace LI {
+namespace utilities {
 
 template<typename T>
 struct TableData1D {
@@ -698,14 +699,15 @@ public:
     }
 };
 
-} // namespace LeptonInjector
+} // namespace utilities
+} // namespace LI
 
-CEREAL_CLASS_VERSION(LeptonInjector::TableData1D<double>, 0);
-CEREAL_CLASS_VERSION(LeptonInjector::TableData2D<double>, 0);
-CEREAL_CLASS_VERSION(LeptonInjector::IndexFinderRegular<double>, 0);
-CEREAL_CLASS_VERSION(LeptonInjector::IndexFinderIrregular<double>, 0);
-CEREAL_CLASS_VERSION(LeptonInjector::Indexer1D<double>, 0);
-CEREAL_CLASS_VERSION(LeptonInjector::Interpolator1D<double>, 0);
-CEREAL_CLASS_VERSION(LeptonInjector::Interpolator2D<double>, 0);
+CEREAL_CLASS_VERSION(LI::utilities::TableData1D<double>, 0);
+CEREAL_CLASS_VERSION(LI::utilities::TableData2D<double>, 0);
+CEREAL_CLASS_VERSION(LI::utilities::IndexFinderRegular<double>, 0);
+CEREAL_CLASS_VERSION(LI::utilities::IndexFinderIrregular<double>, 0);
+CEREAL_CLASS_VERSION(LI::utilities::Indexer1D<double>, 0);
+CEREAL_CLASS_VERSION(LI::utilities::Interpolator1D<double>, 0);
+CEREAL_CLASS_VERSION(LI::utilities::Interpolator2D<double>, 0);
 
 #endif // LI_Interpolator_H

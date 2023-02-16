@@ -1,8 +1,8 @@
 #include <tuple>
 
-#include "phys-services/Interpolator.h"
+#include "LeptonInjector/utilities/Interpolator.h"
 
-using namespace LeptonInjector;
+using namespace LI::utilities;
 
 template<>
 template<>

@@ -7,22 +7,24 @@
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
 
-// This header defines a lot of constants - not all actually used in this code. 
-// This was, for the most part, just copied from previous code of mine 
+// This header defines a lot of constants - not all actually used in this code.
+// This was, for the most part, just copied from previous code of mine
 
-namespace LeptonInjector{ namespace Constants{
+namespace LI {
+namespace utilities {
+namespace Constants {
 
 // geometry
 static const double pi         = 3.141592653589793238462643383279502884197;
-static const double tau        = 2*pi; //let's not play favorites 
-static const double degrees         = pi/180.; // converts degrees into radians. 
+static const double tau        = 2*pi; //let's not play favorites
+static const double degrees         = pi/180.; // converts degrees into radians.
 // This is used since the user will enter a number in degrees, while the c trigonometric functions
-// expect angles presented in radians. 
-static const double &deg            = degrees; // adding this in too... 
+// expect angles presented in radians.
+static const double &deg            = degrees; // adding this in too...
 static const double radian          = 1.;
 
 // meter
-static const double m               = 1.; 
+static const double m               = 1.;
 static const double &meter          = m;
 static const double cm              = 0.01*m;
 static const double &centimeter     = cm;
@@ -44,7 +46,7 @@ static const double lambda0Mass     = 1.1156836; // MeV
 
 // confusing units
 // static const double second          = 1.523e15; // [eV^-1 sec^-1]
-static const double &s              = second; 
+static const double &s              = second;
 static const double tauLifeTime     = second*2.906e-13;
 static const double MuonLifeTime    = second*2.196e-6;
 
@@ -66,7 +68,7 @@ W boson - http://pdg.lbl.gov/2019/listings/rpp2019-list-w-boson.pdf
 Z boson - http://pdg.lbl.gov/2018/listings/rpp2018-list-z-boson.pdf
 */
 
-// Unit Conversions 
+// Unit Conversions
 
 static const double elementaryCharge  = 1.602176634e-19; // C
 
@@ -84,16 +86,17 @@ static const double invGeVsq_per_cmsq = 2.568189461147501e27;
 
 
 // may need to fix these after setting GeV to 1.0
-static const double FermiConstant   = 1.16639e-23/pow(eV,2); // [GeV^-2] 
+static const double FermiConstant   = 1.16639e-23/pow(eV,2); // [GeV^-2]
 static const double avogadro        = 6.0221415e+23; // [mol cm^-3]
-static const double thetaWeinberg   = 0.2312; // dimensionless 
+static const double thetaWeinberg   = 0.2312; // dimensionless
 static const double gravConstant    = 6.6700e-11; // [m^3 kg^-1 s^-2]
 static const double fineStructure   = 1.0/137.0; // dimensionless
 static const double hbarc           = 197.3*(1e-9)*(1e-7); // [GeV cm]
 
 
 } // namespace Constants
-} // namespace LeptonInjector
+} // namespace utilities
+} // namespace LI
 
 #endif // LI_Constants_H
 
