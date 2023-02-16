@@ -2,21 +2,16 @@
 #core files
 LIST (APPEND geometry_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/geometry/private/Geometry.cxx
-    ${CMAKE_SOURCE_DIR}/projects/geometry/private/Vector3D.cxx
-    ${CMAKE_SOURCE_DIR}/projects/geometry/private/Matrix3D.cxx
-    ${CMAKE_SOURCE_DIR}/projects/geometry/private/Polynomial.cxx
-    ${CMAKE_SOURCE_DIR}/projects/geometry/private/Placement.cxx
-    ${CMAKE_SOURCE_DIR}/projects/geometry/private/Quaternion.cxx
-    ${CMAKE_SOURCE_DIR}/projects/geometry/private/EulerAngles.cxx
     ${CMAKE_SOURCE_DIR}/projects/geometry/private/GeometryMesh.cxx
     ${CMAKE_SOURCE_DIR}/projects/geometry/private/MeshBuilder.cxx
+    ${CMAKE_SOURCE_DIR}/projects/geometry/private/Placement.cxx
 )
 add_library(LI_geometry SHARED ${geometry_SOURCES})
 target_include_directories(LI_geometry PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/geometry/public/
 )
 add_dependencies(LI_geometry rk)
-add_dependencies(LI_geometry LI_serialization)
+add_dependencies(LI_geometry LI_serialization LI_math LI_geometry)
 
 target_link_libraries(LI_geometry ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(LI_geometry photospline)
@@ -24,6 +19,8 @@ target_link_libraries(LI_geometry ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHAR
 
 target_include_directories(LI_geometry PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
 target_include_directories(LI_geometry PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
+target_include_directories(LI_geometry PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/public/)
+target_include_directories(LI_geometry PUBLIC ${CMAKE_SOURCE_DIR}/projects/geometry/public/)
 
 install(TARGETS LI_geometry
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

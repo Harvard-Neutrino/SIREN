@@ -38,7 +38,7 @@
 
 // include custom LI headers
 #include "LeptonInjector/utilities/Constants.h"
-#include "LeptonInjector/geometry/Coordinates.h"
+#include "LeptonInjector/math/Coordinates.h"
 
 // earthmodel!
 #include "LeptonInjector/detector/EarthModelCalculator.h"

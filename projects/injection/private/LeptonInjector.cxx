@@ -5,7 +5,7 @@
 #include <rk/rk.hh>
 
 #include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
@@ -88,12 +88,12 @@ void InjectorBase::SampleCrossSection(LI::crosssections::InteractionRecord & rec
     std::set<LI::utilities::Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
     std::set<LI::utilities::Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
-    LI::geometry::Vector3D interaction_vertex(
+    LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    LI::geometry::Vector3D primary_direction(
+    LI::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
@@ -176,7 +176,7 @@ void InjectorBase::SampleSecondaryDecay(LI::crosssections::InteractionRecord con
     decay.primary_helicity = hnl_helicity;
 
     rk::P4 pHNL_lab(geom3::Vector3(hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]), hnl_mass);
-    LI::geometry::Vector3D hnl_dir(hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]);
+    LI::math::Vector3D hnl_dir(hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]);
     hnl_dir.normalize();
 
     // Calculate the decay location of the HNL
@@ -197,7 +197,7 @@ void InjectorBase::SampleSecondaryDecay(LI::crosssections::InteractionRecord con
     }
 
     double decay_loc = a + -1 * decay_length * std::log(1-C);
-    decay.decay_vertex = LI::geometry::Vector3D(interaction.interaction_vertex) + decay_loc * hnl_dir;
+    decay.decay_vertex = LI::math::Vector3D(interaction.interaction_vertex) + decay_loc * hnl_dir;
 
     // Sample decay angles
     double X = random->Uniform(0,1);
@@ -255,9 +255,9 @@ void InjectorBase::SamplePairProduction(LI::crosssections::DecayRecord const & d
     // Nick TODO: comment more
 
     LI::detector::MaterialModel const & mat_model = earth_model->GetMaterials();
-    LI::geometry::Vector3D decay_vtx(decay.decay_vertex);
+    LI::math::Vector3D decay_vtx(decay.decay_vertex);
     unsigned int gamma_index = 0;
-    LI::geometry::Vector3D decay_dir(decay.secondary_momenta[gamma_index][1],
+    LI::math::Vector3D decay_dir(decay.secondary_momenta[gamma_index][1],
                                    decay.secondary_momenta[gamma_index][2],
                                    decay.secondary_momenta[gamma_index][3]);
 
@@ -279,7 +279,7 @@ void InjectorBase::SamplePairProduction(LI::crosssections::DecayRecord const & d
     double N = 0;
     double lnP_nopp = 0; // for calculating the probability that no pair production occurs
     LI::geometry::Geometry::IntersectionList const & ilist = path.GetIntersections();
-    LI::geometry::Vector3D density_point = decay_vtx;
+    LI::math::Vector3D density_point = decay_vtx;
     unsigned int i = 0;
     for(unsigned int j=0; j < ilist.intersections.size(); ++j) {
         auto const & intersection = ilist.intersections[j];
@@ -312,7 +312,7 @@ void InjectorBase::SamplePairProduction(LI::crosssections::DecayRecord const & d
             if(C>X) {C -= P[j]/N; break;}
         }
         double pairprod_dist = -X0[j]*std::log(-N*(X - C) + std::exp(-D[j]/X0[j]));
-        interaction.interaction_vertex = LI::geometry::Vector3D(decay.decay_vertex) + pairprod_dist * decay_dir;
+        interaction.interaction_vertex = LI::math::Vector3D(decay.decay_vertex) + pairprod_dist * decay_dir;
     }
 }
 
@@ -370,8 +370,8 @@ std::string InjectorBase::Name() const {
     return("InjectorBase");
 }
 
-std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> InjectorBase::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
-    return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(LI::geometry::Vector3D(0, 0, 0), LI::geometry::Vector3D(0, 0, 0));
+std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectorBase::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
+    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 }
 
 std::vector<std::shared_ptr<InjectionDistribution>> InjectorBase::GetInjectionDistributions() const {
@@ -434,7 +434,7 @@ std::string RangedLeptonInjector::Name() const {
     return("RangedInjector");
 }
 
-std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> RangedLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> RangedLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
     return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
 }
 
@@ -474,7 +474,7 @@ std::string ColumnDepthLeptonInjector::Name() const {
     return("ColumnDepthInjector");
 }
 
-std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> ColumnDepthLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
     return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
 }
 
@@ -514,7 +514,7 @@ std::string DecayRangeLeptonInjector::Name() const {
     return("DecayRangeInjector");
 }
 
-std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> DecayRangeLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangeLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
     return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
 }
 
@@ -547,7 +547,7 @@ std::string VolumeLeptonInjector::Name() const {
     return("VolumeInjector");
 }
 
-std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> VolumeLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> VolumeLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
     return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
 }
 

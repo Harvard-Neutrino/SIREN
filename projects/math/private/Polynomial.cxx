@@ -3,14 +3,13 @@
 #include <functional>
 #include <iostream>
 
-#include "LeptonInjector/geometry/Polynomial.h"
-#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/math/Polynomial.h"
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%       Polynom      %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-using namespace LI::geometry;
+using namespace LI::math;
 
 Polynom::Polynom() : N_(0) {}
 
@@ -53,7 +52,8 @@ void Polynom::shift(double x) {
     std::function<int(int)> rev = [=] (int i) -> int {
         return N_-1 - i;
     };
-    if (std::fabs(x) > Geometry::GEOMETRY_PRECISION) {
+    static constexpr double precision = 1e-9;
+    if (std::fabs(x) > precision) {
         int n = N_ - 1;
         double** t = new double*[N_];
         for (int count = 0; count < N_; ++count)
@@ -113,7 +113,7 @@ std::function<double(double)> Polynom::GetFunction() {
 }
 
 namespace LI {
-namespace geometry {
+namespace math {
 std::ostream& operator<<(std::ostream& os, const Polynom& p) {
     os << "p(x) =";
     for (int i = 0; i < p.N_; ++i) {
@@ -214,5 +214,5 @@ double NewtonRaphson(std::function<double(double)> func,
     return rts;
 }
 
-} // namespace geometry
+} // namespace math
 } // namespace LI

@@ -4,11 +4,11 @@
 
 #include <limits>
 
-#include "LeptonInjector/geometry/Quaternion.h"
-#include "LeptonInjector/geometry/EulerAngles.h"
+#include "LeptonInjector/math/Quaternion.h"
+#include "LeptonInjector/math/EulerAngles.h"
 
 namespace LI {
-namespace geometry {
+namespace math {
 
 class Quaternion;
 class EulerAngles;
@@ -116,7 +116,7 @@ EulerAngles XYZsFromQ(Quaternion const & quaternion) {
     return EulerAngles(EulerOrder::XYZs, alpha, beta, gamma);
 }
 
-} // namespace geometry
+} // namespace math
 } // namespace LI
 
 #endif // LI_EulerQuaternionConversions_H

@@ -48,7 +48,7 @@
 #include <cereal/types/utility.hpp>
 
 #include "LeptonInjector/serialization/array.h"
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/geometry/Placement.h"
 
 namespace LI {
@@ -68,7 +68,7 @@ public:
         int hierarchy;
         bool entering;
         int matID;
-        Vector3D position;
+        math::Vector3D position;
         bool operator==(Intersection const & other) const {
             return other.distance == distance and other.hierarchy == hierarchy and other.position == position and other.entering == entering;
         }
@@ -85,8 +85,8 @@ public:
         }
     };
     struct IntersectionList {
-        Vector3D position;
-        Vector3D direction;
+        math::Vector3D position;
+        math::Vector3D direction;
         std::vector<Geometry::Intersection> intersections;
         bool operator==(IntersectionList const & other) const {
             return other.position == position and other.direction == direction and other.intersections == intersections;
@@ -107,7 +107,7 @@ public:
     Geometry(const std::string);
     Geometry(const std::string, Placement const &);
     Geometry(Placement const &);
-    //Geometry(const std::string, const Vector3D position);
+    //Geometry(const std::string, const math::Vector3D position);
     Geometry(const Geometry&);
     //Geometry(const nlohmann::json&);
 
@@ -128,11 +128,11 @@ public:
     // Member functions
     // ----------------------------------------------------------------- //
 
-    bool IsInside(const Vector3D& position, const Vector3D& direction) const;
+    bool IsInside(const math::Vector3D& position, const math::Vector3D& direction) const;
 
-    bool IsInfront(const Vector3D& position, const Vector3D& direction) const;
+    bool IsInfront(const math::Vector3D& position, const math::Vector3D& direction) const;
 
-    bool IsBehind(const Vector3D& position, const Vector3D& direction) const;
+    bool IsBehind(const math::Vector3D& position, const math::Vector3D& direction) const;
 
 
 
@@ -150,18 +150,18 @@ public:
      * a particle on the geometry border which moves outside has no intersection.
      * Distances smaller then GEOMETRY_PRECISION (1e-9) are also set to -1
      */
-    std::pair<double, double> DistanceToBorder(const Vector3D& position, const Vector3D& direction) const;
+    std::pair<double, double> DistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const;
 
 
     /*!
      * Calculates the intersections of a ray with the geometry surface
      */
-    std::vector<Intersection> Intersections(Vector3D const & position, Vector3D const & direction) const;
+    std::vector<Intersection> Intersections(math::Vector3D const & position, math::Vector3D const & direction) const;
 
     /*!
      * Calculates the distance to the closest approch to the geometry center
      */
-    double DistanceToClosestApproach(const Vector3D& position, const Vector3D& direction) const;
+    double DistanceToClosestApproach(const math::Vector3D& position, const math::Vector3D& direction) const;
 
     // void swap(Geometry &geometry);
 
@@ -169,9 +169,9 @@ public:
     // Getter & Setter
     // ----------------------------------------------------------------- //
 
-    ParticleLocation::Enum GetLocation(const Vector3D& position, const Vector3D& direction) const;
+    ParticleLocation::Enum GetLocation(const math::Vector3D& position, const math::Vector3D& direction) const;
 
-    //Vector3D GetPosition() const { return position_; }
+    //math::Vector3D GetPosition() const { return position_; }
 
     std::string GetName() const { return name_; }
 
@@ -179,27 +179,27 @@ public:
 
     void SetPlacement(Placement const & placement) { placement_ = placement; }
 
-    //void SetPosition(const Vector3D& position) { position_ = position; };
+    //void SetPosition(const math::Vector3D& position) { position_ = position; };
 
-    virtual std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const = 0;
+    virtual std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const = 0;
 
 protected:
     // Implemented in child classes to be able to use equality operator
     virtual bool equal(const Geometry&) const = 0;
     virtual bool less(const Geometry&) const = 0;
     virtual void print(std::ostream&) const     = 0;
-    virtual std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const = 0;
+    virtual std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const = 0;
 
-    //Vector3D position_; //!< x,y,z-coordinate of origin ( center of box, cylinder, sphere)
+    //math::Vector3D position_; //!< x,y,z-coordinate of origin ( center of box, cylinder, sphere)
 
     std::string name_; //!< "box" , "cylinder" , "sphere" (sphere and cylinder might be hollow)
     Placement placement_;
 
 public:
-    Vector3D LocalToGlobalPosition(Vector3D const & p) const;
-    Vector3D LocalToGlobalDirection(Vector3D const & d) const;
-    Vector3D GlobalToLocalPosition(Vector3D const & p) const;
-    Vector3D GlobalToLocalDirection(Vector3D const & d) const;
+    math::Vector3D LocalToGlobalPosition(math::Vector3D const & p) const;
+    math::Vector3D LocalToGlobalDirection(math::Vector3D const & d) const;
+    math::Vector3D GlobalToLocalPosition(math::Vector3D const & p) const;
+    math::Vector3D GlobalToLocalDirection(math::Vector3D const & d) const;
 };
 
 class Box : public Geometry {
@@ -231,8 +231,8 @@ public:
     Box& operator=(const Geometry&) override;
 
     // Methods
-    std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
-    std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const override;
+    std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const override;
+    std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
 
     // Getter & Setter
     double GetX() const { return x_; }
@@ -282,8 +282,8 @@ public:
     Cylinder& operator=(const Geometry&) override;
 
     // Methods
-    std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
-    std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const override;
+    std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const override;
+    std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
 
     // Getter & Setter
     double GetInnerRadius() const { return inner_radius_; }
@@ -334,8 +334,8 @@ public:
     Sphere& operator=(const Geometry&) override;
 
     // Methods
-    std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
-    std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const override;
+    std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const override;
+    std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
 
     // Getter & Setter
     double GetInnerRadius() const { return inner_radius_; }
@@ -440,8 +440,8 @@ public:
     ExtrPoly& operator=(const Geometry&) override;
 
     // Methods
-    std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
-    std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const override;
+    std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const override;
+    std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
 
     // Getter & Setter
     std::vector<std::vector<double>> GetPolygon() const { return polygon_; }

@@ -9,9 +9,10 @@
 #include <algorithm>
 
 #include "LeptonInjector/detector/EarthModel.h"
-#include "LeptonInjector/geometry/Vector3D.h"
-#include "LeptonInjector/geometry/EulerQuaternionConversions.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/EulerQuaternionConversions.h"
 
+using namespace LI::math;
 using namespace LI::geometry;
 using namespace LI::detector;
 

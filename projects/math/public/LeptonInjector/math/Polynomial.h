@@ -42,7 +42,7 @@
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 namespace LI {
-namespace geometry {
+namespace math {
 
 class Polynom {
 friend cereal::access;
@@ -112,10 +112,10 @@ class MathException: public std::exception {
 double NewtonRaphson(std::function<double(double)> f, std::function<double(double)> df, double x1, double x2,
         double xinit, int MAX_STEPS = 101, double xacc = 1.e-6);
 
-}  // namespace geometry
+}  // namespace math
 }  // namespace LI
 
-CEREAL_CLASS_VERSION(LI::geometry::Polynom, 0);
+CEREAL_CLASS_VERSION(LI::math::Polynom, 0);
 
 #endif // LI_Polynomial_H
 

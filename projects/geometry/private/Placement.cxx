@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "LeptonInjector/geometry/Placement.h"
-#include "LeptonInjector/geometry/EulerQuaternionConversions.h"
+#include "LeptonInjector/math/EulerQuaternionConversions.h"
 
 using namespace LI::geometry;
 
@@ -12,24 +12,24 @@ using namespace LI::geometry;
 //----------------------------------------------------------------------//
 
 Placement::Placement() :
-    position_(Vector3D(0,0,0)),
-    quaternion_(QFromZXZr(0,0,0))
+    position_(LI::math::Vector3D(0,0,0)),
+    quaternion_(LI::math::QFromZXZr(0,0,0))
 {
     quaternion_.normalize();
 }
 
-Placement::Placement(Vector3D const & position) :
+Placement::Placement(LI::math::Vector3D const & position) :
     position_(position)
 {
 }
 
-Placement::Placement(Quaternion const & quaternion) :
+Placement::Placement(LI::math::Quaternion const & quaternion) :
     quaternion_(quaternion)
 {
     quaternion_.normalize();
 }
 
-Placement::Placement(Vector3D const & position, Quaternion const & quaternion) :
+Placement::Placement(LI::math::Vector3D const & position, LI::math::Quaternion const & quaternion) :
     position_(position),
     quaternion_(quaternion)
 {
@@ -122,45 +122,45 @@ std::shared_ptr<const Placement> Placement::create() const { return std::shared_
 //-------------------------------------//
 // getter and setter functions
 
-Vector3D Placement::GetPosition() const { return position_; }
+LI::math::Vector3D Placement::GetPosition() const { return position_; }
 
-Quaternion Placement::GetQuaternion() const { return quaternion_; }
+LI::math::Quaternion Placement::GetQuaternion() const { return quaternion_; }
 
-void Placement::SetPosition(Vector3D const & p) { position_ = p; }
+void Placement::SetPosition(LI::math::Vector3D const & p) { position_ = p; }
 
-void Placement::SetQuaternion(Quaternion const & q) {
+void Placement::SetQuaternion(LI::math::Quaternion const & q) {
     quaternion_ = q;
     quaternion_.normalize();
 }
 
-Vector3D Placement::Rotate(Vector3D const & p0, bool inv) const
+LI::math::Vector3D Placement::Rotate(LI::math::Vector3D const & p0, bool inv) const
 {
     return quaternion_.rotate(p0,inv);
 }
 
-Vector3D Placement::LocalToGlobalPosition(Vector3D const & p0) const
+LI::math::Vector3D Placement::LocalToGlobalPosition(LI::math::Vector3D const & p0) const
 {
-    Vector3D p1 = quaternion_.rotate(p0, false); // Rotate about local origin to get orientation in the global system
-    Vector3D p2 = p1 + position_; // Translate local origin to global origin
+    LI::math::Vector3D p1 = quaternion_.rotate(p0, false); // Rotate about local origin to get orientation in the global system
+    LI::math::Vector3D p2 = p1 + position_; // Translate local origin to global origin
     return p2;
 }
 
-Vector3D Placement::LocalToGlobalDirection(Vector3D const & p0) const
+LI::math::Vector3D Placement::LocalToGlobalDirection(LI::math::Vector3D const & p0) const
 {
-    Vector3D p1 = quaternion_.rotate(p0, false); // Rotate about local origin to get orientation in the global system
+    LI::math::Vector3D p1 = quaternion_.rotate(p0, false); // Rotate about local origin to get orientation in the global system
     return p1;
 }
 
-Vector3D Placement::GlobalToLocalPosition(Vector3D const & p0) const
+LI::math::Vector3D Placement::GlobalToLocalPosition(LI::math::Vector3D const & p0) const
 {
-    Vector3D p1 = p0 - position_; // Translate global origin to local origin
-    Vector3D p2 = quaternion_.rotate(p1, true); // Inverse rotatation about local origin to get orientation in the local system
+    LI::math::Vector3D p1 = p0 - position_; // Translate global origin to local origin
+    LI::math::Vector3D p2 = quaternion_.rotate(p1, true); // Inverse rotatation about local origin to get orientation in the local system
     return p2;
 }
 
-Vector3D Placement::GlobalToLocalDirection(Vector3D const & p0) const
+LI::math::Vector3D Placement::GlobalToLocalDirection(LI::math::Vector3D const & p0) const
 {
-    Vector3D p1 = quaternion_.rotate(p0, false); // Inverse rotatation about local origin to get orientation in the local system
+    LI::math::Vector3D p1 = quaternion_.rotate(p0, false); // Inverse rotatation about local origin to get orientation in the local system
     return p1;
 }
 

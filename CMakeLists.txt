@@ -103,6 +103,7 @@ include_directories("${PROJECT_SOURCE_DIR}/vendor/cereal/include")
 
 add_subdirectory(projects/utilities)
 add_subdirectory(projects/serialization)
+add_subdirectory(projects/math)
 add_subdirectory(projects/geometry)
 add_subdirectory(projects/detector)
 add_subdirectory(projects/crosssections)

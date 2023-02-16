@@ -9,7 +9,7 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/geometry/Placement.h"
 
@@ -118,7 +118,7 @@ bool Geometry::operator!=(const Geometry& geometry) const
 // Member functions
 // ------------------------------------------------------------------------- //
 
-bool Geometry::IsInside(const Vector3D& position, const Vector3D& direction) const
+bool Geometry::IsInside(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
 {
     bool is_inside = false;
 
@@ -132,7 +132,7 @@ bool Geometry::IsInside(const Vector3D& position, const Vector3D& direction) con
 }
 
 // ------------------------------------------------------------------------- //
-bool Geometry::IsInfront(const Vector3D& position, const Vector3D& direction) const
+bool Geometry::IsInfront(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
 {
     bool is_infront = false;
 
@@ -146,7 +146,7 @@ bool Geometry::IsInfront(const Vector3D& position, const Vector3D& direction) co
 }
 
 // ------------------------------------------------------------------------- //
-bool Geometry::IsBehind(const Vector3D& position, const Vector3D& direction) const
+bool Geometry::IsBehind(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
 {
     bool is_behind = false;
 
@@ -159,7 +159,7 @@ bool Geometry::IsBehind(const Vector3D& position, const Vector3D& direction) con
     return is_behind;
 }
 
-Geometry::ParticleLocation::Enum Geometry::GetLocation(const Vector3D& position, const Vector3D& direction) const {
+Geometry::ParticleLocation::Enum Geometry::GetLocation(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const {
     if(IsInfront(position, direction))
         return Geometry::ParticleLocation::InfrontGeometry;
     if(IsInside(position, direction))
@@ -169,41 +169,41 @@ Geometry::ParticleLocation::Enum Geometry::GetLocation(const Vector3D& position,
 }
 
 // ------------------------------------------------------------------------- //
-double Geometry::DistanceToClosestApproach(const Vector3D& position, const Vector3D& direction) const
+double Geometry::DistanceToClosestApproach(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
 {
-    Vector3D pos = GlobalToLocalPosition(position);
-    Vector3D dir = GlobalToLocalPosition(direction);
+    LI::math::Vector3D pos = GlobalToLocalPosition(position);
+    LI::math::Vector3D dir = GlobalToLocalPosition(direction);
     return scalar_product(-pos, dir);
 }
 
-Vector3D Geometry::LocalToGlobalPosition(Vector3D const & p0) const
+LI::math::Vector3D Geometry::LocalToGlobalPosition(LI::math::Vector3D const & p0) const
 {
     return placement_.LocalToGlobalPosition(p0);
 }
 
-Vector3D Geometry::LocalToGlobalDirection(Vector3D const & p0) const
+LI::math::Vector3D Geometry::LocalToGlobalDirection(LI::math::Vector3D const & p0) const
 {
     return placement_.LocalToGlobalDirection(p0);
 }
 
-Vector3D Geometry::GlobalToLocalPosition(Vector3D const & p0) const
+LI::math::Vector3D Geometry::GlobalToLocalPosition(LI::math::Vector3D const & p0) const
 {
     return placement_.GlobalToLocalPosition(p0);
 }
 
-Vector3D Geometry::GlobalToLocalDirection(Vector3D const & p0) const
+LI::math::Vector3D Geometry::GlobalToLocalDirection(LI::math::Vector3D const & p0) const
 {
     return placement_.GlobalToLocalDirection(p0);
 }
 
-std::pair<double, double> Geometry::DistanceToBorder(const Vector3D& position, const Vector3D& direction) const {
-    Vector3D local_position = GlobalToLocalPosition(position);
-    Vector3D local_direction = GlobalToLocalDirection(direction);
+std::pair<double, double> Geometry::DistanceToBorder(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const {
+    LI::math::Vector3D local_position = GlobalToLocalPosition(position);
+    LI::math::Vector3D local_direction = GlobalToLocalDirection(direction);
     return ComputeDistanceToBorder(position, direction);
 }
-std::vector<Geometry::Intersection> Geometry::Intersections(Vector3D const & position, Vector3D const & direction) const {
-    Vector3D local_position = GlobalToLocalPosition(position);
-    Vector3D local_direction = GlobalToLocalDirection(direction);
+std::vector<Geometry::Intersection> Geometry::Intersections(LI::math::Vector3D const & position, LI::math::Vector3D const & direction) const {
+    LI::math::Vector3D local_position = GlobalToLocalPosition(position);
+    LI::math::Vector3D local_direction = GlobalToLocalDirection(direction);
     std::vector<Geometry::Intersection> intersections = ComputeIntersections(local_position, local_direction);
     for(auto & intersection : intersections) {
         intersection.position = LocalToGlobalPosition(intersection.position);
@@ -345,7 +345,7 @@ void Box::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & position, Vector3D const & direction) const {
+std::vector<Geometry::Intersection> Box::ComputeIntersections(LI::math::Vector3D const & position, LI::math::Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the box
     // Surface of the box is defined by six planes:
     // E1: x1   =   position.GetX() + 0.5*x
@@ -374,7 +374,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & p
 
     std::function<void()> save = [&](){
         Intersection i;
-        i.position = Vector3D(intersection_x,intersection_y,intersection_z);
+        i.position = LI::math::Vector3D(intersection_x,intersection_y,intersection_z);
         i.distance = t;
         i.hierarchy = 0;
         i.entering = entering;
@@ -523,7 +523,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(Vector3D const & p
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Box::ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+std::pair<double, double> Box::ComputeDistanceToBorder(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -725,7 +725,7 @@ void Cylinder::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D const & position, Vector3D const & direction) const {
+std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(LI::math::Vector3D const & position, LI::math::Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the cylinder
     // cylinder barrel (x1 + x0)^2 + (x2 + y0)^2  = radius^2 [ z0_-0.5*z_ <
     // particle->z <z0_ - 0.5*z_ ]
@@ -760,7 +760,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D cons
 
     std::function<void(double, bool)> save = [&](double t, bool entering){
         Intersection i;
-        i.position = Vector3D(intersection_x,intersection_y,intersection_z);
+        i.position = LI::math::Vector3D(intersection_x,intersection_y,intersection_z);
         i.distance = t;
         i.hierarchy = 0;
         i.entering = entering;
@@ -768,7 +768,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D cons
     };
 
     std::function<bool()> entering_radial = [&]() {
-        return Vector3D(intersection_x, intersection_y, 0) * direction < 0;
+        return LI::math::Vector3D(intersection_x, intersection_y, 0) * direction < 0;
     };
 
     double z_calc_pos = 0.5 * z_;
@@ -938,7 +938,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(Vector3D cons
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Cylinder::ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+std::pair<double, double> Cylinder::ComputeDistanceToBorder(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -1149,7 +1149,7 @@ void Sphere::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Sphere::ComputeIntersections(Vector3D const & position, Vector3D const & direction) const {
+std::vector<Geometry::Intersection> Sphere::ComputeIntersections(LI::math::Vector3D const & position, LI::math::Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the sphere
     // sphere (x1 + x0)^2 + (x2 + y0)^2 + (x3 + z0)^2 = radius^2
     // straight line (particle trajectory) g = vec(x,y,z) + t * dir_vec( cosph
@@ -1166,7 +1166,7 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(Vector3D const 
 
     std::vector<Intersection> dist;
 
-    Vector3D intersection;
+    LI::math::Vector3D intersection;
 
     std::function<void(double, bool)> save = [&](double t, bool entering){
         Intersection i;
@@ -1244,7 +1244,7 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(Vector3D const 
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Sphere::ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+std::pair<double, double> Sphere::ComputeDistanceToBorder(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -1455,21 +1455,21 @@ void ExtrPoly::ComputeLateralPlanes()
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D const & position, Vector3D const & direction) const {
+std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(LI::math::Vector3D const & position, LI::math::Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the extr poly
     // Implementation follows that of Geant4, see here:
     //
-    // https://gitlab.cern.ch/geant4/geant4/-/blob/master/source/geometry/solids/specific/src/G4ExtrudedSolid.cc
+    // https://gitlab.cern.ch/geant4/geant4/-/blob/master/source/math/solids/specific/src/G4ExtrudedSolid.cc
     //
     // NOTE: Only works for convex right prisms at the moment
 
     std::vector<Geometry::Intersection> dist;
 
-    Vector3D intersection;
+    LI::math::Vector3D intersection;
 
     std::function<void(double, bool)> save = [&](double t, bool entering){
         Intersection i;
-        i.position = Vector3D(position.GetX() + direction.GetX()*t,
+        i.position = LI::math::Vector3D(position.GetX() + direction.GetX()*t,
                 position.GetY() + direction.GetY()*t,
                 position.GetZ() + direction.GetZ()*t);
         i.distance = t;
@@ -1536,7 +1536,7 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D cons
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> ExtrPoly::ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+std::pair<double, double> ExtrPoly::ComputeDistanceToBorder(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);

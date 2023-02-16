@@ -18,14 +18,14 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/geometry/Coordinates.h"
+#include "LeptonInjector/math/Coordinates.h"
 #include "LeptonInjector/injection/Distributions.h"
 #include "LeptonInjector/injection/LeptonInjector.h"
 #include "LeptonInjector/injection/WeightingUtils.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
 
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"
 
 namespace LeptonInjector {
@@ -55,10 +55,10 @@ public:
     //TODO Think about the relationship between interaction probability and the positional distribution. Check that the math works out
     //TODO Add versions of these functions that take precomputed intersections
     double InteractionProbability(std::shared_ptr<InjectorBase const> injector, LI::crosssections::InteractionRecord const & record) const;
-    double InteractionProbability(std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const;
+    double InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const;
     double UnnormalizedPositionProbability(std::shared_ptr<InjectorBase const> injector, LI::crosssections::InteractionRecord const & record) const;
-    double UnnormalizedPositionProbability(std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const;
-    double NormalizedPositionProbability(std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const;
+    double UnnormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const;
+    double NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const;
     //TODO Add a function to check that we have the right match up of variables between generator and physical distribution
     //TODO Figure out a way to check that physical and generation probabilities match, and ignore those when weighting
     LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections, std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions);

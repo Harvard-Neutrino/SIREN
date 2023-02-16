@@ -2,10 +2,10 @@
 #include <cmath>
 #include <iostream>
 
-#include "LeptonInjector/geometry/Matrix3D.h"
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Matrix3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 
-using namespace LI::geometry;
+using namespace LI::math;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -152,7 +152,7 @@ void Matrix3D::swap(Matrix3D& matrix_3d)
 }
 
 namespace LI {
-namespace geometry {
+namespace math {
 std::ostream& operator<<(std::ostream& os, Matrix3D const& matrix_3d)
 {
     std::stringstream ss;
@@ -160,7 +160,7 @@ std::ostream& operator<<(std::ostream& os, Matrix3D const& matrix_3d)
     os << ss.str() << '\n';
     return os;
 }
-} // namespace geometry
+} // namespace math
 } // namespace LI
 
 //----------------------------------------------------------------------//
@@ -168,7 +168,7 @@ std::ostream& operator<<(std::ostream& os, Matrix3D const& matrix_3d)
 //----------------------------------------------------------------------//
 
 namespace LI {
-namespace geometry {
+namespace math {
 
 Matrix3D operator+(const Matrix3D& mat1, const Matrix3D& mat2)
 {
@@ -358,7 +358,7 @@ Matrix3D matrix_product(const Matrix3D& mat1, const Matrix3D& mat2)
     return p;
 }
 
-} // namespace geometry
+} // namespace math
 } // namespace LI
 
 Matrix3D Matrix3D::operator-() const

@@ -1,9 +1,9 @@
 #include <cmath>
 #include <iostream>
 
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 
-using namespace LI::geometry;
+using namespace LI::math;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -146,7 +146,7 @@ void Vector3D::swap(Vector3D& vector_3d)
 }
 
 namespace LI {
-namespace geometry {
+namespace math {
 std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d)
 {
     std::stringstream ss;
@@ -161,7 +161,7 @@ std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d)
 
     return os;
 }
-} // namespace geometry
+} // namespace math
 } // namespace LI
 
 //----------------------------------------------------------------------//
@@ -178,7 +178,7 @@ Vector3D Vector3D::operator-() const
 }
 
 namespace LI {
-namespace geometry {
+namespace math {
 
 Vector3D operator+(const Vector3D& vec1, const Vector3D& vec2)
 {
@@ -282,7 +282,7 @@ Vector3D cross_product(const Vector3D& vec1, const Vector3D& vec2)
 }
 
 } // namespace LI
-} // namespace geometry
+} // namespace math
 
 double Vector3D::magnitude() const
 {

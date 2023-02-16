@@ -603,14 +603,14 @@ double Path::GetDistanceFromEndInReverse(double interaction_depth,
 
 bool Path::IsWithinBounds(Vector3D point) {
     EnsurePoints();
-    double d0 = LI::geometry::scalar_product(direction_, first_point_ - point);
-    double d1 = LI::geometry::scalar_product(direction_, last_point_ - point);
+    double d0 = LI::math::scalar_product(direction_, first_point_ - point);
+    double d1 = LI::math::scalar_product(direction_, last_point_ - point);
     return d0 <= 0 and d1 >= 0;
 }
 
 double Path::GetDistanceFromStartInBounds(Vector3D point) {
     EnsurePoints();
-    double d0 = LI::geometry::scalar_product(direction_, first_point_ - point);
+    double d0 = LI::math::scalar_product(direction_, first_point_ - point);
     return std::max(0.0, d0);
 }
 

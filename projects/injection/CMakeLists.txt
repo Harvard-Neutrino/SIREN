@@ -11,7 +11,7 @@ target_include_directories(LI_injection PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/injection/public/
 )
 add_dependencies(LI_injection rk)
-add_dependencies(LI_injection LI_serialization LI_utilities LI_geometry LI_detector LI_crosssections)
+add_dependencies(LI_injection LI_serialization LI_utilities LI_math LI_geometry LI_detector LI_crosssections)
 
 target_link_libraries(LI_injection ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(LI_injection photospline)
@@ -20,6 +20,7 @@ target_link_libraries(LI_injection ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHA
 target_include_directories(LI_injection PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
 target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
 target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/utilities/public/)
+target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/public/)
 target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/geometry/public/)
 target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/detector/public/)
 target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/crosssections/public/)

@@ -39,15 +39,15 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 
-#include "LeptonInjector/geometry/Vector3D.h"
-#include "LeptonInjector/geometry/Polynomial.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/Polynomial.h"
 #include "LeptonInjector/detector/EarthModelCalculator.h"
 
 namespace LI {
 namespace detector {
 
-using LI::geometry::Vector3D;
-using LI::geometry::Polynom;
+using LI::math::Vector3D;
+using LI::math::Polynom;
 
 class DensityException : public std::exception {
    public:
@@ -359,8 +359,8 @@ public:
             if(std::isinf(init)) {
                 init = dF(0.0);
             }
-            res = LI::geometry::NewtonRaphson(F, dF, 0, max_distance, init);
-        } catch(LI::geometry::MathException& e) {
+            res = LI::math::NewtonRaphson(F, dF, 0, max_distance, init);
+        } catch(LI::math::MathException& e) {
             res = -1;
         }
         return res;
@@ -548,9 +548,9 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
         };
 
         try {
-            double b_res = LI::geometry::NewtonRaphson(F, dF, a, b, (a+b)/2.0);
+            double b_res = LI::math::NewtonRaphson(F, dF, a, b, (a+b)/2.0);
             return (b_res - a)/dxdt;
-        } catch(LI::geometry::MathException& e) {
+        } catch(LI::math::MathException& e) {
             return -1;
         }
 
@@ -655,8 +655,8 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
             if(std::isinf(init)) {
                 init = dF(0.0);
             }
-            res = LI::geometry::NewtonRaphson(F, dF, 0, max_distance, init);
-        } catch(LI::geometry::MathException& e) {
+            res = LI::math::NewtonRaphson(F, dF, 0, max_distance, init);
+        } catch(LI::math::MathException& e) {
             res = -1;
         }
         return res;

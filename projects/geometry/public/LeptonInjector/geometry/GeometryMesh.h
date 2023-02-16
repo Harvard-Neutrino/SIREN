@@ -21,7 +21,7 @@
 
 #include "LeptonInjector/serialization/array.h"
 
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/geometry/Placement.h"
 #include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/geometry/MeshBuilder.h"
@@ -64,8 +64,8 @@ public:
     TriangularMesh& operator=(const Geometry&) override;
 
     // Methods
-    std::pair<double, double> ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const override;
-    std::vector<Intersection> ComputeIntersections(Vector3D const & position, Vector3D const & direction) const override;
+    std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const override;
+    std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
 
 protected:
     virtual bool equal(const Geometry&) const override;

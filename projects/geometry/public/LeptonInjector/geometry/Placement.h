@@ -9,8 +9,8 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-#include "LeptonInjector/geometry/Vector3D.h"
-#include "LeptonInjector/geometry/Quaternion.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/Quaternion.h"
 
 namespace LI {
 namespace geometry {
@@ -20,9 +20,9 @@ class Placement
 public:
     // constructors
     Placement();
-    Placement(Vector3D const & position);
-    Placement(Quaternion const & quaternion);
-    Placement(Vector3D const & position, Quaternion const & quaternion);
+    Placement(LI::math::Vector3D const & position);
+    Placement(LI::math::Quaternion const & quaternion);
+    Placement(LI::math::Vector3D const & position, LI::math::Quaternion const & quaternion);
     Placement(const Placement& placement);
     Placement(Placement&& other);
     ~Placement();
@@ -42,19 +42,19 @@ public:
 
     //-------------------------------------//
     // getter and setter functions
-    Vector3D GetPosition() const;
-    Quaternion GetQuaternion() const;
+    LI::math::Vector3D GetPosition() const;
+    LI::math::Quaternion GetQuaternion() const;
 
-    void SetPosition(Vector3D const &);
-    void SetQuaternion(Quaternion const &);
+    void SetPosition(LI::math::Vector3D const &);
+    void SetQuaternion(LI::math::Quaternion const &);
 
     //-------------------------------------//
     // composition function (for rotating)
-    Vector3D Rotate(Vector3D const & p, bool inv = false) const;
-    Vector3D GlobalToLocalPosition(Vector3D const & p) const;
-    Vector3D LocalToGlobalPosition(Vector3D const & p) const;
-    Vector3D GlobalToLocalDirection(Vector3D const & d) const;
-    Vector3D LocalToGlobalDirection(Vector3D const & d) const;
+    LI::math::Vector3D Rotate(LI::math::Vector3D const & p, bool inv = false) const;
+    LI::math::Vector3D GlobalToLocalPosition(LI::math::Vector3D const & p) const;
+    LI::math::Vector3D LocalToGlobalPosition(LI::math::Vector3D const & p) const;
+    LI::math::Vector3D GlobalToLocalDirection(LI::math::Vector3D const & d) const;
+    LI::math::Vector3D LocalToGlobalDirection(LI::math::Vector3D const & d) const;
 
     //-------------------------------------//
     // serialization
@@ -70,14 +70,14 @@ public:
     }
 
 private:
-    Vector3D position_;
+    LI::math::Vector3D position_;
 
     // Describes the "active" rotation
     // i.e. composition with the quaternion takes a position defined relative to an un-rotated
     // body (in "body coordinates") and rotates it into the global system ("global coordinates)
     // Connecting to Aerospace rotation conventions, the "active" rotation is the same as the
     // Passive Body To World" (PBTW) transformation as described in https://arxiv.org/abs/1801.07478
-    Quaternion quaternion_;
+    LI::math::Quaternion quaternion_;
 };
 
 } // namespace geometry

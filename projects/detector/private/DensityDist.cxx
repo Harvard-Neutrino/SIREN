@@ -1,12 +1,12 @@
 
 #include <iostream>
 #include <cmath>
-#include "LeptonInjector/geometry/Vector3D.h"
-#include "LeptonInjector/geometry/Polynomial.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/Polynomial.h"
 #include "LeptonInjector/detector/DensityDist.h"
 
 using namespace LI::detector;
-using namespace LI::geometry;
+using namespace LI::math;
 
 DensityDistribution::DensityDistribution() {}
 

@@ -9,10 +9,10 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 
 namespace LI {
-namespace geometry {
+namespace math {
 
 class Vector3D;
 
@@ -120,10 +120,10 @@ private:
     double zz_ = 0.0;
 };
 
-} // namespace geometry
+} // namespace math
 } // LI
 
-CEREAL_CLASS_VERSION(LI::geometry::Matrix3D, 0);
+CEREAL_CLASS_VERSION(LI::math::Matrix3D, 0);
 
 #endif // LI_Matrix3D_H
 

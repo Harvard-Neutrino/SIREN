@@ -1,6 +1,6 @@
 
 #include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"
 #include "LeptonInjector/detector/EarthModelCalculator.h"
 
@@ -581,7 +581,7 @@ bool TabulatedFluxDistribution::less(WeightableDistribution const & other) const
 // class PrimaryDirectionDistribution : InjectionDistribution
 //---------------
 void PrimaryDirectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
-    LI::geometry::Vector3D dir = SampleDirection(rand, earth_model, cross_sections, record);
+    LI::math::Vector3D dir = SampleDirection(rand, earth_model, cross_sections, record);
     double energy = record.primary_momentum[0];
     double mass = record.primary_mass;
     double momentum = std::sqrt(energy*energy - mass*mass);
@@ -597,11 +597,11 @@ std::vector<std::string> PrimaryDirectionDistribution::DensityVariables() const 
 //---------------
 // class IsotropicDirection : PrimaryDirectionDistribution
 //---------------
-LI::geometry::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+LI::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
     double nx = rand->Uniform(0, 1);
     double ny = rand->Uniform(0, 1);
     double nz = rand->Uniform(0, 1);
-    LI::geometry::Vector3D res(nx, ny, nz);
+    LI::math::Vector3D res(nx, ny, nz);
     res.normalize();
     return res;
 }
@@ -634,14 +634,14 @@ bool IsotropicDirection::less(WeightableDistribution const & other) const {
 //---------------
 // class FixedDirection : PrimaryDirectionDistribution
 //---------------
-LI::geometry::Vector3D FixedDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+LI::math::Vector3D FixedDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
     return dir;
 }
 
 double FixedDirection::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    LI::math::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     event_dir.normalize();
-    if(abs(1.0 - LI::geometry::scalar_product(dir, event_dir)) < 1e-9)
+    if(abs(1.0 - LI::math::scalar_product(dir, event_dir)) < 1e-9)
         return 1.0;
     else
         return 0.0;
@@ -665,12 +665,12 @@ bool FixedDirection::equal(WeightableDistribution const & other) const {
     if(!x)
         return false;
     else
-        return (abs(1.0 - LI::geometry::scalar_product(dir, x->dir)) < 1e-9);
+        return (abs(1.0 - LI::math::scalar_product(dir, x->dir)) < 1e-9);
 }
 
 bool FixedDirection::less(WeightableDistribution const & other) const {
     const FixedDirection* x = dynamic_cast<const FixedDirection*>(&other);
-    if(abs(1.0 - LI::geometry::scalar_product(dir, x->dir)) < 1e-9) {
+    if(abs(1.0 - LI::math::scalar_product(dir, x->dir)) < 1e-9) {
         return false;
     } else {
         double X = dir.GetX();
@@ -689,30 +689,30 @@ bool FixedDirection::less(WeightableDistribution const & other) const {
 //---------------
 // class Cone : PrimaryDirectionDistribution
 //---------------
-Cone::Cone(LI::geometry::Vector3D dir, double opening_angle) : dir(dir), opening_angle(opening_angle) {
+Cone::Cone(LI::math::Vector3D dir, double opening_angle) : dir(dir), opening_angle(opening_angle) {
     this->dir.normalize();
-    if(this->dir == LI::geometry::Vector3D(0,0,1)) {
-        rotation = LI::geometry::Quaternion(0,0,0,1);
+    if(this->dir == LI::math::Vector3D(0,0,1)) {
+        rotation = LI::math::Quaternion(0,0,0,1);
     } else {
-        LI::geometry::Vector3D r = cross_product(LI::geometry::Vector3D(0, 0, 1), dir);
+        LI::math::Vector3D r = cross_product(LI::math::Vector3D(0, 0, 1), dir);
         r.normalize();
-        rotation = LI::geometry::Quaternion(r);
+        rotation = LI::math::Quaternion(r);
         rotation.SetW(1.0 + dir.GetZ());
     }
 }
 
-LI::geometry::Vector3D Cone::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const{
+LI::math::Vector3D Cone::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const{
     double theta = cos(rand->Uniform(acos(opening_angle), 1));
     double phi = rand->Uniform(0, 2.0 * M_PI);
-    LI::geometry::Quaternion q;
+    LI::math::Quaternion q;
     q.SetEulerAnglesZXZr(phi, theta, 0.0);
-    return rotation.rotate(q.rotate(LI::geometry::Vector3D(0,0,1), false), false);
+    return rotation.rotate(q.rotate(LI::math::Vector3D(0,0,1), false), false);
 }
 
 double Cone::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    LI::math::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     event_dir.normalize();
-    double theta = acos(LI::geometry::scalar_product(dir, event_dir));
+    double theta = acos(LI::math::scalar_product(dir, event_dir));
     if(theta < opening_angle)
         return 1.0 / (2.0 * M_PI * (1.0 - cos(opening_angle)));
     else
@@ -733,13 +733,13 @@ bool Cone::equal(WeightableDistribution const & other) const {
     if(!x)
         return false;
     else
-        return (abs(1.0 - LI::geometry::scalar_product(dir, x->dir)) < 1e-9
+        return (abs(1.0 - LI::math::scalar_product(dir, x->dir)) < 1e-9
             and opening_angle == x->opening_angle);
 }
 
 bool Cone::less(WeightableDistribution const & other) const {
     const Cone* x = dynamic_cast<const Cone*>(&other);
-    if(abs(1.0 - LI::geometry::scalar_product(dir, x->dir)) < 1e-9) {
+    if(abs(1.0 - LI::math::scalar_product(dir, x->dir)) < 1e-9) {
         return false;
     } else {
         return opening_angle < x->opening_angle;
@@ -750,7 +750,7 @@ bool Cone::less(WeightableDistribution const & other) const {
 // class VertexPositionDistribution : InjectionDistribution
 //---------------
 void VertexPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
-    LI::geometry::Vector3D pos = SamplePosition(rand, earth_model, cross_sections, record);
+    LI::math::Vector3D pos = SamplePosition(rand, earth_model, cross_sections, record);
     record.interaction_vertex[0] = pos.GetX();
     record.interaction_vertex[1] = pos.GetY();
     record.interaction_vertex[2] = pos.GetZ();
@@ -768,38 +768,38 @@ bool VertexPositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::Ear
 // class OrientedCylinderPositionDistribution : VertexPositionDistribution
 //---------------
 //
-LI::geometry::Vector3D OrientedCylinderPositionDistribution::SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::geometry::Vector3D const & dir) const {
+LI::math::Vector3D OrientedCylinderPositionDistribution::SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::math::Vector3D const & dir) const {
     double t = rand->Uniform(0, 2 * M_PI);
     double r = radius * std::sqrt(rand->Uniform());
-    LI::geometry::Vector3D pos(r * cos(t), r * sin(t), 0.0);
-    LI::geometry::Quaternion q = rotation_between(LI::geometry::Vector3D(0,0,1), dir);
+    LI::math::Vector3D pos(r * cos(t), r * sin(t), 0.0);
+    LI::math::Quaternion q = rotation_between(LI::math::Vector3D(0,0,1), dir);
     return q.rotate(pos, false);
 }
 
-LI::geometry::Vector3D OrientedCylinderPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
-    LI::geometry::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+LI::math::Vector3D OrientedCylinderPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D pca = SampleFromDisk(rand, dir);
+    LI::math::Vector3D pca = SampleFromDisk(rand, dir);
 
     /*
-    std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> GetBounds(earth_model, cross_sections, pca);
+    std::pair<LI::math::Vector3D, LI::math::Vector3D> GetBounds(earth_model, cross_sections, pca);
 
-    LI::geometry::Vector3D p0;
-    LI::geometry::Vector3D p1;
+    LI::math::Vector3D p0;
+    LI::math::Vector3D p1;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
     */
-    return LI::geometry::Vector3D();
+    return LI::math::Vector3D();
 }
 
 double OrientedCylinderPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
     return 0.0;
 }
 
-std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> OrientedCylinderPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & interaction) const {
-    return std::make_pair(LI::geometry::Vector3D(), LI::geometry::Vector3D());
+std::pair<LI::math::Vector3D, LI::math::Vector3D> OrientedCylinderPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & interaction) const {
+    return std::make_pair(LI::math::Vector3D(), LI::math::Vector3D());
 }
 
 bool OrientedCylinderPositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::EarthModel const> second_earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> second_cross_sections) const {
@@ -809,19 +809,19 @@ bool OrientedCylinderPositionDistribution::AreEquivalent(std::shared_ptr<LI::det
 //---------------
 // class CylinderVolumePositionDistribution : public VertexPositionDistribution {
 //---------------
-LI::geometry::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
+LI::math::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
     double t = rand->Uniform(0, 2 * M_PI);
     const double outer_radius = cylinder.GetRadius();
     const double inner_radius = cylinder.GetInnerRadius();
     const double height = cylinder.GetZ();
     double r = std::sqrt(rand->Uniform(inner_radius*inner_radius, outer_radius*outer_radius));
     double z = rand->Uniform(-height/2.0, height/2.0);
-    LI::geometry::Vector3D pos(r * cos(t), r * sin(t), z);
+    LI::math::Vector3D pos(r * cos(t), r * sin(t), z);
     return cylinder.LocalToGlobalPosition(pos);
 }
 
 double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D pos(record.interaction_vertex);
+    LI::math::Vector3D pos(record.interaction_vertex);
     double z = pos.GetZ();
     double r = sqrt(pos.GetX() * pos.GetX() + pos.GetY() * pos.GetY());
     if(abs(z) >= 0.5 * cylinder.GetZ()
@@ -844,16 +844,16 @@ std::shared_ptr<InjectionDistribution> CylinderVolumePositionDistribution::clone
     return std::shared_ptr<InjectionDistribution>(new CylinderVolumePositionDistribution(*this));
 }
 
-std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & interaction) const {
-    LI::geometry::Vector3D dir(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]);
+std::pair<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & interaction) const {
+    LI::math::Vector3D dir(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D pos(interaction.interaction_vertex);
+    LI::math::Vector3D pos(interaction.interaction_vertex);
     std::vector<LI::geometry::Geometry::Intersection> intersections = cylinder.Intersections(pos, dir);
     LI::detector::EarthModel::SortIntersections(intersections);
     if(intersections.size() == 0) {
-        return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(LI::geometry::Vector3D(0, 0, 0), LI::geometry::Vector3D(0, 0, 0));
+        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
     } else if(intersections.size() >= 2) {
-        return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(intersections.front().position, intersections.back().position);
+        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(intersections.front().position, intersections.back().position);
     } else {
         throw std::runtime_error("Only found one cylinder intersection!");
     }
@@ -1071,23 +1071,23 @@ bool DecayRangeFunction::less(RangeFunction const & other) const {
 //---------------
 // class ColumnDepthPositionDistribution : VertexPositionDistribution
 //---------------
-LI::geometry::Vector3D ColumnDepthPositionDistribution::SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::geometry::Vector3D const & dir) const {
+LI::math::Vector3D ColumnDepthPositionDistribution::SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::math::Vector3D const & dir) const {
     double t = rand->Uniform(0, 2 * M_PI);
     double r = radius * std::sqrt(rand->Uniform());
-    LI::geometry::Vector3D pos(r * cos(t), r * sin(t), 0.0);
-    LI::geometry::Quaternion q = rotation_between(LI::geometry::Vector3D(0,0,1), dir);
+    LI::math::Vector3D pos(r * cos(t), r * sin(t), 0.0);
+    LI::math::Quaternion q = rotation_between(LI::math::Vector3D(0,0,1), dir);
     return q.rotate(pos, false);
 }
 
-LI::geometry::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
-    LI::geometry::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D pca = SampleFromDisk(rand, dir);
+    LI::math::Vector3D pca = SampleFromDisk(rand, dir);
 
     double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
 
-    LI::geometry::Vector3D endcap_0 = pca - endcap_length * dir;
-    LI::geometry::Vector3D endcap_1 = pca + endcap_length * dir;
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
@@ -1123,24 +1123,24 @@ LI::geometry::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shar
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections);
-    LI::geometry::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+    LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
 }
 
 double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D vertex(record.interaction_vertex); // m
-    LI::geometry::Vector3D pca = vertex - dir * LI::geometry::scalar_product(dir, vertex);
+    LI::math::Vector3D vertex(record.interaction_vertex); // m
+    LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
         return 0.0;
 
     double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
 
-    LI::geometry::Vector3D endcap_0 = pca - endcap_length * dir;
-    LI::geometry::Vector3D endcap_1 = pca + endcap_length * dir;
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
@@ -1192,24 +1192,24 @@ std::shared_ptr<InjectionDistribution> ColumnDepthPositionDistribution::clone() 
     return std::shared_ptr<InjectionDistribution>(new ColumnDepthPositionDistribution(*this));
 }
 
-std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D vertex(record.interaction_vertex); // m
-    LI::geometry::Vector3D pca = vertex - dir * LI::geometry::scalar_product(dir, vertex);
+    LI::math::Vector3D vertex(record.interaction_vertex); // m
+    LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
-        return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(LI::geometry::Vector3D(0, 0, 0), LI::geometry::Vector3D(0, 0, 0));
+        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
     double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
 
-    LI::geometry::Vector3D endcap_0 = pca - endcap_length * dir;
-    LI::geometry::Vector3D endcap_1 = pca + endcap_length * dir;
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
-    return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool ColumnDepthPositionDistribution::equal(WeightableDistribution const & other) const {
@@ -1243,23 +1243,23 @@ bool ColumnDepthPositionDistribution::less(WeightableDistribution const & other)
 //---------------
 // class RangePositionDistribution : public VertexPositionDistribution {
 //---------------
-LI::geometry::Vector3D RangePositionDistribution::SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::geometry::Vector3D const & dir) const {
+LI::math::Vector3D RangePositionDistribution::SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::math::Vector3D const & dir) const {
     double t = rand->Uniform(0, 2 * M_PI);
     double r = radius * std::sqrt(rand->Uniform());
-    LI::geometry::Vector3D pos(r * cos(t), r * sin(t), 0.0);
-    LI::geometry::Quaternion q = rotation_between(LI::geometry::Vector3D(0,0,1), dir);
+    LI::math::Vector3D pos(r * cos(t), r * sin(t), 0.0);
+    LI::math::Quaternion q = rotation_between(LI::math::Vector3D(0,0,1), dir);
     return q.rotate(pos, false);
 }
 
-LI::geometry::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
-    LI::geometry::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+LI::math::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D pca = SampleFromDisk(rand, dir);
+    LI::math::Vector3D pca = SampleFromDisk(rand, dir);
 
     double lepton_range = range_function->operator()(record.signature, record.primary_momentum[0]);
 
-    LI::geometry::Vector3D endcap_0 = pca - endcap_length * dir;
-    LI::geometry::Vector3D endcap_1 = pca + endcap_length * dir;
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByDistance(lepton_range);
@@ -1294,24 +1294,24 @@ LI::geometry::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections);
-    LI::geometry::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+    LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
 }
 
 double RangePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D vertex(record.interaction_vertex); // m
-    LI::geometry::Vector3D pca = vertex - dir * LI::geometry::scalar_product(dir, vertex);
+    LI::math::Vector3D vertex(record.interaction_vertex); // m
+    LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
         return 0.0;
 
     double lepton_range = range_function->operator()(record.signature, record.primary_momentum[0]);
 
-    LI::geometry::Vector3D endcap_0 = pca - endcap_length * dir;
-    LI::geometry::Vector3D endcap_1 = pca + endcap_length * dir;
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByDistance(lepton_range);
@@ -1365,27 +1365,27 @@ std::shared_ptr<InjectionDistribution> RangePositionDistribution::clone() const 
     return std::shared_ptr<InjectionDistribution>(new RangePositionDistribution(*this));
 }
 
-std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> RangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+std::pair<LI::math::Vector3D, LI::math::Vector3D> RangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D vertex(record.interaction_vertex); // m
-    LI::geometry::Vector3D pca = vertex - dir * LI::geometry::scalar_product(dir, vertex);
+    LI::math::Vector3D vertex(record.interaction_vertex); // m
+    LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
-        return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(LI::geometry::Vector3D(0, 0, 0), LI::geometry::Vector3D(0, 0, 0));
+        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
     double lepton_range = range_function->operator()(record.signature, record.primary_momentum[0]);
 
-    LI::geometry::Vector3D endcap_0 = pca - endcap_length * dir;
-    LI::geometry::Vector3D endcap_1 = pca + endcap_length * dir;
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByDistance(lepton_range);
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(vertex))
-        return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(LI::geometry::Vector3D(0, 0, 0), LI::geometry::Vector3D(0, 0, 0));
-    return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool RangePositionDistribution::equal(WeightableDistribution const & other) const {
@@ -1419,23 +1419,23 @@ bool RangePositionDistribution::less(WeightableDistribution const & other) const
 //---------------
 // class DecayRangePositionDistribution : public VertexPositionDistribution {
 //---------------
-LI::geometry::Vector3D DecayRangePositionDistribution::SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::geometry::Vector3D const & dir) const {
+LI::math::Vector3D DecayRangePositionDistribution::SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::math::Vector3D const & dir) const {
     double t = rand->Uniform(0, 2 * M_PI);
     double r = radius * std::sqrt(rand->Uniform());
-    LI::geometry::Vector3D pos(r * cos(t), r * sin(t), 0.0);
-    LI::geometry::Quaternion q = rotation_between(LI::geometry::Vector3D(0,0,1), dir);
+    LI::math::Vector3D pos(r * cos(t), r * sin(t), 0.0);
+    LI::math::Quaternion q = rotation_between(LI::math::Vector3D(0,0,1), dir);
     return q.rotate(pos, false);
 }
 
-LI::geometry::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
-    LI::geometry::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+LI::math::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D pca = SampleFromDisk(rand, dir);
+    LI::math::Vector3D pca = SampleFromDisk(rand, dir);
 
     double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
 
-    LI::geometry::Vector3D endcap_0 = pca - endcap_length * dir;
-    LI::geometry::Vector3D endcap_1 = pca + endcap_length * dir;
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
@@ -1445,24 +1445,24 @@ LI::geometry::Vector3D DecayRangePositionDistribution::SamplePosition(std::share
     double total_distance = path.GetDistance();
     double dist = -decay_length * log(y * (exp(-total_distance/decay_length) - 1) + 1);
 
-    LI::geometry::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+    LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
 }
 
 double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D vertex(record.interaction_vertex); // m
-    LI::geometry::Vector3D pca = vertex - dir * LI::geometry::scalar_product(dir, vertex);
+    LI::math::Vector3D vertex(record.interaction_vertex); // m
+    LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
         return 0.0;
 
     double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
 
-    LI::geometry::Vector3D endcap_0 = pca - endcap_length * dir;
-    LI::geometry::Vector3D endcap_1 = pca + endcap_length * dir;
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
@@ -1472,7 +1472,7 @@ double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI:
         return 0.0;
 
     double total_distance = path.GetDistance();
-    double dist = LI::geometry::scalar_product(path.GetDirection(), vertex - path.GetFirstPoint());
+    double dist = LI::math::scalar_product(path.GetDirection(), vertex - path.GetFirstPoint());
 
     double prob_density = exp(-dist / decay_length) / (decay_length * (1.0 - exp(-total_distance / decay_length))); // m^-1
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
@@ -1491,28 +1491,28 @@ std::shared_ptr<InjectionDistribution> DecayRangePositionDistribution::clone() c
     return std::shared_ptr<InjectionDistribution>(new DecayRangePositionDistribution(*this));
 }
 
-std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::geometry::Vector3D vertex(record.interaction_vertex); // m
-    LI::geometry::Vector3D pca = vertex - dir * LI::geometry::scalar_product(dir, vertex);
+    LI::math::Vector3D vertex(record.interaction_vertex); // m
+    LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
-        return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(LI::geometry::Vector3D(0, 0, 0), LI::geometry::Vector3D(0, 0, 0));
+        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
     double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
 
-    LI::geometry::Vector3D endcap_0 = pca - endcap_length * dir;
-    LI::geometry::Vector3D endcap_1 = pca + endcap_length * dir;
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(vertex))
-        return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(LI::geometry::Vector3D(0, 0, 0), LI::geometry::Vector3D(0, 0, 0));
+        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
-    return std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool DecayRangePositionDistribution::equal(WeightableDistribution const & other) const {
@@ -1560,7 +1560,7 @@ void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI::utilities::
 
 double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
     std::array<double, 4> const & mom = record.primary_momentum;
-    LI::geometry::Vector3D dir(mom[1], mom[2], mom[3]);
+    LI::math::Vector3D dir(mom[1], mom[2], mom[3]);
     dir.normalize();
 
     if(abs(0.5 - abs(record.primary_helicity)) > 1e-9) // Helicity magnitude must be 0.5

@@ -10,10 +10,10 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-#include "LeptonInjector/geometry/EulerAngles.h"
+#include "LeptonInjector/math/EulerAngles.h"
 
 namespace LI {
-namespace geometry {
+namespace math {
 class Matrix3D;
 class Vector3D;
 
@@ -121,10 +121,10 @@ private:
 
 Quaternion rotation_between(Vector3D const & v0, Vector3D const & v1);
 
-} // namespace geometry
+} // namespace math
 } // namespace LI
 
-CEREAL_CLASS_VERSION(LI::geometry::Quaternion, 0);
+CEREAL_CLASS_VERSION(LI::math::Quaternion, 0);
 
 #endif // LI_Quaternion_H
 

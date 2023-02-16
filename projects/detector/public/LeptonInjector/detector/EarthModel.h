@@ -19,7 +19,7 @@
 
 #include "LeptonInjector/serialization/array.h"
 
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/geometry/Placement.h"
 #include "LeptonInjector/detector/DensityDist.h"

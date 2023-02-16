@@ -17,7 +17,7 @@
 #include <vector>
 #include <cassert>
 
-#include "LeptonInjector/geometry/Coordinates.h"
+#include "LeptonInjector/math/Coordinates.h"
 #include "LeptonInjector/utilities/Constants.h"
 
 /**

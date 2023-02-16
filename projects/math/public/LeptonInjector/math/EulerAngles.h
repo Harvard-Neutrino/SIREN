@@ -9,7 +9,7 @@
 #include <cereal/archives/binary.hpp>
 
 namespace LI {
-namespace geometry {
+namespace math {
 
 class Matrix3D;
 
@@ -151,10 +151,10 @@ private:
     double gamma_;
 };
 
-} // namespace geometry
+} // namespace math
 } // namespace LI
 
-CEREAL_CLASS_VERSION(LI::geometry::EulerAngles, 0);
+CEREAL_CLASS_VERSION(LI::math::EulerAngles, 0);
 
 #endif // LI_EulerAngles_H
 

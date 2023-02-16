@@ -8,7 +8,7 @@
 #include <iostream>
 #include <exception> //allows throwing the out_of_range exception
 
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
@@ -33,8 +33,8 @@ namespace LeptonInjector {
 			LI_Position(double x, double y, double z);
 			LI_Position(const LI_Position& old_one);
 			LI_Position(std::array<double, n_dimensions> pos);
-            LI_Position(LI::geometry::Vector3D const & v);
-            operator LI::geometry::Vector3D() const;
+            LI_Position(LI::math::Vector3D const & v);
+            operator LI::math::Vector3D() const;
 
 			double at(uint8_t component) const;
 			//double Magnitude(void);
@@ -69,8 +69,8 @@ namespace LeptonInjector {
 			LI_Direction( std::pair<double, double> dir);
 			LI_Direction( const LI_Direction& old_one);
 			LI_Direction( const LI_Position& vec );  // get the direction of a vector
-            LI_Direction(LI::geometry::Vector3D v);
-            operator LI::geometry::Vector3D() const;
+            LI_Direction(LI::math::Vector3D v);
+            operator LI::math::Vector3D() const;
 
 			double GetZ() const;
 			double GetY() const;

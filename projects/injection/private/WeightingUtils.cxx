@@ -15,12 +15,12 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> e
     std::set<LI::utilities::Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(earth_model->GetEarthCoordPosFromDetCoordPos(record.interaction_vertex));
     std::set<LI::utilities::Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
-    LI::geometry::Vector3D interaction_vertex(
+    LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    LI::geometry::Vector3D primary_direction(
+    LI::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);

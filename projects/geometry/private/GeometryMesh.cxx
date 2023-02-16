@@ -2,7 +2,7 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
-#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/geometry/Placement.h"
 #include "LeptonInjector/geometry/MeshBuilder.h"
@@ -134,11 +134,11 @@ void TriangularMesh::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> TriangularMesh::ComputeIntersections(Vector3D const & position, Vector3D const & direction) const {
+std::vector<Geometry::Intersection> TriangularMesh::ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const {
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> TriangularMesh::ComputeDistanceToBorder(const Vector3D& position, const Vector3D& direction) const
+std::pair<double, double> TriangularMesh::ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const
 {
 }
 

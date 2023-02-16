@@ -4,13 +4,13 @@
 
 #include <limits>
 
-#include "LeptonInjector/geometry/Vector3D.h"
-#include "LeptonInjector/geometry/Matrix3D.h"
-#include "LeptonInjector/geometry/Quaternion.h"
-#include "LeptonInjector/geometry/EulerAngles.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/Matrix3D.h"
+#include "LeptonInjector/math/Quaternion.h"
+#include "LeptonInjector/math/EulerAngles.h"
 
 namespace LI {
-namespace geometry {
+namespace math {
 
 class Vector3D;
 class Matrix3D;
@@ -220,7 +220,7 @@ EulerAngles EulerAnglesFromQuaternion(Quaternion const & quaternion, EulerOrder 
     return EulerAnglesFromMatrix3D(quaternion.GetMatrix(), order);
 }
 
-} // namespace geometry
+} // namespace math
 } // namespace LI
 
 #endif // LI_Conversions_H

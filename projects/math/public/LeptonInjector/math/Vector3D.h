@@ -35,7 +35,7 @@
 #include <rk/geom3.hh>
 
 namespace LI {
-namespace geometry {
+namespace math {
 
 class Matrix3D;
 
@@ -197,10 +197,10 @@ double scalar_product(const Vector3D& vec1, const Vector3D& vec2);
 Vector3D vector_product(const Vector3D& vec1, const Vector3D& vec2);
 Vector3D cross_product(const Vector3D& vec1, const Vector3D& vec2);
 
-} // namespace geometry
+} // namespace math
 } // namespace LI
 
-CEREAL_CLASS_VERSION(LI::geometry::Vector3D, 0);
+CEREAL_CLASS_VERSION(LI::math::Vector3D, 0);
 
 #endif // LI_Vector3D_H
 

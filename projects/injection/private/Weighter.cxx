@@ -70,17 +70,17 @@ namespace {
 
 
 double LeptonWeighter::InteractionProbability(std::shared_ptr<InjectorBase const> injector, LI::crosssections::InteractionRecord const & record) const {
-    std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds = injector->InjectionBounds(record);
+    std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->InjectionBounds(record);
     return InteractionProbability(bounds, record);
 }
 
-double LeptonWeighter::InteractionProbability(std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D interaction_vertex(
+double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const {
+    LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    LI::geometry::Vector3D primary_direction(
+    LI::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
@@ -120,17 +120,17 @@ double LeptonWeighter::InteractionProbability(std::pair<LI::geometry::Vector3D, 
 }
 
 double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<InjectorBase const> injector, LI::crosssections::InteractionRecord const & record) const {
-    std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds = injector->InjectionBounds(record);
+    std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->InjectionBounds(record);
     return UnnormalizedPositionProbability(bounds, record);
 }
 
-double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D interaction_vertex(
+double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const {
+    LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    LI::geometry::Vector3D primary_direction(
+    LI::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
@@ -175,13 +175,13 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::geometry::V
     return prob_density;
 }
 
-double LeptonWeighter::NormalizedPositionProbability(std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const {
-    LI::geometry::Vector3D interaction_vertex(
+double LeptonWeighter::NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::crosssections::InteractionRecord const & record) const {
+    LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    LI::geometry::Vector3D primary_direction(
+    LI::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
@@ -510,7 +510,7 @@ double LeptonWeighter::EventWeight(LI::crosssections::InteractionRecord const & 
     // From each injector we need the generation probability and the unnormalized position probability (interaction probability * position probability)
     for(auto injector : injectors) {
         double generation_probability = injector->GenerationProbability(record);
-        std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds = injector->InjectionBounds(record);
+        std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->InjectionBounds(record);
         double physical_probability = 1.0;
 
         /*
@@ -602,7 +602,7 @@ double LeptonWeighter::SimplifiedEventWeight(LI::crosssections::InteractionRecor
             double pos_prob = UnnormalizedPositionProbability((std::shared_ptr<InjectorBase const>)injectors[i], record);
             prob /= pos_prob;
         }*/
-        std::pair<LI::geometry::Vector3D, LI::geometry::Vector3D> bounds = injectors[i]->InjectionBounds(record);
+        std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injectors[i]->InjectionBounds(record);
         double interaction_probability = InteractionProbability(bounds, record);
         double normalized_position_probability = NormalizedPositionProbability(bounds, record);
         prob /= interaction_probability;

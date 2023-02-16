@@ -2,11 +2,11 @@
 #include <cmath>
 #include <iostream>
 
-#include "LeptonInjector/geometry/Matrix3D.h"
+#include "LeptonInjector/math/Matrix3D.h"
 
-#include "LeptonInjector/geometry/EulerAngles.h"
+#include "LeptonInjector/math/EulerAngles.h"
 
-using namespace LI::geometry;
+using namespace LI::math;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -108,7 +108,7 @@ void EulerAngles::swap(EulerAngles& euler)
 }
 
 namespace LI {
-namespace geometry {
+namespace math {
 std::ostream& operator<<(std::ostream& os, EulerAngles const& euler)
 {
     std::stringstream ss;
@@ -117,6 +117,6 @@ std::ostream& operator<<(std::ostream& os, EulerAngles const& euler)
     return os;
 }
 
-} // namespace geometry
+} // namespace math
 } // namespace LI
 
