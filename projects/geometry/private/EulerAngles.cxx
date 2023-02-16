@@ -2,11 +2,11 @@
 #include <cmath>
 #include <iostream>
 
-#include "earthmodel-service/Matrix3D.h"
+#include "LeptonInjector/geometry/Matrix3D.h"
 
-#include "earthmodel-service/EulerAngles.h"
+#include "LeptonInjector/geometry/EulerAngles.h"
 
-using namespace earthmodel;
+using namespace LI::geometry;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -107,7 +107,8 @@ void EulerAngles::swap(EulerAngles& euler)
     swap(gamma_, euler.gamma_);
 }
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 std::ostream& operator<<(std::ostream& os, EulerAngles const& euler)
 {
     std::stringstream ss;
@@ -116,5 +117,6 @@ std::ostream& operator<<(std::ostream& os, EulerAngles const& euler)
     return os;
 }
 
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 

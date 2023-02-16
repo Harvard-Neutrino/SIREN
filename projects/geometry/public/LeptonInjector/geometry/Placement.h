@@ -9,10 +9,11 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Quaternion.h"
+#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/geometry/Quaternion.h"
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 
 class Placement
 {
@@ -79,9 +80,10 @@ private:
     Quaternion quaternion_;
 };
 
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
-CEREAL_CLASS_VERSION(earthmodel::Placement, 0);
+CEREAL_CLASS_VERSION(LI::geometry::Placement, 0);
 
 #endif // LI_Placement_H
 

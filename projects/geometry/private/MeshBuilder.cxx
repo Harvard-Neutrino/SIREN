@@ -6,13 +6,14 @@
 #include <numeric>
 #include <algorithm>
 
-#include "earthmodel-service/MeshBuilder.h"
+#include "LeptonInjector/geometry/MeshBuilder.h"
 
 /******************************************************************************
  *                                  OStream                                    *
  ******************************************************************************/
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 namespace Mesh {
 
 
@@ -945,4 +946,5 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangle_data, do
 }
 
 } // namespace Mesh
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI

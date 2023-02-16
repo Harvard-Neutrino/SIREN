@@ -1,15 +1,14 @@
 #include <array>
 #include <tuple>
 #include <assert.h> //assertions
-#include "LeptonInjector/Constants.h" // pi
-#include "LeptonInjector/Coordinates.h"
-#include "earthmodel-service/Vector3D.h"
+#include "LeptonInjector/geometry/Coordinates.h"
+#include "LeptonInjector/geometry/Vector3D.h"
 
 namespace LeptonInjector {
 
-	// create a "direction" object to use with some of the LI dependencies 
+	// create a "direction" object to use with some of the LI dependencies
 
-	// default constructor, just zeroes 
+	// default constructor, just zeroes
 	LI_Direction::LI_Direction(){
 		this->zenith 	= 0.0;
 		this->azimuth 	= 0.0;
@@ -19,9 +18,9 @@ namespace LeptonInjector {
 	LI_Direction::LI_Direction( double theta, double phi){
 		this->zenith = theta;
 		this->azimuth = phi;
-		// if the zenith angle is too 
-		while( this->azimuth >= 2*Constants::pi ){
-			this->azimuth -= 2*Constants::pi;
+		// if the zenith angle is too
+		while( this->azimuth >= 2*M_PI ){
+			this->azimuth -= 2*M_PI;
 		}
 	}
 	// accepts an array {zenith, azimuth}
@@ -40,7 +39,7 @@ namespace LeptonInjector {
 		this->azimuth = old_one.azimuth;
 	}
 
-	// construct a direction for a given vector 
+	// construct a direction for a given vector
 	LI_Direction::LI_Direction( const LI_Position& vec){
 		this->azimuth = atan2( vec.at(1), vec.at(0) );
 		this->zenith  = acos( vec.at(2)/ vec.Magnitude() );
@@ -96,7 +95,7 @@ namespace LeptonInjector {
     }
 
 
-	// define the LI_Position constructors and member functions 
+	// define the LI_Position constructors and member functions
 
 	// default constructor sets all n components to zero
 	LI_Position::LI_Position(){
@@ -108,7 +107,7 @@ namespace LeptonInjector {
 	LI_Position::LI_Position(const LI_Position&  old_one){
 		this->position = old_one.position;
 	}
-	// uses an array to construct a position 
+	// uses an array to construct a position
 	LI_Position::LI_Position(std::array<double, n_dimensions> pos){
 		for (uint8_t iter =0; iter<n_dimensions; iter++){
 			this->position[iter] = pos[iter];
@@ -130,12 +129,12 @@ namespace LeptonInjector {
         return earthmodel::Vector3D(this->position[0], this->position[1], this->position[2]);
     }
 
-	// returns the value of a specified component 
+	// returns the value of a specified component
 	double LI_Position::at( uint8_t component) const{
-		// because component is unsigned, the only achievable values are >0 and <255. So, we just check that it's 
-		// 		under the dimensionality of the arrays 
+		// because component is unsigned, the only achievable values are >0 and <255. So, we just check that it's
+		// 		under the dimensionality of the arrays
 		if(component >= n_dimensions){
-			// throw an exception. 
+			// throw an exception.
 			throw std::out_of_range("Invalid component requested");
 		}
 
@@ -188,15 +187,15 @@ namespace LeptonInjector {
 
 	// rotates a position, as a vector, about the x-axis
 	LI_Position RotateX(LI_Position vector, double angle) {
-		LI_Position rotated(vector.at(0), 
-				vector.at(1)*cos(angle) - vector.at(2)*sin(angle), 
+		LI_Position rotated(vector.at(0),
+				vector.at(1)*cos(angle) - vector.at(2)*sin(angle),
 				vector.at(1)*sin(angle) + vector.at(2)*cos(angle) );
 		return(rotated);
 	}
 
 	// rotates a position, as a vector, about the y-axis
 	LI_Position RotateY(LI_Position vector, double angle) {
-		LI_Position rotated(vector.at(0) * cos(angle) +  vector.at(2) * sin(angle), 
+		LI_Position rotated(vector.at(0) * cos(angle) +  vector.at(2) * sin(angle),
 				vector.at(1) ,
 				-1*vector.at(0)*sin(angle) + vector.at(2)*cos(angle) );
 		return(rotated);
@@ -205,15 +204,15 @@ namespace LeptonInjector {
 	// rotates a position, as a vector, about the z-axis
 	LI_Position RotateZ(LI_Position vector, double angle) {
 		LI_Position rotated(vector.at(0)*cos(angle)+ -1*vector.at(1)*sin(angle),
-				 vector.at(0)*sin(angle)+vector.at(1)*cos(angle), 
+				 vector.at(0)*sin(angle)+vector.at(1)*cos(angle),
 				 vector.at(2) );
 		return(rotated);
-	}	
+	}
 
 	// need to overload some operations on the newly formed LI_Direction and LI_Position
 
 	LI_Position operator * (const LI_Position& point, double scalar){
-		std::array<double, n_dimensions> new_one; 
+		std::array<double, n_dimensions> new_one;
 		for (uint8_t iter  = 0; iter<n_dimensions; iter++){
 			new_one[iter] = point.at(iter) * scalar;
 		}
@@ -223,7 +222,7 @@ namespace LeptonInjector {
 		return( point*scalar );
 	}
 
-	// when multiplying a direction by a scalar, you are left with a vector 
+	// when multiplying a direction by a scalar, you are left with a vector
 	LI_Position operator * (const LI_Direction& dir, double scalar){
 		// calculate the coordinates
 		double x = scalar*cos(dir.azimuth)*sin(dir.zenith);
@@ -240,7 +239,7 @@ namespace LeptonInjector {
 		// construct effective position for a unit vector in the direction of dir
 		std::array<double,n_dimensions> new_dir = { cos(dir.azimuth)*sin(dir.zenith), sin(dir.azimuth)*sin(dir.zenith), cos(dir.zenith)};
 
-		// with the iterable unit vector, we now compute the inner product. 
+		// with the iterable unit vector, we now compute the inner product.
 		double projected = 0;
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
 			projected += pos.at(iter)*new_dir[iter];
@@ -251,16 +250,16 @@ namespace LeptonInjector {
 		return( pos*dir );
 	}
 
-	// similar to above, this calculates the dot product of two position vectors 
+	// similar to above, this calculates the dot product of two position vectors
 	double operator * (const LI_Position&  vec1,const LI_Position& vec2){
 		double dot_prod = 0;
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
 			dot_prod += vec1.at(iter)*vec2.at(iter);
 		}
 		return( dot_prod );
-	}//commutation is implicitly already here... 
+	}//commutation is implicitly already here...
 
-	// implement adding and subtracting positions. Like vector addition! 
+	// implement adding and subtracting positions. Like vector addition!
 	LI_Position operator + (const LI_Position& pos1,const LI_Position& pos2){
 		std::array<double, n_dimensions> new_one;
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
@@ -291,11 +290,11 @@ namespace LeptonInjector {
 	// turns a direction around
 	LI_Direction operator - (LI_Direction obj){
 		LI_Direction new_one;
-		new_one.zenith = Constants::pi - obj.zenith;
-		new_one.azimuth += Constants::pi; 
+		new_one.zenith = M_PI - obj.zenith;
+		new_one.azimuth += M_PI;
 
-		if (obj.azimuth >= 2*Constants::pi){
-			obj.azimuth -= 2*Constants::pi;
+		if (obj.azimuth >= 2*M_PI){
+			obj.azimuth -= 2*M_PI;
 		}
 
 		return(new_one);
@@ -315,11 +314,11 @@ namespace LeptonInjector {
 	}
 
 	// check if two points are identical
-	// 		maybe use a different epsilon? Not sure. 
+	// 		maybe use a different epsilon? Not sure.
 	bool operator == (LI_Position const & one, LI_Position const & two){
 		for (uint8_t iter=0; iter<n_dimensions; iter++){
 			// check if the difference between each comonent isless than the minimum expressible distance between doubles
-			//		this, as opposed to using '==' is to avoid floating point errors 
+			//		this, as opposed to using '==' is to avoid floating point errors
 			if ( !(abs(one.at(iter)-two.at(iter)) <= std::numeric_limits<double>::epsilon()) ){
 				return(false);
 			}
@@ -417,7 +416,7 @@ namespace LeptonInjector {
 				double t2= (cz2-z0)/nz;
 				double xx = x0+nx*t2;
 				double yy = y0+ny*t2;
-				double zz = cz2; 
+				double zz = cz2;
 				if (b1_upper){
 					x1=xx;
 					y1=yy;

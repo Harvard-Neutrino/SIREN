@@ -9,17 +9,18 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Geometry.h"
-#include "earthmodel-service/Placement.h"
+#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/geometry/Placement.h"
 
-using namespace earthmodel;
+using namespace LI::geometry;
 
 /******************************************************************************
  *                                  OStream                                    *
  ******************************************************************************/
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 
 std::ostream& operator<<(std::ostream& os, Geometry const& geometry)
 {
@@ -29,7 +30,8 @@ std::ostream& operator<<(std::ostream& os, Geometry const& geometry)
     return os;
 }
 
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
 /******************************************************************************
  *                                  Geometry                                   *
@@ -1476,7 +1478,7 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(Vector3D cons
         dist.push_back(i);
     };
 
-    
+
     int Nz = zsections_.size();
     double z0 = zsections_[0].zpos;
     double z1 = zsections_[Nz-1].zpos;

@@ -9,9 +9,10 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-#include "earthmodel-service/Vector3D.h"
+#include "LeptonInjector/geometry/Vector3D.h"
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 
 class Vector3D;
 
@@ -119,9 +120,10 @@ private:
     double zz_ = 0.0;
 };
 
-} // namespace earthmodel
+} // namespace geometry
+} // LI
 
-CEREAL_CLASS_VERSION(earthmodel::Matrix3D, 0);
+CEREAL_CLASS_VERSION(LI::geometry::Matrix3D, 0);
 
 #endif // LI_Matrix3D_H
 

@@ -4,10 +4,11 @@
 
 #include <limits>
 
-#include "earthmodel-service/Quaternion.h"
-#include "earthmodel-service/EulerAngles.h"
+#include "LeptonInjector/geometry/Quaternion.h"
+#include "LeptonInjector/geometry/EulerAngles.h"
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 
 class Quaternion;
 class EulerAngles;
@@ -115,7 +116,8 @@ EulerAngles XYZsFromQ(Quaternion const & quaternion) {
     return EulerAngles(EulerOrder::XYZs, alpha, beta, gamma);
 }
 
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
 #endif // LI_EulerQuaternionConversions_H
 

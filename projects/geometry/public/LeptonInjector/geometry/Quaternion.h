@@ -10,12 +10,11 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-#include "earthmodel-service/EulerAngles.h"
+#include "LeptonInjector/geometry/EulerAngles.h"
 
-namespace earthmodel {
-// #include "earthmodel-service/Matrix3D.h"
+namespace LI {
+namespace geometry {
 class Matrix3D;
-// #include "earthmodel-service/Vector3D.h"
 class Vector3D;
 
 class Quaternion
@@ -122,9 +121,10 @@ private:
 
 Quaternion rotation_between(Vector3D const & v0, Vector3D const & v1);
 
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
-CEREAL_CLASS_VERSION(earthmodel::Quaternion, 0);
+CEREAL_CLASS_VERSION(LI::geometry::Quaternion, 0);
 
 #endif // LI_Quaternion_H
 

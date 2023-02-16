@@ -4,15 +4,15 @@
 #include <sstream>
 #include <utility>
 
-#include "earthmodel-service/Matrix3D.h"
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Conversions.h"
-#include "earthmodel-service/EulerAngles.h"
-#include "earthmodel-service/EulerQuaternionConversions.h"
+#include "LeptonInjector/geometry/Matrix3D.h"
+#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/geometry/Conversions.h"
+#include "LeptonInjector/geometry/EulerAngles.h"
+#include "LeptonInjector/geometry/EulerQuaternionConversions.h"
 
-#include "earthmodel-service/Quaternion.h"
+#include "LeptonInjector/geometry/Quaternion.h"
 
-using namespace earthmodel;
+using namespace LI::geometry;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -140,7 +140,8 @@ void Quaternion::swap(Quaternion& quaternion)
     swap(w_, quaternion.w_);
 }
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 std::ostream& operator<<(std::ostream& os, Quaternion const& quaternion)
 {
     std::stringstream ss;
@@ -149,7 +150,8 @@ std::ostream& operator<<(std::ostream& os, Quaternion const& quaternion)
     os << ss.str() << '\n';
     return os;
 }
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
 Quaternion Quaternion::operator*(Quaternion const & other) const
 {
@@ -473,17 +475,17 @@ std::tuple<Vector3D, double> Quaternion::GetAxisAngle() const
 
 void Quaternion::SetEulerAngles(EulerAngles const & euler)
 {
-    (*this) = earthmodel::QuaternionFromEulerAngles(euler);
+    (*this) = LI::geometry::QuaternionFromEulerAngles(euler);
 }
 
 void Quaternion::GetEulerAngles(EulerAngles & euler, EulerOrder order) const
 {
-    euler = earthmodel::EulerAnglesFromQuaternion(*this, order);
+    euler = LI::geometry::EulerAnglesFromQuaternion(*this, order);
 }
 
 void Quaternion::GetEulerAnglesZXZr(double & alpha, double & beta, double & gamma) const
 {
-    EulerAngles euler = earthmodel::ZXZrFromQ(*this);
+    EulerAngles euler = LI::geometry::ZXZrFromQ(*this);
     alpha = euler.GetAlpha();
     beta = euler.GetBeta();
     gamma = euler.GetGamma();
@@ -491,12 +493,12 @@ void Quaternion::GetEulerAnglesZXZr(double & alpha, double & beta, double & gamm
 
 void Quaternion::SetEulerAnglesZXZr(double alpha, double beta, double gamma)
 {
-    (*this) = earthmodel::QFromZXZr(alpha, beta, gamma);
+    (*this) = LI::geometry::QFromZXZr(alpha, beta, gamma);
 }
 
 void Quaternion::GetEulerAnglesXYZs(double & alpha, double & beta, double & gamma) const
 {
-    EulerAngles euler = earthmodel::XYZsFromQ(*this);
+    EulerAngles euler = LI::geometry::XYZsFromQ(*this);
     alpha = euler.GetAlpha();
     beta = euler.GetBeta();
     gamma = euler.GetGamma();
@@ -504,10 +506,10 @@ void Quaternion::GetEulerAnglesXYZs(double & alpha, double & beta, double & gamm
 
 void Quaternion::SetEulerAnglesXYZs(double alpha, double beta, double gamma)
 {
-    (*this) = earthmodel::QFromXYZs(alpha, beta, gamma);
+    (*this) = LI::geometry::QFromXYZs(alpha, beta, gamma);
 }
 
-Quaternion earthmodel::rotation_between(Vector3D const & v0, Vector3D const & v1) {
+Quaternion LI::geometry::rotation_between(Vector3D const & v0, Vector3D const & v1) {
     Vector3D dir0 = v0.normalized();
     Vector3D dir1 = v1.normalized();
     Vector3D cross = cross_product(dir0, dir1);

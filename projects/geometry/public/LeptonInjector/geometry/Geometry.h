@@ -46,12 +46,13 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-#include "serialization/array.h"
 
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Placement.h"
+#include "LeptonInjector/serialization/array.h"
+#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/geometry/Placement.h"
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 
 class Geometry {
 friend cereal::access;
@@ -462,37 +463,38 @@ private:
     std::vector<plane> planes_;
 };
 
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
     enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY, TRIANGULARMESH};
-} // namespace earthmodel
 
-namespace earthmodel {
     const std::array<std::string, 5>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh"};
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
-CEREAL_CLASS_VERSION(earthmodel::Geometry, 0);
-CEREAL_CLASS_VERSION(earthmodel::Geometry::Intersection, 0);
-CEREAL_CLASS_VERSION(earthmodel::Geometry::IntersectionList, 0);
+CEREAL_CLASS_VERSION(LI::geometry::Geometry, 0);
+CEREAL_CLASS_VERSION(LI::geometry::Geometry::Intersection, 0);
+CEREAL_CLASS_VERSION(LI::geometry::Geometry::IntersectionList, 0);
 
-CEREAL_CLASS_VERSION(earthmodel::Sphere, 0);
-CEREAL_REGISTER_TYPE(earthmodel::Sphere)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Geometry, earthmodel::Sphere);
+CEREAL_CLASS_VERSION(LI::geometry::Sphere, 0);
+CEREAL_REGISTER_TYPE(LI::geometry::Sphere)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::geometry::Geometry, LI::geometry::Sphere);
 
-CEREAL_CLASS_VERSION(earthmodel::Box, 0);
-CEREAL_REGISTER_TYPE(earthmodel::Box)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Geometry, earthmodel::Box);
+CEREAL_CLASS_VERSION(LI::geometry::Box, 0);
+CEREAL_REGISTER_TYPE(LI::geometry::Box)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::geometry::Geometry, LI::geometry::Box);
 
-CEREAL_CLASS_VERSION(earthmodel::Cylinder, 0);
-CEREAL_REGISTER_TYPE(earthmodel::Cylinder)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Geometry, earthmodel::Cylinder);
+CEREAL_CLASS_VERSION(LI::geometry::Cylinder, 0);
+CEREAL_REGISTER_TYPE(LI::geometry::Cylinder)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::geometry::Geometry, LI::geometry::Cylinder);
 
-CEREAL_CLASS_VERSION(earthmodel::ExtrPoly, 0);
-CEREAL_REGISTER_TYPE(earthmodel::ExtrPoly)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Geometry, earthmodel::ExtrPoly);
+CEREAL_CLASS_VERSION(LI::geometry::ExtrPoly, 0);
+CEREAL_REGISTER_TYPE(LI::geometry::ExtrPoly)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::geometry::Geometry, LI::geometry::ExtrPoly);
 
-#include "earthmodel-service/GeometryMesh.h"
+#include "LeptonInjector/geometry/GeometryMesh.h"
 
 #endif // LI_Geometry_H
 

@@ -18,14 +18,16 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-#include "serialization/array.h"
 
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Placement.h"
-#include "earthmodel-service/Geometry.h"
-#include "earthmodel-service/MeshBuilder.h"
+#include "LeptonInjector/serialization/array.h"
 
-namespace earthmodel {
+#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/geometry/Placement.h"
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/geometry/MeshBuilder.h"
+
+namespace LI {
+namespace geometry {
 
 class TriangularMesh : public Geometry {
 public:
@@ -74,11 +76,12 @@ private:
     Mesh::TMesh mesh;
 };
 
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
-CEREAL_CLASS_VERSION(earthmodel::TriangularMesh, 0);
-CEREAL_REGISTER_TYPE(earthmodel::TriangularMesh)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(earthmodel::Geometry, earthmodel::TriangularMesh);
+CEREAL_CLASS_VERSION(LI::geometry::TriangularMesh, 0);
+CEREAL_REGISTER_TYPE(LI::geometry::TriangularMesh)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::geometry::Geometry, LI::geometry::TriangularMesh);
 
 #endif // LI_GeometryMesh_H
 

@@ -1,9 +1,9 @@
 #include <cmath>
 #include <iostream>
 
-#include "earthmodel-service/Vector3D.h"
+#include "LeptonInjector/geometry/Vector3D.h"
 
-using namespace earthmodel;
+using namespace LI::geometry;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -145,7 +145,8 @@ void Vector3D::swap(Vector3D& vector_3d)
     swap(spherical_.zenith_, vector_3d.spherical_.zenith_);
 }
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d)
 {
     std::stringstream ss;
@@ -160,7 +161,8 @@ std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d)
 
     return os;
 }
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
 //----------------------------------------------------------------------//
 //-----------------------operator basic arithmetic ---------------------//
@@ -175,7 +177,8 @@ Vector3D Vector3D::operator-() const
     return vector_3d;
 }
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 
 Vector3D operator+(const Vector3D& vec1, const Vector3D& vec2)
 {
@@ -278,7 +281,8 @@ Vector3D cross_product(const Vector3D& vec1, const Vector3D& vec2)
     return vector_product(vec1, vec2);
 }
 
-} // namespace earthmodel
+} // namespace LI
+} // namespace geometry
 
 double Vector3D::magnitude() const
 {

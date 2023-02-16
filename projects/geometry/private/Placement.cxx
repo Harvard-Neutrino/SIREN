@@ -2,10 +2,10 @@
 #include <tuple>
 #include <iostream>
 
-#include "earthmodel-service/Placement.h"
-#include "earthmodel-service/EulerQuaternionConversions.h"
+#include "LeptonInjector/geometry/Placement.h"
+#include "LeptonInjector/geometry/EulerQuaternionConversions.h"
 
-using namespace earthmodel;
+using namespace LI::geometry;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -106,14 +106,16 @@ void Placement::swap(Placement& placement)
     swap(quaternion_, placement.quaternion_);
 }
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
     std::ostream& operator<<(std::ostream& os, Placement const& placement) {
         os << "Placement (" << &placement << ")" << std::endl;
         os << placement.position_ << std::endl;
         os << placement.quaternion_ << std::endl;
         return os;
     }
-}
+} // namespace geometry
+} // namespace LI
 
 std::shared_ptr<const Placement> Placement::create() const { return std::shared_ptr<const Placement>( new Placement(*this) ); }
 

@@ -8,13 +8,13 @@
 #include <iostream>
 #include <exception> //allows throwing the out_of_range exception
 
-#include "earthmodel-service/Vector3D.h"
+#include "LeptonInjector/geometry/Vector3D.h"
 
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
 
 // Implements tools and classes for working with positions and directions
-// Angles presumed to be in radians. 
+// Angles presumed to be in radians.
 
 namespace LeptonInjector {
 
@@ -27,14 +27,14 @@ namespace LeptonInjector {
 	//
 	// Assmued to be in cartesian for defined operations
 	class LI_Position{
-		public: 
+		public:
 			LI_Position();
 
 			LI_Position(double x, double y, double z);
 			LI_Position(const LI_Position& old_one);
 			LI_Position(std::array<double, n_dimensions> pos);
-            LI_Position(earthmodel::Vector3D const & v);
-            operator earthmodel::Vector3D() const;
+            LI_Position(LI::geometry::Vector3D const & v);
+            operator LI::geometry::Vector3D() const;
 
 			double at(uint8_t component) const;
 			//double Magnitude(void);
@@ -45,7 +45,7 @@ namespace LeptonInjector {
 			double GetY() const;
 			double GetX() const;
 
-			// added for that last beit of needed functionality 
+			// added for that last beit of needed functionality
 			// I don't like adding these, since it violates that whole trust of the "const" above.
 			void SetZ(double amt);
 			void SetY(double amt);
@@ -59,7 +59,7 @@ namespace LeptonInjector {
 	};
 
 	// Creating a "LI_Direction" to mimic the I3_Direction object
-	// this should behave in the same exact way, at least within the scope of this project 
+	// this should behave in the same exact way, at least within the scope of this project
 	class LI_Direction{
 		public:
 			LI_Direction();
@@ -68,9 +68,9 @@ namespace LeptonInjector {
 			LI_Direction( std::array<double, 2> dir);
 			LI_Direction( std::pair<double, double> dir);
 			LI_Direction( const LI_Direction& old_one);
-			LI_Direction( const LI_Position& vec );  // get the direction of a vector 
-            LI_Direction(earthmodel::Vector3D v);
-            operator earthmodel::Vector3D() const;
+			LI_Direction( const LI_Position& vec );  // get the direction of a vector
+            LI_Direction(LI::geometry::Vector3D v);
+            operator LI::geometry::Vector3D() const;
 
 			double GetZ() const;
 			double GetY() const;
@@ -79,11 +79,11 @@ namespace LeptonInjector {
             LI_Direction& operator=(const LI_Direction& other);
             bool operator==(const LI_Direction& other) const;
             bool operator!=(const LI_Direction& other) const;
-			
+
 			double zenith;
 			double azimuth;
 	};
-	
+
 
 	// these functions rotate a 3-vector about some axis
 	// assumes vector is in cartesian coordinates
@@ -91,7 +91,7 @@ namespace LeptonInjector {
 	LI_Position RotateX(LI_Position vector, double angle);
 	LI_Position RotateZ(LI_Position vector, double angle);
 
-	// defines scalar multiplication and its conjugation 
+	// defines scalar multiplication and its conjugation
 	LI_Position operator * (const LI_Position& point, double scalar);
 	LI_Position operator * (double scalar,const LI_Position& point);
 
@@ -113,7 +113,7 @@ namespace LeptonInjector {
 	LI_Position& operator -= (LI_Position& one, const LI_Position& two);
 	LI_Direction operator - (LI_Direction obj);
 
-	// Define string-casting of a position. Used often for error messages 
+	// Define string-casting of a position. Used often for error messages
 	std::ostream & operator << (std::ostream& out, const LI_Position &dir);
 
 	bool operator == (LI_Position const & one, LI_Position const & two);

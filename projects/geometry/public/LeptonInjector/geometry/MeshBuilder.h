@@ -18,9 +18,10 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-#include "serialization/array.h"
+#include "LeptonInjector/serialization/array.h"
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 namespace Mesh {
 
 typedef int                   Vertex;
@@ -179,7 +180,8 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangles_data, d
 
 
 } // namespace Mesh
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
 #endif // LI_MeshBuilder_H
 

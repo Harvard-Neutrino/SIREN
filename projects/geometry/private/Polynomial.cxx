@@ -3,14 +3,14 @@
 #include <functional>
 #include <iostream>
 
-#include "earthmodel-service/Polynomial.h"
-#include "earthmodel-service/Geometry.h"
+#include "LeptonInjector/geometry/Polynomial.h"
+#include "LeptonInjector/geometry/Geometry.h"
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%       Polynom      %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-using namespace earthmodel;
+using namespace LI::geometry;
 
 Polynom::Polynom() : N_(0) {}
 
@@ -112,7 +112,8 @@ std::function<double(double)> Polynom::GetFunction() {
                                                     std::placeholders::_1);
 }
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 std::ostream& operator<<(std::ostream& os, const Polynom& p) {
     os << "p(x) =";
     for (int i = 0; i < p.N_; ++i) {
@@ -213,5 +214,5 @@ double NewtonRaphson(std::function<double(double)> func,
     return rts;
 }
 
-}  // namespace earthmodel
-
+} // namespace geometry
+} // namespace LI

@@ -8,9 +8,9 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 
-//#include "earthmodel-service/Matrix3D.h"
 class Matrix3D;
 
 enum EulerFrame {
@@ -151,9 +151,10 @@ private:
     double gamma_;
 };
 
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
 
-CEREAL_CLASS_VERSION(earthmodel::EulerAngles, 0);
+CEREAL_CLASS_VERSION(LI::geometry::EulerAngles, 0);
 
 #endif // LI_EulerAngles_H
 

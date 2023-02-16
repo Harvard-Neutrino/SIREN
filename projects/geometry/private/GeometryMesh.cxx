@@ -2,19 +2,20 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Geometry.h"
-#include "earthmodel-service/Placement.h"
-#include "earthmodel-service/MeshBuilder.h"
-#include "earthmodel-service/GeometryMesh.h"
+#include "LeptonInjector/geometry/Vector3D.h"
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/geometry/Placement.h"
+#include "LeptonInjector/geometry/MeshBuilder.h"
+#include "LeptonInjector/geometry/GeometryMesh.h"
 
-using namespace earthmodel;
+using namespace LI::geometry;
 
 /******************************************************************************
  *                                  OStream                                    *
  ******************************************************************************/
 
-namespace earthmodel {
+namespace LI {
+namespace geometry {
 
 TriangularMesh::TriangularMesh()
     : Geometry((std::string)("TriangularMesh"))
@@ -141,4 +142,5 @@ std::pair<double, double> TriangularMesh::ComputeDistanceToBorder(const Vector3D
 {
 }
 
-} // namespace earthmodel
+} // namespace geometry
+} // namespace LI
