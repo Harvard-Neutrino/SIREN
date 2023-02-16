@@ -37,13 +37,6 @@ class CrossSectionCollection;
 
 namespace LeptonInjector {
 
-class InjectionFailure : public std::runtime_error {
-public:
-    InjectionFailure() : std::runtime_error("") {};
-    InjectionFailure(const std::string& s) : std::runtime_error(s) {};
-    InjectionFailure(const char * s) : std::runtime_error(s) {};
-};
-
 class PhysicallyNormalizedDistribution {
 friend cereal::access;
 protected:

@@ -11,6 +11,8 @@
 
 #include "LeptonInjector/Distributions.h"
 
+#include "LeptonInjector/utilities/Errors.h"
+
 namespace LeptonInjector {
 
 namespace {

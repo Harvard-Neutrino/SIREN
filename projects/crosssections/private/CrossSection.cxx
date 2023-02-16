@@ -16,21 +16,23 @@
 #include <photospline/splinetable.h>
 #include <photospline/cinter/splinetable.h>
 
-#include "LeptonInjector/Random.h"
-#include "LeptonInjector/Particle.h"
-#include "LeptonInjector/Distributions.h"
+#include "LeptonInjector/utilities/Random.h"
 
-#include "phys-services/CrossSection.h"
+#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/crosssections/CrossSection.h"
 
-#include "earthmodel-service/MaterialModel.h"
-#include "earthmodel-service/EarthModelCalculator.h"
+#include "LeptonInjector/detector/MaterialModel.h"
+#include "LeptonInjector/detector/EarthModelCalculator.h"
 
-namespace LeptonInjector {
+#include "LeptonInjector/utilities/Errors.h"
+
+namespace LI {
+namespace crosssections {
 
 namespace {
     /*
-    double particleMass(LeptonInjector::Particle::ParticleType type) {
-        LeptonInjector::Particle p(type);
+    double particleMass(LI::utilities::Particle::ParticleType type) {
+        Particle p(type);
         if(!p.HasMass()) {
             return 0;
         }
@@ -135,7 +137,7 @@ bool InteractionSignature::operator==(InteractionSignature const & other) const 
     if(primary_type != other.primary_type or target_type != other.target_type) {
         return false;
     } else {
-        std::map<LeptonInjector::Particle::ParticleType, int> m0;
+        std::map<LI::utilities::Particle::ParticleType, int> m0;
         for(auto p : secondary_types) {
             auto it = m0.find(p);
             if(it == m0.end()) {
@@ -144,7 +146,7 @@ bool InteractionSignature::operator==(InteractionSignature const & other) const 
                 it->second += 1;
             }
         }
-        std::map<LeptonInjector::Particle::ParticleType, int> m1;
+        std::map<LI::utilities::Particle::ParticleType, int> m1;
         for(auto p : other.secondary_types) {
             auto it = m1.find(p);
             if(it == m1.end()) {
@@ -240,15 +242,15 @@ void CrossSectionCollection::InitializeTargetTypes() {
     cross_sections_by_target.clear();
     for(unsigned int i=0; i<cross_sections.size(); ++i) {
         // Gather target types
-        std::vector<Particle::ParticleType> xs_targets = cross_sections[i]->GetPossibleTargets();
+        std::vector<LI::utilities::Particle::ParticleType> xs_targets = cross_sections[i]->GetPossibleTargets();
         //target_types.reserve(target_types.size() + std::distance(xs_targets.begin(), xs_targets.end()));
         for(auto xs : xs_targets)
             target_types.insert(xs);
 
         // Track cross sections by their target type
         for(unsigned int j=0; j<xs_targets.size(); ++j) {
-            Particle::ParticleType target = xs_targets[j];
-            std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>::const_iterator it = cross_sections_by_target.find(target);
+            LI::utilities::Particle::ParticleType target = xs_targets[j];
+            std::map<LI::utilities::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>::const_iterator it = cross_sections_by_target.find(target);
             if(it == cross_sections_by_target.end()) {
                 cross_sections_by_target.insert(it, std::make_pair(target, std::vector<std::shared_ptr<CrossSection>>{cross_sections[i]}));
             } else {
@@ -258,7 +260,7 @@ void CrossSectionCollection::InitializeTargetTypes() {
     }
 
     // Remove duplicate target types
-    // std::set<Particle::ParticleType> target_set(target_types.begin(), target_types.end());
+    // std::set<LI::utilities::Particle::ParticleType> target_set(target_types.begin(), target_types.end());
     // target_types.resize(target_set.size());
     // std::copy(target_set.begin(), target_set.end(), target_types.begin());
 }
@@ -267,7 +269,7 @@ const std::vector<std::shared_ptr<CrossSection>> CrossSectionCollection::empty =
 
 CrossSectionCollection::CrossSectionCollection() {}
 
-CrossSectionCollection::CrossSectionCollection(Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections) : primary_type(primary_type), cross_sections(cross_sections) {
+CrossSectionCollection::CrossSectionCollection(LI::utilities::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections) : primary_type(primary_type), cross_sections(cross_sections) {
     InitializeTargetTypes();
 }
 
@@ -278,8 +280,8 @@ bool CrossSectionCollection::operator==(CrossSectionCollection const & other) co
         std::tie(other.primary_type, other.target_types, other.cross_sections);
 }
 
-std::vector<std::shared_ptr<CrossSection>> const & CrossSectionCollection::GetCrossSectionsForTarget(Particle::ParticleType p) const {
-    std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>::const_iterator it = cross_sections_by_target.find(p);
+std::vector<std::shared_ptr<CrossSection>> const & CrossSectionCollection::GetCrossSectionsForTarget(LI::utilities::Particle::ParticleType p) const {
+    std::map<LI::utilities::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>::const_iterator it = cross_sections_by_target.find(p);
     if(it != cross_sections_by_target.end()) {
         return it->second;
     } else {
@@ -293,33 +295,33 @@ bool CrossSectionCollection::MatchesPrimary(InteractionRecord const & record) co
 
 DISFromSpline::DISFromSpline() {}
 
-DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<LI::utilities::Particle::ParticleType> primary_types, std::set<LI::utilities::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
 }
 
-DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<LeptonInjector::Particle::ParticleType> primary_types, std::vector<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<LI::utilities::Particle::ParticleType> primary_types, std::vector<LI::utilities::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<LI::utilities::Particle::ParticleType> primary_types, std::set<LI::utilities::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, std::set<LeptonInjector::Particle::ParticleType> primary_types, std::set<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types) {
+DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, std::set<LI::utilities::Particle::ParticleType> primary_types, std::set<LI::utilities::Particle::ParticleType> target_types) : primary_types_(primary_types), target_types_(target_types) {
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<LeptonInjector::Particle::ParticleType> primary_types, std::vector<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<LI::utilities::Particle::ParticleType> primary_types, std::vector<LI::utilities::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, std::vector<LeptonInjector::Particle::ParticleType> primary_types, std::vector<LeptonInjector::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()) {
+DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, std::vector<LI::utilities::Particle::ParticleType> primary_types, std::vector<LI::utilities::Particle::ParticleType> target_types) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()) {
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
@@ -394,20 +396,20 @@ void DISFromSpline::ReadParamsFromSplineTable() {
     if(!mass_good) {
         if(int_good) {
             if(interaction_type_ == 1 or interaction_type_ == 2) {
-                target_mass_ = (LeptonInjector::particleMass(LeptonInjector::Particle::ParticleType::PPlus)+
-                        LeptonInjector::particleMass(LeptonInjector::Particle::ParticleType::Neutron))/2;
+                target_mass_ = (LI::utilities::particleMass(LI::utilities::Particle::ParticleType::PPlus)+
+                        LI::utilities::particleMass(LI::utilities::Particle::ParticleType::Neutron))/2;
             } else if(interaction_type_ == 3) {
-                target_mass_ = LeptonInjector::particleMass(LeptonInjector::Particle::ParticleType::EMinus);
+                target_mass_ = LI::utilities::particleMass(LI::utilities::Particle::ParticleType::EMinus);
             } else {
                 throw std::runtime_error("Logic error. Interaction type is not 1, 2, or 3!");
             }
 
         } else {
             if(differential_cross_section_.get_ndim() == 3) {
-                target_mass_ = (LeptonInjector::particleMass(LeptonInjector::Particle::ParticleType::PPlus)+
-                        LeptonInjector::particleMass(LeptonInjector::Particle::ParticleType::Neutron))/2;
+                target_mass_ = (LI::utilities::particleMass(LI::utilities::Particle::ParticleType::PPlus)+
+                        LI::utilities::particleMass(LI::utilities::Particle::ParticleType::Neutron))/2;
             } else if(differential_cross_section_.get_ndim() == 2) {
-                target_mass_ = LeptonInjector::particleMass(LeptonInjector::Particle::ParticleType::EMinus);
+                target_mass_ = LI::utilities::particleMass(LI::utilities::Particle::ParticleType::EMinus);
             } else {
                 throw std::runtime_error("Logic error. Spline dimensionality is not 2, or 3!");
             }
@@ -425,21 +427,21 @@ void DISFromSpline::InitializeSignatures() {
             throw std::runtime_error("This DIS implementation only supports neutrinos as primaries!");
         }
 
-        Particle::ParticleType charged_lepton_product = Particle::ParticleType::unknown;
-        Particle::ParticleType neutral_lepton_product = primary_type;
+        LI::utilities::Particle::ParticleType charged_lepton_product = LI::utilities::Particle::ParticleType::unknown;
+        LI::utilities::Particle::ParticleType neutral_lepton_product = primary_type;
 
-        if(primary_type == Particle::ParticleType::NuE) {
-            charged_lepton_product = Particle::ParticleType::EMinus;
-        } else if(primary_type == Particle::ParticleType::NuEBar) {
-            charged_lepton_product = Particle::ParticleType::EPlus;
-        } else if(primary_type == Particle::ParticleType::NuMu) {
-            charged_lepton_product = Particle::ParticleType::MuMinus;
-        } else if(primary_type == Particle::ParticleType::NuMuBar) {
-            charged_lepton_product = Particle::ParticleType::MuPlus;
-        } else if(primary_type == Particle::ParticleType::NuTau) {
-            charged_lepton_product = Particle::ParticleType::TauMinus;
-        } else if(primary_type == Particle::ParticleType::NuTauBar) {
-            charged_lepton_product = Particle::ParticleType::TauPlus;
+        if(primary_type == LI::utilities::Particle::ParticleType::NuE) {
+            charged_lepton_product = LI::utilities::Particle::ParticleType::EMinus;
+        } else if(primary_type == LI::utilities::Particle::ParticleType::NuEBar) {
+            charged_lepton_product = LI::utilities::Particle::ParticleType::EPlus;
+        } else if(primary_type == LI::utilities::Particle::ParticleType::NuMu) {
+            charged_lepton_product = LI::utilities::Particle::ParticleType::MuMinus;
+        } else if(primary_type == LI::utilities::Particle::ParticleType::NuMuBar) {
+            charged_lepton_product = LI::utilities::Particle::ParticleType::MuPlus;
+        } else if(primary_type == LI::utilities::Particle::ParticleType::NuTau) {
+            charged_lepton_product = LI::utilities::Particle::ParticleType::TauMinus;
+        } else if(primary_type == LI::utilities::Particle::ParticleType::NuTauBar) {
+            charged_lepton_product = LI::utilities::Particle::ParticleType::TauPlus;
         } else {
             throw std::runtime_error("InitializeSignatures: Unkown parent neutrino type!");
         }
@@ -449,25 +451,25 @@ void DISFromSpline::InitializeSignatures() {
         } else if(interaction_type_ == 2) {
             signature.secondary_types.push_back(neutral_lepton_product);
         } else if(interaction_type_ == 3) {
-            signature.secondary_types.push_back(Particle::ParticleType::Hadrons);
+            signature.secondary_types.push_back(LI::utilities::Particle::ParticleType::Hadrons);
         } else {
             throw std::runtime_error("InitializeSignatures: Unkown interaction type!");
         }
 
-        signature.secondary_types.push_back(Particle::ParticleType::Hadrons);
+        signature.secondary_types.push_back(LI::utilities::Particle::ParticleType::Hadrons);
         for(auto target_type : target_types_) {
             signature.target_type = target_type;
 
             signatures_.push_back(signature);
 
-            std::pair<Particle::ParticleType, Particle::ParticleType> key(primary_type, target_type);
+            std::pair<LI::utilities::Particle::ParticleType, LI::utilities::Particle::ParticleType> key(primary_type, target_type);
             signatures_by_parent_types_[key].push_back(signature);
         }
     }
 }
 
 double DISFromSpline::TotalCrossSection(InteractionRecord const & interaction) const {
-    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::utilities::Particle::ParticleType primary_type = interaction.signature.primary_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
@@ -484,7 +486,7 @@ double DISFromSpline::TotalCrossSection(InteractionRecord const & interaction) c
     return TotalCrossSection(primary_type, primary_energy);
 }
 
-double DISFromSpline::TotalCrossSection(LeptonInjector::Particle::ParticleType primary_type, double primary_energy) const {
+double DISFromSpline::TotalCrossSection(LI::utilities::Particle::ParticleType primary_type, double primary_energy) const {
     if(not primary_types_.count(primary_type)) {
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
@@ -506,7 +508,7 @@ double DISFromSpline::TotalCrossSection(LeptonInjector::Particle::ParticleType p
 }
 
 // No implementation for DIS yet, just use non-target function
-double DISFromSpline::TotalCrossSection(LeptonInjector::Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type) const {
+double DISFromSpline::TotalCrossSection(LI::utilities::Particle::ParticleType primary_type, double primary_energy, LI::utilities::Particle::ParticleType target_type) const {
 		return DISFromSpline::TotalCrossSection(primary_type,primary_energy);
 }
 
@@ -583,7 +585,7 @@ double DISFromSpline::InteractionThreshold(InteractionRecord const & interaction
     return 0;
 }
 
-void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interaction, std::shared_ptr<LeptonInjector::LI_random> random) const {
+void DISFromSpline::SampleFinalState(InteractionRecord& interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
     if (differential_cross_section_.get_ndim() != 3) {
@@ -794,7 +796,7 @@ void DISFromSpline::SampleFinalState(LeptonInjector::InteractionRecord& interact
     interaction.secondary_helicity[other_index] = interaction.target_helicity;
 }
 
-double DISFromSpline::FinalStateProbability(LeptonInjector::InteractionRecord const & interaction) const {
+double DISFromSpline::FinalStateProbability(InteractionRecord const & interaction) const {
     double dxs = DifferentialCrossSection(interaction);
     double txs = TotalCrossSection(interaction);
     if(dxs == 0) {
@@ -804,24 +806,24 @@ double DISFromSpline::FinalStateProbability(LeptonInjector::InteractionRecord co
     }
 }
 
-std::vector<Particle::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
-    return std::vector<Particle::ParticleType>(primary_types_.begin(), primary_types_.end());
+std::vector<LI::utilities::Particle::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
+    return std::vector<LI::utilities::Particle::ParticleType>(primary_types_.begin(), primary_types_.end());
 }
 
-std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargetsFromPrimary(Particle::ParticleType primary_type) const {
-    return std::vector<Particle::ParticleType>(target_types_.begin(), target_types_.end());
+std::vector<LI::utilities::Particle::ParticleType> DISFromSpline::GetPossibleTargetsFromPrimary(LI::utilities::Particle::ParticleType primary_type) const {
+    return std::vector<LI::utilities::Particle::ParticleType>(target_types_.begin(), target_types_.end());
 }
 
 std::vector<InteractionSignature> DISFromSpline::GetPossibleSignatures() const {
     return std::vector<InteractionSignature>(signatures_.begin(), signatures_.end());
 }
 
-std::vector<Particle::ParticleType> DISFromSpline::GetPossibleTargets() const {
-    return std::vector<Particle::ParticleType>(target_types_.begin(), target_types_.end());
+std::vector<LI::utilities::Particle::ParticleType> DISFromSpline::GetPossibleTargets() const {
+    return std::vector<LI::utilities::Particle::ParticleType>(target_types_.begin(), target_types_.end());
 }
 
-std::vector<InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const {
-    std::pair<LeptonInjector::Particle::ParticleType, LeptonInjector::Particle::ParticleType> key(primary_type, target_type);
+std::vector<InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParents(LI::utilities::Particle::ParticleType primary_type, LI::utilities::Particle::ParticleType target_type) const {
+    std::pair<LI::utilities::Particle::ParticleType, LI::utilities::Particle::ParticleType> key(primary_type, target_type);
     if(signatures_by_parent_types_.find(key) != signatures_by_parent_types_.end()) {
         return signatures_by_parent_types_.at(key);
     } else {
@@ -872,7 +874,7 @@ double DipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) 
     double m4 = target_mass2 * target_mass2 / s2;
     double m2sub1sq = std::pow(m2 - 1, 2);
     bool small_r = r2 < 1e-6;
-    
+
     // require cos(theta)<=1
     double root_term = 4*Enu*Enu*target_mass2 - 4*Enu*target_mass*mHNL2 - 4*target_mass2*mHNL2 + mHNL2*mHNL2;
     double costh_bound = (1./(2*s)) * (2*Enu*target_mass - mHNL2 - target_mass*mHNL2/Enu - std::sqrt(root_term));
@@ -904,7 +906,7 @@ double DipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) 
 
     double s = 2 * Enu * target_mass + target_mass2;
     double s2 = s * s;
-    
+
     // require cos(theta)>=-1
     double root_term = 4*Enu*Enu*target_mass2 - 4*Enu*target_mass*mHNL2 - 4*target_mass2*mHNL2 + mHNL2*mHNL2;
     double costh_bound = (1./(2*s)) * (2*Enu*target_mass - mHNL2 - target_mass*mHNL2/Enu) + std::sqrt(root_term);
@@ -914,8 +916,8 @@ double DipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) 
 
 
 double DipoleFromTable::TotalCrossSection(InteractionRecord const & interaction) const {
-    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    LeptonInjector::Particle::ParticleType target_type = interaction.signature.target_type;
+    LI::utilities::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::utilities::Particle::ParticleType target_type = interaction.signature.target_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
@@ -932,7 +934,7 @@ double DipoleFromTable::TotalCrossSection(InteractionRecord const & interaction)
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
-double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type) const {
+double DipoleFromTable::TotalCrossSection(LI::utilities::Particle::ParticleType primary_type, double primary_energy, LI::utilities::Particle::ParticleType target_type) const {
     if(not primary_types.count(primary_type)) {
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
@@ -942,7 +944,7 @@ double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType
         throw std::runtime_error("Supplied target not supported by cross section!");
     }
 
-    Interpolator1D<double> const & interp = total.at(target_type);
+    LI::utilities::Interpolator1D<double> const & interp = total.at(target_type);
 
     if(primary_energy < interp.MinX() or primary_energy > interp.MaxX()) {
         throw std::runtime_error("Interaction energy ("+ std::to_string(primary_energy) +
@@ -950,10 +952,10 @@ double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType
                 + std::to_string(interp.MinX()) + " GeV,"
                 + std::to_string(interp.MaxX()) + " GeV]");
     }
-    
-    Interpolator1D<double> const & interp_proton = total.at(LeptonInjector::Particle::ParticleType::HNucleus);
-    int nprotons = earthmodel::MaterialModel::GetProtonCount(target_type);
-    if(inelastic || target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
+
+    LI::utilities::Interpolator1D<double> const & interp_proton = total.at(LI::utilities::Particle::ParticleType::HNucleus);
+    int nprotons = LI::detector::MaterialModel::GetProtonCount(target_type);
+    if(inelastic || target_type==LI::utilities::Particle::ParticleType::HNucleus) {
 				nprotons = 0;
     }
     double proton_inelastic_xsec = 0;
@@ -963,14 +965,14 @@ double DipoleFromTable::TotalCrossSection(LeptonInjector::Particle::ParticleType
     double xsec = interp(primary_energy) + nprotons*proton_inelastic_xsec;
 
     if(in_invGeV)
-        return std::pow(dipole_coupling, 2) * xsec / Constants::invGeVsq_per_cmsq;
+        return std::pow(dipole_coupling, 2) * xsec / LI::utilities::Constants::invGeVsq_per_cmsq;
     else
         return std::pow(dipole_coupling, 2) * xsec;
 }
 
 double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & interaction) const {
-    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    LeptonInjector::Particle::ParticleType target_type = interaction.signature.target_type;
+    LI::utilities::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::utilities::Particle::ParticleType target_type = interaction.signature.target_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
@@ -987,8 +989,8 @@ double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & inter
         primary_energy = p1_lab.e();
     }
     assert(interaction.signature.secondary_types.size() == 2);
-    assert(interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[1] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar or interaction.signature.secondary_types[1] == Particle::ParticleType::NuF4Bar);
-    unsigned int lepton_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
+    assert(interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[1] == LI::utilities::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuF4Bar or interaction.signature.secondary_types[1] == LI::utilities::Particle::ParticleType::NuF4Bar);
+    unsigned int lepton_index = (interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuF4Bar) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
 
     std::array<double, 4> const & mom3 = interaction.secondary_momenta[lepton_index];
@@ -1003,26 +1005,26 @@ double DipoleFromTable::DifferentialCrossSection(InteractionRecord const & inter
     return DifferentialCrossSection(primary_type, primary_energy, target_type, y, thresh);
 }
 
-double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type, double target_mass, double y) const {
+double DipoleFromTable::DifferentialCrossSection(LI::utilities::Particle::ParticleType primary_type, double primary_energy, LI::utilities::Particle::ParticleType target_type, double target_mass, double y) const {
     // Assume threshold is first entry of table
-    Interpolator2D<double> const & interp = differential.at(target_type);
+    LI::utilities::Interpolator2D<double> const & interp = differential.at(target_type);
     double thresh = interp.MinX();
     return DifferentialCrossSection(primary_type, primary_energy, target_type, target_mass, y, thresh);
 }
 
-double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type, double target_mass, double y, double thresh) const {
+double DipoleFromTable::DifferentialCrossSection(LI::utilities::Particle::ParticleType primary_type, double primary_energy, LI::utilities::Particle::ParticleType target_type, double target_mass, double y, double thresh) const {
     if(not primary_types.count(primary_type))
         return 0.0;
 
     if(total.find(target_type) == total.end())
         return 0.0;
 
-    Interpolator2D<double> const & interp = differential.at(target_type);
-    
-    Interpolator2D<double> const & interp_proton = differential.at(LeptonInjector::Particle::ParticleType::HNucleus);
-    
-    int nprotons = earthmodel::MaterialModel::GetProtonCount(target_type);
-    if(inelastic || target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
+    LI::utilities::Interpolator2D<double> const & interp = differential.at(target_type);
+
+    LI::utilities::Interpolator2D<double> const & interp_proton = differential.at(LI::utilities::Particle::ParticleType::HNucleus);
+
+    int nprotons = LI::detector::MaterialModel::GetProtonCount(target_type);
+    if(inelastic || target_type==LI::utilities::Particle::ParticleType::HNucleus) {
 				nprotons = 0;
     }
 
@@ -1046,7 +1048,7 @@ double DipoleFromTable::DifferentialCrossSection(Particle::ParticleType primary_
         differential_cross_section = interp(primary_energy, y) + nprotons*interp_proton(primary_energy,y);
     }
     if(in_invGeV)
-        differential_cross_section /= Constants::invGeVsq_per_cmsq;
+        differential_cross_section /= LI::utilities::Constants::invGeVsq_per_cmsq;
     return std::pow(dipole_coupling, 2) * differential_cross_section;
 }
 
@@ -1054,12 +1056,12 @@ double DipoleFromTable::InteractionThreshold(InteractionRecord const & interacti
     return hnl_mass + (hnl_mass*hnl_mass)/(2*interaction.target_mass);
 }
 
-void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& interaction, std::shared_ptr<LeptonInjector::LI_random> random) const {
-    Interpolator2D<double> const & diff_table = differential.at(interaction.signature.target_type);
-    Interpolator2D<double> const & diff_table_proton = differential.at(LeptonInjector::Particle::ParticleType::HNucleus);
-    int nprotons = earthmodel::MaterialModel::GetProtonCount(interaction.signature.target_type);
+void DipoleFromTable::SampleFinalState(InteractionRecord& interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
+    LI::utilities::Interpolator2D<double> const & diff_table = differential.at(interaction.signature.target_type);
+    LI::utilities::Interpolator2D<double> const & diff_table_proton = differential.at(LI::utilities::Particle::ParticleType::HNucleus);
+    int nprotons = LI::detector::MaterialModel::GetProtonCount(interaction.signature.target_type);
     // Avoid double counting for true H nuclei
-    if(inelastic || interaction.signature.target_type==LeptonInjector::Particle::ParticleType::HNucleus) {
+    if(inelastic || interaction.signature.target_type==LI::utilities::Particle::ParticleType::HNucleus) {
 				nprotons = 0;
     }
 
@@ -1089,12 +1091,12 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
         primary_energy = p1_lab.e();
     }
 
-    unsigned int lepton_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == Particle::ParticleType::NuF4Bar) ? 0 : 1;
+    unsigned int lepton_index = (interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuF4Bar) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
     double m = hnl_mass;
     double thresh = InteractionThreshold(interaction);
     if(primary_energy < thresh) {
-        throw(LeptonInjector::InjectionFailure("Primary is below interaction threshold!"));
+        throw(LI::utilities::InjectionFailure("Primary is below interaction threshold!"));
     }
 
     // double m2 = p2_lab | p2_lab;
@@ -1162,7 +1164,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
 								test_cross_section += nprotons*diff_table_proton(kin_vars[0],kin_vars[1]);
 						}
 				}
-    }		
+    }
 
     cross_section = test_cross_section;
 
@@ -1202,7 +1204,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
 										test_cross_section += nprotons*diff_table_proton(test_kin_vars[0],test_kin_vars[1]);
 								}
 						}
-				}		
+				}
         if(std::isnan(test_cross_section) or test_cross_section <= 0)
             continue;
 
@@ -1279,7 +1281,7 @@ void DipoleFromTable::SampleFinalState(LeptonInjector::InteractionRecord& intera
     interaction.secondary_helicity[other_index] = std::copysign(interaction.target_helicity, interaction.target_helicity * helicity_mul);
 }
 
-double DipoleFromTable::FinalStateProbability(LeptonInjector::InteractionRecord const & interaction) const {
+double DipoleFromTable::FinalStateProbability(InteractionRecord const & interaction) const {
     double dxs = DifferentialCrossSection(interaction);
     double txs = TotalCrossSection(interaction);
     if(dxs == 0) {
@@ -1291,41 +1293,41 @@ double DipoleFromTable::FinalStateProbability(LeptonInjector::InteractionRecord 
     }
 }
 
-std::vector<Particle::ParticleType> DipoleFromTable::GetPossibleTargets() const {
-    std::set<Particle::ParticleType> diff_targets;
-    std::set<Particle::ParticleType> tot_targets;
+std::vector<LI::utilities::Particle::ParticleType> DipoleFromTable::GetPossibleTargets() const {
+    std::set<LI::utilities::Particle::ParticleType> diff_targets;
+    std::set<LI::utilities::Particle::ParticleType> tot_targets;
     for(auto const & diff : differential)
         diff_targets.insert(diff.first);
     for(auto const & tot : total)
         tot_targets.insert(tot.first);
-    std::vector<Particle::ParticleType> res;
+    std::vector<LI::utilities::Particle::ParticleType> res;
     std::set_intersection(diff_targets.begin(), diff_targets.end(), tot_targets.begin(), tot_targets.end(), std::back_inserter(res));
     return res;
 }
 
-std::vector<Particle::ParticleType> DipoleFromTable::GetPossibleTargetsFromPrimary(Particle::ParticleType primary_type) const {
+std::vector<LI::utilities::Particle::ParticleType> DipoleFromTable::GetPossibleTargetsFromPrimary(LI::utilities::Particle::ParticleType primary_type) const {
     if(not primary_types.count(primary_type)) {
-        return std::vector<Particle::ParticleType>();
+        return std::vector<LI::utilities::Particle::ParticleType>();
     }
     return GetPossibleTargets();
 }
 
-std::vector<Particle::ParticleType> DipoleFromTable::GetPossiblePrimaries() const {
-    return std::vector<Particle::ParticleType>(primary_types.begin(), primary_types.end());
+std::vector<LI::utilities::Particle::ParticleType> DipoleFromTable::GetPossiblePrimaries() const {
+    return std::vector<LI::utilities::Particle::ParticleType>(primary_types.begin(), primary_types.end());
 }
 
 std::vector<InteractionSignature> DipoleFromTable::GetPossibleSignatures() const {
-    std::vector<Particle::ParticleType> targets = GetPossibleTargets();
+    std::vector<LI::utilities::Particle::ParticleType> targets = GetPossibleTargets();
     std::vector<InteractionSignature> signatures;
     InteractionSignature signature;
     signature.secondary_types.resize(2);
 
     for(auto primary : primary_types) {
         signature.primary_type = primary;
-        if(std::set<Particle::ParticleType>{Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau}.count(primary))
-            signature.secondary_types[0] = Particle::ParticleType::NuF4;
-        else if(std::set<Particle::ParticleType>{Particle::ParticleType::NuEBar, Particle::ParticleType::NuMuBar, Particle::ParticleType::NuTauBar}.count(primary))
-            signature.secondary_types[0] = Particle::ParticleType::NuF4Bar;
+        if(std::set<LI::utilities::Particle::ParticleType>{LI::utilities::Particle::ParticleType::NuE, LI::utilities::Particle::ParticleType::NuMu, LI::utilities::Particle::ParticleType::NuTau}.count(primary))
+            signature.secondary_types[0] = LI::utilities::Particle::ParticleType::NuF4;
+        else if(std::set<LI::utilities::Particle::ParticleType>{LI::utilities::Particle::ParticleType::NuEBar, LI::utilities::Particle::ParticleType::NuMuBar, LI::utilities::Particle::ParticleType::NuTauBar}.count(primary))
+            signature.secondary_types[0] = LI::utilities::Particle::ParticleType::NuF4Bar;
         else
             throw std::runtime_error("Primary type not in primary_types!");
         for(auto target : targets) {
@@ -1337,18 +1339,18 @@ std::vector<InteractionSignature> DipoleFromTable::GetPossibleSignatures() const
     return signatures;
 }
 
-std::vector<InteractionSignature> DipoleFromTable::GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const {
-    std::vector<Particle::ParticleType> targets = GetPossibleTargets();
+std::vector<InteractionSignature> DipoleFromTable::GetPossibleSignaturesFromParents(LI::utilities::Particle::ParticleType primary_type, LI::utilities::Particle::ParticleType target_type) const {
+    std::vector<LI::utilities::Particle::ParticleType> targets = GetPossibleTargets();
     if(primary_types.count(primary_type) > 0 and std::find(targets.begin(), targets.end(), target_type) != targets.end()) {
         InteractionSignature signature;
         signature.secondary_types.resize(2);
         signature.primary_type = primary_type;
         signature.target_type = target_type;
         signature.secondary_types[1] = target_type;
-        if(std::set<Particle::ParticleType>{Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau}.count(primary_type))
-            signature.secondary_types[0] = Particle::ParticleType::NuF4;
-        else if(std::set<Particle::ParticleType>{Particle::ParticleType::NuEBar, Particle::ParticleType::NuMuBar, Particle::ParticleType::NuTauBar}.count(primary_type))
-            signature.secondary_types[0] = Particle::ParticleType::NuF4Bar;
+        if(std::set<LI::utilities::Particle::ParticleType>{LI::utilities::Particle::ParticleType::NuE, LI::utilities::Particle::ParticleType::NuMu, LI::utilities::Particle::ParticleType::NuTau}.count(primary_type))
+            signature.secondary_types[0] = LI::utilities::Particle::ParticleType::NuF4;
+        else if(std::set<LI::utilities::Particle::ParticleType>{LI::utilities::Particle::ParticleType::NuEBar, LI::utilities::Particle::ParticleType::NuMuBar, LI::utilities::Particle::ParticleType::NuTauBar}.count(primary_type))
+            signature.secondary_types[0] = LI::utilities::Particle::ParticleType::NuF4Bar;
         else
             throw std::runtime_error("Primary type not in primary_types!");
         return std::vector<InteractionSignature>{signature};
@@ -1369,7 +1371,7 @@ bool fexists(const std::string filename)
 }
 }
 
-void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, Particle::ParticleType target) {
+void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, LI::utilities::Particle::ParticleType target) {
     std::string delimeter = "_";
     std::string end_delimeter = ".";
     std::string::size_type pos = filename.rfind("/") + 1;
@@ -1438,13 +1440,13 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, Part
     }
     std::string pid_str(buffer);
     int32_t pid_int = std::stoul(pid_str);
-    Particle::ParticleType pid = (Particle::ParticleType)pid_int;
+    LI::utilities::Particle::ParticleType pid = (LI::utilities::Particle::ParticleType)pid_int;
 
     if(fexists(filename)) {
         std::ifstream in(filename.c_str());
         std::string buf;
 
-        TableData2D<double> table_data;
+        LI::utilities::TableData2D<double> table_data;
         while(std::getline(in, buf)) {
             if((pos = buf.find('#')) != std::string::npos)
                 buf.erase(pos);
@@ -1463,14 +1465,14 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, Part
             table_data.y.push_back(y);
             table_data.f.push_back(f);
         }
-        Interpolator2D<double> interp(table_data);
+        LI::utilities::Interpolator2D<double> interp(table_data);
         AddDifferentialCrossSection(pid, interp);
     } else {
         throw std::runtime_error("Failed open cross section file!");
     }
 }
 
-void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, Particle::ParticleType target) {
+void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, LI::utilities::Particle::ParticleType target) {
     std::string delimeter = "_";
     std::string end_delimeter = ".";
     std::string::size_type pos = filename.rfind("/") + 1;
@@ -1536,7 +1538,7 @@ void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, Particle::P
     }
     std::string pid_str(buffer);
     int32_t pid_int = std::stoul(pid_str);
-    Particle::ParticleType pid = (Particle::ParticleType)pid_int;
+    LI::utilities::Particle::ParticleType pid = (LI::utilities::Particle::ParticleType)pid_int;
 
     if(pid != target) {
         throw std::runtime_error("File target nucleus does not match supplied target type!");
@@ -1546,7 +1548,7 @@ void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, Particle::P
         std::ifstream in(filename.c_str());
         std::string buf;
 
-        TableData1D<double> table_data;
+        LI::utilities::TableData1D<double> table_data;
         while(std::getline(in, buf)) {
             if((pos = buf.find('#')) != std::string::npos)
                 buf.erase(pos);
@@ -1564,18 +1566,18 @@ void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, Particle::P
             table_data.x.push_back(x);
             table_data.f.push_back(f);
         }
-        Interpolator1D<double> interp(table_data);
+        LI::utilities::Interpolator1D<double> interp(table_data);
         AddTotalCrossSection(pid, interp);
     } else {
         throw std::runtime_error("Failed open cross section file!");
     }
 }
 
-void DipoleFromTable::AddDifferentialCrossSection(Particle::ParticleType target, Interpolator2D<double> interp) {
+void DipoleFromTable::AddDifferentialCrossSection(LI::utilities::Particle::ParticleType target, LI::utilities::Interpolator2D<double> interp) {
     differential.insert(std::make_pair(target, interp));
 }
 
-void DipoleFromTable::AddTotalCrossSection(Particle::ParticleType target, Interpolator1D<double> interp) {
+void DipoleFromTable::AddTotalCrossSection(LI::utilities::Particle::ParticleType target, LI::utilities::Interpolator1D<double> interp) {
     total.insert(std::make_pair(target, interp));
 }
 
@@ -1595,10 +1597,10 @@ double ElasticScattering::InteractionThreshold(InteractionRecord const & record)
 }
 
 double ElasticScattering::DifferentialCrossSection(InteractionRecord const & interaction) const {
-    LeptonInjector::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::utilities::Particle::ParticleType primary_type = interaction.signature.primary_type;
     double CLL;
-    if(primary_type==Particle::ParticleType::NuE) CLL = 0.7276;
-    else if(primary_type==Particle::ParticleType::NuMu) CLL = -0.2730;
+    if(primary_type==LI::utilities::Particle::ParticleType::NuE) CLL = 0.7276;
+    else if(primary_type==LI::utilities::Particle::ParticleType::NuMu) CLL = -0.2730;
     else {
 				std::cout << "Faulty primary: " << primary_type << std::endl;
         throw std::runtime_error("Supplied primary not supported by cross section!");
@@ -1620,8 +1622,8 @@ double ElasticScattering::DifferentialCrossSection(InteractionRecord const & int
         primary_energy = p1_lab.e();
     }
     assert(interaction.signature.secondary_types.size() == 2);
-    assert(interaction.signature.secondary_types[0] == Particle::ParticleType::NuE or interaction.signature.secondary_types[1] == Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == Particle::ParticleType::NuMu or interaction.signature.secondary_types[1] == Particle::ParticleType::NuMu);
-    unsigned int nu_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == Particle::ParticleType::NuMu) ? 0 : 1;
+    assert(interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuE or interaction.signature.secondary_types[1] == LI::utilities::Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuMu or interaction.signature.secondary_types[1] == LI::utilities::Particle::ParticleType::NuMu);
+    unsigned int nu_index = (interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuMu) ? 0 : 1;
     unsigned int electron_index = 1 - nu_index;
 
     std::array<double, 4> const & mom3 = interaction.secondary_momenta[nu_index];
@@ -1633,44 +1635,44 @@ double ElasticScattering::DifferentialCrossSection(InteractionRecord const & int
     double m = interaction.secondary_masses[electron_index];
     double E = primary_energy;
 
-    double X1 = -2./3. * std::log(2*y*E/m) + y*y/24. - 5.*y/12. - std::pow(Constants::pi,2)/6. + 23./72.;
-    double X2 = -2./3. * std::log(2*y*E/m) - y*y / (18*(1-y)*(1-y)) - std::pow(Constants::pi,2)/6. - 2*y / (9*(1-y)*(1-y)) + 23./(72*(1-y)*(1-y));
-    double X3 = -3./2. * std::log(2*y*E/m) + 1./4. + 3./(4.*y) - 3./(4.*y*y) - std::pow(Constants::pi,2)/6.;
+    double X1 = -2./3. * std::log(2*y*E/m) + y*y/24. - 5.*y/12. - std::pow(LI::utilities::Constants::pi,2)/6. + 23./72.;
+    double X2 = -2./3. * std::log(2*y*E/m) - y*y / (18*(1-y)*(1-y)) - std::pow(LI::utilities::Constants::pi,2)/6. - 2*y / (9*(1-y)*(1-y)) + 23./(72*(1-y)*(1-y));
+    double X3 = -3./2. * std::log(2*y*E/m) + 1./4. + 3./(4.*y) - 3./(4.*y*y) - std::pow(LI::utilities::Constants::pi,2)/6.;
     // use tree level result
-    double term1 = CLL*CLL;// * (1 + Constants::fineStructure / Constants::pi * X1);
-    double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + Constants::fineStructure / Constants::pi * X2);
-    double term3 = -CLL*CLR*m*y/E;// * (1 + Constants::fineStructure / Constants::pi * X3);
-    double ret =  std::pow(Constants::FermiConstant,2) * s / Constants::pi * (term1 + term2 + term3) / Constants::invGeVsq_per_cmsq;
+    double term1 = CLL*CLL;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X1);
+    double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X2);
+    double term3 = -CLL*CLR*m*y/E;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X3);
+    double ret =  std::pow(LI::utilities::Constants::FermiConstant,2) * s / LI::utilities::Constants::pi * (term1 + term2 + term3) / LI::utilities::Constants::invGeVsq_per_cmsq;
     return std::max(ret,0.);
 }
 
 // Assume initial electron at rest
-double ElasticScattering::DifferentialCrossSection(Particle::ParticleType primary_type, double primary_energy, double y) const {
+double ElasticScattering::DifferentialCrossSection(LI::utilities::Particle::ParticleType primary_type, double primary_energy, double y) const {
     double CLL;
-    if(primary_type==Particle::ParticleType::NuE) CLL = 0.7276;
-    else if(primary_type==Particle::ParticleType::NuMu) CLL = -0.2730;
+    if(primary_type==LI::utilities::Particle::ParticleType::NuE) CLL = 0.7276;
+    else if(primary_type==LI::utilities::Particle::ParticleType::NuMu) CLL = -0.2730;
     else {
 				std::cout << "Faulty primary: " << primary_type << std::endl;
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
 
-    double m = Constants::electronMass;
+    double m = LI::utilities::Constants::electronMass;
     double E = primary_energy;
     double s = 2*m*E + m*m;
 
-    double X1 = -2./3. * std::log(2*y*E/m) + y*y/24. - 5.*y/12. - std::pow(Constants::pi,2)/6. + 23./72.;
-    double X2 = -2./3. * std::log(2*y*E/m) - y*y / (18*(1-y)*(1-y)) - std::pow(Constants::pi,2)/6. - 2*y / (9*(1-y)*(1-y)) + 23./(72*(1-y)*(1-y));
-    double X3 = -3./2. * std::log(2*y*E/m) + 1./4. + 3./(4.*y) - 3./(4.*y*y) - std::pow(Constants::pi,2)/6.;
-    double term1 = CLL*CLL;// * (1 + Constants::fineStructure / Constants::pi * X1);
-    double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + Constants::fineStructure / Constants::pi * X2);
-    double term3 = -CLL*CLR*m*y/E;// * (1 + Constants::fineStructure / Constants::pi * X3);
-    double ret = std::pow(Constants::FermiConstant,2) * s / Constants::pi * (term1 + term2 + term3) / Constants::invGeVsq_per_cmsq;
+    double X1 = -2./3. * std::log(2*y*E/m) + y*y/24. - 5.*y/12. - std::pow(LI::utilities::Constants::pi,2)/6. + 23./72.;
+    double X2 = -2./3. * std::log(2*y*E/m) - y*y / (18*(1-y)*(1-y)) - std::pow(LI::utilities::Constants::pi,2)/6. - 2*y / (9*(1-y)*(1-y)) + 23./(72*(1-y)*(1-y));
+    double X3 = -3./2. * std::log(2*y*E/m) + 1./4. + 3./(4.*y) - 3./(4.*y*y) - std::pow(LI::utilities::Constants::pi,2)/6.;
+    double term1 = CLL*CLL;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X1);
+    double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X2);
+    double term3 = -CLL*CLR*m*y/E;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X3);
+    double ret = std::pow(LI::utilities::Constants::FermiConstant,2) * s / LI::utilities::Constants::pi * (term1 + term2 + term3) / LI::utilities::Constants::invGeVsq_per_cmsq;
     return std::max(ret,0.);
 }
 
 double ElasticScattering::TotalCrossSection(InteractionRecord const & interaction) const {
-    Particle::ParticleType primary_type = interaction.signature.primary_type;
-    Particle::ParticleType target_type = interaction.signature.target_type;
+    LI::utilities::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::utilities::Particle::ParticleType target_type = interaction.signature.target_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
@@ -1687,22 +1689,22 @@ double ElasticScattering::TotalCrossSection(InteractionRecord const & interactio
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
-double ElasticScattering::TotalCrossSection(Particle::ParticleType primary_type, double primary_energy, Particle::ParticleType target_type) const {
-		double ymax = 2*primary_energy / (2*primary_energy + Constants::electronMass);
+double ElasticScattering::TotalCrossSection(LI::utilities::Particle::ParticleType primary_type, double primary_energy, LI::utilities::Particle::ParticleType target_type) const {
+		double ymax = 2*primary_energy / (2*primary_energy + LI::utilities::Constants::electronMass);
 		std::function<double(double)> integrand = [&] (double y) -> double {
         return DifferentialCrossSection(primary_type, primary_energy, y);
     };
-		return earthmodel::Integration::rombergIntegrate(integrand, 0, ymax);
+		return LI::detector::Integration::rombergIntegrate(integrand, 0, ymax);
 }
 
-void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& interaction, std::shared_ptr<LeptonInjector::LI_random> random) const {
+void ElasticScattering::SampleFinalState(InteractionRecord& interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
 
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
 
-    Particle::ParticleType primary_type = interaction.signature.primary_type;
-    
-    unsigned int nu_index = (interaction.signature.secondary_types[0] == Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == Particle::ParticleType::NuMu) ? 0 : 1;
+    LI::utilities::Particle::ParticleType primary_type = interaction.signature.primary_type;
+
+    unsigned int nu_index = (interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuMu) ? 0 : 1;
     unsigned int electron_index = 1 - nu_index;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
@@ -1721,7 +1723,7 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
     }
 
     double yMin = 1e-15;
-    double yMax = 2*primary_energy / (2*primary_energy + Constants::electronMass);
+    double yMax = 2*primary_energy / (2*primary_energy + LI::utilities::Constants::electronMass);
     assert(yMin > 0);
     double log_yMax = log10(yMax);
     double log_yMin = log10(yMin);
@@ -1775,7 +1777,7 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
     double phi = random->Uniform(0, 2.0 * M_PI);
     geom3::Rotation3 rand_rot(p1_lab_dir, phi);
 
-    double m3 = Constants::electronMass;
+    double m3 = LI::utilities::Constants::electronMass;
 
     double E3_lab = primary_energy * (final_y) + m3;
     double p3_lab_sq = E3_lab * E3_lab- m3 * m3;
@@ -1823,25 +1825,25 @@ void ElasticScattering::SampleFinalState(LeptonInjector::InteractionRecord& inte
     interaction.secondary_helicity[nu_index] = interaction.primary_helicity;
 }
 
-std::vector<Particle::ParticleType> ElasticScattering::GetPossibleTargets() const {
-    std::vector<Particle::ParticleType> res;
-    res.push_back(Particle::ParticleType::EMinus);
+std::vector<LI::utilities::Particle::ParticleType> ElasticScattering::GetPossibleTargets() const {
+    std::vector<LI::utilities::Particle::ParticleType> res;
+    res.push_back(LI::utilities::Particle::ParticleType::EMinus);
     return res;
 }
 
-std::vector<Particle::ParticleType> ElasticScattering::GetPossibleTargetsFromPrimary(Particle::ParticleType primary_type) const {
+std::vector<LI::utilities::Particle::ParticleType> ElasticScattering::GetPossibleTargetsFromPrimary(LI::utilities::Particle::ParticleType primary_type) const {
     if(not primary_types.count(primary_type)) {
-        return std::vector<Particle::ParticleType>();
+        return std::vector<LI::utilities::Particle::ParticleType>();
     }
     return GetPossibleTargets();
 }
 
-std::vector<Particle::ParticleType> ElasticScattering::GetPossiblePrimaries() const {
-    return std::vector<Particle::ParticleType>(primary_types.begin(), primary_types.end());
+std::vector<LI::utilities::Particle::ParticleType> ElasticScattering::GetPossiblePrimaries() const {
+    return std::vector<LI::utilities::Particle::ParticleType>(primary_types.begin(), primary_types.end());
 }
 
 std::vector<InteractionSignature> ElasticScattering::GetPossibleSignatures() const {
-    std::vector<Particle::ParticleType> targets = GetPossibleTargets();
+    std::vector<LI::utilities::Particle::ParticleType> targets = GetPossibleTargets();
     std::vector<InteractionSignature> signatures;
     InteractionSignature signature;
     signature.secondary_types.resize(2);
@@ -1858,8 +1860,8 @@ std::vector<InteractionSignature> ElasticScattering::GetPossibleSignatures() con
     return signatures;
 }
 
-std::vector<InteractionSignature> ElasticScattering::GetPossibleSignaturesFromParents(Particle::ParticleType primary_type, Particle::ParticleType target_type) const {
-    std::vector<Particle::ParticleType> targets = GetPossibleTargets();
+std::vector<InteractionSignature> ElasticScattering::GetPossibleSignaturesFromParents(LI::utilities::Particle::ParticleType primary_type, LI::utilities::Particle::ParticleType target_type) const {
+    std::vector<LI::utilities::Particle::ParticleType> targets = GetPossibleTargets();
     if(primary_types.count(primary_type) > 0 and std::find(targets.begin(), targets.end(), target_type) != targets.end()) {
         InteractionSignature signature;
         signature.secondary_types.resize(2);
@@ -1876,7 +1878,7 @@ std::vector<InteractionSignature> ElasticScattering::GetPossibleSignaturesFromPa
     }
 }
 
-double ElasticScattering::FinalStateProbability(LeptonInjector::InteractionRecord const & interaction) const {
+double ElasticScattering::FinalStateProbability(InteractionRecord const & interaction) const {
     double dxs = DifferentialCrossSection(interaction);
     double txs = TotalCrossSection(interaction);
     if(dxs == 0) {
@@ -1945,5 +1947,6 @@ std::ostream& operator<<(std::ostream& os, InteractionRecord const& record)
     return os;
 }
 
-} // namespace LeptonInjector
+} // namespace crosssections
+} // namespace LI
 

@@ -19,6 +19,8 @@
 
 #include "LeptonInjector/LeptonInjector.h"
 
+#include "LeptonInjector/utilities/Errors.h"
+
 
 // namespace constants = boost::math::constants;
 
