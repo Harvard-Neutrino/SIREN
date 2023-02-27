@@ -32,7 +32,7 @@
 #include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
 #include "LeptonInjector/distributions/TargetMomentumDistribution.h"
 #include "LeptonInjector/distributions/DecayRangePositionDistribution.h"
-#include "LeptonInjector/distributions/PrimaryNeutrinoHelicityDistribution.h"
+#include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
 #include "LeptonInjector/distributions/ColumnDepthPositionDistribution.h"
 #include "LeptonInjector/distributions/CylinderVolumePositionDistribution.h"
 

@@ -7,7 +7,6 @@ LIST (APPEND distributions_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/Distributions.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/OrientedCylinderPositionDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/PrimaryInjector.cxx
-    ${CMAKE_SOURCE_DIR}/projects/distributions/private/PrimaryNeutrinoHelicityDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/TargetMomentumDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/VertexPositionDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/direction/PrimaryDirectionDistribution.cxx
@@ -17,6 +16,7 @@ LIST (APPEND distributions_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/PrimaryEnergyDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/TabulatedFluxDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/helicity/PrimaryNeutrinoHelicityDistribution.cxx
 )
 add_library(LI_distributions SHARED ${distributions_SOURCES})
 target_include_directories(LI_distributions PUBLIC
