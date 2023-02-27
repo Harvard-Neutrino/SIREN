@@ -1,7 +1,6 @@
 
 #core files
 LIST (APPEND injection_SOURCES
-    ${CMAKE_SOURCE_DIR}/projects/injection/private/Distributions.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/LeptonInjector.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/Weighter.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
@@ -11,7 +10,7 @@ target_include_directories(LI_injection PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/injection/public/
 )
 add_dependencies(LI_injection rk)
-add_dependencies(LI_injection LI_serialization LI_utilities LI_math LI_geometry LI_detector LI_crosssections)
+add_dependencies(LI_injection LI_serialization LI_utilities LI_math LI_geometry LI_detector LI_crosssections LI_distributions)
 
 target_link_libraries(LI_injection ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(LI_injection photospline)
@@ -24,6 +23,7 @@ target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/math
 target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/geometry/public/)
 target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/detector/public/)
 target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/crosssections/public/)
+target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/distributions/public/)
 
 install(TARGETS LI_injection
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

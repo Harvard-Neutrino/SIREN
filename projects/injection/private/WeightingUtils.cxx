@@ -8,7 +8,8 @@
 #include "LeptonInjector/detector/EarthModel.h"
 #include "LeptonInjector/geometry/Geometry.h"
 
-namespace LeptonInjector {
+namespace LI {
+namespace injection {
 
 double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) {
     std::set<LI::utilities::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
@@ -60,5 +61,6 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> e
     return selected_prob / total_prob;
 }
 
-} // namespace LeptonInjector
+} // namespace injection
+} // namespace LI
 

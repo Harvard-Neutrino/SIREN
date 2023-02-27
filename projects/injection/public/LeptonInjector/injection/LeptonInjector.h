@@ -26,7 +26,15 @@
 
 #include "LeptonInjector/crosssections/CrossSection.h"
 
-#include "LeptonInjector/injection/Distributions.h"
+#include "LeptonInjector/distributions/Distributions.h"
+#include "LeptonInjector/distributions/PrimaryInjector.h"
+#include "LeptonInjector/distributions/PrimaryEnergyDistribution.h"
+#include "LeptonInjector/distributions/PrimaryDirectionDistribution.h"
+#include "LeptonInjector/distributions/TargetMomentumDistribution.h"
+#include "LeptonInjector/distributions/DecayRangePositionDistribution.h"
+#include "LeptonInjector/distributions/PrimaryNeutrinoHelicityDistribution.h"
+#include "LeptonInjector/distributions/ColumnDepthPositionDistribution.h"
+#include "LeptonInjector/distributions/CylinderVolumePositionDistribution.h"
 
 namespace LI {
 // #include "earthmodel-service/Vector3D.h"
@@ -40,7 +48,7 @@ class LI_random;
 }
 } // namespace LeptonInjector
 
-namespace LeptonInjector {
+namespace LI {
 
 class InjectorBase {
 friend cereal::access;
@@ -48,14 +56,14 @@ protected:
     unsigned int events_to_inject = 0;
     unsigned int injected_events = 0;
     std::shared_ptr<LI::utilities::LI_random> random;
-    std::shared_ptr<PrimaryInjector> primary_injector;
+    std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector;
     std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections;
     std::shared_ptr<LI::detector::EarthModel> earth_model;
-    std::vector<std::shared_ptr<InjectionDistribution>> distributions;
+    std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions;
     InjectorBase();
 public:
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::vector<std::shared_ptr<InjectionDistribution>> distributions, std::shared_ptr<LI::utilities::LI_random> random);
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions, std::shared_ptr<LI::utilities::LI_random> random);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections);
     virtual LI::crosssections::InteractionRecord NewRecord() const;
     void SetRandom(std::shared_ptr<LI::utilities::LI_random> random);
@@ -67,7 +75,7 @@ public:
     virtual double GenerationProbability(LI::crosssections::InteractionRecord const & record) const;
     virtual std::set<std::vector<std::string>> DensityVariables() const;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const;
-    virtual std::vector<std::shared_ptr<InjectionDistribution>> GetInjectionDistributions() const;
+    virtual std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> GetInjectionDistributions() const;
     virtual std::shared_ptr<LI::detector::EarthModel> GetEarthModel() const;
     virtual std::shared_ptr<LI::crosssections::CrossSectionCollection> GetCrossSections() const;
     unsigned int InjectedEvents() const;
@@ -106,17 +114,17 @@ public:
 class RangedLeptonInjector : public InjectorBase {
 friend cereal::access;
 protected:
-    std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;
-    std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
-    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
-    std::shared_ptr<RangeFunction> range_func;
-    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution;
+    std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> energy_distribution;
+    std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> direction_distribution;
+    std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution;
+    std::shared_ptr<LI::distributions::RangeFunction> range_func;
+    std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution;
     double disk_radius;
     double endcap_length;
-    std::shared_ptr<RangePositionDistribution> position_distribution;
+    std::shared_ptr<LI::distributions::RangePositionDistribution> position_distribution;
     RangedLeptonInjector();
 public:
-    RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<RangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
+    RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> edist, std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> ddist, std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<LI::distributions::RangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution);
     std::string Name() const override;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const override;
 
@@ -158,17 +166,17 @@ public:
 class ColumnDepthLeptonInjector : public InjectorBase {
 friend cereal::access;
 protected:
-    std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;
-    std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
-    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
-    std::shared_ptr<DepthFunction> depth_func;
-    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution;
+    std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> energy_distribution;
+    std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> direction_distribution;
+    std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution;
+    std::shared_ptr<LI::distributions::DepthFunction> depth_func;
+    std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution;
     double disk_radius;
     double endcap_length;
-    std::shared_ptr<ColumnDepthPositionDistribution> position_distribution;
+    std::shared_ptr<LI::distributions::ColumnDepthPositionDistribution> position_distribution;
     ColumnDepthLeptonInjector();
 public:
-    ColumnDepthLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<DepthFunction> depth_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
+    ColumnDepthLeptonInjector(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> edist, std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> ddist, std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<LI::distributions::DepthFunction> depth_func, double disk_radius, double endcap_length, std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution);
     std::string Name() const override;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const override;
 
@@ -210,17 +218,17 @@ public:
 class DecayRangeLeptonInjector : public InjectorBase {
 friend cereal::access;
 protected:
-    std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;
-    std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
-    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
-    std::shared_ptr<DecayRangeFunction> range_func;
-    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution;
+    std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> energy_distribution;
+    std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> direction_distribution;
+    std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution;
+    std::shared_ptr<LI::distributions::DecayRangeFunction> range_func;
+    std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution;
     double disk_radius;
     double endcap_length;
-    std::shared_ptr<DecayRangePositionDistribution> position_distribution;
+    std::shared_ptr<LI::distributions::DecayRangePositionDistribution> position_distribution;
     DecayRangeLeptonInjector();
 public:
-    DecayRangeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<DecayRangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
+    DecayRangeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> edist, std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> ddist, std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<LI::distributions::DecayRangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution);
     std::string Name() const override;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const override;
     template<typename Archive>
@@ -261,14 +269,14 @@ public:
 class VolumeLeptonInjector : public InjectorBase {
 friend cereal::access;
 protected:
-    std::shared_ptr<PrimaryEnergyDistribution> energy_distribution;
-    std::shared_ptr<PrimaryDirectionDistribution> direction_distribution;
-    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution;
-    std::shared_ptr<CylinderVolumePositionDistribution> position_distribution;
-    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution;
+    std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> energy_distribution;
+    std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> direction_distribution;
+    std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution;
+    std::shared_ptr<LI::distributions::CylinderVolumePositionDistribution> position_distribution;
+    std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution;
     VolumeLeptonInjector();
 public:
-    VolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<PrimaryEnergyDistribution> edist, std::shared_ptr<PrimaryDirectionDistribution> ddist, std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution, LI::geometry::Cylinder cylinder, std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution);
+    VolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> edist, std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> ddist, std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution, LI::geometry::Cylinder cylinder, std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution);
     std::string Name() const override;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const override;
     template<typename Archive>
@@ -300,21 +308,21 @@ public:
     }
 };
 
-} //namespace LeptonInjector
+} //namespace LI
 
-CEREAL_CLASS_VERSION(LeptonInjector::InjectorBase, 0);
+CEREAL_CLASS_VERSION(LI::InjectorBase, 0);
 
-CEREAL_CLASS_VERSION(LeptonInjector::RangedLeptonInjector, 0);
-CEREAL_REGISTER_TYPE(LeptonInjector::RangedLeptonInjector);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectorBase, LeptonInjector::RangedLeptonInjector);
+CEREAL_CLASS_VERSION(LI::RangedLeptonInjector, 0);
+CEREAL_REGISTER_TYPE(LI::RangedLeptonInjector);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::InjectorBase, LI::RangedLeptonInjector);
 
-CEREAL_CLASS_VERSION(LeptonInjector::DecayRangeLeptonInjector, 0);
-CEREAL_REGISTER_TYPE(LeptonInjector::DecayRangeLeptonInjector);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectorBase, LeptonInjector::DecayRangeLeptonInjector);
+CEREAL_CLASS_VERSION(LI::DecayRangeLeptonInjector, 0);
+CEREAL_REGISTER_TYPE(LI::DecayRangeLeptonInjector);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::InjectorBase, LI::DecayRangeLeptonInjector);
 
-CEREAL_CLASS_VERSION(LeptonInjector::VolumeLeptonInjector, 0);
-CEREAL_REGISTER_TYPE(LeptonInjector::VolumeLeptonInjector);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(LeptonInjector::InjectorBase, LeptonInjector::VolumeLeptonInjector);
+CEREAL_CLASS_VERSION(LI::VolumeLeptonInjector, 0);
+CEREAL_REGISTER_TYPE(LI::VolumeLeptonInjector);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::InjectorBase, LI::VolumeLeptonInjector);
 
 #endif // LI_LeptonInjector_H
 

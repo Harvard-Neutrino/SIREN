@@ -3,10 +3,12 @@
 #define LI_WeightingUtils_H
 
 
-namespace LeptonInjector {
+namespace LI {
+namespace injection {
 
 double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::crosssections::InteractionRecord const &);
 
-} // namespace LeptonInjector
+} // namespace injection
+} // namespace LI
 
 #endif // LI_WeightingUtils_H
