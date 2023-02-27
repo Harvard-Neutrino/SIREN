@@ -29,7 +29,7 @@
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/PrimaryInjector.h"
 #include "LeptonInjector/distributions/PrimaryEnergyDistribution.h"
-#include "LeptonInjector/distributions/PrimaryDirectionDistribution.h"
+#include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
 #include "LeptonInjector/distributions/TargetMomentumDistribution.h"
 #include "LeptonInjector/distributions/DecayRangePositionDistribution.h"
 #include "LeptonInjector/distributions/PrimaryNeutrinoHelicityDistribution.h"
