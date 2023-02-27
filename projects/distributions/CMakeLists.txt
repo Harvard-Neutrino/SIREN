@@ -6,7 +6,6 @@ LIST (APPEND distributions_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/DecayRangePositionDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/Distributions.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/OrientedCylinderPositionDistribution.cxx
-    ${CMAKE_SOURCE_DIR}/projects/distributions/private/PrimaryEnergyDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/PrimaryInjector.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/PrimaryNeutrinoHelicityDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/TargetMomentumDistribution.cxx
@@ -15,6 +14,9 @@ LIST (APPEND distributions_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/direction/IsotropicDirection.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/direction/FixedDirection.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/direction/Cone.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/PrimaryEnergyDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/TabulatedFluxDistribution.cxx
 )
 add_library(LI_distributions SHARED ${distributions_SOURCES})
 target_include_directories(LI_distributions PUBLIC
