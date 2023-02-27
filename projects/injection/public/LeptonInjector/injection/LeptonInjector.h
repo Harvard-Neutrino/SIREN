@@ -30,11 +30,12 @@
 #include "LeptonInjector/distributions/primary/type/PrimaryInjector.h"
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
 #include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
-#include "LeptonInjector/distributions/TargetMomentumDistribution.h"
-#include "LeptonInjector/distributions/DecayRangePositionDistribution.h"
 #include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
-#include "LeptonInjector/distributions/ColumnDepthPositionDistribution.h"
-#include "LeptonInjector/distributions/CylinderVolumePositionDistribution.h"
+#include "LeptonInjector/distributions/primary/vertex/RangePositionDistribution.h"
+#include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
+#include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
+#include "LeptonInjector/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
+#include "LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
 
 namespace LI {
 // #include "earthmodel-service/Vector3D.h"

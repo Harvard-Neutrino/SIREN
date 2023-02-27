@@ -2,21 +2,33 @@
 #core files
 LIST (APPEND distributions_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/Distributions.cxx
-    ${CMAKE_SOURCE_DIR}/projects/distributions/private/VertexPositionDistribution.cxx
-    ${CMAKE_SOURCE_DIR}/projects/distributions/private/ColumnDepthPositionDistribution.cxx
-    ${CMAKE_SOURCE_DIR}/projects/distributions/private/CylinderVolumePositionDistribution.cxx
-    ${CMAKE_SOURCE_DIR}/projects/distributions/private/DecayRangePositionDistribution.cxx
-    ${CMAKE_SOURCE_DIR}/projects/distributions/private/OrientedCylinderPositionDistribution.cxx
-    ${CMAKE_SOURCE_DIR}/projects/distributions/private/TargetMomentumDistribution.cxx
+
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/direction/PrimaryDirectionDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/direction/IsotropicDirection.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/direction/FixedDirection.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/direction/Cone.cxx
+
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/PrimaryEnergyDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/TabulatedFluxDistribution.cxx
+
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/helicity/PrimaryNeutrinoHelicityDistribution.cxx
+
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/type/PrimaryInjector.cxx
+
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/RangeFunction.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/DecayRangeFunction.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/DepthFunction.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/LeptonDepthFunction.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/VertexPositionDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/RangePositionDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/DecayRangePositionDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/OrientedCylinderPositionDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/CylinderVolumePositionDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/ColumnDepthPositionDistribution.cxx
+
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/target/momentum/TargetMomentumDistribution.cxx
+
 )
 add_library(LI_distributions SHARED ${distributions_SOURCES})
 target_include_directories(LI_distributions PUBLIC

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_VertexPositionDistribution
-#define LI_VertexPositionDistribution
+#ifndef LI_VertexPositionDistribution_H
+#define LI_VertexPositionDistribution_H
 
 #include <memory>
 #include <string>
@@ -17,9 +17,6 @@
 #include <cereal/types/utility.hpp>
 
 #include "LeptonInjector/serialization/array.h"
-
-#include "LeptonInjector/utilities/Particle.h"
-#include "LeptonInjector/utilities/Interpolator.h"
 
 #include "LeptonInjector/math/Vector3D.h"
 
@@ -84,4 +81,4 @@ CEREAL_CLASS_VERSION(LI::distributions::VertexPositionDistribution, 0);
 CEREAL_REGISTER_TYPE(LI::distributions::VertexPositionDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::distributions::InjectionDistribution, LI::distributions::VertexPositionDistribution);
 
-#endif // LI_VertexPositionDistribution
+#endif // LI_VertexPositionDistribution_H

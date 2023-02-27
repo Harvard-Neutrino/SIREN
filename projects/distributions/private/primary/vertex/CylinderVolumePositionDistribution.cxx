@@ -1,7 +1,5 @@
-#include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"
-#include "LeptonInjector/detector/EarthModelCalculator.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
 
@@ -9,7 +7,7 @@
 #include "LeptonInjector/utilities/Particle.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/CylinderVolumePositionDistribution.h"
+#include "LeptonInjector/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
 
 #include "LeptonInjector/utilities/Errors.h"
 

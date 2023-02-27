@@ -1,0 +1,170 @@
+#include "LeptonInjector/detector/Path.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/EarthModelCalculator.h"
+
+#include "LeptonInjector/crosssections/CrossSection.h"
+
+#include "LeptonInjector/utilities/Random.h"
+#include "LeptonInjector/utilities/Particle.h"
+
+#include "LeptonInjector/distributions/Distributions.h"
+#include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
+#include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
+
+#include "LeptonInjector/utilities/Errors.h"
+
+namespace LI {
+namespace distributions {
+
+namespace {
+    double log_one_minus_exp_of_negative(double x) {
+        if(x < 1e-1) {
+            return std::log(x) - x/2.0 + x*x/24.0 - x*x*x*x/2880.0;
+        } else if(x > 3) {
+            double ex = std::exp(-x);
+            double ex2 = ex * ex;
+            double ex3 = ex2 * ex;
+            double ex4 = ex3 * ex;
+            double ex5 = ex4 * ex;
+            double ex6 = ex5 * ex;
+            return -(ex + ex2 / 2.0 + ex3 / 3.0 + ex4 / 4.0 + ex5 / 5.0 + ex6 / 6.0);
+        } else {
+            return std::log(1.0 - std::exp(-x));
+        }
+    }
+}
+
+//---------------
+// class DecayRangePositionDistribution : public VertexPositionDistribution
+//---------------
+LI::math::Vector3D DecayRangePositionDistribution::SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::math::Vector3D const & dir) const {
+    double t = rand->Uniform(0, 2 * M_PI);
+    double r = radius * std::sqrt(rand->Uniform());
+    LI::math::Vector3D pos(r * cos(t), r * sin(t), 0.0);
+    LI::math::Quaternion q = rotation_between(LI::math::Vector3D(0,0,1), dir);
+    return q.rotate(pos, false);
+}
+
+LI::math::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    LI::math::Vector3D pca = SampleFromDisk(rand, dir);
+
+    double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
+
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
+
+    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
+    path.ClipToOuterBounds();
+
+    double y = rand->Uniform();
+    double total_distance = path.GetDistance();
+    double dist = -decay_length * log(y * (exp(-total_distance/decay_length) - 1) + 1);
+
+    LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+
+    return vertex;
+}
+
+double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    LI::math::Vector3D vertex(record.interaction_vertex); // m
+    LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
+
+    if(pca.magnitude() >= radius)
+        return 0.0;
+
+    double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
+
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
+
+    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
+    path.ClipToOuterBounds();
+
+    if(not path.IsWithinBounds(vertex))
+        return 0.0;
+
+    double total_distance = path.GetDistance();
+    double dist = LI::math::scalar_product(path.GetDirection(), vertex - path.GetFirstPoint());
+
+    double prob_density = exp(-dist / decay_length) / (decay_length * (1.0 - exp(-total_distance / decay_length))); // m^-1
+    prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
+    return prob_density;
+}
+
+DecayRangePositionDistribution::DecayRangePositionDistribution() {}
+
+DecayRangePositionDistribution::DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::set<LI::utilities::Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {}
+
+std::string DecayRangePositionDistribution::Name() const {
+    return "DecayRangePositionDistribution";
+}
+
+std::shared_ptr<InjectionDistribution> DecayRangePositionDistribution::clone() const {
+    return std::shared_ptr<InjectionDistribution>(new DecayRangePositionDistribution(*this));
+}
+
+std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+    dir.normalize();
+    LI::math::Vector3D vertex(record.interaction_vertex); // m
+    LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
+
+    if(pca.magnitude() >= radius)
+        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+
+    double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
+
+    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
+
+    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
+    path.ClipToOuterBounds();
+
+    if(not path.IsWithinBounds(vertex))
+        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+
+    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+}
+
+bool DecayRangePositionDistribution::equal(WeightableDistribution const & other) const {
+    const DecayRangePositionDistribution* x = dynamic_cast<const DecayRangePositionDistribution*>(&other);
+
+    if(!x)
+        return false;
+    else
+        return (radius == x->radius
+            and endcap_length == x->endcap_length
+            and (
+                    (range_function and x->range_function and *range_function == *x->range_function)
+                    or (!range_function and !x->range_function)
+                )
+            and target_types == x->target_types);
+}
+
+bool DecayRangePositionDistribution::less(WeightableDistribution const & other) const {
+    const DecayRangePositionDistribution* x = dynamic_cast<const DecayRangePositionDistribution*>(&other);
+    bool range_less =
+        (!range_function and x->range_function) // this->NULL and other->(not NULL)
+        or (range_function and x->range_function // both not NULL
+                and *range_function < *x->range_function); // Less than
+    bool f = false;
+    return
+        std::tie(radius, endcap_length, f, target_types)
+        <
+        std::tie(radius, x->endcap_length, range_less, x->target_types);
+}
+
+bool DecayRangePositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::EarthModel const> second_earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> second_cross_sections) const {
+    return this->operator==(*distribution);
+}
+
+} // namespace distributions
+} // namespace LeptonInjector

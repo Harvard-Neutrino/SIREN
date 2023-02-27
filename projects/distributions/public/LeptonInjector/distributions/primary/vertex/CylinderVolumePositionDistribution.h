@@ -18,13 +18,10 @@
 
 #include "LeptonInjector/serialization/array.h"
 
-#include "LeptonInjector/utilities/Particle.h"
-#include "LeptonInjector/utilities/Interpolator.h"
-
 #include "LeptonInjector/math/Vector3D.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/VertexPositionDistribution.h"
+#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
 
 namespace LI {
 
