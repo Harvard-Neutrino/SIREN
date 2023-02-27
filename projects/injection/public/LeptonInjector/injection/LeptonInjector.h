@@ -27,7 +27,7 @@
 #include "LeptonInjector/crosssections/CrossSection.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/PrimaryInjector.h"
+#include "LeptonInjector/distributions/primary/type/PrimaryInjector.h"
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
 #include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
 #include "LeptonInjector/distributions/TargetMomentumDistribution.h"
