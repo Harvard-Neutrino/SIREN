@@ -22,7 +22,6 @@
 #include "LeptonInjector/utilities/Interpolator.h"
 
 #include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 
@@ -30,6 +29,10 @@ namespace LI {
 namespace utilities {
 class LI_random;
 } // namespace utilities
+
+namespace detector {
+class EarthModel;
+} // namespace detector
 
 namespace crosssections {
 struct InteractionRecord;

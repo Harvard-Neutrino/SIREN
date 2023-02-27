@@ -22,12 +22,16 @@
 #include "LeptonInjector/utilities/Interpolator.h"
 
 #include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/VertexPositionDistribution.h"
 
 namespace LI {
+
+namespace detector {
+class EarthModel;
+} // namespace detector
+
 namespace distributions {
 
 class CylinderVolumePositionDistribution : virtual public VertexPositionDistribution {
