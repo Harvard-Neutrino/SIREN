@@ -16,24 +16,6 @@
 namespace LI {
 namespace distributions {
 
-namespace {
-    double log_one_minus_exp_of_negative(double x) {
-        if(x < 1e-1) {
-            return std::log(x) - x/2.0 + x*x/24.0 - x*x*x*x/2880.0;
-        } else if(x > 3) {
-            double ex = std::exp(-x);
-            double ex2 = ex * ex;
-            double ex3 = ex2 * ex;
-            double ex4 = ex3 * ex;
-            double ex5 = ex4 * ex;
-            double ex6 = ex5 * ex;
-            return -(ex + ex2 / 2.0 + ex3 / 3.0 + ex4 / 4.0 + ex5 / 5.0 + ex6 / 6.0);
-        } else {
-            return std::log(1.0 - std::exp(-x));
-        }
-    }
-}
-
 //---------------
 // class DecayRangePositionDistribution : public VertexPositionDistribution
 //---------------
