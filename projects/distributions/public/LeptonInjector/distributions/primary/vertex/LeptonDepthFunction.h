@@ -41,7 +41,7 @@ public:
     double GetTauBeta() const;
     double GetScale() const;
     double GetMaxDepth() const;
-    virtual double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const;
+    virtual double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

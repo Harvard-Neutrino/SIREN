@@ -100,8 +100,8 @@ protected:
 public:
     virtual ~NormalizationConstant() {};
     NormalizationConstant(double norm);
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const;
-    virtual std::string Name() const;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    virtual std::string Name() const override;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -121,8 +121,8 @@ public:
         }
     }
 protected:
-    virtual bool equal(WeightableDistribution const & distribution) const;
-    virtual bool less(WeightableDistribution const & distribution) const;
+    virtual bool equal(WeightableDistribution const & distribution) const override;
+    virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
 class InjectionDistribution : virtual public WeightableDistribution {

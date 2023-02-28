@@ -40,9 +40,9 @@ public:
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
 	PrimaryNeutrinoHelicityDistribution();
 	PrimaryNeutrinoHelicityDistribution(const PrimaryNeutrinoHelicityDistribution &) = default;
-    virtual std::vector<std::string> DensityVariables() const;
+    virtual std::vector<std::string> DensityVariables() const override;
     std::string Name() const override;
-    virtual std::shared_ptr<InjectionDistribution> clone() const;
+    virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
