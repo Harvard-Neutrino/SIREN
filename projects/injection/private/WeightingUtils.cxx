@@ -33,7 +33,7 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> e
     LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), earth_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
 
     double total_prob = 0.0;
-    double selected_prob = 0.0;
+    // double selected_prob = 0.0;
     double selected_final_state = 0.0;
     LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const target : available_targets) {
@@ -54,14 +54,14 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> e
                     total_prob += target_prob;
                     // Add up total cross section times density times final state prob for matching signatures
                     if(signature == record.signature) {
-                        selected_prob += target_prob;
+                        // selected_prob += target_prob;
                         selected_final_state += target_prob * cross_section->FinalStateProbability(record);
                     }
                 }
             }
         }
     }
-    return selected_prob / total_prob;
+    return selected_final_state / total_prob;
 }
 
 } // namespace injection
