@@ -1,4 +1,4 @@
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 
 namespace LI {
@@ -18,15 +18,15 @@ double DecayRangeFunction::DecayLength(double particle_mass, double decay_width,
     return length; // meters
 }
 
-double DecayRangeFunction::DecayLength(LI::crosssections::InteractionSignature const & signature, double energy) const {
+double DecayRangeFunction::DecayLength(LI::dataclasses::InteractionSignature const & signature, double energy) const {
     return DecayRangeFunction::DecayLength(particle_mass, decay_width, energy);
 }
 
-double DecayRangeFunction::Range(LI::crosssections::InteractionSignature const & signature, double energy) const {
+double DecayRangeFunction::Range(LI::dataclasses::InteractionSignature const & signature, double energy) const {
     return std::min(DecayLength(signature, energy) * multiplier, max_distance);
 }
 
-double DecayRangeFunction::operator()(LI::crosssections::InteractionSignature const & signature, double energy) const {
+double DecayRangeFunction::operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const {
     return Range(signature, energy);
 }
 

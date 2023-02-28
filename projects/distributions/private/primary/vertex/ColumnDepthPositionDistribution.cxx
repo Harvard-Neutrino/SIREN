@@ -6,7 +6,7 @@
 #include "LeptonInjector/crosssections/CrossSection.h"
 
 #include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
@@ -46,7 +46,7 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SampleFromDisk(std::shared_p
     return q.rotate(pos, false);
 }
 
-LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
+LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D pca = SampleFromDisk(rand, dir);
@@ -60,13 +60,13 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
-    std::set<LI::utilities::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
+    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
 
-    std::vector<LI::utilities::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    LI::crosssections::InteractionRecord fake_record = record;
+    LI::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::utilities::Particle::ParticleType const & target = targets[i];
+        LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = earth_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
@@ -95,7 +95,7 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     return vertex;
 }
 
-double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
@@ -116,13 +116,13 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     if(not path.IsWithinBounds(vertex))
         return 0.0;
 
-    std::set<LI::utilities::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
+    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
 
-    std::vector<LI::utilities::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    LI::crosssections::InteractionRecord fake_record = record;
+    LI::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::utilities::Particle::ParticleType const & target = targets[i];
+        LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = earth_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
@@ -149,7 +149,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     return prob_density;
 }
 
-ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<LI::utilities::Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
+ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<LI::dataclasses::Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
 
 std::string ColumnDepthPositionDistribution::Name() const {
     return "ColumnDepthPositionDistribution";
@@ -159,7 +159,7 @@ std::shared_ptr<InjectionDistribution> ColumnDepthPositionDistribution::clone() 
     return std::shared_ptr<InjectionDistribution>(new ColumnDepthPositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m

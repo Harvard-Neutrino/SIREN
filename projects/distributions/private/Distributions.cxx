@@ -7,7 +7,7 @@
 #include "LeptonInjector/crosssections/CrossSection.h"
 
 #include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 
@@ -75,7 +75,7 @@ NormalizationConstant::NormalizationConstant(double norm) {
     SetNormalization(norm);
 }
 
-double NormalizationConstant::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+double NormalizationConstant::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     return 1.0;
 }
 
@@ -95,7 +95,7 @@ bool NormalizationConstant::less(WeightableDistribution const & distribution) co
 // class InjectionDistribution
 //---------------
 
-void InjectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
+void InjectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
 }
 
 } // namespace distributions

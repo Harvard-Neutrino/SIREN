@@ -2,21 +2,12 @@
 #ifndef LI_ModifiedMoyalPlusExponentialEnergyDistribution_H
 #define LI_ModifiedMoyalPlusExponentialEnergyDistribution_H
 
-#include <memory>
 #include <string>
-#include <vector>
-#include <utility>
-#include <stdexcept>
 
 #include <cereal/access.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-
-#include "LeptonInjector/serialization/array.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
@@ -41,8 +32,8 @@ private:
     double unnormed_pdf(double energy) const ;
     double pdf(double energy) const;
 public:
-    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const override;
+    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B, bool has_physical_normalization=false);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;

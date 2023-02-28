@@ -2,21 +2,12 @@
 #ifndef LI_TabulatedFluxDistribution_H
 #define LI_TabulatedFluxDistribution_H
 
-#include <memory>
 #include <string>
-#include <vector>
-#include <utility>
-#include <stdexcept>
 
 #include <cereal/access.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-
-#include "LeptonInjector/serialization/array.h"
 
 #include "LeptonInjector/utilities/Interpolator.h"
 
@@ -44,8 +35,8 @@ private:
     double pdf(double energy) const;
     void LoadFluxTable();
 public:
-    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const override;
+    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);
     TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
     TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false);

@@ -4,30 +4,26 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 #include <utility>
-#include <stdexcept>
 
 #include <cereal/access.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/serialization/array.h"
-
 #include "LeptonInjector/crosssections/CrossSection.h"
 
 namespace LI {
+namespace dataclassses {
+class InteractionSignature;
+}
 namespace distributions {
 
 class DepthFunction {
 friend cereal::access;
 public:
     DepthFunction();
-    virtual double operator()(LI::crosssections::InteractionSignature const & signature, double energy) const;
+    virtual double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

@@ -15,7 +15,7 @@ void PrimaryEnergyDistribution::Sample(
         std::shared_ptr<LI::utilities::LI_random> rand,
         std::shared_ptr<LI::detector::EarthModel const> earth_model,
         std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections,
-        LI::crosssections::InteractionRecord & record) const {
+        LI::dataclasses::InteractionRecord & record) const {
     record.primary_momentum[0] = SampleEnergy(rand, earth_model, cross_sections, record);
 }
 

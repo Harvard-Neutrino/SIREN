@@ -53,7 +53,7 @@ double LeptonDepthFunction::GetMaxDepth() const {
     return max_depth;
 }
 
-double LeptonDepthFunction::operator()(LI::crosssections::InteractionSignature const & signature, double energy) const {
+double LeptonDepthFunction::operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const {
     double range = log(1.0 + energy * mu_beta / mu_alpha) / mu_beta;
     if(tau_primaries.count(signature.primary_type) > 0)
         range += log(1.0 + energy * tau_beta / tau_alpha) / tau_beta;

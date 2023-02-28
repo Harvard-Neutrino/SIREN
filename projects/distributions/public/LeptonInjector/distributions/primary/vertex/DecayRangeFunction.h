@@ -2,21 +2,10 @@
 #ifndef LI_DecayRangeFunction_H
 #define LI_DecayRangeFunction_H
 
-#include <memory>
-#include <string>
-#include <vector>
-#include <utility>
-#include <stdexcept>
-
 #include <cereal/access.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-
-#include "LeptonInjector/serialization/array.h"
 
 #include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 
@@ -35,9 +24,9 @@ private:
 public:
     DecayRangeFunction(double particle_mass, double decay_width, double multiplier, double max_distance);
     static double DecayLength(double mass, double width, double energy);
-    double operator()(LI::crosssections::InteractionSignature const & signature, double energy) const override;
-    double DecayLength(LI::crosssections::InteractionSignature const & signature, double energy) const;
-    double Range(LI::crosssections::InteractionSignature const & signature, double energy) const;
+    double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const override;
+    double DecayLength(LI::dataclasses::InteractionSignature const & signature, double energy) const;
+    double Range(LI::dataclasses::InteractionSignature const & signature, double energy) const;
     double Multiplier() const;
     double ParticleMass() const;
     double DecayWidth() const;

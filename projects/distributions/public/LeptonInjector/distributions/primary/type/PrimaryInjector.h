@@ -2,23 +2,15 @@
 #ifndef LI_PrimaryInjector_H
 #define LI_PrimaryInjector_H
 
-#include <memory>
 #include <string>
 #include <vector>
-#include <utility>
-#include <stdexcept>
 
 #include <cereal/access.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/serialization/array.h"
-
-#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 
@@ -31,9 +23,11 @@ namespace detector {
 class EarthModel;
 } // namespace detector
 
-namespace crosssections {
+namespace dataclasses {
 struct InteractionRecord;
 struct InteractionSignature;
+}
+namespace crosssections {
 class CrossSectionCollection;
 } // namespace crosssections
 } // namespace LeptonInjector
@@ -46,14 +40,14 @@ friend cereal::access;
 protected:
     PrimaryInjector() {};
 private:
-    LI::utilities::Particle::ParticleType primary_type;
+    LI::dataclasses::Particle::ParticleType primary_type;
     double primary_mass;
 public:
-    PrimaryInjector(LI::utilities::Particle::ParticleType primary_type, double primary_mass = 0);
-    LI::utilities::Particle::ParticleType PrimaryType() const;
+    PrimaryInjector(LI::dataclasses::Particle::ParticleType primary_type, double primary_mass = 0);
+    LI::dataclasses::Particle::ParticleType PrimaryType() const;
     double PrimaryMass() const;
-    void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const override;
+    void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
@@ -70,7 +64,7 @@ public:
     template<typename Archive>
     static void load_and_construct(Archive & archive, cereal::construct<PrimaryInjector> & construct, std::uint32_t const version) {
         if(version == 0) {
-            LI::utilities::Particle::ParticleType t;
+            LI::dataclasses::Particle::ParticleType t;
             double m;
             archive(::cereal::make_nvp("PrimaryType", t));
             archive(::cereal::make_nvp("PrimaryMass", m));

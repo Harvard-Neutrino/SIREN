@@ -13,7 +13,7 @@ target_include_directories(LI_detector PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/detector/public/
 )
 add_dependencies(LI_detector rk)
-add_dependencies(LI_detector LI_serialization LI_utilities LI_math LI_geometry)
+add_dependencies(LI_detector LI_serialization LI_utilities LI_math LI_dataclasses LI_geometry)
 
 target_link_libraries(LI_detector ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(LI_detector photospline)
@@ -23,6 +23,7 @@ target_include_directories(LI_detector PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/incl
 target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
 target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/utilities/public/)
 target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/public/)
+target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/dataclasses/public/)
 target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/geometry/public/)
 
 install(TARGETS LI_detector

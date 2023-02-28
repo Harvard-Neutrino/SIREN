@@ -1,5 +1,6 @@
 #include "LeptonInjector/detector/EarthModel.h"
 #include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
 #include "LeptonInjector/utilities/Random.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
@@ -16,7 +17,7 @@ void TargetMomentumDistribution::Sample(
         std::shared_ptr<LI::utilities::LI_random> rand,
         std::shared_ptr<LI::detector::EarthModel const> earth_model,
         std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections,
-        LI::crosssections::InteractionRecord & record) const {
+        LI::dataclasses::InteractionRecord & record) const {
     record.target_momentum = SampleMomentum(rand, earth_model, cross_sections, record);
 }
 
@@ -31,11 +32,11 @@ std::array<double, 4> TargetAtRest::SampleMomentum(
         std::shared_ptr<LI::utilities::LI_random> rand,
         std::shared_ptr<LI::detector::EarthModel const> earth_model,
         std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections,
-        LI::crosssections::InteractionRecord const & record) const {
+        LI::dataclasses::InteractionRecord const & record) const {
     return std::array<double, 4>{record.target_mass, 0, 0, 0};
 }
 
-double TargetAtRest::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+double TargetAtRest::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     return 1.0;
 }
 

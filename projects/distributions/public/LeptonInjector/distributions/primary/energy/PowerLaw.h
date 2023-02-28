@@ -2,21 +2,12 @@
 #ifndef LI_PowerLaw_H
 #define LI_PowerLaw_H
 
-#include <memory>
 #include <string>
-#include <vector>
-#include <utility>
-#include <stdexcept>
 
 #include <cereal/access.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-
-#include "LeptonInjector/serialization/array.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
@@ -35,8 +26,8 @@ private:
 public:
     PowerLaw(double powerLawIndex, double energyMin, double energyMax);
     double pdf(double energy) const;
-    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const override;
+    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     std::string Name() const override;
     void SetNormalizationAtEnergy(double normalization, double energy);
     virtual std::shared_ptr<InjectionDistribution> clone() const override;

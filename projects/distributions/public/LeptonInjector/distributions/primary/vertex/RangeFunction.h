@@ -2,24 +2,13 @@
 #ifndef LI_RangeFunction_H
 #define LI_RangeFunction_H
 
-#include <memory>
-#include <string>
-#include <vector>
-#include <utility>
-#include <stdexcept>
-
 #include <cereal/access.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/serialization/array.h"
-
 namespace LI {
-namespace crosssections {
+namespace dataclasses {
 class InteractionSignature;
 }
 namespace distributions {
@@ -28,7 +17,7 @@ class RangeFunction {
 friend cereal::access;
 public:
     RangeFunction();
-    virtual double operator()(LI::crosssections::InteractionSignature const & signature, double energy) const;
+    virtual double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

@@ -3,24 +3,20 @@
 #define LI_LeptonDepthFunction_H
 
 #include <memory>
-#include <string>
-#include <vector>
-#include <utility>
 #include <stdexcept>
 
 #include <cereal/access.hpp>
-#include <cereal/types/array.hpp>
 #include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/serialization/array.h"
-
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 
 namespace LI {
+namespace dataclassses {
+class InteractionSignature;
+}
 namespace distributions {
 
 class LeptonDepthFunction : virtual public DepthFunction {
@@ -32,7 +28,7 @@ private:
     double tau_beta = 2.6315789473684212e-7;
     double scale = 1.0;
     double max_depth = 3e7;
-    std::set<LI::utilities::Particle::ParticleType> tau_primaries = {LI::utilities::Particle::ParticleType::NuTau, LI::utilities::Particle::ParticleType::NuTauBar};
+    std::set<LI::dataclasses::Particle::ParticleType> tau_primaries = {LI::dataclasses::Particle::ParticleType::NuTau, LI::dataclasses::Particle::ParticleType::NuTauBar};
 public:
     LeptonDepthFunction();
     void SetMuParams(double mu_alpha, double mu_beta);
@@ -45,7 +41,7 @@ public:
     double GetTauBeta() const;
     double GetScale() const;
     double GetMaxDepth() const;
-    virtual double operator()(LI::crosssections::InteractionSignature const & signature, double energy) const;
+    virtual double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

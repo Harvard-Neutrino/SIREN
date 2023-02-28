@@ -13,7 +13,7 @@ std::vector<double> MaterialModel::GetTargetMassFraction(int material_id, Iterat
     fractions.reserve(std::distance(begin, end));
 
     for(Iterator it = begin; it != end; ++it) {
-        std::pair<int, LI::utilities::Particle::ParticleType> key(material_id, *it);
+        std::pair<int, LI::dataclasses::Particle::ParticleType> key(material_id, *it);
         if(material_components_by_id_.find(key) != material_components_by_id_.end())
             fractions.push_back(material_components_by_id_.at(key).mass_density_over_total_mass_density);
         else
@@ -28,7 +28,7 @@ std::vector<double> MaterialModel::GetTargetParticleFraction(int material_id, It
     fractions.reserve(std::distance(begin, end));
 
     for(Iterator it = begin; it != end; ++it) {
-        std::pair<int, LI::utilities::Particle::ParticleType> key(material_id, *it);
+        std::pair<int, LI::dataclasses::Particle::ParticleType> key(material_id, *it);
         if(material_components_by_id_.find(key) != material_components_by_id_.end())
             fractions.push_back(material_components_by_id_.at(key).particle_density_over_total_mass_density);
         else
@@ -43,7 +43,7 @@ std::vector<double> MaterialModel::GetTargetRadiationFraction(int material_id, I
     std::vector<double> fractions;
     fractions.reserve(std::distance(begin, end));
     for(Iterator it = begin; it != end; ++it) {
-        std::pair<int, LI::utilities::Particle::ParticleType> key(material_id, *it);
+        std::pair<int, LI::dataclasses::Particle::ParticleType> key(material_id, *it);
         if(material_components_by_id_.find(key) != material_components_by_id_.end()) {
             fractions.push_back(0.0);
             continue;

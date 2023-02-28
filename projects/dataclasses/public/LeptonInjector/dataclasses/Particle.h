@@ -25,7 +25,7 @@
 // positions are in Cartesian, centered in the middle of IceCube
 
 namespace LI {
-namespace utilities {
+namespace dataclasses {
 
 // simple data structure for particles
 class Particle {
@@ -253,18 +253,18 @@ uint8_t getInteraction( Particle::ParticleType final_1 , Particle::ParticleType 
 
 namespace cereal {
     template <class Archive>
-    int save_minimal(Archive const &, LI::utilities::Particle::ParticleType const & p) {
+    int save_minimal(Archive const &, LI::dataclasses::Particle::ParticleType const & p) {
         return static_cast<int>(p);
     }
 
     template <class Archive>
-    void load_minimal(Archive const &, LI::utilities::Particle::ParticleType & p, int const & value )
+    void load_minimal(Archive const &, LI::dataclasses::Particle::ParticleType & p, int const & value )
     {
-        p = static_cast<LI::utilities::Particle::ParticleType>(value);
+        p = static_cast<LI::dataclasses::Particle::ParticleType>(value);
     }
 
     template <class Archive, class C, class A> inline
-    void save( Archive & ar, std::set<LI::utilities::Particle::ParticleType, C, A> const & set )
+    void save( Archive & ar, std::set<LI::dataclasses::Particle::ParticleType, C, A> const & set )
     {
       ar( make_size_tag( static_cast<size_type>(set.size()) ) );
 
@@ -273,7 +273,7 @@ namespace cereal {
     }
 
     template <class Archive, class C, class A> inline
-    void load( Archive & ar, std::set<LI::utilities::Particle::ParticleType, C, A> & set )
+    void load( Archive & ar, std::set<LI::dataclasses::Particle::ParticleType, C, A> & set )
     {
       size_type size;
       ar( make_size_tag( size ) );
@@ -283,7 +283,7 @@ namespace cereal {
       auto hint = set.begin();
       for( size_type i = 0; i < size; ++i )
       {
-        typename std::set<LI::utilities::Particle::ParticleType>::key_type key;
+        typename std::set<LI::dataclasses::Particle::ParticleType>::key_type key;
         ar( key );
         hint = set.emplace_hint( hint, std::move( key ) );
       }

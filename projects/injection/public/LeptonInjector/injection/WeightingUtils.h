@@ -6,7 +6,7 @@
 namespace LI {
 namespace injection {
 
-double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::crosssections::InteractionRecord const &);
+double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord const &);
 
 } // namespace injection
 } // namespace LI

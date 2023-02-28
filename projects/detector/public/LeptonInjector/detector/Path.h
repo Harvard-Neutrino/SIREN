@@ -96,16 +96,16 @@ public:
     void ShrinkFromStartByColumnDepth(double column_depth);
 
     void ExtendFromEndByInteractionDepth(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ExtendFromStartByInteractionDepth(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ShrinkFromEndByInteractionDepth(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ShrinkFromStartByInteractionDepth(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
 
     // Extend/Shrink To
@@ -120,23 +120,23 @@ public:
     void ShrinkFromStartToColumnDepth(double column_depth);
 
     void ExtendFromEndToInteractionDepth(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ExtendFromStartToInteractionDepth(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ShrinkFromEndToInteractionDepth(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     void ShrinkFromStartToInteractionDepth(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     //
 
     // Get
     double GetColumnDepthInBounds();
     double GetInteractionDepthInBounds(
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     //
 
@@ -149,22 +149,22 @@ public:
     double GetColumnDepthFromEndInReverse(double distance);
 
     double GetInteractionDepthFromStartInBounds(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetInteractionDepthFromEndInBounds(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetInteractionDepthFromStartAlongPath(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetInteractionDepthFromEndAlongPath(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetInteractionDepthFromStartInReverse(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetInteractionDepthFromEndInReverse(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     //
 
@@ -177,22 +177,22 @@ public:
     double GetDistanceFromEndInReverse(double column_depth);
 
     double GetDistanceFromStartInBounds(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetDistanceFromEndInBounds(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetDistanceFromStartAlongPath(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetDistanceFromEndAlongPath(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetDistanceFromStartInReverse(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     double GetDistanceFromEndInReverse(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections);
     //
 

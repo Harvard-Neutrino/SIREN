@@ -9,6 +9,7 @@
 #include "LeptonInjector/detector/EarthModel.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/dataclasses/InteractionSignature.h"
 
 #include "LeptonInjector/utilities/Random.h"
 #include "LeptonInjector/injection/Weighter.h"
@@ -65,8 +66,8 @@ InjectorBase::InjectorBase(unsigned int events_to_inject,
     cross_sections(cross_sections)
 {}
 
-LI::crosssections::InteractionRecord InjectorBase::NewRecord() const {
-    LI::crosssections::InteractionRecord record;
+LI::dataclasses::InteractionRecord InjectorBase::NewRecord() const {
+    LI::dataclasses::InteractionRecord record;
     primary_injector->Sample(random, earth_model, cross_sections, record);
     return record;
 }
@@ -75,7 +76,7 @@ void InjectorBase::SetRandom(std::shared_ptr<LI::utilities::LI_random> random) {
     this->random = random;
 }
 
-void InjectorBase::SampleCrossSection(LI::crosssections::InteractionRecord & record) const {
+void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & record) const {
 
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
@@ -84,9 +85,9 @@ void InjectorBase::SampleCrossSection(LI::crosssections::InteractionRecord & rec
 	    throw(LI::utilities::InjectionFailure("No particle interaction!"));
     }
 
-    std::set<LI::utilities::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
-    std::set<LI::utilities::Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
-    std::set<LI::utilities::Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
+    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
+    std::set<LI::dataclasses::Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
+    std::set<LI::dataclasses::Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
     LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
@@ -104,10 +105,10 @@ void InjectorBase::SampleCrossSection(LI::crosssections::InteractionRecord & rec
 
     double total_prob = 0.0;
     std::vector<double> probs;
-    std::vector<LI::utilities::Particle::ParticleType> matching_targets;
-    std::vector<LI::crosssections::InteractionSignature> matching_signatures;
+    std::vector<LI::dataclasses::Particle::ParticleType> matching_targets;
+    std::vector<LI::dataclasses::InteractionSignature> matching_signatures;
     std::vector<std::shared_ptr<LI::crosssections::CrossSection>> matching_cross_sections;
-    LI::crosssections::InteractionRecord fake_record = record;
+    LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const target : available_targets) {
         if(possible_targets.find(target) != possible_targets.end()) {
             // Get target density
@@ -117,7 +118,7 @@ void InjectorBase::SampleCrossSection(LI::crosssections::InteractionRecord & rec
             unsigned int xs_i = 0;
             for(auto const & cross_section : target_cross_sections) {
                 // Loop over cross section signatures with the same target
-                std::vector<LI::crosssections::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
+                std::vector<LI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
                 unsigned int sig_i = 0;
                 for(auto const & signature : signatures) {
                     fake_record.signature = signature;
@@ -157,14 +158,14 @@ void InjectorBase::SampleCrossSection(LI::crosssections::InteractionRecord & rec
     matching_cross_sections[index]->SampleFinalState(record, random);
 }
 
-void InjectorBase::SampleSecondaryDecay(LI::crosssections::InteractionRecord const & interaction, LI::crosssections::DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial = nullptr, double buffer = 0) const {
+void InjectorBase::SampleSecondaryDecay(LI::dataclasses::InteractionRecord const & interaction, LI::crosssections::DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial = nullptr, double buffer = 0) const {
     // This function takes an interaction record containing an HNL and simulates the decay to a photon
     // Samples according to (1 + alpha * cos(theta))/2 and returns physical weight
-    // Final state photon added to secondary particle vectors in LI::crosssections::InteractionRecord
+    // Final state photon added to secondary particle vectors in LI::dataclasses::InteractionRecord
 
     // Find the HNL in the secondary particle vector and save its momentum/cartesian direction
-    unsigned int lepton_index = (interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == LI::utilities::Particle::ParticleType::NuF4Bar) ? 0 : 1;
-    LI::utilities::Particle::ParticleType hnl_type = interaction.signature.secondary_types[lepton_index];
+    unsigned int lepton_index = (interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar) ? 0 : 1;
+    LI::dataclasses::Particle::ParticleType hnl_type = interaction.signature.secondary_types[lepton_index];
     double hnl_mass = interaction.secondary_masses[lepton_index];
     std::array<double, 4> hnl_momentum = interaction.secondary_momenta[lepton_index];
     double hnl_helicity = interaction.secondary_helicity[lepton_index];
@@ -229,7 +230,7 @@ void InjectorBase::SampleSecondaryDecay(LI::crosssections::InteractionRecord con
     decay.secondary_momenta.resize(2);
     decay.secondary_helicity.resize(1);
 
-    decay.signature.secondary_types[0] = LI::utilities::Particle::ParticleType::Gamma;
+    decay.signature.secondary_types[0] = LI::dataclasses::Particle::ParticleType::Gamma;
     decay.secondary_masses[0] = 0;
     decay.secondary_momenta[0][0] = pGamma_lab.e();
     decay.secondary_momenta[0][1] = pGamma_lab.px();
@@ -249,7 +250,7 @@ void InjectorBase::SampleSecondaryDecay(LI::crosssections::InteractionRecord con
     decay.decay_parameters[4] = b;
 }
 
-void InjectorBase::SamplePairProduction(LI::crosssections::DecayRecord const & decay, LI::crosssections::InteractionRecord & interaction) const {
+void InjectorBase::SamplePairProduction(LI::crosssections::DecayRecord const & decay, LI::dataclasses::InteractionRecord & interaction) const {
     // function for simulating the pair production of the photon created in HNL decay
     // considers the different radiation lengths of materials in the detector
     // Nick TODO: comment more
@@ -316,8 +317,8 @@ void InjectorBase::SamplePairProduction(LI::crosssections::DecayRecord const & d
     }
 }
 
-LI::crosssections::InteractionRecord InjectorBase::GenerateEvent() {
-    LI::crosssections::InteractionRecord record;
+LI::dataclasses::InteractionRecord InjectorBase::GenerateEvent() {
+    LI::dataclasses::InteractionRecord record;
     while(true) {
         try {
             record = this->NewRecord();
@@ -334,7 +335,7 @@ LI::crosssections::InteractionRecord InjectorBase::GenerateEvent() {
     return record;
 }
 
-double InjectorBase::GenerationProbability(LI::crosssections::InteractionRecord const & record) const {
+double InjectorBase::GenerationProbability(LI::dataclasses::InteractionRecord const & record) const {
     double probability = 1.0;
     for(auto const & dist : distributions) {
         double prob = dist->GenerationProbability(earth_model, cross_sections, record);
@@ -370,7 +371,7 @@ std::string InjectorBase::Name() const {
     return("InjectorBase");
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectorBase::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectorBase::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
     return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 }
 
@@ -425,7 +426,7 @@ RangedLeptonInjector::RangedLeptonInjector(
     disk_radius(disk_radius),
     endcap_length(endcap_length)
 {
-    std::set<LI::utilities::Particle::ParticleType> target_types = this->cross_sections->TargetTypes();
+    std::set<LI::dataclasses::Particle::ParticleType> target_types = this->cross_sections->TargetTypes();
     position_distribution = std::make_shared<LI::distributions::RangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
     distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
 }
@@ -434,7 +435,7 @@ std::string RangedLeptonInjector::Name() const {
     return("RangedInjector");
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> RangedLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> RangedLeptonInjector::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
     return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
 }
 
@@ -465,7 +466,7 @@ ColumnDepthLeptonInjector::ColumnDepthLeptonInjector(
     disk_radius(disk_radius),
     endcap_length(endcap_length)
 {
-    std::set<LI::utilities::Particle::ParticleType> target_types = this->cross_sections->TargetTypes();
+    std::set<LI::dataclasses::Particle::ParticleType> target_types = this->cross_sections->TargetTypes();
     position_distribution = std::make_shared<LI::distributions::ColumnDepthPositionDistribution>(disk_radius, endcap_length, depth_func, target_types);
     distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
 }
@@ -474,7 +475,7 @@ std::string ColumnDepthLeptonInjector::Name() const {
     return("ColumnDepthInjector");
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthLeptonInjector::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
     return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
 }
 
@@ -505,7 +506,7 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
     disk_radius(disk_radius),
     endcap_length(endcap_length)
 {
-    std::set<LI::utilities::Particle::ParticleType> target_types = this->cross_sections->TargetTypes();
+    std::set<LI::dataclasses::Particle::ParticleType> target_types = this->cross_sections->TargetTypes();
     position_distribution = std::make_shared<LI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
     distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
 }
@@ -514,7 +515,7 @@ std::string DecayRangeLeptonInjector::Name() const {
     return("DecayRangeInjector");
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangeLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangeLeptonInjector::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
     return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
 }
 
@@ -547,7 +548,7 @@ std::string VolumeLeptonInjector::Name() const {
     return("VolumeInjector");
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> VolumeLeptonInjector::InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> VolumeLeptonInjector::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
     return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
 }
 

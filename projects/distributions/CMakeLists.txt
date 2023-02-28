@@ -35,7 +35,7 @@ target_include_directories(LI_distributions PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/distributions/public/
 )
 add_dependencies(LI_distributions rk)
-add_dependencies(LI_distributions LI_serialization LI_utilities LI_math LI_geometry LI_detector LI_crosssections)
+add_dependencies(LI_distributions LI_serialization LI_utilities LI_math LI_dataclasses LI_geometry LI_detector LI_crosssections)
 
 target_link_libraries(LI_distributions ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(LI_distributions photospline)
@@ -45,6 +45,7 @@ target_include_directories(LI_distributions PUBLIC ${CMAKE_BINARY_DIR}/extern/rk
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/utilities/public/)
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/public/)
+target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/dataclasses/public/)
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/geometry/public/)
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/detector/public/)
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/crosssections/public/)

@@ -14,7 +14,7 @@ namespace distributions {
 //---------------
 // class VertexPositionDistribution : InjectionDistribution
 //---------------
-void VertexPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
+void VertexPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
     LI::math::Vector3D pos = SamplePosition(rand, earth_model, cross_sections, record);
     record.interaction_vertex[0] = pos.GetX();
     record.interaction_vertex[1] = pos.GetY();

@@ -3,7 +3,6 @@
 LIST (APPEND utilities_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/utilities/private/Interpolator.cxx
     ${CMAKE_SOURCE_DIR}/projects/utilities/private/Random.cxx
-    ${CMAKE_SOURCE_DIR}/projects/utilities/private/Particle.cxx
 )
 add_library(LI_utilities SHARED ${utilities_SOURCES})
 target_include_directories(LI_utilities PUBLIC

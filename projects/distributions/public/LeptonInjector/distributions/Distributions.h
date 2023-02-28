@@ -18,7 +18,7 @@
 
 #include "LeptonInjector/serialization/array.h"
 
-#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"
 
 #include "LeptonInjector/utilities/Interpolator.h"
 
@@ -33,9 +33,11 @@ namespace detector {
 class EarthModel;
 } // namespace detector
 
-namespace crosssections {
+namespace dataclasses {
 struct InteractionRecord;
 struct InteractionSignature;
+}
+namespace crosssections {
 class CrossSectionCollection;
 }
 
@@ -75,7 +77,7 @@ public:
 class WeightableDistribution {
 friend cereal::access;
 public:
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const = 0;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     template<class Archive>
@@ -106,7 +108,7 @@ protected:
     NormalizationConstant();
 public:
     NormalizationConstant(double norm);
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const;
     virtual std::string Name() const;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -135,7 +137,7 @@ class InjectionDistribution : virtual public WeightableDistribution {
 friend cereal::access;
 private:
 public:
-    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const;
+    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const;
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {

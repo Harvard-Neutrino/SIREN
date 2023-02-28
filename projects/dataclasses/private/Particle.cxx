@@ -1,10 +1,10 @@
 #include <map>
 #include <math.h> // adds sqrt, power functions
 #include <assert.h>
-#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"
 
 namespace LI {
-namespace utilities {
+namespace dataclasses {
     Particle::Particle(void){
         // Just sit it at the origin
 

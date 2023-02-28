@@ -5,7 +5,7 @@
 #include "LeptonInjector/crosssections/CrossSection.h"
 
 #include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
@@ -16,15 +16,15 @@ namespace distributions {
 //---------------
 // class PrimaryNeutrinoHelicityDistribution : InjectionDistribution
 //---------------
-void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
-    LI::utilities::Particle::ParticleType & t = record.signature.primary_type;
+void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
+    LI::dataclasses::Particle::ParticleType & t = record.signature.primary_type;
     if(t > 0) // Particles are left handed, anti-particles are right handed
         record.primary_helicity = -0.5;
     else
         record.primary_helicity = 0.5;
 }
 
-double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     std::array<double, 4> const & mom = record.primary_momentum;
     LI::math::Vector3D dir(mom[1], mom[2], mom[3]);
     dir.normalize();
@@ -32,7 +32,7 @@ double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_pt
     if(abs(0.5 - abs(record.primary_helicity)) > 1e-9) // Helicity magnitude must be 0.5
         return 0.0;
 
-    LI::utilities::Particle::ParticleType const & t = record.signature.primary_type;
+    LI::dataclasses::Particle::ParticleType const & t = record.signature.primary_type;
     // Particles are left handed, anti-particles are right handed
     if(t > 0) {
         if(record.primary_helicity < 0) // expect opposite direction

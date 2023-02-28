@@ -4,21 +4,15 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 #include <utility>
-#include <stdexcept>
 
 #include <cereal/access.hpp>
-#include <cereal/types/array.hpp>
 #include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/serialization/array.h"
-
-#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"
 
 #include "LeptonInjector/math/Vector3D.h"
 
@@ -35,9 +29,11 @@ namespace detector {
 class EarthModel;
 } // namespace detector
 
-namespace crosssections {
+namespace dataclasses {
 struct InteractionRecord;
 struct InteractionSignature;
+}
+namespace crosssections {
 class CrossSectionCollection;
 } // namespace crosssections
 } // namespace LeptonInjector
@@ -50,18 +46,18 @@ private:
     double radius;
     double endcap_length;
     std::shared_ptr<DecayRangeFunction> range_function;
-    std::set<LI::utilities::Particle::ParticleType> target_types;
+    std::set<LI::dataclasses::Particle::ParticleType> target_types;
 
     LI::math::Vector3D SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::math::Vector3D const & dir) const;
 
-    LI::math::Vector3D SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const override;
+    LI::math::Vector3D SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const override;
 public:
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     DecayRangePositionDistribution();
     DecayRangePositionDistribution(const DecayRangePositionDistribution &) = default;
-    DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::set<LI::utilities::Particle::ParticleType> target_types);
+    DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::set<LI::dataclasses::Particle::ParticleType> target_types);
     std::string Name() const override;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & interaction) const override;
+    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const;
     virtual bool AreEquivalent(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::EarthModel const> second_earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> second_cross_sections) const;
     template<typename Archive>
@@ -81,7 +77,7 @@ public:
         if(version == 0) {
             double r;
             double l;
-            std::set<LI::utilities::Particle::ParticleType> t;
+            std::set<LI::dataclasses::Particle::ParticleType> t;
             std::shared_ptr<DecayRangeFunction> f;
             archive(::cereal::make_nvp("Radius", r));
             archive(::cereal::make_nvp("EndcapLength", l));

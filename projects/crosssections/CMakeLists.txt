@@ -8,7 +8,7 @@ target_include_directories(LI_crosssections PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/crosssections/public/
 )
 add_dependencies(LI_crosssections rk)
-add_dependencies(LI_crosssections LI_serialization LI_utilities LI_math LI_detector)
+add_dependencies(LI_crosssections LI_serialization LI_utilities LI_math LI_dataclasses LI_detector)
 
 target_link_libraries(LI_crosssections ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(LI_crosssections photospline)
@@ -19,6 +19,7 @@ target_include_directories(LI_crosssections PUBLIC ${CMAKE_SOURCE_DIR}/projects/
 target_include_directories(LI_crosssections PUBLIC ${CMAKE_SOURCE_DIR}/projects/utilities/public/)
 target_include_directories(LI_crosssections PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/public/)
 target_include_directories(LI_crosssections PUBLIC ${CMAKE_SOURCE_DIR}/projects/detector/public/)
+target_include_directories(LI_crosssections PUBLIC ${CMAKE_SOURCE_DIR}/projects/dataclasses/public/)
 
 install(TARGETS LI_crosssections
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

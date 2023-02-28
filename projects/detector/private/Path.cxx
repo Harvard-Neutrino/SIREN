@@ -6,7 +6,7 @@
 #include <iostream>
 #include <algorithm>
 
-#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/geometry/Geometry.h"
 
@@ -230,28 +230,28 @@ void Path::ShrinkFromStartByColumnDepth(double column_depth) {
 // Extend / Shrink By InteractionDepth
 ////
 void Path::ExtendFromEndByInteractionDepth(double interaction_depth,
-        std::vector<LI::utilities::Particle::ParticleType> const & targets,
+        std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections) {
     double distance = GetDistanceFromEndAlongPath(interaction_depth, targets, total_cross_sections);
     ExtendFromEndByDistance(distance);
 }
 
 void Path::ExtendFromStartByInteractionDepth(double interaction_depth,
-        std::vector<LI::utilities::Particle::ParticleType> const & targets,
+        std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections) {
     double distance = GetDistanceFromStartInReverse(interaction_depth, targets, total_cross_sections);
     ExtendFromStartByDistance(distance);
 }
 
 void Path::ShrinkFromEndByInteractionDepth(double interaction_depth,
-        std::vector<LI::utilities::Particle::ParticleType> const & targets,
+        std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections) {
     double distance = GetDistanceFromEndInReverse(interaction_depth, targets, total_cross_sections);
     ShrinkFromEndByDistance(distance);
 }
 
 void Path::ShrinkFromStartByInteractionDepth(double interaction_depth,
-        std::vector<LI::utilities::Particle::ParticleType> const & targets,
+        std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections) {
     double distance = GetDistanceFromStartAlongPath(interaction_depth, targets, total_cross_sections);
     ShrinkFromStartByDistance(distance);
@@ -326,7 +326,7 @@ void Path::ShrinkFromStartToColumnDepth(double column_depth) {
 // Extend / Shrink To InteractionDepth
 ////
 void Path::ExtendFromEndToInteractionDepth(double interaction_depth,
-        std::vector<LI::utilities::Particle::ParticleType> const & targets,
+        std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections) {
     double shift = interaction_depth - GetInteractionDepthInBounds(targets, total_cross_sections);
     if(shift > 0) {
@@ -335,7 +335,7 @@ void Path::ExtendFromEndToInteractionDepth(double interaction_depth,
 }
 
 void Path::ExtendFromStartToInteractionDepth(double interaction_depth,
-        std::vector<LI::utilities::Particle::ParticleType> const & targets,
+        std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections) {
     double shift = interaction_depth - GetInteractionDepthInBounds(targets, total_cross_sections);
     if(shift > 0) {
@@ -344,7 +344,7 @@ void Path::ExtendFromStartToInteractionDepth(double interaction_depth,
 }
 
 void Path::ShrinkFromEndToInteractionDepth(double interaction_depth,
-        std::vector<LI::utilities::Particle::ParticleType> const & targets,
+        std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections) {
     double shift = GetInteractionDepthInBounds(targets, total_cross_sections) - interaction_depth;
     if(shift > 0) {
@@ -353,7 +353,7 @@ void Path::ShrinkFromEndToInteractionDepth(double interaction_depth,
 }
 
 void Path::ShrinkFromStartToInteractionDepth(double interaction_depth,
-        std::vector<LI::utilities::Particle::ParticleType> const & targets,
+        std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections) {
     double shift = GetInteractionDepthInBounds(targets, total_cross_sections) - interaction_depth;
     if(shift > 0) {
@@ -381,7 +381,7 @@ double Path::GetColumnDepthInBounds() {
 // Get InteractionDepth
 ////
 double Path::GetInteractionDepthInBounds(
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     double interaction_depth = earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, last_point_, targets, total_cross_sections);
@@ -437,7 +437,7 @@ double Path::GetColumnDepthFromEndInReverse(double distance) {
 // Get InteractionDepth From
 ////
 double Path::GetInteractionDepthFromStartInBounds(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     if(distance > distance_) {
         distance = distance_;
@@ -449,7 +449,7 @@ double Path::GetInteractionDepthFromStartInBounds(double distance,
 }
 
 double Path::GetInteractionDepthFromEndInBounds(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     if(distance > distance_) {
         distance = distance_;
@@ -461,28 +461,28 @@ double Path::GetInteractionDepthFromEndInBounds(double distance,
 }
 
 double Path::GetInteractionDepthFromStartAlongPath(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets, total_cross_sections), distance);
 }
 
 double Path::GetInteractionDepthFromEndAlongPath(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance, targets, total_cross_sections), distance);
 }
 
 double Path::GetInteractionDepthFromStartInReverse(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance, targets, total_cross_sections), distance);
 }
 
 double Path::GetInteractionDepthFromEndInReverse(double distance,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets, total_cross_sections), distance);
@@ -543,7 +543,7 @@ double Path::GetDistanceFromEndInReverse(double column_depth) {
 // Get Distance From (InteractionDepth)
 ///
 double Path::GetDistanceFromStartInBounds(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections);
@@ -556,7 +556,7 @@ double Path::GetDistanceFromStartInBounds(double interaction_depth,
 }
 
 double Path::GetDistanceFromEndInBounds(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections);
@@ -569,7 +569,7 @@ double Path::GetDistanceFromEndInBounds(double interaction_depth,
 }
 
 double Path::GetDistanceFromStartAlongPath(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections);
@@ -577,7 +577,7 @@ double Path::GetDistanceFromStartAlongPath(double interaction_depth,
 }
 
 double Path::GetDistanceFromEndAlongPath(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, direction_, interaction_depth, targets, total_cross_sections);
@@ -585,7 +585,7 @@ double Path::GetDistanceFromEndAlongPath(double interaction_depth,
 }
 
 double Path::GetDistanceFromStartInReverse(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, -direction_, interaction_depth, targets, total_cross_sections);
@@ -593,7 +593,7 @@ double Path::GetDistanceFromStartInReverse(double interaction_depth,
 }
 
 double Path::GetDistanceFromEndInReverse(double interaction_depth,
-            std::vector<LI::utilities::Particle::ParticleType> const & targets,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections);

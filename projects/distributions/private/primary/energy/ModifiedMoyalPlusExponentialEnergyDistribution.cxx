@@ -42,7 +42,7 @@ ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEner
     }
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     // Metropolis-Hastings algorithm to sample from PDF.
     // Pass in a function pointer for the PDF
 
@@ -68,7 +68,7 @@ double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_
     return energy;
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
     if(energy < energyMin or energy > energyMax)
         return 0.0;

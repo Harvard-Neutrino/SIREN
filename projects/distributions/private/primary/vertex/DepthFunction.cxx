@@ -1,4 +1,4 @@
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 
@@ -10,7 +10,7 @@ namespace distributions {
 //---------------
 DepthFunction::DepthFunction() {}
 
-double DepthFunction::operator()(LI::crosssections::InteractionSignature const & signature, double energy) const {
+double DepthFunction::operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const {
     return 0.0;
 }
 

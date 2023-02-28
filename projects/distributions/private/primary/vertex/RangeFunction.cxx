@@ -1,4 +1,4 @@
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 
 namespace LI {
@@ -10,7 +10,7 @@ namespace distributions {
 
 RangeFunction::RangeFunction() {}
 
-double RangeFunction::operator()(LI::crosssections::InteractionSignature const & signature, double energy) const {
+double RangeFunction::operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const {
     return 0.0;
 }
 

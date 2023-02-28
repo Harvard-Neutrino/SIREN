@@ -66,16 +66,16 @@ public:
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions, std::shared_ptr<LI::utilities::LI_random> random);
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections);
-    virtual LI::crosssections::InteractionRecord NewRecord() const;
+    virtual LI::dataclasses::InteractionRecord NewRecord() const;
     void SetRandom(std::shared_ptr<LI::utilities::LI_random> random);
-    virtual void SampleCrossSection(LI::crosssections::InteractionRecord & record) const;
-    virtual void SampleSecondaryDecay(LI::crosssections::InteractionRecord const & interaction, LI::crosssections::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
-    virtual void SamplePairProduction(LI::crosssections::DecayRecord const & decay, LI::crosssections::InteractionRecord & pairprod) const;
-    LI::crosssections::InteractionRecord GenerateEvent();
+    virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record) const;
+    virtual void SampleSecondaryDecay(LI::dataclasses::InteractionRecord const & interaction, LI::crosssections::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
+    virtual void SamplePairProduction(LI::crosssections::DecayRecord const & decay, LI::dataclasses::InteractionRecord & pairprod) const;
+    LI::dataclasses::InteractionRecord GenerateEvent();
     virtual std::string Name() const;
-    virtual double GenerationProbability(LI::crosssections::InteractionRecord const & record) const;
+    virtual double GenerationProbability(LI::dataclasses::InteractionRecord const & record) const;
     virtual std::set<std::vector<std::string>> DensityVariables() const;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const;
+    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const;
     virtual std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> GetInjectionDistributions() const;
     virtual std::shared_ptr<LI::detector::EarthModel> GetEarthModel() const;
     virtual std::shared_ptr<LI::crosssections::CrossSectionCollection> GetCrossSections() const;
@@ -127,7 +127,7 @@ protected:
 public:
     RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> edist, std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> ddist, std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<LI::distributions::RangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution);
     std::string Name() const override;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const override;
+    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const override;
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -179,7 +179,7 @@ protected:
 public:
     ColumnDepthLeptonInjector(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> edist, std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> ddist, std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<LI::distributions::DepthFunction> depth_func, double disk_radius, double endcap_length, std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution);
     std::string Name() const override;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const override;
+    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const override;
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -231,7 +231,7 @@ protected:
 public:
     DecayRangeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> edist, std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> ddist, std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution, std::shared_ptr<LI::distributions::DecayRangeFunction> range_func, double disk_radius, double endcap_length, std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution);
     std::string Name() const override;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const override;
+    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -279,7 +279,7 @@ protected:
 public:
     VolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> edist, std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> ddist, std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution, LI::geometry::Cylinder cylinder, std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution);
     std::string Name() const override;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::crosssections::InteractionRecord const & interaction) const override;
+    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

@@ -1,7 +1,7 @@
 #include "LeptonInjector/detector/EarthModel.h"
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/type/PrimaryInjector.h"
@@ -13,12 +13,12 @@ namespace distributions {
 // class PrimaryInjector : InjectionDistribution
 //---------------
 
-PrimaryInjector::PrimaryInjector(LI::utilities::Particle::ParticleType primary_type, double primary_mass) :
+PrimaryInjector::PrimaryInjector(LI::dataclasses::Particle::ParticleType primary_type, double primary_mass) :
     primary_type(primary_type),
     primary_mass(primary_mass)
 {}
 
-LI::utilities::Particle::ParticleType PrimaryInjector::PrimaryType() const {
+LI::dataclasses::Particle::ParticleType PrimaryInjector::PrimaryType() const {
     return primary_type;
 }
 
@@ -26,11 +26,11 @@ double PrimaryInjector::PrimaryMass() const {
     return primary_mass;
 }
 
-void PrimaryInjector::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord & record) const {
+void PrimaryInjector::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
     record.signature.primary_type = primary_type;
     record.primary_mass = primary_mass;
 }
-double PrimaryInjector::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::crosssections::InteractionRecord const & record) const {
+double PrimaryInjector::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     if(record.signature.primary_type != primary_type)
         return 0.0;
     if(2.0 * abs(record.primary_mass - primary_mass) / (record.primary_mass + primary_mass) > 1e-9) {
