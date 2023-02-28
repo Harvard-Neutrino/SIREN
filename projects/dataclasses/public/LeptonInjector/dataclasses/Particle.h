@@ -231,8 +231,6 @@ public:
     double GetMass(); //GeV/c^2
     bool HasMass(); // ....
     std::string GetTypeString();
-private:
-    int32_t pdgEncoding_;
 };
 
 // prototype some of the particle helper functions

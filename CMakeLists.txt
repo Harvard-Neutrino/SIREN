@@ -24,6 +24,10 @@ INCLUDE (Python)
 set(CMAKE_CXX_FLAGS "-O2 -Wall -fPIC")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O2 -Wall -fPIC")
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif()
+
 if(CMAKE_VERSION VERSION_LESS 3.12.0)
     if(Python_ROOT_DIR)
         MESSAGE(WARNING "Python_ROOT_DIR is set but will be ignored by this version of CMake; set PYTHON_EXECUTABLE instead")
@@ -77,14 +81,25 @@ execute_process(
     COMMAND touch Makefile.am Makefile.in aclocal.m4 m4/* rk.pc.in rk/Makefile.am rk/Makefile.in
 )
 
-ExternalProject_Add(
-  rk
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
-  CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk/configure --prefix=${CMAKE_BINARY_DIR}/extern/rk
-  PREFIX ${CMAKE_BINARY_DIR}/extern/rk
-  BUILD_COMMAND make
-  BUILD_IN_SOURCE 0
-)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    ExternalProject_Add(
+      rk
+      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
+      CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env CXXFLAGS=-stdlib=libc++ ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk/configure --prefix=${CMAKE_BINARY_DIR}/extern/rk
+      PREFIX ${CMAKE_BINARY_DIR}/extern/rk
+      BUILD_COMMAND make
+      BUILD_IN_SOURCE 0
+    )
+else()
+    ExternalProject_Add(
+      rk
+      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
+      CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk/configure --prefix=${CMAKE_BINARY_DIR}/extern/rk
+      PREFIX ${CMAKE_BINARY_DIR}/extern/rk
+      BUILD_COMMAND make
+      BUILD_IN_SOURCE 0
+    )
+endif()
 
 install(DIRECTORY "${CMAKE_BINARY_DIR}/extern/rk/include/rk"
     DESTINATION "${CMAKE_INSTALL_PREFIX}/include"

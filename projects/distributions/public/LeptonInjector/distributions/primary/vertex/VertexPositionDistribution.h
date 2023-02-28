@@ -38,6 +38,8 @@ namespace distributions {
 
 class VertexPositionDistribution : virtual public InjectionDistribution {
 friend cereal::access;
+public:
+    virtual ~VertexPositionDistribution() {};
 private:
     virtual LI::math::Vector3D SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const = 0;
 public:

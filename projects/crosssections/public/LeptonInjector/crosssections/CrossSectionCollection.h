@@ -35,6 +35,7 @@ private:
     void InitializeTargetTypes();
 public:
     CrossSectionCollection();
+    virtual ~CrossSectionCollection() {};
     CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
     bool operator==(CrossSectionCollection const & other) const;
     std::vector<std::shared_ptr<CrossSection>> const & GetCrossSections() const {return cross_sections;};

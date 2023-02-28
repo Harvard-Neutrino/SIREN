@@ -318,9 +318,9 @@ PolygonData Voxel::Clip(TData const & tri) const {
 
 #define EPS 10e-5
 #define SIGN3( A ) \
-  (((A)[0] < EPS) ? 4 : 0 | ((A)[0] > -EPS) ? 32 : 0 | \
-   ((A)[1] < EPS) ? 2 : 0 | ((A)[1] > -EPS) ? 16 : 0 | \
-   ((A)[2] < EPS) ? 1 : 0 | ((A)[2] > -EPS) ? 8 : 0)
+  ((((A)[0] < EPS) ? 4 : 0) | (((A)[0] > -EPS) ? 32 : 0) | \
+   (((A)[1] < EPS) ? 2 : 0) | (((A)[1] > -EPS) ? 16 : 0) | \
+   (((A)[2] < EPS) ? 1 : 0) | (((A)[2] > -EPS) ? 8 : 0))
 
 #define CROSS( A, B, C ) { \
   (C)[0] =  (A)[1] * (B)[2] - (A)[2] * (B)[1]; \

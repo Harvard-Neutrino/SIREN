@@ -59,21 +59,21 @@ public:
 
     virtual bool equal(CrossSection const & other) const override;
 
-    double TotalCrossSection(dataclasses::InteractionRecord const &) const;
+    double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy) const;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
-    double DifferentialCrossSection(dataclasses::InteractionRecord const &) const;
+    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override;
+    double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass) const;
-    double InteractionThreshold(dataclasses::InteractionRecord const &) const;
-    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const;
+    double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
+    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const;
-    std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const;
-    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const;
+    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
+    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override;
+    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override;
+    std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
+    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override;
 
-    virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const;
+    virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
     void LoadFromFile(std::string differential_filename, std::string total_filename);
     void LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data);

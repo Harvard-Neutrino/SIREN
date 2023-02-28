@@ -16,6 +16,8 @@ namespace distributions {
 class RangeFunction {
 friend cereal::access;
 public:
+    virtual ~RangeFunction() {};
+public:
     RangeFunction();
     virtual double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const;
     template<typename Archive>

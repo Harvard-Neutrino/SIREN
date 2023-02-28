@@ -107,7 +107,7 @@ std::vector<double> EarthModel::GetParticleDensity(geometry::Geometry::Intersect
     return particle_fractions;
 }
 
-template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+template<typename Iterator, typename>
 std::vector<double> EarthModel::GetParticleDensity(Vector3D const & p0, Iterator begin, Iterator end) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     geometry::Geometry::IntersectionList intersections = GetIntersections(p0, direction);

@@ -351,7 +351,7 @@ void Quaternion::SetMatrix(Matrix3D const & mat) {
 }
 
 Quaternion & Quaternion::conjugate() {
-    w_ = w_;
+    // w_ = w_;
     x_ = -x_;
     y_ = -y_;
     z_ = -z_;

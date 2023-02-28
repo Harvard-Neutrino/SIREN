@@ -34,6 +34,8 @@ namespace distributions {
 
 class PrimaryEnergyDistribution : virtual public InjectionDistribution, virtual public PhysicallyNormalizedDistribution {
 friend cereal::access;
+public:
+    virtual ~PrimaryEnergyDistribution() {};
 private:
     virtual double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const = 0;
 public:

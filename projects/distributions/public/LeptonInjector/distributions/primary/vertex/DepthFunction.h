@@ -22,6 +22,8 @@ namespace distributions {
 class DepthFunction {
 friend cereal::access;
 public:
+    virtual ~DepthFunction() {};
+public:
     DepthFunction();
     virtual double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const;
     template<typename Archive>

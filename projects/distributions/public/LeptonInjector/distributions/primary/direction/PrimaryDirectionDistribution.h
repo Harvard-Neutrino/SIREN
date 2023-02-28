@@ -38,6 +38,8 @@ namespace distributions {
 
 class PrimaryDirectionDistribution : virtual public InjectionDistribution {
 friend cereal::access;
+public:
+    virtual ~PrimaryDirectionDistribution() {};
 protected:
     PrimaryDirectionDistribution() {};
 private:

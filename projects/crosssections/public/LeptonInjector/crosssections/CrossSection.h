@@ -31,6 +31,7 @@ friend cereal::access;
 private:
 public:
     CrossSection();
+    virtual ~CrossSection() {};
     bool operator==(CrossSection const & other) const;
     virtual bool equal(CrossSection const & other) const = 0;
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const = 0;
