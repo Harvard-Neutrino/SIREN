@@ -3,7 +3,7 @@
 LIST (APPEND detector_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/detector/private/AtomicMasses.cxx
     ${CMAKE_SOURCE_DIR}/projects/detector/private/DensityDist.cxx
-    ${CMAKE_SOURCE_DIR}/projects/detector/private/EarthModelCalculator.cxx
+    #${CMAKE_SOURCE_DIR}/projects/detector/private/EarthModelCalculator.cxx
     ${CMAKE_SOURCE_DIR}/projects/detector/private/EarthModel.cxx
     ${CMAKE_SOURCE_DIR}/projects/detector/private/MaterialModel.cxx
     ${CMAKE_SOURCE_DIR}/projects/detector/private/Path.cxx

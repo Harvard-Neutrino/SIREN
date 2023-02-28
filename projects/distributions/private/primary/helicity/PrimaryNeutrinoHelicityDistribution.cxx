@@ -1,6 +1,5 @@
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"
-#include "LeptonInjector/detector/EarthModelCalculator.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
 
