@@ -57,6 +57,8 @@ namespace LI {
 
 class InjectorBase {
 friend cereal::access;
+public:
+    virtual ~InjectorBase() {};
 protected:
     unsigned int events_to_inject = 0;
     unsigned int injected_events = 0;

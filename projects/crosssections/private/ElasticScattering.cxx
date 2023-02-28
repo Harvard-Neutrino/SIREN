@@ -70,9 +70,6 @@ double ElasticScattering::DifferentialCrossSection(dataclasses::InteractionRecor
     double m = interaction.secondary_masses[electron_index];
     double E = primary_energy;
 
-    double X1 = -2./3. * std::log(2*y*E/m) + y*y/24. - 5.*y/12. - std::pow(LI::utilities::Constants::pi,2)/6. + 23./72.;
-    double X2 = -2./3. * std::log(2*y*E/m) - y*y / (18*(1-y)*(1-y)) - std::pow(LI::utilities::Constants::pi,2)/6. - 2*y / (9*(1-y)*(1-y)) + 23./(72*(1-y)*(1-y));
-    double X3 = -3./2. * std::log(2*y*E/m) + 1./4. + 3./(4.*y) - 3./(4.*y*y) - std::pow(LI::utilities::Constants::pi,2)/6.;
     // use tree level result
     double term1 = CLL*CLL;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X1);
     double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X2);
@@ -95,9 +92,6 @@ double ElasticScattering::DifferentialCrossSection(LI::dataclasses::Particle::Pa
     double E = primary_energy;
     double s = 2*m*E + m*m;
 
-    double X1 = -2./3. * std::log(2*y*E/m) + y*y/24. - 5.*y/12. - std::pow(LI::utilities::Constants::pi,2)/6. + 23./72.;
-    double X2 = -2./3. * std::log(2*y*E/m) - y*y / (18*(1-y)*(1-y)) - std::pow(LI::utilities::Constants::pi,2)/6. - 2*y / (9*(1-y)*(1-y)) + 23./(72*(1-y)*(1-y));
-    double X3 = -3./2. * std::log(2*y*E/m) + 1./4. + 3./(4.*y) - 3./(4.*y*y) - std::pow(LI::utilities::Constants::pi,2)/6.;
     double term1 = CLL*CLL;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X1);
     double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X2);
     double term3 = -CLL*CLR*m*y/E;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X3);

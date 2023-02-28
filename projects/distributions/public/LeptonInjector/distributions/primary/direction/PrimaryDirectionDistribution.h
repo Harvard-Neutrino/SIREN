@@ -48,7 +48,7 @@ public:
     void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override = 0;
     virtual std::vector<std::string> DensityVariables() const override;
-    virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
+    virtual std::shared_ptr<InjectionDistribution> clone() const override = 0;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -66,8 +66,8 @@ public:
         }
     }
 protected:
-    virtual bool equal(WeightableDistribution const & distribution) const = 0;
-    virtual bool less(WeightableDistribution const & distribution) const = 0;
+    virtual bool equal(WeightableDistribution const & distribution) const override = 0;
+    virtual bool less(WeightableDistribution const & distribution) const override = 0;
 };
 
 } // namespace distributions

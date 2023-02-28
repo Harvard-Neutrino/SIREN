@@ -116,11 +116,9 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
             double target_density = earth_model->GetParticleDensity(intersections, interaction_vertex, target);
             // Loop over cross sections that have this target
             std::vector<std::shared_ptr<LI::crosssections::CrossSection>> const & target_cross_sections = cross_sections->GetCrossSectionsForTarget(target);
-            unsigned int xs_i = 0;
             for(auto const & cross_section : target_cross_sections) {
                 // Loop over cross section signatures with the same target
                 std::vector<LI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
-                unsigned int sig_i = 0;
                 for(auto const & signature : signatures) {
                     fake_record.signature = signature;
                     fake_record.target_mass = earth_model->GetTargetMass(target);
@@ -133,9 +131,7 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
                     matching_targets.push_back(target);
                     matching_cross_sections.push_back(cross_section);
                     matching_signatures.push_back(signature);
-                    sig_i += 1;
                 }
-                xs_i += 1;
             }
         }
     }

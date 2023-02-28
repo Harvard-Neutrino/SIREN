@@ -47,7 +47,7 @@ private:
     virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const = 0;
 public:
     void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const = 0;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override = 0;
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -66,14 +66,14 @@ public:
         }
     }
 protected:
-    virtual bool equal(WeightableDistribution const & distribution) const = 0;
-    virtual bool less(WeightableDistribution const & distribution) const = 0;
+    virtual bool equal(WeightableDistribution const & distribution) const override = 0;
+    virtual bool less(WeightableDistribution const & distribution) const override = 0;
 };
 
 class TargetAtRest : virtual public TargetMomentumDistribution {
 friend cereal::access;
 private:
-    virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const;
+    virtual std::array<double, 4> SampleMomentum(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
 public:
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const override;
