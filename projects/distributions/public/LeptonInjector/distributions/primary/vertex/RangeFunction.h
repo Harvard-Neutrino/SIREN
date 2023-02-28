@@ -9,7 +9,7 @@
 
 namespace LI {
 namespace dataclasses {
-class InteractionSignature;
+struct InteractionSignature;
 }
 namespace distributions {
 
