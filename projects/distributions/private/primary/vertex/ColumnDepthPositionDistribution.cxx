@@ -3,6 +3,7 @@
 #include "LeptonInjector/detector/EarthModel.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
 
 #include "LeptonInjector/utilities/Random.h"
 #include "LeptonInjector/dataclasses/Particle.h"

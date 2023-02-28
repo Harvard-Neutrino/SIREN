@@ -25,6 +25,7 @@
 #include "LeptonInjector/detector/EarthModel.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
 
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
 #include "LeptonInjector/dataclasses/DecayRecord.h"

@@ -8,6 +8,8 @@
 #include "LeptonInjector/injection/LeptonInjector.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 
 #include <rk/rk.hh>

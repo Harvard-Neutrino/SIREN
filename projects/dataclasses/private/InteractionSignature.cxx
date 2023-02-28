@@ -46,3 +46,21 @@ bool InteractionSignature::operator<(InteractionSignature const & other) const {
 
 } // namespace dataclasses
 } // namespace LI
+
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionSignature const& signature) {
+    std::stringstream ss;
+    ss << "InteractionSignature (" << &signature << ") ";
+    os << ss.str() << '\n';
+
+
+    os << "PrimaryType: " << signature.primary_type << "\n";
+    os << "TargetType: " << signature.target_type << "\n";
+    os << "SecondaryTypes:";
+    for(auto secondary: signature.secondary_types) {
+        os << " " << secondary;
+    }
+    os << std::endl;
+
+    return os;
+}
+

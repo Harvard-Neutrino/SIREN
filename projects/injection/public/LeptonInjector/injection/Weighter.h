@@ -23,7 +23,7 @@
 #include "LeptonInjector/injection/LeptonInjector.h"
 #include "LeptonInjector/injection/WeightingUtils.h"
 
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
 
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"

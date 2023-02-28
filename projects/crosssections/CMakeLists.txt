@@ -2,6 +2,10 @@
 #core files
 LIST (APPEND crosssections_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/crosssections/private/CrossSection.cxx
+    ${CMAKE_SOURCE_DIR}/projects/crosssections/private/CrossSectionCollection.cxx
+    ${CMAKE_SOURCE_DIR}/projects/crosssections/private/DipoleFromTable.cxx
+    ${CMAKE_SOURCE_DIR}/projects/crosssections/private/DISFromSpline.cxx
+    ${CMAKE_SOURCE_DIR}/projects/crosssections/private/ElasticScattering.cxx
 )
 add_library(LI_crosssections OBJECT ${crosssections_SOURCES})
 set_property(TARGET LI_crosssections PROPERTY POSITION_INDEPENDENT_CODE ON)
