@@ -9,6 +9,10 @@
 #include <algorithm>
 
 #include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/geometry/Box.h"
+#include "LeptonInjector/geometry/Sphere.h"
+#include "LeptonInjector/geometry/Cylinder.h"
+#include "LeptonInjector/geometry/ExtrPoly.h"
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/math/EulerQuaternionConversions.h"
 

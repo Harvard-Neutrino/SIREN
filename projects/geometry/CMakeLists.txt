@@ -2,6 +2,10 @@
 #core files
 LIST (APPEND geometry_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/geometry/private/Geometry.cxx
+    ${CMAKE_SOURCE_DIR}/projects/geometry/private/Box.cxx
+    ${CMAKE_SOURCE_DIR}/projects/geometry/private/Cylinder.cxx
+    ${CMAKE_SOURCE_DIR}/projects/geometry/private/Sphere.cxx
+    ${CMAKE_SOURCE_DIR}/projects/geometry/private/ExtrPoly.cxx
     ${CMAKE_SOURCE_DIR}/projects/geometry/private/GeometryMesh.cxx
     ${CMAKE_SOURCE_DIR}/projects/geometry/private/MeshBuilder.cxx
     ${CMAKE_SOURCE_DIR}/projects/geometry/private/Placement.cxx
@@ -14,7 +18,6 @@ target_include_directories(LI_geometry PUBLIC
 add_dependencies(LI_geometry rk)
 add_dependencies(LI_geometry LI_serialization LI_math LI_geometry)
 
-target_link_libraries(LI_geometry ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(LI_geometry photospline)
 target_link_libraries(LI_geometry ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
 

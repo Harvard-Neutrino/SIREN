@@ -13,7 +13,6 @@ target_include_directories(LI_injection PUBLIC
 add_dependencies(LI_injection rk)
 add_dependencies(LI_injection LI_serialization LI_utilities LI_math LI_dataclasses LI_geometry LI_detector LI_crosssections LI_distributions)
 
-target_link_libraries(LI_injection ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(LI_injection photospline)
 target_link_libraries(LI_injection ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
 

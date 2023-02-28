@@ -15,7 +15,6 @@ target_include_directories(LI_crosssections PUBLIC
 add_dependencies(LI_crosssections rk)
 add_dependencies(LI_crosssections LI_serialization LI_utilities LI_math LI_dataclasses LI_detector)
 
-target_link_libraries(LI_crosssections ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(LI_crosssections photospline)
 target_link_libraries(LI_crosssections ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
 

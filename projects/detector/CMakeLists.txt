@@ -16,7 +16,6 @@ target_include_directories(LI_detector PUBLIC
 add_dependencies(LI_detector rk)
 add_dependencies(LI_detector LI_serialization LI_utilities LI_math LI_dataclasses LI_geometry)
 
-target_link_libraries(LI_detector ${HDF5_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(LI_detector photospline)
 target_link_libraries(LI_detector ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
 

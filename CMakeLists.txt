@@ -56,16 +56,6 @@ else()
 	set(PYTHON_VERSION_MINOR "${Python_VERSION_MINOR}")
 endif()
 
-if(DEFINED ENV{SROOT})
-    set(HDF5_ROOT ${SROOT})
-endif()
-find_package(HDF5 REQUIRED)
-if(HDF5_FOUND)
-    MESSAGE("-- Found hdf5 at ${HDF5_INCLUDE_DIR}")
-    include_directories(${HDF5_INCLUDE_DIR})
-    set(_hdf5_libs hdf5 hdf5_cpp)
-endif()
-
 # find boost
 find_package(Boost REQUIRED)
 if(Boost_FOUND)
