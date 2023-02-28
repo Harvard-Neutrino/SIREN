@@ -16,17 +16,25 @@ SET(CMAKE_C_STANDARD 99)
 ## enable_language(cxx)
 SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
                        ${CMAKE_SOURCE_DIR}/cmake/Packages)
-set(CMAKE_BUILD_TYPE Debug)
+
+set(CMAKE_BUILD_TYPE Release CACHE STRING "")
 
 INCLUDE (SuiteSparse)
 INCLUDE (Python)
 
-set(CMAKE_CXX_FLAGS "-O2 -Wall -fPIC")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O2 -Wall -fPIC")
+set(_FLAGS "-O2 -Wall -fPIC")
+set(_FLAGS_DEBUG "-g -O2 -Wall -fPIC")
+set(_FLAGS_RELEASE "-O2 -Wall -fPIC -s")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+    set(_FLAGS "${_FLAGS} -stdlib=libc++")
+    set(_FLAGS_DEBUG "${_FLAGS_DEBUG} -stdlib=libc++")
+    set(_FLAGS_RELEASE "${_FLAGS_RELEASE} -stdlib=libc++")
 endif()
+
+set(CMAKE_CXX_FLAGS ${_FLAGS})
+set(CMAKE_CXX_FLAGS_DEBUG ${_FLAGS_DEBUG})
+set(CMAKE_CXX_FLAGS_RELEASE ${_FLAGS_RELEASE})
 
 if(CMAKE_VERSION VERSION_LESS 3.12.0)
     if(Python_ROOT_DIR)
