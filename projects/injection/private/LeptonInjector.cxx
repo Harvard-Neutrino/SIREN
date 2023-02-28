@@ -158,7 +158,7 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
     matching_cross_sections[index]->SampleFinalState(record, random);
 }
 
-void InjectorBase::SampleSecondaryDecay(LI::dataclasses::InteractionRecord const & interaction, LI::crosssections::DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial = nullptr, double buffer = 0) const {
+void InjectorBase::SampleSecondaryDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial = nullptr, double buffer = 0) const {
     // This function takes an interaction record containing an HNL and simulates the decay to a photon
     // Samples according to (1 + alpha * cos(theta))/2 and returns physical weight
     // Final state photon added to secondary particle vectors in LI::dataclasses::InteractionRecord
@@ -250,7 +250,7 @@ void InjectorBase::SampleSecondaryDecay(LI::dataclasses::InteractionRecord const
     decay.decay_parameters[4] = b;
 }
 
-void InjectorBase::SamplePairProduction(LI::crosssections::DecayRecord const & decay, LI::dataclasses::InteractionRecord & interaction) const {
+void InjectorBase::SamplePairProduction(LI::dataclasses::DecayRecord const & decay, LI::dataclasses::InteractionRecord & interaction) const {
     // function for simulating the pair production of the photon created in HNL decay
     // considers the different radiation lengths of materials in the detector
     // Nick TODO: comment more

@@ -39,52 +39,6 @@ class LI_random;
 namespace LI {
 namespace crosssections {
 
-struct DecaySignature {
-    LI::dataclasses::Particle::ParticleType primary_type;
-    std::vector<LI::dataclasses::Particle::ParticleType> secondary_types;
-    bool operator==(DecaySignature const & other) const;
-    friend std::ostream& operator<<(std::ostream& os, DecaySignature const& signature);
-    template<class Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
-        if(version == 0) {
-            archive(cereal::make_nvp("PrimaryType", primary_type));
-            archive(cereal::make_nvp("SecondaryTypes", secondary_types));
-        } else {
-            throw std::runtime_error("DecaySignature only supports version <= 0!");
-        }
-    }
-};
-
-struct DecayRecord {
-    DecaySignature signature;
-    double primary_mass;
-    std::array<double, 4> primary_momentum;
-    double primary_helicity;
-    std::array<double, 3> decay_vertex = {0, 0, 0};
-    std::vector<double> secondary_masses;
-    std::vector<std::array<double, 4>> secondary_momenta;
-    std::vector<double> secondary_helicity;
-    std::vector<double> decay_parameters;
-    bool operator==(DecayRecord const & other) const;
-    friend std::ostream& operator<<(std::ostream& os, DecayRecord const& record);
-    template<class Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
-        if(version == 0) {
-            archive(::cereal::make_nvp("DecaySignature", signature));
-            archive(::cereal::make_nvp("PrimaryMass", primary_mass));
-            archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
-            archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));
-            archive(::cereal::make_nvp("DecayVertex", decay_vertex));
-            archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
-            archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
-            archive(::cereal::make_nvp("SecondaryHelicity", secondary_helicity));
-            archive(::cereal::make_nvp("DecayParameters", decay_parameters));
-        } else {
-            throw std::runtime_error("DecayRecord only supports version <= 0!");
-        }
-    };
-};
-
 class CrossSection {
 friend cereal::access;
 private:

@@ -4,6 +4,8 @@ LIST (APPEND dataclasses_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/Particle.cxx
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/InteractionSignature.cxx
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/InteractionRecord.cxx
+    ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/DecaySignature.cxx
+    ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/DecayRecord.cxx
 )
 add_library(LI_dataclasses SHARED ${dataclasses_SOURCES})
 target_include_directories(LI_dataclasses PUBLIC
