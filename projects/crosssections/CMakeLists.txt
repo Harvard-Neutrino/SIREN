@@ -3,7 +3,8 @@
 LIST (APPEND crosssections_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/crosssections/private/CrossSection.cxx
 )
-add_library(LI_crosssections SHARED ${crosssections_SOURCES})
+add_library(LI_crosssections OBJECT ${crosssections_SOURCES})
+set_property(TARGET LI_crosssections PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_crosssections PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/crosssections/public/
 )
@@ -22,7 +23,6 @@ target_include_directories(LI_crosssections PUBLIC ${CMAKE_SOURCE_DIR}/projects/
 target_include_directories(LI_crosssections PUBLIC ${CMAKE_SOURCE_DIR}/projects/dataclasses/public/)
 
 install(TARGETS LI_crosssections
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/crosssections/public/"

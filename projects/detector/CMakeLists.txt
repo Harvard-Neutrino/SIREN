@@ -8,7 +8,8 @@ LIST (APPEND detector_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/detector/private/MaterialModel.cxx
     ${CMAKE_SOURCE_DIR}/projects/detector/private/Path.cxx
 )
-add_library(LI_detector SHARED ${detector_SOURCES})
+add_library(LI_detector OBJECT ${detector_SOURCES})
+set_property(TARGET LI_detector PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_detector PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/detector/public/
 )
@@ -27,7 +28,6 @@ target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/datac
 target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/geometry/public/)
 
 install(TARGETS LI_detector
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/detector/public/"

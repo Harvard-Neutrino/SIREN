@@ -5,7 +5,8 @@ LIST (APPEND injection_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/injection/private/Weighter.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
 )
-add_library(LI_injection SHARED ${injection_SOURCES})
+add_library(LI_injection OBJECT ${injection_SOURCES})
+set_property(TARGET LI_injection PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_injection PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/injection/public/
 )
@@ -27,7 +28,6 @@ target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/cros
 target_include_directories(LI_injection PUBLIC ${CMAKE_SOURCE_DIR}/projects/distributions/public/)
 
 install(TARGETS LI_injection
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/injection/public/"

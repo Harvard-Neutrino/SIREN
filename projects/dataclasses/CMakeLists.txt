@@ -7,7 +7,8 @@ LIST (APPEND dataclasses_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/DecaySignature.cxx
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/DecayRecord.cxx
 )
-add_library(LI_dataclasses SHARED ${dataclasses_SOURCES})
+add_library(LI_dataclasses OBJECT ${dataclasses_SOURCES})
+set_property(TARGET LI_dataclasses PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_dataclasses PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/public/
 )
@@ -24,7 +25,6 @@ target_include_directories(LI_dataclasses PUBLIC ${CMAKE_SOURCE_DIR}/projects/ut
 target_include_directories(LI_dataclasses PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/public/)
 
 install(TARGETS LI_dataclasses
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/dataclasses/public/"

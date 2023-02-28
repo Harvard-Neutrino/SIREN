@@ -30,7 +30,8 @@ LIST (APPEND distributions_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/target/momentum/TargetMomentumDistribution.cxx
 
 )
-add_library(LI_distributions SHARED ${distributions_SOURCES})
+add_library(LI_distributions OBJECT ${distributions_SOURCES})
+set_property(TARGET LI_distributions PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_distributions PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/distributions/public/
 )
@@ -51,7 +52,6 @@ target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/crosssections/public/)
 
 install(TARGETS LI_distributions
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/distributions/public/"

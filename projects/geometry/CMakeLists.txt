@@ -6,7 +6,8 @@ LIST (APPEND geometry_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/geometry/private/MeshBuilder.cxx
     ${CMAKE_SOURCE_DIR}/projects/geometry/private/Placement.cxx
 )
-add_library(LI_geometry SHARED ${geometry_SOURCES})
+add_library(LI_geometry OBJECT ${geometry_SOURCES})
+set_property(TARGET LI_geometry PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_geometry PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/geometry/public/
 )
@@ -23,7 +24,6 @@ target_include_directories(LI_geometry PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/
 target_include_directories(LI_geometry PUBLIC ${CMAKE_SOURCE_DIR}/projects/geometry/public/)
 
 install(TARGETS LI_geometry
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/geometry/public/"

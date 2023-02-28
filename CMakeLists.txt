@@ -111,6 +111,24 @@ add_subdirectory(projects/crosssections)
 add_subdirectory(projects/distributions)
 add_subdirectory(projects/injection)
 
+add_library(LeptonInjector SHARED)
+set_property(TARGET LeptonInjector PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(LeptonInjector
+    LI_utilities
+    LI_serialization
+    LI_math
+    LI_dataclasses
+    LI_geometry
+    LI_detector
+    LI_crosssections
+    LI_distributions
+    LI_injection
+)
+
+install(TARGETS LeptonInjector
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
 #add_subdirectory(tests)
 
 MESSAGE("")
