@@ -1,7 +1,9 @@
-#include "LeptonInjector/detector/EarthModel.h"
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include <fstream>
+
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
 #include "LeptonInjector/utilities/Random.h"
 #include "LeptonInjector/utilities/Interpolator.h"
+#include "LeptonInjector/utilities/Integration.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
@@ -26,7 +28,7 @@ void TabulatedFluxDistribution::ComputeIntegral() {
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    integral = LI::detector::Integration::rombergIntegrate(integrand, energyMin, energyMax);
+    integral = LI::utilities::rombergIntegrate(integrand, energyMin, energyMax);
 }
 
 void TabulatedFluxDistribution::LoadFluxTable() {

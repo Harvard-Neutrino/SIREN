@@ -9,20 +9,9 @@
 #include <stdexcept>
 
 #include <cereal/access.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-
-#include "LeptonInjector/serialization/array.h"
-
-#include "LeptonInjector/dataclasses/Particle.h"
-
-#include "LeptonInjector/utilities/Interpolator.h"
-
-#include "LeptonInjector/math/Vector3D.h"
 
 namespace LI {
 namespace utilities {

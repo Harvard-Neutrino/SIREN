@@ -41,7 +41,7 @@
 
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/math/Polynomial.h"
-#include "LeptonInjector/detector/EarthModelCalculator.h"
+#include "LeptonInjector/utilities/Integration.h"
 
 namespace LI {
 namespace detector {
@@ -330,7 +330,7 @@ public:
         std::function<double(double)> f = [&](double x)->double {
             return Evaluate(xi+x*direction);
         };
-        return Integration::rombergIntegrate(f, 0, distance, 1e-6);
+        return LI::utilities::rombergIntegrate(f, 0, distance, 1e-6);
     }
 
     double Integral(const Vector3D& xi,
@@ -624,7 +624,7 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
         std::function<double(double)> f = [&](double x)->double {
             return Evaluate(xi+x*direction);
         };
-        return Integration::rombergIntegrate(f, 0, distance, 1e-6);
+        return LI::utilities::rombergIntegrate(f, 0, distance, 1e-6);
     }
 
     double Integral(const Vector3D& xi,

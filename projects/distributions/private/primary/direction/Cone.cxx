@@ -1,10 +1,9 @@
 #include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
-#include "LeptonInjector/detector/EarthModelCalculator.h"
-
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/math/Quaternion.h"
 
 #include "LeptonInjector/utilities/Random.h"
+
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"

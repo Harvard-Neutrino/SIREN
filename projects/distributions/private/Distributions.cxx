@@ -1,17 +1,4 @@
-
-#include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
-#include "LeptonInjector/detector/EarthModelCalculator.h"
-
-#include "LeptonInjector/crosssections/CrossSection.h"
-
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-
 #include "LeptonInjector/distributions/Distributions.h"
-
-#include "LeptonInjector/utilities/Errors.h"
 
 namespace LI {
 namespace distributions {

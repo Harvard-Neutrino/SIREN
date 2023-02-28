@@ -1,6 +1,4 @@
-#include "LeptonInjector/detector/EarthModel.h"
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/utilities/Random.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"

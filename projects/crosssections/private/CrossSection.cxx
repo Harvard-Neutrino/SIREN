@@ -22,7 +22,7 @@
 #include "LeptonInjector/crosssections/CrossSection.h"
 
 #include "LeptonInjector/detector/MaterialModel.h"
-#include "LeptonInjector/detector/EarthModelCalculator.h"
+#include "LeptonInjector/utilities/Integration.h"
 
 #include "LeptonInjector/utilities/Errors.h"
 
@@ -1625,7 +1625,7 @@ double ElasticScattering::TotalCrossSection(LI::dataclasses::Particle::ParticleT
 		std::function<double(double)> integrand = [&] (double y) -> double {
         return DifferentialCrossSection(primary_type, primary_energy, y);
     };
-		return LI::detector::Integration::rombergIntegrate(integrand, 0, ymax);
+		return LI::utilities::rombergIntegrate(integrand, 0, ymax);
 }
 
 void ElasticScattering::SampleFinalState(dataclasses::InteractionRecord& interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
