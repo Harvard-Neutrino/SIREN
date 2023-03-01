@@ -31,3 +31,4 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/math/public/"
     PATTERN "*.tcc"
 )
 
+package_add_test(UnitTest_Vector3D ${CMAKE_SOURCE_DIR}/projects/math/private/test/Vector3D_TEST.cxx)

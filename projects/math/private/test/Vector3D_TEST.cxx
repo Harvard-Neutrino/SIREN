@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"
 
-using namespace earthmodel;
+using namespace LI::math;
 
 TEST(Comparison, Comparison_equal)
 {
