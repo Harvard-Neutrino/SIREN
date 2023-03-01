@@ -1,4 +1,3 @@
-#include <LeptonInjector/Controller.h>
 #include <LeptonInjector/Particle.h>
 #include <LeptonInjector/LeptonInjector.h>
 #include <LeptonInjector/Constants.h>

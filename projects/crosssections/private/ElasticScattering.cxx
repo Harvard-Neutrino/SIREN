@@ -185,7 +185,8 @@ void ElasticScattering::SampleFinalState(dataclasses::InteractionRecord& interac
         if(std::isnan(test_cross_section) or test_cross_section <= 0)
             continue;
 
-        double odds = ((test_y*test_cross_section) / (y*cross_section));
+        //double odds = ((test_y*test_cross_section) / (y*cross_section));
+        double odds = (test_cross_section / cross_section); // this gives a better match to the y distribution
         accept = (cross_section == 0 || (odds > 1.) || random->Uniform(0, 1) < odds);
 
         if(accept) {

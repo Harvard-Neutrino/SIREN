@@ -1,10 +1,10 @@
 #include "phys-services/CrossSection.h"
 
-#include <LeptonInjector/Controller.h>
 #include <LeptonInjector/Particle.h>
 #include <LeptonInjector/LeptonInjector.h>
 #include <LeptonInjector/Constants.h>
 #include "LeptonInjector/Weighter.h"
+#include "LeptonInjector/Random.h"
 
 #include "earthmodel-service/Geometry.h"
 #include "earthmodel-service/EulerQuaternionConversions.h"
@@ -19,8 +19,8 @@
 #include "date.h"
 
 using namespace LeptonInjector;
-bool z_samp = true;
 bool in_invGeV = true;
+bool inelastic = true;
 
 template <class Precision>
 std::string getISOCurrentTimestamp() {
@@ -227,6 +227,7 @@ int main(int argc, char ** argv) {
     }
 
     double seed = args["seed"].as<int>(-1);
+    bool z_samp = args["z_samp"].as<bool>(true);
 
     if(seed < 0) {
         std::cerr << "--seed requires positive integer!" << std::endl << argparser;
@@ -315,8 +316,8 @@ int main(int argc, char ** argv) {
     // Load cross sections
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::vector<Particle::ParticleType> target_types = gen_TargetPIDs();
-    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV);
-    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV);
+    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV, inelastic);
+    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV, inelastic);
     std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL,dif_xs_base);
     std::vector<std::string> hc_diff_fnames = gen_diff_xs_hc(mHNL,dif_xs_base);
     std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf(mHNL,tot_xs_base);

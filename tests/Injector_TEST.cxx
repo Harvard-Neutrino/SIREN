@@ -25,10 +25,10 @@
 //#define AUSTIN
 
 using namespace LeptonInjector;
-bool z_samp = true;
+bool z_samp = false;
 bool in_invGeV = true;
-bool inelastic = true;
-bool miniboone = true;
+bool inelastic = false;
+bool miniboone = false;
 
 
 std::string diff_xs(int Z, int A, std::string mHNL) {
@@ -307,21 +307,29 @@ TEST(Injector, Generation)
     LeptonWeighter weighter(std::vector<std::shared_ptr<InjectorBase>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
 
     // MINERvA Fiducial Volume
-    std::vector<std::vector<double>> poly;
-    poly.push_back({0.0, 1.01758});
-    poly.push_back({0.88125, 0.50879});
-    poly.push_back({0.88125, -0.50879});
-    poly.push_back({0.0, -1.01758});
-    poly.push_back({-0.88125, -0.50879});
-    poly.push_back({-0.88125, 0.50879});
+    // 88.125 cm apothem
+    //poly.push_back({0.0, 1.01758});
+    //poly.push_back({0.88125, 0.50879});
+    //poly.push_back({0.88125, -0.50879});
+    //poly.push_back({0.0, -1.01758});
+    //poly.push_back({-0.88125, -0.50879});
+    //poly.push_back({-0.88125, 0.50879});
+
+    // 81.125 cm apothem
+    poly.push_back({0.0, 0.93675});
+    poly.push_back({0.81125, 0.46838});
+    poly.push_back({0.81125, -0.46838});
+    poly.push_back({0.0, -0.93675});
+    poly.push_back({-0.81125, -0.46838});
+    poly.push_back({-0.81125, 0.46838});
 
     double offset[2];
     offset[0] = 0;
     offset[1] = 0;
     std::vector<earthmodel::ExtrPoly::ZSection> zsecs;
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(-2.0672,offset,1));
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(2.0672,offset,1));
-    earthmodel::Placement placement(earthmodel::Vector3D(0,0,2.0672), earthmodel::QFromZXZr(0,0,0));
+    zsecs.push_back(earthmodel::ExtrPoly::ZSection(1.45,offset,1));
+    zsecs.push_back(earthmodel::ExtrPoly::ZSection(4.0,offset,1));
+    earthmodel::Placement placement(earthmodel::Vector3D(0,0,0), earthmodel::QFromZXZr(0,0,0));
     earthmodel::ExtrPoly MINERvA_fiducial = earthmodel::ExtrPoly(placement, poly, zsecs);
     
     // MiniBooNE Fiducial Volume
@@ -354,7 +362,8 @@ TEST(Injector, Generation)
         LeptonInjector::InteractionRecord pair_prod;
         double basic_weight, simplified_weight, interaction_lengths, interaction_prob = 0;
         if(event.signature.target_type != LeptonInjector::Particle::ParticleType::unknown) {
-            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MiniBooNE_fiducial, 0.1);
+            if(miniboone) injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MiniBooNE_fiducial, 0.1);
+            else injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MINERvA_fiducial, 1.0);
             injector->SamplePairProduction(decay, pair_prod);
             //basic_weight = weighter.EventWeight(event);
             simplified_weight = weighter.SimplifiedEventWeight(event);
@@ -414,6 +423,8 @@ TEST(Injector, Generation)
 
             myFile << decay.secondary_helicity[0] << " ";
 
+            myFile << decay.decay_parameters[3] << " "; // decay enter
+            myFile << decay.decay_parameters[4] << " "; // decay exit
             myFile << decay.decay_parameters[0] << " "; // decay length
             myFile << decay.decay_parameters[1] << " "; // decay fid weight
             myFile << decay.decay_parameters[2] << " "; // decay anglular weight

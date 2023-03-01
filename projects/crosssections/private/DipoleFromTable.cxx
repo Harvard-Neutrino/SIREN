@@ -78,16 +78,6 @@ double DipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) 
         double root = std::sqrt(m2sub1sq + (r4 - 2 * (1 + m2) * r2));
         yMin = 0.5 * (1 + m4 - r2 - root + m2 * (-2 - r2 + root)) * s / (2 * Enu * target_mass);
     }
-    // std::cout << std::endl;
-    // std::cout << Enu << std::endl;
-    // std::cout << Enu << std::endl;
-    // std::cout << target_mass << std::endl;
-    // std::cout << target_mass2 << std::endl;
-    // std::cout << mHNL << std::endl;
-    // std::cout << mHNL2 << std::endl;
-    // std::cout << root_term << std::endl;
-    // std::cout << yMin << std::endl;
-    // std::cout << costh_bound << std::endl;
     return std::max(yMin,costh_bound);
 }
 
@@ -148,7 +138,7 @@ double DipoleFromTable::TotalCrossSection(LI::dataclasses::Particle::ParticleTyp
 
     LI::utilities::Interpolator1D<double> const & interp_proton = total.at(LI::dataclasses::Particle::ParticleType::HNucleus);
     int nprotons = LI::detector::MaterialModel::GetProtonCount(target_type);
-    if(inelastic || target_type==LI::dataclasses::Particle::ParticleType::HNucleus) {
+    if(!inelastic || target_type==LI::dataclasses::Particle::ParticleType::HNucleus) {
         nprotons = 0;
     }
     double proton_inelastic_xsec = 0;
@@ -217,7 +207,7 @@ double DipoleFromTable::DifferentialCrossSection(LI::dataclasses::Particle::Part
     LI::utilities::Interpolator2D<double> const & interp_proton = differential.at(LI::dataclasses::Particle::ParticleType::HNucleus);
 
     int nprotons = LI::detector::MaterialModel::GetProtonCount(target_type);
-    if(inelastic || target_type==LI::dataclasses::Particle::ParticleType::HNucleus) {
+    if(!inelastic || target_type==LI::dataclasses::Particle::ParticleType::HNucleus) {
         nprotons = 0;
     }
 
@@ -254,7 +244,7 @@ void DipoleFromTable::SampleFinalState(dataclasses::InteractionRecord& interacti
     LI::utilities::Interpolator2D<double> const & diff_table_proton = differential.at(LI::dataclasses::Particle::ParticleType::HNucleus);
     int nprotons = LI::detector::MaterialModel::GetProtonCount(interaction.signature.target_type);
     // Avoid double counting for true H nuclei
-    if(inelastic || interaction.signature.target_type==LI::dataclasses::Particle::ParticleType::HNucleus) {
+    if(!inelastic || interaction.signature.target_type==LI::dataclasses::Particle::ParticleType::HNucleus) {
         nprotons = 0;
     }
 
@@ -401,7 +391,8 @@ void DipoleFromTable::SampleFinalState(dataclasses::InteractionRecord& interacti
         if(std::isnan(test_cross_section) or test_cross_section <= 0)
             continue;
 
-        double odds = ((test_kin_vars[1]*test_cross_section) / (kin_vars[1]*cross_section));
+        //double odds = ((test_kin_vars[1]*test_cross_section) / (kin_vars[1]*cross_section));
+        double odds = (test_cross_section / cross_section); // this gives a better match to the y distribution
         accept = (cross_section == 0 || (odds > 1.) || random->Uniform(0, 1) < odds);
 
         if(accept) {

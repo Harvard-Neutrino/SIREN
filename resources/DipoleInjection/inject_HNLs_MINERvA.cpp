@@ -1,10 +1,10 @@
 #include "phys-services/CrossSection.h"
 
-#include <LeptonInjector/Controller.h>
 #include <LeptonInjector/Particle.h>
 #include <LeptonInjector/LeptonInjector.h>
 #include <LeptonInjector/Constants.h>
 #include "LeptonInjector/Weighter.h"
+#include "LeptonInjector/Random.h"
 
 #include "earthmodel-service/Geometry.h"
 #include "earthmodel-service/EulerQuaternionConversions.h"
@@ -243,7 +243,6 @@ int main(int argc, char ** argv) {
     }
 
     double seed = args["seed"].as<int>(-1);
-    
     bool z_samp = args["z_samp"].as<bool>(true);
 
     if(seed < 0) {
