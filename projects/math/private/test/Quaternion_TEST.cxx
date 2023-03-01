@@ -5,11 +5,11 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/Matrix3D.h"
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Quaternion.h"
+#include "LeptonInjector/math/Matrix3D.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/Quaternion.h"
 
-using namespace earthmodel;
+using namespace LI::math;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
@@ -41,7 +41,7 @@ TEST(Constructor, ConstRef)
 TEST(Constructor, RRef)
 {
     ASSERT_NO_THROW(
-        Quaternion A(Quaternion());
+        Quaternion A((Quaternion()));
     );
 }
 
