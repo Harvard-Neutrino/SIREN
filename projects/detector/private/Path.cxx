@@ -10,8 +10,8 @@
 #include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/geometry/Geometry.h"
 
-using namespace LI::geometry;
-using namespace LI::detector;
+namespace LI {
+namespace detector {
 
 Path::Path() {
 
@@ -21,12 +21,12 @@ Path::Path(std::shared_ptr<const EarthModel> earth_model) {
     SetEarthModel(earth_model);
 }
 
-Path::Path(std::shared_ptr<const EarthModel> earth_model, Vector3D const & first_point, Vector3D const & last_point) {
+Path::Path(std::shared_ptr<const EarthModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & last_point) {
     SetEarthModel(earth_model);
     SetPoints(first_point, last_point);
 }
 
-Path::Path(std::shared_ptr<const EarthModel> earth_model, Vector3D const & first_point, Vector3D const & direction, double distance) {
+Path::Path(std::shared_ptr<const EarthModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & direction, double distance) {
     SetEarthModel(earth_model);
     SetPointsWithRay(first_point, direction, distance);
 }
@@ -51,15 +51,15 @@ std::shared_ptr<const EarthModel> Path::GetEarthModel() {
     return earth_model_;
 }
 
-Vector3D const & Path::GetFirstPoint() {
+math::Vector3D const & Path::GetFirstPoint() {
     return first_point_;
 }
 
-Vector3D const & Path::GetLastPoint() {
+math::Vector3D const & Path::GetLastPoint() {
     return last_point_;
 }
 
-Vector3D const & Path::GetDirection() {
+math::Vector3D const & Path::GetDirection() {
     return direction_;
 }
 
@@ -67,7 +67,7 @@ double Path::GetDistance() {
     return distance_;
 }
 
-Geometry::IntersectionList const & Path::GetIntersections() {
+geometry::Geometry::IntersectionList const & Path::GetIntersections() {
     return intersections_;
 }
 
@@ -82,7 +82,7 @@ void Path::EnsureEarthModel() {
     }
 }
 
-void Path::SetPoints(Vector3D first_point, Vector3D last_point) {
+void Path::SetPoints(math::Vector3D first_point, math::Vector3D last_point) {
     first_point_ = first_point;
     last_point_ = last_point;
     direction_ = last_point_ - first_point_;
@@ -93,7 +93,7 @@ void Path::SetPoints(Vector3D first_point, Vector3D last_point) {
     set_column_depth_ = false;
 }
 
-void Path::SetPointsWithRay(Vector3D first_point, Vector3D direction, double distance) {
+void Path::SetPointsWithRay(math::Vector3D first_point, math::Vector3D direction, double distance) {
     first_point_ = first_point;
     direction_ = direction;
     direction_.normalize();
@@ -112,7 +112,7 @@ void Path::EnsurePoints() {
     }
 }
 
-void Path::SetIntersections(Geometry::IntersectionList const & intersections) {
+void Path::SetIntersections(geometry::Geometry::IntersectionList const & intersections) {
     intersections_ = intersections;
     set_intersections_ = true;
 }
@@ -133,12 +133,12 @@ void Path::EnsureIntersections() {
 void Path::ClipToOuterBounds() {
     EnsureIntersections();
     EnsurePoints();
-    Geometry::IntersectionList bounds = EarthModel::GetOuterBounds(intersections_);
+    geometry::Geometry::IntersectionList bounds = EarthModel::GetOuterBounds(intersections_);
     if(bounds.intersections.size() > 0) {
         assert(bounds.intersections.size() == 2);
-        Vector3D p0 = bounds.intersections[0].position;
-        Vector3D p1 = bounds.intersections[1].position;
-        Vector3D direction = p1 - p0;
+        math::Vector3D p0 = bounds.intersections[0].position;
+        math::Vector3D p1 = bounds.intersections[1].position;
+        math::Vector3D direction = p1 - p0;
         direction.normalize();
         double dot = direction_ * direction;
         assert(std::abs(1.0 - std::abs(dot)) < 1e-6);
@@ -601,16 +601,18 @@ double Path::GetDistanceFromEndInReverse(double interaction_depth,
 }
 
 
-bool Path::IsWithinBounds(Vector3D point) {
+bool Path::IsWithinBounds(math::Vector3D point) {
     EnsurePoints();
     double d0 = LI::math::scalar_product(direction_, first_point_ - point);
     double d1 = LI::math::scalar_product(direction_, last_point_ - point);
     return d0 <= 0 and d1 >= 0;
 }
 
-double Path::GetDistanceFromStartInBounds(Vector3D point) {
+double Path::GetDistanceFromStartInBounds(math::Vector3D point) {
     EnsurePoints();
     double d0 = LI::math::scalar_product(direction_, first_point_ - point);
     return std::max(0.0, d0);
 }
 
+} // namespace detector
+} // namespace LI

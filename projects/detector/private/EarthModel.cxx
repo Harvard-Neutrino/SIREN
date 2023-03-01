@@ -8,11 +8,15 @@
 #include <iterator>
 #include <algorithm>
 
+#include "LeptonInjector/detector/ConstantDensityDistribution.h"
+#include "LeptonInjector/detector/RadialAxisPolynomialDensityDistribution.h"
 #include "LeptonInjector/detector/EarthModel.h"
+
 #include "LeptonInjector/geometry/Box.h"
 #include "LeptonInjector/geometry/Sphere.h"
 #include "LeptonInjector/geometry/Cylinder.h"
 #include "LeptonInjector/geometry/ExtrPoly.h"
+
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/math/EulerQuaternionConversions.h"
 
@@ -333,7 +337,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
             if(distribution_type.find("constant") != std::string::npos) {
                 double param;
                 ss >> param;
-                sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(param).create();
+                sector.density = ConstantDensityDistribution(param).create();
             } else if (distribution_type.find("radial_polynomial") != std::string::npos) {
                 double xc, yc, zc;
                 ss >> xc >> yc >> zc;
@@ -349,7 +353,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
                     ss >> param;
                     params.push_back(param);
                 }
-                sector.density = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(radial_ax, params).create();
+                sector.density = RadialAxisPolynomialDensityDistribution(radial_ax, params).create();
             } else {
                 std::stringstream ss_err;
                 ss_err
@@ -395,7 +399,7 @@ void EarthModel::LoadDefaultSectors() {
     sector.material_id = materials_.GetMaterialId("VACUUM");
     sector.level = std::numeric_limits<int>::min();
     sector.geo = Sphere(std::numeric_limits<double>::infinity(), 0).create();
-    sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
+    sector.density = ConstantDensityDistribution().create(); // Use the universe_mean_density from GEANT4
     AddSector(sector);
 }
 
@@ -1296,7 +1300,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
         level -= 1;
         if(nparams == 1) {
             ss >> param;
-            sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(param).create();
+            sector.density = ConstantDensityDistribution(param).create();
         }
         else {
             std::vector<double> params;
@@ -1305,7 +1309,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
                 params.push_back(param);
             }
             RadialAxis1D radial_ax;
-            sector.density = DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>(radial_ax, params).create();
+            sector.density = RadialAxisPolynomialDensityDistribution(radial_ax, params).create();
         }
 
         // stop the process if layering assumptions are violated

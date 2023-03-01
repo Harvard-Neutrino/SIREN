@@ -2,8 +2,17 @@
 #core files
 LIST (APPEND detector_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/detector/private/AtomicMasses.cxx
-    ${CMAKE_SOURCE_DIR}/projects/detector/private/DensityDist.cxx
-    #${CMAKE_SOURCE_DIR}/projects/detector/private/EarthModelCalculator.cxx
+
+    ${CMAKE_SOURCE_DIR}/projects/detector/private/Axis1D.cxx
+    ${CMAKE_SOURCE_DIR}/projects/detector/private/CartesianAxis1D.cxx
+    ${CMAKE_SOURCE_DIR}/projects/detector/private/RadialAxis1D.cxx
+
+    ${CMAKE_SOURCE_DIR}/projects/detector/private/Distribution1D.cxx
+    ${CMAKE_SOURCE_DIR}/projects/detector/private/ConstantDistribution1D.cxx
+    ${CMAKE_SOURCE_DIR}/projects/detector/private/PolynomialDistribution1D.cxx
+    ${CMAKE_SOURCE_DIR}/projects/detector/private/ExponentialDistribution1D.cxx
+
+    ${CMAKE_SOURCE_DIR}/projects/detector/private/DensityDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/detector/private/EarthModel.cxx
     ${CMAKE_SOURCE_DIR}/projects/detector/private/MaterialModel.cxx
     ${CMAKE_SOURCE_DIR}/projects/detector/private/Path.cxx

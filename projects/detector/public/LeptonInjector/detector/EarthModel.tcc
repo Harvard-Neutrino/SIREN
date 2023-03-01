@@ -10,8 +10,8 @@ namespace LI {
 namespace detector {
 
 template<typename Iterator, class>
-double EarthModel::GetMassDensity(geometry::Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
-    Vector3D direction = p0 - intersections.position;
+double EarthModel::GetMassDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, Iterator begin, Iterator end) const {
+    math::Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
     } else {
@@ -53,16 +53,16 @@ double EarthModel::GetMassDensity(geometry::Geometry::IntersectionList const & i
 }
 
 template<typename Iterator, class>
-double EarthModel::GetMassDensity(Vector3D const & p0, Iterator begin, Iterator end) const {
-    Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
+double EarthModel::GetMassDensity(math::Vector3D const & p0, Iterator begin, Iterator end) const {
+    math::Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     geometry::Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetMassDensity(intersections, p0, begin, end);
 }
 
 
 template<typename Iterator, class>
-std::vector<double> EarthModel::GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, Vector3D const & p0, Iterator begin, Iterator end) const {
-    Vector3D direction = p0 - intersections.position;
+std::vector<double> EarthModel::GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, Iterator begin, Iterator end) const {
+    math::Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
     } else {
@@ -108,8 +108,8 @@ std::vector<double> EarthModel::GetParticleDensity(geometry::Geometry::Intersect
 }
 
 template<typename Iterator, typename>
-std::vector<double> EarthModel::GetParticleDensity(Vector3D const & p0, Iterator begin, Iterator end) const {
-    Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
+std::vector<double> EarthModel::GetParticleDensity(math::Vector3D const & p0, Iterator begin, Iterator end) const {
+    math::Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     geometry::Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetParticleDensity(intersections, p0, begin, end);
 }

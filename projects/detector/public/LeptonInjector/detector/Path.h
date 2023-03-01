@@ -26,9 +26,9 @@ private:
     std::shared_ptr<const EarthModel> earth_model_;
     bool set_earth_model_ = false;
 
-    Vector3D first_point_;
-    Vector3D last_point_;
-    Vector3D direction_;
+    math::Vector3D first_point_;
+    math::Vector3D last_point_;
+    math::Vector3D direction_;
     double distance_ = 0;
     bool set_points_ = false;
 
@@ -40,8 +40,8 @@ private:
 public:
     Path();
     Path(std::shared_ptr<const EarthModel> earth_model);
-    Path(std::shared_ptr<const EarthModel> earth_model, Vector3D const & first_point, Vector3D const & last_point);
-    Path(std::shared_ptr<const EarthModel> earth_model, Vector3D const & first_point, Vector3D const & direction, double distance);
+    Path(std::shared_ptr<const EarthModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & last_point);
+    Path(std::shared_ptr<const EarthModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & direction, double distance);
 
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
@@ -63,17 +63,17 @@ public:
     bool HasColumnDepth();
 
     std::shared_ptr<const EarthModel> GetEarthModel();
-    Vector3D const & GetFirstPoint();
-    Vector3D const & GetLastPoint();
-    Vector3D const & GetDirection();
+    math::Vector3D const & GetFirstPoint();
+    math::Vector3D const & GetLastPoint();
+    math::Vector3D const & GetDirection();
     double GetDistance();
     geometry::Geometry::IntersectionList const & GetIntersections();
 
     void SetEarthModel(std::shared_ptr<const EarthModel> earth_model);
     void EnsureEarthModel();
 
-    void SetPoints(Vector3D first_point, Vector3D last_point);
-    void SetPointsWithRay(Vector3D first_point, Vector3D direction, double distance);
+    void SetPoints(math::Vector3D first_point, math::Vector3D last_point);
+    void SetPointsWithRay(math::Vector3D first_point, math::Vector3D direction, double distance);
     void EnsurePoints();
 
     void SetIntersections(geometry::Geometry::IntersectionList const & intersections);
@@ -196,8 +196,8 @@ public:
             std::vector<double> const & total_cross_sections);
     //
 
-    bool IsWithinBounds(Vector3D point);
-    double GetDistanceFromStartInBounds(Vector3D point);
+    bool IsWithinBounds(math::Vector3D point);
+    double GetDistanceFromStartInBounds(math::Vector3D point);
 };
 
 } // namespace detector
