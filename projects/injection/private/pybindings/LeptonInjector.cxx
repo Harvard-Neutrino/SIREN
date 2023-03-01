@@ -2,7 +2,7 @@
 #include <vector>
 #include <utility>
 
-#include <LeptonInjector/LeptonInjector.h>
+#include <LeptonInjector/InjectorBase.h>
 #include <LeptonInjector/Random.h>
 #include <LeptonInjector/Constants.h>
 

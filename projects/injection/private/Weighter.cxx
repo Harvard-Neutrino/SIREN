@@ -5,7 +5,9 @@
 
 #include "LeptonInjector/injection/Weighter.h"
 
-#include "LeptonInjector/injection/LeptonInjector.h"
+#include "LeptonInjector/injection/InjectorBase.h"
+
+#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
@@ -15,6 +17,7 @@
 #include <rk/rk.hh>
 
 namespace LI {
+namespace injection {
 
 //---------------
 // class LeptonWeighter
@@ -621,5 +624,6 @@ double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord 
     return normalization * weight;
 }
 
-} // namespace LeptonInjector
+} // namespace injection
+} // namespace LI
 

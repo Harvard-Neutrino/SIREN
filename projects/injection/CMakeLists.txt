@@ -1,9 +1,13 @@
 
 #core files
 LIST (APPEND injection_SOURCES
-    ${CMAKE_SOURCE_DIR}/projects/injection/private/LeptonInjector.cxx
-    ${CMAKE_SOURCE_DIR}/projects/injection/private/Weighter.cxx
+    ${CMAKE_SOURCE_DIR}/projects/injection/private/InjectorBase.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
+    ${CMAKE_SOURCE_DIR}/projects/injection/private/Weighter.cxx
+    ${CMAKE_SOURCE_DIR}/projects/injection/private/ColumnDepthLeptonInjector.cxx
+    ${CMAKE_SOURCE_DIR}/projects/injection/private/CylinderVolumeLeptonInjector.cxx
+    ${CMAKE_SOURCE_DIR}/projects/injection/private/DecayRangeLeptonInjector.cxx
+    ${CMAKE_SOURCE_DIR}/projects/injection/private/RangedLeptonInjector.cxx
 )
 add_library(LI_injection OBJECT ${injection_SOURCES})
 set_property(TARGET LI_injection PROPERTY POSITION_INDEPENDENT_CODE ON)
