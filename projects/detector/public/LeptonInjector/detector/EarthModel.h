@@ -167,6 +167,7 @@ public:
     static geometry::Geometry::IntersectionList GetOuterBounds(geometry::Geometry::IntersectionList const & intersections);
     geometry::Geometry::IntersectionList GetOuterBounds(math::Vector3D const & p0, math::Vector3D const & direction) const;
     std::set<LI::dataclasses::Particle::ParticleType> GetAvailableTargets(std::array<double,3> const & vertex) const;
+    std::set<LI::dataclasses::Particle::ParticleType> GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, std::array<double,3> const & vertex) const;
 
 private:
     void LoadDefaultMaterials();

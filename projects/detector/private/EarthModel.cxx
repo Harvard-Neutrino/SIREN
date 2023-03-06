@@ -638,7 +638,7 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
     }
 
     double total_column_depth = 0.0;
-    double total_distance = std::numeric_limits<double>::quiet_NaN();
+    double total_distance = 0.0;
     std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
         [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
         // The local integration is bounded on the upper end by the intersection and the global integral boundary
@@ -656,6 +656,8 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
             total_column_depth += integral;
             if(done) {
                 total_distance = start_point + distance;
+            } else {
+                total_distance = start_point + segment_length;
             }
         }
 
@@ -977,9 +979,10 @@ void EarthModel::SortIntersections(std::vector<Geometry::Intersection> & interse
             return true;
         else if(a.distance == b.distance) {
             bool low_high = a.hierarchy < b.hierarchy;
+            bool high_low = b.hierarchy < a.hierarchy;
             if(a_enter) {
                 if(b_enter)
-                    return not low_high;
+                    return high_low;
                 else
                     return false;
             }
@@ -1024,11 +1027,15 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Vector3D const & p0, Vecto
 }
 
 std::set<LI::dataclasses::Particle::ParticleType> EarthModel::GetAvailableTargets(std::array<double,3> const & vertex) const {
-		int matID = GetContainingSector(Vector3D(vertex[0],vertex[1],vertex[2])).material_id;
-        std::vector<LI::dataclasses::Particle::ParticleType> particles = materials_.GetMaterialConstituents(matID);
-        return std::set<LI::dataclasses::Particle::ParticleType>(particles.begin(), particles.end());
+    Geometry::IntersectionList intersections = GetIntersections(vertex, math::Vector3D(0,0,1));
+    return GetAvailableTargets(intersections, vertex);
 }
 
+std::set<LI::dataclasses::Particle::ParticleType> EarthModel::GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, std::array<double,3> const & vertex) const {
+    int matID = GetContainingSector(intersections, Vector3D(vertex[0],vertex[1],vertex[2])).material_id;
+    std::vector<LI::dataclasses::Particle::ParticleType> particles = materials_.GetMaterialConstituents(matID);
+    return std::set<LI::dataclasses::Particle::ParticleType>(particles.begin(), particles.end());
+}
 
 void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections, bool reverse) {
     // Keep track of the integral progress
@@ -1138,7 +1145,7 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
     }
 
     double total_interaction_depth = 0.0;
-    double total_distance = std::numeric_limits<double>::quiet_NaN();
+    double total_distance = 0.0;
     std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
         [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
         // The local integration is bounded on the upper end by the intersection and the global integral boundary
@@ -1163,6 +1170,8 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
             total_interaction_depth += integral;
             if(done) {
                 total_distance = start_point + distance;
+            } else {
+                total_distance = start_point + segment_length;
             }
         }
 
