@@ -174,6 +174,7 @@ void Path::Flip() {
 // Extend / Shrink By Distance
 ////
 void Path::ExtendFromEndByDistance(double distance) {
+    EnsurePoints();
     distance_ += distance;
     last_point_ += direction_ * distance;
     if(distance_ < 0) {
@@ -184,6 +185,7 @@ void Path::ExtendFromEndByDistance(double distance) {
 }
 
 void Path::ExtendFromStartByDistance(double distance) {
+    EnsurePoints();
     distance_ += distance;
     first_point_ += direction_ * -distance;
     if(distance_ < 0) {
@@ -367,6 +369,7 @@ void Path::ShrinkFromStartToInteractionDepth(double interaction_depth,
 ////
 double Path::GetColumnDepthInBounds() {
     EnsureIntersections();
+    EnsurePoints();
     if(HasColumnDepth()) {
         return column_depth_cached_;
     } else {
@@ -384,6 +387,7 @@ double Path::GetInteractionDepthInBounds(
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     double interaction_depth = earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, last_point_, targets, total_cross_sections);
     return interaction_depth;
 }
@@ -399,6 +403,7 @@ double Path::GetColumnDepthFromStartInBounds(double distance) {
         return 0.0;
     }
     EnsureIntersections();
+    EnsurePoints();
     return earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance);
 }
 
@@ -409,26 +414,31 @@ double Path::GetColumnDepthFromEndInBounds(double distance) {
         return 0.0;
     }
     EnsureIntersections();
+    EnsurePoints();
     return earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance);
 }
 
 double Path::GetColumnDepthFromStartAlongPath(double distance) {
     EnsureIntersections();
+    EnsurePoints();
     return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance), distance);
 }
 
 double Path::GetColumnDepthFromEndAlongPath(double distance) {
     EnsureIntersections();
+    EnsurePoints();
     return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance), distance);
 }
 
 double Path::GetColumnDepthFromStartInReverse(double distance) {
     EnsureIntersections();
+    EnsurePoints();
     return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance), distance);
 }
 
 double Path::GetColumnDepthFromEndInReverse(double distance) {
     EnsureIntersections();
+    EnsurePoints();
     return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance), distance);
 }
 
@@ -445,6 +455,7 @@ double Path::GetInteractionDepthFromStartInBounds(double distance,
         return 0.0;
     }
     EnsureIntersections();
+    EnsurePoints();
     return earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets, total_cross_sections);
 }
 
@@ -457,6 +468,7 @@ double Path::GetInteractionDepthFromEndInBounds(double distance,
         return 0.0;
     }
     EnsureIntersections();
+    EnsurePoints();
     return earth_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets, total_cross_sections);
 }
 
@@ -464,6 +476,7 @@ double Path::GetInteractionDepthFromStartAlongPath(double distance,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets, total_cross_sections), distance);
 }
 
@@ -471,6 +484,7 @@ double Path::GetInteractionDepthFromEndAlongPath(double distance,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance, targets, total_cross_sections), distance);
 }
 
@@ -478,6 +492,7 @@ double Path::GetInteractionDepthFromStartInReverse(double distance,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance, targets, total_cross_sections), distance);
 }
 
@@ -485,6 +500,7 @@ double Path::GetInteractionDepthFromEndInReverse(double distance,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets, total_cross_sections), distance);
 }
 
@@ -494,6 +510,7 @@ double Path::GetInteractionDepthFromEndInReverse(double distance,
 ///
 double Path::GetDistanceFromStartInBounds(double column_depth) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth);
     if(distance > distance_) {
         distance = distance_;
@@ -505,6 +522,7 @@ double Path::GetDistanceFromStartInBounds(double column_depth) {
 
 double Path::GetDistanceFromEndInBounds(double column_depth) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth);
     if(distance > distance_) {
         distance = distance_;
@@ -516,24 +534,28 @@ double Path::GetDistanceFromEndInBounds(double column_depth) {
 
 double Path::GetDistanceFromStartAlongPath(double column_depth) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth);
     return distance;
 }
 
 double Path::GetDistanceFromEndAlongPath(double column_depth) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, direction_, column_depth);
     return distance;
 }
 
 double Path::GetDistanceFromStartInReverse(double column_depth) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, -direction_, column_depth);
     return distance;
 }
 
 double Path::GetDistanceFromEndInReverse(double column_depth) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth);
     return distance;
 }
@@ -546,6 +568,7 @@ double Path::GetDistanceFromStartInBounds(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections);
     if(distance > distance_) {
         distance = distance_;
@@ -559,6 +582,7 @@ double Path::GetDistanceFromEndInBounds(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections);
     if(distance > distance_) {
         distance = distance_;
@@ -572,6 +596,7 @@ double Path::GetDistanceFromStartAlongPath(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections);
     return distance;
 }
@@ -580,6 +605,7 @@ double Path::GetDistanceFromEndAlongPath(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, direction_, interaction_depth, targets, total_cross_sections);
     return distance;
 }
@@ -588,6 +614,7 @@ double Path::GetDistanceFromStartInReverse(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, -direction_, interaction_depth, targets, total_cross_sections);
     return distance;
 }
@@ -596,6 +623,7 @@ double Path::GetDistanceFromEndInReverse(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections) {
     EnsureIntersections();
+    EnsurePoints();
     double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections);
     return distance;
 }
