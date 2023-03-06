@@ -34,7 +34,6 @@ public:
     // copied over from IceCube's dataclasses I3Particle definition
     enum ParticleType : int32_t {
         unknown = 0,
-        unknown = 0,
         Gamma = 22,
         EPlus = -11,
         EMinus = 11,
