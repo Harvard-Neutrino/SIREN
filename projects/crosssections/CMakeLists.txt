@@ -35,3 +35,4 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/crosssections/public/"
     PATTERN "*.tcc"
 )
 
+package_add_test(UnitTest_CrossSection ${CMAKE_SOURCE_DIR}/projects/crosssections/private/test/CrossSection_TEST.cxx)

@@ -23,7 +23,7 @@ INCLUDE (SuiteSparse)
 INCLUDE (Python)
 
 set(_FLAGS "-O2 -Wall -fPIC")
-set(_FLAGS_DEBUG "-g -O2 -Wall -fPIC")
+set(_FLAGS_DEBUG "-g -O0 -Wall -fPIC")
 set(_FLAGS_RELEASE "-O2 -Wall -fPIC -s")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

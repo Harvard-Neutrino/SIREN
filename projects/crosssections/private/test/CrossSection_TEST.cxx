@@ -9,12 +9,18 @@
 #include <cereal/types/vector.hpp>
 #include <cereal/types/array.hpp>
 
-#include "phys-services/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/DISFromSpline.h"
+#include "LeptonInjector/crosssections/DipoleFromTable.h"
 
-#include "LeptonInjector/Random.h"
-#include "LeptonInjector/Particle.h"
+#include "LeptonInjector/utilities/Random.h"
+#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/dataclasses/InteractionSignature.h"
 
-using namespace LeptonInjector;
+using namespace LI::crosssections;
+using namespace LI::dataclasses;
+using namespace LI::utilities;
 
 TEST(DISFromSpline, Constructor)
 {
@@ -60,11 +66,15 @@ TEST(DipoleFromTable, Constructor)
     double hnl_mass = 0.001;
     std::string differential_xs = "/home/austin/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/dxsec_Z_6_A_12_mHNL_0.001_hf.dat";
     std::string total_xs = "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/xsec_Z_6_A_12_mHNL_0.001_hf.dat";
+    std::string proton_differential_xs = "/home/austin/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/dxsec_Z_1_A_1_mHNL_0.001_hf.dat";
+    std::string proton_total_xs = "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/xsec_Z_1_A_1_mHNL_0.001_hf.dat";
     std::vector<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau};
     std::vector<Particle::ParticleType> target_types = {Particle::ParticleType::PPlus, Particle::ParticleType::Neutron, Particle::ParticleType::Nucleon};
     std::shared_ptr<DipoleFromTable> dipole_xs = std::make_shared<DipoleFromTable>(hnl_mass, 1e-7, DipoleFromTable::HelicityChannel::Flipping);
     dipole_xs->AddDifferentialCrossSectionFile(differential_xs, Particle::ParticleType::C12Nucleus);
     dipole_xs->AddTotalCrossSectionFile(total_xs, Particle::ParticleType::C12Nucleus);
+    dipole_xs->AddDifferentialCrossSectionFile(proton_differential_xs, Particle::ParticleType::HNucleus);
+    dipole_xs->AddTotalCrossSectionFile(proton_total_xs, Particle::ParticleType::HNucleus);
     std::shared_ptr<CrossSection> xs = dipole_xs;
 
     std::cerr << "Test cross section" << std::endl << "y    XS" << std::endl;

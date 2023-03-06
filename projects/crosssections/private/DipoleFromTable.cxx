@@ -618,6 +618,10 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, LI::
     int32_t pid_int = std::stoul(pid_str);
     LI::dataclasses::Particle::ParticleType pid = (LI::dataclasses::Particle::ParticleType)pid_int;
 
+    if(pid != target) {
+        throw std::runtime_error("File target nucleus does not match supplied target type!");
+    }
+
     if(fexists(filename)) {
         std::ifstream in(filename.c_str());
         std::string buf;
