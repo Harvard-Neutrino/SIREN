@@ -34,6 +34,7 @@ public:
     // copied over from IceCube's dataclasses I3Particle definition
     enum ParticleType : int32_t {
         unknown = 0,
+        unknown = 0,
         Gamma = 22,
         EPlus = -11,
         EMinus = 11,
@@ -197,6 +198,7 @@ public:
         NuclInt = -2000001004,
         MuPair = -2000001005,
         Hadrons = -2000001006,
+        Decay = -2000001007,
         ContinuousEnergyLoss = -2000001111,
         FiberLaser = -2000002100,
         N2Laser = -2000002101,
@@ -312,7 +314,7 @@ namespace cereal {
     (Cr53Nucleus)(Cr54Nucleus)(Mn52Nucleus)(Mn53Nucleus)(Mn54Nucleus)(Mn55Nucleus)\
     (Fe54Nucleus)(Fe55Nucleus)(Fe56Nucleus)(Fe57Nucleus)(Fe58Nucleus)(Qball)      \
     (CherenkovPhoton)(Nu)(Monopole)(Brems)(DeltaE)(PairProd)(NuclInt)(MuPair)     \
-    (Hadrons)(ContinuousEnergyLoss)(FiberLaser)(N2Laser)(YAGLaser)                \
+    (Hadrons)(Decay)(ContinuousEnergyLoss)(FiberLaser)(N2Laser)(YAGLaser)                \
 
 
 #endif // LI_Particle_H
