@@ -4,6 +4,7 @@ LIST (APPEND dataclasses_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/Particle.cxx
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/InteractionSignature.cxx
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/InteractionRecord.cxx
+    ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/InteractionTree.cxx
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/DecaySignature.cxx
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/DecayRecord.cxx
 )

@@ -18,6 +18,7 @@ target_include_directories(LI_geometry PUBLIC
 add_dependencies(LI_geometry rk)
 add_dependencies(LI_geometry LI_serialization LI_math LI_geometry)
 
+
 target_link_libraries(LI_geometry photospline)
 target_link_libraries(LI_geometry ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
 
@@ -36,3 +37,19 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/geometry/public/"
     PATTERN "*.tcc"
 )
 
+file (GLOB SOURCE_FILES "${CMAKE_SOURCE_DIR}/projects/geometry/private/*.cxx")
+file (GLOB HEADER_FILES "${CMAKE_SOURCE_DIR}/projects/geometry/public/LeptonInjector/geometry/*.h")
+file (GLOB PYTHON_FILES "${CMAKE_SOURCE_DIR}/projects/geometry/private/pybindings/*.cxx")
+#python bindings
+pybind11_add_module(Geometry
+                    ${geometry_SOURCES}
+                    ${HEADER_FILES}
+                    ${PYTHON_FILES}
+                    )
+target_link_libraries(Geometry PRIVATE LI_math)
+target_link_libraries(Geometry PUBLIC)
+
+install(TARGETS Geometry
+  COMPONENT python
+  LIBRARY DESTINATION "${CMAKE_SOURCE_DIR}/../../local/lib/python3.8/site-packages/"
+  )

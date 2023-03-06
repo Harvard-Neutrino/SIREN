@@ -4,3 +4,7 @@
 [submodule "vendor/cereal"]
 	path = vendor/cereal
 	url = https://github.com/USCiLab/cereal.git
+[submodule "vendor/pybind11"]
+	path = vendor/pybind11
+	url = ../../pybind/pybind11
+	branch = stable
