@@ -6,6 +6,9 @@
 #include <ostream>
 #include <stdexcept>
 
+#include <rk/rk.hh>
+#include <rk/geom3.hh>
+
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
