@@ -115,6 +115,9 @@ include_directories("${PROJECT_SOURCE_DIR}/vendor/cereal/include")
 
 include(testing)
 
+# add the pybind11 headers
+add_subdirectory(vendor/pybind11)
+
 add_subdirectory(projects/utilities)
 add_subdirectory(projects/serialization)
 add_subdirectory(projects/math)
