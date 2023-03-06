@@ -10,31 +10,52 @@
 
 #include <gtest/gtest.h>
 
-#include "phys-services/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/ElasticScattering.h"
 
-#include "LeptonInjector/Random.h"
-#include "LeptonInjector/Constants.h"
-#include "LeptonInjector/Particle.h"
-#include "LeptonInjector/LeptonInjector.h"
-#include "LeptonInjector/Weighter.h"
+#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
+#include "LeptonInjector/distributions/primary/energy/TabulatedFluxDistribution.h"
+#include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
+#include "LeptonInjector/distributions/primary/direction/FixedDirection.h"
+#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
+#include "LeptonInjector/distributions/primary/vertex/LeptonDepthFunction.h"
+#include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
+#include "LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
 
-#include "earthmodel-service/Geometry.h"
-#include "earthmodel-service/EulerQuaternionConversions.h"
-#include "earthmodel-service/Placement.h"
+#include "LeptonInjector/utilities/Random.h"
 
-//#define AUSTIN
+#include "LeptonInjector/math/EulerQuaternionConversions.h"
 
-using namespace LeptonInjector;
+#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/dataclasses/InteractionSignature.h"
 
-bool inFiducial(std::array<double,3> & int_vtx, earthmodel::ExtrPoly & fidVol) {
-    earthmodel::Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
-    earthmodel::Vector3D dir(0,0,1);
+#include "LeptonInjector/geometry/Placement.h"
+#include "LeptonInjector/geometry/ExtrPoly.h"
+
+#include "LeptonInjector/injection/Weighter.h"
+#include "LeptonInjector/injection/ColumnDepthLeptonInjector.h"
+
+using namespace LI::crosssections;
+using namespace LI::distributions;
+using namespace LI::dataclasses;
+using namespace LI::injection;
+using namespace LI::utilities;
+using namespace LI::detector;
+using namespace LI::geometry;
+using namespace LI::math;
+
+#define AUSTIN
+
+bool inFiducial(std::array<double,3> & int_vtx, ExtrPoly & fidVol) {
+    Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
+    Vector3D dir(0,0,1);
     return fidVol.IsInside(pos,dir);
 }
 
 TEST(ElasticScattering, Generation)
 {
-    using ParticleType = LeptonInjector::Particle::ParticleType;
+    using ParticleType = Particle::ParticleType;
 
 #ifdef AUSTIN
     std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
@@ -62,38 +83,38 @@ TEST(ElasticScattering, Generation)
     cross_sections.push_back(es_xs);
 
     // Load the earth model
-    std::shared_ptr<earthmodel::EarthModel> earth_model = std::make_shared<earthmodel::EarthModel>();
+    std::shared_ptr<EarthModel> earth_model = std::make_shared<EarthModel>();
     earth_model->LoadMaterialModel(material_file);
     earth_model->LoadEarthModel(earth_file);
 
     // Setup the primary type and mass
-    //std::shared_ptr<LeptonInjector::PrimaryInjector> primary_injector = std::make_shared<LeptonInjector::PrimaryInjector>(primary_type, hnl_mass);
-    std::shared_ptr<LeptonInjector::PrimaryInjector> primary_injector = std::make_shared<LeptonInjector::PrimaryInjector>(primary_type, 0);
+    //std::shared_ptr<PrimaryInjector> primary_injector = std::make_shared<PrimaryInjector>(primary_type, hnl_mass);
+    std::shared_ptr<PrimaryInjector> primary_injector = std::make_shared<PrimaryInjector>(primary_type, 0);
 
     // Setup power law
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
 
     // Setup tabulated flux
-    std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(flux_file, true);
-    std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf_gen = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(flux_file);
+    std::shared_ptr<TabulatedFluxDistribution> tab_pdf = std::make_shared<TabulatedFluxDistribution>(flux_file, true);
+    std::shared_ptr<TabulatedFluxDistribution> tab_pdf_gen = std::make_shared<TabulatedFluxDistribution>(flux_file);
 
     // Change the flux units from cm^-2 to m^-2
-    std::shared_ptr<LeptonInjector::WeightableDistribution> flux_units = std::make_shared<LeptonInjector::NormalizationConstant>(1e4);
+    std::shared_ptr<WeightableDistribution> flux_units = std::make_shared<NormalizationConstant>(1e4);
 
     // Pick energy distribution
     std::shared_ptr<PrimaryEnergyDistribution> edist = tab_pdf_gen;
 
     // Choose injection direction
-    std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<LeptonInjector::FixedDirection>(earthmodel::Vector3D{0.0, 0.0, 1.0});
+    std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<FixedDirection>(Vector3D{0.0, 0.0, 1.0});
 
     // Targets should be stationary
-    std::shared_ptr<LeptonInjector::TargetMomentumDistribution> target_momentum_distribution = std::make_shared<LeptonInjector::TargetAtRest>();
+    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution = std::make_shared<TargetAtRest>();
 
     // Let us inject according to column depth
-    std::shared_ptr<DepthFunction> depth_func = std::make_shared<LeptonInjector::LeptonDepthFunction>();
+    std::shared_ptr<DepthFunction> depth_func = std::make_shared<LeptonDepthFunction>();
 
     // Helicity distribution
-    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<LeptonInjector::PrimaryNeutrinoHelicityDistribution>();
+    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
 
     // Put it all together!
     std::shared_ptr<InjectorBase> injector = std::make_shared<ColumnDepthLeptonInjector>(events_to_inject, primary_injector, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, depth_func, disk_radius, endcap_length, helicity_distribution);
@@ -120,12 +141,12 @@ TEST(ElasticScattering, Generation)
     double offset[2];
     offset[0] = 0;
     offset[1] = 0;
-    std::vector<earthmodel::ExtrPoly::ZSection> zsecs;
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(-2.0672,offset,1));
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(2.0672,offset,1));
-    earthmodel::Placement placement(earthmodel::Vector3D(0,0,2.0672), earthmodel::QFromZXZr(0,0,0));
-    earthmodel::ExtrPoly MINERvA_fiducial = earthmodel::ExtrPoly(placement, poly, zsecs);
-    
+    std::vector<ExtrPoly::ZSection> zsecs;
+    zsecs.push_back(ExtrPoly::ZSection(-2.0672,offset,1));
+    zsecs.push_back(ExtrPoly::ZSection(2.0672,offset,1));
+    Placement placement(Vector3D(0,0,2.0672), QFromZXZr(0,0,0));
+    ExtrPoly MINERvA_fiducial = ExtrPoly(placement, poly, zsecs);
+
     std::ofstream myFile("elasticscattering_test_events.csv");
     // myFile << std::fixed << std::setprecision(6);
     myFile << std::scientific << std::setprecision(16);
@@ -142,9 +163,9 @@ TEST(ElasticScattering, Generation)
     myFile << std::endl;
     int i = 0;
     while(*injector) {
-        LeptonInjector::InteractionRecord event = injector->GenerateEvent();
+        InteractionRecord event = injector->GenerateEvent();
         double simplified_weight, interaction_lengths, interaction_prob = 0;
-        if(event.signature.target_type != LeptonInjector::Particle::ParticleType::unknown) {
+        if(event.signature.target_type != Particle::ParticleType::unknown) {
             simplified_weight = weighter.SimplifiedEventWeight(event);
             interaction_prob = weighter.InteractionProbability(injector->InjectionBounds(event), event);
         }
