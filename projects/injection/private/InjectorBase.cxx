@@ -86,8 +86,6 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
     }
 
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
-    std::set<LI::dataclasses::Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(record.interaction_vertex);
-    std::set<LI::dataclasses::Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
     LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
@@ -102,6 +100,7 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
 
 
     LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(interaction_vertex, primary_direction);
+    std::set<LI::dataclasses::Particle::ParticleType> available_targets = earth_model->GetAvailableTargets(intersections, record.interaction_vertex);
 
     double total_prob = 0.0;
     std::vector<double> probs;
