@@ -25,7 +25,7 @@
 namespace LI {
 namespace crosssections {
 
-class CrossSectionCollection {
+class CrossSectionCollection : public Process{
 private:
     LI::dataclasses::Particle::ParticleType primary_type;
     std::vector<std::shared_ptr<CrossSection>> cross_sections;

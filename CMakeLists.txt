@@ -124,7 +124,7 @@ add_subdirectory(projects/math)
 add_subdirectory(projects/dataclasses)
 add_subdirectory(projects/geometry)
 add_subdirectory(projects/detector)
-add_subdirectory(projects/crosssections)
+add_subdirectory(projects/processes)
 add_subdirectory(projects/distributions)
 add_subdirectory(projects/injection)
 
@@ -137,7 +137,7 @@ target_link_libraries(LeptonInjector
     LI_dataclasses
     LI_geometry
     LI_detector
-    LI_crosssections
+    LI_processes
     LI_distributions
     LI_injection
 )
