@@ -5,9 +5,9 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/Polynomial.h"
+#include "LeptonInjector/math/Polynomial.h"
 
-using namespace earthmodel;
+using namespace LI::math;
 
 double f1(double x){
     return pow(x, 3) - 4;

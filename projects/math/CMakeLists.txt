@@ -31,6 +31,7 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/math/public/"
     PATTERN "*.tcc"
 )
 
+package_add_test(UnitTest_MathMethods ${CMAKE_SOURCE_DIR}/projects/math/private/test/MathMethods_TEST.cxx)
 package_add_test(UnitTest_Polynomial ${CMAKE_SOURCE_DIR}/projects/math/private/test/Polynomial_TEST.cxx)
 package_add_test(UnitTest_Quaternion ${CMAKE_SOURCE_DIR}/projects/math/private/test/Quaternion_TEST.cxx)
 package_add_test(UnitTest_Vector3D ${CMAKE_SOURCE_DIR}/projects/math/private/test/Vector3D_TEST.cxx)
