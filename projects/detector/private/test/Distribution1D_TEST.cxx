@@ -5,11 +5,18 @@
 #include <iostream>
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/DensityDist.h"
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Polynomial.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/Polynomial.h"
+#include "LeptonInjector/detector/Distribution1D.h"
+#include "LeptonInjector/detector/Axis1D.h"
+#include "LeptonInjector/detector/RadialAxis1D.h"
+#include "LeptonInjector/detector/CartesianAxis1D.h"
+#include "LeptonInjector/detector/ConstantDistribution1D.h"
+#include "LeptonInjector/detector/PolynomialDistribution1D.h"
+#include "LeptonInjector/detector/ExponentialDistribution1D.h"
 
-using namespace earthmodel;
+using namespace LI::math;
+using namespace LI::detector;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
