@@ -45,4 +45,4 @@
 .vscode/
 
 # vim swap files
-.swp
+*.swp
