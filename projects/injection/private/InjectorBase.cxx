@@ -48,7 +48,39 @@ InjectorBase::InjectorBase(
     distributions(distributions)
 {}
 
-InjectorBase::InjectorBase(unsigned int events_to_inject,
+InjectorBase::InjectorBase(
+        unsigned int events_to_inject,
+        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
+        std::vector<std::shared_ptr<LI::crosssections::Decay>> decays,
+        std::shared_ptr<LI::detector::EarthModel> earth_model,
+        std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions,
+        std::shared_ptr<LI::utilities::LI_random> random) :
+    events_to_inject(events_to_inject),
+    random(random),
+    primary_injector(primary_injector),
+    cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), decays)),
+    earth_model(earth_model),
+    distributions(distributions)
+{}
+
+InjectorBase::InjectorBase(
+        unsigned int events_to_inject,
+        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
+        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections,
+        std::vector<std::shared_ptr<LI::crosssections::Decay>> decays,
+        std::shared_ptr<LI::detector::EarthModel> earth_model,
+        std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions,
+        std::shared_ptr<LI::utilities::LI_random> random) :
+    events_to_inject(events_to_inject),
+    random(random),
+    primary_injector(primary_injector),
+    cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections, decays)),
+    earth_model(earth_model),
+    distributions(distributions)
+{}
+
+InjectorBase::InjectorBase(
+        unsigned int events_to_inject,
         std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
         std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections,
         std::shared_ptr<LI::detector::EarthModel> earth_model,
@@ -57,7 +89,34 @@ InjectorBase::InjectorBase(unsigned int events_to_inject,
     random(random),
     primary_injector(primary_injector),
     cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections)),
-    earth_model(earth_model)
+    earth_model(earth_model),
+{}
+
+InjectorBase::InjectorBase(
+        unsigned int events_to_inject,
+        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
+        std::vector<std::shared_ptr<LI::crosssections::Decay>> decays,
+        std::shared_ptr<LI::detector::EarthModel> earth_model,
+        std::shared_ptr<LI::utilities::LI_random> random) :
+    events_to_inject(events_to_inject),
+    random(random),
+    primary_injector(primary_injector),
+    cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), decays)),
+    earth_model(earth_model),
+{}
+
+InjectorBase::InjectorBase(
+        unsigned int events_to_inject,
+        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
+        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections,
+        std::vector<std::shared_ptr<LI::crosssections::Decay>> decays,
+        std::shared_ptr<LI::detector::EarthModel> earth_model,
+        std::shared_ptr<LI::utilities::LI_random> random) :
+    events_to_inject(events_to_inject),
+    random(random),
+    primary_injector(primary_injector),
+    cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections, decays)),
+    earth_model(earth_model),
 {}
 
 InjectorBase::InjectorBase(unsigned int events_to_inject,
@@ -103,35 +162,59 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
     std::set<LI::dataclasses::Particle::ParticleType> available_targets = earth_model->GetAvailableTargets(intersections, record.interaction_vertex);
 
     double total_prob = 0.0;
+    double xsec_prob = 0.0;
+    double decay_prob = 0.0;
     std::vector<double> probs;
     std::vector<LI::dataclasses::Particle::ParticleType> matching_targets;
     std::vector<LI::dataclasses::InteractionSignature> matching_signatures;
     std::vector<std::shared_ptr<LI::crosssections::CrossSection>> matching_cross_sections;
+    std::vector<std::shared_ptr<LI::crosssections::Decay>> matching_decays;
     LI::dataclasses::InteractionRecord fake_record = record;
-    for(auto const target : available_targets) {
-        if(possible_targets.find(target) != possible_targets.end()) {
-            // Get target density
-            double target_density = earth_model->GetParticleDensity(intersections, interaction_vertex, target);
-            // Loop over cross sections that have this target
-            std::vector<std::shared_ptr<LI::crosssections::CrossSection>> const & target_cross_sections = cross_sections->GetCrossSectionsForTarget(target);
-            for(auto const & cross_section : target_cross_sections) {
-                // Loop over cross section signatures with the same target
-                std::vector<LI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
-                for(auto const & signature : signatures) {
-                    fake_record.signature = signature;
-                    fake_record.target_mass = earth_model->GetTargetMass(target);
-                    fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-                    // Add total cross section times density to the total prob
-                    total_prob += target_density * cross_section->TotalCrossSection(fake_record);
-                    // Add total prob to probs
-                    probs.push_back(total_prob);
-                    // Add target and cross section pointer to the lists
-                    matching_targets.push_back(target);
-                    matching_cross_sections.push_back(cross_section);
-                    matching_signatures.push_back(signature);
-                }
-            }
+    double fake_prob;
+    if (cross_sections->HasCrossSections()) {
+      for(auto const target : available_targets) {
+          if(possible_targets.find(target) != possible_targets.end()) {
+              // Get target density
+              double target_density = earth_model->GetParticleDensity(intersections, interaction_vertex, target);
+              // Loop over cross sections that have this target
+              std::vector<std::shared_ptr<LI::crosssections::CrossSection>> const & target_cross_sections = cross_sections->GetCrossSectionsForTarget(target);
+              for(auto const & cross_section : target_cross_sections) {
+                  // Loop over cross section signatures with the same target
+                  std::vector<LI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
+                  for(auto const & signature : signatures) {
+                      fake_record.signature = signature;
+                      fake_record.target_mass = earth_model->GetTargetMass(target);
+                      fake_record.target_momentum = {fake_record.target_mass,0,0,0};
+                      // Add total cross section times density to the total prob
+                      fake_prob = target_density * cross_section->TotalCrossSection(fake_record);
+                      total_prob += fake_prob;
+                      xsec_prob += fake_prob;
+                      // Add total prob to probs
+                      probs.push_back(total_prob);
+                      // Add target and cross section pointer to the lists
+                      matching_targets.push_back(target);
+                      matching_cross_sections.push_back(cross_section);
+                      matching_signatures.push_back(signature);
+                  }
+              }
+          }
+      }
+    }
+    if (cross_sections->HasDecays()) {
+      for(auto const & decay : cross_sections->GetDecays() ) {
+        for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
+          fake_record.signature = signature;
+          fake_prob = decay->TotalDecayWidth(record);
+          total_prob += fake_prob;
+          decay_prob += fake_prob;
+          // Add total prob to probs
+          probs.push_back(total_prob);
+          // Add target and decay pointer to the lists
+          matching_targets.push_back(target);
+          matching_decays.push_back(decay);
+          matching_signatures.push_back(signature);
         }
+      }
     }
     // Throw a random number
     double r = random->Uniform(0, total_prob);
@@ -150,10 +233,13 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
         throw(LI::utilities::InjectionFailure("No valid interactions for this event!"));
     record.target_mass = earth_model->GetTargetMass(record.signature.target_type);
     record.target_momentum = {record.target_mass,0,0,0};
-    matching_cross_sections[index]->SampleFinalState(record, random);
+    if(r <= xsec_prob) 
+      matching_cross_sections[proc_index]->SampleFinalState(record, random);
+    else 
+      matching_decays[index - matching_cross_sections.size()]->SampleFinalState(record, random);
 }
 
-void InjectorBase::SampleSecondaryDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial = nullptr, double buffer = 0) const {
+void InjectorBase::SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial = nullptr, double buffer = 0) const {
     // This function takes an interaction record containing an HNL and simulates the decay to a photon
     // Samples according to (1 + alpha * cos(theta))/2 and returns physical weight
     // Final state photon added to secondary particle vectors in LI::dataclasses::InteractionRecord

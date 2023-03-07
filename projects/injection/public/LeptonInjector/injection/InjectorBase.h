@@ -58,13 +58,19 @@ protected:
     std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions;
     InjectorBase();
 public:
+    // Constructors with distributions
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions, std::shared_ptr<LI::utilities::LI_random> random);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::Decay>> decays, std::shared_ptr<LI::detector::EarthModel> earth_model, std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions, std::shared_ptr<LI::utilities::LI_random> random);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::vector<std::shared_ptr<LI::crosssections::Decay>> decays, std::shared_ptr<LI::detector::EarthModel> earth_model, std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions, std::shared_ptr<LI::utilities::LI_random> random);
+    // Constructors without distributions
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::Decay>> decays, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::vector<std::shared_ptr<LI::crosssections::Decay>> decays, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections);
     virtual LI::dataclasses::InteractionRecord NewRecord() const;
     void SetRandom(std::shared_ptr<LI::utilities::LI_random> random);
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record) const;
-    virtual void SampleSecondaryDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
+    virtual void SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
     virtual void SamplePairProduction(LI::dataclasses::DecayRecord const & decay, LI::dataclasses::InteractionRecord & pairprod) const;
     LI::dataclasses::InteractionRecord GenerateEvent();
     virtual std::string Name() const;
