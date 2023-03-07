@@ -7,7 +7,7 @@
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
 
 namespace LI {
-namespace processes {
+namespace crosssections {
 
 class Decay{
   friend cereal::access;
@@ -24,9 +24,9 @@ class Decay{
 
 }; // class Decay
 
-} // namespace processes
+} // namespace crosssections
 } // namespace LI
 
-CEREAL_CLASS_VERSION(LI::processes::Decay, 0);
+CEREAL_CLASS_VERSION(LI::crosssections::Decay, 0);
 
 #endif // LI_Decay_H

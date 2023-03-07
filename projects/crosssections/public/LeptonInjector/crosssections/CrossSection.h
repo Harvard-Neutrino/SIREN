@@ -24,7 +24,7 @@ class LI_random;
 }
 
 namespace LI {
-namespace processes {
+namespace crosssections {
 
 class CrossSection {
 friend cereal::access;
