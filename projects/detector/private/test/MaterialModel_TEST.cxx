@@ -10,11 +10,11 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/MaterialModel.h"
+#include "LeptonInjector/detector/MaterialModel.h"
 
 #include "FakeMaterialModel.h"
 
-using namespace earthmodel;
+using namespace LI::detector;
 
 TEST(Constructor, Default)
 {

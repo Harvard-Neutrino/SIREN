@@ -48,3 +48,4 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/detector/public/"
 package_add_test(UnitTest_Axis ${CMAKE_SOURCE_DIR}/projects/detector/private/test/Axis_TEST.cxx)
 package_add_test(UnitTest_DensityDistribution ${CMAKE_SOURCE_DIR}/projects/detector/private/test/DensityDistribution_TEST.cxx)
 package_add_test(UnitTest_EarthModel ${CMAKE_SOURCE_DIR}/projects/detector/private/test/EarthModel_TEST.cxx)
+package_add_test(UnitTest_MaterialModel ${CMAKE_SOURCE_DIR}/projects/detector/private/test/MaterialModel_TEST.cxx)
