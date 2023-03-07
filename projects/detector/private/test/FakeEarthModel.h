@@ -13,11 +13,13 @@
 
 #include "FakeMaterialModel.h"
 
-#include "earthmodel-service/Geometry.h"
-#include "earthmodel-service/EarthModel.h"
-#include "earthmodel-service/Quaternion.h"
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/math/Quaternion.h"
+#include "LeptonInjector/math/Polynomial.h"
 
-using namespace earthmodel;
+using namespace LI::detector;
+using namespace LI::math;
 
 template <typename T>
 std::string str(std::vector<T> v) {

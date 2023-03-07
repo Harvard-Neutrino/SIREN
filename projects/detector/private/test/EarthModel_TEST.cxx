@@ -10,14 +10,28 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/Geometry.h"
-#include "earthmodel-service/EarthModel.h"
-#include "LeptonInjector/Constants.h"
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/geometry/Sphere.h"
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/utilities/Constants.h"
+#include "LeptonInjector/detector/DensityDistribution.h"
+#include "LeptonInjector/detector/Distribution1D.h"
+#include "LeptonInjector/detector/Axis1D.h"
+#include "LeptonInjector/detector/CartesianAxis1D.h"
+#include "LeptonInjector/detector/ConstantDistribution1D.h"
+#include "LeptonInjector/detector/ConstantDensityDistribution.h"
+#include "LeptonInjector/detector/PolynomialDistribution1D.h"
+#include "LeptonInjector/detector/ExponentialDistribution1D.h"
+#include "LeptonInjector/detector/DensityDistribution1D.h"
 
 #include "FakeEarthModel.h"
 #include "FakeMaterialModel.h"
 
-using namespace earthmodel;
+using namespace LI::math;
+using namespace LI::geometry;
+using namespace LI::detector;
+using namespace LI::utilities;
+using namespace LI::dataclasses;
 
 TEST(Constructor, Default)
 {
@@ -41,19 +55,19 @@ TEST(DefaultMaterials, VacuumOnly)
 
     int id = materials.GetMaterialId(name);
 
-    double material_nucleons_per_gram = materials.GetTargetParticleFraction(id, LeptonInjector::Particle::ParticleType::Nucleon);
-    double material_neutrons_per_gram = materials.GetTargetParticleFraction(id, LeptonInjector::Particle::ParticleType::Neutron);
-    double material_protons_per_gram = materials.GetTargetParticleFraction(id, LeptonInjector::Particle::ParticleType::PPlus);
-    double material_electrons_per_gram = materials.GetTargetParticleFraction(id, LeptonInjector::Particle::ParticleType::EMinus);
+    double material_nucleons_per_gram = materials.GetTargetParticleFraction(id, Particle::ParticleType::Nucleon);
+    double material_neutrons_per_gram = materials.GetTargetParticleFraction(id, Particle::ParticleType::Neutron);
+    double material_protons_per_gram = materials.GetTargetParticleFraction(id, Particle::ParticleType::PPlus);
+    double material_electrons_per_gram = materials.GetTargetParticleFraction(id, Particle::ParticleType::EMinus);
 
     const double nucleons_per_amu = 0.9943511899082073921408545013734389386622278134067745520545013436;
-    const double nucleons_per_gram = nucleons_per_amu * LeptonInjector::Constants::avogadro;
+    const double nucleons_per_gram = nucleons_per_amu * Constants::avogadro;
 
     const double protons_per_amu = 0.8464425697382936033875383253155218234388231142436674312768944729;
-    const double protons_per_gram = protons_per_amu * LeptonInjector::Constants::avogadro;
+    const double protons_per_gram = protons_per_amu * Constants::avogadro;
 
     const double neutrons_per_amu = 0.1479086201699137887533161760579171152234046991631071207776068707;
-    const double neutrons_per_gram = neutrons_per_amu * LeptonInjector::Constants::avogadro;
+    const double neutrons_per_gram = neutrons_per_amu * Constants::avogadro;
 
     const double electrons_per_gram = protons_per_gram;
 
@@ -75,7 +89,7 @@ TEST(DefaultMaterials, VacuumOnly)
     sector.material_id = materials_.GetMaterialId("VACUUM");
     sector.level = sectors_.size();
     sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
-    sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
+    sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create(); // Use the universe_mean_density from GEANT4
     sectors_.push_back(sector);
 */
 
@@ -88,7 +102,7 @@ TEST(DefaultSectors, VacuumOnly)
     EXPECT_EQ(0, sector.material_id);
     EXPECT_EQ(std::numeric_limits<int>::min(), sector.level);
     Sphere geo(Vector3D(0,0,0),std::numeric_limits<double>::infinity(), 0);
-    DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> density;
+    DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> density;
     EXPECT_EQ(geo, *sector.geo);
     EXPECT_EQ(density, *sector.density);
 }
@@ -394,7 +408,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralInternal)
         double min_radius = sphere->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = A.GetColumnDepthInCGS(p0, p1);
@@ -422,7 +436,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityInternal)
         double max_radius = sphere->GetRadius();
         double min_radius = sphere->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_dist = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_dist = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density_dist);
         double rho = density_dist->Evaluate(Vector3D());
         double density = A.GetMassDensity(p0);
@@ -457,8 +471,8 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
         double distance = (p1-p0).magnitude();
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
         double rho_0 = density_0->Evaluate(Vector3D());
@@ -558,8 +572,8 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityNested)
         double min_radius = sphere_0->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
         double rho_0 = density_0->Evaluate(Vector3D());
@@ -596,7 +610,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
         Vector3D lower_center(radius/4.0,0,0);
@@ -604,7 +618,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius, 0).create();
-        lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
@@ -626,9 +640,9 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
         Vector3D direction = p1 - p0;
         double distance = direction.magnitude();
         direction.normalize();
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_vacuum);
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
@@ -890,7 +904,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityIntersecting)
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
         Vector3D lower_center(radius/4.0,0,0);
@@ -898,7 +912,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityIntersecting)
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius, 0).create();
-        lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
@@ -916,9 +930,9 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityIntersecting)
         ASSERT_TRUE(sphere_1);
 
         Vector3D p0 = RandomVector(0, radius*2.0);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_vacuum);
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
@@ -961,7 +975,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
         Vector3D lower_center(0,0,0);
@@ -969,7 +983,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius/2.0, 0).create();
-        lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
@@ -991,9 +1005,9 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
         Vector3D direction = p1 - p0;
         double distance = direction.magnitude();
         direction.normalize();
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_vacuum);
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
@@ -1065,7 +1079,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityHidden)
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
         Vector3D lower_center(0,0,0);
@@ -1073,7 +1087,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityHidden)
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius/2.0, 0).create();
-        lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
@@ -1091,9 +1105,9 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityHidden)
         ASSERT_TRUE(sphere_1);
 
         Vector3D p0 = RandomVector(0, radius*2.0);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_vacuum);
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
@@ -1167,7 +1181,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
         Vector3D lower_center(0,0,0);
@@ -1175,7 +1189,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius/2.0, 0).create();
-        lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector bg_sector;
         Vector3D bg_center(0,0,0);
@@ -1183,7 +1197,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
         bg_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         bg_sector.level = -100;
         bg_sector.geo = Sphere(bg_center, radius*100, 0).create();
-        bg_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        bg_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
@@ -1206,9 +1220,9 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
         Vector3D direction = p1 - p0;
         double distance = direction.magnitude();
         direction.normalize();
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_vacuum);
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
@@ -1240,7 +1254,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
         upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector lower_sector;
         Vector3D lower_center(radius/4.0,0,0);
@@ -1248,7 +1262,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
         lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius, 0).create();
-        lower_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         EarthSector bg_sector;
         Vector3D bg_center(0,0,0);
@@ -1256,7 +1270,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
         bg_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         bg_sector.level = -100;
         bg_sector.geo = Sphere(bg_center, radius*100, 0).create();
-        bg_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        bg_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
@@ -1279,9 +1293,9 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
         Vector3D direction = p1 - p0;
         double distance = direction.magnitude();
         direction.normalize();
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_vacuum = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_vacuum.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_vacuum);
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
@@ -1322,7 +1336,7 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralNested)
         bg_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
         bg_sector.level = -100;
         bg_sector.geo = Sphere(bg_center, max_radius*100, 0).create();
-        bg_sector.density = DensityDistribution1D<RadialAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        bg_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
 
         A.AddSector(bg_sector);
         std::vector<EarthSector> sectors = A.GetSectors();
@@ -1341,8 +1355,8 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralNested)
         Vector3D direction = p1 - p0;
         double distance = direction.magnitude();
         direction.normalize();
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
         ASSERT_LE(p0.magnitude(), max_radius);

@@ -11,11 +11,11 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/Geometry.h"
-#include "earthmodel-service/EarthModel.h"
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/MaterialModel.h"
 
-using namespace earthmodel;
-
+using namespace LI::detector;
 
 class FakeMaterialModelFile {
 public:
