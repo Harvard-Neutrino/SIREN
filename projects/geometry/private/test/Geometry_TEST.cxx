@@ -5,9 +5,17 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/Geometry.h"
+#include "LeptonInjector/math/Vector3D.h"
 
-using namespace earthmodel;
+#include "LeptonInjector/dataclasses/Particle.h"
+
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/geometry/Box.h"
+#include "LeptonInjector/geometry/Sphere.h"
+#include "LeptonInjector/geometry/Cylinder.h"
+
+using namespace LI::geometry;
+using namespace LI::math;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);

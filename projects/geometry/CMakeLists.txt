@@ -53,3 +53,5 @@ install(TARGETS Geometry
   COMPONENT python
   LIBRARY DESTINATION "${CMAKE_SOURCE_DIR}/../../local/lib/python3.8/site-packages/"
   )
+
+package_add_test(UnitTest_Geometry ${CMAKE_SOURCE_DIR}/projects/geometry/private/test/Geometry_TEST.cxx)
