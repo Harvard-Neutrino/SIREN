@@ -43,3 +43,6 @@
 
 # IDE
 .vscode/
+
+# vim swap files
+.swp
