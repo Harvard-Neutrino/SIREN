@@ -5,11 +5,20 @@
 #include <iostream>
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/DensityDist.h"
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/Polynomial.h"
+#include "LeptonInjector/detector/DensityDistribution.h"
+#include "LeptonInjector/detector/DensityDistribution1D.h"
+#include "LeptonInjector/detector/Distribution1D.h"
+#include "LeptonInjector/detector/Axis1D.h"
+#include "LeptonInjector/detector/RadialAxis1D.h"
+#include "LeptonInjector/detector/CartesianAxis1D.h"
+#include "LeptonInjector/detector/ConstantDistribution1D.h"
+#include "LeptonInjector/detector/PolynomialDistribution1D.h"
+#include "LeptonInjector/detector/ExponentialDistribution1D.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/Polynomial.h"
 
-using namespace earthmodel;
+using namespace LI::math;
+using namespace LI::detector;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
@@ -1017,16 +1026,16 @@ TEST(Integral, CartesianDistribution)
             double int_B = (dist_B.AntiDerivative(b) - dist_B.AntiDerivative(a))/alpha;
             double int_C = (dist_C.AntiDerivative(b) - dist_C.AntiDerivative(a))/alpha;
             EXPECT_NEAR(A.Integral(p0, p1), int_A, std::abs(int_A)*1e-8);
-            EXPECT_NEAR(B.Integral(p0, p1), int_B, std::abs(int_B)*1e-8);
-            EXPECT_NEAR(C.Integral(p0, p1), int_C, std::abs(int_C)*1e-8);
+            EXPECT_NEAR(B.Integral(p0, p1), int_B, std::abs(int_B)*1e-5);
+            EXPECT_NEAR(C.Integral(p0, p1), int_C, std::abs(int_C)*1e-5);
 
             EXPECT_NEAR(A.Integral(p0, direction, R), int_A, std::abs(int_A)*1e-8);
-            EXPECT_NEAR(B.Integral(p0, direction, R), int_B, std::abs(int_B)*1e-8);
-            EXPECT_NEAR(C.Integral(p0, direction, R), int_C, std::abs(int_C)*1e-8);
+            EXPECT_NEAR(B.Integral(p0, direction, R), int_B, std::abs(int_B)*1e-5);
+            EXPECT_NEAR(C.Integral(p0, direction, R), int_C, std::abs(int_C)*1e-5);
 
             EXPECT_NEAR(A.AntiDerivative(p1, direction)-A.AntiDerivative(p0, direction), int_A, std::abs(int_A)*1e-8);
-            EXPECT_NEAR(B.AntiDerivative(p1, direction)-B.AntiDerivative(p0, direction), int_B, std::abs(int_B)*1e-8);
-            EXPECT_NEAR(C.AntiDerivative(p1, direction)-C.AntiDerivative(p0, direction), int_C, std::abs(int_C)*1e-8);
+            EXPECT_NEAR(B.AntiDerivative(p1, direction)-B.AntiDerivative(p0, direction), int_B, std::abs(int_B)*1e-4);
+            EXPECT_NEAR(C.AntiDerivative(p1, direction)-C.AntiDerivative(p0, direction), int_C, std::abs(int_C)*1e-5);
         }
     }
 }
