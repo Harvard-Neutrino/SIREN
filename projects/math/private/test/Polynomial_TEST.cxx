@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/Polynomial.h"
+#include "LeptonInjector/math/Polynomial.h"
 
-using namespace earthmodel;
+using namespace LI::math;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
