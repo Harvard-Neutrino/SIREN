@@ -6,17 +6,28 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/Path.h"
-#include "earthmodel-service/Geometry.h"
-#include "earthmodel-service/Vector3D.h"
-#include "earthmodel-service/EarthModel.h"
+#include "LeptonInjector/detector/Path.h"
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/geometry/Sphere.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/DensityDistribution.h"
+#include "LeptonInjector/detector/DensityDistribution1D.h"
+#include "LeptonInjector/detector/Distribution1D.h"
+#include "LeptonInjector/detector/Axis1D.h"
+#include "LeptonInjector/detector/RadialAxis1D.h"
+#include "LeptonInjector/detector/CartesianAxis1D.h"
+#include "LeptonInjector/detector/ConstantDistribution1D.h"
+#include "LeptonInjector/detector/PolynomialDistribution1D.h"
+#include "LeptonInjector/detector/ExponentialDistribution1D.h"
 
-#include "LeptonInjector/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"
 
 #include "FakeMaterialModel.h"
 #include "FakeEarthModel.h"
 
-using namespace earthmodel;
+using namespace LI::detector;
+using namespace LI::geometry;
 
 TEST(DefaultConstructor, NoThrow)
 {
@@ -351,7 +362,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndByColumnDepth) {
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
@@ -461,7 +472,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromStartByColumnDepth) {
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
@@ -572,7 +583,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromEndByColumnDepth) {
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
@@ -682,7 +693,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromStartByColumnDepth) {
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
@@ -795,7 +806,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndToColumnDepth) {
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
@@ -915,7 +926,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromStartToColumnDepth) {
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
@@ -1035,7 +1046,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromEndToColumnDepth) {
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
@@ -1154,7 +1165,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromStartToColumnDepth) {
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
@@ -1232,7 +1243,7 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthInBounds)
         Vector3D inner_p0 = p0 + direction * distance / 4.0;
         Vector3D inner_p1 = p1 - direction * distance / 4.0;
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
@@ -1270,7 +1281,7 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromStartInBounds)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1321,7 +1332,7 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromEndInBounds)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1372,7 +1383,7 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromStartAlongPath)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1423,7 +1434,7 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromEndAlongPath)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1474,7 +1485,7 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromStartInReverse)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1525,7 +1536,7 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromEndInReverse)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1578,7 +1589,7 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartInBounds)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1629,7 +1640,7 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndInBounds)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1680,7 +1691,7 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartAlongPath)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1731,7 +1742,7 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndAlongPath)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1782,7 +1793,7 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartInReverse)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
@@ -1833,7 +1844,7 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndInReverse)
         distance = direction.magnitude();
         direction.normalize();
         Path P(A, inner_p0, inner_p1);
-        DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<RadialAxis1D,ConstantDistribution1D> const *>(sector.density.get());
+        DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
 
