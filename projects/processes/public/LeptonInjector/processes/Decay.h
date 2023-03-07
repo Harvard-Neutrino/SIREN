@@ -5,14 +5,16 @@
 namespace LI {
 namespace processes {
 
-class Decay : public Process{
+class Decay{
   friend cereal::access;
   private:
   public: 
+    Decay();
+    virtual ~Decay() {};
 
 }; // class Decay
 
-} // namespace crosssections
+} // namespace processes
 } // namespace LI
 
 CEREAL_CLASS_VERSION(LI::processes::Decay, 0);
