@@ -45,3 +45,4 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/detector/public/"
     PATTERN "*.tcc"
 )
 
+package_add_test(UnitTest_Axis ${CMAKE_SOURCE_DIR}/projects/detector/private/test/Axis_TEST.cxx)
