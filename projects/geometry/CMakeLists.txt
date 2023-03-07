@@ -55,3 +55,4 @@ install(TARGETS Geometry
   )
 
 package_add_test(UnitTest_Geometry ${CMAKE_SOURCE_DIR}/projects/geometry/private/test/Geometry_TEST.cxx)
+package_add_test(UnitTest_ExtrPoly ${CMAKE_SOURCE_DIR}/projects/geometry/private/test/ExtrPoly_TEST.cxx)

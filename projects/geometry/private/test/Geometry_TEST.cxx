@@ -7,8 +7,6 @@
 
 #include "LeptonInjector/math/Vector3D.h"
 
-#include "LeptonInjector/dataclasses/Particle.h"
-
 #include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/geometry/Box.h"
 #include "LeptonInjector/geometry/Sphere.h"

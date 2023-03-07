@@ -5,9 +5,14 @@
 
 #include <gtest/gtest.h>
 
-#include "earthmodel-service/Geometry.h"
+#include "LeptonInjector/math/Vector3D.h"
 
-using namespace earthmodel;
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/geometry/ExtrPoly.h"
+#include "LeptonInjector/geometry/Box.h"
+
+using namespace LI::geometry;
+using namespace LI::math;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
@@ -191,7 +196,7 @@ TEST(IsInside, ExtrPoly)
 
 
     Vector3D position_geometry(0, 0, 0);
-    
+
     Vector3D Del(0, 0, 0);
     double s = 0;
     double t = 0;
@@ -205,7 +210,7 @@ TEST(IsInside, ExtrPoly)
     int number_particles = 1e1;
     int number_volumina  = 1e1;
 
-    Placement p; 
+    Placement p;
 
     for (int i = 0; i < number_volumina; i++)
     {
@@ -251,7 +256,7 @@ TEST(IsInside, ExtrPoly)
             // NOTE: maybe try to generalize this to arbitrary convex poly
             Del = particle_position - position_geometry;
             s = Del.GetX() / (2 * extr_face);
-            t = (Del.GetY() - 0.5 * Del.GetX()) / (2 * extr_face); 
+            t = (Del.GetY() - 0.5 * Del.GetX()) / (2 * extr_face);
 
             if (0 <= s && s <= 1 &&
                 0 <= t && t <= 1 &&
@@ -260,7 +265,7 @@ TEST(IsInside, ExtrPoly)
             {
                 is_inside++;
                 EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
-            } 
+            }
             else
             {
                 is_outside++;
@@ -280,7 +285,7 @@ TEST(IsInside, ExtrPoly)
     }
     // Check what happens if particles are on the border of the poly
     // NICK: Implement next
-    
+
     // The values are divided by 100 to convert the units...
     // Init functions expects m but here everthing is in cm
     ExtrPoly A(Vector3D(0, 0, 0), poly,zsecs);
@@ -404,7 +409,7 @@ TEST(DistanceTo, Box)
     int number_particles = 1e5;
 
     std::cout.precision(16);
-		
+
 		// Choose extr poly dimensions. Here we make a box
     std::vector<std::vector<double>> poly;
     std::vector<ExtrPoly::ZSection> zsecs;
@@ -415,7 +420,7 @@ TEST(DistanceTo, Box)
     double offset[2] = {0,0};
     zsecs.push_back(ExtrPoly::ZSection(-height/2,offset,1));
     zsecs.push_back(ExtrPoly::ZSection(height/2,offset,1));
-        
+
 		// The values are divided by 100 to convert the units...
 		// Init functions expects m but here everthing is in cm
     ExtrPoly A(Vector3D(0, 0, 0), poly,zsecs);
