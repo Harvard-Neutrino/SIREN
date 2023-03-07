@@ -10,21 +10,42 @@
 
 #include <gtest/gtest.h>
 
-#include "phys-services/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSection.h"
 
-#include "LeptonInjector/Random.h"
-#include "LeptonInjector/Constants.h"
-#include "LeptonInjector/Particle.h"
-#include "LeptonInjector/LeptonInjector.h"
-#include "LeptonInjector/Weighter.h"
+#include "LeptonInjector/utilities/Random.h"
+#include "LeptonInjector/utilities/Constants.h"
+#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/RangedLeptonInjector.h"
+#include "LeptonInjector/injection/Weighter.h"
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/geometry/ExtrPoly.h"
+#include "LeptonInjector/geometry/Sphere.h"
+#include "LeptonInjector/math/EulerQuaternionConversions.h"
+#include "LeptonInjector/geometry/Placement.h"
 
-#include "earthmodel-service/Geometry.h"
-#include "earthmodel-service/EulerQuaternionConversions.h"
-#include "earthmodel-service/Placement.h"
+#include "LeptonInjector/distributions/primary/type/PrimaryInjector.h"
+#include "LeptonInjector/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
+#include "LeptonInjector/distributions/primary/energy/TabulatedFluxDistribution.h"
+#include "LeptonInjector/distributions/primary/direction/FixedDirection.h"
+#include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
+#include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 
-//#define AUSTIN
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/DipoleFromTable.h"
 
-using namespace LeptonInjector;
+#define AUSTIN
+
+using namespace LI::math;
+using namespace LI::geometry;
+using namespace LI::detector;
+using namespace LI::injection;
+using namespace LI::dataclasses;
+using namespace LI::crosssections;
+using namespace LI::utilities;
+using namespace LI::distributions;
+
 bool z_samp = false;
 bool in_invGeV = true;
 bool inelastic = false;
@@ -75,8 +96,8 @@ std::vector<std::array<int, 2>> gen_ZA() {
     };
 }
 
-std::vector<LeptonInjector::Particle::ParticleType> gen_TargetPIDs() {
-    using ParticleType = LeptonInjector::Particle::ParticleType;
+std::vector<Particle::ParticleType> gen_TargetPIDs() {
+    using ParticleType = Particle::ParticleType;
     return std::vector<ParticleType>{
         ParticleType::HNucleus,
             ParticleType::C12Nucleus,
@@ -123,30 +144,30 @@ std::vector<std::string> gen_tot_xs_hc(std::string mHNL) {
     return res;
 }
 
-bool inFiducial(std::array<double,3> & int_vtx, earthmodel::ExtrPoly & fidVol) {
-    earthmodel::Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
-    earthmodel::Vector3D dir(0,0,1);
+bool inFiducial(std::array<double,3> & int_vtx, ExtrPoly & fidVol) {
+    Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
+    Vector3D dir(0,0,1);
     return fidVol.IsInside(pos,dir);
 }
 
-bool inFiducial(std::array<double,3> & int_vtx, earthmodel::Sphere & fidVol) {
-    earthmodel::Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
-    earthmodel::Vector3D dir(0,0,1);
+bool inFiducial(std::array<double,3> & int_vtx, Sphere & fidVol) {
+    Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
+    Vector3D dir(0,0,1);
     return fidVol.IsInside(pos,dir);
 }
 
-double ComputeInteractionLengths(std::shared_ptr<earthmodel::EarthModel const> earth_model, std::shared_ptr<LeptonInjector::CrossSectionCollection const> cross_sections, std::pair<earthmodel::Vector3D, earthmodel::Vector3D> const & bounds, InteractionRecord const & record) {
-    earthmodel::Vector3D interaction_vertex = record.interaction_vertex;
-    earthmodel::Vector3D direction(
+double ComputeInteractionLengths(std::shared_ptr<EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
+    Vector3D interaction_vertex = record.interaction_vertex;
+    Vector3D direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     direction.normalize();
 
-    earthmodel::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), direction);
+    Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), direction);
 	std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
     std::vector<double> total_cross_sections;
-    std::vector<LeptonInjector::Particle::ParticleType> targets;
+    std::vector<Particle::ParticleType> targets;
 	InteractionRecord fake_record = record;
 	for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
@@ -188,7 +209,7 @@ std::vector<double> p_ME_FHC_numu = {4.65e+00, 1.35e+00, 7.24e-02, 3.07e+00, 4.4
 
 TEST(Injector, Generation)
 {
-    using ParticleType = LeptonInjector::Particle::ParticleType;
+    using ParticleType = Particle::ParticleType;
 
 #ifdef AUSTIN
     std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
@@ -208,9 +229,9 @@ TEST(Injector, Generation)
     }
 #endif
 
-    double hnl_mass = 0.3906; // in GeV; The HNL mass we are injecting
+    double hnl_mass = 0.4; // in GeV; The HNL mass we are injecting
     double dipole_coupling = 1.0e-6; // in GeV^-1; the effective dipole coupling strength
-    std::string mHNL = "0.3906";
+    std::string mHNL = "0.4";
 
     // Decay parameters used to set the max range when injecting an HNL
     double HNL_decay_width = std::pow(dipole_coupling,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)
@@ -254,13 +275,13 @@ TEST(Injector, Generation)
     cross_sections.push_back(hc_xs);
 
     // Load the earth model
-    std::shared_ptr<earthmodel::EarthModel> earth_model = std::make_shared<earthmodel::EarthModel>();
+    std::shared_ptr<EarthModel> earth_model = std::make_shared<EarthModel>();
     earth_model->LoadMaterialModel(material_file);
     earth_model->LoadEarthModel(earth_file);
 
     // Setup the primary type and mass
-    //std::shared_ptr<LeptonInjector::PrimaryInjector> primary_injector = std::make_shared<LeptonInjector::PrimaryInjector>(primary_type, hnl_mass);
-    std::shared_ptr<LeptonInjector::PrimaryInjector> primary_injector = std::make_shared<LeptonInjector::PrimaryInjector>(primary_type, 0);
+    //std::shared_ptr<PrimaryInjector> primary_injector = std::make_shared<PrimaryInjector>(primary_type, hnl_mass);
+    std::shared_ptr<PrimaryInjector> primary_injector = std::make_shared<PrimaryInjector>(primary_type, 0);
 
     // Setup power law
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
@@ -268,29 +289,29 @@ TEST(Injector, Generation)
     std::vector<double> moyal_exp_params = p_ME_FHC_numu;
 
     // Setup NUMI flux
-    std::shared_ptr<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution> pdf = std::make_shared<LeptonInjector::ModifiedMoyalPlusExponentialEnergyDistribution>(hnl_mass, 20, moyal_exp_params[0], moyal_exp_params[1], moyal_exp_params[2], moyal_exp_params[3], moyal_exp_params[4]);
+    std::shared_ptr<ModifiedMoyalPlusExponentialEnergyDistribution> pdf = std::make_shared<ModifiedMoyalPlusExponentialEnergyDistribution>(hnl_mass, 20, moyal_exp_params[0], moyal_exp_params[1], moyal_exp_params[2], moyal_exp_params[3], moyal_exp_params[4]);
 
     // Setup tabulated flux
-    std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(flux_file, true);
-    std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf_gen = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(hnl_mass, 10, flux_file);
+    std::shared_ptr<TabulatedFluxDistribution> tab_pdf = std::make_shared<TabulatedFluxDistribution>(flux_file, true);
+    std::shared_ptr<TabulatedFluxDistribution> tab_pdf_gen = std::make_shared<TabulatedFluxDistribution>(hnl_mass, 10, flux_file);
 
     // Change the flux units from cm^-2 to m^-2
-    std::shared_ptr<LeptonInjector::WeightableDistribution> flux_units = std::make_shared<LeptonInjector::NormalizationConstant>(1e4);
+    std::shared_ptr<WeightableDistribution> flux_units = std::make_shared<NormalizationConstant>(1e4);
 
     // Pick energy distribution
     std::shared_ptr<PrimaryEnergyDistribution> edist = tab_pdf_gen;
 
     // Choose injection direction
-    std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<LeptonInjector::FixedDirection>(earthmodel::Vector3D{0.0, 0.0, 1.0});
+    std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<FixedDirection>(Vector3D{0.0, 0.0, 1.0});
 
     // Targets should be stationary
-    std::shared_ptr<LeptonInjector::TargetMomentumDistribution> target_momentum_distribution = std::make_shared<LeptonInjector::TargetAtRest>();
+    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution = std::make_shared<TargetAtRest>();
 
     // Let us inject according to the decay distribution
-    std::shared_ptr<RangeFunction> range_func = std::make_shared<LeptonInjector::DecayRangeFunction>(hnl_mass, HNL_decay_width, n_decay_lengths, max_distance);
+    std::shared_ptr<RangeFunction> range_func = std::make_shared<DecayRangeFunction>(hnl_mass, HNL_decay_width, n_decay_lengths, max_distance);
 
     // Helicity distribution
-    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<LeptonInjector::PrimaryNeutrinoHelicityDistribution>();
+    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
 
     // Put it all together!
     //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
@@ -306,6 +327,7 @@ TEST(Injector, Generation)
 
     LeptonWeighter weighter(std::vector<std::shared_ptr<InjectorBase>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
 
+    std::vector<std::vector<double>> poly;
     // MINERvA Fiducial Volume
     // 88.125 cm apothem
     //poly.push_back({0.0, 1.01758});
@@ -326,15 +348,15 @@ TEST(Injector, Generation)
     double offset[2];
     offset[0] = 0;
     offset[1] = 0;
-    std::vector<earthmodel::ExtrPoly::ZSection> zsecs;
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(1.45,offset,1));
-    zsecs.push_back(earthmodel::ExtrPoly::ZSection(4.0,offset,1));
-    earthmodel::Placement placement(earthmodel::Vector3D(0,0,0), earthmodel::QFromZXZr(0,0,0));
-    earthmodel::ExtrPoly MINERvA_fiducial = earthmodel::ExtrPoly(placement, poly, zsecs);
-    
+    std::vector<ExtrPoly::ZSection> zsecs;
+    zsecs.push_back(ExtrPoly::ZSection(1.45,offset,1));
+    zsecs.push_back(ExtrPoly::ZSection(4.0,offset,1));
+    Placement placement(Vector3D(0,0,0), QFromZXZr(0,0,0));
+    ExtrPoly MINERvA_fiducial = ExtrPoly(placement, poly, zsecs);
+
     // MiniBooNE Fiducial Volume
-    earthmodel::Placement placementMB(earthmodel::Vector3D(0,0,0), earthmodel::QFromZXZr(0,0,0));
-    earthmodel::Sphere MiniBooNE_fiducial = earthmodel::Sphere(placement, 5.0, 0.0);
+    Placement placementMB(Vector3D(0,0,0), QFromZXZr(0,0,0));
+    Sphere MiniBooNE_fiducial = Sphere(placement, 5.0, 0.0);
 
     std::ofstream myFile("injector_test_events.csv");
     // myFile << std::fixed << std::setprecision(6);
@@ -357,11 +379,11 @@ TEST(Injector, Generation)
     myFile << std::endl;
     int i = 0;
     while(*injector) {
-        LeptonInjector::InteractionRecord event = injector->GenerateEvent();
-        LeptonInjector::DecayRecord decay;
-        LeptonInjector::InteractionRecord pair_prod;
+        InteractionRecord event = injector->GenerateEvent();
+        DecayRecord decay;
+        InteractionRecord pair_prod;
         double basic_weight, simplified_weight, interaction_lengths, interaction_prob = 0;
-        if(event.signature.target_type != LeptonInjector::Particle::ParticleType::unknown) {
+        if(event.signature.target_type != Particle::ParticleType::unknown) {
             if(miniboone) injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MiniBooNE_fiducial, 0.1);
             else injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MINERvA_fiducial, 1.0);
             injector->SamplePairProduction(decay, pair_prod);
