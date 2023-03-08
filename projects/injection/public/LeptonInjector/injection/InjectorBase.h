@@ -29,6 +29,8 @@
 
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
 #include "LeptonInjector/dataclasses/DecayRecord.h"
+#include "LeptonInjector/dataclasses/SecondaryProcesses.h"
+#include "LeptonInjector/dataclasses/InteractionTree.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/type/PrimaryInjector.h"
@@ -55,6 +57,7 @@ protected:
     std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector;
     std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections;
     std::shared_ptr<LI::detector::EarthModel> earth_model;
+    std::shared_ptr<LI::dataclasses::SecondaryProcesses> secondary_processes;
     std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions;
     InjectorBase();
 public:
@@ -67,12 +70,18 @@ public:
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::Decay>> decays, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::vector<std::shared_ptr<LI::crosssections::Decay>> decays, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections);
+    void AddSecondaryProcess(LI::dataclasses::Particle::ParticleType primary_type, std::shared_ptr<LI::crosssections::CrossSectionCollection> process);
     virtual LI::dataclasses::InteractionRecord NewRecord() const;
     void SetRandom(std::shared_ptr<LI::utilities::LI_random> random);
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record) const;
+    virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record,
+                                    std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections) const;
     virtual void SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
     virtual void SamplePairProduction(LI::dataclasses::DecayRecord const & decay, LI::dataclasses::InteractionRecord & pairprod) const;
-    LI::dataclasses::InteractionRecord GenerateEvent();
+    void SampleSecondaryProcess(unsigned int idx,
+                                LI::dataclasses::InteractionTree& tree,
+                                std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent);
+    LI::dataclasses::InteractionTree GenerateEvent();
     virtual std::string Name() const;
     virtual double GenerationProbability(LI::dataclasses::InteractionRecord const & record) const;
     virtual std::set<std::vector<std::string>> DensityVariables() const;

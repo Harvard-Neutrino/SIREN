@@ -23,9 +23,8 @@ namespace LI {
 namespace dataclasses {
 
 struct SecondaryProcesses {
-    std::vector<LI::dataclasses::Particle::ParticleType> primary_type;
-    std::vector<std::shared_ptr<crosssections::CrossSection>> cross_section;
-    };
+    std::vector<LI::dataclasses::Particle::ParticleType> primary_types;
+    std::vector<std::shared_ptr<crosssections::CrossSectionCollection>> processes;
 };
 
 } // namespace dataclasses

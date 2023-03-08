@@ -24,6 +24,8 @@
 
 #include "LeptonInjector/utilities/Errors.h"
 
+#include "LeptonInjector/dataclasses/SecondaryProcesses.h"
+
 namespace LI {
 namespace injection {
 
@@ -89,7 +91,7 @@ InjectorBase::InjectorBase(
     random(random),
     primary_injector(primary_injector),
     cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections)),
-    earth_model(earth_model),
+    earth_model(earth_model)
 {}
 
 InjectorBase::InjectorBase(
@@ -102,7 +104,7 @@ InjectorBase::InjectorBase(
     random(random),
     primary_injector(primary_injector),
     cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), decays)),
-    earth_model(earth_model),
+    earth_model(earth_model)
 {}
 
 InjectorBase::InjectorBase(
@@ -116,7 +118,7 @@ InjectorBase::InjectorBase(
     random(random),
     primary_injector(primary_injector),
     cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections, decays)),
-    earth_model(earth_model),
+    earth_model(earth_model)
 {}
 
 InjectorBase::InjectorBase(unsigned int events_to_inject,
@@ -124,6 +126,12 @@ InjectorBase::InjectorBase(unsigned int events_to_inject,
     events_to_inject(events_to_inject),
     cross_sections(cross_sections)
 {}
+
+void InjectorBase::AddSecondaryProcess(LI::dataclasses::Particle::ParticleType primary_type, 
+                                      std::shared_ptr<LI::crosssections::CrossSectionCollection> process) {
+  secondary_processes->primary_types.push_back(primary_type);
+  secondary_processes->processes.push_back(process);
+}
 
 LI::dataclasses::InteractionRecord InjectorBase::NewRecord() const {
     LI::dataclasses::InteractionRecord record;
@@ -136,6 +144,10 @@ void InjectorBase::SetRandom(std::shared_ptr<LI::utilities::LI_random> random) {
 }
 
 void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & record) const {
+  SampleCrossSection(record,cross_sections);
+}
+
+void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections) const {
 
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
@@ -210,7 +222,7 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
           // Add total prob to probs
           probs.push_back(total_prob);
           // Add target and decay pointer to the lists
-          matching_targets.push_back(target);
+          matching_targets.push_back(LI::dataclasses::Particle::ParticleType::Decay);
           matching_decays.push_back(decay);
           matching_signatures.push_back(signature);
         }
@@ -234,7 +246,7 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
     record.target_mass = earth_model->GetTargetMass(record.signature.target_type);
     record.target_momentum = {record.target_mass,0,0,0};
     if(r <= xsec_prob) 
-      matching_cross_sections[proc_index]->SampleFinalState(record, random);
+      matching_cross_sections[index]->SampleFinalState(record, random);
     else 
       matching_decays[index - matching_cross_sections.size()]->SampleFinalState(record, random);
 }
@@ -398,8 +410,38 @@ void InjectorBase::SamplePairProduction(LI::dataclasses::DecayRecord const & dec
     }
 }
 
-LI::dataclasses::InteractionRecord InjectorBase::GenerateEvent() {
+// Recursive function to sample secondary processes
+//
+// Base case happens when the secondary particle ID cannot be found
+// in the provided secondary processes
+// 
+// Recursively fills the provided InteractionTree
+//
+// TODO: keep track of weighting information
+void InjectorBase::SampleSecondaryProcess(unsigned int idx,
+                                          LI::dataclasses::InteractionTree& tree,
+                                          std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent) {
+  LI::dataclasses::Particle::ParticleType const primary = parent->record.signature.secondary_types[idx];
+  std::vector<LI::dataclasses::Particle::ParticleType>::iterator it = std::find(secondary_processes->primary_types.begin(), secondary_processes->primary_types.end(), primary);
+  if(it==secondary_processes->primary_types.end()) return;
+  std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections = secondary_processes->processes[it - secondary_processes->primary_types.begin()];
+  LI::dataclasses::InteractionRecord record;
+  record.signature.primary_type = primary;
+  record.primary_mass = parent->record.secondary_masses[idx];
+  record.primary_momentum = parent->record.secondary_momenta[idx];
+  record.primary_helicity = parent->record.secondary_helicity[idx];
+  SampleCrossSection(record, cross_sections);
+  // Add this record to the Interaction Tree
+  std::shared_ptr<LI::dataclasses::InteractionTreeDatum> new_entry = tree.add_entry(record, parent);
+  // Recursive call to all the new secondaries
+  for(unsigned int new_idx = 0; new_idx < record.signature.secondary_types.size(); ++new_idx) {
+    SampleSecondaryProcess(new_idx, tree, new_entry);
+  }
+}
+
+LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
     LI::dataclasses::InteractionRecord record;
+    // Initial Process
     while(true) {
         try {
             record = this->NewRecord();
@@ -412,8 +454,14 @@ LI::dataclasses::InteractionRecord InjectorBase::GenerateEvent() {
             continue;
         }
     }
+    LI::dataclasses::InteractionTree tree;
+    std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
+    // Secondary Processes
+    for(unsigned int idx = 0; idx < record.signature.secondary_types.size(); ++idx) {
+      SampleSecondaryProcess(idx, tree, parent);
+    }
     injected_events += 1;
-    return record;
+    return tree;
 }
 
 double InjectorBase::GenerationProbability(LI::dataclasses::InteractionRecord const & record) const {

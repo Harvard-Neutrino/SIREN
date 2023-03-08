@@ -3,13 +3,14 @@
 namespace LI {
 namespace dataclasses {
   
-void InteractionTree::add_entry(dataclasses::InteractionRecord& record,
-                                std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL) {
-  std::shared_ptr<dataclasses::InteractionTreeDatum> datum = std::make_shared<dataclasses::InteractionTreeDatum>(record);
+std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(InteractionRecord& record,
+                                                                 std::shared_ptr<InteractionTreeDatum> parent) {
+  std::shared_ptr<InteractionTreeDatum> datum = std::make_shared<InteractionTreeDatum>(record);
   datum->parent = parent;
   if (parent) {
     parent->daughters.push_back(datum);
   }
+  return datum;
 }
 
 } // namespace dataclasses

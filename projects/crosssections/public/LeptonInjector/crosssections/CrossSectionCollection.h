@@ -42,10 +42,10 @@ public:
     CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays);
     CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays);
     bool operator==(CrossSectionCollection const & other) const;
-    std::vector<std::shared_ptr<CrossSection>> const & GetCrossSections() const {return cross_sections;};
-    std::vector<std::shared_ptr<CrossSection>> const & GetDecays() const {return decays;};
-    std::vector<std::shared_ptr<CrossSection>> const & HasCrossSections() const {return cross_sections.size() > 0;};
-    std::vector<std::shared_ptr<CrossSection>> const & HasDecays() const {return decays.size() > 0;};
+    std::vector<std::shared_ptr<CrossSection>> const & GetCrossSections() const {return cross_sections;}
+    std::vector<std::shared_ptr<Decay>> const & GetDecays() const {return decays;}
+    bool const & HasCrossSections() const {return cross_sections.size() > 0;}
+    bool const & HasDecays() const {return decays.size() > 0;}
     std::vector<std::shared_ptr<CrossSection>> const & GetCrossSectionsForTarget(LI::dataclasses::Particle::ParticleType p) const;
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & GetCrossSectionsByTarget() const {
         return cross_sections_by_target;

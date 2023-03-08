@@ -48,11 +48,11 @@ CrossSectionCollection::CrossSectionCollection(LI::dataclasses::Particle::Partic
     InitializeTargetTypes();
 }
 
-CrossSectionCollection::CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<Decays>> decays) : primary_type(primary_type), decays(decays) {
+CrossSectionCollection::CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays) : primary_type(primary_type), decays(decays) {
     InitializeTargetTypes();
 }
 
-CrossSectionCollection::CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decays>> decays) : primary_type(primary_type), cross_sections(cross_sections), decays(decays) {
+CrossSectionCollection::CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays) : primary_type(primary_type), cross_sections(cross_sections), decays(decays) {
     InitializeTargetTypes();
 }
 
