@@ -53,6 +53,7 @@ public:
     std::set<LI::dataclasses::Particle::ParticleType> const & TargetTypes() const {
         return target_types;
     };
+    double TotalDecayWidth() const;
     virtual bool MatchesPrimary(dataclasses::InteractionRecord const & record) const;
 public:
     template<class Archive>
@@ -60,6 +61,7 @@ public:
         if(version == 0) {
             archive(cereal::make_nvp("PrimaryType", primary_type));
             archive(cereal::make_nvp("CrossSections", cross_sections));
+            archive(cereal::make_nvp("Decays", decays));
         } else {
             throw std::runtime_error("CrossSectionCollection only supports version <= 0!");
         }
@@ -70,6 +72,7 @@ public:
         if(version == 0) {
             archive(cereal::make_nvp("PrimaryType", primary_type));
             archive(cereal::make_nvp("CrossSections", cross_sections));
+            archive(cereal::make_nvp("Decays", decays));
         } else {
             throw std::runtime_error("CrossSectionCollection only supports version <= 0!");
         }

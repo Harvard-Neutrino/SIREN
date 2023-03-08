@@ -81,6 +81,11 @@ public:
                                    const math::Vector3D& direction,
                                    double integral,
                                    double max_distance) const = 0;
+    virtual double InverseIntegralWithConst(const math::Vector3D& xi,
+                                            const math::Vector3D& direction,
+                                            double constant,
+                                            double integral,
+                                            double max_distance) const = 0;
     virtual double Evaluate(const math::Vector3D& xi) const = 0;
 
     template<class Archive>

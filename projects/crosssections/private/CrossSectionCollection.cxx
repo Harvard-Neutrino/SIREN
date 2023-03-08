@@ -72,6 +72,15 @@ std::vector<std::shared_ptr<CrossSection>> const & CrossSectionCollection::GetCr
     }
 }
 
+double CrossSectionCollection::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
+  double width = 0;
+  if(!HasDecays()) return width;
+  for(auto dec & : decays) {
+    width += dec->TotalDecayWidth(record);
+  }
+  return width;
+}
+
 bool CrossSectionCollection::MatchesPrimary(dataclasses::InteractionRecord const & record) const {
     return primary_type == record.signature.primary_type;
 }
