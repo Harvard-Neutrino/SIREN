@@ -418,6 +418,7 @@ void InjectorBase::SamplePairProduction(LI::dataclasses::DecayRecord const & dec
 // Recursively fills the provided InteractionTree
 //
 // TODO: keep track of weighting information
+// TODO: make this not a recursive function
 void InjectorBase::SampleSecondaryProcess(unsigned int idx,
                                           LI::dataclasses::InteractionTree& tree,
                                           std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent) {

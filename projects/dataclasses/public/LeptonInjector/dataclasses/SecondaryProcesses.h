@@ -25,6 +25,7 @@ namespace dataclasses {
 struct SecondaryProcesses {
     std::vector<LI::dataclasses::Particle::ParticleType> primary_types;
     std::vector<std::shared_ptr<crosssections::CrossSectionCollection>> processes;
+    std::function<bool(size_t, LI::dataclasses::InteractionTreeDatum) stopping_condition;
 };
 
 } // namespace dataclasses
