@@ -19,8 +19,8 @@ struct InteractionTreeDatum {
 
 struct InteractionTree {
   std::set<std::shared_ptr<dataclasses::InteractionTreeDatum>> tree;
-  void add_entry(dataclasses::InteractionRecord& record,
-                 std::shared_ptr<dataclasses::InteractionTreeDatum> parent);
+  std::shared_ptr<InteractionTreeDatum> add_entry(dataclasses::InteractionRecord& record,
+                 std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL);
 };
 
 } // namespace dataclasses
