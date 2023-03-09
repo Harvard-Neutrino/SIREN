@@ -10,6 +10,7 @@ std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(InteractionReco
   if (parent) {
     parent->daughters.push_back(datum);
   }
+  tree.insert(datum);
   return datum;
 }
 

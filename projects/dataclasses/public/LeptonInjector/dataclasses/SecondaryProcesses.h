@@ -26,7 +26,8 @@ namespace dataclasses {
 struct SecondaryProcesses {
     std::vector<LI::dataclasses::Particle::ParticleType> primary_types;
     std::vector<std::shared_ptr<crosssections::CrossSectionCollection>> processes;
-    std::function<bool(size_t, LI::dataclasses::InteractionTreeDatum)> stopping_condition;
+    // This funciton returns true if the given datum is the last entry to be saved in a tree
+    std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition;
 };
 
 } // namespace dataclasses
