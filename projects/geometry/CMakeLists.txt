@@ -49,10 +49,12 @@ pybind11_add_module(Geometry
 target_link_libraries(Geometry PRIVATE LI_math)
 target_link_libraries(Geometry PUBLIC)
 
-install(TARGETS Geometry
-  COMPONENT python
-  LIBRARY DESTINATION "${CMAKE_SOURCE_DIR}/../../local/lib/python3.8/site-packages/"
-  )
+#install(TARGETS Geometry
+#  COMPONENT python
+#  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+#  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+#  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+#)
 
 package_add_test(UnitTest_Geometry ${CMAKE_SOURCE_DIR}/projects/geometry/private/test/Geometry_TEST.cxx)
 package_add_test(UnitTest_ExtrPoly ${CMAKE_SOURCE_DIR}/projects/geometry/private/test/ExtrPoly_TEST.cxx)
