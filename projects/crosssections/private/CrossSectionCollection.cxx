@@ -75,7 +75,7 @@ std::vector<std::shared_ptr<CrossSection>> const & CrossSectionCollection::GetCr
 double CrossSectionCollection::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
   double width = 0;
   if(!HasDecays()) return width;
-  for(auto dec & : decays) {
+  for(auto dec : decays) {
     width += dec->TotalDecayWidth(record);
   }
   return width;
