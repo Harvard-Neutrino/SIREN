@@ -110,6 +110,35 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
         }
 
     };
+    
+    double InverseIntegral(const math::Vector3D& xi,
+                           const math::Vector3D& direction,
+                           double constant,
+                           double integral,
+                           double max_distance) const override {
+        double a = axis.GetX(xi);
+        double b = axis.GetX(xi + direction*max_distance);
+        double dxdt = axis.GetdX(xi, direction);
+
+        double dist_integral = integral * dxdt;
+
+        double Ia = dist.AntiDerivative(a);
+        std::function<double(double)> F = [&](double x)->double {
+            return (dist.AntiDerivative(x) - Ia) + constant*x - dist_integral;
+        };
+
+        std::function<double(double)> dF = [&](double x)->double {
+            return dist.Evaluate(x) + constant;
+        };
+
+        try {
+            double b_res = LI::math::NewtonRaphson(F, dF, a, b, (a+b)/2.0);
+            return (b_res - a)/dxdt;
+        } catch(LI::math::MathException& e) {
+            return -1;
+        }
+
+    };
 
     double Evaluate(const math::Vector3D& xi) const override {
         return dist.Evaluate(axis.GetX(xi));
