@@ -741,7 +741,10 @@ TEST(Quaternion, AllEulerConversions)
         unsigned int axis_indexes[3] = {GetEulerAxisI(order), GetEulerAxisJ(order), GetEulerAxisH(order)};
 
         if(GetEulerFrame(order) == EulerFrame::Rotating) {
-            std::reverse(axis_indexes, axis_indexes + 3);
+            unsigned int temp[3] = {axis_indexes[2], axis_indexes[1], axis_indexes[0]};
+            axis_indexes[0] = temp[0];
+            axis_indexes[1] = temp[1];
+            axis_indexes[2] = temp[2];
         }
 
         for(unsigned int j=0; j<n_rand; ++j) {
