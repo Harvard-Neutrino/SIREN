@@ -97,6 +97,7 @@ double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::
     std::vector<LI::dataclasses::Particle::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
+    double total_decay_width = cross_sections->TotalDecayWidth(record);
     LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
@@ -115,7 +116,7 @@ double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections);
+    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_width);
     double interaction_probability;
     if(total_interaction_depth < 1e-6) {
         interaction_probability = total_interaction_depth;
@@ -149,6 +150,7 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::math::Vecto
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
+    double total_decay_width = cross_sections->TotalDecayWidth(record);
     LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
@@ -167,9 +169,9 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::math::Vecto
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections);
-    double traversed_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections);
-    double interaction_density = earth_model->GetInteractionDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections);
+    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_width);
+    double traversed_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_width);
+    double interaction_density = earth_model->GetInteractionDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_width);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {
@@ -200,6 +202,7 @@ double LeptonWeighter::NormalizedPositionProbability(std::pair<LI::math::Vector3
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
+    double total_decay_width = cross_sections->TotalDecayWidth(record);
     LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
@@ -218,9 +221,9 @@ double LeptonWeighter::NormalizedPositionProbability(std::pair<LI::math::Vector3
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections);
-    double traversed_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections);
-    double interaction_density = earth_model->GetInteractionDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections);
+    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_width);
+    double traversed_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_width);
+    double interaction_density = earth_model->GetInteractionDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_width);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {

@@ -36,6 +36,21 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> e
     // double selected_prob = 0.0;
     double selected_final_state = 0.0;
     LI::dataclasses::InteractionRecord fake_record = record;
+    // first let's check decays
+    // TODO: check decay width units
+    std::vector<std::shared_ptr<LI::crosssections::Decay>> decays = cross_sections->GetDecays();
+    for(auto const & decay : decays) {
+      std::vector<LI::dataclasses::InteractionSignature> signatures = decay->GetPossibleSignaturesFromParent(record.signature.primary_type);
+      for(auto const & signature : signatures) {
+        fake_record.signature = signature;
+        double decay_prob = decay->TotalDecayWidth(fake_record);
+        total_prob += decay_prob;
+        if(signature == record.signature) {
+            selected_final_state += decay_prob * decay->FinalStateProbability(record);
+        }
+      }
+    }
+    // next let's check cross sections
     for(auto const target : available_targets) {
         if(possible_targets.find(target) != possible_targets.end()) {
             // Get target density

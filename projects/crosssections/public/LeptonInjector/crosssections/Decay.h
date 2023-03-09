@@ -21,6 +21,7 @@ class Decay{
     virtual double TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const = 0;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const = 0;
     virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const = 0;
+    virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
 
 }; // class Decay
 
