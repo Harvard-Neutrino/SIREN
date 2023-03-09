@@ -107,17 +107,29 @@ public:
     }
 };
 
-template<typename T>
-T LinearInterpolate(T const & x0, T const & x1, T const & y0, T const & y1, T const & x) {
-    T delta_x = x1 - x0;
-    T delta_y = y1 - y0;
-    return (x - x0) * delta_y / delta_x;
+class LinearInterpolator {
+    virtual T operator(T const & x0, T const & x1, T const & y0, T const & y1, T const & x) const {
+        T delta_x = x1 - x0;
+        T delta_y = y1 - y0;
+        return (x - x0) * delta_y / delta_x;
+    }
+};
+
+class DropLinearInterpolator : public LinearInterpolator {
+    virtual T operator(T const & x0, T const & x1, T const & y0, T const & y1, T const & x) const override {
+        if(y0 == 0 or y1 == 0)
+            return 0;
+        T delta_x = x1 - x0;
+        T delta_y = y1 - y0;
+        return (x - x0) * delta_y / delta_x;
+    }
 };
 
 template<typename T>
 std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> DetermineInterpolationSpace(
         std::vector<T> const & x,
-        std::vector<T> const & y) {
+        std::vector<T> const & y,
+        std::shared_ptr<LinearInterpolator> interp) {
     std::vector<T> symlog_x(x.size());
     std::vector<T> symlog_y(y.size());
     T min_x = 1;
@@ -151,19 +163,19 @@ std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> Determi
     T tot_11 = 0;
 
     for(size_t i=1; i<x.size()-1; ++i) {
-        T y_i_estimate = LinearInterpolate(x[i-1], x[i+1], y[i-1], y[i+1], x[i]);
+        T y_i_estimate = interp->operator()(x[i-1], x[i+1], y[i-1], y[i+1], x[i]);
         T delta = y_i_estimate - y[i];
         tot_00 += delta * delta;
 
-        y_i_estimate = LinearInterpolate(x[i-1], x[i+1], symlog_y[i-1], symlog_y[i+1], x[i]);
+        y_i_estimate = interp->operator()(x[i-1], x[i+1], symlog_y[i-1], symlog_y[i+1], x[i]);
         T delta = symlog_t_y.Inverse(y_i_estimate) - y[i];
         tot_01 += delta * delta;
 
-        T y_i_estimate = LinearInterpolate(symlog_x[i-1], symlog_x[i+1], y[i-1], y[i+1], symlog_x[i]);
+        T y_i_estimate = interp->operator()(symlog_x[i-1], symlog_x[i+1], y[i-1], y[i+1], symlog_x[i]);
         T delta = y_i_estimate - y[i];
         tot_10 += delta * delta;
 
-        y_i_estimate = LinearInterpolate(symlog_x[i-1], symlog_x[i+1], symlog_y[i-1], symlog_y[i+1], symlog_x[i]);
+        y_i_estimate = interp->operator()(symlog_x[i-1], symlog_x[i+1], symlog_y[i-1], symlog_y[i+1], symlog_x[i]);
         T delta = symlog_t_y.Inverse(y_i_estimate) - y[i];
         tot_11 += delta * delta;
     }
