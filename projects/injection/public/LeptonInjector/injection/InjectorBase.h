@@ -78,9 +78,8 @@ public:
                                     std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections) const;
     virtual void SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
     virtual void SamplePairProduction(LI::dataclasses::DecayRecord const & decay, LI::dataclasses::InteractionRecord & pairprod) const;
-    void SampleSecondaryProcess(unsigned int idx,
-                                LI::dataclasses::InteractionTree& tree,
-                                std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent);
+    LI::dataclasses::InteractionRecord SampleSecondaryProcess(unsigned int idx,
+                                                              std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent);
     LI::dataclasses::InteractionTree GenerateEvent();
     virtual std::string Name() const;
     virtual double GenerationProbability(LI::dataclasses::InteractionRecord const & record) const;

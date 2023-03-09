@@ -410,7 +410,7 @@ void InjectorBase::SamplePairProduction(LI::dataclasses::DecayRecord const & dec
     }
 }
 
-// Recursive function to sample secondary processes
+// Function to sample secondary processes
 //
 // Base case happens when the secondary particle ID cannot be found
 // in the provided secondary processes
@@ -418,13 +418,14 @@ void InjectorBase::SamplePairProduction(LI::dataclasses::DecayRecord const & dec
 // Recursively fills the provided InteractionTree
 //
 // TODO: keep track of weighting information
-// TODO: make this not a recursive function
-void InjectorBase::SampleSecondaryProcess(unsigned int idx,
-                                          LI::dataclasses::InteractionTree& tree,
-                                          std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent) {
+LI::dataclasses::InteractionRecord InjectorBase::SampleSecondaryProcess(unsigned int idx,
+                                                                        std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent) {
+  
   LI::dataclasses::Particle::ParticleType const primary = parent->record.signature.secondary_types[idx];
   std::vector<LI::dataclasses::Particle::ParticleType>::iterator it = std::find(secondary_processes->primary_types.begin(), secondary_processes->primary_types.end(), primary);
-  if(it==secondary_processes->primary_types.end()) return;
+  if(it==secondary_processes->primary_types.end()) {
+    throw(LI::utilities::SecondaryProcessFailure("No process defined for this particle type!"));
+  }
   std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections = secondary_processes->processes[it - secondary_processes->primary_types.begin()];
   LI::dataclasses::InteractionRecord record;
   record.signature.primary_type = primary;
@@ -432,12 +433,7 @@ void InjectorBase::SampleSecondaryProcess(unsigned int idx,
   record.primary_momentum = parent->record.secondary_momenta[idx];
   record.primary_helicity = parent->record.secondary_helicity[idx];
   SampleCrossSection(record, cross_sections);
-  // Add this record to the Interaction Tree
-  std::shared_ptr<LI::dataclasses::InteractionTreeDatum> new_entry = tree.add_entry(record, parent);
-  // Recursive call to all the new secondaries
-  for(unsigned int new_idx = 0; new_idx < record.signature.secondary_types.size(); ++new_idx) {
-    SampleSecondaryProcess(new_idx, tree, new_entry);
-  }
+  return record;
 }
 
 LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
@@ -458,8 +454,25 @@ LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
     LI::dataclasses::InteractionTree tree;
     std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
     // Secondary Processes
-    for(unsigned int idx = 0; idx < record.signature.secondary_types.size(); ++idx) {
-      SampleSecondaryProcess(idx, tree, parent);
+    std::vector<std::shared_ptr<LI::dataclasses::InteractionTreeDatum>> current_parents;
+    std::vector<std::shared_ptr<LI::dataclasses::InteractionTreeDatum>> new_parents;
+    current_parents.push_back(parent);
+    while(current_parents.size() > 0) {
+      for(unsigned int ip = 0; ip < current_parents.size(); ++ip) {
+        for(unsigned int idx = 0; idx < current_parents[ip]->record.signature.secondary_types.size(); ++idx) {
+          try {
+            LI::dataclasses::InteractionRecord record = SampleSecondaryProcess(idx,current_parents[ip]);
+          }
+          catch(LI::utilities::SecondaryProcessFailure const & e) {
+            continue;
+          }
+          std::shared_ptr<LI::dataclasses::InteractionTreeDatum> new_parent = tree.add_entry(record,current_parents[ip]);
+          if(secondary_processes->stopping_condition(new_parent)) continue;
+          new_parents.push_back(new_parent);
+        }
+      }
+      current_parents = new_parents;
+      new_parents.clear();
     }
     injected_events += 1;
     return tree;

@@ -11,7 +11,7 @@ namespace LI {
 namespace dataclasses {
 
 struct InteractionTreeDatum {
-  InteractionTreeDatum(dataclasses::InteractionRecord record) : record(record) {}
+  InteractionTreeDatum(dataclasses::InteractionRecord& record) : record(record) {}
   dataclasses::InteractionRecord record;
   std::shared_ptr<dataclasses::InteractionTreeDatum> parent;
   std::vector<std::shared_ptr<dataclasses::InteractionTreeDatum>> daughters;
@@ -20,7 +20,7 @@ struct InteractionTreeDatum {
 struct InteractionTree {
   std::set<std::shared_ptr<dataclasses::InteractionTreeDatum>> tree;
   std::shared_ptr<InteractionTreeDatum> add_entry(dataclasses::InteractionRecord& record,
-                 std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL);
+                                                  std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL);
 };
 
 } // namespace dataclasses
