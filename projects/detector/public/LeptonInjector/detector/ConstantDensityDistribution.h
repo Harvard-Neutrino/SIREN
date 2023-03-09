@@ -91,11 +91,11 @@ class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_
         return distance;
     };
     
-    double InverseIntegralWithConst(const math::Vector3D& xi,
-                                    const math::Vector3D& direction,
-                                    double constant
-                                    double integral,
-                                    double max_distance) const override {
+    double InverseIntegral(const math::Vector3D& xi,
+                           const math::Vector3D& direction,
+                           double constant,
+                           double integral,
+                           double max_distance) const override {
         (void)direction;
         double distance = integral / (dist.Evaluate(0) + constant);
         if(distance > max_distance) {

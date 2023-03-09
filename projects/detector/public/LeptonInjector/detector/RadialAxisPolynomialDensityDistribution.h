@@ -113,6 +113,33 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
         }
         return res;
     };
+    
+    double InverseIntegral(const math::Vector3D& xi,
+                           const math::Vector3D& direction,
+                           double constant,
+                           double integral,
+                           double max_distance) const override {
+        // TODO check this function if this class ever gets uncommented
+        std::function<double(double)> F = [&](double x)->double {
+            return Integral(xi, direction, x) + constant*x - integral;
+        };
+
+        std::function<double(double)> dF = [&](double x)->double {
+            return Evaluate(xi+direction*x) + constant;
+        };
+
+        double res;
+        try {
+            double init = max_distance / 2.0;
+            if(std::isinf(init)) {
+                init = dF(0.0);
+            }
+            res = LI::math::NewtonRaphson(F, dF, 0, max_distance, init);
+        } catch(LI::math::MathException& e) {
+            res = -1;
+        }
+        return res;
+    };
 
     double Evaluate(const math::Vector3D& xi) const override {
         return dist.Evaluate(axis.GetX(xi));
