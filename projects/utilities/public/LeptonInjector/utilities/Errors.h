@@ -11,6 +11,13 @@ public:
     InjectionFailure(const char * s) : std::runtime_error(s) {};
 };
 
+class AddProcessFailure : public std::runtime_error {
+public:
+    AddProcessFailure() : std::runtime_error("") {};
+    AddProcessFailure(const std::string& s) : std::runtime_error(s) {};
+    AddProcessFailure(const char * s) : std::runtime_error(s) {};
+};
+
 class SecondaryProcessFailure : public std::runtime_error {
 public:
     SecondaryProcessFailure() : std::runtime_error("") {};

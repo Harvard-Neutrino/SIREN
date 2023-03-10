@@ -29,7 +29,7 @@
 
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
 #include "LeptonInjector/dataclasses/DecayRecord.h"
-#include "LeptonInjector/dataclasses/SecondaryProcesses.h"
+#include "LeptonInjector/dataclasses/Processes.h"
 #include "LeptonInjector/dataclasses/InteractionTree.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
@@ -54,24 +54,24 @@ protected:
     unsigned int events_to_inject = 0;
     unsigned int injected_events = 0;
     std::shared_ptr<LI::utilities::LI_random> random;
-    std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector;
-    std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections;
+    //std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector;
     std::shared_ptr<LI::detector::EarthModel> earth_model;
-    std::shared_ptr<LI::dataclasses::SecondaryProcesses> secondary_processes;
-    std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions;
+private:
+    std::shared_ptr<dataclasses::InjectionProcess> primary_process;
+    std::shared_ptr<distributions::VertexPositionDistribution> primary_position_distribution;
+    std::vector<std::shared_ptr<dataclasses::InjectionProcess>> secondary_processes;
+    std::vector<std::shared_ptr<distributions::VertexPositionDistribution>> secondary_position_distributions;
     InjectorBase();
 public:
-    // Constructors with distributions
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions, std::shared_ptr<LI::utilities::LI_random> random);
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::Decay>> decays, std::shared_ptr<LI::detector::EarthModel> earth_model, std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions, std::shared_ptr<LI::utilities::LI_random> random);
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::vector<std::shared_ptr<LI::crosssections::Decay>> decays, std::shared_ptr<LI::detector::EarthModel> earth_model, std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions, std::shared_ptr<LI::utilities::LI_random> random);
-    // Constructors without distributions
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::Decay>> decays, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::vector<std::shared_ptr<LI::crosssections::Decay>> decays, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections);
-    void AddSecondaryProcess(LI::dataclasses::Particle::ParticleType primary_type, std::shared_ptr<LI::crosssections::CrossSectionCollection> process);
-    virtual LI::dataclasses::InteractionRecord NewRecord() const;
+    // Constructors 
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<dataclasses::InjectionProcess> primary_process, std::shared_ptr<LI::utilities::LI_random> random);
+    InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<dataclasses::InjectionProcess> primary_process, std::vector<std::shared_ptr<dataclasses::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random);
+    
+    std::shared_ptr<distributions::VertexPositionDistribution> FindPositionDistribution(std::shared_ptr<LI::dataclasses::InjectionProcess> process);
+    void SetPrimaryProcess(std::shared_ptr<LI::dataclasses::InjectionProcess> primary);
+    void AddSecondaryProcess(std::shared_ptr<LI::dataclasses::Particle::InjectionProcess> secondary);
+    virtual LI::dataclasses::InteractionRecord NewRecord() const // set primary type from primary process;
     void SetRandom(std::shared_ptr<LI::utilities::LI_random> random);
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record) const;
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record,

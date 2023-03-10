@@ -24,7 +24,7 @@
 
 #include "LeptonInjector/utilities/Errors.h"
 
-#include "LeptonInjector/dataclasses/SecondaryProcesses.h"
+#include "LeptonInjector/dataclasses/Processes.h"
 
 namespace LI {
 namespace injection {
@@ -36,106 +36,72 @@ namespace injection {
 InjectorBase::InjectorBase() {}
 
 InjectorBase::InjectorBase(
-        unsigned int events_to_inject,
-        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
-        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections,
-        std::shared_ptr<LI::detector::EarthModel> earth_model,
-        std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions,
+        unsigned int events_to_inject, 
+        std::shared_ptr<LI::detector::EarthModel> earth_model, 
         std::shared_ptr<LI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
-    primary_injector(primary_injector),
-    cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections)),
-    earth_model(earth_model),
-    distributions(distributions)
-{}
-
-InjectorBase::InjectorBase(
-        unsigned int events_to_inject,
-        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
-        std::vector<std::shared_ptr<LI::crosssections::Decay>> decays,
-        std::shared_ptr<LI::detector::EarthModel> earth_model,
-        std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions,
-        std::shared_ptr<LI::utilities::LI_random> random) :
-    events_to_inject(events_to_inject),
-    random(random),
-    primary_injector(primary_injector),
-    cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), decays)),
-    earth_model(earth_model),
-    distributions(distributions)
-{}
-
-InjectorBase::InjectorBase(
-        unsigned int events_to_inject,
-        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
-        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections,
-        std::vector<std::shared_ptr<LI::crosssections::Decay>> decays,
-        std::shared_ptr<LI::detector::EarthModel> earth_model,
-        std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> distributions,
-        std::shared_ptr<LI::utilities::LI_random> random) :
-    events_to_inject(events_to_inject),
-    random(random),
-    primary_injector(primary_injector),
-    cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections, decays)),
-    earth_model(earth_model),
-    distributions(distributions)
-{}
-
-InjectorBase::InjectorBase(
-        unsigned int events_to_inject,
-        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
-        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections,
-        std::shared_ptr<LI::detector::EarthModel> earth_model,
-        std::shared_ptr<LI::utilities::LI_random> random) :
-    events_to_inject(events_to_inject),
-    random(random),
-    primary_injector(primary_injector),
-    cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections)),
     earth_model(earth_model)
 {}
 
 InjectorBase::InjectorBase(
-        unsigned int events_to_inject,
-        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
-        std::vector<std::shared_ptr<LI::crosssections::Decay>> decays,
-        std::shared_ptr<LI::detector::EarthModel> earth_model,
+        unsigned int events_to_inject, 
+        std::shared_ptr<LI::detector::EarthModel> earth_model, 
+        std::shared_ptr<dataclasses::InjectionProcess> primary_process,
         std::shared_ptr<LI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
-    primary_injector(primary_injector),
-    cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), decays)),
     earth_model(earth_model)
-{}
+{
+  SetPrimaryProcess(primary_process);
+}
 
 InjectorBase::InjectorBase(
-        unsigned int events_to_inject,
-        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
-        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections,
-        std::vector<std::shared_ptr<LI::crosssections::Decay>> decays,
-        std::shared_ptr<LI::detector::EarthModel> earth_model,
+        unsigned int events_to_inject, 
+        std::shared_ptr<LI::detector::EarthModel> earth_model, 
+        std::shared_ptr<dataclasses::InjectionProcess> primary_process,
+        std::vector<std::shared_ptr<dataclasses::InjectionProcess>> secondary_processes,
         std::shared_ptr<LI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
-    primary_injector(primary_injector),
-    cross_sections(std::make_shared<LI::crosssections::CrossSectionCollection>(primary_injector->PrimaryType(), cross_sections, decays)),
     earth_model(earth_model)
-{}
+{
+  SetPrimaryProcess(primary_process);
+  for(auto secondary_process : secondary_processes) {
+    AddSecondaryProcess(secondary_process);
+  }
+}
+    
+std::shared_ptr<distributions::VertexPositionDistribution> InjectorBase::FindPositionDistribution(std::shared_ptr<LI::dataclasses::InjectionProcess> process) {
+  for(auto distribution : process->injection_distributions) {
+    if(distribution->IsPositionDistribution()) return distribution;
+  }
+	throw(LI::utilities::AddProcessFailure("No vertex distribution specified!"));
+}
 
-InjectorBase::InjectorBase(unsigned int events_to_inject,
-        std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections) :
-    events_to_inject(events_to_inject),
-    cross_sections(cross_sections)
-{}
+void InjectorBase::SetPrimaryProcess(std::shared_ptr<LI::dataclasses::InjectionProcess> primary) {
+  try {
+    std::shared_ptr<distributions::VertexPositionDistribution> vtx_dist = FindPositionDistribution(primary);
+  } catch(LI::utilities::AddProcessFailure const & e) {
+    return;
+  }
+  primary_process = primary;
+  primary_position_distribution = vtx_dist;
+}
 
-void InjectorBase::AddSecondaryProcess(LI::dataclasses::Particle::ParticleType primary_type, 
-                                      std::shared_ptr<LI::crosssections::CrossSectionCollection> process) {
-  secondary_processes->primary_types.push_back(primary_type);
-  secondary_processes->processes.push_back(process);
+void InjectorBase::AddSecondaryProcess(std::shared_ptr<LI::dataclasses::InjectionProcess> secondary) {
+  try {
+    std::shared_ptr<distributions::VertexPositionDistribution> vtx_dist = FindPositionDistribution(secondary);
+  } catch(LI::utilities::AddProcessFailure const & e) {
+    return;
+  }
+  secondary_processes.push_back(secondary);
+  secondary_position_distributions.push_back(vtx_dist);
 }
 
 LI::dataclasses::InteractionRecord InjectorBase::NewRecord() const {
     LI::dataclasses::InteractionRecord record;
-    primary_injector->Sample(random, earth_model, cross_sections, record);
+    primary_process->primary_injector->Sample(random, earth_model, cross_sections, record);
     return record;
 }
 
@@ -144,7 +110,7 @@ void InjectorBase::SetRandom(std::shared_ptr<LI::utilities::LI_random> random) {
 }
 
 void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & record) const {
-  SampleCrossSection(record,cross_sections);
+  SampleCrossSection(record, primary_process->cross_sections);
 }
 
 void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections) const {
@@ -352,8 +318,8 @@ void InjectorBase::SamplePairProduction(LI::dataclasses::DecayRecord const & dec
     LI::math::Vector3D decay_vtx(decay.decay_vertex);
     unsigned int gamma_index = 0;
     LI::math::Vector3D decay_dir(decay.secondary_momenta[gamma_index][1],
-                                   decay.secondary_momenta[gamma_index][2],
-                                   decay.secondary_momenta[gamma_index][3]);
+                                 decay.secondary_momenta[gamma_index][2],
+                                 decay.secondary_momenta[gamma_index][3]);
 
     interaction.signature.primary_type = decay.signature.secondary_types[gamma_index];
     interaction.primary_mass = decay.secondary_masses[gamma_index];
@@ -426,13 +392,24 @@ LI::dataclasses::InteractionRecord InjectorBase::SampleSecondaryProcess(unsigned
   if(it==secondary_processes->primary_types.end()) {
     throw(LI::utilities::SecondaryProcessFailure("No process defined for this particle type!"));
   }
-  std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections = secondary_processes->processes[it - secondary_processes->primary_types.begin()];
+  std::shared_ptr<LI::crosssections::CrossSectionCollection> sec_cross_sections = secondary_processes->processes[it - secondary_processes->primary_types.begin()];
+  std::vector<std::shared_ptr<LI::distributions::InjectionDistribution> sec_distributions = secondary_processes->distribution_lists[it - secondary_processes->primary_types.begin()];
   LI::dataclasses::InteractionRecord record;
   record.signature.primary_type = primary;
   record.primary_mass = parent->record.secondary_masses[idx];
   record.primary_momentum = parent->record.secondary_momenta[idx];
   record.primary_helicity = parent->record.secondary_helicity[idx];
-  SampleCrossSection(record, cross_sections);
+  while(true) {
+      try {
+          for(auto & distribution : sec_distributions) {
+              distribution->Sample(random, earth_model, sec_cross_sections, record);
+          }
+          SampleCrossSection(record,sec_cross_sections);
+          break;
+      } catch(LI::utilities::InjectionFailure const & e) {
+          continue;
+      }
+  }
   return record;
 }
 

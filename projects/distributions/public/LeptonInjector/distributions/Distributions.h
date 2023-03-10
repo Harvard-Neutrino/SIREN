@@ -131,6 +131,7 @@ private:
 public:
     virtual ~InjectionDistribution() {};
     virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const;
+    virtual bool IsPositionDistribution() const {return false;}
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {

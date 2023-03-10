@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_SecondaryProcesses_H
-#define LI_SecondaryProcesses_H
+#ifndef LI_Processes_H
+#define LI_Processes_H
 
 #include <array>
 #include <vector>
@@ -18,21 +18,30 @@
 
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/dataclasses/InteractionTree.h"
+#include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/crosssections/CrossSection.h"
 
 namespace LI {
 namespace dataclasses {
 
-struct SecondaryProcesses {
-    std::vector<LI::dataclasses::Particle::ParticleType> primary_types;
-    std::vector<std::shared_ptr<crosssections::CrossSectionCollection>> processes;
+struct InjectionProcess
+    LI::dataclasses::Particle::ParticleType primary_types;
+    std::shared_ptr<crosssections::CrossSectionCollection> cross_sections;
+    std::shared_ptr<distributions::PrimaryInjector> primary_injector;
+    std::vector<std::shared_ptr<distributions::InjectionDistribution>> injeciton_distributions;
     // This funciton returns true if the given datum is the last entry to be saved in a tree
     std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition;
+};
+
+struct PhysicalProcess
+    LI::dataclasses::Particle::ParticleType primary_types;
+    std::shared_ptr<crosssections::CrossSectionCollection> cross_sections;
+    std::vector<std::shared_ptr<distributions::InjectionDistribution>> physical_distributions;
 };
 
 } // namespace dataclasses
 } // namespace LI
 
-CEREAL_CLASS_VERSION(LI::dataclasses::SecondaryProcesses, 0);
+CEREAL_CLASS_VERSION(LI::dataclasses::Processes, 0);
 
-#endif // LI_SecondaryProcesses_H
+#endif // LI_Processes_H
