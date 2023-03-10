@@ -1,6 +1,13 @@
 #ifndef LI_Interpolation_H
 #define LI_Interpolation_H
 
+#include <cmath>
+#include <memory>
+#include <vector>
+#include <iterator>
+#include <algorithm>
+#include <functional>
+
 namespace LI {
 namespace math {
 
@@ -12,7 +19,7 @@ public:
 };
 
 template<typename T>
-class IdentityTransform : public Transform {
+class IdentityTransform : public Transform<T> {
 public:
     IdentityTransform() {}
     virtual T Function(T x) const override {
@@ -24,7 +31,7 @@ public:
 };
 
 template<typename T>
-class GenericTransform : public Transform {
+class GenericTransform : public Transform<T> {
     std::function<T(T)> function;
     std::function<T(T)> inverse;
 public:
@@ -39,7 +46,7 @@ public:
 };
 
 template<typename T>
-class LogTransform : public Transform {
+class LogTransform : public Transform<T> {
 public:
     LogTransform() {}
     virtual T Function(T x) const override {
@@ -51,7 +58,7 @@ public:
 };
 
 template<typename T>
-class SymLogTransform : public Transform {
+class SymLogTransform : public Transform<T> {
     T min_x;
     T log_min_x;
 public:
@@ -75,7 +82,7 @@ public:
 };
 
 template<typename T>
-class RangeTransform : public Transform {
+class RangeTransform : public Transform<T> {
     T min_x;
     T range;
 public:
@@ -89,11 +96,11 @@ public:
 };
 
 template<typename T>
-class FunctionalRangeTransform : public Transform {
+class FunctionalRangeTransform : public Transform<T> {
     std::function<T(T)> min_function;
     std::function<T(T)> max_function;
 public:
-    RangeTransform(std::function<T(T)> min_function, std::function<T(T)> max_function)
+    FunctionalRangeTransform(std::function<T(T)> min_function, std::function<T(T)> max_function)
         : min_function(min_function), max_function(max_function) {}
     virtual T Function(T x) const override {
         T min_x = min_function(x);
@@ -107,16 +114,22 @@ public:
     }
 };
 
+template<typename T>
 class LinearInterpolator {
-    virtual T operator(T const & x0, T const & x1, T const & y0, T const & y1, T const & x) const {
+public:
+    LinearInterpolator() {}
+    virtual T operator()(T const & x0, T const & x1, T const & y0, T const & y1, T const & x) const {
         T delta_x = x1 - x0;
         T delta_y = y1 - y0;
         return (x - x0) * delta_y / delta_x;
     }
 };
 
-class DropLinearInterpolator : public LinearInterpolator {
-    virtual T operator(T const & x0, T const & x1, T const & y0, T const & y1, T const & x) const override {
+template<typename T>
+class DropLinearInterpolator : public LinearInterpolator<T> {
+public:
+    DropLinearInterpolator() {}
+    virtual T operator()(T const & x0, T const & x1, T const & y0, T const & y1, T const & x) const override {
         if(y0 == 0 or y1 == 0)
             return 0;
         T delta_x = x1 - x0;
@@ -126,10 +139,10 @@ class DropLinearInterpolator : public LinearInterpolator {
 };
 
 template<typename T>
-std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> DetermineInterpolationSpace(
+std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> DetermineInterpolationSpace1D(
         std::vector<T> const & x,
         std::vector<T> const & y,
-        std::shared_ptr<LinearInterpolator> interp) {
+        std::shared_ptr<LinearInterpolator<T>> interp) {
     std::vector<T> symlog_x(x.size());
     std::vector<T> symlog_y(y.size());
     T min_x = 1;
@@ -137,18 +150,22 @@ std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> Determi
     bool have_x = false;
     bool have_y = false;
     for(size_t i=0; i<x.size(); ++i) {
-        if(x[i] != 0)
+        if(x[i] != 0) {
             if(have_x) {
                 min_x = std::min(min_x, std::abs(x[i]));
                 have_x = true;
-            } else
+            } else {
                 min_x = std::abs(x[i]);
-        if(y[i] != 0)
+            }
+        }
+        if(y[i] != 0) {
             if(have_y) {
                 min_y = std::min(min_y, std::abs(y[i]));
                 have_y = true;
-            } else
+            } else {
                 min_y = std::abs(y[i]);
+            }
+        }
     }
     SymLogTransform<T> symlog_t_x(min_x);
     SymLogTransform<T> symlog_t_y(min_y);
@@ -168,15 +185,15 @@ std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> Determi
         tot_00 += delta * delta;
 
         y_i_estimate = interp->operator()(x[i-1], x[i+1], symlog_y[i-1], symlog_y[i+1], x[i]);
-        T delta = symlog_t_y.Inverse(y_i_estimate) - y[i];
+        delta = symlog_t_y.Inverse(y_i_estimate) - y[i];
         tot_01 += delta * delta;
 
-        T y_i_estimate = interp->operator()(symlog_x[i-1], symlog_x[i+1], y[i-1], y[i+1], symlog_x[i]);
-        T delta = y_i_estimate - y[i];
+        y_i_estimate = interp->operator()(symlog_x[i-1], symlog_x[i+1], y[i-1], y[i+1], symlog_x[i]);
+        delta = y_i_estimate - y[i];
         tot_10 += delta * delta;
 
         y_i_estimate = interp->operator()(symlog_x[i-1], symlog_x[i+1], symlog_y[i-1], symlog_y[i+1], symlog_x[i]);
-        T delta = symlog_t_y.Inverse(y_i_estimate) - y[i];
+        delta = symlog_t_y.Inverse(y_i_estimate) - y[i];
         tot_11 += delta * delta;
     }
 

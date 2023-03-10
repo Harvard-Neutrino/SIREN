@@ -6,6 +6,7 @@ LIST (APPEND math_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/math/private/Polynomial.cxx
     ${CMAKE_SOURCE_DIR}/projects/math/private/Quaternion.cxx
     ${CMAKE_SOURCE_DIR}/projects/math/private/EulerAngles.cxx
+    ${CMAKE_SOURCE_DIR}/projects/math/private/Interpolation.cxx
 )
 add_library(LI_math OBJECT ${math_SOURCES})
 set_property(TARGET LI_math PROPERTY POSITION_INDEPENDENT_CODE ON)
