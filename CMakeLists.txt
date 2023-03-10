@@ -118,6 +118,8 @@ include(testing)
 # add the pybind11 headers
 add_subdirectory(vendor/pybind11)
 
+add_subdirectory(vendor/delabella)
+
 add_subdirectory(projects/utilities)
 add_subdirectory(projects/serialization)
 add_subdirectory(projects/math)

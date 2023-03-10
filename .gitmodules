@@ -8,3 +8,6 @@
 	path = vendor/pybind11
 	url = ../../pybind/pybind11
 	branch = stable
+[submodule "vendor/delabella"]
+	path = vendor/delabella
+	url = https://github.com/austinschneider/delabella.git
