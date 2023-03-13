@@ -24,6 +24,7 @@ struct InteractionTreeDatum {
   dataclasses::InteractionRecord record;
   std::shared_ptr<dataclasses::InteractionTreeDatum> parent;
   std::vector<std::shared_ptr<dataclasses::InteractionTreeDatum>> daughters;
+  int depth() const;
   template<class Archive>
   void serialize(Archive & archive, std::uint32_t const version) {
       if(version == 0) {

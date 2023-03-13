@@ -100,6 +100,7 @@ void InjectorBase::AddSecondaryProcess(std::shared_ptr<LI::dataclasses::Injectio
   }
   secondary_processes.push_back(secondary);
   secondary_position_distributions.push_back(vtx_dist);
+  secondary_process_map.insert({secondary->primary_type,secondary});
 }
 
 LI::dataclasses::InteractionRecord InjectorBase::NewRecord() const {
@@ -381,12 +382,12 @@ void InjectorBase::SamplePairProduction(LI::dataclasses::DecayRecord const & dec
 
 // Function to sample secondary processes
 //
-// Base case happens when the secondary particle ID cannot be found
-// in the provided secondary processes
+// Throws exception if no secondary process exists for the given particle
 // 
-// Recursively fills the provided InteractionTree
+// Returns an InteractionRecord with the new event
 //
 // TODO: keep track of weighting information
+// TODO: convert to using an std::map of secondary processes
 LI::dataclasses::InteractionRecord InjectorBase::SampleSecondaryProcess(unsigned int idx,
                                                                         std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent) {
   
@@ -461,15 +462,34 @@ LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
     return tree;
 }
 
-double InjectorBase::GenerationProbability(LI::dataclasses::InteractionRecord const & record) const {
+double InjectorBase::SecondaryGenerationProbability(LI::dataclasses::InteractionRecord const & record) const {
+  return GenerationProbability(record, secondary_process_map.at(record.signature.primary_type));
+}
+
+double InjectorBase::GenerationProbability(LI::dataclasses::InteractionTree const & tree) const { 
+  double probability = 1.0;
+  std::set<std::shared_ptr<LI::dataclasses::InteractionTreeDatum>>::const_iterator it = tree.tree.cbegin();
+  while(it != tree.tree.cend()) {
+    if((*it)->depth()==0) probability *= GenerationProbability((*it)->record);
+    else probability *= SecondaryGenerationProbability((*it)->record);
+    ++it;
+  }
+  return probability;
+}
+
+double InjectorBase::GenerationProbability(LI::dataclasses::InteractionRecord const & record,
+                                           std::shared_ptr<LI::dataclasses::InjectionProcess> process) const {
     double probability = 1.0;
-    for(auto const & dist : primary_process->injection_distributions) {
-        double prob = dist->GenerationProbability(earth_model, primary_process->cross_sections, record);
+    if(!process) { // assume we are dealing with the primary process
+      process = primary_process;
+      probability *= events_to_inject; // only do this for the primary process
+    }
+    for(auto const & dist : process->injection_distributions) {
+        double prob = dist->GenerationProbability(earth_model, process->cross_sections, record);
         probability *= prob;
     }
-    double prob = LI::injection::CrossSectionProbability(earth_model, primary_process->cross_sections, record);
+    double prob = LI::injection::CrossSectionProbability(earth_model, process->cross_sections, record);
     probability *= prob;
-    probability *= events_to_inject;
     return probability;
 }
 

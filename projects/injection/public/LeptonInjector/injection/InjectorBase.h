@@ -64,6 +64,7 @@ private:
     std::shared_ptr<dataclasses::InjectionProcess> primary_process;
     std::shared_ptr<distributions::VertexPositionDistribution> primary_position_distribution;
     std::vector<std::shared_ptr<dataclasses::InjectionProcess>> secondary_processes;
+    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::dataclasses::InjectionProcess>> secondary_process_map;
     std::vector<std::shared_ptr<distributions::VertexPositionDistribution>> secondary_position_distributions;
 public:
     // Constructors 
@@ -87,7 +88,9 @@ public:
                                                               std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent);
     LI::dataclasses::InteractionTree GenerateEvent();
     virtual std::string Name() const;
-    virtual double GenerationProbability(LI::dataclasses::InteractionRecord const & record) const;
+    virtual double SecondaryGenerationProbability(LI::dataclasses::InteractionRecord const & record) const;
+    virtual double GenerationProbability(LI::dataclasses::InteractionTree const & tree) const;
+    virtual double GenerationProbability(LI::dataclasses::InteractionRecord const & record, std::shared_ptr<LI::dataclasses::InjectionProcess> process = NULL) const;
     virtual std::set<std::vector<std::string>> DensityVariables() const;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const;
     virtual std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> GetInjectionDistributions() const;
