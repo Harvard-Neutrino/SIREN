@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Processes_H
-#define LI_Processes_H
+#ifndef LI_Process_H
+#define LI_Process_H
 
 #include <array>
 #include <vector>
@@ -24,24 +24,49 @@
 namespace LI {
 namespace dataclasses {
 
-struct InjectionProcess
-    LI::dataclasses::Particle::ParticleType primary_types;
+struct Process {
+    LI::dataclasses::Particle::ParticleType primary_type;
     std::shared_ptr<crosssections::CrossSectionCollection> cross_sections;
-    std::shared_ptr<distributions::PrimaryInjector> primary_injector;
-    std::vector<std::shared_ptr<distributions::InjectionDistribution>> injeciton_distributions;
-    // This funciton returns true if the given datum is the last entry to be saved in a tree
-    std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition;
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("PrimaryType", primary_type));
+            archive(::cereal::make_nvp("CrossSections", cross_sections));
+        } else {
+            throw std::runtime_error("Process only supports version <= 0!");
+        }
+    };
 };
 
-struct PhysicalProcess
-    LI::dataclasses::Particle::ParticleType primary_types;
-    std::shared_ptr<crosssections::CrossSectionCollection> cross_sections;
-    std::vector<std::shared_ptr<distributions::InjectionDistribution>> physical_distributions;
+struct InjectionProcess : Process {
+    std::vector<std::shared_ptr<distributions::InjectionDistribution>> injection_distributions;
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("InjectionDistributions", injection_distributions));
+            archive(cereal::virtual_base_class<Process>(this));
+        } else {
+            throw std::runtime_error("InjectionProcess only supports version <= 0!");
+        }
+    };
+};
+
+struct PhysicalProcess : Process{
+    std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("PhysicalDistributions", physical_distributions));
+            archive(cereal::virtual_base_class<Process>(this));
+        } else {
+            throw std::runtime_error("PhysicalProcess only supports version <= 0!");
+        }
+    };
 };
 
 } // namespace dataclasses
 } // namespace LI
 
-CEREAL_CLASS_VERSION(LI::dataclasses::Processes, 0);
+CEREAL_CLASS_VERSION(LI::dataclasses::Process, 0);
 
-#endif // LI_Processes_H
+#endif // LI_Process_H

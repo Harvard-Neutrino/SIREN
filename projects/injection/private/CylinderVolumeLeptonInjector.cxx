@@ -19,22 +19,24 @@ CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector() {}
 
 CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::distributions::PrimaryInjector> primary_injector,
-        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections,
         std::shared_ptr<LI::detector::EarthModel> earth_model,
+        std::shared_ptr<dataclasses::InjectionProcess> primary_process,
+        std::vector<std::shared_ptr<dataclasses::InjectionProcess>> secondary_processes,
         std::shared_ptr<LI::utilities::LI_random> random,
-        std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> edist,
-        std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> ddist,
-        std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution,
-        LI::geometry::Cylinder cylinder,
-        std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution) :
-    InjectorBase(events_to_inject, primary_injector, cross_sections, earth_model, random),
-    energy_distribution(edist),
-    direction_distribution(ddist),
-    target_momentum_distribution(target_momentum_distribution),
-    position_distribution(std::make_shared<LI::distributions::CylinderVolumePositionDistribution>(cylinder)),
-    helicity_distribution(helicity_distribution) {
-    distributions = {target_momentum_distribution, energy_distribution, helicity_distribution, direction_distribution, position_distribution};
+        LI::geometry::Cylinder cylinder) :
+    InjectorBase(events_to_inject, earth_model, random),
+    position_distribution(std::make_shared<LI::distributions::CylinderVolumePositionDistribution>(cylinder)) {
+    cross_sections = primary_process->cross_sections;
+    primary_process->injection_distributions.push_back(position_distribution);
+    SetPrimaryProcess(primary_process);
+    for(auto & sec_process : secondary_processes) {
+      AddSecondaryProcess(sec_process);
+      // Assume each secondary process already has a position distribution
+      // Otherwise uncomment below
+      /*
+      sec_process->injection_distributions.push_back(position_distribution);
+      */
+    }
 }
 
 std::string CylinderVolumeLeptonInjector::Name() const {

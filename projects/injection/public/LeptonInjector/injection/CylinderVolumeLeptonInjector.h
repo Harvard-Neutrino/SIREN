@@ -49,23 +49,16 @@ namespace injection {
 class CylinderVolumeLeptonInjector : public InjectorBase {
 friend cereal::access;
 protected:
-    std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> energy_distribution;
-    std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> direction_distribution;
-    std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution;
     std::shared_ptr<LI::distributions::CylinderVolumePositionDistribution> position_distribution;
-    std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution;
+    std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections;
     CylinderVolumeLeptonInjector();
 public:
-    CylinderVolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<distributions::PrimaryInjector> primary_injector, std::vector<std::shared_ptr<LI::crosssections::CrossSection>> cross_sections, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::PrimaryEnergyDistribution> edist, std::shared_ptr<LI::distributions::PrimaryDirectionDistribution> ddist, std::shared_ptr<LI::distributions::TargetMomentumDistribution> target_momentum_distribution, LI::geometry::Cylinder cylinder, std::shared_ptr<LI::distributions::PrimaryNeutrinoHelicityDistribution> helicity_distribution);
+    CylinderVolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<dataclasses::InjectionProcess> primary_process, std::vector<std::shared_ptr<dataclasses::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, LI::geometry::Cylinder cylinder);
     std::string Name() const override;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
-            archive(::cereal::make_nvp("TargetMomentumDistribution", target_momentum_distribution));
-            archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
-            archive(::cereal::make_nvp("HelicityDistribution", helicity_distribution));
-            archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));
             archive(::cereal::make_nvp("PositionDistribution", position_distribution));
             archive(cereal::virtual_base_class<InjectorBase>(this));
         } else {
@@ -76,10 +69,6 @@ public:
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
-            archive(::cereal::make_nvp("TargetMomentumDistribution", target_momentum_distribution));
-            archive(::cereal::make_nvp("EnergyDistribution", energy_distribution));
-            archive(::cereal::make_nvp("HelicityDistribution", helicity_distribution));
-            archive(::cereal::make_nvp("DirectionDistribution", direction_distribution));
             archive(::cereal::make_nvp("PositionDistribution", position_distribution));
             archive(cereal::virtual_base_class<InjectorBase>(this));
         } else {

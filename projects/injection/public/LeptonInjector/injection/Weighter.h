@@ -28,8 +28,18 @@
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"
 
+#include "LeptonInjector/dataclasses/Process.h"
+
 namespace LI {
 namespace injection {
+
+class LeptonWeighterParent {
+private:
+    std::vector<std::shared_ptr<InjectorBase>> injectors;
+    std::shared_ptr<LI::detector::EarthModel> earth_model;
+    std::vector<std::shared_ptr<LI::dataclasses::PhysicalProcess>> physical_processes;
+}; // LeptonWeighterParent
+
 
 class LeptonWeighter {
 private:
