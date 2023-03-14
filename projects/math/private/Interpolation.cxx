@@ -18,14 +18,30 @@ template<> class RangeTransform<double>;
 
 template<> class FunctionalRangeTransform<double>;
 
-template<> class LinearInterpolator<double>;
+template<> struct LinearInterpolationOperator<double>;
 
-template<> class DropLinearInterpolator<double>;
+template<> struct DropLinearInterpolationOperator<double>;
 
 template<> std::tuple<std::shared_ptr<Transform<double>>, std::shared_ptr<Transform<double>>> DetermineInterpolationSpace1D(
         std::vector<double> const & x,
         std::vector<double> const & y,
-        std::shared_ptr<LinearInterpolator<double>> interp);
+        std::shared_ptr<LinearInterpolationOperator<double>> interp);
+
+template<> class RegularIndexer1D<double>;
+
+template<> class IrregularIndexer1D<double>;
+
+template<> class LinearInterpolator1D<double>;
+
+template<> struct BiLinearInterpolationOperator<double>;
+
+template<> struct DropBiLinearInterpolationOperator<double>;
+
+using RegularGridIndexer2DDouble = RegularGridIndexer2D<double>;
+
+using IrregularGridIndexer2DDouble = IrregularGridIndexer2D<double>;
+
+template<> class GridLinearInterpolator2D<double>;
 
 } // namespace math
 } // namespace LI
