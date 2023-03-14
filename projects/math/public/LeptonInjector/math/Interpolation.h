@@ -535,7 +535,8 @@ class DelaunayIndexer2D {
     }
 
 public:
-    DelaunayIndexer2D(std::vector<T> x, std::vector<T> y)
+    DelaunayIndexer2D() {}
+    DelaunayIndexer2D(std::vector<T> const & x, std::vector<T> const & y)
     : idb(IDelaBella2<T>::Create()) {
         Point * cloud = new Point[x.size()];
         for(size_t i=0; i<x.size(); ++i) {
@@ -668,6 +669,51 @@ public:
         T t_res = interp->operator()(t_x0, t_y0, t_x1, t_y1, t_z00, t_z01, t_z10, t_z11, t_x, t_y);
         T res = z_transform->Inverse(t_res);
         return res;
+    }
+};
+
+template<typename T>
+class LinearDelaunayInterpolator2D : public Interpolator2D<T> {
+    using Simplex = typename IDelaBella2<T>::Simplex;
+    using Vertex = typename IDelaBella2<T>::Vertex;
+    // Data
+    std::vector<T> t_x;
+    std::vector<T> t_y;
+    std::vector<T> t_z;
+
+    // Indexer
+    DelaunayIndexer2D<T> indexer;
+
+    // Interpolation info
+    SimplexLinearInterpolationOperator<T> interp;
+    std::shared_ptr<Transform<T>> x_transform;
+    std::shared_ptr<Transform<T>> y_transform;
+    std::shared_ptr<Transform<T>> z_transform;
+public:
+    LinearDelaunayInterpolator2D(std::vector<T> const & x, std::vector<T> const & y, std::vector<T> const & z, std::shared_ptr<Transform<T>> x_transform, std::shared_ptr<Transform<T>> y_transform, std::shared_ptr<Transform<T>> z_transform)
+        : t_x(), t_y(), t_z(), indexer(x, y), interp(interp), x_transform(x_transform), y_transform(y_transform), z_transform(z_transform) {
+        t_x.reserve(x.size());
+        t_y.reserve(y.size());
+        t_z.reserve(y.size());
+        for(size_t i=0; i<x.size(); ++i) {
+            t_x.push_back(x_transform->operator()(x[i]));
+            t_y.push_back(y_transform->operator()(y[i]));
+            t_z.push_back(z_transform->operator()(z[i]));
+        }
+        indexer = DelaunayIndexer2D<T>(t_x, t_y);
+    }
+
+    virtual T operator()(T x, T y) const override {
+        Simplex const * simplex = interp(x, y);
+        Vertex const & v0 = simplex->v[0];
+        Vertex const & v1 = simplex->v[1];
+        Vertex const & v2 = simplex->v[2];
+        T t_z0 = t_z[v0.index];
+        T t_z1 = t_z[v1.index];
+        T t_z2 = t_z[v2.index];
+
+        T t_res = interp(x, y, simplex, t_z0, t_z1, t_z2);
+        return t_res.Inverse();
     }
 };
 

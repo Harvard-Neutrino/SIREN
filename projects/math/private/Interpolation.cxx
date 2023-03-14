@@ -45,5 +45,7 @@ template<> class GridLinearInterpolator2D<double>;
 
 template<> class DelaunayIndexer2D<double>;
 
+template<> class LinearDelaunayInterpolator2D<double>;
+
 } // namespace math
 } // namespace LI
