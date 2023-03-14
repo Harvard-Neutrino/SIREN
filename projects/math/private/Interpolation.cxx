@@ -43,5 +43,7 @@ using IrregularGridIndexer2DDouble = IrregularGridIndexer2D<double>;
 
 template<> class GridLinearInterpolator2D<double>;
 
+template<> class DelaunayIndexer2D<double>;
+
 } // namespace math
 } // namespace LI

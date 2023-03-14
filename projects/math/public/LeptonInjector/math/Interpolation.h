@@ -12,6 +12,8 @@
 
 #include <cereal/cereal.hpp>
 
+#include "delabella.h"
+
 namespace LI {
 namespace math {
 
@@ -133,12 +135,10 @@ template<typename T>
 struct DropLinearInterpolationOperator : public LinearInterpolationOperator<T> {
 public:
     DropLinearInterpolationOperator() {}
-    virtual T operator()(T const & x0, T const & x1, T const & y0, T const & y1, T const & x) const override {
+    virtual T operator()(T const & x0, T const & y0, T const & x1, T const & y1, T const & x) const override {
         if(y0 == 0 or y1 == 0)
             return 0;
-        T delta_x = x1 - x0;
-        T delta_y = y1 - y0;
-        return (x - x0) * delta_y / delta_x;
+        return LinearInterpolationOperator<T>::operator()(x0, y0, x1, y1, x);
     }
 };
 
@@ -184,19 +184,19 @@ std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> Determi
     T tot_11 = 0;
 
     for(size_t i=1; i<x.size()-1; ++i) {
-        T y_i_estimate = interp->operator()(x[i-1], x[i+1], y[i-1], y[i+1], x[i]);
+        T y_i_estimate = interp->operator()(x[i-1], y[i-1], x[i+1], y[i+1], x[i]);
         T delta = y_i_estimate - y[i];
         tot_00 += delta * delta;
 
-        y_i_estimate = interp->operator()(x[i-1], x[i+1], symlog_y[i-1], symlog_y[i+1], x[i]);
+        y_i_estimate = interp->operator()(x[i-1], symlog_y[i-1], x[i+1], symlog_y[i+1], x[i]);
         delta = symlog_t_y.Inverse(y_i_estimate) - y[i];
         tot_01 += delta * delta;
 
-        y_i_estimate = interp->operator()(symlog_x[i-1], symlog_x[i+1], y[i-1], y[i+1], symlog_x[i]);
+        y_i_estimate = interp->operator()(symlog_x[i-1], y[i-1], symlog_x[i+1], y[i+1], symlog_x[i]);
         delta = y_i_estimate - y[i];
         tot_10 += delta * delta;
 
-        y_i_estimate = interp->operator()(symlog_x[i-1], symlog_x[i+1], symlog_y[i-1], symlog_y[i+1], symlog_x[i]);
+        y_i_estimate = interp->operator()(symlog_x[i-1], symlog_y[i-1], symlog_x[i+1], symlog_y[i+1], symlog_x[i]);
         delta = symlog_t_y.Inverse(y_i_estimate) - y[i];
         tot_11 += delta * delta;
     }
@@ -355,7 +355,7 @@ template<typename T>
 struct BiLinearInterpolationOperator {
 public:
     BiLinearInterpolationOperator() {}
-    virtual T operator()(T const & x0, T const & x1, T const & y0, T const & y1, T const & z00, T const & z01, T const & z10, T const & z11, T const & x, T const & y) const {
+    virtual T operator()(T const & x0, T const & y0, T const & x1, T const & y1, T const & z00, T const & z01, T const & z10, T const & z11, T const & x, T const & y) const {
 
         T delta_x = x1 - x0;
         T delta_y = y1 - y0;
@@ -381,21 +381,38 @@ struct DropBiLinearInterpolationOperator : public BiLinearInterpolationOperator<
         if((z00 == 0 and (z01 == 0 or z10 == 0)) or (z11 == 0 and (z01 == 0 or z10 == 0))) {
             return 0.0;
         }
+        return BiLinearInterpolationOperator<T>::operator()(x0, x1, y0, y1, z00, z01, z10, z11, x, y);
+    }
+};
 
-        T delta_x = x1 - x0;
-        T delta_y = y1 - y0;
-        T dx0 = x - x0;
-        T dx1 = x1 - x;
-        T dy0 = y - y0;
-        T dy1 = y1 - y;
+template<typename T>
+struct SimplexLinearInterpolationOperator {
+    static inline T sq(T const & x) {
+        return x*x;
+    }
+    using Simplex = typename IDelaBella2<T>::Simplex;
+    using Vertex = typename IDelaBella2<T>::Vertex;
+public:
+    virtual T operator()(T const & x, T const & y, Simplex const * simplex, T z1, T z2, T z3) const {
+        Vertex const & v1 = simplex->v[0];
+        Vertex const & v2 = simplex->v[1];
+        Vertex const & v3 = simplex->v[2];
+        T denominator = (v2.y - v3.y) * (v1.x - v3.x) + (v3.x - v2.x) * (v1.y - v3.y);
+        T w1 = ((v2.y - v3.y) * (x - v3.x) + (v3.x - v2.x) * (y - v3.y)) / denominator;
+        T w2 = ((v3.y - v1.y) * (x - v3.x) + (v1.x - v3.x) * (y - v3.y)) / denominator;
+        T w3 = 1.0 - w1 - w2;
+        return w1 * z1 + w2 * z2 + w3 * z3;
+    }
+};
 
-        T res =
-            dx1 * dy1 * z00 +
-            dx1 * dy0 * z01 +
-            dx0 * dy1 * z10 +
-            dx0 * dy0 * z11;
-
-        return res / (delta_x * delta_y);
+template<typename T>
+struct DropSimplexLinearInterpolationOperator : public SimplexLinearInterpolationOperator<T> {
+    using Simplex = typename IDelaBella2<T>::Simplex;
+public:
+    virtual T operator()(T const & x, T const & y, Simplex const * simplex, T z1, T z2, T z3) const override {
+        if(z1 == 0 or z2 == 0 or z3 == 0)
+            return 0.0;
+        return SimplexLinearInterpolationOperator<T>::operator()(x, y, simplex, z1, z1, z3);
     }
 };
 
@@ -416,6 +433,7 @@ template<typename T>
 class Indexer2D {
 public:
     virtual Index2D operator()(T const & x, T const & y) const = 0;
+    virtual ~Index2D() = default;
 };
 
 template<typename T, typename IndexerT>
@@ -468,6 +486,134 @@ using RegularGridIndexer2D = GridIndexer2D<T, RegularIndexer1D<T>>;
 
 template<typename T>
 using IrregularGridIndexer2D = GridIndexer2D<T, IrregularIndexer1D<T>>;
+
+template<typename T>
+class DelaunayIndexer2D {
+    using Simplex = typename IDelaBella2<T>::Simplex;
+    using Vertex = typename IDelaBella2<T>::Vertex;
+    std::shared_ptr<IDelaBella2<T>> idb;
+    IrregularIndexer1D<T> x_indexer;
+    IrregularIndexer1D<T> y_indexer;
+    std::map<std::pair<int, int>, std::vector<Simplex const *>> simplex_map;
+
+    struct Point {
+        T x;
+        T y;
+    };
+
+    static inline T sign (Point const & p1, Vertex const & p2, Vertex const & p3) {
+        return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+    }
+
+    static inline bool PointInTriangle (Point const & pt, Simplex const * simplex) {
+        T d1, d2, d3;
+        bool has_neg, has_pos;
+
+        Vertex const & v1 = simplex->v[0];
+        Vertex const & v2 = simplex->v[1];
+        Vertex const & v3 = simplex->v[2];
+
+        d1 = sign(pt, v1, v2);
+        d2 = sign(pt, v2, v3);
+        d3 = sign(pt, v3, v1);
+
+        has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+        has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+        return !(has_neg && has_pos);
+    }
+    static inline T TriArea2D(Simplex const * tri) {
+        if(tri == nullptr)
+            return 0.0;
+        T const & x1 = tri->v[0].x;
+        T const & x2 = tri->v[1].x;
+        T const & x3 = tri->v[2].x;
+        T const & y1 = tri->v[0].y;
+        T const & y2 = tri->v[1].y;
+        T const & y3 = tri->v[2].y;
+        return (x1 - x2) * (y2 - y3) - (x2 - x3) * (y1 - y2);
+    }
+
+public:
+    DelaunayIndexer2D(std::vector<T> x, std::vector<T> y)
+    : idb(IDelaBella2<T>::Create()) {
+        Point * cloud = new Point[x.size()];
+        for(size_t i=0; i<x.size(); ++i) {
+            cloud[i].x = x[i];
+            cloud[i].y = y[i];
+        }
+        int verts = idb->Triangulate(x.size(), &(cloud->x), &(cloud->y), sizeof(Point));
+        if(verts <= 0) {
+            throw std::runtime_error("Could not triangulate input grid");
+        }
+        std::set<T> unique_x(x.begin(), x.end());
+        std::set<T> unique_y(y.begin(), y.end());
+        std::vector<T> sorted_x(unique_x.begin(), unique_x.end());
+        std::vector<T> sorted_y(unique_y.begin(), unique_y.end());
+        std::sort(sorted_x.begin(), sorted_x.end());
+        std::sort(sorted_y.begin(), sorted_y.end());
+        x_indexer = IrregularIndexer1D<T>(sorted_x);
+        y_indexer = IrregularIndexer1D<T>(sorted_y);
+        size_t npoly = idb->GetNumPolygons();
+        Simplex const * dela = idb->GetFirstDelaunaySimplex();
+        for(size_t i=0; i<npoly; ++i) {
+            int min_x, max_x, min_y, max_y;
+            for(size_t j=0; j<3; ++j) {
+                Vertex const & vert = dela->v[j];
+                std::tuple<int, int> x_indices = x_indexer(vert.x);
+                std::tuple<int, int> y_indices = y_indexer(vert.y);
+                if(i == 0) {
+                    min_x = std::get<0>(x_indices);
+                    max_x = std::get<1>(x_indices);
+                    min_y = std::get<0>(y_indices);
+                    max_y = std::get<1>(y_indices);
+                } else {
+                    min_x = std::min(std::get<0>(x_indices), min_x);
+                    max_x = std::max(std::get<1>(x_indices), max_x);
+                    min_y = std::min(std::get<0>(y_indices), min_y);
+                    max_y = std::max(std::get<1>(y_indices), max_y);
+                }
+            }
+            for(size_t x_i=min_x; x_i<max_x; ++x_i) {
+                for(size_t y_i=min_y; y_i<max_y; ++y_i) {
+                    if(simplex_map.count({x_i, y_i}) == 0) {
+                        simplex_map[{x_i, y_i}] = {dela};
+                    } else {
+                        simplex_map[{x_i, y_i}].push_back(dela);
+                    }
+                }
+            }
+            dela = dela->next;
+        }
+        for(auto const & key : simplex_map.keys()) {
+            auto & vec = simplex_map[key];
+            std::sort(vec.begin(), vec.end(),
+                    [](Simplex const * a, Simplex const * b)->bool{
+                        T area_a = TriArea2D(a);
+                        T area_b = TriArea2D(b);
+                        return area_a > area_b;
+                    }
+            );
+        }
+    }
+
+    virtual Simplex const * operator()(T const & x, T const & y) const {
+        Point p; p.x = x; p.y = y;
+        int x_i = std::get<0>(x_indexer(x));
+        int y_i = std::get<0>(y_indexer(y));
+        std::vector<Simplex const *> const & simplices = simplex_map.at({x_i, y_i});
+        for(size_t i=0; i<simplices.size(); ++i) {
+            if(PointInTriangle(p, simplices[i])) {
+                return simplices[i];
+            }
+        }
+        return nullptr;
+    }
+
+    virtual ~DelaunayIndexer2D() {
+        idb->Destroy();
+    }
+};
 
 template<typename T>
 class Interpolator2D {
