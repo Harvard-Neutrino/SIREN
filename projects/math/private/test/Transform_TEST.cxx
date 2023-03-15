@@ -352,7 +352,7 @@ TEST(SymLogTransform, RoundTrip) {
     for(size_t i=0; i<M; ++i) {
         double min_x = RandomDouble() * 4 - 2;
         if(min_x == 0)
-            min_x += int(2.0 * RandomDouble() - 1) * 1e-8;
+            min_x += (RandomDouble() - 0.5) * 2e-8;
         SymLogTransform<double> transform(min_x);
         for(size_t j=0; j<N; ++j) {
             double x = (RandomDouble() * 4 - 2) * std::abs(min_x);
