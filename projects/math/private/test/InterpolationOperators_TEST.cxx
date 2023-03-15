@@ -334,6 +334,48 @@ TEST(DropBiLinearInterpolationOperator, Operator) {
     }
 }
 
+TEST(SimplexLinearInterpolationOperator, Constructor) {
+    ASSERT_NO_THROW(SimplexLinearInterpolationOperator<double>());
+}
+
+TEST(SimplexLinearInterpolationOperator, Operator) {
+    using Simplex = typename IDelaBella2<double>::Simplex;
+    using Vertex = typename IDelaBella2<double>::Vertex;
+    SimplexLinearInterpolationOperator<double> op;
+    std::shared_ptr<Simplex> simplex(new Simplex());
+    std::shared_ptr<Vertex> v0(new Vertex());
+    std::shared_ptr<Vertex> v1(new Vertex());
+    std::shared_ptr<Vertex> v2(new Vertex());
+    simplex->v[0] = v0.get();
+    simplex->v[1] = v1.get();
+    simplex->v[2] = v2.get();
+    size_t M = 100;
+    size_t N = 1000;
+    for(size_t i = 0; i<M; ++i) {
+        double x0 = (RandomDouble() - 0.5) * 2; v0->x = x0;
+        double x1 = (RandomDouble() - 0.5) * 2; v1->x = x1;
+        double x2 = (RandomDouble() - 0.5) * 2; v2->x = x2;
+        double y0 = (RandomDouble() - 0.5) * 2; v0->y = y0;
+        double y1 = (RandomDouble() - 0.5) * 2; v1->y = y1;
+        double y2 = (RandomDouble() - 0.5) * 2; v2->y = y2;
+        double z0 = (RandomDouble() - 0.5) * 2;
+        double z1 = (RandomDouble() - 0.5) * 2;
+        double z2 = (RandomDouble() - 0.5) * 2;
+        EXPECT_NEAR(op(x0, y0, simplex.get(), z0, z1, z2), z0, std::abs(z0) * 1e-8);
+        EXPECT_NEAR(op(x1, y1, simplex.get(), z0, z1, z2), z1, std::abs(z1) * 1e-8);
+        EXPECT_NEAR(op(x2, y2, simplex.get(), z0, z1, z2), z2, std::abs(z2) * 1e-8);
+        double mid_x0 = (x1 + x2) / 2.0;
+        double mid_x1 = (x0 + x2) / 2.0;
+        double mid_x2 = (x0 + x1) / 2.0;
+        double mid_y0 = (y1 + y2) / 2.0;
+        double mid_y1 = (y0 + y2) / 2.0;
+        double mid_y2 = (y0 + y1) / 2.0;
+        EXPECT_NEAR(op(mid_x0, mid_y0, simplex.get(), z0, z1, z2), (z1 + z2)/2.0, std::abs((z1 + z2)/2.0) * 1e-8);
+        EXPECT_NEAR(op(mid_x1, mid_y1, simplex.get(), z0, z1, z2), (z0 + z2)/2.0, std::abs((z0 + z2)/2.0) * 1e-8);
+        EXPECT_NEAR(op(mid_x2, mid_y2, simplex.get(), z0, z1, z2), (z1 + z0)/2.0, std::abs((z1 + z0)/2.0) * 1e-8);
+    }
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
