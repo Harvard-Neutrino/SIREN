@@ -528,7 +528,7 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectorBase::InjectionBounds(
 
 // Assumes there is a secondary process and position distribuiton for the provided particle type
 std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectorBase::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::Particle::ParticleType const & primary_type) const {
-    return secondary_position_distribution_map[primary_type]->InjectionBounds(earth_model, secondary_process_map[primary_type]->cross_sections, interaction);
+    return secondary_position_distribution_map.at(primary_type)->InjectionBounds(earth_model, secondary_process_map.at(primary_type)->cross_sections, interaction);
 }
 
 std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> InjectorBase::GetInjectionDistributions() const {

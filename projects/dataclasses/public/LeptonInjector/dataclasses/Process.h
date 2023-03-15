@@ -28,6 +28,7 @@ struct Process {
     LI::dataclasses::Particle::ParticleType primary_type;
     std::shared_ptr<crosssections::CrossSectionCollection> cross_sections;
     bool operator==(Process const & other) const;
+    bool MatchesHead(std::shared_ptr<Process> const & other) const; // required to compared instances of derived structs
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {

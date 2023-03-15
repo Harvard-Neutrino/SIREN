@@ -3,6 +3,7 @@
 LIST (APPEND injection_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/injection/private/InjectorBase.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
+    ${CMAKE_SOURCE_DIR}/projects/injection/private/TreeWeighter.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/Weighter.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/ColumnDepthLeptonInjector.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/CylinderVolumeLeptonInjector.cxx

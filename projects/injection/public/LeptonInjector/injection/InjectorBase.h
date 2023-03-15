@@ -77,7 +77,7 @@ public:
     std::shared_ptr<distributions::VertexPositionDistribution> FindPositionDistribution(std::shared_ptr<LI::dataclasses::InjectionProcess> process);
     void SetPrimaryProcess(std::shared_ptr<LI::dataclasses::InjectionProcess> primary);
     std::shared_ptr<LI::dataclasses::InjectionProcess> GetPrimaryProcess() {return primary_process;}
-    std::vector<std::shared_ptr<LI::dataclasses::InjectionProcess>> GetSecondaryProcesses() {return secondary_process;}
+    std::vector<std::shared_ptr<LI::dataclasses::InjectionProcess>> GetSecondaryProcesses() {return secondary_processes;}
     std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::dataclasses::InjectionProcess>> GetSecondaryProcessMap() {return secondary_process_map;}
     void AddSecondaryProcess(std::shared_ptr<LI::dataclasses::InjectionProcess> secondary);
     virtual LI::dataclasses::InteractionRecord NewRecord() const; // set primary type from primary process;
@@ -96,6 +96,7 @@ public:
     virtual double GenerationProbability(LI::dataclasses::InteractionRecord const & record, std::shared_ptr<LI::dataclasses::InjectionProcess> process = NULL) const;
     virtual std::set<std::vector<std::string>> DensityVariables() const;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const;
+    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::Particle::ParticleType const & primary_type) const;
     virtual std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> GetInjectionDistributions() const;
     virtual std::shared_ptr<LI::detector::EarthModel> GetEarthModel() const;
     virtual std::shared_ptr<LI::crosssections::CrossSectionCollection> GetCrossSections() const;

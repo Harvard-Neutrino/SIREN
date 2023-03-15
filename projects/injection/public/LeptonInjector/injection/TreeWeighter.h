@@ -33,15 +33,32 @@
 namespace LI {
 namespace injection {
 
+// Class handling weight calculation for a single pair of injection and physical processes
+class LeptonProcessWeighter {
+private:
+    std::shared_ptr<LI::dataclasses::PhysicalProcess> phys_process;
+    std::shared_ptr<LI::dataclasses::InjectionProcess> inj_process;
+    std::shared_ptr<LI::detector::EarthModel> earth_model;
+    void Initialize();
+    double normalization;
+public:
+    double InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> & bounds, LI::dataclasses::InteractionRecord const & record) const;
+    double NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const;
+    double PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> & bounds, LI::dataclasses::InteractionRecord const & record) const;
+    double EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const;
+    LeptonProcessWeighter(std::shared_ptr<LI::dataclasses::PhysicalProcess> phys_process, std::shared_ptr<LI::dataclasses::InjectionProcess> inj_process, std::shared_ptr<LI::detector::EarthModel> earth_model);
+
+}; // LeptonProcessWeighter
+
 // Parent class for calculating event weights
 // Assumes there is a unique secondary physical process for each particle type
 class LeptonTreeWeighter {
 private:
     // Supplied by constructor
     std::vector<std::shared_ptr<InjectorBase>> injectors;
+    std::shared_ptr<LI::detector::EarthModel> earth_model;
     std::shared_ptr<LI::dataclasses::PhysicalProcess> primary_physical_process;
     std::vector<std::shared_ptr<LI::dataclasses::PhysicalProcess>> secondary_physical_processes;
-    std::shared_ptr<LI::detector::EarthModel> earth_model;
 
     // Calculated upon initialization
     std::vector<std::shared_ptr<LeptonProcessWeighter>> primary_process_weighters;
@@ -59,26 +76,11 @@ public:
   
 }; // LeptonTreeWeighter
 
-// Class handling weight calculation for a single pair of injection and physical processes
-class LeptonProcessWeighter {
-private:
-    std::shared_ptr<LI::dataclasses::PhysicalProcess> phys_process;
-    std::shared_ptr<LI::dataclasses::PhysicalProcess> inj_process;
-    std::shared_ptr<LI::detector::EarthModel> earth_model;
-    Initialize();
-    double normalization;
-public:
-    double InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> & bounds, LI::dataclasses::InteractionRecord const & record) const;
-    double PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> & bounds, LI::dataclasses::InteractionRecord const & record) const;
-    double EventWeight(LI::dataclasses::InteractionRecord const & record) const;
-    LeptonProcessWeighter(std::shared_ptr<LI::dataclasses::PhysicalProcess> phys_process, std::shared_ptr<LI::dataclasses::PhysicalProcess> inj_process, std::shared_ptr<LI::detector::EarthModel> earth_model);
-
-} // LeptonProcessWeighter
 
 } //namespace injection
 } //namespace LI
 
-CEREAL_CLASS_VERSION(LI::injection::LeptonWeighter, 0);
+CEREAL_CLASS_VERSION(LI::injection::LeptonTreeWeighter, 0);
 
 
-#endif // LI_Weighter_H
+#endif // LI_TreeWeighter_H
