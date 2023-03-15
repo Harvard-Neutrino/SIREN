@@ -19,8 +19,8 @@ bool Process::MatchesHead(std::shared_ptr<Process> const & other) const {
         cross_sections)
         ==
         std::tie(
-        other.primary_type,
-        other.cross_sections);
+        other->primary_type,
+        other->cross_sections);
 }
 
 } // namespace dataclasses
