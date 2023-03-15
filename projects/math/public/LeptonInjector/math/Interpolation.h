@@ -110,25 +110,6 @@ public:
 };
 
 template<typename T>
-class FunctionalRangeTransform : public Transform<T> {
-    std::function<T(T)> min_function;
-    std::function<T(T)> max_function;
-public:
-    FunctionalRangeTransform(std::function<T(T)> min_function, std::function<T(T)> max_function)
-        : min_function(min_function), max_function(max_function) {}
-    virtual T Function(T x) const override {
-        T min_x = min_function(x);
-        T range = max_function(x) - min_x;
-        return (x - min_x) / range;
-    }
-    virtual T Inverse(T x) const override {
-        T min_x = min_function(x);
-        T range = max_function(x) - min_x;
-        return x * range + min_x;
-    }
-};
-
-template<typename T>
 struct LinearInterpolationOperator {
 public:
     LinearInterpolationOperator() {};

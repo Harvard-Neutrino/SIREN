@@ -16,8 +16,6 @@ template<> class SymLogTransform<double>;
 
 template<> class RangeTransform<double>;
 
-template<> class FunctionalRangeTransform<double>;
-
 template<> struct LinearInterpolationOperator<double>;
 
 template<> struct DropLinearInterpolationOperator<double>;
