@@ -64,8 +64,9 @@ private:
     std::shared_ptr<dataclasses::InjectionProcess> primary_process;
     std::shared_ptr<distributions::VertexPositionDistribution> primary_position_distribution;
     std::vector<std::shared_ptr<dataclasses::InjectionProcess>> secondary_processes;
-    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::dataclasses::InjectionProcess>> secondary_process_map;
     std::vector<std::shared_ptr<distributions::VertexPositionDistribution>> secondary_position_distributions;
+    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::dataclasses::InjectionProcess>> secondary_process_map;
+    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<distributions::VertexPositionDistribution>> secondary_position_distribution_map;
 public:
     // Constructors 
     InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
@@ -76,6 +77,8 @@ public:
     std::shared_ptr<distributions::VertexPositionDistribution> FindPositionDistribution(std::shared_ptr<LI::dataclasses::InjectionProcess> process);
     void SetPrimaryProcess(std::shared_ptr<LI::dataclasses::InjectionProcess> primary);
     std::shared_ptr<LI::dataclasses::InjectionProcess> GetPrimaryProcess() {return primary_process;}
+    std::vector<std::shared_ptr<LI::dataclasses::InjectionProcess>> GetSecondaryProcesses() {return secondary_process;}
+    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::dataclasses::InjectionProcess>> GetSecondaryProcessMap() {return secondary_process_map;}
     void AddSecondaryProcess(std::shared_ptr<LI::dataclasses::InjectionProcess> secondary);
     virtual LI::dataclasses::InteractionRecord NewRecord() const; // set primary type from primary process;
     void SetRandom(std::shared_ptr<LI::utilities::LI_random> random);

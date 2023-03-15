@@ -19,10 +19,6 @@
 namespace LI {
 namespace injection {
 
-//---------------
-// class LeptonWeighter
-//---------------
-
 namespace {
     template <class InIt>
     typename std::iterator_traits<InIt>::value_type accumulate(InIt begin, InIt end) {
@@ -74,6 +70,9 @@ namespace {
     }
 }
 
+//---------------
+// class LeptonWeighter
+//---------------
 
 double LeptonWeighter::InteractionProbability(std::shared_ptr<InjectorBase const> injector, LI::dataclasses::InteractionRecord const & record) const {
     std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->InjectionBounds(record);

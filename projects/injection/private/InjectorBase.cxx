@@ -101,6 +101,7 @@ void InjectorBase::AddSecondaryProcess(std::shared_ptr<LI::dataclasses::Injectio
   secondary_processes.push_back(secondary);
   secondary_position_distributions.push_back(vtx_dist);
   secondary_process_map.insert({secondary->primary_type,secondary});
+  secondary_position_distribution_map.insert({secondary->primary_type,vtx_dist});
 }
 
 LI::dataclasses::InteractionRecord InjectorBase::NewRecord() const {
@@ -519,7 +520,15 @@ std::string InjectorBase::Name() const {
 }
 
 std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectorBase::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
-    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+    if(!primary_position_distribution) {
+      return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+    }
+    return primary_position_distribution->InjectionBounds(earth_model, primary_process->cross_sections, interaction);
+}
+
+// Assumes there is a secondary process and position distribuiton for the provided particle type
+std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectorBase::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::Particle::ParticleType const & primary_type) const {
+    return secondary_position_distribution_map[primary_type]->InjectionBounds(earth_model, secondary_process_map[primary_type]->cross_sections, interaction);
 }
 
 std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> InjectorBase::GetInjectionDistributions() const {
