@@ -218,7 +218,7 @@ TEST(SymLogTransform, Function) {
             EXPECT_TRUE(out0 < 0);
             EXPECT_TRUE(out0 < -min_x);
             EXPECT_TRUE(out1 - out0 > 2.0 * min_x);
-            EXPECT_NEAR(2.0 * min_x + log(x1) + log(x0) - 2.0 * log(min_x), out1 - out0, std::abs(2.0 * min_x + log(x1) - log(x0)) * 1e-8);
+            EXPECT_NEAR(2.0 * min_x + log(x1) + log(x0) - 2.0 * log(min_x), out1 - out0, std::abs(2.0 * min_x + log(x1) + log(x0) - 2.0 * log(min_x)) * 1e-8);
 
             out1 = transform.Function(-x1);
             EXPECT_TRUE(out1 < 0);
@@ -229,6 +229,95 @@ TEST(SymLogTransform, Function) {
 
             EXPECT_NEAR(out0, n_transform.Function(-x0), std::abs(out0) * 1e-8);
             EXPECT_NEAR(out1, n_transform.Function(-x1), std::abs(out1) * 1e-8);
+        }
+    }
+}
+
+TEST(SymLogTransform, Inverse) {
+    size_t M = 100;
+    size_t N = 1000;
+    for(size_t i=0; i<M; ++i) {
+        double min_x = RandomDouble() * 2 + 1e-8;
+        SymLogTransform<double> transform(min_x);
+        SymLogTransform<double> n_transform(min_x);
+
+        EXPECT_TRUE(transform.Inverse(0.0) == 0.0);
+
+        for(size_t j=0; j<N; ++j) {
+            double out0 = RandomDouble() * min_x;
+            double out1 = RandomDouble() * min_x;
+            double x0 = transform.Inverse(out0);
+            double x1 = transform.Inverse(out1);
+            EXPECT_TRUE(x0 > 0);
+            EXPECT_TRUE(x1 > 0);
+            EXPECT_NEAR(x0, n_transform.Inverse(out0), std::abs(x0) * 1e-8);
+            EXPECT_NEAR(x1, n_transform.Inverse(out1), std::abs(x1) * 1e-8);
+            EXPECT_TRUE(x0 == out0);
+            EXPECT_TRUE(x1 == out1);
+            EXPECT_TRUE((x0 - x1) == (out0 - out1));
+            out0 = -out0;
+            x0 = transform.Inverse(out0);
+            EXPECT_TRUE(x0 < 0);
+            EXPECT_TRUE(x0 == out0);
+            EXPECT_TRUE((x0 - x1) == (out0 - out1));
+            out1 = -x1;
+            x1 = transform.Inverse(out1);
+            EXPECT_TRUE(x1 < 0);
+            EXPECT_TRUE(x1 == out1);
+            EXPECT_TRUE((x0 - x1) == (out0 - out1));
+
+            EXPECT_NEAR(x0, n_transform.Inverse(out0), std::abs(out0) * 1e-8);
+            EXPECT_NEAR(x1, n_transform.Inverse(out1), std::abs(out1) * 1e-8);
+
+            out0 = min_x + log(RandomDouble() * 2.0 + min_x) - log(min_x);
+            EXPECT_TRUE(out0 > min_x);
+            x0 = transform.Inverse(out0);
+            EXPECT_TRUE(x0 > 0);
+            EXPECT_TRUE(x0 > min_x);
+            EXPECT_TRUE(x0 > x1);
+            EXPECT_TRUE(out0 > out1);
+
+            out1 = min_x + log(RandomDouble() * 2.0 + min_x) - log(min_x);
+            x1 = transform.Inverse(out1);
+            EXPECT_TRUE(x1 > 0);
+            EXPECT_TRUE(x1 > min_x);
+            EXPECT_NEAR(x0, n_transform.Inverse(out0), std::abs(out0) * 1e-8);
+            EXPECT_NEAR(x1, n_transform.Inverse(out1), std::abs(out1) * 1e-8);
+            if(min_x > 1.0) {
+                EXPECT_TRUE(out0 < x0);
+                EXPECT_TRUE(out1 < x1);
+            } else {
+                if(out0 < x0) {
+                    EXPECT_TRUE(log(x0) - x0 < log(min_x) - min_x);
+                } else if(out0 > x0) {
+                    EXPECT_TRUE(log(x0) - x0 > log(min_x) - min_x);
+                }
+                if(out1 < x1) {
+                    EXPECT_TRUE(log(x1) - x1 < log(min_x) - min_x);
+                } else if(out1 > x1) {
+                    EXPECT_TRUE(log(x1) - x1 > log(min_x) - min_x);
+                }
+            }
+            EXPECT_NEAR(log(x0) - log(x1), (out0 - out1), std::abs(log(x0) - log(x1)) * 1e-8);
+            EXPECT_NEAR(log(x0) + min_x - log(min_x), out0, std::abs(log(x0) + min_x - log(min_x)) * 1e-8);
+            EXPECT_NEAR(log(x1) + min_x - log(min_x), out1, std::abs(log(x1) + min_x - log(min_x)) * 1e-8);
+
+            x0 = transform.Inverse(-out0);
+            EXPECT_TRUE(x0 < 0);
+            EXPECT_TRUE(x0 < -min_x);
+            EXPECT_TRUE(x1 - x0 > 2.0 * min_x);
+            EXPECT_NEAR(2.0 * min_x + log(x1) + log(-x0) - 2.0 * log(min_x), out1 + out0, std::abs(2.0 * min_x + log(x1) + log(-x0) - 2.0 * log(min_x)) * 1e-8);
+            EXPECT_NEAR((exp(out1) + exp(out0))*exp(log(min_x) - min_x), x1 - x0, std::abs((exp(out1) + exp(out0))*exp(log(min_x) - min_x)) * 1e-8);
+
+            x1 = transform.Inverse(-out1);
+            EXPECT_TRUE(x1 < 0);
+            EXPECT_TRUE(x1 < -min_x);
+            EXPECT_NEAR(log(-x1) - log(-x0), (out1 - out0), std::abs(log(-x1) - log(-x0)) * 1e-8);
+            EXPECT_NEAR(-exp(out0 + log(min_x) - min_x), x0, std::abs(-exp(out0 - log(min_x) + min_x)) * 1e-8);
+            EXPECT_NEAR(-exp(out1 + log(min_x) - min_x), x1, std::abs(-exp(out1 - log(min_x) + min_x)) * 1e-8);
+
+            EXPECT_NEAR(x0, n_transform.Inverse(-out0), std::abs(x0) * 1e-8);
+            EXPECT_NEAR(x1, n_transform.Inverse(-out1), std::abs(x1) * 1e-8);
         }
     }
 }
