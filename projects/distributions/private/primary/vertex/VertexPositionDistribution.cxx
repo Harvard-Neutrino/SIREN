@@ -15,6 +15,10 @@ namespace distributions {
 //---------------
 // class VertexPositionDistribution : InjectionDistribution
 //---------------
+LI::math::Vector3D VertexPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum & datum) const {
+  return SamplePosition(rand, earth_model, cross_sections, datum.record);
+}
+
 void VertexPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
     LI::math::Vector3D pos = SamplePosition(rand, earth_model, cross_sections, record);
     record.interaction_vertex[0] = pos.GetX();
@@ -24,6 +28,10 @@ void VertexPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random
 
 std::vector<std::string> VertexPositionDistribution::DensityVariables() const {
     return std::vector<std::string>{"InteractionVertexPosition"};
+}
+
+std::pair<LI::math::Vector3D, LI::math::Vector3D> VertexPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum const & datum) const {
+  return InjectionBounds(earth_model, cross_sections, datum.record);
 }
 
 bool VertexPositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::EarthModel const> second_earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> second_cross_sections) const {

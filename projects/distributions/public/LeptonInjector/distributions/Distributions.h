@@ -13,6 +13,8 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
+#include "LeptonInjector/dataclasses/InteractionTree.h" 
+
 namespace LI {
 namespace utilities {
 class LI_random;
@@ -69,6 +71,7 @@ friend cereal::access;
 public:
     virtual ~WeightableDistribution() {};
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const = 0;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum const & datum) const;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     template<class Archive>
@@ -131,6 +134,7 @@ private:
 public:
     virtual ~InjectionDistribution() {};
     virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const;
+    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum & datum) const;
     virtual bool IsPositionDistribution() const {return false;}
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     template<class Archive>

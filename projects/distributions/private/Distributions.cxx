@@ -52,6 +52,10 @@ bool WeightableDistribution::AreEquivalent(std::shared_ptr<LI::detector::EarthMo
     return this->operator==(*distribution);
 }
 
+double WeightableDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum const & datum) const {
+    return GenerationProbability(earth_model, cross_sections, datum.record);
+}
+
 //---------------
 // class NormalizationConstant : WeightableDistribution, PhysicallyNormalizedDistribution
 //---------------
@@ -83,6 +87,10 @@ bool NormalizationConstant::less(WeightableDistribution const & distribution) co
 //---------------
 
 void InjectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
+}
+
+void InjectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum & datum) const {
+  Sample(rand, earth_model, cross_sections, datum.record);
 }
 
 } // namespace distributions
