@@ -383,9 +383,9 @@ struct SimplexLinearInterpolationOperator {
     using Vertex = typename IDelaBella2<T>::Vertex;
 public:
     virtual T operator()(T const & x, T const & y, Simplex const * simplex, T z1, T z2, T z3) const {
-        Vertex const & v1 = simplex->v[0];
-        Vertex const & v2 = simplex->v[1];
-        Vertex const & v3 = simplex->v[2];
+        Vertex const & v1 = *(simplex->v[0]);
+        Vertex const & v2 = *(simplex->v[1]);
+        Vertex const & v3 = *(simplex->v[2]);
         T denominator = (v2.y - v3.y) * (v1.x - v3.x) + (v3.x - v2.x) * (v1.y - v3.y);
         T w1 = ((v2.y - v3.y) * (x - v3.x) + (v3.x - v2.x) * (y - v3.y)) / denominator;
         T w2 = ((v3.y - v1.y) * (x - v3.x) + (v1.x - v3.x) * (y - v3.y)) / denominator;
@@ -498,9 +498,9 @@ class DelaunayIndexer2D {
         T d1, d2, d3;
         bool has_neg, has_pos;
 
-        Vertex const & v1 = simplex->v[0];
-        Vertex const & v2 = simplex->v[1];
-        Vertex const & v3 = simplex->v[2];
+        Vertex const & v1 = *(simplex->v[0]);
+        Vertex const & v2 = *(simplex->v[1]);
+        Vertex const & v3 = *(simplex->v[2]);
 
         d1 = sign(pt, v1, v2);
         d2 = sign(pt, v2, v3);
@@ -549,7 +549,7 @@ public:
         for(size_t i=0; i<npoly; ++i) {
             int min_x, max_x, min_y, max_y;
             for(size_t j=0; j<3; ++j) {
-                Vertex const & vert = dela->v[j];
+                Vertex const & vert = *(dela->v[j]);
                 std::tuple<int, int> x_indices = x_indexer(vert.x);
                 std::tuple<int, int> y_indices = y_indexer(vert.y);
                 if(i == 0) {
