@@ -86,7 +86,7 @@ public:
         if(abs_x < min_x) {
             return x;
         } else {
-            return std::copysign(exp(x - min_x + log_min_x), x);
+            return std::copysign(exp(abs_x - min_x + log_min_x), x);
         }
     }
 };
