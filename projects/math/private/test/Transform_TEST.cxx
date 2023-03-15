@@ -49,6 +49,18 @@ TEST(IdentityTransform, Inverse) {
     }
 }
 
+TEST(IdentityTransform, RoundTrip) {
+    IdentityTransform<double> transform;
+
+    size_t N = 1000;
+    for(size_t i=0; i<N; ++i) {
+        double x = RandomDouble();
+        double y = transform.Function(x);
+        double res = transform.Inverse(y);
+        EXPECT_NEAR(x, res, std::abs(x) * 1e-8);
+    }
+}
+
 TEST(GenericTransform, Constructor) {
     std::function<double(double)> function = [](double)->double{return 0.0;};
     std::function<double(double)> inverse = [](double)->double{return 0.0;};
@@ -136,6 +148,18 @@ TEST(LogTransform, Inverse) {
         EXPECT_TRUE(exp(-x) == transform.Inverse(-x));
         EXPECT_TRUE(exp(x * 1e8) == transform.Inverse(x * 1e8));
         EXPECT_TRUE(exp(-x * 1e8) == transform.Inverse(-x * 1e8));
+    }
+}
+
+TEST(LogTransform, RoundTrip) {
+    LogTransform<double> transform;
+
+    size_t N = 1000;
+    for(size_t i=0; i<N; ++i) {
+        double x = RandomDouble();
+        double y = transform.Function(x);
+        double res = transform.Inverse(y);
+        EXPECT_NEAR(x, res, std::abs(x) * 1e-8);
     }
 }
 
@@ -318,6 +342,125 @@ TEST(SymLogTransform, Inverse) {
 
             EXPECT_NEAR(x0, n_transform.Inverse(-out0), std::abs(x0) * 1e-8);
             EXPECT_NEAR(x1, n_transform.Inverse(-out1), std::abs(x1) * 1e-8);
+        }
+    }
+}
+
+TEST(SymLogTransform, RoundTrip) {
+    size_t M = 100;
+    size_t N = 1000;
+    for(size_t i=0; i<M; ++i) {
+        double min_x = RandomDouble() * 4 - 2;
+        if(min_x == 0)
+            min_x += int(2.0 * RandomDouble() - 1) * 1e-8;
+        SymLogTransform<double> transform(min_x);
+        for(size_t j=0; j<N; ++j) {
+            double x = (RandomDouble() * 4 - 2) * std::abs(min_x);
+            double y = transform.Function(x);
+            double res = transform.Inverse(y);
+            EXPECT_NEAR(x, res, std::abs(x) * 1e-8);
+        }
+    }
+}
+
+TEST(RangeTransform, Constructor) {
+    size_t N = 1000;
+    for(size_t i=0; i<N; ++i) {
+        double x = RandomDouble();
+        double y = RandomDouble();
+        ASSERT_NO_THROW(RangeTransform<double>(x, x+y));
+        ASSERT_NO_THROW(RangeTransform<double>(x+y, x));
+        ASSERT_NO_THROW(RangeTransform<double>(-x, y));
+        ASSERT_NO_THROW(RangeTransform<double>(x, -y));
+        ASSERT_NO_THROW(RangeTransform<double>(-x, -x-y));
+        ASSERT_NO_THROW(RangeTransform<double>(-x-y, -x));
+        ASSERT_THROW(RangeTransform<double>(x, x), std::runtime_error);
+        ASSERT_THROW(RangeTransform<double>(-x, -x), std::runtime_error);
+    }
+}
+
+TEST(RangeTransform, Function) {
+    size_t M = 100;
+    size_t N = 1000;
+    for(size_t i=0; i<M; ++i) {
+        double x = RandomDouble() * 2 - 1;
+        double range = RandomDouble() * 2 - 1;
+        double y = range + x;
+        RangeTransform<double> transform(x, y);
+        for(size_t j=0; j<N; ++j) {
+            double t0 = RandomDouble() * range + x;
+            double res0 = transform.Function(t0);
+            EXPECT_TRUE(res0 >= 0);
+            EXPECT_TRUE(res0 <= 1);
+            t0 = (RandomDouble() - 0.5) * range * 2 + x;
+            res0 = transform.Function(t0);
+            EXPECT_NEAR(res0, (t0 - x) / range, std::abs(res0) * 1e-8);
+            double t1 = t0 + RandomDouble();
+            double res1 = transform.Function(t1);
+            if(range > 0) {
+                EXPECT_TRUE(res1 - res0 > 0);
+            } else {
+                EXPECT_TRUE(res1 - res0 < 0);
+            }
+            if(std::abs(range) > 1) {
+                EXPECT_TRUE(std::abs(res1 - res0) < std::abs(t1 - t0));
+            } else {
+                EXPECT_TRUE(std::abs(res1 - res0) >= std::abs(t1 - t0));
+            }
+        }
+    }
+}
+
+TEST(RangeTransform, Inverse) {
+    size_t M = 100;
+    size_t N = 1000;
+    for(size_t i=0; i<M; ++i) {
+        double x = RandomDouble() * 2 - 1;
+        double range = RandomDouble() * 2 - 1;
+        double y = range + x;
+        RangeTransform<double> transform(x, y);
+        for(size_t j=0; j<N; ++j) {
+            double t0 = RandomDouble();
+            double res0 = transform.Inverse(t0);
+            if(range > 0) {
+                EXPECT_TRUE(res0 >= x);
+                EXPECT_TRUE(res0 <= y);
+            } else {
+                EXPECT_TRUE(res0 <= x);
+                EXPECT_TRUE(res0 >= y);
+            }
+            t0 = (RandomDouble() - 0.5) * 2;
+            res0 = transform.Inverse(t0);
+            EXPECT_NEAR(res0, t0 * range + x, std::abs(res0) * 1e-8);
+            double t1 = t0 + RandomDouble();
+            double res1 = transform.Inverse(t1);
+            if(range > 0) {
+                EXPECT_TRUE(res1 - res0 > 0);
+            } else {
+                EXPECT_TRUE(res1 - res0 < 0);
+            }
+            if(std::abs(range) > 1) {
+                EXPECT_TRUE(std::abs(res1 - res0) > std::abs(t1 - t0));
+            } else {
+                EXPECT_TRUE(std::abs(res1 - res0) <= std::abs(t1 - t0));
+            }
+        }
+    }
+}
+
+TEST(RangeTransform, RoundTrip) {
+    size_t M = 100;
+    size_t N = 1000;
+    for(size_t i=0; i<M; ++i) {
+        double x = RandomDouble() * 2 - 1;
+        double range = RandomDouble() * 2 - 1;
+        double y = range + x;
+        RangeTransform<double> transform(x, y);
+        for(size_t j=0; j<N; ++j) {
+            double t0 = (RandomDouble() - 0.5) * range * 2 + x;
+            double res0 = transform.Function(t0);
+            double res_t = transform.Inverse(res0);
+            EXPECT_NEAR(t0, res_t, std::abs(t0) * 1e-8);
         }
     }
 }
