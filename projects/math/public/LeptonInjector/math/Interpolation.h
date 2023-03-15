@@ -113,10 +113,10 @@ template<typename T>
 struct LinearInterpolationOperator {
 public:
     LinearInterpolationOperator() {};
-    virtual T operator()(T const & x0, T const & x1, T const & y0, T const & y1, T const & x) const {
+    virtual T operator()(T const & x0, T const & y0, T const & x1, T const & y1, T const & x) const {
         T delta_x = x1 - x0;
         T delta_y = y1 - y0;
-        return (x - x0) * delta_y / delta_x;
+        return (x - x0) * delta_y / delta_x + y0;
     }
 };
 
