@@ -96,7 +96,11 @@ class RangeTransform : public Transform<T> {
     T min_x;
     T range;
 public:
-    RangeTransform(T min_x, T max_x) : min_x(min_x), range(max_x - min_x) {}
+    RangeTransform(T min_x, T max_x) : min_x(min_x), range(max_x - min_x) {
+        if(range == 0) {
+            throw std::runtime_error("RangeTransform cannot be initialized with a range of zero");
+        }
+    }
     virtual T Function(T x) const override {
         return (x - min_x) / range;
     }
