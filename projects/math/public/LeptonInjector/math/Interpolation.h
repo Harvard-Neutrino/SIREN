@@ -68,7 +68,11 @@ class SymLogTransform : public Transform<T> {
     T min_x;
     T log_min_x;
 public:
-    SymLogTransform(T min_x) : min_x(std::abs(min_x)), log_min_x(log(std::abs(min_x))) {}
+    SymLogTransform(T min_x) : min_x(std::abs(min_x)), log_min_x(log(std::abs(min_x))) {
+        if(min_x == 0) {
+            throw std::runtime_error("SymLogTransform cannot be initialized with a minimul value of x=0");
+        }
+    }
     virtual T Function(T x) const override {
         T abs_x = std::abs(x);
         if(abs_x < min_x) {
