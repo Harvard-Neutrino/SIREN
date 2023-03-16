@@ -54,6 +54,7 @@ public:
         return target_types;
     };
     double TotalDecayWidth(LI::dataclasses::InteractionRecord const & record) const;
+    double TotalDecayLength(LI::dataclasses::InteractionRecord const & record) const;
     virtual bool MatchesPrimary(dataclasses::InteractionRecord const & record) const;
 public:
     template<class Archive>

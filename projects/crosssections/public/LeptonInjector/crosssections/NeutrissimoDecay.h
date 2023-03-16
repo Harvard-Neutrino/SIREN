@@ -40,12 +40,12 @@ private:
     double dipole_coupling;
     ChiralNature nature;
 public:
-    virtual bool equal(CrossSection const & other) const override;
+    virtual bool equal(Decay const & other) const override;
     double GetHNLMass() const {return hnl_mass;};
     NeutrissimoDecay(double hnl_mass, double dipole_coupling, ChiralityNature nature) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), nature(nature) {};
     NeutrissimoDecay(double hnl_mass, double dipole_coupling, ChiralityNature nature, std::set<LI::dataclasses::Particle::ParticleType> const & primary_types) : primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
-    virtual double TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override;
+    virtual double TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
     virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const override;

@@ -81,6 +81,15 @@ double CrossSectionCollection::TotalDecayWidth(dataclasses::InteractionRecord co
   return width;
 }
 
+double CrossSectionCollection::TotalDecayLength(dataclasses::InteractionRecord const & record) const {
+  double inv_length = 0;
+  if(!HasDecays()) return std::numeric_limits<double>::infinity();
+  for(auto dec : decays) {
+    inv_length += 1./dec->TotalDecayLength(record);
+  }
+  return 1./inv_length;
+}
+
 bool CrossSectionCollection::MatchesPrimary(dataclasses::InteractionRecord const & record) const {
     return primary_type == record.signature.primary_type;
 }
