@@ -89,11 +89,11 @@ public:
     double GetInteractionDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width) const;
+            double const & total_decay_length) const;
     double GetInteractionDensity(math::Vector3D const & p0,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width) const;
+            double const & total_decay_length) const;
 
     double GetColumnDepthInCGS(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, math::Vector3D const & p1) const;
     double GetColumnDepthInCGS(math::Vector3D const & p0, math::Vector3D const & p1) const;
@@ -119,27 +119,27 @@ public:
     double GetInteractionDepthInCGS(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, math::Vector3D const & p1,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width) const;
+            double const & total_decay_length) const;
     double GetInteractionDepthInCGS(math::Vector3D const & p0, math::Vector3D const & p1,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width) const;
+            double const & total_decay_length) const;
     double DistanceForInteractionDepthFromPoint(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & end_point, math::Vector3D const & direction, double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width) const;
+            double const & total_decay_length) const;
     double DistanceForInteractionDepthFromPoint(math::Vector3D const & end_point, math::Vector3D const & direction, double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width) const;
+            double const & total_decay_length) const;
     double DistanceForInteractionDepthToPoint(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & end_point, math::Vector3D const & direction, double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width) const;
+            double const & total_decay_length) const;
     double DistanceForInteractionDepthToPoint(math::Vector3D const & end_point, math::Vector3D const & direction, double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width) const;
+            double const & total_decay_length) const;
 
     std::vector<double> GetParticleColumnDepth(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, math::Vector3D const & p1, std::vector<LI::dataclasses::Particle::ParticleType> const & targets) const;
 

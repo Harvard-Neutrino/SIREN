@@ -98,19 +98,19 @@ public:
     void ExtendFromEndByInteractionDepth(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     void ExtendFromStartByInteractionDepth(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     void ShrinkFromEndByInteractionDepth(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     void ShrinkFromStartByInteractionDepth(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
 
     // Extend/Shrink To
     void ExtendFromEndToDistance(double distance);
@@ -126,19 +126,19 @@ public:
     void ExtendFromEndToInteractionDepth(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     void ExtendFromStartToInteractionDepth(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     void ShrinkFromEndToInteractionDepth(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     void ShrinkFromStartToInteractionDepth(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     //
 
     // Get
@@ -146,7 +146,7 @@ public:
     double GetInteractionDepthInBounds(
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     //
 
     // Get * From
@@ -160,27 +160,27 @@ public:
     double GetInteractionDepthFromStartInBounds(double distance,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     double GetInteractionDepthFromEndInBounds(double distance,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     double GetInteractionDepthFromStartAlongPath(double distance,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     double GetInteractionDepthFromEndAlongPath(double distance,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     double GetInteractionDepthFromStartInReverse(double distance,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     double GetInteractionDepthFromEndInReverse(double distance,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     //
 
     // Get Distance From
@@ -194,27 +194,27 @@ public:
     double GetDistanceFromStartInBounds(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     double GetDistanceFromEndInBounds(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     double GetDistanceFromStartAlongPath(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     double GetDistanceFromEndAlongPath(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     double GetDistanceFromStartInReverse(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     double GetDistanceFromEndInReverse(double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width);
+            double const & total_decay_length);
     //
 
     bool IsWithinBounds(math::Vector3D point);

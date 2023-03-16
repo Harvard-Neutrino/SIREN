@@ -187,7 +187,8 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
       for(auto const & decay : cross_sections->GetDecays() ) {
         for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
           fake_record.signature = signature;
-          fake_prob = decay->TotalDecayWidth(record);
+          //TODO: make sure this matches the units of the cross section
+          fake_prob = 1./decay->TotalDecayLength(record);
           total_prob += fake_prob;
           decay_prob += fake_prob;
           // Add total prob to probs

@@ -66,7 +66,7 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_width = cross_sections->TotalDecayWidth(datum.record);
+    double total_decay_length = cross_sections->TotalDecayLength(datum.record);
     LI::dataclasses::InteractionRecord fake_record = datum.record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
@@ -77,7 +77,7 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
-    double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_width);
+    double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
         throw(LI::utilities::InjectionFailure("No available interactions along path!"));
     }
@@ -91,7 +91,7 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
         traversed_interaction_depth = -log(y * exp_m_total_interaction_depth + (1.0 - y));
     }
 
-    double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_width);
+    double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
     LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
@@ -119,7 +119,7 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_width = cross_sections->TotalDecayWidth(datum.record);
+    double total_decay_length = cross_sections->TotalDecayLength(datum.record);
     LI::dataclasses::InteractionRecord fake_record = datum.record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
@@ -130,13 +130,13 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
-    double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_width);
+    double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
     path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(earth_model->GetEarthCoordPosFromDetCoordPos(vertex)));
 
-    double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_width);
+    double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections, total_decay_width);
+    double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections, total_decay_length);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {

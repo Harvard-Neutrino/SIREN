@@ -20,6 +20,8 @@
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/math/EulerQuaternionConversions.h"
 
+#include "LeptonInjector/utilities/Constants.h"
+
 using namespace LI::math;
 using namespace LI::geometry;
 using namespace LI::detector;
@@ -505,7 +507,7 @@ double EarthModel::GetParticleDensity(Vector3D const & p0, LI::dataclasses::Part
 double EarthModel::GetInteractionDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width) const {
+            double const & total_decay_length) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -523,9 +525,9 @@ double EarthModel::GetInteractionDensity(Geometry::IntersectionList const & inte
     }
 
     // If we have only decays, avoid the sector loop
-    // TODO: check units of decay width
+    // total_decay_length is in m
     if(targets.empty()) {
-      return total_decay_width; 
+      return 1./total_decay_length;
     }
 
     double interaction_density = std::numeric_limits<double>::quiet_NaN();
@@ -555,8 +557,7 @@ double EarthModel::GetInteractionDensity(Geometry::IntersectionList const & inte
 
     assert(interaction_density >= 0);
 
-    //TODO: check units here, make sure total_decay_width is in m^-1
-    interaction_density += total_decay_width;
+    interaction_density += 1./total_decay_length;
 
     return interaction_density;
 }
@@ -564,10 +565,10 @@ double EarthModel::GetInteractionDensity(Geometry::IntersectionList const & inte
 double EarthModel::GetInteractionDensity(Vector3D const & p0,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
-            double const & total_decay_width) const {
+            double const & total_decay_length) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
-    return GetInteractionDensity(intersections, p0, targets, total_cross_sections, total_decay_width);
+    return GetInteractionDensity(intersections, p0, targets, total_cross_sections, total_decay_length);
 }
 
 double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1) const {
@@ -801,7 +802,7 @@ std::vector<double> EarthModel::GetParticleDensity(Vector3D const & p0,  std::se
 double EarthModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
-        double const & total_decay_width) const {
+        double const & total_decay_length) const {
     if(p0 == p1) {
         return 0.0;
     }
@@ -823,9 +824,8 @@ double EarthModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & i
     }
     
     // If we have only decays, avoid the sector loop
-    // TODO: check units of decay width
     if(targets.empty()) {
-      return total_decay_width*distance; 
+      return distance/total_decay_length; // m / m --> dimensionless 
     }
 
     std::vector<double> interaction_depths(targets.size(), 0.0);
@@ -858,8 +858,7 @@ double EarthModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & i
 
     double interaction_depth = accumulate(interaction_depths.begin(), interaction_depths.end());
     
-    //TODO: check units here, make sure total_decay_width is in cm^-1
-    interaction_depth += total_decay_width*distance;
+    interaction_depth += distance/total_decay_length;
 
     return interaction_depth;
 }
@@ -916,7 +915,7 @@ std::vector<double> EarthModel::GetParticleColumnDepth(Geometry::IntersectionLis
 double EarthModel::GetInteractionDepthInCGS(Vector3D const & p0, Vector3D const & p1,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
-        double const & total_decay_width) const {
+        double const & total_decay_length) const {
     if(p0 == p1) {
         return 0.0;
     }
@@ -928,7 +927,7 @@ double EarthModel::GetInteractionDepthInCGS(Vector3D const & p0, Vector3D const 
     direction.normalize();
 
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
-    return GetInteractionDepthInCGS(intersections, p0, p1, targets, total_cross_sections, total_decay_width);
+    return GetInteractionDepthInCGS(intersections, p0, p1, targets, total_cross_sections, total_decay_length);
 }
 
 EarthSector EarthModel::GetContainingSector(Geometry::IntersectionList const & intersections, Vector3D const & p0) const {
@@ -1149,7 +1148,7 @@ void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersectio
 double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & dir, double interaction_depth,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
-        double const & total_decay_width) const {
+        double const & total_decay_length) const {
     Vector3D direction = dir;
     interaction_depth /= 100;
     bool flip = interaction_depth < 0;
@@ -1169,9 +1168,9 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
     }
 
     // If we have only decays, avoid the sector loop
-    // TODO: check units of decay width
+    // decay length in m
     if(targets.empty()) {
-      return interaction_depth / total_decay_width; 
+      return interaction_depth * total_decay_length;
     }
 
     double total_interaction_depth = 0.0;
@@ -1191,12 +1190,12 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
             for(unsigned int i=0; i<targets.size(); ++i) {
                 interaction_depths[i] *= total_cross_sections[i];
             }
-            double target_composition = accumulate(interaction_depths.begin(), interaction_depths.end(), 0.0); // g * cm^-3
+            double target_composition = accumulate(interaction_depths.begin(), interaction_depths.end(), 0.0); // cm^2
             target /= target_composition;
             double distance;
-            // TODO: check units of total_decay_width
-            if (total_decay_width > 0) {
-              distance = sector.density->InverseIntegral(p0+start_point*direction, direction, total_decay_width/target_composition, target, segment_length);
+            // TODO: check units of everything; total_decay_length in m
+            if (total_decay_length < std::numeric_limits<double>::infinity()) {
+              distance = sector.density->InverseIntegral(p0+start_point*direction, direction, 1./(total_decay_length*target_composition), target, segment_length);
             }
             else {
               distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
@@ -1227,23 +1226,23 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
 double EarthModel::DistanceForInteractionDepthFromPoint(Vector3D const & p0, Vector3D const & direction, double interaction_depth,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
-        double const & total_decay_width) const {
+        double const & total_decay_length) const {
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
-    return DistanceForInteractionDepthFromPoint(intersections, p0, direction, interaction_depth, targets, total_cross_sections, total_decay_width);
+    return DistanceForInteractionDepthFromPoint(intersections, p0, direction, interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
 double EarthModel::DistanceForInteractionDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double interaction_depth,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
-        double const & total_decay_width) const {
-    return DistanceForInteractionDepthFromPoint(intersections, p0, -direction, interaction_depth, targets, total_cross_sections, total_decay_width);
+        double const & total_decay_length) const {
+    return DistanceForInteractionDepthFromPoint(intersections, p0, -direction, interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
 double EarthModel::DistanceForInteractionDepthToPoint(Vector3D const & p0, Vector3D const & direction, double interaction_depth,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
-        double const & total_decay_width) const {
-    return DistanceForInteractionDepthFromPoint(p0, -direction, interaction_depth, targets, total_cross_sections, total_decay_width);
+        double const & total_decay_length) const {
+    return DistanceForInteractionDepthFromPoint(p0, -direction, interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
 Vector3D EarthModel::GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const {
