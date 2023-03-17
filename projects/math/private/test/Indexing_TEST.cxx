@@ -177,8 +177,9 @@ TEST(IrregularIndexer1D, RegularGrid) {
 }
 
 TEST(RegularGridIndexer2D, RandomIndex) {
-    size_t N = 1000;
-    for(size_t i=0; i<N; ++i) {
+    size_t N = 100;
+    size_t M = 1000;
+    for(size_t m=0; m<N; ++m) {
         double x_min = RandomDouble();
         double x_max = x_min + RandomDouble();
         size_t x_n_points = size_t(RandomDouble() * 100 + 2);
@@ -217,31 +218,103 @@ TEST(RegularGridIndexer2D, RandomIndex) {
 
         RegularGridIndexer2D<double> indexer(x, y);
 
-        for(size_t i=0; i<x_n_points-1; ++i) {
+        for(size_t l=0; l<M; ++l) {
+            size_t i = int(std::floor(RandomDouble() * (x_n_points - 1)));
+            size_t j = int(std::floor(RandomDouble() * (y_n_points - 1)));
             double x0 = x_points[i];
             double x1 = x_points[i+1];
             double x_mid = (x0 + x1) / 2.0;
-            for(size_t j=0; j<y_n_points-1; ++j) {
-                double y0 = y_points[j];
-                double y1 = y_points[j+1];
-                double y_mid = (y0 + y1) / 2.0;
-                size_t k00 = z_map[{i, j}];
-                size_t k01 = z_map[{i, j+1}];
-                size_t k10 = z_map[{i+1, j}];
-                size_t k11 = z_map[{i+1, j+1}];
-                Index2D index = indexer(x_mid, y_mid);
-                EXPECT_TRUE(i == index.x0);
-                EXPECT_TRUE(i+1 == index.x1);
-                EXPECT_TRUE(j == index.y0);
-                EXPECT_TRUE(j+1 == index.y1);
-                EXPECT_TRUE(k00 == index.z00);
-                EXPECT_TRUE(k01 == index.z01);
-                EXPECT_TRUE(k10 == index.z10);
-                EXPECT_TRUE(k11 == index.z11);
-            }
+            double y0 = y_points[j];
+            double y1 = y_points[j+1];
+            double y_mid = (y0 + y1) / 2.0;
+            size_t k00 = z_map[{i, j}];
+            size_t k01 = z_map[{i, j+1}];
+            size_t k10 = z_map[{i+1, j}];
+            size_t k11 = z_map[{i+1, j+1}];
+            Index2D index = indexer(x_mid, y_mid);
+            EXPECT_TRUE(i == index.x0);
+            EXPECT_TRUE(i+1 == index.x1);
+            EXPECT_TRUE(j == index.y0);
+            EXPECT_TRUE(j+1 == index.y1);
+            EXPECT_TRUE(k00 == index.z00);
+            EXPECT_TRUE(k01 == index.z01);
+            EXPECT_TRUE(k10 == index.z10);
+            EXPECT_TRUE(k11 == index.z11);
         }
     }
 }
+
+TEST(IrregularGridIndexer2D, RandomIndex) {
+    size_t N = 100;
+    size_t M = 1000;
+    for(size_t m=0; m<N; ++m) {
+        double x_min = RandomDouble();
+        double x_range = RandomDouble();
+        double x_max = x_min + x_range;
+        size_t x_n_points = size_t(RandomDouble() * 100 + 2);
+        std::vector<double> x_points(x_n_points);
+        for(size_t j=0; j<x_n_points; ++j) {
+            x_points[j] = RandomDouble() * x_range + x_min;
+        }
+        std::sort(x_points.begin(), x_points.end());
+        double y_min = RandomDouble();
+        double y_range = RandomDouble();
+        double y_max = y_min + y_range;
+        size_t y_n_points = size_t(RandomDouble() * 100 + 2);
+        std::vector<double> y_points(y_n_points);
+        for(size_t j=0; j<y_n_points; ++j) {
+            y_points[j] = RandomDouble() * y_range + y_min;
+        }
+        std::sort(y_points.begin(), y_points.end());
+
+        std::vector<double> x(x_n_points*y_n_points);
+        std::vector<double> y(x_n_points*y_n_points);
+        std::vector<size_t> idxs(x_n_points*y_n_points);
+        for(size_t i=0; i<x_n_points*y_n_points; ++i) {
+            idxs[i] = i;
+        }
+        std::shuffle(idxs.begin(), idxs.end(), rng_);
+        std::map<std::tuple<size_t, size_t>, size_t> z_map;
+        size_t k = 0;
+        for(size_t i=0; i<x_n_points; ++i) {
+            for(size_t j=0; j<y_n_points; ++j) {
+                x[idxs[k]] = x_points[i];
+                y[idxs[k]] = y_points[j];
+                z_map[{i, j}] = idxs[k];
+                k += 1;
+            }
+        }
+
+        IrregularGridIndexer2D<double> indexer(x, y);
+
+        for(size_t l=0; l<M; ++l) {
+            size_t i = int(std::floor(RandomDouble() * (x_n_points - 1)));
+            size_t j = int(std::floor(RandomDouble() * (y_n_points - 1)));
+            double x0 = x_points[i];
+            double x1 = x_points[i+1];
+            double x_mid = (x0 + x1) / 2.0;
+            double y0 = y_points[j];
+            double y1 = y_points[j+1];
+            double y_mid = (y0 + y1) / 2.0;
+            size_t k00 = z_map[{i, j}];
+            size_t k01 = z_map[{i, j+1}];
+            size_t k10 = z_map[{i+1, j}];
+            size_t k11 = z_map[{i+1, j+1}];
+            Index2D index = indexer(x_mid, y_mid);
+            EXPECT_TRUE(i == index.x0);
+            EXPECT_TRUE(i+1 == index.x1);
+            EXPECT_TRUE(j == index.y0);
+            EXPECT_TRUE(j+1 == index.y1);
+            EXPECT_TRUE(k00 == index.z00);
+            EXPECT_TRUE(k01 == index.z01);
+            EXPECT_TRUE(k10 == index.z10);
+            EXPECT_TRUE(k11 == index.z11);
+        }
+    }
+}
+
+// template<typename T>
+// using IrregularGridIndexer2D = GridIndexer2D<T, IrregularIndexer1D<T>>;
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
