@@ -208,7 +208,7 @@ std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> Determi
 template<typename T>
 class Indexer1D {
 public:
-    virtual std::tuple<int, int> operator()(T x) const = 0;
+    virtual std::tuple<int, int> operator()(T const & x) const = 0;
 };
 
 template<typename T>
@@ -218,13 +218,18 @@ class RegularIndexer1D : public Indexer1D<T> {
     T range;
     unsigned int n_points;
     T delta;
+public:
 
     RegularIndexer1D() {};
     RegularIndexer1D(std::vector<T> x) {
+        if(x.size() < 2)
+            throw std::runtime_error("RegularIndexer1D needs at least 2 points");
         n_points = x.size();
-        low = x.front();
-        high = x.back();
+        low = *std::min_element(x.begin(), x.end());
+        high = *std::max_element(x.begin(), x.end());
         range = high - low;
+        if(std::abs(range) <= 0)
+            throw std::runtime_error("RegularIndexer1D cannot function with zero range");
         delta = range / (n_points - 1);
     };
 
@@ -242,12 +247,12 @@ class RegularIndexer1D : public Indexer1D<T> {
     }
 
     virtual std::tuple<int, int> operator()(T const & x) const override {
-        int i = (int)alt_floor<T>()((x - low) / range * (n_points - 1));
-        if(i < 0)
-            i = 0;
-        else if(i >= int(n_points) - 1)
-            i = n_points - 2;
-        return {x, x+1};
+        int index = (int)std::floor((x - low) / range * (n_points - 1));
+        if(index < 0)
+            index = 0;
+        else if(index >= int(n_points) - 1)
+            index = n_points - 2;
+        return {index, index+1};
     }
 };
 
@@ -256,16 +261,19 @@ class IrregularIndexer1D : public Indexer1D<T> {
     std::vector<T> data;
     T low;
     T high;
-    T range;
     unsigned int n_points;
 public:
     IrregularIndexer1D() {};
     IrregularIndexer1D(std::vector<T> x): data(x.begin(), x.end()) {
+        if(x.size() < 2)
+            throw std::runtime_error("IrregularIndexer1D needs at least 2 points");
         std::sort(data.begin(), data.end());
         low = data.front();
         high = data.back();
-        range = high - low;
+        T range = high - low;
         n_points = data.size();
+        if(std::abs(range) <= 0)
+            throw std::runtime_error("IrregularIndexer1D cannot function with zero range");
     };
 
     template<class Archive>
@@ -274,7 +282,6 @@ public:
             archive(cereal::make_nvp("Data", data));
             archive(cereal::make_nvp("Low", low));
             archive(cereal::make_nvp("High", high));
-            archive(cereal::make_nvp("Range", range));
             archive(cereal::make_nvp("NPoints", n_points));
         } else {
             throw std::runtime_error("IndexFinderIrregular only supports version <= 0!");
@@ -282,12 +289,19 @@ public:
     }
 
     std::tuple<int, int> operator()(T const & x) const override {
+        if(x <= low) {
+            return {0, 1};
+        } else if (x >= high) {
+            return {n_points - 2, n_points - 1};
+        }
         // Lower bound returns pointer to element that is greater than or equal to x
         // i.e. x \in (a,b] --> pointer to b, x \in (b,c] --> pointer to c
         // begin is the first element
         // distance(begin, pointer to y) --> y
         // therefore this function returns the index of the lower bin edge
-        unsigned int index = std::distance(data.begin(), std::lower_bound(data.begin(), data.end(), x)) - 1;
+        using ConstIterator = typename std::vector<T>::const_iterator;
+        ConstIterator it = std::lower_bound(data.begin(), data.end(), x);
+        unsigned int index = std::distance(data.begin(), it) - 1;
         if(index < 0)
             index = 0;
         else if(index >= n_points - 1)
