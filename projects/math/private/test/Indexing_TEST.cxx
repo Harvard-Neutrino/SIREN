@@ -47,8 +47,10 @@ TEST(RegularIndexer1D, SortedIndex) {
         RegularIndexer1D<double> indexer(points);
         std::tuple<int, int> index = {0, 1};
         EXPECT_TRUE(index == indexer(min));
+        EXPECT_TRUE(index == indexer(min - 1));
         index = {n_points-2, n_points-1};
         EXPECT_TRUE(index == indexer(max));
+        EXPECT_TRUE(index == indexer(max + 1));
         for(size_t j=1; j<n_points-1; ++j) {
             index = {j, j+1};
             EXPECT_TRUE(index == indexer(min + delta * j + 1e-4 * delta));
@@ -71,8 +73,10 @@ TEST(RegularIndexer1D, UnsortedIndex) {
         RegularIndexer1D<double> indexer(points);
         std::tuple<int, int> index = {0, 1};
         EXPECT_TRUE(index == indexer(min));
+        EXPECT_TRUE(index == indexer(min - 1));
         index = {n_points-2, n_points-1};
         EXPECT_TRUE(index == indexer(max));
+        EXPECT_TRUE(index == indexer(max + 1));
         for(size_t j=1; j<n_points-1; ++j) {
             index = {j, j+1};
             EXPECT_TRUE(index == indexer(min + delta * j + 1e-4 * delta));
@@ -110,8 +114,10 @@ TEST(IrregularIndexer1D, SortedIndex) {
         IrregularIndexer1D<double> indexer(points);
         std::tuple<int, int> index = {0, 1};
         EXPECT_TRUE(index == indexer(min));
+        EXPECT_TRUE(index == indexer(min - 1));
         index = {n_points-2, n_points-1};
         EXPECT_TRUE(index == indexer(max));
+        EXPECT_TRUE(index == indexer(max + 1));
         for(size_t j=1; j<n_points-1; ++j) {
             index = {j, j+1};
             EXPECT_TRUE(index == indexer(points[j] + (points[j+1] - points[j]) * 1e-4));
@@ -134,11 +140,38 @@ TEST(IrregularIndexer1D, UnsortedIndex) {
         IrregularIndexer1D<double> indexer(points);
         std::tuple<int, int> index = {0, 1};
         EXPECT_TRUE(index == indexer(min));
+        EXPECT_TRUE(index == indexer(min - 1));
+        index = {n_points-2, n_points-1};
+        EXPECT_TRUE(index == indexer(max));
+        EXPECT_TRUE(index == indexer(max + 1));
+        for(size_t j=1; j<n_points-1; ++j) {
+            index = {j, j+1};
+            EXPECT_TRUE(index == indexer(points[j] + (points[j+1] - points[j]) * 1e-4));
+        }
+    }
+}
+
+TEST(IrregularIndexer1D, RegularGrid) {
+    size_t N = 1000;
+    for(size_t i=0; i<N; ++i) {
+        double min = RandomDouble();
+        double max = min + RandomDouble();
+        size_t n_points = size_t(RandomDouble() * 100 + 2);
+        double delta = (max - min) / (n_points - 1);
+        std::vector<double> points(n_points);
+        for(size_t j=0; j<n_points; ++j) {
+            points[j] = (min + delta * j);
+        }
+        IrregularIndexer1D<double> indexer(points);
+        IrregularIndexer1D<double> reg_indexer(points);
+        std::tuple<int, int> index = {0, 1};
+        EXPECT_TRUE(index == indexer(min));
         index = {n_points-2, n_points-1};
         EXPECT_TRUE(index == indexer(max));
         for(size_t j=1; j<n_points-1; ++j) {
             index = {j, j+1};
-            EXPECT_TRUE(index == indexer(points[j] + (points[j+1] - points[j]) * 1e-4));
+            EXPECT_TRUE(index == indexer(min + delta * j + 1e-4 * delta));
+            EXPECT_TRUE(indexer(min + delta * j + 1e-4 * delta) == reg_indexer(min + delta * j + 1e-4 * delta));
         }
     }
 }
