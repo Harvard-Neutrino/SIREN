@@ -11,7 +11,7 @@ include(ExternalProject)
 ## project(lepton_injector VERSION 1.0.0 DESCRIPTION "lepton injector library")
 project(lepton_injector VERSION 1.0.0 LANGUAGES CXX C)
 
-SET(CMAKE_CXX_STANDARD 14)
+SET(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_C_STANDARD 99)
 ## enable_language(cxx)
 SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake

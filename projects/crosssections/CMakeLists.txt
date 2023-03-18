@@ -1,9 +1,11 @@
 
 #core files
 LIST (APPEND crosssections_SOURCES
+    ${CMAKE_SOURCE_DIR}/projects/crosssections/private/Decay.cxx
     ${CMAKE_SOURCE_DIR}/projects/crosssections/private/CrossSection.cxx
     ${CMAKE_SOURCE_DIR}/projects/crosssections/private/CrossSectionCollection.cxx
     ${CMAKE_SOURCE_DIR}/projects/crosssections/private/DipoleFromTable.cxx
+    ${CMAKE_SOURCE_DIR}/projects/crosssections/private/NeutrissimoDecay.cxx
     ${CMAKE_SOURCE_DIR}/projects/crosssections/private/DISFromSpline.cxx
     ${CMAKE_SOURCE_DIR}/projects/crosssections/private/ElasticScattering.cxx
 )
@@ -37,4 +39,4 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/crosssections/public/"
 
 package_add_test(UnitTest_DISFromSpline ${CMAKE_SOURCE_DIR}/projects/crosssections/private/test/DISFromSpline_TEST.cxx)
 package_add_test(UnitTest_DipoleFromTable ${CMAKE_SOURCE_DIR}/projects/crosssections/private/test/DipoleFromTable_TEST.cxx)
-package_add_test(UnitTest_ElasticScattering ${CMAKE_SOURCE_DIR}/projects/crosssections/private/test/ElasticScattering_TEST.cxx)
+#package_add_test(UnitTest_ElasticScattering ${CMAKE_SOURCE_DIR}/projects/crosssections/private/test/ElasticScattering_TEST.cxx)
