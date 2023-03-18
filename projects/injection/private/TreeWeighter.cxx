@@ -282,6 +282,7 @@ double LeptonProcessWeighter::PhysicalProbability(std::pair<LI::math::Vector3D, 
 // TODO: implement smart EventWeight function that cancels common distributions
 double LeptonProcessWeighter::EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds,
                                           LI::dataclasses::InteractionRecord const & record) const {
+  return 0;
 }
 
 LeptonProcessWeighter::LeptonProcessWeighter(std::shared_ptr<LI::dataclasses::PhysicalProcess> phys_process,std::shared_ptr<LI::dataclasses::InjectionProcess> inj_process, std::shared_ptr<LI::detector::EarthModel> earth_model)

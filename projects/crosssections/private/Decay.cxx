@@ -1,4 +1,7 @@
 #include "LeptonInjector/crosssections/Decay.h"
+#include "LeptonInjector/utilities/Constants.h"
+
+#include <rk/rk.hh>
 
 namespace LI {
 namespace crosssections {
@@ -12,14 +15,16 @@ bool Decay::operator==(Decay const & other) const {
         return this->equal(other);
 }
 
-double Decay::TotalDecayLength(dataclasses::InteractionRecord const & record) {
-  return TotalDecayLength(record.signature.primary_type,record.primary_momentum[0]);
+double Decay::TotalDecayLength(dataclasses::InteractionRecord const & interaction) const {
+    double tau = 1./TotalDecayWidth(interaction.signature.primary_type); // in inverse GeV
+    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
+    return p1.beta() * p1.gamma() * tau * LI::utilities::Constants::hbarc * LI::utilities::Constants::cm;
 }
 
-double Decay::TotalDecayLength(LI::dataclasses::Particle::ParticleType primary, double energy) {
-    double tau = 1./TotalDecayWidth(primary,energy); // in inverse GeV
+double Decay::TotalDecayLengthForFinalState(dataclasses::InteractionRecord const & interaction) const {
+    double tau = 1./TotalDecayWidthForFinalState(interaction); // in inverse GeV
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    return p1.beta() * p1.gamma() * tau * LI::utilities::Constants::hbarc * LI::utilities::constants::cm;
+    return p1.beta() * p1.gamma() * tau * LI::utilities::Constants::hbarc * LI::utilities::Constants::cm;
 }
 
 } // namespace crosssections

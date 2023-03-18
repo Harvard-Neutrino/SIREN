@@ -43,7 +43,7 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> e
       for(auto const & signature : signatures) {
         fake_record.signature = signature;
         //TODO: do the units here match the cross section units?
-        double decay_prob = 1./decay->TotalDecayLength(fake_record);
+        double decay_prob = 1./decay->TotalDecayLengthForFinalState(fake_record);
         total_prob += decay_prob;
         if(signature == record.signature) {
             selected_final_state += decay_prob * decay->FinalStateProbability(record);

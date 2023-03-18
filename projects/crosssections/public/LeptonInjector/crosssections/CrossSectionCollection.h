@@ -29,8 +29,8 @@ namespace crosssections {
 class CrossSectionCollection{
 private:
     LI::dataclasses::Particle::ParticleType primary_type;
-    std::vector<std::shared_ptr<Decay>> decays;
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
+    std::vector<std::shared_ptr<Decay>> decays;
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> cross_sections_by_target;
     std::set<LI::dataclasses::Particle::ParticleType> target_types;
     static const std::vector<std::shared_ptr<CrossSection>> empty;
