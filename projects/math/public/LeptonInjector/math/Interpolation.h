@@ -3,6 +3,7 @@
 
 #include <map>
 #include <set>
+#include <array>
 #include <cmath>
 #include <memory>
 #include <vector>
@@ -490,13 +491,371 @@ using RegularGridIndexer2D = GridIndexer2D<T, RegularIndexer1D<T>>;
 template<typename T>
 using IrregularGridIndexer2D = GridIndexer2D<T, IrregularIndexer1D<T>>;
 
+namespace quadtree {
+// QuadTree implementation from https://github.com/pvigier/Quadtree
+
+template<typename T>
+class Vector2 {
+public:
+    T x;
+    T y;
+
+    constexpr Vector2<T>(T X = 0, T Y = 0) noexcept : x(X), y(Y) {
+
+    }
+
+    constexpr Vector2<T>& operator+=(const Vector2<T>& other) noexcept {
+        x += other.x;
+        y += other.y;
+        return *this;
+    }
+
+    constexpr Vector2<T>& operator/=(T t) noexcept {
+        x /= t;
+        y /= t;
+        return *this;
+    }
+};
+
+template<typename T>
+constexpr Vector2<T> operator+(Vector2<T> lhs, const Vector2<T>& rhs) noexcept {
+    lhs += rhs;
+    return lhs;
+}
+
+template<typename T>
+constexpr Vector2<T> operator/(Vector2<T> vec, T t) noexcept {
+    vec /= t;
+    return vec;
+}
+
+template<typename T>
+class Box {
+public:
+    T left;
+    T top;
+    T width; // Must be positive
+    T height; // Must be positive
+
+    constexpr Box(T Left = 0, T Top = 0, T Width = 0, T Height = 0) noexcept :
+        left(Left), top(Top), width(Width), height(Height) {
+
+    }
+
+    constexpr Box(const Vector2<T>& position, const Vector2<T>& size) noexcept :
+        left(position.x), top(position.y), width(size.x), height(size.y) {
+
+    }
+
+    constexpr T getRight() const noexcept {
+        return left + width;
+    }
+
+    constexpr T getBottom() const noexcept {
+        return top + height;
+    }
+
+    constexpr Vector2<T> getTopLeft() const noexcept {
+        return Vector2<T>(left, top);
+    }
+
+    constexpr Vector2<T> getCenter() const noexcept {
+        return Vector2<T>(left + width / 2, top + height / 2);
+    }
+
+    constexpr Vector2<T> getSize() const noexcept {
+        return Vector2<T>(width, height);
+    }
+
+    constexpr bool contains(const Box<T>& box) const noexcept {
+        return left <= box.left && box.getRight() <= getRight() &&
+            top <= box.top && box.getBottom() <= getBottom();
+    }
+
+    constexpr bool intersects(const Box<T>& box) const noexcept {
+        return !(left >= box.getRight() || getRight() <= box.left ||
+            top >= box.getBottom() || getBottom() <= box.top);
+    }
+};
+
+template<typename T, typename GetBox, typename Equal = std::equal_to<T>, typename Float = float>
+class Quadtree {
+public:
+    Quadtree() {}
+    Quadtree(const Box<Float>& box, const GetBox& getBox = GetBox(),
+        const Equal& equal = Equal()) :
+        mBox(box), mRoot(std::make_unique<Node>()), mGetBox(getBox), mEqual(equal) {
+
+    }
+
+    void add(const T& value) {
+        add(mRoot.get(), 0, mBox, value);
+    }
+
+    void remove(const T& value) {
+        remove(mRoot.get(), mBox, value);
+    }
+
+    std::vector<T> query(const Box<Float>& box) const {
+        auto values = std::vector<T>();
+        query(mRoot.get(), mBox, box, values);
+        return values;
+    }
+
+    std::vector<std::pair<T, T>> findAllIntersections() const {
+        auto intersections = std::vector<std::pair<T, T>>();
+        findAllIntersections(mRoot.get(), intersections);
+        return intersections;
+    }
+
+    Box<Float> getBox() const {
+        return mBox;
+    }
+
+private:
+    static constexpr auto Threshold = std::size_t(16);
+    static constexpr auto MaxDepth = std::size_t(8);
+
+    struct Node {
+        std::array<std::unique_ptr<Node>, 4> children;
+        std::vector<T> values;
+    };
+
+    Box<Float> mBox;
+    std::unique_ptr<Node> mRoot;
+    GetBox mGetBox;
+    Equal mEqual;
+
+    bool isLeaf(const Node* node) const {
+        return !static_cast<bool>(node->children[0]);
+    }
+
+    Box<Float> computeBox(const Box<Float>& box, int i) const {
+        auto origin = box.getTopLeft();
+        auto childSize = box.getSize() / static_cast<Float>(2);
+        switch (i) {
+            // North West
+            case 0:
+                return Box<Float>(origin, childSize);
+            // Norst East
+            case 1:
+                return Box<Float>(Vector2<Float>(origin.x + childSize.x, origin.y), childSize);
+            // South West
+            case 2:
+                return Box<Float>(Vector2<Float>(origin.x, origin.y + childSize.y), childSize);
+            // South East
+            case 3:
+                return Box<Float>(origin + childSize, childSize);
+            default:
+                return Box<Float>();
+        }
+    }
+
+    int getQuadrant(const Box<Float>& nodeBox, const Box<Float>& valueBox) const {
+        auto center = nodeBox.getCenter();
+        // West
+        if (valueBox.getRight() < center.x) {
+            // North West
+            if (valueBox.getBottom() < center.y)
+                return 0;
+            // South West
+            else if (valueBox.top >= center.y)
+                return 2;
+            // Not contained in any quadrant
+            else
+                return -1;
+        }
+        // East
+        else if (valueBox.left >= center.x) {
+            // North East
+            if (valueBox.getBottom() < center.y)
+                return 1;
+            // South East
+            else if (valueBox.top >= center.y)
+                return 3;
+            // Not contained in any quadrant
+            else
+                return -1;
+        }
+        // Not contained in any quadrant
+        else
+            return -1;
+    }
+
+    void add(Node* node, std::size_t depth, const Box<Float>& box, const T& value) {
+        assert(node != nullptr);
+        if(not box.contains(mGetBox(value))) {
+            std::cout << box.left << " " << box.getRight() << " " << box.top << " " << box.getBottom() << std::endl;
+            std::cout << mGetBox(value).left << " " << mGetBox(value).getRight() << " " << mGetBox(value).top << " " << mGetBox(value).getBottom() << std::endl;
+        }
+        assert(box.contains(mGetBox(value)));
+        if (isLeaf(node)) {
+            // Insert the value in this node if possible
+            if (depth >= MaxDepth || node->values.size() < Threshold)
+                node->values.push_back(value);
+            // Otherwise, we split and we try again
+            else {
+                split(node, box);
+                add(node, depth, box, value);
+            }
+        }
+        else {
+            auto i = getQuadrant(box, mGetBox(value));
+            // Add the value in a child if the value is entirely contained in it
+            if (i != -1)
+                add(node->children[static_cast<std::size_t>(i)].get(), depth + 1, computeBox(box, i), value);
+            // Otherwise, we add the value in the current node
+            else
+                node->values.push_back(value);
+        }
+    }
+
+    void split(Node* node, const Box<Float>& box) {
+        assert(node != nullptr);
+        assert(isLeaf(node) && "Only leaves can be split");
+        // Create children
+        for (auto& child : node->children)
+            child = std::make_unique<Node>();
+        // Assign values to children
+        auto newValues = std::vector<T>(); // New values for this node
+        for (const auto& value : node->values) {
+            auto i = getQuadrant(box, mGetBox(value));
+            if (i != -1)
+                node->children[static_cast<std::size_t>(i)]->values.push_back(value);
+            else
+                newValues.push_back(value);
+        }
+        node->values = std::move(newValues);
+    }
+
+    bool remove(Node* node, const Box<Float>& box, const T& value) {
+        assert(node != nullptr);
+        assert(box.contains(mGetBox(value)));
+        if (isLeaf(node)) {
+            // Remove the value from node
+            removeValue(node, value);
+            return true;
+        }
+        else {
+            // Remove the value in a child if the value is entirely contained in it
+            auto i = getQuadrant(box, mGetBox(value));
+            if (i != -1) {
+                if (remove(node->children[static_cast<std::size_t>(i)].get(), computeBox(box, i), value))
+                    return tryMerge(node);
+            }
+            // Otherwise, we remove the value from the current node
+            else
+                removeValue(node, value);
+            return false;
+        }
+    }
+
+    void removeValue(Node* node, const T& value) {
+        // Find the value in node->values
+        auto it = std::find_if(std::begin(node->values), std::end(node->values),
+            [this, &value](const auto& rhs){ return mEqual(value, rhs); });
+        assert(it != std::end(node->values) && "Trying to remove a value that is not present in the node");
+        // Swap with the last element and pop back
+        *it = std::move(node->values.back());
+        node->values.pop_back();
+    }
+
+    bool tryMerge(Node* node) {
+        assert(node != nullptr);
+        assert(!isLeaf(node) && "Only interior nodes can be merged");
+        auto nbValues = node->values.size();
+        for (const auto& child : node->children) {
+            if (!isLeaf(child.get()))
+                return false;
+            nbValues += child->values.size();
+        }
+        if (nbValues <= Threshold) {
+            node->values.reserve(nbValues);
+            // Merge the values of all the children
+            for (const auto& child : node->children) {
+                for (const auto& value : child->values)
+                    node->values.push_back(value);
+            }
+            // Remove the children
+            for (auto& child : node->children)
+                child.reset();
+            return true;
+        } else
+            return false;
+    }
+
+    void query(Node* node, const Box<Float>& box, const Box<Float>& queryBox, std::vector<T>& values) const {
+        assert(node != nullptr);
+        assert(queryBox.intersects(box));
+        for (const auto& value : node->values) {
+            if (queryBox.intersects(mGetBox(value)))
+                values.push_back(value);
+        }
+        if (!isLeaf(node)) {
+            for (auto i = std::size_t(0); i < node->children.size(); ++i) {
+                auto childBox = computeBox(box, static_cast<int>(i));
+                if (queryBox.intersects(childBox))
+                    query(node->children[i].get(), childBox, queryBox, values);
+            }
+        }
+    }
+
+    void findAllIntersections(Node* node, std::vector<std::pair<T, T>>& intersections) const {
+        // Find intersections between values stored in this node
+        // Make sure to not report the same intersection twice
+        for (auto i = std::size_t(0); i < node->values.size(); ++i) {
+            for (auto j = std::size_t(0); j < i; ++j) {
+                if (mGetBox(node->values[i]).intersects(mGetBox(node->values[j])))
+                    intersections.emplace_back(node->values[i], node->values[j]);
+            }
+        }
+        if (!isLeaf(node)) {
+            // Values in this node can intersect values in descendants
+            for (const auto& child : node->children) {
+                for (const auto& value : node->values)
+                    findIntersectionsInDescendants(child.get(), value, intersections);
+            }
+            // Find intersections in children
+            for (const auto& child : node->children)
+                findAllIntersections(child.get(), intersections);
+        }
+    }
+
+    void findIntersectionsInDescendants(Node* node, const T& value, std::vector<std::pair<T, T>>& intersections) const {
+        // Test against the values stored in this node
+        for (const auto& other : node->values) {
+            if (mGetBox(value).intersects(mGetBox(other)))
+                intersections.emplace_back(value, other);
+        }
+        // Test against values stored into descendants of this node
+        if (!isLeaf(node)) {
+            for (const auto& child : node->children)
+                findIntersectionsInDescendants(child.get(), value, intersections);
+        }
+    }
+};
+
+}
+
+template<typename T>
+struct GetBox {
+    using Simplex = typename IDelaBella2<T>::Simplex;
+    using Vertex = typename IDelaBella2<T>::Vertex;
+    quadtree::Box<T> operator()(Simplex const * simplex) const {
+        T x_min = std::min(simplex->v[0]->x, std::min(simplex->v[1]->x, simplex->v[2]->x));
+        T x_max = std::max(simplex->v[0]->x, std::max(simplex->v[1]->x, simplex->v[2]->x));
+        T y_min = std::min(simplex->v[0]->y, std::min(simplex->v[1]->y, simplex->v[2]->y));
+        T y_max = std::max(simplex->v[0]->y, std::max(simplex->v[1]->y, simplex->v[2]->y));
+        return quadtree::Box<T>(x_min, y_min, x_max - x_min, y_max - y_min);
+    }
+};
+
 template<typename T>
 class DelaunayIndexer2D {
     using Simplex = typename IDelaBella2<T>::Simplex;
     using Vertex = typename IDelaBella2<T>::Vertex;
-    std::shared_ptr<IDelaBella2<T>> idb;
-    IrregularIndexer1D<T> x_indexer;
-    IrregularIndexer1D<T> y_indexer;
+    IDelaBella2<T> * idb;
+    quadtree::Quadtree<Simplex const *, GetBox<T>, std::equal_to<Simplex *>, T> q_tree;
     std::map<std::pair<int, int>, std::vector<Simplex const *>> simplex_map;
 
     struct Point {
@@ -528,12 +887,12 @@ class DelaunayIndexer2D {
     static inline T TriArea2D(Simplex const * tri) {
         if(tri == nullptr)
             return 0.0;
-        T const & x1 = tri->v[0].x;
-        T const & x2 = tri->v[1].x;
-        T const & x3 = tri->v[2].x;
-        T const & y1 = tri->v[0].y;
-        T const & y2 = tri->v[1].y;
-        T const & y3 = tri->v[2].y;
+        T const & x1 = tri->v[0]->x;
+        T const & x2 = tri->v[1]->x;
+        T const & x3 = tri->v[2]->x;
+        T const & y1 = tri->v[0]->y;
+        T const & y2 = tri->v[1]->y;
+        T const & y3 = tri->v[2]->y;
         return (x1 - x2) * (y2 - y3) - (x2 - x3) * (y1 - y2);
     }
 
@@ -550,62 +909,28 @@ public:
         if(verts <= 0) {
             throw std::runtime_error("Could not triangulate input grid");
         }
-        std::set<T> unique_x(x.begin(), x.end());
-        std::set<T> unique_y(y.begin(), y.end());
-        std::vector<T> sorted_x(unique_x.begin(), unique_x.end());
-        std::vector<T> sorted_y(unique_y.begin(), unique_y.end());
-        std::sort(sorted_x.begin(), sorted_x.end());
-        std::sort(sorted_y.begin(), sorted_y.end());
-        x_indexer = IrregularIndexer1D<T>(sorted_x);
-        y_indexer = IrregularIndexer1D<T>(sorted_y);
+
+        T x_min = *std::min_element(x.begin(), x.end());
+        T x_max = *std::max_element(x.begin(), x.end());
+        T y_min = *std::min_element(y.begin(), y.end());
+        T y_max = *std::max_element(y.begin(), y.end());
+        T x_width = x_max - x_min;
+        T y_width = y_max - y_min;
+        quadtree::Box<T> bounding_box(x_min - x_width * 1e-4, y_min - y_width * 1e-4, x_width * (1 + 2e-4), y_width * (1 + 2e-4));
+        q_tree = quadtree::Quadtree<Simplex const *, GetBox<T>, std::equal_to<Simplex *>, T>(bounding_box);
+
         size_t npoly = idb->GetNumPolygons();
         Simplex const * dela = idb->GetFirstDelaunaySimplex();
         for(size_t i=0; i<npoly; ++i) {
-            int min_x, max_x, min_y, max_y;
-            for(size_t j=0; j<3; ++j) {
-                Vertex const & vert = *(dela->v[j]);
-                std::tuple<int, int> x_indices = x_indexer(vert.x);
-                std::tuple<int, int> y_indices = y_indexer(vert.y);
-                if(i == 0) {
-                    min_x = std::get<0>(x_indices);
-                    max_x = std::get<1>(x_indices);
-                    min_y = std::get<0>(y_indices);
-                    max_y = std::get<1>(y_indices);
-                } else {
-                    min_x = std::min(std::get<0>(x_indices), min_x);
-                    max_x = std::max(std::get<1>(x_indices), max_x);
-                    min_y = std::min(std::get<0>(y_indices), min_y);
-                    max_y = std::max(std::get<1>(y_indices), max_y);
-                }
-            }
-            for(size_t x_i=min_x; x_i<max_x; ++x_i) {
-                for(size_t y_i=min_y; y_i<max_y; ++y_i) {
-                    if(simplex_map.count({x_i, y_i}) == 0) {
-                        simplex_map[{x_i, y_i}] = {dela};
-                    } else {
-                        simplex_map[{x_i, y_i}].push_back(dela);
-                    }
-                }
-            }
+            q_tree.add(dela);
             dela = dela->next;
-        }
-        for(auto const & key : simplex_map.keys()) {
-            auto & vec = simplex_map[key];
-            std::sort(vec.begin(), vec.end(),
-                    [](Simplex const * a, Simplex const * b)->bool{
-                        T area_a = TriArea2D(a);
-                        T area_b = TriArea2D(b);
-                        return area_a > area_b;
-                    }
-            );
         }
     }
 
     virtual Simplex const * operator()(T const & x, T const & y) const {
         Point p; p.x = x; p.y = y;
-        int x_i = std::get<0>(x_indexer(x));
-        int y_i = std::get<0>(y_indexer(y));
-        std::vector<Simplex const *> const & simplices = simplex_map.at({x_i, y_i});
+        quadtree::Box<T> box(x, y, 0, 0);
+        std::vector<Simplex const *> simplices = q_tree.query(box);
         for(size_t i=0; i<simplices.size(); ++i) {
             if(PointInTriangle(p, simplices[i])) {
                 return simplices[i];

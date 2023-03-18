@@ -4,6 +4,7 @@
 #include <math.h>
 #include <random>
 #include <iostream>
+#include <algorithm>
 
 #include <gtest/gtest.h>
 
@@ -313,8 +314,86 @@ TEST(IrregularGridIndexer2D, RandomIndex) {
     }
 }
 
-// template<typename T>
-// using IrregularGridIndexer2D = GridIndexer2D<T, IrregularIndexer1D<T>>;
+// DelaunayIndexer2D(std::vector<T> const & x, std::vector<T> const & y)
+// virtual Simplex const * operator()(T const & x, T const & y) const {
+// using Simplex = typename IDelaBella2<T>::Simplex;
+// using Vertex = typename IDelaBella2<T>::Vertex;
+
+struct Point {
+    double x;
+    double y;
+};
+
+TEST(DelaunayIndexer2D, RandomIndex) {
+    using Simplex = typename IDelaBella2<double>::Simplex;
+    using Vertex = typename IDelaBella2<double>::Vertex;
+    size_t N = 100;
+    size_t M = 1000;
+    for(size_t m=0; m<N; ++m) {
+        double x_min = RandomDouble();
+        double x_range = RandomDouble();
+        double x_max = x_min + x_range;
+        double y_min = RandomDouble();
+        double y_range = RandomDouble();
+        double y_max = y_min + y_range;
+        size_t n_points = size_t(RandomDouble() * 1000 + 4);
+        std::vector<double> x_points(n_points);
+        std::vector<double> y_points(n_points);
+        for(size_t j=0; j<n_points - 4; ++j) {
+            x_points[j] = RandomDouble() * y_range + y_min;
+            y_points[j] = RandomDouble() * y_range + y_min;
+        }
+        x_points[n_points - 4] = x_min;
+        x_points[n_points - 3] = x_min;
+        x_points[n_points - 2] = x_max;
+        x_points[n_points - 1] = x_max;
+        y_points[n_points - 4] = y_min;
+        y_points[n_points - 3] = y_max;
+        y_points[n_points - 2] = y_min;
+        y_points[n_points - 1] = y_max;
+
+        Point * cloud = new Point[x_points.size()];
+        for(size_t i=0; i<x_points.size(); ++i) {
+            cloud[i].x = x_points[i];
+            cloud[i].y = y_points[i];
+        }
+
+        IDelaBella2<double> * idb = IDelaBella2<double>::Create();
+        int verts = idb->Triangulate(x_points.size(), &(cloud->x), &(cloud->y), sizeof(Point));
+        size_t npoly = idb->GetNumPolygons();
+        Simplex const * dela = idb->GetFirstDelaunaySimplex();
+        std::vector<Simplex const *> simplices(npoly);
+        std::vector<Point> points(npoly);
+        for(size_t i=0; i<npoly; ++i) {
+            simplices[i] = dela;
+
+            points[i].x = (dela->v[0]->x + dela->v[1]->x + dela->v[2]->x)/3.0;
+            points[i].y = (dela->v[0]->y + dela->v[1]->y + dela->v[2]->y)/3.0;
+
+            dela = dela->next;
+        }
+
+        DelaunayIndexer2D<double> indexer(x_points, y_points);
+
+        for(size_t j=0; j<M; j++) {
+            size_t idx = RandomDouble() * npoly;
+            double w0 = RandomDouble();
+            double w1 = RandomDouble();
+            double w2 = RandomDouble();
+            Simplex const * expected_simplex = simplices[idx];
+            double x_point = (
+                    expected_simplex->v[0]->x * w0 +
+                    expected_simplex->v[1]->x * w1 +
+                    expected_simplex->v[2]->x * w2) / (w0 + w1 + w2);
+            double y_point = (
+                    expected_simplex->v[0]->y * w0 +
+                    expected_simplex->v[1]->y * w1 +
+                    expected_simplex->v[2]->y * w2) / (w0 + w1 + w2);
+            Simplex const * found_simplex = indexer(points[idx].x, points[idx].y);
+            EXPECT_TRUE(found_simplex->v[0]->x == expected_simplex->v[0]->x);
+        }
+    }
+}
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
