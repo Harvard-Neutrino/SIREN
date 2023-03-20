@@ -21,6 +21,8 @@ LIST (APPEND distributions_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/DepthFunction.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/LeptonDepthFunction.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/VertexPositionDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/PointSourcePositionDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/SecondaryPositionDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/RangePositionDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/DecayRangePositionDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/vertex/OrientedCylinderPositionDistribution.cxx

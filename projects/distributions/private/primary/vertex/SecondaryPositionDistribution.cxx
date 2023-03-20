@@ -44,7 +44,7 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
   return LI::math::Vector3D(0,0,0);
 }
 
-void SecondaryPositionDistribution:: Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum & datum) {
+void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum & datum) const {
     LI::math::Vector3D pos = SamplePosition(rand, earth_model, cross_sections, datum);
     datum.record.interaction_vertex[0] = pos.GetX();
     datum.record.interaction_vertex[1] = pos.GetY();
@@ -105,6 +105,7 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
 double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum const & datum) const {
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
+    LI::math::Vector3D vertex(datum.record.interaction_vertex);
     
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
@@ -144,12 +145,11 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
     } else {
         prob_density = interaction_density * exp(-log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
     }
-    prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
 
     return prob_density;
 }
 
-SecondaryPositionDistribution::SecondaryPositionDistribution() {}
+SecondaryPositionDistribution::SecondaryPositionDistribution() : max_length(std::numeric_limits<double>::infinity()) {}
 
 SecondaryPositionDistribution::SecondaryPositionDistribution(double max_length) : max_length(max_length) {}
 
@@ -169,6 +169,7 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution:
 std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum const & datum) const {
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
+    LI::math::Vector3D vertex(datum.record.interaction_vertex);
 
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
@@ -187,7 +188,7 @@ bool SecondaryPositionDistribution::equal(WeightableDistribution const & other) 
     if(!x)
         return false;
     else
-        return (max_length == x->max_length)
+        return (max_length == x->max_length);
 }
 
 bool SecondaryPositionDistribution::less(WeightableDistribution const & other) const {
