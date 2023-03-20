@@ -314,11 +314,6 @@ TEST(IrregularGridIndexer2D, RandomIndex) {
     }
 }
 
-// DelaunayIndexer2D(std::vector<T> const & x, std::vector<T> const & y)
-// virtual Simplex const * operator()(T const & x, T const & y) const {
-// using Simplex = typename IDelaBella2<T>::Simplex;
-// using Vertex = typename IDelaBella2<T>::Vertex;
-
 struct Point {
     double x;
     double y;

@@ -154,30 +154,28 @@ std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> SelectI
         std::vector<T> const & x,
         std::vector<T> const & y,
         std::shared_ptr<LinearInterpolationOperator<T>> interp) {
-    std::vector<T> symlog_x(x.size());
-    std::vector<T> symlog_y(y.size());
     T min_x = 1;
     T min_y = 1;
-    bool have_x = false;
-    bool have_y = false;
+    bool first_x = true;
+    bool first_y = false;
     for(size_t i=0; i<x.size(); ++i) {
         if(x[i] != 0) {
-            if(have_x) {
-                min_x = std::min(min_x, std::abs(x[i]));
-                have_x = true;
-            } else {
+            if(first_x) {
                 min_x = std::abs(x[i]);
+                first_x = false;
             }
+            min_x = std::min(min_x, std::abs(x[i]));
         }
         if(y[i] != 0) {
-            if(have_y) {
-                min_y = std::min(min_y, std::abs(y[i]));
-                have_y = true;
-            } else {
+            if(first_y) {
                 min_y = std::abs(y[i]);
+                first_y = false;
             }
+            min_y = std::min(min_y, std::abs(y[i]));
         }
     }
+    std::vector<T> symlog_x(x.size());
+    std::vector<T> symlog_y(y.size());
     SymLogTransform<T> symlog_t_x(min_x);
     SymLogTransform<T> symlog_t_y(min_y);
     for(size_t i=0; i<x.size(); ++i) {
@@ -192,34 +190,49 @@ std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> SelectI
 
     for(size_t i=1; i<x.size()-1; ++i) {
         T y_i_estimate = interp->operator()(x[i-1], y[i-1], x[i+1], y[i+1], x[i]);
-        T delta = y_i_estimate - y[i];
-        tot_00 += delta * delta;
+        T den_00 = std::max(std::abs(y[i]), std::abs(y_i_estimate)); if(den_00 < 1e-8) den_00 = 1;
+        T delta_00 = (y_i_estimate - y[i]) / den_00;
+        if((not std::isnan(delta_00)) and (not std::isinf(delta_00)))
+            tot_00 += delta_00 * delta_00;
 
         y_i_estimate = interp->operator()(x[i-1], symlog_y[i-1], x[i+1], symlog_y[i+1], x[i]);
-        delta = symlog_t_y.Inverse(y_i_estimate) - y[i];
-        tot_01 += delta * delta;
+        T den_01 = std::max(std::abs(y[i]), std::abs(symlog_t_y.Inverse(y_i_estimate))); if(den_01 < 1e-8) den_01 = 1;
+        T delta_01 = (symlog_t_y.Inverse(y_i_estimate) - y[i]) / den_01;
+        if((not std::isnan(delta_01)) and (not std::isinf(delta_01)))
+            tot_01 += delta_01 * delta_01;
 
         y_i_estimate = interp->operator()(symlog_x[i-1], y[i-1], symlog_x[i+1], y[i+1], symlog_x[i]);
-        delta = y_i_estimate - y[i];
-        tot_10 += delta * delta;
+        T den_10 = std::max(std::abs(y[i]), std::abs(y_i_estimate)); if(den_10 < 1e-8) den_10 = 1;
+        T delta_10 = (y_i_estimate - y[i]) / den_10;
+        if((not std::isnan(delta_10)) and (not std::isinf(delta_10)))
+            tot_10 += delta_10 * delta_10;
 
         y_i_estimate = interp->operator()(symlog_x[i-1], symlog_y[i-1], symlog_x[i+1], symlog_y[i+1], symlog_x[i]);
-        delta = symlog_t_y.Inverse(y_i_estimate) - y[i];
-        tot_11 += delta * delta;
+        T den_11 = std::max(std::abs(y[i]), std::abs(symlog_t_y.Inverse(y_i_estimate))); if(den_11 < 1e-8) den_11 = 1;
+        T delta_11 = (symlog_t_y.Inverse(y_i_estimate) - y[i]) / den_11;
+        if((not std::isnan(delta_11)) and (not std::isinf(delta_11)))
+            tot_11 += delta_11 * delta_11;
     }
 
     std::vector<T> tots = {tot_00, tot_01, tot_10, tot_11};
-    int min_combination = std::distance(tots.begin(), std::max_element(tots.begin(), tots.end()));
+    int min_combination = std::distance(tots.begin(), std::min_element(tots.begin(), tots.end()));
 
     switch(min_combination) {
+        case 0:
+            return {std::make_shared<IdentityTransform<T>>(), std::make_shared<IdentityTransform<T>>()};
+            break;
         case 1:
             return {std::make_shared<IdentityTransform<T>>(), std::make_shared<SymLogTransform<T>>(min_y)};
+            break;
         case 2:
             return {std::make_shared<SymLogTransform<T>>(min_x), std::make_shared<IdentityTransform<T>>()};
+            break;
         case 3:
             return {std::make_shared<SymLogTransform<T>>(min_x), std::make_shared<SymLogTransform<T>>(min_y)};
+            break;
         default:
             return {std::make_shared<IdentityTransform<T>>(), std::make_shared<IdentityTransform<T>>()};
+            break;
     }
 };
 
@@ -380,14 +393,17 @@ public:
 
 template<typename T>
 std::shared_ptr<Indexer1D<T>> SelectIndexer1D(
-        std::vector<T> x,
+        std::vector<T> data,
         std::shared_ptr<Transform<T>> x_transform) {
+    std::vector<T> x = data;
     std::sort(x.begin(), x.end());
+
+    // Compute and compare the squared error between different indexing methods and select the most accurate
+
     T metric_x_irregular = 0;
     T metric_t_irregular = 0;
     T metric_symlog_irregular = 0;
     for(size_t i=0; i<x.size() - 1; ++i) {
-        //metric_x_irregular += std::pow(std::numeric_limits<T>::epsilon() * std::min(std::abs(x[i]), std::abs(x[i+1] - x[i])), 2);
         metric_x_irregular += std::pow(std::numeric_limits<T>::epsilon() * std::abs(x[i]), 2);
     }
     metric_x_irregular -= metric_x_irregular * std::numeric_limits<T>::epsilon() * x.size();
@@ -459,9 +475,9 @@ std::shared_ptr<Indexer1D<T>> SelectIndexer1D(
     size_t min_index = std::distance(metrics.begin(), std::min_element(metrics.begin(), metrics.end()));
     if(min_index <= 1) { // No transformation
         if(min_index == 0) { // Irregular
-            return std::shared_ptr<Indexer1D<T>>(new IrregularIndexer1D<T>(x));
+            return std::shared_ptr<Indexer1D<T>>(new IrregularIndexer1D<T>(data));
         } else { // Regular
-            return std::shared_ptr<Indexer1D<T>>(new RegularIndexer1D<T>(x));
+            return std::shared_ptr<Indexer1D<T>>(new RegularIndexer1D<T>(data));
         }
     } else if(min_index > 1) {
         std::shared_ptr<Transform<T>> transform;
@@ -469,11 +485,11 @@ std::shared_ptr<Indexer1D<T>> SelectIndexer1D(
         if(min_index <= 3) { // Supplied transform
             transform = x_transform;
         } else { // Symlog transform
-            transform = std::shared_ptr<Transform<T>>(new SymLogTransform<T>(x));
+            transform = std::shared_ptr<Transform<T>>(new SymLogTransform<T>(data));
         }
-        std::vector<T> t(x.size());
-        for(size_t i=0; i<x.size(); ++i) {
-            t[i] = transform->Function(x[i]);
+        std::vector<T> t(data.size());
+        for(size_t i=0; i<data.size(); ++i) {
+            t[i] = transform->Function(data[i]);
         }
         if(min_index % 2 == 0) { // Irregular
             indexer = std::shared_ptr<Indexer1D<T>>(new IrregularIndexer1D<T>(t));

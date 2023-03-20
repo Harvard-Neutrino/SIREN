@@ -465,6 +465,147 @@ TEST(RangeTransform, RoundTrip) {
     }
 }
 
+TEST(SelectInterpolationSpace1D, UniformXY) {
+    size_t N = 10000;
+    size_t n_passed = 0;
+    for(size_t n=0; n<N; ++n) {
+        size_t n_points = size_t(RandomDouble() * 1000 + 2);
+        double min_x = RandomDouble();
+        double range_x = RandomDouble() * 1000;
+        double delta_x = range_x / (n_points - 1);
+        double max_x = min_x + range_x;
+        std::vector<double> x(n_points);
+        std::vector<double> y(n_points);
+        double a = (RandomDouble() - 0.5);
+        double b = (RandomDouble() - 0.5);
+        std::function<double(double)> f = [&](double x)->double {
+            return a*x + b;
+        };
+
+        for(size_t i=0; i<n_points; ++i) {
+            x[i] = delta_x * i + min_x;
+        }
+        std::sort(x.begin(), x.end());
+        for(size_t i=0; i<n_points; ++i) {
+            y[i] = f(x[i]);
+        }
+
+        std::shared_ptr<LinearInterpolationOperator<double>> interp(new LinearInterpolationOperator<double>());
+
+        std::tuple<std::shared_ptr<Transform<double>>, std::shared_ptr<Transform<double>>> transform_space = SelectInterpolationSpace1D(x, y, interp);
+
+        if(dynamic_cast<IdentityTransform<double>*>(std::get<0>(transform_space).get()) != nullptr and dynamic_cast<IdentityTransform<double>*>(std::get<1>(transform_space).get()) != nullptr) {
+            n_passed += 1;
+        }
+    }
+    EXPECT_TRUE(double(n_passed) / double(N) >= 0.99);
+}
+
+TEST(SelectInterpolationSpace1D, UniformXLogY) {
+    size_t N = 10000;
+    size_t n_passed = 0;
+    for(size_t n=0; n<N; ++n) {
+        size_t n_points = size_t(RandomDouble() * 100 + 2);
+        double min_x = 1;
+        double range_x = 4;
+        double delta_x = range_x / (n_points - 1);
+        double max_x = min_x + range_x;
+        std::vector<double> x(n_points);
+        std::vector<double> y(n_points);
+        double a = (RandomDouble()) * 10;
+        double b = (RandomDouble()) * 2;
+        std::function<double(double)> f = [&](double x)->double {
+            return exp(x*a + b);
+        };
+
+        for(size_t i=0; i<n_points; ++i) {
+            x[i] = delta_x * i + min_x;
+        }
+        for(size_t i=0; i<n_points; ++i) {
+            y[i] = f(x[i]);
+        }
+
+        std::shared_ptr<LinearInterpolationOperator<double>> interp(new LinearInterpolationOperator<double>());
+
+        std::tuple<std::shared_ptr<Transform<double>>, std::shared_ptr<Transform<double>>> transform_space = SelectInterpolationSpace1D(x, y, interp);
+
+        if(dynamic_cast<IdentityTransform<double>*>(std::get<0>(transform_space).get()) != nullptr and dynamic_cast<SymLogTransform<double>*>(std::get<1>(transform_space).get()) != nullptr) {
+            n_passed += 1;
+        }
+    }
+    EXPECT_TRUE(double(n_passed) / double(N) >= 0.99);
+}
+
+TEST(SelectInterpolationSpace1D, LogXUniformY) {
+    size_t N = 10000;
+    size_t n_passed = 0;
+    for(size_t n=0; n<N; ++n) {
+        size_t n_points = size_t(RandomDouble() * 1000 + 2);
+        double min_x = 1e-2;
+        double range_x = 1000;
+        double delta_x = range_x / (n_points - 1);
+        double max_x = min_x + range_x;
+        std::vector<double> x(n_points);
+        std::vector<double> y(n_points);
+        double a = (RandomDouble()) * 10;
+        double b = (RandomDouble() - 0.5) * 10;
+        std::function<double(double)> f = [&](double x)->double {
+            return log(x*a) + b;
+        };
+
+        for(size_t i=0; i<n_points; ++i) {
+            x[i] = delta_x * i + min_x;
+        }
+        for(size_t i=0; i<n_points; ++i) {
+            y[i] = f(x[i]);
+        }
+
+        std::shared_ptr<LinearInterpolationOperator<double>> interp(new LinearInterpolationOperator<double>());
+
+        std::tuple<std::shared_ptr<Transform<double>>, std::shared_ptr<Transform<double>>> transform_space = SelectInterpolationSpace1D(x, y, interp);
+
+        if(dynamic_cast<SymLogTransform<double>*>(std::get<0>(transform_space).get()) != nullptr and dynamic_cast<IdentityTransform<double>*>(std::get<1>(transform_space).get()) != nullptr) {
+            n_passed += 1;
+        }
+    }
+    EXPECT_TRUE(double(n_passed) / double(N) >= 0.99);
+}
+
+TEST(SelectInterpolationSpace1D, LogXLogY) {
+    size_t N = 10000;
+    size_t n_passed = 0;
+    for(size_t n=0; n<N; ++n) {
+        size_t n_points = size_t(RandomDouble() * 1000 + 2);
+        double min_x = 0;
+        double range_x = 2;
+        double delta_x = range_x / (n_points - 1);
+        double max_x = min_x + range_x;
+        std::vector<double> x(n_points);
+        std::vector<double> y(n_points);
+        double a = (RandomDouble()) * 2;
+        double b = (RandomDouble()) * 2;
+        std::function<double(double)> f = [&](double x)->double {
+            return a*exp(x) + b*std::pow(x, 8);
+        };
+
+        for(size_t i=0; i<n_points; ++i) {
+            x[i] = exp(delta_x * i + min_x);
+        }
+        for(size_t i=0; i<n_points; ++i) {
+            y[i] = f(x[i]);
+        }
+
+        std::shared_ptr<LinearInterpolationOperator<double>> interp(new LinearInterpolationOperator<double>());
+
+        std::tuple<std::shared_ptr<Transform<double>>, std::shared_ptr<Transform<double>>> transform_space = SelectInterpolationSpace1D(x, y, interp);
+
+        if(dynamic_cast<SymLogTransform<double>*>(std::get<0>(transform_space).get()) != nullptr and dynamic_cast<SymLogTransform<double>*>(std::get<1>(transform_space).get()) != nullptr) {
+            n_passed += 1;
+        }
+    }
+    EXPECT_TRUE(double(n_passed) / double(N) >= 0.99);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
