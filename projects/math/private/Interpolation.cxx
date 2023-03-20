@@ -20,7 +20,7 @@ template<> struct LinearInterpolationOperator<double>;
 
 template<> struct DropLinearInterpolationOperator<double>;
 
-template<> std::tuple<std::shared_ptr<Transform<double>>, std::shared_ptr<Transform<double>>> DetermineInterpolationSpace1D(
+template<> std::tuple<std::shared_ptr<Transform<double>>, std::shared_ptr<Transform<double>>> SelectInterpolationSpace1D(
         std::vector<double> const & x,
         std::vector<double> const & y,
         std::shared_ptr<LinearInterpolationOperator<double>> interp);
@@ -28,6 +28,13 @@ template<> std::tuple<std::shared_ptr<Transform<double>>, std::shared_ptr<Transf
 template<> class RegularIndexer1D<double>;
 
 template<> class IrregularIndexer1D<double>;
+
+template<> class TransformIndexer1D<double>;
+
+template<>
+std::shared_ptr<Indexer1D<double>> SelectIndexer1D(
+        std::vector<double> x,
+        std::shared_ptr<Transform<double>> x_transform);
 
 template<> class LinearInterpolator1D<double>;
 

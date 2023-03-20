@@ -133,7 +133,7 @@ public:
 };
 
 template<typename T>
-std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> DetermineInterpolationSpace1D(
+std::tuple<std::shared_ptr<Transform<T>>, std::shared_ptr<Transform<T>>> SelectInterpolationSpace1D(
         std::vector<T> const & x,
         std::vector<T> const & y,
         std::shared_ptr<LinearInterpolationOperator<T>> interp) {
@@ -217,17 +217,31 @@ class RegularIndexer1D : public Indexer1D<T> {
     T low;
     T high;
     T range;
+    bool reversed;
     unsigned int n_points;
     T delta;
 public:
 
     RegularIndexer1D() {};
-    RegularIndexer1D(std::vector<T> x) {
-        if(x.size() < 2)
+    RegularIndexer1D(std::vector<T> data) {
+        if(data.size() < 2)
             throw std::runtime_error("RegularIndexer1D needs at least 2 points");
-        n_points = x.size();
-        low = *std::min_element(x.begin(), x.end());
-        high = *std::max_element(x.begin(), x.end());
+        n_points = data.size();
+        T data_first = data.front();
+        T data_last = data.back();
+        std::sort(data.begin(), data.end());
+        if(data_first == data.front() and data_last == data.back())  {
+            // Assume sorted to start with
+            reversed = false;
+        } else if(data_first == data.back() and data_last == data.front()) {
+            // Assume reversed to start with
+            reversed = true;
+        } else {
+            // Unsorted
+            reversed = false;
+        }
+        low = data.front();
+        high = data.back();
         range = high - low;
         if(std::abs(range) <= 0)
             throw std::runtime_error("RegularIndexer1D cannot function with zero range");
@@ -249,6 +263,8 @@ public:
 
     virtual std::tuple<int, int> operator()(T const & x) const override {
         int index = (int)std::floor((x - low) / range * (n_points - 1));
+        if(reversed)
+            index = (n_points - 1) - index;
         if(index < 0)
             index = 0;
         else if(index >= int(n_points) - 1)
@@ -262,13 +278,26 @@ class IrregularIndexer1D : public Indexer1D<T> {
     std::vector<T> data;
     T low;
     T high;
+    bool reversed;
     unsigned int n_points;
 public:
     IrregularIndexer1D() {};
     IrregularIndexer1D(std::vector<T> x): data(x.begin(), x.end()) {
         if(x.size() < 2)
             throw std::runtime_error("IrregularIndexer1D needs at least 2 points");
+        T data_first = data.front();
+        T data_last = data.back();
         std::sort(data.begin(), data.end());
+        if(data_first == data.front() and data_last == data.back())  {
+            // Assume sorted to start with
+            reversed = false;
+        } else if(data_first == data.back() and data_last == data.front()) {
+            // Assume reversed to start with
+            reversed = true;
+        } else {
+            // Unsorted
+            reversed = false;
+        }
         low = data.front();
         high = data.back();
         T range = high - low;
@@ -303,11 +332,112 @@ public:
         using ConstIterator = typename std::vector<T>::const_iterator;
         ConstIterator it = std::lower_bound(data.begin(), data.end(), x);
         unsigned int index = std::distance(data.begin(), it) - 1;
+        if(reversed)
+            index = (n_points - 1) - index;
         if(index < 0)
             index = 0;
         else if(index >= n_points - 1)
             index = n_points - 2;
         return {index, index + 1};
+    }
+};
+
+template<typename T>
+class TransformIndexer1D : public Indexer1D<T> {
+    std::shared_ptr<Indexer1D<T>> indexer;
+    std::shared_ptr<Transform<T>> transform;
+public:
+    TransformIndexer1D() {}
+    TransformIndexer1D(std::shared_ptr<Indexer1D<T>> indexer, std::shared_ptr<Transform<T>> transform) {
+        this->indexer = indexer;
+        this->transform = transform;
+    }
+
+    std::tuple<int, int> operator()(T const & x) const override {
+        T t = transform(x);
+        return indexer(t);
+    }
+};
+
+template<typename T>
+std::shared_ptr<Indexer1D<T>> SelectIndexer1D(
+        std::vector<T> x,
+        std::shared_ptr<Transform<T>> x_transform) {
+    std::sort(x.begin(), x.end());
+    T metric_x_irregular = std::numeric_limits<T>::round_error() * x.size() * std::numeric_limits<T>::round_error() * 100;
+    T metric_t_irregular = 0;
+    T metric_symlog_irregular = 0;
+    for(size_t i=0; i<x.size(); ++i) {
+        T t = x_transform.Function(x[i]);
+        T x_p = x_transform.Inverse(t);
+        metric_t_irregular += std::pow(std::max(std::abs(x[i] - x_p), std::numeric_limits<T>::round_error() * 10), 2);
+    }
+    if(dynamic_cast<std::shared_ptr<SymLogTransform<T>>>(x_transform) != nullptr) {
+        metric_symlog_irregular = std::numeric_limits<T>::max();
+    } else {
+        SymLogTransform<T> symlog;
+        for(size_t i=0; i<x.size(); ++i) {
+            T t = symlog.Function(x[i]);
+            T x_p = symlog.Inverse(t);
+            metric_symlog_irregular += std::pow(std::max(std::abs(x[i] - x_p), std::numeric_limits<T>::round_error() * 10), 2);
+        }
+    }
+
+    T metric_x_regular = 0;
+    T metric_t_regular = 0;
+    T metric_symlog_regular = 0;
+    T min_x = *std::min_element(x.begin(), x.end());
+    T max_x = *std::max_element(x.begin(), x.end());
+    T delta_x = (max_x - min_x) / x.size();
+    T min_t = x_transform.Function(min_x);
+    T max_t = x_transform.Function(max_x);
+    T delta_t = (max_t - min_t) / x.size();
+    for(size_t i=0; i<x.size(); ++i) {
+        T x_reg = delta_x * i + min_x;
+        T t_reg = delta_t * i + min_t;
+        T x_p = x_transform.Inverse(t_reg);
+        metric_x_regular += std::pow(std::max(std::abs(x[i] - x_reg), std::numeric_limits<T>::round_error()), 2);
+        metric_t_regular += std::pow(std::max(std::abs(x[i] - x_p), std::numeric_limits<T>::round_error()), 2);
+    }
+    if(dynamic_cast<std::shared_ptr<SymLogTransform<T>>>(x_transform) != nullptr) {
+        metric_symlog_regular = std::numeric_limits<T>::max();
+    } else {
+        SymLogTransform<T> symlog;
+        T min_sym = symlog.Function(min_x);
+        T max_sym = symlog.Function(max_x);
+        T delta_sym = (max_sym - min_sym) / x.size();
+        for(size_t i=0; i<x.size(); ++i) {
+            T t_reg = delta_sym * i + min_sym;
+            T x_p = symlog.Inverse(x_p);
+            metric_symlog_irregular += std::pow(std::max(std::abs(x[i] - x_p), std::numeric_limits<T>::round_error()), 2);
+        }
+    }
+    std::vector<T> metrics = {metric_x_irregular, metric_x_regular, metric_t_irregular, metric_t_regular, metric_symlog_irregular, metric_symlog_regular};
+    size_t min_index = std::distance(metrics.begin(), std::min_element(metrics.begin, metrics.end()));
+    if(min_index <= 1) { // No transformation
+        if(min_index == 0) { // Irregular
+            return std::shared_ptr<Indexer1D<T>>(new IrregularIndexer1D<T>(x));
+        } else { // Regular
+            return std::shared_ptr<Indexer1D<T>>(new RegularIndexer1D<T>(x));
+        }
+    } else if(min_index > 1) {
+        std::shared_ptr<Transform<T>> transform;
+        std::shared_ptr<Indexer1D<T>> indexer;
+        if(min_index <= 3) { // Supplied transform
+            transform = x_transform;
+        } else { // Symlog transform
+            transform = std::shared_ptr<Transform<T>>(new SymLogTransform<T>);
+        }
+        std::vector<T> t(x.size());
+        for(size_t i=0; i<x.size(); ++i) {
+            t[i] = transform->Function(x[i]);
+        }
+        if(min_index % 2 == 0) { // Irregular
+            indexer = std::shared_ptr<Indexer1D<T>>(new IrregularIndexer1D<T>(t));
+        } else {
+            indexer = std::shared_ptr<Indexer1D<T>>(new RegularIndexer1D<T>(t));
+        }
+        return std::shared_ptr<Indexer1D<T>>(new TransformIndexer1D<T>(indexer, transform));
     }
 };
 
