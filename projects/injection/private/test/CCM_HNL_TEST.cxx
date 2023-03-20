@@ -358,18 +358,27 @@ TEST(Injector, Generation)
 
     int i = 0;
     while(*upper_injector) {
-        std::cout << i << std::endl;
+        std::cout << "\nEvent " << i << std::endl;
         InteractionTree tree = upper_injector->GenerateEvent();
-        std::cout << "Got Event\n";
-        std::cout << "Depths..\n";
         for(auto datum : tree.tree) {
-          std::cout << datum->record.signature.primary_type << " " << datum->depth() << std::endl;
+          std::cout << "\nDatum for " << datum->record.signature.primary_type << std::endl;
+          std::cout << "Vertex: ";
+          std::cout << datum->record.interaction_vertex[0] << " ";
+          std::cout << datum->record.interaction_vertex[1] << " ";
+          std::cout << datum->record.interaction_vertex[2] << std::endl;
+          std::cout << "Momentum: ";
+          std::cout << datum->record.primary_momentum[0] << " ";
+          std::cout << datum->record.primary_momentum[1] << " ";
+          std::cout << datum->record.primary_momentum[2] << " ";
+          std::cout << datum->record.primary_momentum[3] << std::endl;
         }
         double weight = upper_weighter->EventWeight(tree);
+        ++i;
     }
     while(*lower_injector) {
         InteractionTree tree = lower_injector->GenerateEvent();
         double weight = lower_weighter->EventWeight(tree);
+        ++i;
     }
 }
 

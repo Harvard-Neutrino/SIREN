@@ -392,10 +392,9 @@ void InjectorBase::SamplePairProduction(LI::dataclasses::DecayRecord const & dec
 // TODO: convert to using an std::map of secondary processes
 bool InjectorBase::SampleSecondaryProcess(unsigned int idx,
                                           std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent,
-                                          LI::dataclasses::InteractionRecord & record) {
+                                          LI::dataclasses::InteractionTreeDatum & datum) {
   
   LI::dataclasses::Particle::ParticleType const primary = parent->record.signature.secondary_types[idx];
-  std::cout << "Examining particle " << primary << std::endl;
   std::vector<std::shared_ptr<LI::dataclasses::InjectionProcess>>::iterator it;
   for(it = secondary_processes.begin(); it != secondary_processes.end(); ++it) {
     if ((*it)->primary_type == primary) break;
@@ -406,13 +405,16 @@ bool InjectorBase::SampleSecondaryProcess(unsigned int idx,
   }
   std::shared_ptr<LI::crosssections::CrossSectionCollection> sec_cross_sections = (*it)->cross_sections;
   std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> sec_distributions = (*it)->injection_distributions;
-  record.signature.primary_type = parent->record.signature.secondary_types[idx];
-  record.primary_mass = parent->record.secondary_masses[idx];
-  record.primary_momentum = parent->record.secondary_momenta[idx];
-  record.primary_helicity = parent->record.secondary_helicity[idx];
-  LI::dataclasses::InteractionTreeDatum datum(record);
+  datum.record.signature.primary_type = parent->record.signature.secondary_types[idx];
+  datum.record.primary_mass = parent->record.secondary_masses[idx];
+  datum.record.primary_momentum = parent->record.secondary_momenta[idx];
+  datum.record.primary_helicity = parent->record.secondary_helicity[idx];
   datum.parent = parent;
-  while(true) {
+  for(auto & distribution : sec_distributions) {
+      distribution->Sample(random, earth_model, sec_cross_sections, datum);
+  }
+  SampleCrossSection(datum.record,sec_cross_sections);
+  /*while(true) {
       try {
           for(auto & distribution : sec_distributions) {
               distribution->Sample(random, earth_model, sec_cross_sections, datum);
@@ -422,7 +424,7 @@ bool InjectorBase::SampleSecondaryProcess(unsigned int idx,
       } catch(LI::utilities::InjectionFailure const & e) {
           continue;
       }
-  }
+  }*/
   return true;
 }
 
@@ -452,9 +454,10 @@ LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
       for(unsigned int ip = 0; ip < current_parents.size(); ++ip) {
         for(unsigned int idx = 0; idx < current_parents[ip]->record.signature.secondary_types.size(); ++idx) {
           LI::dataclasses::InteractionRecord record;
-          bool success = SampleSecondaryProcess(idx,current_parents[ip],record);
+          LI::dataclasses::InteractionTreeDatum datum(record);
+          bool success = SampleSecondaryProcess(idx,current_parents[ip],datum);
           if(!success) continue;
-          std::shared_ptr<LI::dataclasses::InteractionTreeDatum> new_parent = tree.add_entry(record,current_parents[ip]);
+          std::shared_ptr<LI::dataclasses::InteractionTreeDatum> new_parent = tree.add_entry(datum,current_parents[ip]);
           if(stopping_condition(new_parent)) continue;
           new_parents.push_back(new_parent);
         }
@@ -483,14 +486,12 @@ double InjectorBase::GenerationProbability(LI::dataclasses::InteractionTree cons
 
 double InjectorBase::GenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum,
                                            std::shared_ptr<LI::dataclasses::InjectionProcess> process) const {
-    std::cout << "Entered InjectorBase::GenerationProbability(record, process)\n";
     double probability = 1.0;
     if(!process) { // assume we are dealing with the primary process
       process = primary_process;
       probability *= events_to_inject; // only do this for the primary process
     }
     for(auto const & dist : process->injection_distributions) {
-        std::cout << "Calculating generation probability for " << dist->Name() << std::endl; 
         double prob = dist->GenerationProbability(earth_model, process->cross_sections, *datum);
         probability *= prob;
     }

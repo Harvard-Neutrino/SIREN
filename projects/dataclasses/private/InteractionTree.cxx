@@ -15,6 +15,17 @@ int InteractionTreeDatum::depth() const {
   return -1;
 }
 
+std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(InteractionTreeDatum& datum,
+                                                                 std::shared_ptr<InteractionTreeDatum> parent) {
+  std::shared_ptr<InteractionTreeDatum> _datum = std::make_shared<InteractionTreeDatum>(datum);
+  _datum->parent = parent;
+  if (parent) {
+    parent->daughters.push_back(_datum);
+  }
+  tree.insert(_datum);
+  return _datum;
+}
+
 std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(InteractionRecord& record,
                                                                  std::shared_ptr<InteractionTreeDatum> parent) {
   std::shared_ptr<InteractionTreeDatum> datum = std::make_shared<InteractionTreeDatum>(record);

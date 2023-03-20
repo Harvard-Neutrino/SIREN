@@ -89,7 +89,7 @@ public:
     virtual void SamplePairProduction(LI::dataclasses::DecayRecord const & decay, LI::dataclasses::InteractionRecord & pairprod) const;
     bool SampleSecondaryProcess(unsigned int idx,
                                 std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent,
-                                LI::dataclasses::InteractionRecord & record);
+                                LI::dataclasses::InteractionTreeDatum & datum);
     LI::dataclasses::InteractionTree GenerateEvent();
     virtual std::string Name() const;
     virtual double SecondaryGenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum) const;

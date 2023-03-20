@@ -143,7 +143,6 @@ void NeutrissimoDecay::SampleFinalState(dataclasses::InteractionRecord & record,
     }
     double SinTheta = std::sin(std::acos(CosTheta));
 
-
     rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     rk::Boost boost_to_lab = pHNL.labBoost();
 
@@ -160,7 +159,7 @@ void NeutrissimoDecay::SampleFinalState(dataclasses::InteractionRecord & record,
     pGamma_HNLrest.rotate(rand_rot);
 
     rk::P4 pGamma = pGamma_HNLrest.boost(boost_to_lab);
-    rk::P4 pNu = pHNL - pGamma;
+    rk::P4 pNu(pHNL.momentum() - pGamma.momentum(),0); // ensures the neutrino has zero mass, avoids rounding errors
 
     record.secondary_momenta.resize(2);
     record.secondary_masses.resize(2);
