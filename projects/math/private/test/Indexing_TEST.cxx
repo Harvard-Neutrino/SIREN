@@ -395,6 +395,49 @@ TEST(DelaunayIndexer2D, RandomIndex) {
     }
 }
 
+TEST(SelectIndexer1D, IrregularIndexer) {
+    size_t N = 10000;
+    size_t n_passed = 0;
+    for(size_t i=0; i<N; ++i) {
+        double min = RandomDouble();
+        double range = RandomDouble();
+        double max = min + range;
+        size_t n_points = size_t(RandomDouble() * 1000 + 2);
+        std::vector<double> points(n_points);
+        for(size_t j=0; j<n_points; ++j) {
+            points[j] = RandomDouble() * range + min;
+        }
+        std::sort(points.begin(), points.end());
+
+        std::shared_ptr<Indexer1D<double>> indexer = SelectIndexer1D<double>(points, nullptr);
+        if(dynamic_cast<IrregularIndexer1D<double>*>(indexer.get()) != nullptr)
+            n_passed += 1;
+    }
+    EXPECT_TRUE(double(n_passed) / double(N) >= 0.99);
+}
+
+TEST(SelectIndexer1D, RegularIndexer) {
+    size_t N = 10000;
+    size_t n_passed = 0;
+    for(size_t i=0; i<N; ++i) {
+        double min = RandomDouble();
+        double range = RandomDouble();
+        double max = min + range;
+        size_t n_points = size_t(RandomDouble() * 1000 + 2);
+        double delta = range / (n_points - 1);
+        std::vector<double> points(n_points);
+        for(size_t j=0; j<n_points; ++j) {
+            points[j] = delta * j + min;
+        }
+        std::sort(points.begin(), points.end());
+
+        std::shared_ptr<Indexer1D<double>> indexer = SelectIndexer1D<double>(points, nullptr);
+        if(dynamic_cast<RegularIndexer1D<double>*>(indexer.get()) != nullptr)
+            n_passed += 1;
+    }
+    EXPECT_TRUE(double(n_passed) / double(N) >= 0.99);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

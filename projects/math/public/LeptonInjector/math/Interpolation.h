@@ -71,7 +71,24 @@ class SymLogTransform : public Transform<T> {
 public:
     SymLogTransform(T min_x) : min_x(std::abs(min_x)), log_min_x(log(std::abs(min_x))) {
         if(min_x == 0) {
-            throw std::runtime_error("SymLogTransform cannot be initialized with a minimul value of x=0");
+            throw std::runtime_error("SymLogTransform cannot be initialized with a minimum value of x=0");
+        }
+    }
+    SymLogTransform(std::vector<T> const & x) {
+        bool first = true;
+        min_x = 0;
+        for(size_t i=0; i<x.size(); ++i) {
+            if(x[i] != 0) {
+                if(first) {
+                    first = false;
+                    min_x = std::abs(x[i]);
+                }
+                min_x = std::min(min_x, std::abs(x[i]));
+            }
+        }
+        log_min_x = log(min_x);
+        if(min_x == 0) {
+            throw std::runtime_error("SymLogTransform cannot be initialized with a minimum value of x=0");
         }
     }
     virtual T Function(T x) const override {
@@ -227,13 +244,14 @@ public:
         if(data.size() < 2)
             throw std::runtime_error("RegularIndexer1D needs at least 2 points");
         n_points = data.size();
-        T data_first = data.front();
-        T data_last = data.back();
+        std::vector<T> unsorted = data;
         std::sort(data.begin(), data.end());
-        if(data_first == data.front() and data_last == data.back())  {
+        std::vector<T> reversed_data(data.size());
+        std::reverse_copy(data.begin(), data.end(), reversed_data.begin());
+        if(data == unsorted)  {
             // Assume sorted to start with
             reversed = false;
-        } else if(data_first == data.back() and data_last == data.front()) {
+        } else if(data == reversed_data) {
             // Assume reversed to start with
             reversed = true;
         } else {
@@ -285,13 +303,14 @@ public:
     IrregularIndexer1D(std::vector<T> x): data(x.begin(), x.end()) {
         if(x.size() < 2)
             throw std::runtime_error("IrregularIndexer1D needs at least 2 points");
-        T data_first = data.front();
-        T data_last = data.back();
+        std::vector<T> unsorted = data;
         std::sort(data.begin(), data.end());
-        if(data_first == data.front() and data_last == data.back())  {
+        std::vector<T> reversed_data(data.size());
+        std::reverse_copy(data.begin(), data.end(), reversed_data.begin());
+        if(data == unsorted)  {
             // Assume sorted to start with
             reversed = false;
-        } else if(data_first == data.back() and data_last == data.front()) {
+        } else if(data == reversed_data) {
             // Assume reversed to start with
             reversed = true;
         } else {
@@ -354,8 +373,8 @@ public:
     }
 
     std::tuple<int, int> operator()(T const & x) const override {
-        T t = transform(x);
-        return indexer(t);
+        T t = transform->Function(x);
+        return indexer->operator()(t);
     }
 };
 
@@ -364,56 +383,80 @@ std::shared_ptr<Indexer1D<T>> SelectIndexer1D(
         std::vector<T> x,
         std::shared_ptr<Transform<T>> x_transform) {
     std::sort(x.begin(), x.end());
-    T metric_x_irregular = std::numeric_limits<T>::round_error() * x.size() * std::numeric_limits<T>::round_error() * 100;
+    T metric_x_irregular = 0;
     T metric_t_irregular = 0;
     T metric_symlog_irregular = 0;
-    for(size_t i=0; i<x.size(); ++i) {
-        T t = x_transform.Function(x[i]);
-        T x_p = x_transform.Inverse(t);
-        metric_t_irregular += std::pow(std::max(std::abs(x[i] - x_p), std::numeric_limits<T>::round_error() * 10), 2);
+    for(size_t i=0; i<x.size() - 1; ++i) {
+        //metric_x_irregular += std::pow(std::numeric_limits<T>::epsilon() * std::min(std::abs(x[i]), std::abs(x[i+1] - x[i])), 2);
+        metric_x_irregular += std::pow(std::numeric_limits<T>::epsilon() * std::abs(x[i]), 2);
     }
-    if(dynamic_cast<std::shared_ptr<SymLogTransform<T>>>(x_transform) != nullptr) {
+    metric_x_irregular -= metric_x_irregular * std::numeric_limits<T>::epsilon() * x.size();
+    if(x_transform == nullptr) {
+        metric_t_irregular = std::numeric_limits<T>::max();
+    } else {
+        for(size_t i=0; i<x.size() - 1; ++i) {
+            T t = x_transform->Function(x[i]);
+            T x_p = x_transform->Inverse(t);
+            metric_t_irregular += std::pow(std::max(std::abs(x[i] - x_p), std::numeric_limits<T>::epsilon() * std::abs(x[i])), 2);
+        }
+        metric_t_irregular -= metric_t_irregular * std::numeric_limits<T>::epsilon() * x.size();
+    }
+    if(dynamic_cast<SymLogTransform<T>*>(x_transform.get()) != nullptr) {
         metric_symlog_irregular = std::numeric_limits<T>::max();
     } else {
-        SymLogTransform<T> symlog;
-        for(size_t i=0; i<x.size(); ++i) {
+        SymLogTransform<T> symlog(x);
+        for(size_t i=0; i<x.size() - 1; ++i) {
             T t = symlog.Function(x[i]);
             T x_p = symlog.Inverse(t);
-            metric_symlog_irregular += std::pow(std::max(std::abs(x[i] - x_p), std::numeric_limits<T>::round_error() * 10), 2);
+            metric_symlog_irregular += std::pow(std::max(std::abs(x[i] - x_p), std::numeric_limits<T>::epsilon() * std::abs(x[i])), 2);
         }
+        metric_symlog_irregular -= metric_symlog_irregular * std::numeric_limits<T>::epsilon() * x.size();
     }
+
+    T thresh = 1.0 - std::numeric_limits<T>::epsilon() * 100 * x.size();
 
     T metric_x_regular = 0;
     T metric_t_regular = 0;
     T metric_symlog_regular = 0;
     T min_x = *std::min_element(x.begin(), x.end());
     T max_x = *std::max_element(x.begin(), x.end());
-    T delta_x = (max_x - min_x) / x.size();
-    T min_t = x_transform.Function(min_x);
-    T max_t = x_transform.Function(max_x);
-    T delta_t = (max_t - min_t) / x.size();
-    for(size_t i=0; i<x.size(); ++i) {
+    T delta_x = (max_x - min_x) / (x.size() - 1);
+    for(size_t i=0; i<x.size() - 1; ++i) {
         T x_reg = delta_x * i + min_x;
-        T t_reg = delta_t * i + min_t;
-        T x_p = x_transform.Inverse(t_reg);
-        metric_x_regular += std::pow(std::max(std::abs(x[i] - x_reg), std::numeric_limits<T>::round_error()), 2);
-        metric_t_regular += std::pow(std::max(std::abs(x[i] - x_p), std::numeric_limits<T>::round_error()), 2);
+        metric_x_regular += std::pow(std::max(std::numeric_limits<T>::epsilon() * std::abs(x[i])*thresh, std::min(std::abs(x[i] - x_reg), std::numeric_limits<T>::epsilon() * std::abs(x[i]))), 2);
     }
-    if(dynamic_cast<std::shared_ptr<SymLogTransform<T>>>(x_transform) != nullptr) {
+    metric_x_regular /= thresh;
+
+    if(x_transform == nullptr) {
+        metric_t_regular = std::numeric_limits<T>::max();
+    } else {
+        T min_t = x_transform->Function(min_x);
+        T max_t = x_transform->Function(max_x);
+        T delta_t = (max_t - min_t) / (x.size() - 1);
+        for(size_t i=0; i<x.size() - 1; ++i) {
+            T t_reg = delta_t * i + min_t;
+            T x_p = x_transform->Inverse(t_reg);
+            metric_t_regular += std::pow(std::max(std::numeric_limits<T>::epsilon() * std::abs(x[i])*thresh, std::min(std::abs(x[i] - x_p), std::numeric_limits<T>::epsilon() * std::abs(x[i]))), 2);
+        }
+        metric_t_regular /= thresh;
+    }
+
+    if(dynamic_cast<SymLogTransform<T>*>(x_transform.get()) != nullptr) {
         metric_symlog_regular = std::numeric_limits<T>::max();
     } else {
-        SymLogTransform<T> symlog;
+        SymLogTransform<T> symlog(x);
         T min_sym = symlog.Function(min_x);
         T max_sym = symlog.Function(max_x);
-        T delta_sym = (max_sym - min_sym) / x.size();
-        for(size_t i=0; i<x.size(); ++i) {
+        T delta_sym = (max_sym - min_sym) / (x.size() - 1);
+        for(size_t i=0; i<x.size() - 1; ++i) {
             T t_reg = delta_sym * i + min_sym;
             T x_p = symlog.Inverse(x_p);
-            metric_symlog_irregular += std::pow(std::max(std::abs(x[i] - x_p), std::numeric_limits<T>::round_error()), 2);
+            metric_symlog_regular += std::pow(std::max(std::numeric_limits<T>::epsilon() * std::abs(x[i])*thresh, std::min(std::abs(x[i] - x_p), std::numeric_limits<T>::epsilon() * std::abs(x[i]))), 2);
         }
+        metric_symlog_regular /= thresh;
     }
     std::vector<T> metrics = {metric_x_irregular, metric_x_regular, metric_t_irregular, metric_t_regular, metric_symlog_irregular, metric_symlog_regular};
-    size_t min_index = std::distance(metrics.begin(), std::min_element(metrics.begin, metrics.end()));
+    size_t min_index = std::distance(metrics.begin(), std::min_element(metrics.begin(), metrics.end()));
     if(min_index <= 1) { // No transformation
         if(min_index == 0) { // Irregular
             return std::shared_ptr<Indexer1D<T>>(new IrregularIndexer1D<T>(x));
@@ -426,7 +469,7 @@ std::shared_ptr<Indexer1D<T>> SelectIndexer1D(
         if(min_index <= 3) { // Supplied transform
             transform = x_transform;
         } else { // Symlog transform
-            transform = std::shared_ptr<Transform<T>>(new SymLogTransform<T>);
+            transform = std::shared_ptr<Transform<T>>(new SymLogTransform<T>(x));
         }
         std::vector<T> t(x.size());
         for(size_t i=0; i<x.size(); ++i) {
