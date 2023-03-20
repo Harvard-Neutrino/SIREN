@@ -188,7 +188,7 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
         for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
           fake_record.signature = signature;
           //TODO: make sure this matches the units of the cross section
-          fake_prob = 1./decay->TotalDecayLengthForFinalState(record);
+          fake_prob = 1./decay->TotalDecayLengthForFinalState(fake_record);
           total_prob += fake_prob;
           decay_prob += fake_prob;
           // Add total prob to probs
@@ -386,25 +386,27 @@ void InjectorBase::SamplePairProduction(LI::dataclasses::DecayRecord const & dec
 //
 // Throws exception if no secondary process exists for the given particle
 // 
-// Returns an InteractionRecord with the new event
+// Modifies an InteractionRecord with the new event
+// Returns true if the sampling was successful
 //
-// TODO: keep track of weighting information
 // TODO: convert to using an std::map of secondary processes
-LI::dataclasses::InteractionRecord InjectorBase::SampleSecondaryProcess(unsigned int idx,
-                                                                        std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent) {
+bool InjectorBase::SampleSecondaryProcess(unsigned int idx,
+                                          std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent,
+                                          LI::dataclasses::InteractionRecord & record) {
   
   LI::dataclasses::Particle::ParticleType const primary = parent->record.signature.secondary_types[idx];
+  std::cout << "Examining particle " << primary << std::endl;
   std::vector<std::shared_ptr<LI::dataclasses::InjectionProcess>>::iterator it;
   for(it = secondary_processes.begin(); it != secondary_processes.end(); ++it) {
     if ((*it)->primary_type == primary) break;
   }
   if(it==secondary_processes.end()) {
+    return false;
     throw(LI::utilities::SecondaryProcessFailure("No process defined for this particle type!"));
   }
   std::shared_ptr<LI::crosssections::CrossSectionCollection> sec_cross_sections = (*it)->cross_sections;
   std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> sec_distributions = (*it)->injection_distributions;
-  LI::dataclasses::InteractionRecord record;
-  record.signature.primary_type = primary;
+  record.signature.primary_type = parent->record.signature.secondary_types[idx];
   record.primary_mass = parent->record.secondary_masses[idx];
   record.primary_momentum = parent->record.secondary_momenta[idx];
   record.primary_helicity = parent->record.secondary_helicity[idx];
@@ -421,7 +423,7 @@ LI::dataclasses::InteractionRecord InjectorBase::SampleSecondaryProcess(unsigned
           continue;
       }
   }
-  return record;
+  return true;
 }
 
 LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
@@ -441,6 +443,7 @@ LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
     }
     LI::dataclasses::InteractionTree tree;
     std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
+    
     // Secondary Processes
     std::vector<std::shared_ptr<LI::dataclasses::InteractionTreeDatum>> current_parents;
     std::vector<std::shared_ptr<LI::dataclasses::InteractionTreeDatum>> new_parents;
@@ -448,12 +451,9 @@ LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
     while(current_parents.size() > 0) {
       for(unsigned int ip = 0; ip < current_parents.size(); ++ip) {
         for(unsigned int idx = 0; idx < current_parents[ip]->record.signature.secondary_types.size(); ++idx) {
-          try {
-            LI::dataclasses::InteractionRecord record = SampleSecondaryProcess(idx,current_parents[ip]);
-          }
-          catch(LI::utilities::SecondaryProcessFailure const & e) {
-            continue;
-          }
+          LI::dataclasses::InteractionRecord record;
+          bool success = SampleSecondaryProcess(idx,current_parents[ip],record);
+          if(!success) continue;
           std::shared_ptr<LI::dataclasses::InteractionTreeDatum> new_parent = tree.add_entry(record,current_parents[ip]);
           if(stopping_condition(new_parent)) continue;
           new_parents.push_back(new_parent);
@@ -466,19 +466,37 @@ LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
     return tree;
 }
 
-double InjectorBase::SecondaryGenerationProbability(LI::dataclasses::InteractionRecord const & record) const {
-  return GenerationProbability(record, secondary_process_map.at(record.signature.primary_type));
+double InjectorBase::SecondaryGenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum) const {
+  return GenerationProbability(datum, secondary_process_map.at(datum->record.signature.primary_type));
 }
 
 double InjectorBase::GenerationProbability(LI::dataclasses::InteractionTree const & tree) const { 
   double probability = 1.0;
   std::set<std::shared_ptr<LI::dataclasses::InteractionTreeDatum>>::const_iterator it = tree.tree.cbegin();
   while(it != tree.tree.cend()) {
-    if((*it)->depth()==0) probability *= GenerationProbability((*it)->record);
-    else probability *= SecondaryGenerationProbability((*it)->record);
+    if((*it)->depth()==0) probability *= GenerationProbability((*it));
+    else probability *= SecondaryGenerationProbability((*it));
     ++it;
   }
   return probability;
+}
+
+double InjectorBase::GenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum,
+                                           std::shared_ptr<LI::dataclasses::InjectionProcess> process) const {
+    std::cout << "Entered InjectorBase::GenerationProbability(record, process)\n";
+    double probability = 1.0;
+    if(!process) { // assume we are dealing with the primary process
+      process = primary_process;
+      probability *= events_to_inject; // only do this for the primary process
+    }
+    for(auto const & dist : process->injection_distributions) {
+        std::cout << "Calculating generation probability for " << dist->Name() << std::endl; 
+        double prob = dist->GenerationProbability(earth_model, process->cross_sections, *datum);
+        probability *= prob;
+    }
+    double prob = LI::injection::CrossSectionProbability(earth_model, process->cross_sections, datum->record);
+    probability *= prob;
+    return probability;
 }
 
 double InjectorBase::GenerationProbability(LI::dataclasses::InteractionRecord const & record,
@@ -530,8 +548,8 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectorBase::InjectionBounds(
 }
 
 // Assumes there is a secondary process and position distribuiton for the provided particle type
-std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectorBase::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::Particle::ParticleType const & primary_type) const {
-    return secondary_position_distribution_map.at(primary_type)->InjectionBounds(earth_model, secondary_process_map.at(primary_type)->cross_sections, interaction);
+std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectorBase::InjectionBounds(LI::dataclasses::InteractionTreeDatum const & datum, LI::dataclasses::Particle::ParticleType const & primary_type) const {
+    return secondary_position_distribution_map.at(primary_type)->InjectionBounds(earth_model, secondary_process_map.at(primary_type)->cross_sections, datum);
 }
 
 std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> InjectorBase::GetInjectionDistributions() const {

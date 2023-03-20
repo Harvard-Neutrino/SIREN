@@ -22,7 +22,7 @@ namespace dataclasses {
 struct InteractionTreeDatum {
   InteractionTreeDatum(dataclasses::InteractionRecord& record) : record(record) {}
   dataclasses::InteractionRecord record;
-  std::shared_ptr<dataclasses::InteractionTreeDatum> parent;
+  std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL;
   std::vector<std::shared_ptr<dataclasses::InteractionTreeDatum>> daughters;
   int depth() const;
   template<class Archive>

@@ -119,6 +119,7 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
     double physical_probability = 1.0;
     double generation_probability = injectors[idx]->GenerationProbability(tree);
     for(auto const datum : tree.tree) {
+      std::cout << "Calculating physical weight for " << datum->record.signature.primary_type << std::endl;
       std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds;
       if(datum->depth()==0) {
         bounds = injectors[idx]->InjectionBounds(datum->record);
@@ -126,7 +127,7 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
       }
       else {
         try {
-          bounds = injectors[idx]->InjectionBounds(datum->record, datum->record.signature.primary_type);
+          bounds = injectors[idx]->InjectionBounds(*datum, datum->record.signature.primary_type);
           double phys_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->PhysicalProbability(bounds, datum->record);
           physical_probability *= phys_prob;
         } catch(const std::out_of_range& oor) {

@@ -5,11 +5,12 @@ namespace dataclasses {
   
 int InteractionTreeDatum::depth() const {
   int depth = 0;
-  std::shared_ptr<InteractionTreeDatum> test = parent;
+  if(parent==NULL) return depth;
+  std::shared_ptr<InteractionTreeDatum> test = std::make_shared<InteractionTreeDatum>(*parent);
   while(true) {
-    if(!test) return depth;
-    test = test->parent;
     ++depth;
+    if(test->parent==NULL) return depth;
+    test = std::make_shared<InteractionTreeDatum>(*(test->parent));
   }
   return -1;
 }

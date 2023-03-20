@@ -42,4 +42,4 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/injection/public/"
 )
 
 #package_add_test(UnitTest_Injector ${CMAKE_SOURCE_DIR}/projects/injection/private/test/Injector_TEST.cxx)
-package_add_test(UnitTest_Injector ${CMAKE_SOURCE_DIR}/projects/injection/private/test/CCM_HNL_TEST.cxx)
+package_add_test(UnitTest_CCM_HNL ${CMAKE_SOURCE_DIR}/projects/injection/private/test/CCM_HNL_TEST.cxx)

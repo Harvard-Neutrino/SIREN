@@ -11,6 +11,8 @@ LIST (APPEND distributions_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/PrimaryEnergyDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.cxx
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/TabulatedFluxDistribution.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/PowerLaw.cxx
+    ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/energy/Monoenergetic.cxx
 
     ${CMAKE_SOURCE_DIR}/projects/distributions/private/primary/helicity/PrimaryNeutrinoHelicityDistribution.cxx
 

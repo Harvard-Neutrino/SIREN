@@ -87,16 +87,18 @@ public:
                                     std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections) const;
     virtual void SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
     virtual void SamplePairProduction(LI::dataclasses::DecayRecord const & decay, LI::dataclasses::InteractionRecord & pairprod) const;
-    LI::dataclasses::InteractionRecord SampleSecondaryProcess(unsigned int idx,
-                                                              std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent);
+    bool SampleSecondaryProcess(unsigned int idx,
+                                std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent,
+                                LI::dataclasses::InteractionRecord & record);
     LI::dataclasses::InteractionTree GenerateEvent();
     virtual std::string Name() const;
-    virtual double SecondaryGenerationProbability(LI::dataclasses::InteractionRecord const & record) const;
+    virtual double SecondaryGenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum) const;
     virtual double GenerationProbability(LI::dataclasses::InteractionTree const & tree) const;
+    virtual double GenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum, std::shared_ptr<LI::dataclasses::InjectionProcess> process = NULL) const;
     virtual double GenerationProbability(LI::dataclasses::InteractionRecord const & record, std::shared_ptr<LI::dataclasses::InjectionProcess> process = NULL) const;
     virtual std::set<std::vector<std::string>> DensityVariables() const;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::Particle::ParticleType const & primary_type) const;
+    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionTreeDatum const & datum, LI::dataclasses::Particle::ParticleType const & primary_type) const;
     virtual std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> GetInjectionDistributions() const;
     virtual std::shared_ptr<LI::detector::EarthModel> GetEarthModel() const;
     virtual std::shared_ptr<LI::crosssections::CrossSectionCollection> GetCrossSections() const;
