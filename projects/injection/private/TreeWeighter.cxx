@@ -121,14 +121,14 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
     for(auto const datum : tree.tree) {
       std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds;
       if(datum->depth()==0) {
-        physical_probability *= primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
         bounds = injectors[idx]->InjectionBounds(datum->record);
+        physical_probability *= primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
       }
       else {
         try {
+          bounds = injectors[idx]->InjectionBounds(datum->record, datum->record.signature.primary_type);
           double phys_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->PhysicalProbability(bounds, datum->record);
           physical_probability *= phys_prob;
-          bounds = injectors[idx]->InjectionBounds(datum->record, datum->record.signature.primary_type);
         } catch(const std::out_of_range& oor) {
            std::cout << "Out of Range error: " << oor.what() << '\n';
            return 0;

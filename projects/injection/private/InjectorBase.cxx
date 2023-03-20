@@ -408,10 +408,12 @@ LI::dataclasses::InteractionRecord InjectorBase::SampleSecondaryProcess(unsigned
   record.primary_mass = parent->record.secondary_masses[idx];
   record.primary_momentum = parent->record.secondary_momenta[idx];
   record.primary_helicity = parent->record.secondary_helicity[idx];
+  LI::dataclasses::InteractionTreeDatum datum(record);
+  datum.parent = parent;
   while(true) {
       try {
           for(auto & distribution : sec_distributions) {
-              distribution->Sample(random, earth_model, sec_cross_sections, record);
+              distribution->Sample(random, earth_model, sec_cross_sections, datum);
           }
           SampleCrossSection(record,sec_cross_sections);
           break;
