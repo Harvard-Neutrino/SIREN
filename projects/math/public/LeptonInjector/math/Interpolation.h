@@ -579,17 +579,20 @@ struct DropBiLinearInterpolationOperator : public BiLinearInterpolationOperator<
 };
 
 template<typename T>
+class DelaunayIndexer2D;
+
+template<typename T>
 struct SimplexLinearInterpolationOperator {
     static inline T sq(T const & x) {
         return x*x;
     }
-    using Simplex = typename IDelaBella2<T>::Simplex;
-    using Vertex = typename IDelaBella2<T>::Vertex;
+    using Tri = typename DelaunayIndexer2D<T>::Tri;
+    using Point = typename DelaunayIndexer2D<T>::Point;
 public:
-    virtual T operator()(T const & x, T const & y, Simplex const * simplex, T z1, T z2, T z3) const {
-        Vertex const & v1 = *(simplex->v[0]);
-        Vertex const & v2 = *(simplex->v[1]);
-        Vertex const & v3 = *(simplex->v[2]);
+    virtual T operator()(T const & x, T const & y, Tri const * tri, T z1, T z2, T z3) const {
+        Point const & v1 = tri->p0;
+        Point const & v2 = tri->p1;
+        Point const & v3 = tri->p2;
         T denominator = (v2.y - v3.y) * (v1.x - v3.x) + (v3.x - v2.x) * (v1.y - v3.y);
         T w1 = ((v2.y - v3.y) * (x - v3.x) + (v3.x - v2.x) * (y - v3.y)) / denominator;
         T w2 = ((v3.y - v1.y) * (x - v3.x) + (v1.x - v3.x) * (y - v3.y)) / denominator;
@@ -600,12 +603,12 @@ public:
 
 template<typename T>
 struct DropSimplexLinearInterpolationOperator : public SimplexLinearInterpolationOperator<T> {
-    using Simplex = typename IDelaBella2<T>::Simplex;
+    using Tri = typename DelaunayIndexer2D<T>::Tri;
 public:
-    virtual T operator()(T const & x, T const & y, Simplex const * simplex, T z1, T z2, T z3) const override {
+    virtual T operator()(T const & x, T const & y, Tri const * tri, T z1, T z2, T z3) const override {
         if(z1 == 0 or z2 == 0 or z3 == 0)
             return 0.0;
-        return SimplexLinearInterpolationOperator<T>::operator()(x, y, simplex, z1, z1, z3);
+        return SimplexLinearInterpolationOperator<T>::operator()(x, y, tri, z1, z1, z3);
     }
 };
 
@@ -1027,26 +1030,20 @@ private:
 }
 
 template<typename T>
-class DelaunayIndexer2D;
-
-template<typename T>
 struct GetBox {
-    using Simplex = typename IDelaBella2<T>::Simplex;
-    using Vertex = typename IDelaBella2<T>::Vertex;
     using Tri = typename DelaunayIndexer2D<T>::Tri;
-    quadtree::Box<T> operator()(Simplex const * simplex) const {
-        T x_min = std::min(simplex->v[0]->x, std::min(simplex->v[1]->x, simplex->v[2]->x));
-        T x_max = std::max(simplex->v[0]->x, std::max(simplex->v[1]->x, simplex->v[2]->x));
-        T y_min = std::min(simplex->v[0]->y, std::min(simplex->v[1]->y, simplex->v[2]->y));
-        T y_max = std::max(simplex->v[0]->y, std::max(simplex->v[1]->y, simplex->v[2]->y));
-        return quadtree::Box<T>(x_min, y_min, x_max - x_min, y_max - y_min);
-    }
-    quadtree::Box<T> operator()(Tri const & tri) const {
+    inline quadtree::Box<T> operator()(Tri const & tri) const {
         T x_min = std::min(tri.p0.x, std::min(tri.p1.x, tri.p2.x));
         T x_max = std::max(tri.p0.x, std::max(tri.p1.x, tri.p2.x));
         T y_min = std::min(tri.p0.y, std::min(tri.p1.y, tri.p2.y));
         T y_max = std::max(tri.p0.y, std::max(tri.p1.y, tri.p2.y));
         return quadtree::Box<T>(x_min, y_min, x_max - x_min, y_max - y_min);
+    }
+    inline quadtree::Box<T> operator()(Tri const * tri) const {
+        if(tri == nullptr)
+            return quadtree::Box<T>(std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity(), 0, 0);
+        else
+            return this->operator()(*tri);
     }
 };
 
@@ -1054,12 +1051,13 @@ template<typename T>
 class DelaunayIndexer2D {
     using Simplex = typename IDelaBella2<T>::Simplex;
     using Vertex = typename IDelaBella2<T>::Vertex;
-    public:
+public:
     struct Point {
         T x;
         T y;
+        int i=-1;;
         bool operator==(Point const & o) const {
-            return x == o.x and y == o.y;
+            return x == o.x and y == o.y and i == o.i;
         }
     };
 
@@ -1076,51 +1074,9 @@ class DelaunayIndexer2D {
             return p0 == o.p0 and p1 == o.p1 and p2 == o.p2;
         }
     };
-    private:
-
-    Point * cloud;
-    IDelaBella2<T> * idb;
-    // quadtree::Quadtree<Simplex const *, GetBox<T>, std::equal_to<Simplex *>, T> q_tree;
-    quadtree::Quadtree<Tri, GetBox<T>, std::equal_to<Tri>, T> q_tree;
-    std::vector<Simplex const *> all_simplices;
+private:
+    quadtree::Quadtree<Tri const *, GetBox<T>, std::equal_to<Tri const *>, T> q_tree;
     std::vector<Tri> all_tris;
-    size_t npoly;
-    std::map<std::pair<int, int>, std::vector<Simplex const *>> simplex_map;
-
-    static inline T sign (Point const & p1, Vertex const & p2, Vertex const & p3) {
-        return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
-    }
-
-    /*
-    static inline bool PointInTriangle (Point const & pt, Simplex const * simplex) {
-        T d1, d2, d3;
-        bool has_neg, has_pos;
-
-        Vertex const & v1 = *(simplex->v[0]);
-        Vertex const & v2 = *(simplex->v[1]);
-        Vertex const & v3 = *(simplex->v[2]);
-
-        d1 = sign(pt, v1, v2);
-        d2 = sign(pt, v2, v3);
-        d3 = sign(pt, v3, v1);
-
-        has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-        has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-
-        return !(has_neg && has_pos);
-    }
-
-    static inline bool PointInTriangle (Point const & p, Simplex const * simplex) {
-        Vertex const & v0 = *(simplex->v[0]);
-        Vertex const & v1 = *(simplex->v[1]);
-        Vertex const & v2 = *(simplex->v[2]);
-        T s = (p.y * (v0.x - v2.x) + v0.y * v2.x - v0.x * v2.y + p.x * (-v0.y + v2.y))
-            / (-v1.y * v2.x + v0.y * (-v1.x + v2.x) + v0.x * (v1.y - v2.y) + v1.x * v2.y);
-        T t = (p.y * (v0.x - v1.x) + v0.y * v1.x - v0.x * v1.y + p.x * (-v0.y + v1.y))
-            / (v0.y * (v1.x - v2.x) + v1.y * v2.x - v1.x * v2.y + v0.x * (-v1.y + v2.y));
-        return s > 0 and t > 0 and (1 - s - t) > 0;
-    }
-    */
 
     static inline bool PointInTriangle (Point const & p, Tri const & tri) {
         Point const & v0 = tri.p0;
@@ -1133,16 +1089,11 @@ class DelaunayIndexer2D {
         return s > 0 and t > 0 and (1 - s - t) > 0;
     }
 
-    static inline T TriArea2D(Simplex const * tri) {
+    static inline bool PointInTriangle (Point const & p, Tri const * tri) {
         if(tri == nullptr)
-            return 0.0;
-        T const & x1 = tri->v[0]->x;
-        T const & x2 = tri->v[1]->x;
-        T const & x3 = tri->v[2]->x;
-        T const & y1 = tri->v[0]->y;
-        T const & y2 = tri->v[1]->y;
-        T const & y3 = tri->v[2]->y;
-        return (x1 - x2) * (y2 - y3) - (x2 - x3) * (y1 - y2);
+            return false;
+        else
+            return PointInTriangle(p, *tri);
     }
 
 public:
@@ -1153,186 +1104,69 @@ public:
     DelaunayIndexer2D & operator=(DelaunayIndexer2D const &) = default;
     DelaunayIndexer2D & operator=(DelaunayIndexer2D &&) = default;
     DelaunayIndexer2D & operator=(DelaunayIndexer2D &) = default;
-    DelaunayIndexer2D(std::vector<T> const & x, std::vector<T> const & y)
-    : idb(IDelaBella2<T>::Create()) {
-        cloud = new Point[x.size()];
+    DelaunayIndexer2D(std::vector<T> const & x, std::vector<T> const & y) {
+        all_tris.reserve(x.size() / 3 + 1);
         T min_x = *std::min_element(x.begin(), x.end());
         T max_x = *std::max_element(x.begin(), x.end());
         T min_y = *std::min_element(y.begin(), y.end());
         T max_y = *std::max_element(y.begin(), y.end());
         T width_x = max_x - min_x;
         T width_y = max_y - min_y;
-        T delta_x = (min_x + width_x / 2.0);
-        T delta_y = (min_y + width_y / 2.0);
+        Tri tri;
+        quadtree::Box<T> bounding_box(min_x - width_x * 1e-4, min_y - width_y * 1e-4, width_x * (1 + 2e-4), width_y * (1 + 2e-4));
+        q_tree = quadtree::Quadtree<Tri const *, GetBox<T>, std::equal_to<Tri const *>, T>(bounding_box);
+        int verts;
+        size_t npoly;
+        Simplex const * dela;
+
+        IDelaBella2<T> * idb(IDelaBella2<T>::Create());
+        Point * cloud = new Point[x.size()];
+        std::map<std::tuple<double, double>, size_t> index_map;
         for(size_t i=0; i<x.size(); ++i) {
             cloud[i].x = x[i];
             cloud[i].y = y[i];
+            cloud[i].i = i;
+            index_map.insert({{x[i], y[i]}, i});
         }
-        /*
-        bool first = true;
-        T min_x;
-        T max_x;
-        T min_y;
-        T max_y;
-        for(size_t i=0; i<x.size(); ++i) {
-            cloud[i].x = x[i];
-            cloud[i].y = y[i];
-            if(first) {
-                min_x = x[i];
-                max_x = x[i];
-                min_y = y[i];
-                max_y = y[i];
-                first = false;
-            } else {
-                min_x = std::min(min_x, x[i]);
-                max_x = std::max(max_x, x[i]);
-                min_y = std::min(min_y, y[i]);
-                max_y = std::max(max_y, y[i]);
-            }
-        }
-        Point * corners = new Point[4];
-        corners[0].x = min_x;
-        corners[0].y = min_y;
-        corners[1].x = min_x;
-        corners[1].y = max_y;
-        corners[2].x = max_x;
-        corners[2].y = max_y;
-        corners[3].x = max_x;
-        corners[3].y = min_y;
-        bool * found_corner = new bool[4];
-        size_t * corner_idx = new size_t[4];
-        for(size_t i=0; i<x.size(); ++i) {
-            if(cloud[i].x == min_x) {
-                if(cloud[i].y == min_y) {
-                    found_corner[0] = true;
-                    corner_idx[0] = i;
-                } else if(cloud[i].y == max_y) {
-                    found_corner[1] = true;
-                    corner_idx[1] = i;
-                }
-            } else if(cloud[i].x == max_x) {
-                if(cloud[i].y == max_y) {
-                    found_corner[2] = true;
-                    corner_idx[2] = i;
-                } else if(cloud[i].y == min_y) {
-                    found_corner[3] = true;
-                    corner_idx[3] = i;
-                }
-            }
-        }
-        size_t corner_it = 0;
-        for(size_t i=0; i<4; ++i) {
-            if(not found_corner[i]) {
-                corner_idx[i] = x.size() + corner_it;
-                cloud[x.size() + corner_it].x = corners[i].x;
-                cloud[x.size() + corner_it].y = corners[i].y;
-                corner_it += 1;
-            }
-        }
-        Edge * edges = new Edge[4];
-        for(size_t i=0; i<4; ++i) {
-            edges[i].a = corner_idx[i];
-            edges[i].b = corner_idx[(i+1)%4];
-        }
-        */
-        // int verts = idb->Triangulate(x.size() + corner_it, &(cloud->x), &(cloud->y), sizeof(Point));
-        int verts = idb->Triangulate(x.size(), &(cloud->x), &(cloud->y));
+
+        verts = idb->Triangulate(x.size(), &(cloud->x), &(cloud->y), sizeof(Point));
         if(verts <= 0) {
             throw std::runtime_error("Could not triangulate input grid");
         }
-        // idb->ConstrainEdges(4, &(edges[0].a), &(edges[0].b), 0);
-        // delete[] edges;
-
-        std::cout << "x min =" << min_x << std::endl;
-        std::cout << "x max =" << max_x << std::endl;
-        std::cout << "y min =" << min_y << std::endl;
-        std::cout << "y max =" << max_y << std::endl;
-        // quadtree::Box<T> bounding_box(- width_x * 1e-4, - width_y * 1e-4, width_x * (1 + 2e-4), width_y * (1 + 2e-4));
-        quadtree::Box<T> bounding_box(min_x - width_x * 1e-4, min_y - width_y * 1e-4, width_x * (1 + 2e-4), width_y * (1 + 2e-4));
-        // q_tree = quadtree::Quadtree<Simplex const *, GetBox<T>, std::equal_to<Simplex *>, T>(bounding_box);
-        q_tree = quadtree::Quadtree<Tri, GetBox<T>, std::equal_to<Tri>, T>(bounding_box);
 
         npoly = idb->GetNumPolygons();
-        Simplex const * dela = idb->GetFirstDelaunaySimplex();
-        for(size_t i=0; i<npoly; ++i) {
-            //if(dela->v[0] and dela->v[1] and dela->v[2]) {
-            //    q_tree.add(dela);
-            //}
-            Tri tri;
-            tri.p0.x = dela->v[0]->x; tri.p0.y = dela->v[0]->y;
-            tri.p1.x = dela->v[1]->x; tri.p1.y = dela->v[1]->y;
-            tri.p2.x = dela->v[2]->x; tri.p2.y = dela->v[2]->y;
-            all_tris.push_back(tri);
-            q_tree.add(tri);
+        dela = idb->GetFirstDelaunaySimplex();
 
-            all_simplices.push_back(dela);
+        for(size_t i=0; i<npoly; ++i) {
+            tri.p0.x = dela->v[0]->x; tri.p0.y = dela->v[0]->y; tri.p0.i = dela->v[0]->i;
+            tri.p1.x = dela->v[1]->x; tri.p1.y = dela->v[1]->y; tri.p1.i = dela->v[1]->i;
+            tri.p2.x = dela->v[2]->x; tri.p2.y = dela->v[2]->y; tri.p2.i = dela->v[2]->i;
+            all_tris.emplace_back(tri);
             dela = dela->next;
         }
+
+        for(size_t i=0; i<npoly; ++i) {
+            q_tree.add(&all_tris[i]);
+        }
+        // Frees memory allocated in idb
+        idb->Destroy(); // Also frees memory allocated above in: Point * cloud = new Point[x.size()];
     }
 
-    virtual Simplex const * operator()(T const & x, T const & y) const {
+    virtual Tri const * operator()(T const & x, T const & y) const {
         Point p; p.x = x; p.y = y;
         quadtree::Box<T> box(x, y, 0, 0);
-        //std::vector<Simplex const *> simplices = q_tree.query(box);
-        std::vector<Tri> tris = q_tree.query(box);
-        std::cout << "Finding triangles for x=" << x << ", y=" << y << std::endl;
-        std::cout << "Checking " << tris.size() << " triangles" << std::endl;
-        //for(size_t i=0; i<simplices.size(); ++i) {
-        //    std::cout << "("
-        //        << simplices[i]->v[0]->x << ", " << simplices[i]->v[0]->y << ") ("
-        //        << simplices[i]->v[1]->x << ", " << simplices[i]->v[1]->y << ") ("
-        //        << simplices[i]->v[2]->x << ", " << simplices[i]->v[2]->y << ")"
-        //        << " " << simplices[i]->index << std::endl;
-        //    if(PointInTriangle(p, simplices[i])) {
-        //        std::cout << "Found simplex!" << std::endl;
-        //        return simplices[i];
-        //    }
-        //}
+        std::vector<Tri const *> tris = q_tree.query(box);
         for(size_t i=0; i<tris.size(); ++i) {
-            std::cout << "("
-                << tris[i].p0.x << ", " << tris[i].p0.y << ") ("
-                << tris[i].p1.x << ", " << tris[i].p1.y << ") ("
-                << tris[i].p2.x << ", " << tris[i].p2.y << ")"
-                << std::endl;
             if(PointInTriangle(p, tris[i])) {
-                std::cout << "Found simplex!" << std::endl;
-                return nullptr;
-                //return simplices[i];
+                return tris[i];
             }
         }
-        std::cout << "Did not find simplex in QuadTree" << std::endl;
-        // Simplex const * dela = idb->GetFirstDelaunaySimplex();
-        std::cout << "Checking all simplices (" << npoly << ")" << std::endl;
-        for(size_t i=0; i<all_simplices.size(); ++i) {
-            //std::cout << i << std::endl;
-            //if(all_simplices[i]->v[0] == nullptr or all_simplices[i]->v[1] == nullptr or all_simplices[i]->v[2] == nullptr)
-            //    continue;
-            //std::cout << "[("
-            //    << all_simplices[i]->v[0]->x << ", " << all_simplices[i]->v[0]->y << "), ("
-            //    << all_simplices[i]->v[1]->x << ", " << all_simplices[i]->v[1]->y << "), ("
-            //    << all_simplices[i]->v[2]->x << ", " << all_simplices[i]->v[2]->y << ")],"
-            //    << std::endl;
-            std::cout << "[("
-                << all_tris[i].p0.x << ", " << all_tris[i].p0.y << "), ("
-                << all_tris[i].p1.x << ", " << all_tris[i].p1.y << "), ("
-                << all_tris[i].p2.x << ", " << all_tris[i].p2.y << ")],"
-                << std::endl;
-            //std::cout << "("
-            //    << all_simplices[i]->v[0]->i << ", "
-            //    << all_simplices[i]->v[1]->i << ", "
-            //    << all_simplices[i]->v[2]->i << "),"
-            //    << std::endl;
+        for(size_t i=0; i<all_tris.size(); ++i) {
             if(PointInTriangle(p, all_tris[i])) {
-                std::cout << "Found simplex!" << std::endl;
-                return all_simplices[i];
+                return &all_tris[i];
             }
         }
-        std::cout << "Did not find simplex" << std::endl;
         return nullptr;
-    }
-
-    virtual ~DelaunayIndexer2D() {
-        idb->Destroy();
     }
 };
 
@@ -1395,6 +1229,7 @@ template<typename T>
 class LinearDelaunayInterpolator2D : public Interpolator2D<T> {
     using Simplex = typename IDelaBella2<T>::Simplex;
     using Vertex = typename IDelaBella2<T>::Vertex;
+    using Tri = typename DelaunayIndexer2D<T>::Tri;
     // Data
     std::vector<T> t_x;
     std::vector<T> t_y;
@@ -1423,18 +1258,14 @@ public:
     }
 
     virtual T operator()(T x, T y) const override {
-        Simplex const * simplex = indexer(x, y);
-        if(simplex == nullptr)
+        Tri const *tri = indexer(x, y);
+        if(tri == nullptr)
             throw std::runtime_error("Simplex ptr is NULL");
-        std::cout << "Simplex is not NULL" << std::endl;
-        Vertex const & v0 = *(simplex->v[0]);
-        Vertex const & v1 = *(simplex->v[1]);
-        Vertex const & v2 = *(simplex->v[2]);
-        T t_z0 = t_z[v0.i];
-        T t_z1 = t_z[v1.i];
-        T t_z2 = t_z[v2.i];
+        T t_z0 = t_z[tri->p0.i];
+        T t_z1 = t_z[tri->p1.i];
+        T t_z2 = t_z[tri->p2.i];
 
-        T t_res = interp->operator()(x, y, simplex, t_z0, t_z1, t_z2);
+        T t_res = interp->operator()(x, y, tri, t_z0, t_z1, t_z2);
         return z_transform->Inverse(t_res);
     }
 };

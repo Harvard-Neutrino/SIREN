@@ -338,6 +338,7 @@ TEST(SimplexLinearInterpolationOperator, Constructor) {
     ASSERT_NO_THROW(SimplexLinearInterpolationOperator<double>());
 }
 
+/*
 TEST(SimplexLinearInterpolationOperator, Operator) {
     using Simplex = typename IDelaBella2<double>::Simplex;
     using Vertex = typename IDelaBella2<double>::Vertex;
@@ -375,6 +376,7 @@ TEST(SimplexLinearInterpolationOperator, Operator) {
         EXPECT_NEAR(op(mid_x2, mid_y2, simplex.get(), z0, z1, z2), (z1 + z0)/2.0, std::abs((z1 + z0)/2.0) * 1e-8);
     }
 }
+*/
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

@@ -322,6 +322,7 @@ struct Point {
 TEST(DelaunayIndexer2D, RandomIndex) {
     using Simplex = typename IDelaBella2<double>::Simplex;
     using Vertex = typename IDelaBella2<double>::Vertex;
+    using Tri = typename DelaunayIndexer2D<double>::Tri;
     size_t N = 100;
     size_t M = 1000;
     for(size_t m=0; m<N; ++m) {
@@ -384,8 +385,8 @@ TEST(DelaunayIndexer2D, RandomIndex) {
                     expected_simplex->v[0]->y * w0 +
                     expected_simplex->v[1]->y * w1 +
                     expected_simplex->v[2]->y * w2) / (w0 + w1 + w2);
-            Simplex const * found_simplex = indexer(points[idx].x, points[idx].y);
-            EXPECT_TRUE(found_simplex->v[0]->x == expected_simplex->v[0]->x);
+            Tri const * found_tri = indexer(points[idx].x, points[idx].y);
+            EXPECT_TRUE(found_tri->p0.x == expected_simplex->v[0]->x);
         }
     }
 }
