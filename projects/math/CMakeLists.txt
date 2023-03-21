@@ -40,3 +40,4 @@ package_add_test(UnitTest_Vector3D ${CMAKE_SOURCE_DIR}/projects/math/private/tes
 package_add_test(UnitTest_Transform ${CMAKE_SOURCE_DIR}/projects/math/private/test/Transform_TEST.cxx)
 package_add_test(UnitTest_InterpolationOperators ${CMAKE_SOURCE_DIR}/projects/math/private/test/InterpolationOperators_TEST.cxx)
 package_add_test(UnitTest_Indexing ${CMAKE_SOURCE_DIR}/projects/math/private/test/Indexing_TEST.cxx)
+package_add_test(UnitTest_Interpolator ${CMAKE_SOURCE_DIR}/projects/math/private/test/Interpolator_TEST.cxx)
