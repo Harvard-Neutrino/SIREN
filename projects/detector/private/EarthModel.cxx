@@ -320,6 +320,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
 
             std::string label, medtype;
             ss >> label >> medtype;
+            sector.name = label;
 
             if(not materials_.HasMaterial(medtype)) {
                 std::stringstream ss_err;
@@ -1150,7 +1151,6 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
     Vector3D direction = dir;
-    interaction_depth /= 100;
     bool flip = interaction_depth < 0;
     if(interaction_depth < 0) {
         interaction_depth *= -1;
@@ -1173,6 +1173,9 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
       return interaction_depth * total_decay_length;
     }
 
+    // Recast decay length to cm for density integral
+    double total_decay_length_cm = total_decay_length / LI::utilities::Constants::cm;
+
     double total_interaction_depth = 0.0;
     double total_distance = 0.0;
     std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
@@ -1186,23 +1189,27 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
             double segment_length = end_point - start_point;
             EarthSector sector = GetSector(current_intersection->hierarchy);
             double target = interaction_depth - total_interaction_depth;
+            // This next line is because when we evaluate the density integral,
+            // we end up calculating an interaction length in units of m/cm.
+            // This is a correction
+            target /= 100;
             std::vector<double> interaction_depths = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end());
             for(unsigned int i=0; i<targets.size(); ++i) {
                 interaction_depths[i] *= total_cross_sections[i];
             }
-            double target_composition = accumulate(interaction_depths.begin(), interaction_depths.end(), 0.0); // cm^2
+            double target_composition = accumulate(interaction_depths.begin(), interaction_depths.end(), 0.0); // cm^2 g^-1
             target /= target_composition;
             double distance;
-            // TODO: check units of everything; total_decay_length in m
+            // total_decay_length now in cm
             if (total_decay_length < std::numeric_limits<double>::infinity()) {
-              distance = sector.density->InverseIntegral(p0+start_point*direction, direction, 1./(total_decay_length*target_composition), target, segment_length);
+              distance = sector.density->InverseIntegral(p0+start_point*direction, direction, 1./(total_decay_length_cm*target_composition), target, segment_length);
             }
             else {
               distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
             }
             done = distance >= 0;
-            double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
-            integral *= target_composition;
+            double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length); // g cm^-3 * m
+            integral *= (target_composition*LI::utilities::Constants::m/LI::utilities::Constants::cm); // --> m cm^-1 --> dimensionless 
             total_interaction_depth += integral;
             if(done) {
                 total_distance = start_point + distance;

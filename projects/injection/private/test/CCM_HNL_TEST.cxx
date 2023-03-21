@@ -65,7 +65,7 @@ double dipole_coupling = 1.0e-6; // in GeV^-1; the effective dipole coupling str
 std::string mHNL = "0.01375";
     
 // Events to inject
-unsigned int events_to_inject = 5e5;
+unsigned int events_to_inject = 1e1;
 Particle::ParticleType primary_type = ParticleType::NuMu;
 std::vector<double> dipole_coupling_vec = {(primary_type==ParticleType::NuE) ? dipole_coupling : 0,
                                            (primary_type==ParticleType::NuMu) ? dipole_coupling : 0,
@@ -285,7 +285,7 @@ TEST(Injector, Generation)
 
     std::cout << "PrimaryDirectionDistribution...\n";
     // Primary direction: cone
-    double opening_angle = std::cos(std::atan(5./23.)); // slightly larger than CCM xsec
+    double opening_angle = std::atan(5./23.); // slightly larger than CCM xsec
     std::shared_ptr<PrimaryDirectionDistribution> inj_ddist = std::make_shared<Cone>(Vector3D{1.0, 0.0, 0.0},opening_angle);
     std::shared_ptr<PrimaryDirectionDistribution> phys_ddist = std::make_shared<IsotropicDirection>(); // truly we are isotropic
     primary_injection_process_upper_injector->injection_distributions.push_back(inj_ddist);
@@ -376,7 +376,20 @@ TEST(Injector, Generation)
         ++i;
     }
     while(*lower_injector) {
+        std::cout << "\nEvent " << i << std::endl;
         InteractionTree tree = lower_injector->GenerateEvent();
+        for(auto datum : tree.tree) {
+          std::cout << "\nDatum for " << datum->record.signature.primary_type << std::endl;
+          std::cout << "Vertex: ";
+          std::cout << datum->record.interaction_vertex[0] << " ";
+          std::cout << datum->record.interaction_vertex[1] << " ";
+          std::cout << datum->record.interaction_vertex[2] << std::endl;
+          std::cout << "Momentum: ";
+          std::cout << datum->record.primary_momentum[0] << " ";
+          std::cout << datum->record.primary_momentum[1] << " ";
+          std::cout << datum->record.primary_momentum[2] << " ";
+          std::cout << datum->record.primary_momentum[3] << std::endl;
+        }
         double weight = lower_weighter->EventWeight(tree);
         ++i;
     }

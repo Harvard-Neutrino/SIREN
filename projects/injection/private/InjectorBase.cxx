@@ -414,6 +414,7 @@ bool InjectorBase::SampleSecondaryProcess(unsigned int idx,
       distribution->Sample(random, earth_model, sec_cross_sections, datum);
   }
   SampleCrossSection(datum.record,sec_cross_sections);
+  // TODO: properly weight for secondary injection failure
   /*while(true) {
       try {
           for(auto & distribution : sec_distributions) {
