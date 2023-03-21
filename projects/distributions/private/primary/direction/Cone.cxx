@@ -28,7 +28,7 @@ Cone::Cone(LI::math::Vector3D dir, double opening_angle) : dir(dir), opening_ang
 }
 
 LI::math::Vector3D Cone::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const{
-    double theta = cos(rand->Uniform(acos(opening_angle), 1));
+    double theta = acos(rand->Uniform(cos(opening_angle), 1));
     double phi = rand->Uniform(0, 2.0 * M_PI);
     LI::math::Quaternion q;
     q.SetEulerAnglesZXZr(phi, theta, 0.0);
