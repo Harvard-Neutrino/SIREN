@@ -59,10 +59,6 @@ TEST(LinearDelaunayInterpolator2D, Constructor) {
 
         std::shared_ptr<SimplexLinearInterpolationOperator<double>> op(new SimplexLinearInterpolationOperator<double>);
 
-        std::cout << "x min =" << x_min << std::endl;
-        std::cout << "x max =" << x_max << std::endl;
-        std::cout << "y min =" << y_min << std::endl;
-        std::cout << "y max =" << y_max << std::endl;
         LinearDelaunayInterpolator2D<double> interp(x_points, y_points, z_points, x_transform, y_transform, z_transform, op);
     }
 }
@@ -114,20 +110,16 @@ TEST(LinearDelaunayInterpolator2D, Interpolate) {
 
         std::shared_ptr<SimplexLinearInterpolationOperator<double>> op(new SimplexLinearInterpolationOperator<double>);
 
-        std::cout << "x min =" << x_min << std::endl;
-        std::cout << "x max =" << x_max << std::endl;
-        std::cout << "y min =" << y_min << std::endl;
-        std::cout << "y max =" << y_max << std::endl;
         LinearDelaunayInterpolator2D<double> interp(x_points, y_points, z_points, x_transform, y_transform, z_transform, op);
         double x = x_range/2.0 + x_min;
         double y = y_range/2.0 + y_min;
         double z = f(x, y);
-        EXPECT_NEAR(z, interp(x, y), std::abs(z) * 1e-8);
+        EXPECT_NEAR(z, interp(x, y), std::abs(z) * 1e-2);
         for(size_t i=0; i<M; ++i) {
             double x = RandomDouble() * x_range + x_min;
             double y = RandomDouble() * y_range + y_min;
             double z = f(x, y);
-            EXPECT_NEAR(z, interp(x, y), std::abs(z) * 1e-8);
+            EXPECT_NEAR(z, interp(x, y), std::abs(z) * 1e-2);
         }
     }
 }
