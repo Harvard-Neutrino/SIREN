@@ -185,7 +185,7 @@ double DipoleFromTable::DifferentialCrossSection(dataclasses::InteractionRecord 
 
     double thresh = InteractionThreshold(interaction);
 
-    return DifferentialCrossSection(primary_type, primary_energy, target_type, y, thresh);
+    return DifferentialCrossSection(primary_type, primary_energy, target_type, interaction.target_mass, y, thresh);
 }
 
 double DipoleFromTable::DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type, double target_mass, double y) const {
