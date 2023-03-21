@@ -65,7 +65,7 @@ double dipole_coupling = 1.0e-6; // in GeV^-1; the effective dipole coupling str
 std::string mHNL = "0.01375";
     
 // Events to inject
-unsigned int events_to_inject = 1e1;
+unsigned int events_to_inject = 1e2;
 Particle::ParticleType primary_type = ParticleType::NuMu;
 std::vector<double> dipole_coupling_vec = {(primary_type==ParticleType::NuE) ? dipole_coupling : 0,
                                            (primary_type==ParticleType::NuMu) ? dipole_coupling : 0,
@@ -278,8 +278,8 @@ TEST(Injector, Generation)
     primary_physical_process_upper_injector->physical_distributions.push_back(edist);
     primary_physical_process_lower_injector->physical_distributions.push_back(edist);
 
-    // Flux normalization: using the number quoted in 2105.14020, 4.74e5 nu/cm^2/s / (6.2e14 POT/s)
-    std::shared_ptr<WeightableDistribution> flux_units = std::make_shared<NormalizationConstant>(7.48e-10);
+    // Flux normalization: using the number quoted in 2105.14020, 4.74e9 nu/m^2/s / (6.2e14 POT/s)
+    std::shared_ptr<WeightableDistribution> flux_units = std::make_shared<NormalizationConstant>(7.48e-6);
     primary_physical_process_upper_injector->physical_distributions.push_back(flux_units);
     primary_physical_process_lower_injector->physical_distributions.push_back(flux_units);
 
@@ -373,6 +373,7 @@ TEST(Injector, Generation)
           std::cout << datum->record.primary_momentum[3] << std::endl;
         }
         double weight = upper_weighter->EventWeight(tree);
+        std::cout << "Weight: " << weight << std::endl;
         ++i;
     }
     while(*lower_injector) {
@@ -391,6 +392,7 @@ TEST(Injector, Generation)
           std::cout << datum->record.primary_momentum[3] << std::endl;
         }
         double weight = lower_weighter->EventWeight(tree);
+        std::cout << "Weight: " << weight << std::endl;
         ++i;
     }
 }
