@@ -19,11 +19,13 @@ Cone::Cone(LI::math::Vector3D dir, double opening_angle) : dir(dir), opening_ang
     this->dir.normalize();
     if(this->dir == LI::math::Vector3D(0,0,1)) {
         rotation = LI::math::Quaternion(0,0,0,1);
+    } else if(this->dir == LI::math::Vector3D(0,0,-1)) {
+        rotation = LI::math::Quaternion(0,1,0,0);
     } else {
         LI::math::Vector3D r = cross_product(LI::math::Vector3D(0, 0, 1), dir);
-        r.normalize();
         rotation = LI::math::Quaternion(r);
         rotation.SetW(1.0 + dir.GetZ());
+        rotation.normalize();
     }
 }
 
