@@ -48,7 +48,7 @@ public:
     double NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const;
     double PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> & bounds, LI::dataclasses::InteractionRecord const & record) const;
     double GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum) const;
-    double EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const;
+    double EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionTreeDatum const & datum) const;
     LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process, std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::EarthModel> earth_model);
 
 }; // LeptonProcessWeighter

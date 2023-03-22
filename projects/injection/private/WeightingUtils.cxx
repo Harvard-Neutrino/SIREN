@@ -10,6 +10,7 @@
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
 #include "LeptonInjector/detector/EarthModel.h"
 #include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/utilities/Constants.h"
 
 namespace LI {
 namespace injection {
@@ -42,8 +43,8 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> e
       std::vector<LI::dataclasses::InteractionSignature> signatures = decay->GetPossibleSignaturesFromParent(record.signature.primary_type);
       for(auto const & signature : signatures) {
         fake_record.signature = signature;
-        //TODO: do the units here match the cross section units?
-        double decay_prob = 1./decay->TotalDecayLengthForFinalState(fake_record);
+        // fake_prob has units of 1/cm to match cross section probabilities
+        double decay_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/LI::utilities::Constants::cm);
         total_prob += decay_prob;
         if(signature == record.signature) {
             selected_final_state += decay_prob * decay->FinalStateProbability(record);

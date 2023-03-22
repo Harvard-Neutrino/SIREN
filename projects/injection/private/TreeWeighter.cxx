@@ -156,7 +156,6 @@ LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<InjectorBase>
 // class LeptonProcessWeighter
 //---------------
 
-// TODO: find distributions that cancel
 void LeptonProcessWeighter::Initialize() {
   normalization = 1.0;
   for(auto physical_dist : phys_process->physical_distributions) {
@@ -305,10 +304,9 @@ double LeptonProcessWeighter::GenerationProbability(LI::dataclasses::Interaction
         return gen_probability;
 }
 
-// TODO: implement smart EventWeight function that cancels common distributions
 double LeptonProcessWeighter::EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds,
-                                          LI::dataclasses::InteractionRecord const & record) const {
-  return 0;
+                                          LI::dataclasses::InteractionTreeDatum const & datum) const {
+  return PhysicalProbability(bounds,datum.record)/GenerationProbability(datum);
 }
 
 LeptonProcessWeighter::LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process,std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::EarthModel> earth_model)
