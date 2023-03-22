@@ -23,6 +23,7 @@ class Transform {
 public:
     virtual T Function(T x) const = 0;
     virtual T Inverse(T x) const = 0;
+    virtual ~Transform() {}
 };
 
 template<typename T>
@@ -136,6 +137,7 @@ public:
         T delta_y = y1 - y0;
         return (x - x0) * delta_y / delta_x + y0;
     }
+    virtual ~LinearInterpolationOperator() {}
 };
 
 template<typename T>
@@ -240,6 +242,7 @@ template<typename T>
 class Indexer1D {
 public:
     virtual std::tuple<int, int> operator()(T const & x) const = 0;
+    virtual ~Indexer1D() {}
 };
 
 template<typename T>
@@ -466,7 +469,7 @@ std::shared_ptr<Indexer1D<T>> SelectIndexer1D(
         T delta_sym = (max_sym - min_sym) / (x.size() - 1);
         for(size_t i=0; i<x.size() - 1; ++i) {
             T t_reg = delta_sym * i + min_sym;
-            T x_p = symlog.Inverse(x_p);
+            T x_p = symlog.Inverse(t_reg);
             metric_symlog_regular += std::pow(std::max(std::numeric_limits<T>::epsilon() * std::abs(x[i])*thresh, std::min(std::abs(x[i] - x_p), std::numeric_limits<T>::epsilon() * std::abs(x[i]))), 2);
         }
         metric_symlog_regular /= thresh;
@@ -479,7 +482,7 @@ std::shared_ptr<Indexer1D<T>> SelectIndexer1D(
         } else { // Regular
             return std::shared_ptr<Indexer1D<T>>(new RegularIndexer1D<T>(data));
         }
-    } else if(min_index > 1) {
+    } else {
         std::shared_ptr<Transform<T>> transform;
         std::shared_ptr<Indexer1D<T>> indexer;
         if(min_index <= 3) { // Supplied transform
@@ -599,6 +602,7 @@ public:
         T w3 = 1.0 - w1 - w2;
         return w1 * z1 + w2 * z2 + w3 * z3;
     }
+    virtual ~SimplexLinearInterpolationOperator() {}
 };
 
 template<typename T>

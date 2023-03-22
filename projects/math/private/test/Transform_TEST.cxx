@@ -473,7 +473,6 @@ TEST(SelectInterpolationSpace1D, UniformXY) {
         double min_x = RandomDouble();
         double range_x = RandomDouble() * 1000;
         double delta_x = range_x / (n_points - 1);
-        double max_x = min_x + range_x;
         std::vector<double> x(n_points);
         std::vector<double> y(n_points);
         double a = (RandomDouble() - 0.5);
@@ -509,7 +508,6 @@ TEST(SelectInterpolationSpace1D, UniformXLogY) {
         double min_x = 1;
         double range_x = 4;
         double delta_x = range_x / (n_points - 1);
-        double max_x = min_x + range_x;
         std::vector<double> x(n_points);
         std::vector<double> y(n_points);
         double a = (RandomDouble()) * 10;
@@ -544,7 +542,6 @@ TEST(SelectInterpolationSpace1D, LogXUniformY) {
         double min_x = 1e-2;
         double range_x = 1000;
         double delta_x = range_x / (n_points - 1);
-        double max_x = min_x + range_x;
         std::vector<double> x(n_points);
         std::vector<double> y(n_points);
         double a = (RandomDouble()) * 10;
@@ -579,7 +576,6 @@ TEST(SelectInterpolationSpace1D, LogXLogY) {
         double min_x = 0;
         double range_x = 2;
         double delta_x = range_x / (n_points - 1);
-        double max_x = min_x + range_x;
         std::vector<double> x(n_points);
         std::vector<double> y(n_points);
         double a = (RandomDouble()) * 2;

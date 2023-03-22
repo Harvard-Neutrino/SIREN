@@ -135,11 +135,13 @@ void TriangularMesh::print(std::ostream& os) const
 
 // ------------------------------------------------------------------------- //
 std::vector<Geometry::Intersection> TriangularMesh::ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const {
+    return std::vector<Geometry::Intersection>();
 }
 
 // ------------------------------------------------------------------------- //
 std::pair<double, double> TriangularMesh::ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const
 {
+    return std::pair<double, double>();
 }
 
 } // namespace geometry

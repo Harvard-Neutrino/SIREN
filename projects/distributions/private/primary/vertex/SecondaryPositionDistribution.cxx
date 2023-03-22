@@ -51,6 +51,10 @@ void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_ran
     datum.record.interaction_vertex[2] = pos.GetZ();
 }
 
+void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
+    throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::Sample without a datum to access the parent"));
+}
+
 LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum & datum) const {
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
@@ -106,7 +110,7 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(datum.record.interaction_vertex);
-    
+
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 

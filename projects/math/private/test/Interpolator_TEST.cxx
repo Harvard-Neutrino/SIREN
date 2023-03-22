@@ -18,10 +18,7 @@ double RandomDouble() {
 }
 
 TEST(LinearDelaunayInterpolator2D, Constructor) {
-    using Simplex = typename IDelaBella2<double>::Simplex;
-    using Vertex = typename IDelaBella2<double>::Vertex;
     size_t N = 100;
-    size_t M = 1000;
     for(size_t m=0; m<N; ++m) {
         double x_min = RandomDouble();
         double x_range = RandomDouble();
@@ -64,8 +61,6 @@ TEST(LinearDelaunayInterpolator2D, Constructor) {
 }
 
 TEST(LinearDelaunayInterpolator2D, Interpolate) {
-    using Simplex = typename IDelaBella2<double>::Simplex;
-    using Vertex = typename IDelaBella2<double>::Vertex;
     size_t N = 100;
     size_t M = 1000;
     for(size_t m=0; m<N; ++m) {

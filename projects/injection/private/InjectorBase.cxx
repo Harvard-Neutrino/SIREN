@@ -146,7 +146,6 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
 
     double total_prob = 0.0;
     double xsec_prob = 0.0;
-    double decay_prob = 0.0;
     std::vector<double> probs;
     std::vector<LI::dataclasses::Particle::ParticleType> matching_targets;
     std::vector<LI::dataclasses::InteractionSignature> matching_signatures;
@@ -190,7 +189,6 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
           //TODO: make sure this matches the units of the cross section
           fake_prob = 1./decay->TotalDecayLengthForFinalState(fake_record);
           total_prob += fake_prob;
-          decay_prob += fake_prob;
           // Add total prob to probs
           probs.push_back(total_prob);
           // Add target and decay pointer to the lists

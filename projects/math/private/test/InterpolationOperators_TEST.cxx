@@ -343,7 +343,6 @@ TEST(SimplexLinearInterpolationOperator, Operator) {
     SimplexLinearInterpolationOperator<double> op;
     std::shared_ptr<Tri> tri(new Tri());
     size_t M = 100;
-    size_t N = 1000;
     for(size_t i = 0; i<M; ++i) {
         double x0 = (RandomDouble() - 0.5) * 2; tri->p0.x = x0;
         double x1 = (RandomDouble() - 0.5) * 2; tri->p1.x = x1;

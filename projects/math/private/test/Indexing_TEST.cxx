@@ -251,7 +251,6 @@ TEST(IrregularGridIndexer2D, RandomIndex) {
     for(size_t m=0; m<N; ++m) {
         double x_min = RandomDouble();
         double x_range = RandomDouble();
-        double x_max = x_min + x_range;
         size_t x_n_points = size_t(RandomDouble() * 100 + 2);
         std::vector<double> x_points(x_n_points);
         for(size_t j=0; j<x_n_points; ++j) {
@@ -260,7 +259,6 @@ TEST(IrregularGridIndexer2D, RandomIndex) {
         std::sort(x_points.begin(), x_points.end());
         double y_min = RandomDouble();
         double y_range = RandomDouble();
-        double y_max = y_min + y_range;
         size_t y_n_points = size_t(RandomDouble() * 100 + 2);
         std::vector<double> y_points(y_n_points);
         for(size_t j=0; j<y_n_points; ++j) {
@@ -321,7 +319,6 @@ struct Point {
 
 TEST(DelaunayIndexer2D, RandomIndex) {
     using Simplex = typename IDelaBella2<double>::Simplex;
-    using Vertex = typename IDelaBella2<double>::Vertex;
     using Tri = typename DelaunayIndexer2D<double>::Tri;
     size_t N = 100;
     size_t M = 1000;
@@ -355,7 +352,7 @@ TEST(DelaunayIndexer2D, RandomIndex) {
         }
 
         IDelaBella2<double> * idb = IDelaBella2<double>::Create();
-        int verts = idb->Triangulate(x_points.size(), &(cloud->x), &(cloud->y), sizeof(Point));
+        idb->Triangulate(x_points.size(), &(cloud->x), &(cloud->y), sizeof(Point));
         size_t npoly = idb->GetNumPolygons();
         Simplex const * dela = idb->GetFirstDelaunaySimplex();
         std::vector<Simplex const *> simplices(npoly);
@@ -385,7 +382,7 @@ TEST(DelaunayIndexer2D, RandomIndex) {
                     expected_simplex->v[0]->y * w0 +
                     expected_simplex->v[1]->y * w1 +
                     expected_simplex->v[2]->y * w2) / (w0 + w1 + w2);
-            Tri const * found_tri = indexer(points[idx].x, points[idx].y);
+            Tri const * found_tri = indexer(x_point, y_point);
             EXPECT_TRUE(found_tri->p0.x == expected_simplex->v[0]->x);
         }
     }
@@ -397,7 +394,6 @@ TEST(SelectIndexer1D, IrregularIndexer) {
     for(size_t i=0; i<N; ++i) {
         double min = RandomDouble();
         double range = RandomDouble();
-        double max = min + range;
         size_t n_points = size_t(RandomDouble() * 1000 + 2);
         std::vector<double> points(n_points);
         for(size_t j=0; j<n_points; ++j) {
@@ -418,7 +414,6 @@ TEST(SelectIndexer1D, RegularIndexer) {
     for(size_t i=0; i<N; ++i) {
         double min = RandomDouble();
         double range = RandomDouble();
-        double max = min + range;
         size_t n_points = size_t(RandomDouble() * 1000 + 2);
         double delta = range / (n_points - 1);
         std::vector<double> points(n_points);
