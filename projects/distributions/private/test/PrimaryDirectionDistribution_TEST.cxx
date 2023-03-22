@@ -282,6 +282,60 @@ static const std::map<std::tuple<size_t, size_t>, double> delta_chi2_table = {
     {{5, 50}, 114.49709765666123}
 };
 
+class DistributionTest {
+    size_t num_bins;
+    size_t num_entries;
+    std::vector<double> bin_edges;
+    std::vector<double> bin_contents;
+public:
+    DistributionTest(double min_edge, double max_edge, size_t num_bins)
+        : num_bins(num_bins), num_entries(0),
+          bin_edges(num_bins + 1), bin_contents(num_bins, 0) {
+        assert(num_bins > 0);
+        double bin_range = max_edge - min_edge;
+        double bin_delta = bin_range / num_bins;
+        for(size_t j=0; j<num_bins + 1; ++j) {
+            bin_edges[j] = bin_delta * j + min_edge;
+        }
+    }
+
+    void AddValue(double value) {
+        num_entries += 1;
+        int bin_idx = std::distance(bin_edges.begin(), std::lower_bound(bin_edges.begin(), bin_edges.end(), value)) - 1;
+        if(bin_idx < 0)
+            return;
+        if(bin_idx >= num_bins)
+            return;
+        bin_contents[bin_idx] += 1;
+    }
+
+    bool TestContents(size_t sigma, std::vector<double> const & expectation) {
+        double chi2 = 0;
+        for(size_t j=0; j<num_bins; ++j) {
+            double contents = bin_contents[j];
+            double expected_error = sqrt(expectation[j]);
+            double error = std::abs(contents - expectation[j]);
+            double term = (error / expected_error);
+            chi2 += term*term;
+        }
+        double max_delta_chi2 = delta_chi2_table.at({sigma, num_bins});
+        return chi2 <= max_delta_chi2;
+    }
+
+    bool TestFractionalContents(size_t sigma, std::vector<double> const & fractional_expectation) {
+        double chi2 = 0;
+        for(size_t j=0; j<num_bins; ++j) {
+            double contents = bin_contents[j] / num_entries;
+            double expected_error = sqrt(fractional_expectation[j] / num_entries);
+            double error = std::abs(contents - fractional_expectation[j]);
+            double term = (error / expected_error);
+            chi2 += term*term;
+        }
+        double max_delta_chi2 = delta_chi2_table.at({sigma, num_bins});
+        return chi2 <= max_delta_chi2;
+    }
+};
+
 /*
 TEST(Quaternion, Sample) {
     for(size_t i=0; i<100; ++i) {
@@ -374,6 +428,7 @@ TEST(Cone, SampleDistribution) {
         double bin_delta = bin_range / n_bins;
         std::vector<double> bin_totals(n_bins + 1, 0);
         std::vector<double> bin_edges(n_bins + 1);
+        DistributionTest test(bin_min, bin_max, n_bins);
         for(size_t j=0; j<n_bins+1; ++j) {
             bin_edges[j] = bin_delta * j + bin_min;
         }
@@ -385,6 +440,7 @@ TEST(Cone, SampleDistribution) {
             Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
             vec.normalize();
             double c = scalar_product(vec, direction);
+            test.AddValue(c);
             double angle = acos(scalar_product(vec, direction));
             EXPECT_TRUE(angle <= opening_angle);
             EXPECT_TRUE(angle >= 0);
@@ -395,6 +451,7 @@ TEST(Cone, SampleDistribution) {
             bin_totals[bin_idx] += 1;
         }
         double expected_contents = double(M) / double(n_bins);
+        std::vector<double> expect(n_bins, expected_contents);
         double expected_error = sqrt(expected_contents);
         double chi2 = 0;
         for(size_t j=0; j<n_bins; ++j) {
@@ -405,6 +462,7 @@ TEST(Cone, SampleDistribution) {
         }
         double max_delta_chi2 = delta_chi2_table.at({3, n_bins});
         EXPECT_TRUE(chi2 <= max_delta_chi2);
+        EXPECT_TRUE(test.TestContents(3, expect));
     }
 }
 
