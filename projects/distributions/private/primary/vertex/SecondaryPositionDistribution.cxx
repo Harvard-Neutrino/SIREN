@@ -56,11 +56,36 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     dir.normalize();
 
 
+
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), max_length);
     path.ClipToOuterBounds();
+
+    // Check if fiducial volume is provided
+    double dist_offset = 0;
+    if(fiducial) {
+      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0),
+                                                                                                    earth_model->GetEarthCoordDirFromDetCoordDir(dir));
+      // If the path intersects the fiducial volume, restrict position to that volume
+      if(!fid_intersections.empty()) {
+        // make sure the first intersection happens before the maximum generation length
+        // and the last intersection happens in front of the generation point
+        std::cout << "endcap_0\n" << endcap_0 << std::endl;
+        std::cout << "fid_intersections.front().distance" << fid_intersections.front().distance << std::endl;
+        std::cout << "fid_intersections.back().distance" << fid_intersections.back().distance << std::endl;
+        bool update_path = (fid_intersections.front().distance < max_length
+                         && fid_intersections.back().distance > 0);
+        if(update_path) {
+          LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
+          LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
+          path.SetPoints(first_point,last_point);
+          dist_offset = (first_point - endcap_0).magnitude();
+          std::cout << "Path updated!" << std::endl;
+        }
+      }
+    }
 
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
 
@@ -92,6 +117,7 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
+    dist += dist_offset;
     LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
@@ -115,6 +141,24 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
 
     if(not path.IsWithinBounds(earth_model->GetEarthCoordPosFromDetCoordPos(vertex)))
         return 0.0;
+
+    // Check if fiducial volume is provided
+    if(fiducial) {
+      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0),
+                                                                                                    earth_model->GetEarthCoordDirFromDetCoordDir(dir));
+      // If the path intersects the fiducial volume, restrict position to that volume
+      if(!fid_intersections.empty()) {
+        // make sure the first intersection happens before the maximum generation length
+        // and the last intersection happens in front of the generation point
+        bool update_path = (fid_intersections.front().distance < max_length
+                         && fid_intersections.back().distance > 0);
+        if(update_path) {
+          LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
+          LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
+          path.SetPoints(first_point,last_point);
+        }
+      }
+    }
 
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
 
@@ -149,9 +193,15 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
     return prob_density;
 }
 
-SecondaryPositionDistribution::SecondaryPositionDistribution() : max_length(std::numeric_limits<double>::infinity()) {}
+SecondaryPositionDistribution::SecondaryPositionDistribution() {}
 
 SecondaryPositionDistribution::SecondaryPositionDistribution(double max_length) : max_length(max_length) {}
+
+SecondaryPositionDistribution::SecondaryPositionDistribution(double max_length, std::shared_ptr<LI::geometry::Geometry> fiducial) :
+  max_length(max_length),
+  fiducial(fiducial) {}
+
+SecondaryPositionDistribution::SecondaryPositionDistribution(std::shared_ptr<const LI::geometry::Geometry> fiducial) : fiducial(fiducial) {}
 
 std::string SecondaryPositionDistribution::Name() const {
     return "SecondaryPositionDistribution";

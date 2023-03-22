@@ -215,11 +215,10 @@ TEST(Injector, Generation)
 
     // Load the earth model
     std::shared_ptr<EarthModel> earth_model = std::make_shared<EarthModel>();
-    std::cout << "LoadMaterialModel...\n";
+    std::cout << "Loading MaterialModel...\n";
     earth_model->LoadMaterialModel(material_file);
-    std::cout << "LoadEarthModel...\n";
+    std::cout << "Loading EarthModel...\n";
     earth_model->LoadEarthModel(earth_file);
-    std::cout << "Loaded EarthModel!\n";
 
     // random class instance
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
@@ -269,7 +268,6 @@ TEST(Injector, Generation)
     primary_physical_process_upper_injector->cross_sections = primary_cross_sections;
     primary_physical_process_lower_injector->cross_sections = primary_cross_sections;
 
-    std::cout << "PrimaryEnergyDistribution...\n";
     // Primary energy distribution: pion decay-at-rest
     double nu_energy = 0.02965;
     std::shared_ptr<PrimaryEnergyDistribution> edist = std::make_shared<Monoenergetic>(nu_energy); // this creates a monoenergetic numu distribution
@@ -283,13 +281,20 @@ TEST(Injector, Generation)
     primary_physical_process_upper_injector->physical_distributions.push_back(flux_units);
     primary_physical_process_lower_injector->physical_distributions.push_back(flux_units);
 
-    std::cout << "PrimaryDirectionDistribution...\n";
     // Primary direction: cone
-    double opening_angle = std::atan(5./23.); // slightly larger than CCM xsec
-    std::shared_ptr<PrimaryDirectionDistribution> inj_ddist = std::make_shared<Cone>(Vector3D{1.0, 0.0, 0.0},opening_angle);
+    double opening_angle = std::atan(2./23.); // slightly larger than CCM xsec
+    LI::math::Vector3D upper_target_origin(0, 0, 0.1375);
+    LI::math::Vector3D lower_target_origin(0, 0, -0.241);
+    LI::math::Vector3D detector_origin(23, 0, -0.65);
+    LI::math::Vector3D upper_dir = detector_origin - upper_target_origin;
+    upper_dir.normalize();
+    LI::math::Vector3D lower_dir = detector_origin - lower_target_origin;
+    lower_dir.normalize();
+    std::shared_ptr<PrimaryDirectionDistribution> upper_inj_ddist = std::make_shared<Cone>(upper_dir,opening_angle);
+    std::shared_ptr<PrimaryDirectionDistribution> lower_inj_ddist = std::make_shared<Cone>(lower_dir,opening_angle);
     std::shared_ptr<PrimaryDirectionDistribution> phys_ddist = std::make_shared<IsotropicDirection>(); // truly we are isotropic
-    primary_injection_process_upper_injector->injection_distributions.push_back(inj_ddist);
-    primary_injection_process_lower_injector->injection_distributions.push_back(inj_ddist);
+    primary_injection_process_upper_injector->injection_distributions.push_back(upper_inj_ddist);
+    primary_injection_process_lower_injector->injection_distributions.push_back(lower_inj_ddist);
     primary_physical_process_upper_injector->physical_distributions.push_back(phys_ddist);
     primary_physical_process_lower_injector->physical_distributions.push_back(phys_ddist);
 
@@ -308,8 +313,6 @@ TEST(Injector, Generation)
     primary_physical_process_lower_injector->physical_distributions.push_back(helicity_distribution);
 
     // Primary position distribution: treat targets as point sources, generate from center
-    LI::math::Vector3D upper_target_origin(0, 0, 0.1375);
-    LI::math::Vector3D lower_target_origin(0, 0, -0.241);
     double max_dist = 25; // m
     std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist, primary_cross_sections->TargetTypes()); 
     std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist, primary_cross_sections->TargetTypes());
@@ -326,14 +329,18 @@ TEST(Injector, Generation)
     
     // Secondary cross sections: neutrissimo decay
     // Assume dirac HNL for now
-    std::shared_ptr<NeutrissimoDecay> sec_decay = std::make_shared<NeutrissimoDecay>(hnl_mass, dipole_coupling_vec, NeutrissimoDecay::ChiralNature::Dirac);  
+    std::shared_ptr<NeutrissimoDecay> sec_decay = std::make_shared<NeutrissimoDecay>(hnl_mass, dipole_coupling_vec, NeutrissimoDecay::ChiralNature::Majorana);  
     std::vector<std::shared_ptr<Decay>> sec_decays = {sec_decay};
     std::shared_ptr<CrossSectionCollection> secondary_cross_sections = std::make_shared<CrossSectionCollection>(ParticleType::NuF4, sec_decays);
     secondary_decay_inj_process->cross_sections = secondary_cross_sections;
     secondary_decay_phys_process->cross_sections = secondary_cross_sections;
 
     // Secondary physical distribution
-    std::shared_ptr<VertexPositionDistribution> secondary_pos_dist = std::make_shared<SecondaryPositionDistribution>();
+    std::shared_ptr<const LI::geometry::Geometry> fid_vol = NULL;
+    for(auto sector : earth_model->GetSectors()) {
+      if(sector.name=="ccm_inner_argon") fid_vol = sector.geo;
+    }
+    std::shared_ptr<VertexPositionDistribution> secondary_pos_dist = std::make_shared<SecondaryPositionDistribution>(fid_vol);
     secondary_decay_inj_process->injection_distributions.push_back(secondary_pos_dist);
 
     secondary_injection_processes.push_back(secondary_decay_inj_process);
@@ -358,9 +365,9 @@ TEST(Injector, Generation)
 
     int i = 0;
     while(*upper_injector) {
-        std::cout << "\nEvent " << i << std::endl;
+        std::cout << "Event " << i << std::endl;
         InteractionTree tree = upper_injector->GenerateEvent();
-        for(auto datum : tree.tree) {
+        /*for(auto datum : tree.tree) {
           std::cout << "\nDatum for " << datum->record.signature.primary_type << std::endl;
           std::cout << "Vertex: ";
           std::cout << datum->record.interaction_vertex[0] << " ";
@@ -371,15 +378,15 @@ TEST(Injector, Generation)
           std::cout << datum->record.primary_momentum[1] << " ";
           std::cout << datum->record.primary_momentum[2] << " ";
           std::cout << datum->record.primary_momentum[3] << std::endl;
-        }
+        }*/
         double weight = upper_weighter->EventWeight(tree);
-        std::cout << "Weight: " << weight << std::endl;
+        //std::cout << "Weight: " << weight << std::endl;
         ++i;
     }
     while(*lower_injector) {
-        std::cout << "\nEvent " << i << std::endl;
+        std::cout << "Event " << i << std::endl;
         InteractionTree tree = lower_injector->GenerateEvent();
-        for(auto datum : tree.tree) {
+        /*for(auto datum : tree.tree) {
           std::cout << "\nDatum for " << datum->record.signature.primary_type << std::endl;
           std::cout << "Vertex: ";
           std::cout << datum->record.interaction_vertex[0] << " ";
@@ -390,9 +397,9 @@ TEST(Injector, Generation)
           std::cout << datum->record.primary_momentum[1] << " ";
           std::cout << datum->record.primary_momentum[2] << " ";
           std::cout << datum->record.primary_momentum[3] << std::endl;
-        }
+        }*/
         double weight = lower_weighter->EventWeight(tree);
-        std::cout << "Weight: " << weight << std::endl;
+        //std::cout << "Weight: " << weight << std::endl;
         ++i;
     }
 }
