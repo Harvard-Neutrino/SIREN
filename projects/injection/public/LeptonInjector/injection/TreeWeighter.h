@@ -38,6 +38,8 @@ class LeptonProcessWeighter {
 private:
     std::shared_ptr<LI::dataclasses::PhysicalProcess> phys_process;
     std::shared_ptr<LI::dataclasses::InjectionProcess> inj_process;
+    std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> unique_gen_distributions;
+    std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> unique_phys_distributions;
     std::shared_ptr<LI::detector::EarthModel> earth_model;
     void Initialize();
     double normalization;
@@ -45,6 +47,7 @@ public:
     double InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> & bounds, LI::dataclasses::InteractionRecord const & record) const;
     double NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const;
     double PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> & bounds, LI::dataclasses::InteractionRecord const & record) const;
+    double GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum) const;
     double EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const;
     LeptonProcessWeighter(std::shared_ptr<LI::dataclasses::PhysicalProcess> phys_process, std::shared_ptr<LI::dataclasses::InjectionProcess> inj_process, std::shared_ptr<LI::detector::EarthModel> earth_model);
 

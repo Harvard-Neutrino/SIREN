@@ -117,18 +117,21 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
   double inv_weight = 0;
   for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
     double physical_probability = 1.0;
-    double generation_probability = injectors[idx]->GenerationProbability(tree);
+    double generation_probability = injectors[idx]->InjectedEvents();//GenerationProbability(tree);
     for(auto const datum : tree.tree) {
       std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds;
       if(datum->depth()==0) {
         bounds = injectors[idx]->InjectionBounds(datum->record);
         physical_probability *= primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
+        generation_probability *= primary_process_weighters[idx]->GenerationProbability(*datum);
       }
       else {
         try {
           bounds = injectors[idx]->InjectionBounds(*datum, datum->record.signature.primary_type);
           double phys_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->PhysicalProbability(bounds, datum->record);
+          double gen_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->GenerationProbability(*datum);
           physical_probability *= phys_prob;
+          generation_probability *= gen_prob;
         } catch(const std::out_of_range& oor) {
            std::cout << "Out of Range error: " << oor.what() << '\n';
            return 0;
@@ -163,6 +166,21 @@ void LeptonProcessWeighter::Initialize() {
         normalization *= p->GetNormalization();
       }
     }
+  }
+  unique_gen_distributions = inj_process->injection_distributions;
+  unique_phys_distributions = phys_process->physical_distributions;
+  std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>>::iterator gen_iterator = unique_gen_distributions.begin();
+  while(gen_iterator != unique_gen_distributions.end()) {
+    std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>>::iterator phys_iterator = unique_phys_distributions.begin();
+    while(phys_iterator != unique_phys_distributions.end()) {
+      if((*gen_iterator) == (*phys_iterator)) {
+        unique_gen_distributions.erase(gen_iterator);
+        unique_phys_distributions.erase(phys_iterator);
+        break;
+      }
+      ++phys_iterator;
+    }
+    ++gen_iterator;
   }
 }
 
@@ -273,10 +291,18 @@ double LeptonProcessWeighter::PhysicalProbability(std::pair<LI::math::Vector3D, 
         physical_probability *= prob;
         prob = LI::injection::CrossSectionProbability(earth_model, phys_process->cross_sections, record);
         physical_probability *= prob;
-        for(auto physical_dist : phys_process->physical_distributions) {
+        for(auto physical_dist : unique_phys_distributions) {
           physical_probability *= physical_dist->GenerationProbability(earth_model, phys_process->cross_sections, record);
         }
         return normalization * physical_probability; 
+}
+
+double LeptonProcessWeighter::GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum ) const {
+        double gen_probability = LI::injection::CrossSectionProbability(earth_model, phys_process->cross_sections, datum.record);
+        for(auto gen_dist : unique_gen_distributions) {
+          gen_probability *= gen_dist->GenerationProbability(earth_model, phys_process->cross_sections, datum);
+        }
+        return gen_probability; 
 }
 
 // TODO: implement smart EventWeight function that cancels common distributions

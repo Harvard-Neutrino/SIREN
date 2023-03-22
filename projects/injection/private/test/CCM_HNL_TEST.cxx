@@ -315,8 +315,8 @@ TEST(Injector, Generation)
     std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist, primary_cross_sections->TargetTypes());
     primary_injection_process_upper_injector->injection_distributions.push_back(upper_pos_dist);
     primary_injection_process_lower_injector->injection_distributions.push_back(lower_pos_dist);
-    primary_physical_process_upper_injector->physical_distributions.push_back(upper_pos_dist);
-    primary_physical_process_lower_injector->physical_distributions.push_back(lower_pos_dist);
+    //primary_physical_process_upper_injector->physical_distributions.push_back(upper_pos_dist);
+    //primary_physical_process_lower_injector->physical_distributions.push_back(lower_pos_dist);
 
     // Secondary process
     std::shared_ptr<InjectionProcess> secondary_decay_inj_process = std::make_shared<InjectionProcess>();
