@@ -659,7 +659,7 @@ bool Path::IsWithinBounds(math::Vector3D point) {
 
 double Path::GetDistanceFromStartInBounds(math::Vector3D point) {
     EnsurePoints();
-    double d0 = LI::math::scalar_product(direction_, first_point_ - point);
+    double d0 = LI::math::scalar_product(direction_, point - first_point_);
     return std::max(0.0, d0);
 }
 
