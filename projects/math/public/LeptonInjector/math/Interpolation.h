@@ -629,7 +629,7 @@ template<typename T>
 class Indexer2D {
 public:
     virtual Index2D operator()(T const & x, T const & y) const = 0;
-    virtual ~Index2D() = default;
+    virtual ~Indexer2D() = default;
 };
 
 template<typename T, typename IndexerT>
