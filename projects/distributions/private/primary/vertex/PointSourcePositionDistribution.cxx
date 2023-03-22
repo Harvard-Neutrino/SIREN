@@ -121,8 +121,6 @@ double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI
 
     double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    double traversed_distance = path.GetDistanceFromStartInBounds(earth_model->GetEarthCoordPosFromDetCoordPos(vertex));
-
     double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections, total_decay_length);
 
     double prob_density;
@@ -131,8 +129,6 @@ double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI
     } else {
         prob_density = interaction_density * exp(-log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
     }
-
-    prob_density /= traversed_distance*traversed_distance;
 
     return prob_density;
 }
