@@ -17,13 +17,11 @@ namespace utilities {
 
     // samples a number betwen the two specified values: (from, to)
     //      defaults to ( 0, 1)
-    double LI_random::Uniform( double from, double to ){
-        if (to < from ){
-            throw "'to' should be greater than 'from'";
-        }
-
-        double result = (from-to)*(this->generator(configuration)) + to;
-        return( result );
+    double LI_random::Uniform(double min, double max) {
+        if(max < min)
+            std::swap(min, max);
+        double range = max - min;
+        return range * (this->generator(configuration)) + min;
     }
 
     // reconfigures the generator with a new seed
