@@ -64,3 +64,4 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/distributions/public/"
     PATTERN "*.tcc"
 )
 
+package_add_test(UnitTest_PrimaryDirectionDistribution ${CMAKE_SOURCE_DIR}/projects/distributions/private/test/PrimaryDirectionDistribution_TEST.cxx)
