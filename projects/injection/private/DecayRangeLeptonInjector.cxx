@@ -20,8 +20,8 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector() {}
 DecayRangeLeptonInjector::DecayRangeLeptonInjector(
         unsigned int events_to_inject,
         std::shared_ptr<LI::detector::EarthModel> earth_model,
-        std::shared_ptr<dataclasses::InjectionProcess> primary_process,
-        std::vector<std::shared_ptr<dataclasses::InjectionProcess>> secondary_processes,
+        std::shared_ptr<injection::InjectionProcess> primary_process,
+        std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes,
         std::shared_ptr<LI::utilities::LI_random> random,
         std::shared_ptr<LI::distributions::DecayRangeFunction> range_func,
         double disk_radius,

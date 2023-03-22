@@ -85,11 +85,11 @@ void LeptonTreeWeighter::Initialize() {
              std::shared_ptr<LeptonProcessWeighter>
     > injector_sec_process_weighter_map;
     std::map<LI::dataclasses::Particle::ParticleType,
-             std::shared_ptr<LI::dataclasses::InjectionProcess>
+             std::shared_ptr<LI::injection::InjectionProcess>
     > injector_sec_process_map = injector->GetSecondaryProcessMap();
     for(auto const & sec_phys_process : secondary_physical_processes) {
       try{
-        std::shared_ptr<LI::dataclasses::InjectionProcess> sec_inj_process = injector_sec_process_map.at(sec_phys_process->primary_type);
+        std::shared_ptr<LI::injection::InjectionProcess> sec_inj_process = injector_sec_process_map.at(sec_phys_process->primary_type);
         assert(sec_phys_process->MatchesHead(sec_inj_process)); // make sure cross section collection matches
         injector_sec_process_weighter_map[sec_phys_process->primary_type] = std::make_shared<LeptonProcessWeighter>(LeptonProcessWeighter(sec_phys_process,sec_inj_process,earth_model));
       } catch(const std::out_of_range& oor) {
@@ -107,11 +107,11 @@ void LeptonTreeWeighter::Initialize() {
 }
 
 double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & tree) const {
-  // The weight is given by 
-  // 
-  // [sum_{injectors i} 
-  //  x prod_{tree datum d} 
-  //  x (prod_{generation dist j} p_gen^{idj}) 
+  // The weight is given by
+  //
+  // [sum_{injectors i}
+  //  x prod_{tree datum d}
+  //  x (prod_{generation dist j} p_gen^{idj})
   //  / (prod_{physical dist j} p_phys^{idj}) ] ^-1
   //
   double inv_weight = 0;
@@ -143,7 +143,7 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
   return 1./inv_weight;
 }
 
-LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::dataclasses::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::dataclasses::PhysicalProcess>> secondary_physical_processes)
+LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes)
     : injectors(injectors)
     , earth_model(earth_model)
     , primary_physical_process(primary_physical_process)
@@ -294,7 +294,7 @@ double LeptonProcessWeighter::PhysicalProbability(std::pair<LI::math::Vector3D, 
         for(auto physical_dist : unique_phys_distributions) {
           physical_probability *= physical_dist->GenerationProbability(earth_model, phys_process->cross_sections, record);
         }
-        return normalization * physical_probability; 
+        return normalization * physical_probability;
 }
 
 double LeptonProcessWeighter::GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum ) const {
@@ -302,7 +302,7 @@ double LeptonProcessWeighter::GenerationProbability(LI::dataclasses::Interaction
         for(auto gen_dist : unique_gen_distributions) {
           gen_probability *= gen_dist->GenerationProbability(earth_model, phys_process->cross_sections, datum);
         }
-        return gen_probability; 
+        return gen_probability;
 }
 
 // TODO: implement smart EventWeight function that cancels common distributions
@@ -311,7 +311,7 @@ double LeptonProcessWeighter::EventWeight(std::pair<LI::math::Vector3D, LI::math
   return 0;
 }
 
-LeptonProcessWeighter::LeptonProcessWeighter(std::shared_ptr<LI::dataclasses::PhysicalProcess> phys_process,std::shared_ptr<LI::dataclasses::InjectionProcess> inj_process, std::shared_ptr<LI::detector::EarthModel> earth_model)
+LeptonProcessWeighter::LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process,std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::EarthModel> earth_model)
     : phys_process(phys_process)
     , inj_process(inj_process)
     , earth_model(earth_model)

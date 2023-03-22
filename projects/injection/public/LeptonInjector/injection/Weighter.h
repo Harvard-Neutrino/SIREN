@@ -28,7 +28,7 @@
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"
 
-#include "LeptonInjector/dataclasses/Process.h"
+#include "LeptonInjector/injection/Process.h"
 
 namespace LI {
 namespace injection {

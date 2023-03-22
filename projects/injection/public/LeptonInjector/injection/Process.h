@@ -22,7 +22,7 @@
 #include "LeptonInjector/crosssections/CrossSection.h"
 
 namespace LI {
-namespace dataclasses {
+namespace injection {
 
 struct Process {
     LI::dataclasses::Particle::ParticleType primary_type;
@@ -66,9 +66,9 @@ struct PhysicalProcess : Process{
     };
 };
 
-} // namespace dataclasses
+} // namespace injection
 } // namespace LI
 
-CEREAL_CLASS_VERSION(LI::dataclasses::Process, 0);
+CEREAL_CLASS_VERSION(LI::injection::Process, 0);
 
 #endif // LI_Process_H

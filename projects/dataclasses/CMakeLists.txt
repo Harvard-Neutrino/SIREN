@@ -2,7 +2,6 @@
 #core files
 LIST (APPEND dataclasses_SOURCES
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/Particle.cxx
-    ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/Process.cxx
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/InteractionSignature.cxx
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/InteractionRecord.cxx
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/InteractionTree.cxx

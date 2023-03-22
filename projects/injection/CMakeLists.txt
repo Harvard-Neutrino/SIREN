@@ -1,6 +1,7 @@
 
 #core files
 LIST (APPEND injection_SOURCES
+    ${CMAKE_SOURCE_DIR}/projects/injection/private/Process.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/InjectorBase.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
     ${CMAKE_SOURCE_DIR}/projects/injection/private/TreeWeighter.cxx

@@ -1,7 +1,7 @@
-#include "LeptonInjector/dataclasses/Process.h"
+#include "LeptonInjector/injection/Process.h"
 
 namespace LI {
-namespace dataclasses {
+namespace injection {
 
 bool Process::operator==(Process const & other) const {
     return std::tie(
@@ -23,5 +23,5 @@ bool Process::MatchesHead(std::shared_ptr<Process> const & other) const {
         other->cross_sections);
 }
 
-} // namespace dataclasses
+} // namespace injection
 } // namespace LI

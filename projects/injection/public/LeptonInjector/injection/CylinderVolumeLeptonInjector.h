@@ -53,7 +53,7 @@ protected:
     std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections;
     CylinderVolumeLeptonInjector();
 public:
-    CylinderVolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<dataclasses::InjectionProcess> primary_process, std::vector<std::shared_ptr<dataclasses::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, LI::geometry::Cylinder cylinder);
+    CylinderVolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, LI::geometry::Cylinder cylinder);
     std::string Name() const override;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const override;
     template<typename Archive>
