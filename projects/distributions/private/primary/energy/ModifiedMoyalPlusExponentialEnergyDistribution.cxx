@@ -40,10 +40,15 @@ ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEner
     , l(l)
     , B(B)
 {
-    std::function<double(double)> integrand = [&] (double x) -> double {
-        return unnormed_pdf(x);
-    };
     integral = pdf_integral();
+    std::function<double(double)> integrand = [&] (double x) -> double {
+        return pdf(x);
+    };
+    double test_norm = LI::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-8);
+    if(std::abs(1.0 - test_norm) < 1e-6) {
+        integral = 1.0;
+        integral = LI::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-8);
+    }
     if(has_physical_normalization) {
         SetNormalization(integral);
     }
