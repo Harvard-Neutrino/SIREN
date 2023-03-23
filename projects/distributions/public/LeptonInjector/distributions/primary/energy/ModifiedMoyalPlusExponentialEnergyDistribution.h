@@ -29,8 +29,9 @@ private:
     double B;
     double integral;
     const size_t burnin = 40;
-    double unnormed_pdf(double energy) const ;
+    double unnormed_pdf(double energy) const;
     double pdf(double energy) const;
+    double pdf_integral() const;
 public:
     double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;

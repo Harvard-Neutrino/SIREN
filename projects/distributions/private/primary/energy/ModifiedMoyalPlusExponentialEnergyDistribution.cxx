@@ -25,6 +25,12 @@ double ModifiedMoyalPlusExponentialEnergyDistribution::pdf(double energy) const 
     return unnormed_pdf(energy) / integral;
 }
 
+double ModifiedMoyalPlusExponentialEnergyDistribution::pdf_integral() const {
+    double exponential = B * (exp(-energyMin/l) - exp(-energyMax/l));
+    double moyal = A * (std::erf(exp((mu - energyMin)/(2.0 * sigma)) / sqrt(2.0)) - std::erf(exp((mu - energyMax)/(2.0 * sigma)) / sqrt(2.0)));
+    return exponential + moyal;
+}
+
 ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B, bool has_physical_normalization)
     : energyMin(energyMin)
     , energyMax(energyMax)
@@ -37,7 +43,7 @@ ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEner
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    integral = LI::utilities::rombergIntegrate(integrand, energyMin, energyMax);
+    integral = pdf_integral();
     if(has_physical_normalization) {
         SetNormalization(integral);
     }
