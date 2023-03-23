@@ -192,7 +192,8 @@ PYBIND11_MODULE(Dataclasses,m) {
           .value("STauPlus", Particle::ParticleType::STauPlus)
           .value("STauMinus", Particle::ParticleType::STauMinus)
           .value("SMPPlus", Particle::ParticleType::SMPPlus)
-          .value("SMPMinus", Particle::ParticleType::SMPMinus);
+          .value("SMPMinus", Particle::ParticleType::SMPMinus)
+          .export_values();
   
   class_<InteractionSignature>(m, "InteractionSignature")
           .def(init<>())

@@ -9,6 +9,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
+#include <pybind11/stl.h>
 
 
 
@@ -53,7 +54,8 @@ PYBIND11_MODULE(CrossSections,m) {
 
   enum_<DipoleFromTable::HelicityChannel>(dipolefromtable, "HelicityChannel")
     .value("Conserving",DipoleFromTable::HelicityChannel::Conserving)
-    .value("Flipping",DipoleFromTable::HelicityChannel::Flipping);
+    .value("Flipping",DipoleFromTable::HelicityChannel::Flipping)
+    .export_values();
   
   class_<NeutrissimoDecay,Decay> neutrissimodecay(m, "NeutrissimoDecay");
 
@@ -72,9 +74,10 @@ PYBIND11_MODULE(CrossSections,m) {
     .def("GetPossibleSignaturesFromParent",&NeutrissimoDecay::GetPossibleSignaturesFromParent)
     .def("FinalStateProbability",&NeutrissimoDecay::FinalStateProbability);
   
-  enum_<NeutrissimoDecay::ChiralNature>(dipolefromtable, "ChiralNature")
+  enum_<NeutrissimoDecay::ChiralNature>(neutrissimodecay, "ChiralNature")
     .value("Dirac",NeutrissimoDecay::ChiralNature::Dirac)
-    .value("Majorana",NeutrissimoDecay::ChiralNature::Majorana);
+    .value("Majorana",NeutrissimoDecay::ChiralNature::Majorana)
+    .export_values();
   
   class_<CrossSectionCollection>(m, "CrossSectionCollection")
     .def(init<>())
