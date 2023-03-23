@@ -20,7 +20,7 @@ double Monoenergetic::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> ran
 }
 
 double Monoenergetic::pdf(double energy) const {
-    if(std::abs(energy - gen_energy) < 1e-6)
+    if(std::abs(energy - gen_energy) < 1e-6 * gen_energy)
         return 1.0; // only one allowed energy
     return 0.0;
 }
