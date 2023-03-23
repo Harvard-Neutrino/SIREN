@@ -24,7 +24,7 @@ namespace distributions {
 
 class IsotropicDirection : virtual public PrimaryDirectionDistribution {
 friend cereal::access;
-private:
+public:
     LI::math::Vector3D SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
