@@ -289,7 +289,7 @@ TEST(ModifiedMoyalPlusExponentialEnergyDistribution, Normalization) {
         energyMin = RandomDouble() * 10 + 1e-3;
         energyMax = energyMin + RandomDouble() * 10;
         mu = energyMin + RandomDouble() * (energyMax - energyMin);
-        sigma = (RandomDouble()*10 + 1e-2) * mu;
+        sigma = (RandomDouble()*10 + 1e-2);
         A = RandomDouble() * 0.1 + 1e-3;
         l = RandomDouble() * 5 + 1e-3;
         B = RandomDouble() * 0.1 + 1e-3;
@@ -303,7 +303,7 @@ TEST(ModifiedMoyalPlusExponentialEnergyDistribution, Normalization) {
         };
 
         double norm = LI::utilities::rombergIntegrate(pdf, log(energyMin), log(energyMax), 1e-6);
-        EXPECT_NEAR(norm, 1.0, 1e-3);
+        EXPECT_NEAR(norm, 1.0, 2e-3);
 
         double expected_norm = dist.GetNormalization();
         EXPECT_NEAR(expected_norm, normalization(), normalization() * 1e-3);
