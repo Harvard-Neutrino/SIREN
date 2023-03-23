@@ -15,6 +15,7 @@
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
 #include "LeptonInjector/distributions/primary/energy/Monoenergetic.h"
 #include "LeptonInjector/distributions/primary/energy/PowerLaw.h"
+#include "LeptonInjector/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
 
 using namespace LI::distributions;
 using namespace LI::dataclasses;
@@ -207,6 +208,84 @@ TEST(PowerLaw, GenerationProbability) {
         }
     }
 }
+
+TEST(ModifiedMoyalPlusExponentialEnergyDistribution, ConstructorNonPhysical) {
+    size_t N = 1000;
+    double energyMin;
+    double energyMax;
+    double mu;
+    double sigma;
+    double A;
+    double l;
+    double B;
+
+    std::function<double(double)> unnormed_pdf = [&](double x)->double {
+        double z = (x - mu) / sigma;
+        double exponential = B * exp(-x/l) / l;
+        double moyal = A * exp(0.5 * -(exp(-z) + z)) / (2.0 * M_PI * sigma);
+        return exponential + moyal;
+    };
+
+    std::function<double()> normalization = [&]()->double {
+        double exponential = B * (exp(-energyMin/l) - exp(energyMax/l));
+        double moyal = A * (std::erf(exp((mu - energyMin)/(2.0 * sigma)) / sqrt(2.0)) - std::erf(exp((mu - energyMax)/(2.0 * sigma)) / sqrt(2.0)));
+        return exponential + moyal;
+    };
+
+    for(size_t i=0; i<N; ++i) {
+        energyMin = RandomDouble() * 10;
+        energyMax = energyMin + RandomDouble() * 10;
+        mu = energyMin + RandomDouble() * (energyMax - energyMin);
+        sigma = RandomDouble();
+        A = RandomDouble() * 0.1;
+        l = RandomDouble() * 5;
+        B = RandomDouble() * 0.1;
+
+        ModifiedMoyalPlusExponentialEnergyDistribution dist(energyMin, energyMax, mu, sigma, A, l, B);
+        bool has_norm = dist.IsNormalizationSet();
+        EXPECT_TRUE(not has_norm);
+    }
+}
+
+TEST(ModifiedMoyalPlusExponentialEnergyDistribution, ConstructorPhysical) {
+    size_t N = 1000;
+    double energyMin;
+    double energyMax;
+    double mu;
+    double sigma;
+    double A;
+    double l;
+    double B;
+    bool has_physical_normalization = true;
+
+    std::function<double(double)> unnormed_pdf = [&](double x)->double {
+        double z = (x - mu) / sigma;
+        double exponential = B * exp(-x/l) / l;
+        double moyal = A * exp(0.5 * -(exp(-z) + z)) / (2.0 * M_PI * sigma);
+        return exponential + moyal;
+    };
+
+    std::function<double()> normalization = [&]()->double {
+        double exponential = B * (exp(-energyMin/l) - exp(energyMax/l));
+        double moyal = A * (std::erf(exp((mu - energyMin)/(2.0 * sigma)) / sqrt(2.0)) - std::erf(exp((mu - energyMax)/(2.0 * sigma)) / sqrt(2.0)));
+        return exponential + moyal;
+    };
+
+    for(size_t i=0; i<N; ++i) {
+        energyMin = RandomDouble() * 10;
+        energyMax = energyMin + RandomDouble() * 10;
+        mu = energyMin + RandomDouble() * (energyMax - energyMin);
+        sigma = RandomDouble();
+        A = RandomDouble() * 0.1;
+        l = RandomDouble() * 5;
+        B = RandomDouble() * 0.1;
+
+        ModifiedMoyalPlusExponentialEnergyDistribution dist(energyMin, energyMax, mu, sigma, A, l, B, has_physical_normalization);
+        bool has_norm = dist.IsNormalizationSet();
+        EXPECT_TRUE(has_norm);
+    }
+}
+
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
