@@ -424,14 +424,7 @@ TEST(Cone, SampleDistribution) {
         size_t n_bins = (RandomDouble() * M / 500) + 1;
         double bin_max = 1.0;
         double bin_min = cos(opening_angle);
-        double bin_range = bin_max - bin_min;
-        double bin_delta = bin_range / n_bins;
-        std::vector<double> bin_totals(n_bins + 1, 0);
-        std::vector<double> bin_edges(n_bins + 1);
         DistributionTest test(bin_min, bin_max, n_bins);
-        for(size_t j=0; j<n_bins+1; ++j) {
-            bin_edges[j] = bin_delta * j + bin_min;
-        }
         for(size_t j=0; j<M; ++j) {
             LI::dataclasses::InteractionRecord record;
             record.primary_momentum[0] = 1;
@@ -444,25 +437,77 @@ TEST(Cone, SampleDistribution) {
             double angle = acos(scalar_product(vec, direction));
             EXPECT_TRUE(angle <= opening_angle);
             EXPECT_TRUE(angle >= 0);
-            int bin_idx = std::distance(bin_edges.begin(), std::lower_bound(bin_edges.begin(), bin_edges.end(), c)) - 1;
-            EXPECT_TRUE(bin_idx >= 0);
-            if(bin_idx >= n_bins)
-                bin_idx = n_bins;
-            bin_totals[bin_idx] += 1;
         }
         double expected_contents = double(M) / double(n_bins);
         std::vector<double> expect(n_bins, expected_contents);
-        double expected_error = sqrt(expected_contents);
-        double chi2 = 0;
-        for(size_t j=0; j<n_bins; ++j) {
-            double contents = bin_totals[j];
-            double error = std::abs(contents - expected_contents);
-            double term = (error / expected_error);
-            chi2 += term*term;
-        }
-        double max_delta_chi2 = delta_chi2_table.at({3, n_bins});
-        EXPECT_TRUE(chi2 <= max_delta_chi2);
         EXPECT_TRUE(test.TestContents(3, expect));
+    }
+}
+
+TEST(Cone, GenerationProbability) {
+    size_t N = 1000;
+    size_t M = 10000;
+    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    for(size_t i=0; i<N; ++i) {
+        Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
+        while(true) {
+            direction.normalize();
+            double magnitude = direction.magnitude();
+            if(std::isnan(direction.magnitude()) or magnitude == 0)
+                direction = Vector3D(RandomDouble(), RandomDouble(), RandomDouble());
+            else
+                break;
+        }
+
+        double opening_angle = M_PI * RandomDouble();
+        Cone A(direction, opening_angle);
+        double expected_density = 1.0 / ((2.0 * M_PI) * (1.0 - cos(opening_angle)));
+        for(size_t j=0; j<M; ++j) {
+            double input_angle = RandomDouble() * opening_angle;
+            Vector3D vec(RandomDouble(), RandomDouble(), RandomDouble());
+            while(true) {
+                vec.normalize();
+                double magnitude = vec.magnitude();
+                if(std::isnan(vec.magnitude()) or magnitude == 0)
+                    vec = Vector3D(RandomDouble(), RandomDouble(), RandomDouble());
+                else
+                    break;
+            }
+            vec = cross_product(direction, vec).normalized();
+            Quaternion q(vec * sin(input_angle));
+            q.SetW(1.0 + cos(input_angle));
+            q.normalize();
+            vec = q.rotate(direction, false);
+
+            EXPECT_TRUE(acos(scalar_product(vec, direction)) <= opening_angle);
+
+            LI::dataclasses::InteractionRecord record;
+            record.primary_momentum[1] = vec.GetX();
+            record.primary_momentum[2] = vec.GetY();
+            record.primary_momentum[3] = vec.GetZ();
+
+            double c = scalar_product(direction.normalized(), vec.normalized());
+            double output_angle;
+            if(c > 1)
+                output_angle = 0;
+            else
+                output_angle = acos(c);
+
+            double resolution;
+            if(input_angle == 0)
+                resolution = 0;
+            else
+                resolution = 1.0 / sqrt(input_angle) * 1e-8;
+
+            EXPECT_NEAR(input_angle, output_angle, resolution);
+
+            double density = A.GenerationProbability(nullptr, nullptr, record);
+
+            if(output_angle < opening_angle)
+                EXPECT_NEAR(density, expected_density, expected_density * 1e-8);
+            else
+                EXPECT_TRUE(density == 0);
+        }
     }
 }
 
