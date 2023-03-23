@@ -13,7 +13,7 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/dataclasses/InteractionTree.h" 
+#include "LeptonInjector/dataclasses/InteractionTree.h"
 
 namespace LI {
 namespace utilities {
@@ -40,6 +40,7 @@ namespace distributions {
 class PhysicallyNormalizedDistribution {
 friend cereal::access;
 protected:
+    bool normalization_set = false;
     double normalization = 1.0;
 public:
     PhysicallyNormalizedDistribution();
@@ -51,6 +52,7 @@ public:
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
+            archive(::cereal::make_nvp("NormalizationSet", normalization_set));
             archive(::cereal::make_nvp("Normalization", normalization));
         } else {
             throw std::runtime_error("PhysicallyNormalizedDistribution only supports version <= 0!");
@@ -59,6 +61,7 @@ public:
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
+            archive(::cereal::make_nvp("NormalizationSet", normalization_set));
             archive(::cereal::make_nvp("Normalization", normalization));
         } else {
             throw std::runtime_error("PhysicallyNormalizedDistribution only supports version <= 0!");

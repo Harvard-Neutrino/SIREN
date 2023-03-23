@@ -6,9 +6,8 @@ namespace distributions {
 //---------------
 // PhysicallyNormalizedDistribution
 //---------------
-PhysicallyNormalizedDistribution::PhysicallyNormalizedDistribution() {
-    SetNormalization(1.0);
-}
+PhysicallyNormalizedDistribution::PhysicallyNormalizedDistribution()
+    : normalization_set(false), normalization(1.0) {}
 
 PhysicallyNormalizedDistribution::PhysicallyNormalizedDistribution(double norm) {
     SetNormalization(norm);
@@ -16,6 +15,7 @@ PhysicallyNormalizedDistribution::PhysicallyNormalizedDistribution(double norm) 
 
 void PhysicallyNormalizedDistribution::SetNormalization(double norm) {
     normalization = norm;
+    normalization_set = true;
 }
 
 double PhysicallyNormalizedDistribution::GetNormalization() const {
@@ -23,7 +23,7 @@ double PhysicallyNormalizedDistribution::GetNormalization() const {
 }
 
 bool PhysicallyNormalizedDistribution::IsNormalizationSet() const {
-    return normalization != 1.0;
+    return normalization_set;
 }
 
 
