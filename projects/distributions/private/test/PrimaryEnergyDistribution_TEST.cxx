@@ -179,6 +179,35 @@ TEST(PowerLaw, SampleDistribution) {
     EXPECT_TRUE(double(n_four_sigma) / N <= (1.0 - 0.999936657516334) * (1.0 + sqrt(n_four_sigma)/N));
 }
 
+TEST(PowerLaw, GenerationProbability) {
+    size_t N = 1000;
+    size_t M = 10000;
+    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    for(size_t i=0; i<N; ++i) {
+        double gamma = (RandomDouble() - 0.5) + 1;
+        double energyMin = RandomDouble() * 100 + 10;
+        double energyRange = RandomDouble() * 100;
+        double energyMax = energyMin + energyRange;
+
+        PowerLaw A(gamma, energyMin, energyMax);
+
+        std::function<double(double)> f = [&](double y)->double {
+            return std::pow(exp(y), -gamma) * exp(y);
+        };
+
+        double total_integral = LI::utilities::rombergIntegrate(f, log(energyMin), log(energyMax), 1e-8);
+
+        for(size_t j=0; j<M; ++j) {
+            LI::dataclasses::InteractionRecord record;
+            A.Sample(rand, nullptr, nullptr, record);
+            double test_energy = record.primary_momentum[0];
+            double density = A.GenerationProbability(nullptr, nullptr, record);
+            double expected_density = std::pow(test_energy, -gamma) / total_integral;
+            EXPECT_NEAR(density, expected_density, expected_density * 1e-8);
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
