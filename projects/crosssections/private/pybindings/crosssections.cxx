@@ -9,8 +9,14 @@
 
 using namespace pybind11;
 
-PYBIND11_MODULE(CrossSectionCollection,m) {
+PYBIND11_MODULE(CrossSections,m) {
   using namespace LI::crosssections;
+
+  class_<CrossSection>(m, "CrossSection")
+  
+  class_<Decay>(m, "Decay")
+
+
 
   class_<CrossSectionCollection>(m, "CrossSectionCollection")
     .def(init<>())

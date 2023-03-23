@@ -9,7 +9,7 @@
 
 using namespace pybind11;
 
-PYBIND11_MODULE(EarthModel,m) {
+PYBIND11_MODULE(Detector,m) {
   using namespace LI::detector;
 
   class_<EarthModel>(m, "EarthModel")
