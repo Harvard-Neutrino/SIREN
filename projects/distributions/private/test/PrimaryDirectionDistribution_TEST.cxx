@@ -12,6 +12,8 @@
 
 #include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
 #include "LeptonInjector/distributions/primary/direction/Cone.h"
+#include "LeptonInjector/distributions/primary/direction/FixedDirection.h"
+#include "LeptonInjector/distributions/primary/direction/IsotropicDirection.h"
 
 using namespace LI::math;
 using namespace LI::distributions;
@@ -21,12 +23,6 @@ std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
 
 double RandomDouble() {
     return uniform_distribution(rng_);
-}
-
-TEST(Cone, Constructor) {
-    Vector3D direction(0,0,1);
-    double opening_angle = M_PI;
-    Cone A(direction, opening_angle);
 }
 
 static const std::map<std::tuple<size_t, size_t>, double> delta_chi2_table = {
@@ -283,11 +279,11 @@ static const std::map<std::tuple<size_t, size_t>, double> delta_chi2_table = {
 };
 
 class DistributionTest {
+public:
     size_t num_bins;
     size_t num_entries;
     std::vector<double> bin_edges;
     std::vector<double> bin_contents;
-public:
     DistributionTest(double min_edge, double max_edge, size_t num_bins)
         : num_bins(num_bins), num_entries(0),
           bin_edges(num_bins + 1), bin_contents(num_bins, 0) {
@@ -336,60 +332,15 @@ public:
     }
 };
 
-/*
-TEST(Quaternion, Sample) {
-    for(size_t i=0; i<100; ++i) {
-        Vector3D start(0,0,1);
-        Vector3D dir(RandomDouble() - 0.5, RandomDouble() - 0.5, RandomDouble() - 0.5);
-        dir.normalize();
-        LI::math::Vector3D r = cross_product(start, dir);
-        // r.normalize();
-        Quaternion rotation = LI::math::Quaternion(r);
-        rotation.SetW(1.0 + dir.GetZ());
-        rotation.normalize();
-        //Quaternion rotation = LI::math::Quaternion(0,0,0,1);
-
-        double angle = M_PI * RandomDouble();
-        double c = RandomDouble() * (1.0 - cos(angle)) + cos(angle);
-        double theta = acos(c);
-        std::cout << angle << " " << c << " " << theta << std::endl;
-        EXPECT_TRUE(theta < angle);
-        double phi = RandomDouble() * 2.0 * M_PI;
-        LI::math::Quaternion q;
-        q.SetEulerAnglesZXZr(phi, theta, 0.0);
-        Vector3D result = rotation.rotate(q.rotate(LI::math::Vector3D(0,0,1), false), false);
-
-        //std::cout << "Start:" << std::endl;
-        //std::cout << start << std::endl;
-        //std::cout << std::endl;
-        //std::cout << "Dir:" << std::endl;
-        //std::cout << dir << std::endl;
-        //std::cout << std::endl;
-        //std::cout << "Rotation:" << std::endl;
-        //std::cout << rotation << std::endl;
-        //std::cout << std::endl;
-        //std::cout << "phi: " << phi << std::endl;
-        //std::cout << std::endl;
-        //std::cout << "q:" << std::endl;
-        //std::cout << q << std::endl;
-        //std::cout << std::endl;
-        //std::cout << "result:" << std::endl;
-        //std::cout << result << std::endl;
-        //std::cout << std::endl;
-        //std::cout << "dot:" << std::endl;
-        //std::cout << scalar_product(dir, result) << std::endl;
-        //std::cout << std::endl;
-        std::cout << "angle:" << std::endl;
-        std::cout << theta << std::endl;
-        std::cout << acos(scalar_product(dir, result)) << std::endl;
-        std::cout << std::endl;
-    }
+TEST(Cone, Constructor) {
+    Vector3D direction(0,0,1);
+    double opening_angle = M_PI;
+    Cone A(direction, opening_angle);
 }
-*/
 
 TEST(Cone, SampleBounds) {
     size_t N = 100;
-    size_t M = 1000;
+    size_t M = 10000;
     std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
@@ -411,9 +362,13 @@ TEST(Cone, SampleBounds) {
     }
 }
 
-TEST(Cone, SampleDistribution) {
-    size_t N = 100;
+TEST(Cone, SampleDistributionTheta) {
+    size_t N = 1000;
     size_t M = 10000;
+    size_t n_one_sigma = 0;
+    size_t n_two_sigma = 0;
+    size_t n_three_sigma = 0;
+    size_t n_four_sigma = 0;
     std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
@@ -440,8 +395,90 @@ TEST(Cone, SampleDistribution) {
         }
         double expected_contents = double(M) / double(n_bins);
         std::vector<double> expect(n_bins, expected_contents);
-        EXPECT_TRUE(test.TestContents(3, expect));
+        if(not test.TestContents(4, expect)) {
+            n_four_sigma += 1;
+            n_three_sigma += 1;
+            n_two_sigma += 1;
+            n_one_sigma += 1;
+        } else if(not test.TestContents(3, expect)) {
+            n_three_sigma += 1;
+            n_two_sigma += 1;
+            n_one_sigma += 1;
+        } else if(not test.TestContents(2, expect)) {
+            n_two_sigma += 1;
+            n_one_sigma += 1;
+        } else if(not test.TestContents(1, expect)) {
+            n_one_sigma += 1;
+        }
     }
+    EXPECT_TRUE(double(n_one_sigma) / N <= (1.0 - 0.682689492137086) * (1.0 + sqrt(n_one_sigma)/N));
+    EXPECT_TRUE(double(n_two_sigma) / N <= (1.0 - 0.954499736103642) * (1.0 + sqrt(n_two_sigma)/N));
+    EXPECT_TRUE(double(n_three_sigma) / N <= (1.0 - 0.997300203936740) * (1.0 + sqrt(n_three_sigma)/N));
+    EXPECT_TRUE(double(n_four_sigma) / N <= (1.0 - 0.999936657516334) * (1.0 + sqrt(n_four_sigma)/N));
+}
+
+TEST(Cone, SampleDistributionPhi) {
+    size_t N = 1000;
+    size_t M = 10000;
+    size_t n_one_sigma = 0;
+    size_t n_two_sigma = 0;
+    size_t n_three_sigma = 0;
+    size_t n_four_sigma = 0;
+    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    for(size_t i=0; i<N; ++i) {
+        Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
+        direction.normalize();
+
+        Vector3D ortho_1(RandomDouble(), RandomDouble(), RandomDouble());
+        while(true) {
+            ortho_1.normalize();
+            double magnitude = ortho_1.magnitude();
+            if(std::isnan(ortho_1.magnitude()) or magnitude == 0)
+                ortho_1 = Vector3D(RandomDouble(), RandomDouble(), RandomDouble());
+            else
+                break;
+        }
+        ortho_1 = cross_product(direction, ortho_1).normalized();
+        Vector3D ortho_2 = cross_product(direction, ortho_1);
+
+        double opening_angle = M_PI * RandomDouble();
+        Cone A(direction, opening_angle);
+        size_t n_bins = (RandomDouble() * M / 500) + 1;
+        double bin_max = M_PI;
+        double bin_min = -M_PI;
+        DistributionTest test(bin_min, bin_max, n_bins);
+        for(size_t j=0; j<M; ++j) {
+            LI::dataclasses::InteractionRecord record;
+            record.primary_momentum[0] = 1;
+            record.primary_mass = 0;
+            A.Sample(rand, nullptr, nullptr, record);
+            Vector3D sample_vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+            sample_vec.normalize();
+            double phi = std::atan2(scalar_product(sample_vec, ortho_2), scalar_product(sample_vec, ortho_1));
+            test.AddValue(phi);
+        }
+        double expected_contents = double(M) / double(n_bins);
+        std::vector<double> expect(n_bins, expected_contents);
+        if(not test.TestContents(4, expect)) {
+            n_four_sigma += 1;
+            n_three_sigma += 1;
+            n_two_sigma += 1;
+            n_one_sigma += 1;
+        } else if(not test.TestContents(3, expect)) {
+            n_three_sigma += 1;
+            n_two_sigma += 1;
+            n_one_sigma += 1;
+        } else if(not test.TestContents(2, expect)) {
+            n_two_sigma += 1;
+            n_one_sigma += 1;
+        } else if(not test.TestContents(1, expect)) {
+            n_one_sigma += 1;
+        }
+    }
+    EXPECT_TRUE(double(n_one_sigma) / N <= (1.0 - 0.682689492137086) * (1.0 + sqrt(n_one_sigma)/N));
+    EXPECT_TRUE(double(n_two_sigma) / N <= (1.0 - 0.954499736103642) * (1.0 + sqrt(n_two_sigma)/N));
+    EXPECT_TRUE(double(n_three_sigma) / N <= (1.0 - 0.997300203936740) * (1.0 + sqrt(n_three_sigma)/N));
+    EXPECT_TRUE(double(n_four_sigma) / N <= (1.0 - 0.999936657516334) * (1.0 + sqrt(n_four_sigma)/N));
 }
 
 TEST(Cone, GenerationProbability) {
@@ -478,8 +515,12 @@ TEST(Cone, GenerationProbability) {
             q.SetW(1.0 + cos(input_angle));
             q.normalize();
             vec = q.rotate(direction, false);
+            vec.normalize();
 
-            EXPECT_TRUE(acos(scalar_product(vec, direction)) <= opening_angle);
+            double pre_c = scalar_product(vec, direction);
+            if(pre_c > 1)
+                pre_c = 1;
+            EXPECT_TRUE(acos(pre_c) <= opening_angle);
 
             LI::dataclasses::InteractionRecord record;
             record.primary_momentum[1] = vec.GetX();
@@ -508,6 +549,115 @@ TEST(Cone, GenerationProbability) {
             else
                 EXPECT_TRUE(density == 0);
         }
+    }
+}
+
+TEST(FixedDirection, Constructor) {
+    Vector3D direction(0,0,1);
+    FixedDirection A(direction);
+}
+
+TEST(FixedDirection, Sample) {
+    size_t N = 10000;
+    size_t M = 10;
+    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    for(size_t i=0; i<N; ++i) {
+        Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
+        while(true) {
+            direction.normalize();
+            double magnitude = direction.magnitude();
+            if(std::isnan(direction.magnitude()) or magnitude == 0)
+                direction = Vector3D(RandomDouble(), RandomDouble(), RandomDouble());
+            else
+                break;
+        }
+        FixedDirection A(direction);
+        for(size_t j=0; j<M; ++j) {
+            LI::dataclasses::InteractionRecord record;
+            record.primary_momentum[0] = 1;
+            record.primary_mass = 0;
+            A.Sample(rand, nullptr, nullptr, record);
+            Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+            vec.normalize();
+            double dot = scalar_product(direction, vec);
+            EXPECT_TRUE(std::abs(dot - 1.0) < 1e-9);
+        }
+    }
+}
+
+TEST(IsotropicDirection, Constructor) {
+    IsotropicDirection A;
+}
+
+TEST(IsotropicDirection, SampleDistributionTheta) {
+    size_t N = 100000;
+    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    IsotropicDirection A;
+    double bin_max = 1.0;
+    double bin_min = -1.0;
+    Vector3D direction(0,0,1);
+    size_t n_bins = (N / 5000) + 1;
+    DistributionTest test(bin_min, bin_max, n_bins);
+    for(size_t i=0; i<N; ++i) {
+        LI::dataclasses::InteractionRecord record;
+        record.primary_momentum[0] = 1;
+        record.primary_mass = 0;
+        A.Sample(rand, nullptr, nullptr, record);
+        Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+        vec.normalize();
+        double c = scalar_product(vec, direction);
+        test.AddValue(c);
+        double angle = acos(c);
+        EXPECT_TRUE(angle <= M_PI);
+        EXPECT_TRUE(angle >= 0);
+    }
+    double expected_contents = double(N) / double(n_bins);
+    std::vector<double> expect(n_bins, expected_contents);
+    EXPECT_TRUE(test.TestContents(3, expect));
+}
+
+TEST(IsotropicDirection, SampleDistributionPhi) {
+    size_t N = 100000;
+    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    IsotropicDirection A;
+    double bin_max = M_PI;
+    double bin_min = -M_PI;
+    Vector3D direction(0,0,1);
+    Vector3D ortho_1(1,0,0);
+    Vector3D ortho_2(0,1,0);
+    size_t n_bins = (N / 5000) + 1;
+    DistributionTest test(bin_min, bin_max, n_bins);
+    for(size_t i=0; i<N; ++i) {
+        LI::dataclasses::InteractionRecord record;
+        record.primary_momentum[0] = 1;
+        record.primary_mass = 0;
+        A.Sample(rand, nullptr, nullptr, record);
+        Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+        vec.normalize();
+        double phi = atan2(scalar_product(ortho_2, vec), scalar_product(ortho_1, vec));
+        test.AddValue(phi);
+        EXPECT_TRUE(phi <= M_PI);
+        EXPECT_TRUE(phi >= -M_PI);
+    }
+    double expected_contents = double(N) / double(n_bins);
+    std::vector<double> expect(n_bins, expected_contents);
+    EXPECT_TRUE(test.TestContents(3, expect));
+}
+
+TEST(IsotropicDirection, GenerationProbability) {
+    size_t N = 100000;
+    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    IsotropicDirection A;
+    double expected_density = 1.0 / (4.0 * M_PI);
+    for(size_t i=0; i<N; ++i) {
+        LI::dataclasses::InteractionRecord record;
+        record.primary_momentum[0] = 1;
+        record.primary_mass = 0;
+        A.Sample(rand, nullptr, nullptr, record);
+        Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+        vec.normalize();
+        double density = A.GenerationProbability(nullptr, nullptr, record);
+        EXPECT_NEAR(density, expected_density, expected_density * 1e-8);
     }
 }
 
