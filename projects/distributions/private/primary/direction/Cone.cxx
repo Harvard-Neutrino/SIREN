@@ -40,7 +40,12 @@ LI::math::Vector3D Cone::SampleDirection(std::shared_ptr<LI::utilities::LI_rando
 double Cone::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     event_dir.normalize();
-    double theta = acos(LI::math::scalar_product(dir, event_dir));
+    double c = LI::math::scalar_product(dir, event_dir);
+    double theta;
+    if(c > 1)
+        theta = 0;
+    else
+        theta = acos(c);
     if(theta < opening_angle)
         return 1.0 / (2.0 * M_PI * (1.0 - cos(opening_angle)));
     else
