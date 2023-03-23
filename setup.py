@@ -12,6 +12,12 @@ prefix = os.getenv('PREFIX')
 source = os.getenv('LEPINJSOURCEPATH')
 
 ext_modules = [
+    Pybind11Extension("Dataclasses",
+        [source+"projects/dataclasses/private/pybindings/dataclasses.cxx"],
+        define_macros = [('VERSION_INFO', __version__)],
+        library_dirs=[prefix+'/lib/'],
+        libraries=['LeptonInjector'],
+        ),
     Pybind11Extension("Geometry",
         [source+"projects/geometry/private/pybindings/geometry.cxx"],
         define_macros = [('VERSION_INFO', __version__)],
@@ -24,6 +30,18 @@ ext_modules = [
         library_dirs=[prefix+'/lib/'],
         libraries=['LeptonInjector'],
         ),
+    Pybind11Extension("LI_random",
+        [source+"projects/utilities/private/pybindings/random.cxx"],
+        define_macros = [('VERSION_INFO', __version__)],
+        library_dirs=[prefix+'/lib/'],
+        libraries=['LeptonInjector'],
+        ),
+    #Pybind11Extension("Process",
+    #    [source+"projects/injection/private/pybindings/process.cxx"],
+    #    define_macros = [('VERSION_INFO', __version__)],
+    #    library_dirs=[prefix+'/lib/'],
+    #    libraries=['LeptonInjector'],
+    #    ),
 ]
 
 setup(
