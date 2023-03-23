@@ -157,56 +157,6 @@ std::vector<std::string> gen_tot_xs_hc(std::string mHNL) {
     return res;
 }
 
-bool inFiducial(std::array<double,3> & int_vtx, ExtrPoly & fidVol) {
-    Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
-    Vector3D dir(0,0,1);
-    return fidVol.IsInside(pos,dir);
-}
-
-bool inFiducial(std::array<double,3> & int_vtx, Sphere & fidVol) {
-    Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
-    Vector3D dir(0,0,1);
-    return fidVol.IsInside(pos,dir);
-}
-
-double ComputeInteractionLengths(std::shared_ptr<EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
-    Vector3D interaction_vertex = record.interaction_vertex;
-    Vector3D direction(
-            record.primary_momentum[1],
-            record.primary_momentum[2],
-            record.primary_momentum[3]);
-    direction.normalize();
-
-    Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), direction);
-	std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
-    std::vector<double> total_cross_sections;
-    std::vector<Particle::ParticleType> targets;
-	InteractionRecord fake_record = record;
-	for(auto const & target_xs : cross_sections_by_target) {
-        targets.push_back(target_xs.first);
-		fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
-		fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-		std::vector<std::shared_ptr<CrossSection>> const & xs_list = target_xs.second;
-		double total_xs = 0.0;
-		for(auto const & xs : xs_list) {
-			std::vector<InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
-			for(auto const & signature : signatures) {
-				fake_record.signature = signature;
-				// Add total cross section
-				total_xs += xs->TotalCrossSection(fake_record);
-			}
-		}
-		total_cross_sections.push_back(total_xs);
-	}
-    std::vector<double> particle_depths = earth_model->GetParticleColumnDepth(intersections, bounds.first, bounds.second, targets);
-
-    double interaction_depth = 0.0;
-    for(unsigned int i=0; i<targets.size(); ++i) {
-        interaction_depth += particle_depths[i] * total_cross_sections[i];
-    }
-    return interaction_depth;
-}
-
 
 TEST(Injector, Generation)
 {
