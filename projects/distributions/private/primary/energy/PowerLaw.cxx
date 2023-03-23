@@ -37,7 +37,7 @@ double PowerLaw::pdf(double energy) const {
     if(powerLawIndex == 1.0)
         return 1.0 / (energy * log(energyMax / energyMin));
     else {
-        return pow(energy, -powerLawIndex) * (powerLawIndex - 1.0) * (pow(energyMin, powerLawIndex - 1.0) - pow(energyMax, powerLawIndex - 1.0));
+        return pow(energy, -powerLawIndex) * (-1.0 + powerLawIndex) / (pow(energyMin, 1.0 - powerLawIndex) - pow(energyMax, 1.0 - powerLawIndex));
     }
 }
 
