@@ -219,19 +219,6 @@ TEST(ModifiedMoyalPlusExponentialEnergyDistribution, ConstructorNonPhysical) {
     double l;
     double B;
 
-    std::function<double(double)> unnormed_pdf = [&](double x)->double {
-        double z = (x - mu) / sigma;
-        double exponential = B * exp(-x/l) / l;
-        double moyal = A * exp(0.5 * -(exp(-z) + z)) / (2.0 * M_PI * sigma);
-        return exponential + moyal;
-    };
-
-    std::function<double()> normalization = [&]()->double {
-        double exponential = B * (exp(-energyMin/l) - exp(energyMax/l));
-        double moyal = A * (std::erf(exp((mu - energyMin)/(2.0 * sigma)) / sqrt(2.0)) - std::erf(exp((mu - energyMax)/(2.0 * sigma)) / sqrt(2.0)));
-        return exponential + moyal;
-    };
-
     for(size_t i=0; i<N; ++i) {
         energyMin = RandomDouble() * 10;
         energyMax = energyMin + RandomDouble() * 10;
@@ -258,19 +245,6 @@ TEST(ModifiedMoyalPlusExponentialEnergyDistribution, ConstructorPhysical) {
     double B;
     bool has_physical_normalization = true;
 
-    std::function<double(double)> unnormed_pdf = [&](double x)->double {
-        double z = (x - mu) / sigma;
-        double exponential = B * exp(-x/l) / l;
-        double moyal = A * exp(0.5 * -(exp(-z) + z)) / (2.0 * M_PI * sigma);
-        return exponential + moyal;
-    };
-
-    std::function<double()> normalization = [&]()->double {
-        double exponential = B * (exp(-energyMin/l) - exp(energyMax/l));
-        double moyal = A * (std::erf(exp((mu - energyMin)/(2.0 * sigma)) / sqrt(2.0)) - std::erf(exp((mu - energyMax)/(2.0 * sigma)) / sqrt(2.0)));
-        return exponential + moyal;
-    };
-
     for(size_t i=0; i<N; ++i) {
         energyMin = RandomDouble() * 10;
         energyMax = energyMin + RandomDouble() * 10;
@@ -286,6 +260,55 @@ TEST(ModifiedMoyalPlusExponentialEnergyDistribution, ConstructorPhysical) {
     }
 }
 
+TEST(ModifiedMoyalPlusExponentialEnergyDistribution, Normalization) {
+    size_t N = 1000;
+    double energyMin;
+    double energyMax;
+    double mu;
+    double sigma;
+    double A;
+    double l;
+    double B;
+    bool has_physical_normalization = true;
+
+    std::function<double(double)> unnormed_pdf = [&](double x)->double {
+        double z = (x - mu) / sigma;
+        double exponential = B * exp(-x/l) / l;
+        double moyal = A * exp(0.5 * -(exp(-z) + z)) / (2.0 * M_PI * sigma);
+        return exponential + moyal;
+    };
+
+    std::function<double()> normalization = [&]()->double {
+        double exponential = B * (exp(-energyMin/l) - exp(-energyMax/l));
+        double moyal = A * (std::erf(exp((mu - energyMin)/(2.0 * sigma)) / sqrt(2.0)) - std::erf(exp((mu - energyMax)/(2.0 * sigma)) / sqrt(2.0)));
+        return exponential + moyal;
+    };
+
+
+    for(size_t i=0; i<N; ++i) {
+        energyMin = RandomDouble() * 10 + 1e-3;
+        energyMax = energyMin + RandomDouble() * 10;
+        mu = energyMin + RandomDouble() * (energyMax - energyMin);
+        sigma = (RandomDouble()*10 + 1e-2) * mu;
+        A = RandomDouble() * 0.1 + 1e-3;
+        l = RandomDouble() * 5 + 1e-3;
+        B = RandomDouble() * 0.1 + 1e-3;
+
+        ModifiedMoyalPlusExponentialEnergyDistribution dist(energyMin, energyMax, mu, sigma, A, l, B, has_physical_normalization);
+
+        std::function<double(double)> pdf = [&](double y)->double {
+            InteractionRecord record;
+            record.primary_momentum[0] = exp(y);
+            return dist.GenerationProbability(nullptr, nullptr, record) * exp(y);
+        };
+
+        double norm = LI::utilities::rombergIntegrate(pdf, log(energyMin), log(energyMax), 1e-6);
+        EXPECT_NEAR(norm, 1.0, 1e-3);
+
+        double expected_norm = dist.GetNormalization();
+        EXPECT_NEAR(expected_norm, normalization(), normalization() * 1e-3);
+    }
+}
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
