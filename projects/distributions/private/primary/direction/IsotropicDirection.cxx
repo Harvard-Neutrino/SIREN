@@ -15,9 +15,11 @@ namespace distributions {
 // class IsotropicDirection : PrimaryDirectionDistribution
 //---------------
 LI::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
-    double nx = rand->Uniform(0, 1);
-    double ny = rand->Uniform(0, 1);
-    double nz = rand->Uniform(0, 1);
+    double nz = rand->Uniform(-1, 1);
+    double nr = sqrt(1.0 - nz*nz);
+    double phi = rand->Uniform(-M_PI, M_PI);
+    double nx = nr * cos(phi);
+    double ny = nr * sin(phi);
     LI::math::Vector3D res(nx, ny, nz);
     res.normalize();
     return res;
