@@ -34,13 +34,13 @@ public:
     virtual ~Transform() {}
     virtual bool equal(Transform<T> const & other) const = 0;
     virtual bool less(Transform<T> const & other) const = 0;
-    bool operator==(Transform<T> const & other) const {
+    virtual bool operator==(Transform<T> const & other) const {
 		if(this == &other)
 			return true;
 		else
 			return this->equal(other);
     }
-	bool operator<(Transform<T> const & other) const {
+	virtual bool operator<(Transform<T> const & other) const {
 		if(typeid(this) == typeid(&other))
 			return this->less(other);
 		else
@@ -248,6 +248,31 @@ public:
         T delta_y = y1 - y0;
         return (x - x0) * delta_y / delta_x + y0;
     }
+    virtual bool equal(LinearInterpolationOperator<T> const & other) const {
+        return true;
+    }
+    virtual bool less(LinearInterpolationOperator<T> const & other) const {
+        return false;
+    }
+    virtual bool operator==(LinearInterpolationOperator<T> const & other) const {
+		if(this == &other)
+			return true;
+		else
+			return this->equal(other);
+    }
+	virtual bool operator<(LinearInterpolationOperator<T> const & other) const {
+		if(typeid(this) == typeid(&other))
+			return this->less(other);
+		else
+			return std::type_index(typeid(this)) < std::type_index(typeid(&other));
+	}
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+        } else {
+            throw std::runtime_error("LinearInterpolationOperator only supports version <= 0!");
+        }
+    }
     virtual ~LinearInterpolationOperator() {}
 };
 
@@ -259,6 +284,23 @@ public:
         if(y0 == 0 or y1 == 0)
             return 0;
         return LinearInterpolationOperator<T>::operator()(x0, y0, x1, y1, x);
+    }
+    virtual bool equal(LinearInterpolationOperator<T> const & other) const override {
+        const DropLinearInterpolationOperator* x = dynamic_cast<const DropLinearInterpolationOperator*>(&other);
+        if(!x)
+            return false;
+        return true;
+    }
+    virtual bool less(LinearInterpolationOperator<T> const & other) const override {
+        return false;
+    }
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<LinearInterpolationOperator<T>>(this));
+        } else {
+            throw std::runtime_error("DropLinearInterpolationOperator only supports version <= 0!");
+        }
     }
 };
 
@@ -353,6 +395,27 @@ template<typename T>
 class Indexer1D {
 public:
     virtual std::tuple<int, int> operator()(T const & x) const = 0;
+    virtual bool equal(Indexer1D<T> const & other) const = 0;
+    virtual bool less(Indexer1D<T> const & other) const = 0;
+    virtual bool operator==(Indexer1D<T> const & other) const {
+		if(this == &other)
+			return true;
+		else
+			return this->equal(other);
+    }
+	virtual bool operator<(Indexer1D<T> const & other) const {
+		if(typeid(this) == typeid(&other))
+			return this->less(other);
+		else
+			return std::type_index(typeid(this)) < std::type_index(typeid(&other));
+	}
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+        } else {
+            throw std::runtime_error("Indexer1D only supports version <= 0!");
+        }
+    }
     virtual ~Indexer1D() {}
 };
 
@@ -393,16 +456,28 @@ public:
         delta = range / (n_points - 1);
     };
 
+    virtual bool equal(Indexer1D<T> const & other) const override {
+        const RegularIndexer1D* x = dynamic_cast<const RegularIndexer1D*>(&other);
+        if(!x)
+            return false;
+        return std::tie(low, high, range, reversed, n_points, delta) == std::tie(x->low, x->high, x->range, x->reversed, x->n_points, x->delta);
+    }
+    virtual bool less(Indexer1D<T> const & other) const override {
+        const RegularIndexer1D* x = dynamic_cast<const RegularIndexer1D*>(&other);
+        return std::tie(low, high, range, reversed, n_points, delta) < std::tie(x->low, x->high, x->range, x->reversed, x->n_points, x->delta);
+    }
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::make_nvp("Low", low));
             archive(cereal::make_nvp("High", high));
             archive(cereal::make_nvp("Range", range));
+            archive(cereal::make_nvp("Reversed", reversed));
             archive(cereal::make_nvp("NPoints", n_points));
             archive(cereal::make_nvp("Delta", delta));
+            archive(cereal::virtual_base_class<Indexer1D<T>>(this));
         } else {
-            throw std::runtime_error("IndexFinderRegular only supports version <= 0!");
+            throw std::runtime_error("RegularIndexer1D only supports version <= 0!");
         }
     }
 
@@ -452,15 +527,27 @@ public:
             throw std::runtime_error("IrregularIndexer1D cannot function with zero range");
     };
 
+    virtual bool equal(Indexer1D<T> const & other) const override {
+        const IrregularIndexer1D* x = dynamic_cast<const IrregularIndexer1D*>(&other);
+        if(!x)
+            return false;
+        return std::tie(data, low, high, reversed, n_points) == std::tie(x->data, x->low, x->high, x->reversed, x->n_points);
+    }
+    virtual bool less(Indexer1D<T> const & other) const override {
+        const IrregularIndexer1D* x = dynamic_cast<const IrregularIndexer1D*>(&other);
+        return std::tie(data, low, high, reversed, n_points) < std::tie(x->data, x->low, x->high, x->reversed, x->n_points);
+    }
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::make_nvp("Data", data));
             archive(cereal::make_nvp("Low", low));
             archive(cereal::make_nvp("High", high));
+            archive(cereal::make_nvp("Reversed", reversed));
             archive(cereal::make_nvp("NPoints", n_points));
+            archive(cereal::virtual_base_class<Indexer1D<T>>(this));
         } else {
-            throw std::runtime_error("IndexFinderIrregular only supports version <= 0!");
+            throw std::runtime_error("IrregularIndexer1D only supports version <= 0!");
         }
     }
 
@@ -497,6 +584,27 @@ public:
     TransformIndexer1D(std::shared_ptr<Indexer1D<T>> indexer, std::shared_ptr<Transform<T>> transform) {
         this->indexer = indexer;
         this->transform = transform;
+    }
+
+    virtual bool equal(Indexer1D<T> const & other) const override {
+        const TransformIndexer1D* x = dynamic_cast<const TransformIndexer1D*>(&other);
+        if(!x)
+            return false;
+        return std::tie(*indexer, *transform) == std::tie(*(x->indexer), *(x->transform));
+    }
+    virtual bool less(Indexer1D<T> const & other) const override {
+        const TransformIndexer1D* x = dynamic_cast<const TransformIndexer1D*>(&other);
+        return std::tie(*indexer, *transform) < std::tie(*(x->indexer), *(x->transform));
+    }
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::make_nvp("Indexer", indexer));
+            archive(cereal::make_nvp("Transform", transform));
+            archive(cereal::virtual_base_class<Indexer1D<T>>(this));
+        } else {
+            throw std::runtime_error("TransformIndexer1D only supports version <= 0!");
+        }
     }
 
     std::tuple<int, int> operator()(T const & x) const override {
@@ -1405,5 +1513,25 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::math::Transform<double>, LI::math::SymL
 CEREAL_CLASS_VERSION(LI::math::RangeTransform<double>, 0);
 CEREAL_REGISTER_TYPE(LI::math::RangeTransform<double>);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::math::Transform<double>, LI::math::RangeTransform<double>);
+
+CEREAL_CLASS_VERSION(LI::math::LinearInterpolationOperator<double>, 0);
+
+CEREAL_CLASS_VERSION(LI::math::DropLinearInterpolationOperator<double>, 0);
+CEREAL_REGISTER_TYPE(LI::math::DropLinearInterpolationOperator<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::math::LinearInterpolationOperator<double>, LI::math::DropLinearInterpolationOperator<double>);
+
+CEREAL_CLASS_VERSION(LI::math::Indexer1D<double>, 0);
+
+CEREAL_CLASS_VERSION(LI::math::RegularIndexer1D<double>, 0);
+CEREAL_REGISTER_TYPE(LI::math::RegularIndexer1D<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::math::Indexer1D<double>, LI::math::RegularIndexer1D<double>);
+
+CEREAL_CLASS_VERSION(LI::math::IrregularIndexer1D<double>, 0);
+CEREAL_REGISTER_TYPE(LI::math::IrregularIndexer1D<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::math::Indexer1D<double>, LI::math::IrregularIndexer1D<double>);
+
+CEREAL_CLASS_VERSION(LI::math::TransformIndexer1D<double>, 0);
+CEREAL_REGISTER_TYPE(LI::math::TransformIndexer1D<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::math::Indexer1D<double>, LI::math::TransformIndexer1D<double>);
 
 #endif // LI_Interpolation_H

@@ -16,20 +16,20 @@ namespace math {
 
 //template<> class RangeTransform<double>;
 
-template<> struct LinearInterpolationOperator<double>;
+//template<> struct LinearInterpolationOperator<double>;
 
-template<> struct DropLinearInterpolationOperator<double>;
+//template<> struct DropLinearInterpolationOperator<double>;
 
 template<> std::tuple<std::shared_ptr<Transform<double>>, std::shared_ptr<Transform<double>>> SelectInterpolationSpace1D(
         std::vector<double> const & x,
         std::vector<double> const & y,
         std::shared_ptr<LinearInterpolationOperator<double>> interp);
 
-template<> class RegularIndexer1D<double>;
+//template<> class RegularIndexer1D<double>;
 
-template<> class IrregularIndexer1D<double>;
+//template<> class IrregularIndexer1D<double>;
 
-template<> class TransformIndexer1D<double>;
+//template<> class TransformIndexer1D<double>;
 
 template<>
 std::shared_ptr<Indexer1D<double>> SelectIndexer1D(
