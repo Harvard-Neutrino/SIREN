@@ -54,12 +54,12 @@ ext_modules = [
         library_dirs=[prefix+'/lib/'],
         libraries=['LeptonInjector'],
         ),
-    #Pybind11Extension("Process",
-    #    [source+"projects/injection/private/pybindings/process.cxx"],
-    #    define_macros = [('VERSION_INFO', __version__)],
-    #    library_dirs=[prefix+'/lib/'],
-    #    libraries=['LeptonInjector'],
-    #    ),
+    Pybind11Extension("Injection",
+        [source+"projects/injection/private/pybindings/injection.cxx"],
+        define_macros = [('VERSION_INFO', __version__)],
+        library_dirs=[prefix+'/lib/'],
+        libraries=['LeptonInjector'],
+        ),
 ]
 
 setup(
