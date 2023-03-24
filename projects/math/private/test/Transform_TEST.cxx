@@ -61,66 +61,6 @@ TEST(IdentityTransform, RoundTrip) {
     }
 }
 
-TEST(GenericTransform, Constructor) {
-    std::function<double(double)> function = [](double)->double{return 0.0;};
-    std::function<double(double)> inverse = [](double)->double{return 0.0;};
-    ASSERT_NO_THROW(GenericTransform<double>(function, inverse));
-}
-
-TEST(GenericTransform, Function) {
-    bool is_called = false;
-    double expected = 0;
-    double received = 0;
-
-    std::function<double(double)> function = [&](double x)->double{
-        is_called = true;
-        received = x;
-        return expected;
-    };
-    std::function<double(double)> inverse = [&](double x)->double{
-        return 0.0;
-    };
-
-    GenericTransform<double> transform(function, inverse);
-
-    size_t N = 1000;
-    for(size_t i=0; i<N; ++i) {
-        double x = RandomDouble();
-        expected = RandomDouble();
-        is_called = false;
-        EXPECT_TRUE(expected == transform.Function(x));
-        EXPECT_TRUE(is_called);
-        EXPECT_TRUE(received == x);
-    }
-}
-
-TEST(GenericTransform, Inverse) {
-    bool is_called = false;
-    double expected = 0;
-    double received = 0;
-
-    std::function<double(double)> function = [&](double x)->double{
-        return 0.0;
-    };
-    std::function<double(double)> inverse = [&](double x)->double{
-        is_called = true;
-        received = x;
-        return expected;
-    };
-
-    GenericTransform<double> transform(function, inverse);
-
-    size_t N = 1000;
-    for(size_t i=0; i<N; ++i) {
-        double x = RandomDouble();
-        expected = RandomDouble();
-        is_called = false;
-        EXPECT_TRUE(expected == transform.Inverse(x));
-        EXPECT_TRUE(is_called);
-        EXPECT_TRUE(received == x);
-    }
-}
-
 TEST(LogTransform, Constructor) {
     ASSERT_NO_THROW(LogTransform<double>());
 }

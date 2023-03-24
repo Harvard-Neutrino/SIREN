@@ -4,17 +4,17 @@
 namespace LI {
 namespace math {
 
-template<> class Transform<double>;
+//template<> class Transform<double>;
 
-template<> class IdentityTransform<double>;
+//template<> class IdentityTransform<double>;
 
-template<> class GenericTransform<double>;
+//template<> class GenericTransform<double>;
 
-template<> class LogTransform<double>;
+//template<> class LogTransform<double>;
 
-template<> class SymLogTransform<double>;
+//template<> class SymLogTransform<double>;
 
-template<> class RangeTransform<double>;
+//template<> class RangeTransform<double>;
 
 template<> struct LinearInterpolationOperator<double>;
 

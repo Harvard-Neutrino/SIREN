@@ -12,6 +12,14 @@
 #include <functional>
 
 #include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/set.hpp>
+#include <cereal/types/map.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/utility.hpp>
 
 #include "delabella.h"
 
@@ -24,6 +32,27 @@ public:
     virtual T Function(T x) const = 0;
     virtual T Inverse(T x) const = 0;
     virtual ~Transform() {}
+    virtual bool equal(Transform<T> const & other) const = 0;
+    virtual bool less(Transform<T> const & other) const = 0;
+    bool operator==(Transform<T> const & other) const {
+		if(this == &other)
+			return true;
+		else
+			return this->equal(other);
+    }
+	bool operator<(Transform<T> const & other) const {
+		if(typeid(this) == typeid(&other))
+			return this->less(other);
+		else
+			return std::type_index(typeid(this)) < std::type_index(typeid(&other));
+	}
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+        } else {
+            throw std::runtime_error("Transform only supports version <= 0!");
+        }
+    }
 };
 
 template<typename T>
@@ -36,20 +65,22 @@ public:
     virtual T Inverse(T x) const override {
         return x;
     }
-};
-
-template<typename T>
-class GenericTransform : public Transform<T> {
-    std::function<T(T)> function;
-    std::function<T(T)> inverse;
-public:
-    GenericTransform(std::function<T(T)> function, std::function<T(T)> inverse)
-        : function(function), inverse(inverse) {}
-    virtual T Function(T x) const override {
-        return function(x);
+    virtual bool equal(Transform<T> const & other) const override {
+        const IdentityTransform* x = dynamic_cast<const IdentityTransform*>(&other);
+        if(!x)
+            return false;
+        return true;
     }
-    virtual T Inverse(T x) const override {
-        return inverse(x);
+    virtual bool less(Transform<T> const & other) const override {
+        return false;
+    }
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<Transform<T>>(this));
+        } else {
+            throw std::runtime_error("IdentityTransform only supports version <= 0!");
+        }
     }
 };
 
@@ -62,6 +93,23 @@ public:
     }
     virtual T Inverse(T x) const override {
         return exp(x);
+    }
+    virtual bool equal(Transform<T> const & other) const override {
+        const LogTransform* x = dynamic_cast<const LogTransform*>(&other);
+        if(!x)
+            return false;
+        return true;
+    }
+    virtual bool less(Transform<T> const & other) const override {
+        return false;
+    }
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<Transform<T>>(this));
+        } else {
+            throw std::runtime_error("LogTransform only supports version <= 0!");
+        }
     }
 };
 
@@ -108,6 +156,36 @@ public:
             return std::copysign(exp(abs_x - min_x + log_min_x), x);
         }
     }
+    virtual bool equal(Transform<T> const & other) const override {
+        const SymLogTransform* x = dynamic_cast<const SymLogTransform*>(&other);
+        if(!x)
+            return false;
+        return true;
+    }
+    virtual bool less(Transform<T> const & other) const override {
+        const SymLogTransform* x = dynamic_cast<const SymLogTransform*>(&other);
+        return min_x < x->min_x;
+    }
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("MinX", min_x));
+            archive(cereal::virtual_base_class<Transform<T>>(this));
+        } else {
+            throw std::runtime_error("SymLogTransform only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<SymLogTransform> & construct, std::uint32_t const version) {
+        if(version == 0) {
+			T min_x;
+            archive(::cereal::make_nvp("MinX", min_x));
+            construct(min_x);
+            archive(cereal::virtual_base_class<Transform<T>>(construct.ptr()));
+        } else {
+            throw std::runtime_error("SymLogTransform only supports version <= 0!");
+        }
+    }
 };
 
 template<typename T>
@@ -125,6 +203,39 @@ public:
     }
     virtual T Inverse(T x) const override {
         return x * range + min_x;
+    }
+    virtual bool equal(Transform<T> const & other) const override {
+        const RangeTransform* x = dynamic_cast<const RangeTransform*>(&other);
+        if(!x)
+            return false;
+        return true;
+    }
+    virtual bool less(Transform<T> const & other) const override {
+        const RangeTransform* x = dynamic_cast<const RangeTransform*>(&other);
+        return std::tie(min_x, range) < std::tie(x->min_x, x->range);
+    }
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("MinX", min_x));
+            archive(::cereal::make_nvp("MaxX", min_x + range));
+            archive(cereal::virtual_base_class<Transform<T>>(this));
+        } else {
+            throw std::runtime_error("RangeTransform only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<RangeTransform> & construct, std::uint32_t const version) {
+        if(version == 0) {
+			T min_x;
+			T max_x;
+            archive(::cereal::make_nvp("MinX", min_x));
+            archive(::cereal::make_nvp("MaxX", max_x));
+            construct(min_x, max_x);
+            archive(cereal::virtual_base_class<Transform<T>>(construct.ptr()));
+        } else {
+            throw std::runtime_error("RangeTransform only supports version <= 0!");
+        }
     }
 };
 
@@ -1274,7 +1385,25 @@ public:
     }
 };
 
-}
-}
+} // math
+} // LI
+
+CEREAL_CLASS_VERSION(LI::math::Transform<double>, 0);
+
+CEREAL_CLASS_VERSION(LI::math::IdentityTransform<double>, 0);
+CEREAL_REGISTER_TYPE(LI::math::IdentityTransform<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::math::Transform<double>, LI::math::IdentityTransform<double>);
+
+CEREAL_CLASS_VERSION(LI::math::LogTransform<double>, 0);
+CEREAL_REGISTER_TYPE(LI::math::LogTransform<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::math::Transform<double>, LI::math::LogTransform<double>);
+
+CEREAL_CLASS_VERSION(LI::math::SymLogTransform<double>, 0);
+CEREAL_REGISTER_TYPE(LI::math::SymLogTransform<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::math::Transform<double>, LI::math::SymLogTransform<double>);
+
+CEREAL_CLASS_VERSION(LI::math::RangeTransform<double>, 0);
+CEREAL_REGISTER_TYPE(LI::math::RangeTransform<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::math::Transform<double>, LI::math::RangeTransform<double>);
 
 #endif // LI_Interpolation_H
