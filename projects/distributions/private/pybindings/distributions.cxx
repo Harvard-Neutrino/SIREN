@@ -24,13 +24,25 @@
 #include "../../public/LeptonInjector/distributions/primary/vertex/RangePositionDistribution.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/SecondaryPositionDistribution.h"
 
+#include "../../../utilities/public/LeptonInjector/utilities/Random.h"
+#include "../../../detector/public/LeptonInjector/detector/EarthModel.h"
+#include "../../../crosssections/public/LeptonInjector/crosssections/CrossSectionCollection.h"
+
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-
-
 using namespace pybind11;
+
+/*PYBIND11_MODULE(Utilities,m) {
+  using namespace LI::utilities;
+
+  class_<LI_random>(m, "LI_random")
+    .def(init<>())
+    .def(init<unsigned int>())
+    .def("Uniform",&LI_random::Uniform)
+    .def("set_seed",&LI_random::set_seed);
+}*/
 
 PYBIND11_MODULE(Distributions,m) {
   using namespace LI::distributions;
@@ -59,24 +71,25 @@ PYBIND11_MODULE(Distributions,m) {
   
   class_<PrimaryDirectionDistribution, InjectionDistribution>(m, "PrimaryDirectionDistribution")
     .def("Sample",&PrimaryDirectionDistribution::Sample)
-    .def("DensityVariables",&PrimaryDirectionDistribution::DensityVariables);
+    .def("DensityVariables",&PrimaryDirectionDistribution::DensityVariables)
+    .def("GenerationProbability",&PrimaryDirectionDistribution::GenerationProbability);
 
   class_<Cone, PrimaryDirectionDistribution>(m, "Cone")
-    .def(init<LI::math::Vector3D, double>())
-    .def("GenerationProbability",&Cone::GenerationProbability);
+    .def(init<LI::math::Vector3D, double>());
+    //.def("GenerationProbability",&Cone::GenerationProbability);
   
   class_<IsotropicDirection, PrimaryDirectionDistribution>(m, "IsotropicDirection")
-    .def(init<>())
-    .def("GenerationProbability",&IsotropicDirection::GenerationProbability);
+    .def(init<>());
+    //.def("GenerationProbability",&IsotropicDirection::GenerationProbability);
   
   class_<FixedDirection, PrimaryDirectionDistribution>(m, "FixedDirection")
-    .def(init<LI::math::Vector3D>())
-    .def("GenerationProbability",&FixedDirection::GenerationProbability);
+    .def(init<LI::math::Vector3D>());
+    //.def("GenerationProbability",&FixedDirection::GenerationProbability);
 
   // Energy distributions
 
   class_<PrimaryEnergyDistribution, InjectionDistribution>(m, "PrimaryEnergyDistribution")
-    .def("Sample",&PrimaryEnergyDistribution::Sample)
+    .def("Sample",&PrimaryEnergyDistribution::Sample);
 
   class_<Monoenergetic, PrimaryEnergyDistribution>(m, "Monoenergetic")
     .def(init<double>())
@@ -113,7 +126,7 @@ PYBIND11_MODULE(Distributions,m) {
   // Type distributions
   
   class_<PrimaryInjector, InjectionDistribution>(m, "PrimaryInjector")
-    .def(init<LI::dataclasses::Particle::ParticleType primary_type, double>())
+    .def(init<LI::dataclasses::Particle::ParticleType, double>())
     .def("PrimaryMass",&PrimaryInjector::PrimaryMass)
     .def("Sample",&PrimaryInjector::Sample)
     .def("GenerationProbability",&PrimaryInjector::GenerationProbability)
@@ -125,28 +138,29 @@ PYBIND11_MODULE(Distributions,m) {
   class_<VertexPositionDistribution, InjectionDistribution>(m, "VertexPositionDistribution")
     .def("IsPositionDistribution",&VertexPositionDistribution::IsPositionDistribution)
     .def("DensityVariables",&VertexPositionDistribution::DensityVariables)
-    .def("InjectionBounds",&VertexPositionDistribution::InjectionBounds)
+    //.def("InjectionBounds",&VertexPositionDistribution::InjectionBounds)
     .def("AreEquivalent",&VertexPositionDistribution::AreEquivalent);
 
   // First, some range and depth functions
 
-  class_<RangeFunction>(m, "RangeFunction")
-    .def(init<>())
-    .def((LI::dataclasses::InteractionSignature const &, double));
+  class_<RangeFunction>(m, "RangeFunction");
+    //.def(init<>());
+    //.def((LI::dataclasses::InteractionSignature const &, double));
   
   class_<DecayRangeFunction, RangeFunction>(m, "DecayRangeFunction")
     .def(init<double, double, double, double>())
-    .def((LI::dataclasses::InteractionSignature const &, double))
-    .def("DecayLength",&DecayRangeFunction::DecayLength)
+    //.def((LI::dataclasses::InteractionSignature const &, double))
+    .def("DecayLength",overload_cast<LI::dataclasses::InteractionSignature const &, double>(&DecayRangeFunction::DecayLength, const_))
+    .def("DecayLength",overload_cast<double, double, double>(&DecayRangeFunction::DecayLength))
     .def("Range",&DecayRangeFunction::Range)
-    .def("Multiplier",&DecayMultiplierFunction::Multiplier)
-    .def("ParticleMass",&DecayParticleMassFunction::ParticleMass)
-    .def("DecayWidth",&DecayDecayWidthFunction::DecayWidth)
-    .def("MaxDistance",&DecayMaxDistanceFunction::MaxDistance);
+    .def("Multiplier",&DecayRangeFunction::Multiplier)
+    .def("ParticleMass",&DecayRangeFunction::ParticleMass)
+    .def("DecayWidth",&DecayRangeFunction::DecayWidth)
+    .def("MaxDistance",&DecayRangeFunction::MaxDistance);
   
-  class_<DepthFunction>(m, "DepthFunction")
-    .def(init<>())
-    .def((LI::dataclasses::InteractionSignature const &, double));
+  class_<DepthFunction>(m, "DepthFunction");
+    //.def(init<>());
+    //.def((LI::dataclasses::InteractionSignature const &, double));
 
   class_<LeptonDepthFunction, DepthFunction>(m, "LeptonDepthFunction")
     .def(init<>())
@@ -159,8 +173,8 @@ PYBIND11_MODULE(Distributions,m) {
     .def("GetTauAlpha",&LeptonDepthFunction::GetTauAlpha)
     .def("GetTauBeta",&LeptonDepthFunction::GetTauBeta)
     .def("GetScale",&LeptonDepthFunction::GetScale)
-    .def("GetMaxDepth",&LeptonDepthFunction::GetMaxDepth)
-    .def((LI::dataclasses::InteractionSignature const &, double));
+    .def("GetMaxDepth",&LeptonDepthFunction::GetMaxDepth);
+    //.def((LI::dataclasses::InteractionSignature const &, double));
 
   // VertexPositionDistribution subclasses
 
@@ -200,14 +214,14 @@ PYBIND11_MODULE(Distributions,m) {
   class_<SecondaryPositionDistribution, VertexPositionDistribution>(m, "SecondaryPositionDistribution")
     .def(init<>())
     .def(init<double>())
-    .def(init<double, std::shared_ptr<LI::geometry::Geometry> fiducial>())
-    .def(init<std::shared_ptr<LI::geometry::Geometry> fiducial>())
-    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord &>(&InjectionDistribution::Sample, const_))
-    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum &>(&InjectionDistribution::Sample, const_))
-    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord &>(&InjectionDistribution::GenerationProbability, const_))
-    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum &>(&InjectionDistribution::GenerationProbability, const_))
-    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const> LI::dataclasses::InteractionRecord &>(&InjectionDistribution::InjectionBounds, const_))
-    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const> LI::dataclasses::InteractionTreeDatum &>(&InjectionDistribution::InjectionBounds, const_))
+    .def(init<double, std::shared_ptr<LI::geometry::Geometry>>())
+    .def(init<std::shared_ptr<LI::geometry::Geometry>>())
+    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord &>(&SecondaryPositionDistribution::Sample, const_))
+    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum &>(&SecondaryPositionDistribution::Sample, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPositionDistribution::GenerationProbability, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum const &>(&SecondaryPositionDistribution::GenerationProbability, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
     .def("Name",&SecondaryPositionDistribution::Name);
 
 }
