@@ -1,32 +1,68 @@
-#include "phys-services/CrossSection.h"
-
-#include <LeptonInjector/Particle.h>
-#include <LeptonInjector/LeptonInjector.h>
-#include <LeptonInjector/Constants.h>
-#include "LeptonInjector/Weighter.h"
-#include "LeptonInjector/Random.h"
-
-#include "earthmodel-service/Geometry.h"
-#include "earthmodel-service/EulerQuaternionConversions.h"
-#include "earthmodel-service/Placement.h"
-
+#include <ios>
+#include <cmath>
+#include <math.h>
+#include <memory>
+#include <vector>
+#include <array>
+#include <iostream>
+#include <fstream>
+#include <argagg.hpp>
 #include <string>
 #include <iomanip>
 #include <memory>
 #include <chrono>
 #include <ctime>
-#include <argagg.hpp>
-#include "date.h"
 
-using namespace LeptonInjector;
-bool z_samp = true;
-bool in_invGeV = true;
 
-template <class Precision>
-std::string getISOCurrentTimestamp() {
-    auto now = std::chrono::system_clock::now();
-    return date::format("%FT%TZ", date::floor<Precision>(now));
-}
+#include "LeptonInjector/crosssections/CrossSection.h"
+
+#include "LeptonInjector/utilities/Random.h"
+#include "LeptonInjector/utilities/Constants.h"
+#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/RangedLeptonInjector.h"
+#include "LeptonInjector/injection/TreeWeighter.h"
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/geometry/ExtrPoly.h"
+#include "LeptonInjector/geometry/Sphere.h"
+#include "LeptonInjector/math/EulerQuaternionConversions.h"
+#include "LeptonInjector/geometry/Placement.h"
+
+#include "LeptonInjector/distributions/primary/energy/Monoenergetic.h"
+#include "LeptonInjector/distributions/primary/direction/Cone.h"
+#include "LeptonInjector/distributions/primary/direction/IsotropicDirection.h"
+#include "LeptonInjector/distributions/primary/vertex/PointSourcePositionDistribution.h"
+#include "LeptonInjector/distributions/primary/vertex/SecondaryPositionDistribution.h"
+
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/DipoleFromTable.h"
+#include "LeptonInjector/crosssections/Decay.h"
+#include "LeptonInjector/crosssections/NeutrissimoDecay.h"
+
+using namespace LI::math;
+using namespace LI::geometry;
+using namespace LI::detector;
+using namespace LI::injection;
+using namespace LI::dataclasses;
+using namespace LI::crosssections;
+using namespace LI::utilities;
+using namespace LI::distributions;
+
+using ParticleType = Particle::ParticleType;
+
+// Variables which the user will have to specify
+
+// generation settings
+bool z_samp = false;
+bool in_invGeV = true; // are the xsec tables in GeV^-1?
+bool inelastic = true;
+
+std::string tot_xsec_table_path = "../tables/Dipole_xsec/tot_xsec_E0_Ne20/";
+std::string diff_xsec_table_path = "../tables/Dipole_xsec/diff_xsec_E0_Ne20/";
+
+std::string material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/earthparams/materials/CCM.dat";
+std::string earth_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/earthparams/densities/PREM_ccm.dat";
 
 std::string diff_xs(int Z, int A, std::string mHNL, std::string diff_path) {
     std::stringstream ss;
@@ -51,31 +87,43 @@ std::string tot_xs(int Z, int A, std::string mHNL, std::string tot_path) {
 std::vector<std::array<int, 2>> gen_ZA() {
     return std::vector<std::array<int, 2>>{
         {1, 1},
-            {6, 12},
-            {8, 16},
-            {13, 27},
-            {14, 28},
-            {20, 40},
-            {26, 56},
-            {29, 63},
-            {29, 65},
-            {82, 208},
+        {4, 9},
+        {6, 12},
+        {7, 14},
+        {8, 16},
+        {11, 23},
+        {13, 27},
+        {14, 28},
+        {18, 40},
+        {20, 40},
+        {25, 55},
+        {26, 56},
+        {29, 63},
+        {29, 65},
+        {74, 183},
+        {82, 208},
     };
 }
 
-std::vector<LeptonInjector::Particle::ParticleType> gen_TargetPIDs() {
-    using ParticleType = LeptonInjector::Particle::ParticleType;
+std::vector<Particle::ParticleType> gen_TargetPIDs() {
+    using ParticleType = Particle::ParticleType;
     return std::vector<ParticleType>{
         ParticleType::HNucleus,
-            ParticleType::C12Nucleus,
-            ParticleType::O16Nucleus,
-            ParticleType::Al27Nucleus,
-            ParticleType::Si28Nucleus,
-            ParticleType::Ca40Nucleus,
-            ParticleType::Fe56Nucleus,
-            ParticleType::Cu63Nucleus,
-            ParticleType::Cu65Nucleus,
-            ParticleType::Pb208Nucleus
+        ParticleType::Be9Nucleus,
+        ParticleType::C12Nucleus,
+        ParticleType::N14Nucleus,
+        ParticleType::O16Nucleus,
+        ParticleType::Na23Nucleus,
+        ParticleType::Al27Nucleus,
+        ParticleType::Si28Nucleus,
+        ParticleType::Ar40Nucleus,
+        ParticleType::Ca40Nucleus,
+        ParticleType::Mn55Nucleus,
+        ParticleType::Fe56Nucleus,
+        ParticleType::Cu63Nucleus,
+        ParticleType::Cu65Nucleus,
+        ParticleType::W183Nucleus,
+        ParticleType::Pb208Nucleus
     };
 }
 
@@ -111,15 +159,9 @@ std::vector<std::string> gen_tot_xs_hc(std::string mHNL, std::string tot_path) {
     return res;
 }
 
-bool inFiducial(std::array<double,3> & int_vtx, earthmodel::ExtrPoly & fidVol) {
-    earthmodel::Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
-    earthmodel::Vector3D dir(0,0,1);
-    return fidVol.IsInside(pos,dir);
-}
-
-bool inFiducial(std::array<double,3> & int_vtx, earthmodel::Sphere & fidVol) {
-    earthmodel::Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
-    earthmodel::Vector3D dir(0,0,1);
+bool inFiducial(std::array<double,3> & int_vtx, Geometry & fidVol) {
+    Vector3D pos(int_vtx[0], int_vtx[1], int_vtx[2]);
+    Vector3D dir(0,0,1);
     return fidVol.IsInside(pos,dir);
 }
 
@@ -152,10 +194,6 @@ int main(int argc, char ** argv) {
         {
             "dif_xsec_path", {"--diff-xsec-path"},
             "Path to diff xsec tables", 1,
-        },
-        {
-            "flux_file", {"--flux-file"},
-            "Path to NUMI flux file", 1,
         },
         {
             "z_samp", {"--z-samp","-z"},
@@ -232,35 +270,42 @@ int main(int argc, char ** argv) {
         path += "/";
     path += "resources/earthparams";
 
-    std::string earth_file = args["earth_model"].as<std::string>("PREM_miniboone");
+    std::string earth_file = args["earth_model"].as<std::string>("PREM_ccm");
     std::string materials_file = args["materials_model"].as<std::string>("CCM");
-    std::string flux_file;
-    if(args["flux_file"]) {
-        flux_file = args["flux_file"].as<std::string>();
-    }
-    else {
-				std::cerr << "Please specify flux file!\n";
-    }
     
-    // default to MB best fit params
-    double hnl_mass = args["hnl_mass"].as<double>(0.4);
-    std::string mHNL = args["hnl_mass"].as<std::string>("0.4");
-    double d_dipole = args["d_dipole"].as<double>(3e-7);
-
-    // Decay parameters used to set the max range when injecting an HNL    
-    double HNL_decay_width = std::pow(d_dipole,2)*std::pow(hnl_mass,3)/(4*Constants::pi); // in GeV; decay_width = d^2 m^3 / (4 * pi)
-    double n_decay_lengths = 3.0;
-    double max_distance = 541;
-
-    // This should encompass CCM, change to input argument if considering other detectors
-    double disk_radius = 3; // in meters
-    double endcap_length = 3; // in meters
+    // Load the earth model
+    std::shared_ptr<EarthModel> earth_model = std::make_shared<EarthModel>();
+    earth_model->SetPath(path);
+    earth_model->LoadMaterialModel(materials_file);
+    earth_model->LoadEarthModel(earth_file);
+    
+    // random class instance
+    std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
+    
+    // HNL parameters
+    double hnl_mass = args["hnl_mass"].as<double>(0.001);
+    std::string mHNL = args["hnl_mass"].as<std::string>("0.001");
+    double d_dipole = args["d_dipole"].as<double>(1e-6);
 
     // Events to inject
     int events_to_inject = int(args["n_inj"].as<float>(float(1e5)));
 
     // Choose injection type (assumes only one is specified)
     Particle::ParticleType primary_type=Particle::ParticleType::NuMu;
+
+    // let's make the process instances
+    // Injection processes
+    std::shared_ptr<InjectionProcess> primary_injection_process_upper_injector = std::make_shared<InjectionProcess>(); // will inject in upper tungsten target
+    std::shared_ptr<InjectionProcess> primary_injection_process_lower_injector = std::make_shared<InjectionProcess>(); // will inject in lower tungsten target
+    std::vector<std::shared_ptr<InjectionProcess>> secondary_injection_processes; // common to both injectors
+    // Physical processes
+    std::shared_ptr<PhysicalProcess> primary_physical_process_upper_injector = std::make_shared<PhysicalProcess>(); // will inject in upper tungsten target
+    std::shared_ptr<PhysicalProcess> primary_physical_process_lower_injector = std::make_shared<PhysicalProcess>(); // will inject in lower tungsten target
+    std::vector<std::shared_ptr<PhysicalProcess>> secondary_physical_processes; // common to both injectors
+    primary_injection_process_upper_injector->primary_type = primary_type;
+    primary_injection_process_lower_injector->primary_type = primary_type;
+    primary_physical_process_upper_injector->primary_type = primary_type;
+    primary_physical_process_lower_injector->primary_type = primary_type;
 
     std::string tot_xs_base;
     std::string dif_xs_base;
@@ -284,8 +329,8 @@ int main(int argc, char ** argv) {
     // Load cross sections
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::vector<Particle::ParticleType> target_types = gen_TargetPIDs();
-    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV);
-    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV);
+    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV, inelastic);
+    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, d_dipole, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV, inelastic);
     std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL,dif_xs_base);
     std::vector<std::string> hc_diff_fnames = gen_diff_xs_hc(mHNL,dif_xs_base);
     std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf(mHNL,tot_xs_base);
@@ -298,175 +343,192 @@ int main(int argc, char ** argv) {
     }
     cross_sections.push_back(hf_xs);
     cross_sections.push_back(hc_xs);
+
+    std::shared_ptr<CrossSectionCollection> primary_cross_sections = std::make_shared<CrossSectionCollection>(primary_type, cross_sections);
+    primary_injection_process_upper_injector->cross_sections = primary_cross_sections;
+    primary_injection_process_lower_injector->cross_sections = primary_cross_sections;
+    primary_physical_process_upper_injector->cross_sections = primary_cross_sections;
+    primary_physical_process_lower_injector->cross_sections = primary_cross_sections;
+
+    // Primary energy distribution: pion decay-at-rest
+    double nu_energy = 0.02965;
+    std::shared_ptr<PrimaryEnergyDistribution> edist = std::make_shared<Monoenergetic>(nu_energy); // this creates a monoenergetic numu distribution
+    primary_injection_process_upper_injector->injection_distributions.push_back(edist);
+    primary_injection_process_lower_injector->injection_distributions.push_back(edist);
+    primary_physical_process_upper_injector->physical_distributions.push_back(edist);
+    primary_physical_process_lower_injector->physical_distributions.push_back(edist);
     
-    // Load the earth model
-    std::shared_ptr<earthmodel::EarthModel> earth_model = std::make_shared<earthmodel::EarthModel>();
-    earth_model->SetPath(path);
-    earth_model->LoadMaterialModel(materials_file);
-    earth_model->LoadEarthModel(earth_file);
+    // Flux normalization: using the number quoted in 2105.14020, 4.74e9 nu/m^2/s / (6.2e14 POT/s) * 4*pi*20m^2 to get nu/POT
+    std::shared_ptr<WeightableDistribution> flux_units = std::make_shared<NormalizationConstant>(3.76e-2);
+    primary_physical_process_upper_injector->physical_distributions.push_back(flux_units);
+    primary_physical_process_lower_injector->physical_distributions.push_back(flux_units);
 
-    // Setup the primary type and mass
-    std::shared_ptr<LeptonInjector::PrimaryInjector> primary_injector = std::make_shared<LeptonInjector::PrimaryInjector>(primary_type, 0);
-    
-    std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
-    
-    // Setup tabulated flux
-    double eps = 1e-6;
-    std::shared_ptr<LeptonInjector::TabulatedFluxDistribution> tab_pdf_gen = std::make_shared<LeptonInjector::TabulatedFluxDistribution>(0.3-eps, 0.3+eps, flux_file);
+    // Primary direction: cone
+    double opening_angle = std::atan(2./23.); // slightly larger than CCM xsec
+    LI::math::Vector3D upper_target_origin(0, 0, 0.1375);
+    LI::math::Vector3D lower_target_origin(0, 0, -0.241);
+    LI::math::Vector3D detector_origin(23, 0, -0.65);
+    LI::math::Vector3D upper_dir = detector_origin - upper_target_origin;
+    upper_dir.normalize();
+    LI::math::Vector3D lower_dir = detector_origin - lower_target_origin;
+    lower_dir.normalize();
+    std::shared_ptr<PrimaryDirectionDistribution> upper_inj_ddist = std::make_shared<Cone>(upper_dir,opening_angle);
+    std::shared_ptr<PrimaryDirectionDistribution> lower_inj_ddist = std::make_shared<Cone>(lower_dir,opening_angle);
+    std::shared_ptr<PrimaryDirectionDistribution> phys_ddist = std::make_shared<IsotropicDirection>(); // truly we are isotropic
+    primary_injection_process_upper_injector->injection_distributions.push_back(upper_inj_ddist);
+    primary_injection_process_lower_injector->injection_distributions.push_back(lower_inj_ddist);
+    primary_physical_process_upper_injector->physical_distributions.push_back(phys_ddist);
+    primary_physical_process_lower_injector->physical_distributions.push_back(phys_ddist);
 
-    // Change the flux units from cm^-2 to m^-2
-    std::shared_ptr<LeptonInjector::WeightableDistribution> flux_units = std::make_shared<LeptonInjector::NormalizationConstant>(1e4);
+    // Target momentum distribution: assume stationary for simplicity
+    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution = std::make_shared<TargetAtRest>();
+    primary_injection_process_upper_injector->injection_distributions.push_back(target_momentum_distribution);
+    primary_injection_process_lower_injector->injection_distributions.push_back(target_momentum_distribution);
+    primary_physical_process_upper_injector->physical_distributions.push_back(target_momentum_distribution);
+    primary_physical_process_lower_injector->physical_distributions.push_back(target_momentum_distribution);
 
-    // Pick energy distribution
-    std::shared_ptr<PrimaryEnergyDistribution> edist = tab_pdf_gen;
+    // Helicity distribution: this is a neutrino
+    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
+    primary_injection_process_upper_injector->injection_distributions.push_back(helicity_distribution);
+    primary_injection_process_lower_injector->injection_distributions.push_back(helicity_distribution);
+    primary_physical_process_upper_injector->physical_distributions.push_back(helicity_distribution);
+    primary_physical_process_lower_injector->physical_distributions.push_back(helicity_distribution);
 
-    // Choose injection direction
-    std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<LeptonInjector::Cone>(earthmodel::Vector3D{0.0, 0.0, 1.0},std::atan(disk_radius/23.));
+    // Primary position distribution: treat targets as point sources, generate from center
+    double max_dist = 25; // m
+    std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist, primary_cross_sections->TargetTypes());
+    std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist, primary_cross_sections->TargetTypes());
+    primary_injection_process_upper_injector->injection_distributions.push_back(upper_pos_dist);
+    primary_injection_process_lower_injector->injection_distributions.push_back(lower_pos_dist);
 
-    // Targets should be stationary
-    std::shared_ptr<LeptonInjector::TargetMomentumDistribution> target_momentum_distribution = std::make_shared<LeptonInjector::TargetAtRest>();
+    // Secondary process
+    std::shared_ptr<InjectionProcess> secondary_decay_inj_process = std::make_shared<InjectionProcess>();
+    std::shared_ptr<PhysicalProcess> secondary_decay_phys_process = std::make_shared<PhysicalProcess>();
+    secondary_decay_inj_process->primary_type = ParticleType::NuF4;
+    secondary_decay_phys_process->primary_type = ParticleType::NuF4;
 
-    // Let us inject according to the decay distribution
-    std::shared_ptr<RangeFunction> range_func = std::make_shared<LeptonInjector::DecayRangeFunction>(hnl_mass, HNL_decay_width, n_decay_lengths, max_distance);
+    // Secondary cross sections: neutrissimo decay
+    // Assume dirac HNL for now
+    std::shared_ptr<NeutrissimoDecay> sec_decay = std::make_shared<NeutrissimoDecay>(hnl_mass, d_dipole, NeutrissimoDecay::ChiralNature::Majorana);
+    std::vector<std::shared_ptr<Decay>> sec_decays = {sec_decay};
+    std::shared_ptr<CrossSectionCollection> secondary_cross_sections = std::make_shared<CrossSectionCollection>(ParticleType::NuF4, sec_decays);
+    secondary_decay_inj_process->cross_sections = secondary_cross_sections;
+    secondary_decay_phys_process->cross_sections = secondary_cross_sections;
 
-    // Helicity distribution
-    std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<LeptonInjector::PrimaryNeutrinoHelicityDistribution>();
+    // Secondary physical distribution
+    std::shared_ptr<const LI::geometry::Geometry> fid_vol = NULL;
+    for(auto sector : earth_model->GetSectors()) {
+      if(sector.name=="ccm_inner_argon") fid_vol = sector.geo;
+    }
+    std::shared_ptr<VertexPositionDistribution> secondary_pos_dist = std::make_shared<SecondaryPositionDistribution>(fid_vol);
+    secondary_decay_inj_process->injection_distributions.push_back(secondary_pos_dist);
+
+    secondary_injection_processes.push_back(secondary_decay_inj_process);
+    secondary_physical_processes.push_back(secondary_decay_phys_process);
 
     // Put it all together!
-    std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
+    std::shared_ptr<InjectorBase> upper_injector = std::make_shared<InjectorBase>(events_to_inject, earth_model, primary_injection_process_upper_injector, secondary_injection_processes, random);
+    std::shared_ptr<InjectorBase> lower_injector = std::make_shared<InjectorBase>(events_to_inject, earth_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
 
-    std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
-        std::shared_ptr<WeightableDistribution>(tab_pdf),
-        std::shared_ptr<WeightableDistribution>(flux_units),
-        std::shared_ptr<WeightableDistribution>(ddist),
-        std::shared_ptr<WeightableDistribution>(target_momentum_distribution),
-        std::shared_ptr<WeightableDistribution>(helicity_distribution)
+    // Set stopping condition
+    std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition =
+      [&] (std::shared_ptr<LI::dataclasses::InteractionTreeDatum> datum) {
+        if(datum->depth() >=1) return true;
+        return false;
     };
+    upper_injector->SetStoppingCondition(stopping_condition);
+    lower_injector->SetStoppingCondition(stopping_condition);
 
-    LeptonWeighter weighter(std::vector<std::shared_ptr<InjectorBase>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
+    std::shared_ptr<LeptonTreeWeighter> upper_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<InjectorBase>>{upper_injector}, earth_model, primary_physical_process_upper_injector, secondary_physical_processes);
+    std::shared_ptr<LeptonTreeWeighter> lower_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<InjectorBase>>{lower_injector}, earth_model, primary_physical_process_lower_injector, secondary_physical_processes);
     
-    // CCM Fiducial Volume
-    earthmodel::Placement placement(earthmodel::Vector3D(23, 0, -0.875), earthmodel::QFromZXZr(0,0,0));
-    // total guess
-    earthmodel::Sphere CCM_fiducial = earthmodel::Cylinder(placement, 0.8, 0.0, 1.5);
-
-    
-    std::ofstream myFile(args["output"].as<std::string>()+".csv");
+    // Upper injector
+    std::ofstream myFile(args["output"].as<std::string>()+"_upper.csv");
     myFile << std::scientific << std::setprecision(4);
-    myFile << "p4nu_0 ";
-    myFile << "helhnl ";
-    myFile << "p4gamma_0 ";
-    myFile << "gamma_costh_lab ";
-    myFile << "gamma_costh_hnlRest ";
-    myFile << "weight decay_length decay_enter decay_exit ";
-    if(!args["sparse"]) {
-      myFile << "intX intY intZ ";
-			myFile << "decX decY decZ ";
-			myFile << "ppX ppY ppZ ";
-			myFile << "p4nu_1 p4nu_2 p4nu_3 ";
-			myFile << "helnu ";
-			myFile << "p4itgt_0 p4itgt_1 p4itgt_2 p4itgt_3 ";
-			myFile << "helitgt ";
-			myFile << "p4hnl_0 p4hnl_1 p4hnl_2 p4hnl_3 ";
-			myFile << "p4ftgt_0 p4ftgt_1 p4ftgt_2 p4ftgt_3 ";
-			myFile << "helftgt ";
-			myFile << "p4gamma_1 p4gamma_2 p4gamma_3 ";
-			myFile << "p4gamma_hnlRest_0 p4gamma_hnlRest_1 p4gamma_hnlRest_2 p4gamma_hnlRest_3 ";
-			myFile << "helgamma ";
-			myFile << "decay_ang_weight y target ";
-			myFile << "decay_fid_weight prob_nopairprod simplified_weight fid ";
-		}
-    myFile << std::endl << std::endl;
+    myFile << "event interaction vertex_x vertex_y vertex_z ";
+    myFile << "primary_ID ";
+    myFile << "primary_p0 primary_p1 primary_p2 primary_p3 ";
+    myFile << "secondary1_ID ";
+    myFile << "secondary1_p0 secondary1_p1 secondary1_p2 secondary1_p3 ";
+    myFile << "secondary2_ID ";
+    myFile << "secondary2_p0 secondary2_p2 secondary2_p2 secondary2_p3 ";
+    myFile << "weight ";
+    myFile << std::endl;
     int i=0;
-    while(*injector) {
-        LeptonInjector::InteractionRecord event = injector->GenerateEvent();
-        LeptonInjector::DecayRecord decay;
-        LeptonInjector::InteractionRecord pair_prod;
-        double w = 0, simplified_weight = 0;
-        if(event.secondary_momenta.size() > 0) {
-            
-            
-            injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 0, 0, &CCM_fiducial, 0.1);
-            injector->SamplePairProduction(decay, pair_prod);
-            simplified_weight = weighter.SimplifiedEventWeight(event);
-            
-            if(args["sparse"] && !int(inFiducial(pair_prod.interaction_vertex, CCM_fiducial))) continue; // fid vol
-            
-            
-						myFile << event.primary_momentum[0] << " ";
-						myFile << event.secondary_helicity[0] << " ";
-            myFile << decay.secondary_momenta[0][0] << " ";
-            myFile << decay.secondary_momenta[0][3]/decay.secondary_momenta[0][0] << " ";
-            myFile << decay.secondary_momenta[1][3]/decay.secondary_momenta[1][0] << " ";
-            
-            w = decay.decay_parameters[1]*(1-pair_prod.interaction_parameters[0])*simplified_weight;
-            myFile << w << " ";
-						
-						myFile << decay.decay_parameters[0] << " "; // decay length
-						myFile << decay.decay_parameters[3] << " "; // entry point
-						myFile << decay.decay_parameters[4] << " "; // exit point
-    
-						if(!args["sparse"]) {
-							myFile << event.interaction_vertex[0] << " ";
-							myFile << event.interaction_vertex[1] << " ";
-							myFile << event.interaction_vertex[2] << " ";
-							
-							myFile << decay.decay_vertex[0] << " ";
-							myFile << decay.decay_vertex[1] << " ";
-							myFile << decay.decay_vertex[2] << " ";
-
-							myFile << pair_prod.interaction_vertex[0] << " ";
-							myFile << pair_prod.interaction_vertex[1] << " ";
-							myFile << pair_prod.interaction_vertex[2] << " ";
-
-							myFile << event.primary_momentum[1] << " ";
-							myFile << event.primary_momentum[2] << " ";
-							myFile << event.primary_momentum[3] << " ";
-							
-							myFile << event.primary_helicity << " ";
-
-							myFile << event.target_momentum[0] << " ";
-							myFile << event.target_momentum[1] << " ";
-							myFile << event.target_momentum[2] << " ";
-							myFile << event.target_momentum[3] << " ";
-
-							myFile << event.target_helicity << " ";
-
-							myFile << event.secondary_momenta[0][0] << " ";
-							myFile << event.secondary_momenta[0][1] << " ";
-							myFile << event.secondary_momenta[0][2] << " ";
-							myFile << event.secondary_momenta[0][3] << " ";
-
-
-							myFile << event.secondary_momenta[1][0] << " ";
-							myFile << event.secondary_momenta[1][1] << " ";
-							myFile << event.secondary_momenta[1][2] << " ";
-							myFile << event.secondary_momenta[1][3] << " ";
-
-							myFile << event.secondary_helicity[1] << " ";
-							
-							myFile << decay.secondary_momenta[0][1] << " ";
-							myFile << decay.secondary_momenta[0][2] << " ";
-							myFile << decay.secondary_momenta[0][3] << " ";
-							
-							myFile << decay.secondary_momenta[1][0] << " ";
-							myFile << decay.secondary_momenta[1][1] << " ";
-							myFile << decay.secondary_momenta[1][2] << " ";
-							myFile << decay.secondary_momenta[1][3] << " ";
-
-							myFile << decay.secondary_helicity[0] << " ";
-							
-							myFile << decay.decay_parameters[2] << " "; // decay ang weight
-							myFile << event.interaction_parameters[1] << " "; // sampled y
-							myFile << event.signature.target_type << " "; // target type
-							myFile << decay.decay_parameters[1] << " "; // decay fid weight
-							myFile << pair_prod.interaction_parameters[0] << " "; // probability of no pair production
-							myFile << simplified_weight << " ";
-              myFile << int(inFiducial(pair_prod.interaction_vertex, CCM_fiducial)) << " "; // fid vol
-            
-            }
-            myFile << "\n\n";
+    while(*upper_injector) {
+        InteractionTree tree = upper_injector->GenerateEvent();
+        double weight = upper_weighter->EventWeight(tree);
+        int j = 0;
+        for(auto datum : tree.tree) {
+          myFile << i << " " << j << " ";
+          myFile << datum->record.interaction_vertex[0] << " ";
+          myFile << datum->record.interaction_vertex[1] << " ";
+          myFile << datum->record.interaction_vertex[2] << " ";
+          myFile <<  datum->record.signature.primary_type << " ";
+          myFile << datum->record.primary_momentum[0] << " ";
+          myFile << datum->record.primary_momentum[1] << " ";
+          myFile << datum->record.primary_momentum[2] << " ";
+          myFile << datum->record.primary_momentum[3] << " ";
+          myFile <<  datum->record.signature.secondary_types[0] << " ";
+          myFile << datum->record.secondary_momenta[0][0] << " ";
+          myFile << datum->record.secondary_momenta[0][1] << " ";
+          myFile << datum->record.secondary_momenta[0][2] << " ";
+          myFile << datum->record.secondary_momenta[0][3] << " ";
+          myFile <<  datum->record.signature.secondary_types[1] << " ";
+          myFile << datum->record.secondary_momenta[1][0] << " ";
+          myFile << datum->record.secondary_momenta[1][1] << " ";
+          myFile << datum->record.secondary_momenta[1][2] << " ";
+          myFile << datum->record.secondary_momenta[1][3] << " ";
+          myFile << weight << std::endl;
+          ++j;
         }
+        myFile << std::endl;
+        if((++i)%int(events_to_inject/10.)==0) 
+            std::cout << (int)(100*i/float(events_to_inject)) << "%" << std::endl;
+    }
+    myFile.close();
+    
+    // Lower injector
+    myFile = std::ofstream(args["output"].as<std::string>()+"_lower.csv");
+    myFile << std::scientific << std::setprecision(4);
+    myFile << "event interaction vertex_x vertex_y vertex_z ";
+    myFile << "primary_ID ";
+    myFile << "primary_p0 primary_p1 primary_p2 primary_p3 ";
+    myFile << "secondary1_ID ";
+    myFile << "secondary1_p0 secondary1_p1 secondary1_p2 secondary1_p3 ";
+    myFile << "secondary2_ID ";
+    myFile << "secondary2_p0 secondary2_p2 secondary2_p2 secondary2_p3 ";
+    myFile << "weight ";
+    myFile << std::endl;
+    i=0;
+    while(*lower_injector) {
+        InteractionTree tree = lower_injector->GenerateEvent();
+        double weight = lower_weighter->EventWeight(tree);
+        int j = 0;
+        for(auto datum : tree.tree) {
+          myFile << i << " " << j << " ";
+          myFile << datum->record.interaction_vertex[0] << " ";
+          myFile << datum->record.interaction_vertex[1] << " ";
+          myFile << datum->record.interaction_vertex[2] << " ";
+          myFile <<  datum->record.signature.primary_type << " ";
+          myFile << datum->record.primary_momentum[0] << " ";
+          myFile << datum->record.primary_momentum[1] << " ";
+          myFile << datum->record.primary_momentum[2] << " ";
+          myFile << datum->record.primary_momentum[3] << " ";
+          myFile <<  datum->record.signature.secondary_types[0] << " ";
+          myFile << datum->record.secondary_momenta[0][0] << " ";
+          myFile << datum->record.secondary_momenta[0][1] << " ";
+          myFile << datum->record.secondary_momenta[0][2] << " ";
+          myFile << datum->record.secondary_momenta[0][3] << " ";
+          myFile <<  datum->record.signature.secondary_types[1] << " ";
+          myFile << datum->record.secondary_momenta[1][0] << " ";
+          myFile << datum->record.secondary_momenta[1][1] << " ";
+          myFile << datum->record.secondary_momenta[1][2] << " ";
+          myFile << datum->record.secondary_momenta[1][3] << " ";
+          myFile << weight << std::endl;
+          ++j;
+        }
+        myFile << std::endl;
         if((++i)%int(events_to_inject/10.)==0) 
             std::cout << (int)(100*i/float(events_to_inject)) << "%" << std::endl;
     }

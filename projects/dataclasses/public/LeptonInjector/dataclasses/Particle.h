@@ -178,6 +178,7 @@ public:
         Fe58Nucleus = 1000260580,
         Cu63Nucleus = 1000290630,
         Cu65Nucleus = 1000290650,
+        W183Nucleus = 1000741830,
         Pb208Nucleus = 1000822080,
 
         /* Exotics */
