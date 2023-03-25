@@ -68,7 +68,6 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     path.ClipToOuterBounds();
 
     // Check if fiducial volume is provided
-    double dist_offset = 0;
     if(fiducial) {
       std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0),
                                                                                                     earth_model->GetEarthCoordDirFromDetCoordDir(dir));
@@ -76,17 +75,12 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
       if(!fid_intersections.empty()) {
         // make sure the first intersection happens before the maximum generation length
         // and the last intersection happens in front of the generation point
-        std::cout << "endcap_0\n" << endcap_0 << std::endl;
-        std::cout << "fid_intersections.front().distance" << fid_intersections.front().distance << std::endl;
-        std::cout << "fid_intersections.back().distance" << fid_intersections.back().distance << std::endl;
         bool update_path = (fid_intersections.front().distance < max_length
                          && fid_intersections.back().distance > 0);
         if(update_path) {
           LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
           LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
           path.SetPoints(first_point,last_point);
-          dist_offset = (first_point - endcap_0).magnitude();
-          std::cout << "Path updated!" << std::endl;
         }
       }
     }
@@ -121,7 +115,6 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
-    dist += dist_offset;
     LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
