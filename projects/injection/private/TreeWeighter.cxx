@@ -156,7 +156,6 @@ LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<InjectorBase>
 // class LeptonProcessWeighter
 //---------------
 
-// TODO: find distributions that cancel
 void LeptonProcessWeighter::Initialize() {
   normalization = 1.0;
   for(auto physical_dist : phys_process->physical_distributions) {
@@ -184,7 +183,7 @@ void LeptonProcessWeighter::Initialize() {
   }
 }
 
-double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> & bounds, LI::dataclasses::InteractionRecord const & record) const {
+double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
@@ -230,7 +229,7 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
     return interaction_probability;
 }
 
-double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const {
+double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
@@ -282,7 +281,7 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
     return prob_density;
 }
 
-double LeptonProcessWeighter::PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> & bounds,
+double LeptonProcessWeighter::PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds,
                                                   LI::dataclasses::InteractionRecord const & record ) const {
         double physical_probability = 1.0;
         double prob = InteractionProbability(bounds, record);
@@ -305,10 +304,9 @@ double LeptonProcessWeighter::GenerationProbability(LI::dataclasses::Interaction
         return gen_probability;
 }
 
-// TODO: implement smart EventWeight function that cancels common distributions
-double LeptonProcessWeighter::EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds,
-                                          LI::dataclasses::InteractionRecord const & record) const {
-  return 0;
+double LeptonProcessWeighter::EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds,
+                                          LI::dataclasses::InteractionTreeDatum const & datum) const {
+  return PhysicalProbability(bounds,datum.record)/GenerationProbability(datum);
 }
 
 LeptonProcessWeighter::LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process,std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::EarthModel> earth_model)
