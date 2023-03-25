@@ -1,6 +1,7 @@
 from setuptools import setup
 import os
 import sys
+import site
 DIR = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(os.path.join(DIR, "vendor", "pybind11"))
 from pybind11.setup_helpers import Pybind11Extension
@@ -75,3 +76,9 @@ setup(
     zip_safe=False,
     python_requires=">=3.7",
 )
+
+# Create a new python file to add the locally installed egg to sys.path
+fpy = open(prefix+'/lib/python3.8/site-packages/sitecustomize.py','w')
+print('import site',file=fpy)
+print('site.addsitedir(\'%s\')'%(prefix+'/lib/python3.8/site-packages/'),file=fpy)
+fpy.close()
