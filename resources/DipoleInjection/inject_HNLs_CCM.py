@@ -2,7 +2,7 @@
 import numpy as np
 
 # Import the CCM modules
-import Geometry 
+import Geometry
 import Detector
 import Utilities
 import Math
@@ -11,16 +11,16 @@ import CrossSections
 import Distributions
 import Injection
 
-# Make an instance of random for use 
+# Make an instance of random for use
 random = Utilities.LI_random()
 
 # HNL parameters
-hnl_mass_str = "0.001" # make sure this matches one of the cross section tables
+hnl_mass_str = "0.02035" # make sure this matches one of the cross section tables
 hnl_mass = float(hnl_mass_str) # GeV
-d_dipole = 1e-6 # GeV^-1
+d_dipole = 3e-7 # GeV^-1
 
 # Injection parameters
-events_to_inject = 100
+events_to_inject = int(1e4)
 primary_type = Dataclasses.Particle.ParticleType.NuMu
 
 # For upscattering cross section
@@ -75,7 +75,6 @@ diff_hc_files = ['%s/dxsec_Z_%i_A_%i_mHNL_%s_hc.dat'%(diff_xsec_path,
                                                       Z,A,
                                                       hnl_mass_str) for Z,A in ZA_combos]
 
-
 # Make the earth model, add CCM detector layout and materials file
 
 materials_file = '../earthparams/materials/CCM.dat'
@@ -119,8 +118,10 @@ for i in range(len(target_types)):
 cross_sections.append(hf_xs)
 cross_sections.append(hc_xs)
 primary_cross_sections = CrossSections.CrossSectionCollection(primary_type, cross_sections)
-primary_physical_process_upper_target.cross_sections = primary_cross_sections
-primary_physical_process_lower_target.cross_sections = primary_cross_sections
+primary_injection_process_upper_target.SetCrossSections(primary_cross_sections)
+primary_injection_process_lower_target.SetCrossSections(primary_cross_sections)
+primary_physical_process_upper_target.SetCrossSections(primary_cross_sections)
+primary_physical_process_lower_target.SetCrossSections(primary_cross_sections)
 
 # Energy distribution: monoenergetic neutrino from pion decay at rest
 
@@ -131,7 +132,7 @@ primary_injection_process_lower_target.AddInjectionDistribution(edist)
 primary_physical_process_upper_target.AddPhysicalDistribution(edist)
 primary_physical_process_lower_target.AddPhysicalDistribution(edist)
 
-# Flux normalization:
+# Flux normalization: 
 # using the number quoted in 2105.14020, 4.74e9 nu/m^2/s / (6.2e14 POT/s) * 4*pi*20m^2 to get nu/POT
 flux_units = Distributions.NormalizationConstant(3.76e-2)
 primary_physical_process_upper_target.AddPhysicalDistribution(flux_units)
@@ -139,14 +140,14 @@ primary_physical_process_lower_target.AddPhysicalDistribution(flux_units)
 
 # Primary direction: A cone around CCM
 
-opening_angle = np.arctan(2./23.); # slightly larger than CCM
-upper_target_origin = Math.Vector3D(0, 0, 0.1375);
-lower_target_origin = Math.Vector3D(0, 0, -0.241);
-detector_origin = Math.Vector3D(23, 0, -0.65);
-upper_dir = detector_origin - upper_target_origin;
-upper_dir.normalize();
-lower_dir = detector_origin - lower_target_origin;
-lower_dir.normalize();
+opening_angle = np.arctan(12/23.); # slightly larger than CCM
+upper_target_origin = Math.Vector3D(0, 0, 0.1375)
+lower_target_origin = Math.Vector3D(0, 0, -0.241)
+detector_origin = Math.Vector3D(23, 0, -0.65)
+upper_dir = detector_origin - upper_target_origin
+upper_dir.normalize()
+lower_dir = detector_origin - lower_target_origin
+lower_dir.normalize()
 upper_inj_ddist = Distributions.Cone(upper_dir,opening_angle)
 lower_inj_ddist = Distributions.Cone(lower_dir,opening_angle)
 phys_ddist = Distributions.IsotropicDirection() # truly we are isotropic
@@ -154,7 +155,6 @@ primary_injection_process_upper_target.AddInjectionDistribution(upper_inj_ddist)
 primary_injection_process_lower_target.AddInjectionDistribution(lower_inj_ddist)
 primary_physical_process_upper_target.AddPhysicalDistribution(phys_ddist)
 primary_physical_process_lower_target.AddPhysicalDistribution(phys_ddist);
-
 
 # Target momentum distribution: target is at rest
 
@@ -164,7 +164,6 @@ primary_injection_process_lower_target.AddInjectionDistribution(target_momentum_
 primary_physical_process_upper_target.AddPhysicalDistribution(target_momentum_distribution)
 primary_physical_process_lower_target.AddPhysicalDistribution(target_momentum_distribution)
 
-
 # Helicity distribution: primary neutrino helicity
 
 helicity_distribution = Distributions.PrimaryNeutrinoHelicityDistribution()
@@ -172,7 +171,6 @@ primary_injection_process_upper_target.AddInjectionDistribution(helicity_distrib
 primary_injection_process_lower_target.AddInjectionDistribution(helicity_distribution)
 primary_physical_process_upper_target.AddPhysicalDistribution(helicity_distribution)
 primary_physical_process_lower_target.AddPhysicalDistribution(helicity_distribution)
-
 
 # Position distribution: consider neutrinos from a point source
 
@@ -182,7 +180,6 @@ lower_pos_dist = Distributions.PointSourcePositionDistribution(lower_target_orig
 primary_injection_process_upper_target.AddInjectionDistribution(upper_pos_dist)
 primary_injection_process_lower_target.AddInjectionDistribution(lower_pos_dist)
 
-
 # Secondary process definition
 
 secondary_decay_injection_process = Injection.InjectionProcess()
@@ -190,27 +187,25 @@ secondary_decay_physical_process = Injection.PhysicalProcess()
 secondary_decay_injection_process.primary_type = Dataclasses.Particle.ParticleType.NuF4
 secondary_decay_physical_process.primary_type = Dataclasses.Particle.ParticleType.NuF4
 
-
 # Secondary cross section class: HNL decay
 
-sec_decay = CrossSections.NeutrissimoDecay(hnl_mass, d_dipole, CrossSections.NeutrissimoDecay.ChiralNature.Dirac)
+sec_decay = CrossSections.NeutrissimoDecay(hnl_mass, d_dipole, CrossSections.NeutrissimoDecay.ChiralNature.Majorana)
 secondary_cross_sections = CrossSections.CrossSectionCollection(Dataclasses.Particle.ParticleType.NuF4, [sec_decay])
-secondary_decay_injection_process.cross_sections = secondary_cross_sections
-secondary_decay_physical_process.cross_sections = secondary_cross_sections
-
+secondary_decay_injection_process.SetCrossSections(secondary_cross_sections)
+secondary_decay_physical_process.SetCrossSections(secondary_cross_sections)
 
 # Secondary position distribution
 
 secondary_pos_dist = Distributions.SecondaryPositionDistribution()
 for sector in earth_model.GetSectors():
   if sector.name=='ccm_inner_argon':
+    fid_vol = sector.geo
     secondary_pos_dist = Distributions.SecondaryPositionDistribution(sector.geo)
 
 secondary_decay_injection_process.AddInjectionDistribution(secondary_pos_dist)
 
 secondary_injection_processes.append(secondary_decay_injection_process)
 secondary_physical_processes.append(secondary_decay_physical_process)
-
 
 # Put it all together!
 upper_injector = Injection.InjectorBase(events_to_inject, earth_model,
@@ -224,10 +219,64 @@ lower_injector = Injection.InjectorBase(events_to_inject, earth_model,
                                         random)
 
 def StoppingCondition(datum):
-  if datum.depth()>=1: return True
-  return False
+  return True
 
 upper_injector.SetStoppingCondition(StoppingCondition)
 lower_injector.SetStoppingCondition(StoppingCondition)
 
-upper_injector.GenerateEvent()
+# Weighter instances
+
+upper_weighter = Injection.LeptonTreeWeighter([upper_injector],
+                                              earth_model,
+                                              primary_physical_process_upper_target,
+                                              secondary_physical_processes)
+lower_weighter = Injection.LeptonTreeWeighter([lower_injector],
+                                              earth_model,
+                                              primary_physical_process_upper_target,
+                                              secondary_physical_processes)
+
+
+gamma_energy_list = []
+gamma_weight_list = []
+while lower_injector.InjectedEvents() < events_to_inject:
+  print(lower_injector.InjectedEvents(),end='\r')
+  tree = lower_injector.GenerateEvent()
+  weight = lower_weighter.EventWeight(tree)
+  for datum in tree.tree:
+    if(datum.record.signature.primary_type == Dataclasses.Particle.ParticleType.NuF4):
+      HNL_vtx = Math.Vector3D(datum.record.interaction_vertex)
+      HNL_dir = Math.Vector3D(datum.record.primary_momentum[1:])
+      HNL_dir.normalize()
+      if(fid_vol.IsInside(HNL_vtx,HNL_dir)):
+#         print('decay length:',secondary_cross_sections.TotalDecayLength(datum.record))
+#         print('upscattering vertex:',datum.parent.record.interaction_vertex)
+#         print('decay vertex:',datum.record.interaction_vertex)
+#         print('weight:',weight)
+        for sID,sP in zip(datum.record.signature.secondary_types,
+                          datum.record.secondary_momenta):
+          if(sID==Dataclasses.Particle.ParticleType.Gamma):
+            gamma_energy_list.append(sP[0])
+            gamma_weight_list.append(weight)
+#     if(datum.record.signature.primary_type == Dataclasses.Particle.ParticleType.NuMu):
+#       print(primary_cross_sections.)
+
+import matplotlib.pyplot as plt
+from scipy.stats import poisson
+
+POT = 2.25e22
+bkg = 30 # optimistic: 10 evts/year
+
+bins = np.linspace(1e-3,3e-2,20)
+
+weights = POT*np.array(gamma_weight_list)
+sig = sum(weights)
+poisson_prob = poisson.cdf(sig+bkg,bkg)
+print(sig / np.sqrt(bkg))
+
+plt.hist(gamma_energy_list,weights=weights,bins=bins,label='%2.2f total events, %2.2e C.L.'%(sig,poisson_prob))
+plt.xlabel('Gamma Energy [GeV]')
+plt.ylabel('Number of Events in CCM')
+plt.title('HNL Mass: %s GeV; Coupling: %2.2e GeV^-1'%(hnl_mass_str,d_dipole))
+plt.legend()
+plt.show()
+
