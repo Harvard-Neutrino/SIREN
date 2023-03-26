@@ -42,6 +42,12 @@ struct Process {
 
 struct InjectionProcess : Process {
     std::vector<std::shared_ptr<distributions::InjectionDistribution>> injection_distributions;
+    void AddInjectionDistribution(std::shared_ptr<distributions::InjectionDistribution> dist) {
+      for(auto _dist: injection_distributions) {
+        if((*_dist) == (*dist)) return;
+      }
+      injection_distributions.push_back(dist);
+    }
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
@@ -55,6 +61,12 @@ struct InjectionProcess : Process {
 
 struct PhysicalProcess : Process{
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
+    void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) {
+      for(auto _dist: physical_distributions) {
+        if((*_dist) == (*dist)) return;
+      }
+      physical_distributions.push_back(dist);
+    }
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {

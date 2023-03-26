@@ -75,11 +75,15 @@ std::string NormalizationConstant::Name() const {
 }
 
 bool NormalizationConstant::equal(WeightableDistribution const & distribution) const {
-    return false;
+    const PhysicallyNormalizedDistribution* dist = dynamic_cast<const PhysicallyNormalizedDistribution*>(&distribution);
+    if(!dist) return false;
+    return normalization==dist->GetNormalization();
 }
 
 bool NormalizationConstant::less(WeightableDistribution const & distribution) const {
-    return false;
+    const PhysicallyNormalizedDistribution* dist = dynamic_cast<const PhysicallyNormalizedDistribution*>(&distribution);
+    if(!dist) return false;
+    return normalization<dist->GetNormalization();
 }
 
 //---------------
