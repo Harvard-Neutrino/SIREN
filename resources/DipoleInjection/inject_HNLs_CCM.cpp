@@ -58,12 +58,6 @@ bool z_samp = false;
 bool in_invGeV = true; // are the xsec tables in GeV^-1?
 bool inelastic = true;
 
-std::string tot_xsec_table_path = "../tables/Dipole_xsec/tot_xsec_E0_Ne20/";
-std::string diff_xsec_table_path = "../tables/Dipole_xsec/diff_xsec_E0_Ne20/";
-
-std::string material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/earthparams/materials/CCM.dat";
-std::string earth_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/earthparams/densities/PREM_ccm.dat";
-
 std::string diff_xs(int Z, int A, std::string mHNL, std::string diff_path) {
     std::stringstream ss;
     ss << diff_path;
@@ -295,17 +289,17 @@ int main(int argc, char ** argv) {
 
     // let's make the process instances
     // Injection processes
-    std::shared_ptr<InjectionProcess> primary_injection_process_upper_injector = std::make_shared<InjectionProcess>(); // will inject in upper tungsten target
-    std::shared_ptr<InjectionProcess> primary_injection_process_lower_injector = std::make_shared<InjectionProcess>(); // will inject in lower tungsten target
+    std::shared_ptr<InjectionProcess> primary_injection_process_upper_target = std::make_shared<InjectionProcess>(); // will inject in upper tungsten target
+    std::shared_ptr<InjectionProcess> primary_injection_process_lower_target = std::make_shared<InjectionProcess>(); // will inject in lower tungsten target
     std::vector<std::shared_ptr<InjectionProcess>> secondary_injection_processes; // common to both injectors
     // Physical processes
-    std::shared_ptr<PhysicalProcess> primary_physical_process_upper_injector = std::make_shared<PhysicalProcess>(); // will inject in upper tungsten target
-    std::shared_ptr<PhysicalProcess> primary_physical_process_lower_injector = std::make_shared<PhysicalProcess>(); // will inject in lower tungsten target
+    std::shared_ptr<PhysicalProcess> primary_physical_process_upper_target = std::make_shared<PhysicalProcess>(); // will inject in upper tungsten target
+    std::shared_ptr<PhysicalProcess> primary_physical_process_lower_target = std::make_shared<PhysicalProcess>(); // will inject in lower tungsten target
     std::vector<std::shared_ptr<PhysicalProcess>> secondary_physical_processes; // common to both injectors
-    primary_injection_process_upper_injector->primary_type = primary_type;
-    primary_injection_process_lower_injector->primary_type = primary_type;
-    primary_physical_process_upper_injector->primary_type = primary_type;
-    primary_physical_process_lower_injector->primary_type = primary_type;
+    primary_injection_process_upper_target->primary_type = primary_type;
+    primary_injection_process_lower_target->primary_type = primary_type;
+    primary_physical_process_upper_target->primary_type = primary_type;
+    primary_physical_process_lower_target->primary_type = primary_type;
 
     std::string tot_xs_base;
     std::string dif_xs_base;
@@ -345,23 +339,23 @@ int main(int argc, char ** argv) {
     cross_sections.push_back(hc_xs);
 
     std::shared_ptr<CrossSectionCollection> primary_cross_sections = std::make_shared<CrossSectionCollection>(primary_type, cross_sections);
-    primary_injection_process_upper_injector->cross_sections = primary_cross_sections;
-    primary_injection_process_lower_injector->cross_sections = primary_cross_sections;
-    primary_physical_process_upper_injector->cross_sections = primary_cross_sections;
-    primary_physical_process_lower_injector->cross_sections = primary_cross_sections;
+    primary_injection_process_upper_target->cross_sections = primary_cross_sections;
+    primary_injection_process_lower_target->cross_sections = primary_cross_sections;
+    primary_physical_process_upper_target->cross_sections = primary_cross_sections;
+    primary_physical_process_lower_target->cross_sections = primary_cross_sections;
 
     // Primary energy distribution: pion decay-at-rest
     double nu_energy = 0.02965;
     std::shared_ptr<PrimaryEnergyDistribution> edist = std::make_shared<Monoenergetic>(nu_energy); // this creates a monoenergetic numu distribution
-    primary_injection_process_upper_injector->injection_distributions.push_back(edist);
-    primary_injection_process_lower_injector->injection_distributions.push_back(edist);
-    primary_physical_process_upper_injector->physical_distributions.push_back(edist);
-    primary_physical_process_lower_injector->physical_distributions.push_back(edist);
+    primary_injection_process_upper_target->injection_distributions.push_back(edist);
+    primary_injection_process_lower_target->injection_distributions.push_back(edist);
+    primary_physical_process_upper_target->physical_distributions.push_back(edist);
+    primary_physical_process_lower_target->physical_distributions.push_back(edist);
     
     // Flux normalization: using the number quoted in 2105.14020, 4.74e9 nu/m^2/s / (6.2e14 POT/s) * 4*pi*20m^2 to get nu/POT
     std::shared_ptr<WeightableDistribution> flux_units = std::make_shared<NormalizationConstant>(3.76e-2);
-    primary_physical_process_upper_injector->physical_distributions.push_back(flux_units);
-    primary_physical_process_lower_injector->physical_distributions.push_back(flux_units);
+    primary_physical_process_upper_target->physical_distributions.push_back(flux_units);
+    primary_physical_process_lower_target->physical_distributions.push_back(flux_units);
 
     // Primary direction: cone
     double opening_angle = std::atan(2./23.); // slightly larger than CCM xsec
@@ -375,31 +369,31 @@ int main(int argc, char ** argv) {
     std::shared_ptr<PrimaryDirectionDistribution> upper_inj_ddist = std::make_shared<Cone>(upper_dir,opening_angle);
     std::shared_ptr<PrimaryDirectionDistribution> lower_inj_ddist = std::make_shared<Cone>(lower_dir,opening_angle);
     std::shared_ptr<PrimaryDirectionDistribution> phys_ddist = std::make_shared<IsotropicDirection>(); // truly we are isotropic
-    primary_injection_process_upper_injector->injection_distributions.push_back(upper_inj_ddist);
-    primary_injection_process_lower_injector->injection_distributions.push_back(lower_inj_ddist);
-    primary_physical_process_upper_injector->physical_distributions.push_back(phys_ddist);
-    primary_physical_process_lower_injector->physical_distributions.push_back(phys_ddist);
+    primary_injection_process_upper_target->injection_distributions.push_back(upper_inj_ddist);
+    primary_injection_process_lower_target->injection_distributions.push_back(lower_inj_ddist);
+    primary_physical_process_upper_target->physical_distributions.push_back(phys_ddist);
+    primary_physical_process_lower_target->physical_distributions.push_back(phys_ddist);
 
     // Target momentum distribution: assume stationary for simplicity
     std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution = std::make_shared<TargetAtRest>();
-    primary_injection_process_upper_injector->injection_distributions.push_back(target_momentum_distribution);
-    primary_injection_process_lower_injector->injection_distributions.push_back(target_momentum_distribution);
-    primary_physical_process_upper_injector->physical_distributions.push_back(target_momentum_distribution);
-    primary_physical_process_lower_injector->physical_distributions.push_back(target_momentum_distribution);
+    primary_injection_process_upper_target->injection_distributions.push_back(target_momentum_distribution);
+    primary_injection_process_lower_target->injection_distributions.push_back(target_momentum_distribution);
+    primary_physical_process_upper_target->physical_distributions.push_back(target_momentum_distribution);
+    primary_physical_process_lower_target->physical_distributions.push_back(target_momentum_distribution);
 
     // Helicity distribution: this is a neutrino
     std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
-    primary_injection_process_upper_injector->injection_distributions.push_back(helicity_distribution);
-    primary_injection_process_lower_injector->injection_distributions.push_back(helicity_distribution);
-    primary_physical_process_upper_injector->physical_distributions.push_back(helicity_distribution);
-    primary_physical_process_lower_injector->physical_distributions.push_back(helicity_distribution);
+    primary_injection_process_upper_target->injection_distributions.push_back(helicity_distribution);
+    primary_injection_process_lower_target->injection_distributions.push_back(helicity_distribution);
+    primary_physical_process_upper_target->physical_distributions.push_back(helicity_distribution);
+    primary_physical_process_lower_target->physical_distributions.push_back(helicity_distribution);
 
     // Primary position distribution: treat targets as point sources, generate from center
     double max_dist = 25; // m
     std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist, primary_cross_sections->TargetTypes());
     std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist, primary_cross_sections->TargetTypes());
-    primary_injection_process_upper_injector->injection_distributions.push_back(upper_pos_dist);
-    primary_injection_process_lower_injector->injection_distributions.push_back(lower_pos_dist);
+    primary_injection_process_upper_target->injection_distributions.push_back(upper_pos_dist);
+    primary_injection_process_lower_target->injection_distributions.push_back(lower_pos_dist);
 
     // Secondary process
     std::shared_ptr<InjectionProcess> secondary_decay_inj_process = std::make_shared<InjectionProcess>();
@@ -427,8 +421,8 @@ int main(int argc, char ** argv) {
     secondary_physical_processes.push_back(secondary_decay_phys_process);
 
     // Put it all together!
-    std::shared_ptr<InjectorBase> upper_injector = std::make_shared<InjectorBase>(events_to_inject, earth_model, primary_injection_process_upper_injector, secondary_injection_processes, random);
-    std::shared_ptr<InjectorBase> lower_injector = std::make_shared<InjectorBase>(events_to_inject, earth_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
+    std::shared_ptr<InjectorBase> upper_injector = std::make_shared<InjectorBase>(events_to_inject, earth_model, primary_injection_process_upper_target, secondary_injection_processes, random);
+    std::shared_ptr<InjectorBase> lower_injector = std::make_shared<InjectorBase>(events_to_inject, earth_model, primary_injection_process_lower_target, secondary_injection_processes, random);
 
     // Set stopping condition
     std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition =
@@ -439,8 +433,8 @@ int main(int argc, char ** argv) {
     upper_injector->SetStoppingCondition(stopping_condition);
     lower_injector->SetStoppingCondition(stopping_condition);
 
-    std::shared_ptr<LeptonTreeWeighter> upper_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<InjectorBase>>{upper_injector}, earth_model, primary_physical_process_upper_injector, secondary_physical_processes);
-    std::shared_ptr<LeptonTreeWeighter> lower_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<InjectorBase>>{lower_injector}, earth_model, primary_physical_process_lower_injector, secondary_physical_processes);
+    std::shared_ptr<LeptonTreeWeighter> upper_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<InjectorBase>>{upper_injector}, earth_model, primary_physical_process_upper_target, secondary_physical_processes);
+    std::shared_ptr<LeptonTreeWeighter> lower_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<InjectorBase>>{lower_injector}, earth_model, primary_physical_process_lower_target, secondary_physical_processes);
     
     // Upper injector
     std::ofstream myFile(args["output"].as<std::string>()+"_upper.csv");
