@@ -18,7 +18,7 @@
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
-
+PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
 
 using namespace pybind11;
 
@@ -29,7 +29,8 @@ PYBIND11_MODULE(Injection,m) {
 
   class_<Process, std::shared_ptr<Process>>(m, "Process")
     .def_readwrite("primary_type",&Process::primary_type)
-    .def_readwrite("cross_sections",&Process::cross_sections);
+    .def_readwrite("cross_sections",&Process::cross_sections)
+    .def("SetCrossSections",&Process::SetCrossSections);
 
   class_<InjectionProcess, std::shared_ptr<InjectionProcess>, Process>(m, "InjectionProcess")
     .def(init<>())

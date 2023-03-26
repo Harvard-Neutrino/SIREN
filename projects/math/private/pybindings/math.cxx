@@ -11,7 +11,7 @@ using namespace pybind11;
 PYBIND11_MODULE(Math,m) {
   using namespace LI::math;
 
-  class_<Vector3D>(m, "Vector3D")
+  class_<Vector3D, std::shared_ptr<Vector3D>>(m, "Vector3D")
     .def(init<>())
     .def(init<const double, const double, const double>())
     .def(init<const Vector3D&>())

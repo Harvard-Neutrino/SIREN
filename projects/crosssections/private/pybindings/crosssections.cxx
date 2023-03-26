@@ -11,7 +11,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-
+PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
 
 using namespace pybind11;
 
