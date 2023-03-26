@@ -16,7 +16,7 @@ using namespace pybind11;
 PYBIND11_MODULE(Dataclasses,m) {
   using namespace LI::dataclasses;
 
-  class_<Particle> particle(m, "Particle");
+  class_<Particle, std::shared_ptr<Particle>> particle(m, "Particle");
   
   particle.def(init<>())
           .def(init<Particle::ParticleType>())
@@ -170,6 +170,7 @@ PYBIND11_MODULE(Dataclasses,m) {
           .value("Fe58Nucleus", Particle::ParticleType::Fe58Nucleus)
           .value("Cu63Nucleus", Particle::ParticleType::Cu63Nucleus)
           .value("Cu65Nucleus", Particle::ParticleType::Cu65Nucleus)
+          .value("W183Nucleus", Particle::ParticleType::W183Nucleus)
           .value("Pb208Nucleus", Particle::ParticleType::Pb208Nucleus)
           .value("Qball", Particle::ParticleType::Qball)
           .value("NuF4", Particle::ParticleType::NuF4)
@@ -195,13 +196,13 @@ PYBIND11_MODULE(Dataclasses,m) {
           .value("SMPMinus", Particle::ParticleType::SMPMinus)
           .export_values();
   
-  class_<InteractionSignature>(m, "InteractionSignature")
+  class_<InteractionSignature, std::shared_ptr<InteractionSignature>>(m, "InteractionSignature")
           .def(init<>())
           .def_readwrite("primary_type",&InteractionSignature::primary_type)
           .def_readwrite("target_type",&InteractionSignature::target_type)
           .def_readwrite("secondary_types",&InteractionSignature::secondary_types);
   
-  class_<InteractionRecord>(m, "InteractionRecord")
+  class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
           .def(init<>())
           .def_readwrite("signature",&InteractionRecord::signature)
           .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
@@ -216,14 +217,14 @@ PYBIND11_MODULE(Dataclasses,m) {
           .def_readwrite("secondary_helicity",&InteractionRecord::secondary_helicity)
           .def_readwrite("interaction_parameters",&InteractionRecord::interaction_parameters);
 
-  class_<InteractionTreeDatum>(m, "InteractionTreeDatum")
+  class_<InteractionTreeDatum, std::shared_ptr<InteractionTreeDatum>>(m, "InteractionTreeDatum")
           .def(init<InteractionRecord&>())
           .def_readwrite("record",&InteractionTreeDatum::record)
           .def_readwrite("parent",&InteractionTreeDatum::parent)
           .def_readwrite("daughters",&InteractionTreeDatum::daughters)
           .def("depth",&InteractionTreeDatum::depth);
   
-  class_<InteractionTree>(m, "InteractionTree")
+  class_<InteractionTree, std::shared_ptr<InteractionTree>>(m, "InteractionTree")
           .def(init<>())
           .def_readwrite("tree",&InteractionTree::tree)
           .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionTreeDatum&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry))

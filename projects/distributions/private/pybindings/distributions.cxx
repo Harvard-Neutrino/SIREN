@@ -23,6 +23,7 @@
 #include "../../public/LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/RangePositionDistribution.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/SecondaryPositionDistribution.h"
+#include "../../public/LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
 
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
 #include "../../../detector/public/LeptonInjector/detector/EarthModel.h"
@@ -34,71 +35,61 @@
 
 using namespace pybind11;
 
-/*PYBIND11_MODULE(Utilities,m) {
-  using namespace LI::utilities;
-
-  class_<LI_random>(m, "LI_random")
-    .def(init<>())
-    .def(init<unsigned int>())
-    .def("Uniform",&LI_random::Uniform)
-    .def("set_seed",&LI_random::set_seed);
-}*/
-
 PYBIND11_MODULE(Distributions,m) {
   using namespace LI::distributions;
 
-  class_<PhysicallyNormalizedDistribution>(m, "PhysicallyNormalizedDistribution")
+  class_<PhysicallyNormalizedDistribution, std::shared_ptr<PhysicallyNormalizedDistribution>>(m, "PhysicallyNormalizedDistribution")
     .def(init<>())
     .def(init<double>())
     .def_property("normalization",&PhysicallyNormalizedDistribution::GetNormalization,&PhysicallyNormalizedDistribution::SetNormalization)
     .def("IsNormalizationSet",&PhysicallyNormalizedDistribution::IsNormalizationSet);
 
-  class_<WeightableDistribution>(m, "WeightableDistribution")
+  class_<WeightableDistribution, std::shared_ptr<WeightableDistribution>>(m, "WeightableDistribution")
     .def("DensityVariables",&WeightableDistribution::DensityVariables)
     .def("AreEquivalent",&WeightableDistribution::AreEquivalent);
 
-  class_<NormalizationConstant, WeightableDistribution, PhysicallyNormalizedDistribution>(m, "NormalizationConstant")
+  class_<NormalizationConstant, std::shared_ptr<NormalizationConstant>, WeightableDistribution, PhysicallyNormalizedDistribution>(m, "NormalizationConstant")
     .def(init<double>())
     .def("GenerationProbability",&NormalizationConstant::GenerationProbability)
     .def("Name",&NormalizationConstant::Name);
 
-  class_<InjectionDistribution, WeightableDistribution>(m, "InjectionDistribution")
+  class_<InjectionDistribution, std::shared_ptr<InjectionDistribution>, WeightableDistribution>(m, "InjectionDistribution")
     .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord &>(&InjectionDistribution::Sample, const_))
     .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum &>(&InjectionDistribution::Sample, const_))
     .def("IsPositionDistribution",&InjectionDistribution::IsPositionDistribution);
 
   // Direciton distributions
   
-  class_<PrimaryDirectionDistribution, InjectionDistribution>(m, "PrimaryDirectionDistribution")
+  class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, InjectionDistribution>(m, "PrimaryDirectionDistribution")
     .def("Sample",&PrimaryDirectionDistribution::Sample)
     .def("DensityVariables",&PrimaryDirectionDistribution::DensityVariables)
     .def("GenerationProbability",&PrimaryDirectionDistribution::GenerationProbability);
 
-  class_<Cone, PrimaryDirectionDistribution>(m, "Cone")
+  class_<Cone, std::shared_ptr<Cone>, PrimaryDirectionDistribution>(m, "Cone")
     .def(init<LI::math::Vector3D, double>());
     //.def("GenerationProbability",&Cone::GenerationProbability);
   
-  class_<IsotropicDirection, PrimaryDirectionDistribution>(m, "IsotropicDirection")
+  class_<IsotropicDirection, std::shared_ptr<IsotropicDirection>, PrimaryDirectionDistribution>(m, "IsotropicDirection")
     .def(init<>());
     //.def("GenerationProbability",&IsotropicDirection::GenerationProbability);
   
-  class_<FixedDirection, PrimaryDirectionDistribution>(m, "FixedDirection")
+  class_<FixedDirection, std::shared_ptr<FixedDirection>, PrimaryDirectionDistribution>(m, "FixedDirection")
     .def(init<LI::math::Vector3D>());
     //.def("GenerationProbability",&FixedDirection::GenerationProbability);
 
   // Energy distributions
 
-  class_<PrimaryEnergyDistribution, InjectionDistribution>(m, "PrimaryEnergyDistribution")
+  class_<PrimaryEnergyDistribution, std::shared_ptr<PrimaryEnergyDistribution>, InjectionDistribution>(m, "PrimaryEnergyDistribution")
     .def("Sample",&PrimaryEnergyDistribution::Sample);
 
-  class_<Monoenergetic, PrimaryEnergyDistribution>(m, "Monoenergetic")
+  class_<Monoenergetic, std::shared_ptr<Monoenergetic>, PrimaryEnergyDistribution>(m, "Monoenergetic")
     .def(init<double>())
     .def("pdf",&Monoenergetic::pdf)
     .def("SampleEnergy",&Monoenergetic::SampleEnergy)
     .def("GenerationProbability",&Monoenergetic::GenerationProbability)
     .def("Name",&Monoenergetic::Name);
   
-  class_<PowerLaw, PrimaryEnergyDistribution>(m, "PowerLaw")
+  class_<PowerLaw, std::shared_ptr<PowerLaw>, PrimaryEnergyDistribution>(m, "PowerLaw")
     .def(init<double, double, double>())
     .def("pdf",&PowerLaw::pdf)
     .def("SampleEnergy",&PowerLaw::SampleEnergy)
@@ -106,7 +97,7 @@ PYBIND11_MODULE(Distributions,m) {
     .def("SetNormalizationAtEnergy",&PowerLaw::SetNormalizationAtEnergy)
     .def("Name",&PowerLaw::Name);
 
-  class_<TabulatedFluxDistribution, PrimaryEnergyDistribution>(m, "TabulatedFluxDistribution")
+  class_<TabulatedFluxDistribution, std::shared_ptr<TabulatedFluxDistribution>, PrimaryEnergyDistribution>(m, "TabulatedFluxDistribution")
     .def(init<std::string, bool>())
     .def(init<double, double, std::string, bool>())
     .def("SampleEnergy",&TabulatedFluxDistribution::SampleEnergy)
@@ -116,7 +107,7 @@ PYBIND11_MODULE(Distributions,m) {
 
   // Helicity distributions
   
-  class_<PrimaryNeutrinoHelicityDistribution, InjectionDistribution>(m, "PrimaryNeutrinoHelicityDistribution")
+  class_<PrimaryNeutrinoHelicityDistribution, std::shared_ptr<PrimaryNeutrinoHelicityDistribution>, InjectionDistribution>(m, "PrimaryNeutrinoHelicityDistribution")
     .def(init<>())
     .def("Sample",&PrimaryNeutrinoHelicityDistribution::Sample)
     .def("GenerationProbability",&PrimaryNeutrinoHelicityDistribution::GenerationProbability)
@@ -125,7 +116,7 @@ PYBIND11_MODULE(Distributions,m) {
 
   // Type distributions
   
-  class_<PrimaryInjector, InjectionDistribution>(m, "PrimaryInjector")
+  class_<PrimaryInjector, std::shared_ptr<PrimaryInjector>, InjectionDistribution>(m, "PrimaryInjector")
     .def(init<LI::dataclasses::Particle::ParticleType, double>())
     .def("PrimaryMass",&PrimaryInjector::PrimaryMass)
     .def("Sample",&PrimaryInjector::Sample)
@@ -135,7 +126,7 @@ PYBIND11_MODULE(Distributions,m) {
 
   // Vertex distributions
 
-  class_<VertexPositionDistribution, InjectionDistribution>(m, "VertexPositionDistribution")
+  class_<VertexPositionDistribution, std::shared_ptr<VertexPositionDistribution>, InjectionDistribution>(m, "VertexPositionDistribution")
     .def("IsPositionDistribution",&VertexPositionDistribution::IsPositionDistribution)
     .def("DensityVariables",&VertexPositionDistribution::DensityVariables)
     //.def("InjectionBounds",&VertexPositionDistribution::InjectionBounds)
@@ -143,11 +134,11 @@ PYBIND11_MODULE(Distributions,m) {
 
   // First, some range and depth functions
 
-  class_<RangeFunction>(m, "RangeFunction");
+  class_<RangeFunction, std::shared_ptr<RangeFunction>>(m, "RangeFunction");
     //.def(init<>());
     //.def((LI::dataclasses::InteractionSignature const &, double));
   
-  class_<DecayRangeFunction, RangeFunction>(m, "DecayRangeFunction")
+  class_<DecayRangeFunction, std::shared_ptr<DecayRangeFunction>, RangeFunction>(m, "DecayRangeFunction")
     .def(init<double, double, double, double>())
     //.def((LI::dataclasses::InteractionSignature const &, double))
     .def("DecayLength",overload_cast<LI::dataclasses::InteractionSignature const &, double>(&DecayRangeFunction::DecayLength, const_))
@@ -158,11 +149,11 @@ PYBIND11_MODULE(Distributions,m) {
     .def("DecayWidth",&DecayRangeFunction::DecayWidth)
     .def("MaxDistance",&DecayRangeFunction::MaxDistance);
   
-  class_<DepthFunction>(m, "DepthFunction");
+  class_<DepthFunction, std::shared_ptr<DepthFunction>>(m, "DepthFunction");
     //.def(init<>());
     //.def((LI::dataclasses::InteractionSignature const &, double));
 
-  class_<LeptonDepthFunction, DepthFunction>(m, "LeptonDepthFunction")
+  class_<LeptonDepthFunction, std::shared_ptr<LeptonDepthFunction>, DepthFunction>(m, "LeptonDepthFunction")
     .def(init<>())
     .def("SetMuParams",&LeptonDepthFunction::SetMuParams)
     .def("SetTauParams",&LeptonDepthFunction::SetTauParams)
@@ -178,40 +169,40 @@ PYBIND11_MODULE(Distributions,m) {
 
   // VertexPositionDistribution subclasses
 
-  class_<CylinderVolumePositionDistribution, VertexPositionDistribution>(m, "CylinderVolumePositionDistribution")
+  class_<CylinderVolumePositionDistribution, std::shared_ptr<CylinderVolumePositionDistribution>, VertexPositionDistribution>(m, "CylinderVolumePositionDistribution")
     .def(init<LI::geometry::Cylinder>())
     .def("GenerationProbability",&CylinderVolumePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&CylinderVolumePositionDistribution::InjectionBounds)
     .def("Name",&CylinderVolumePositionDistribution::Name);
   
-  class_<ColumnDepthPositionDistribution, VertexPositionDistribution>(m, "ColumnDepthPositionDistribution")
+  class_<ColumnDepthPositionDistribution, std::shared_ptr<ColumnDepthPositionDistribution>, VertexPositionDistribution>(m, "ColumnDepthPositionDistribution")
     .def(init<double, double, std::shared_ptr<DepthFunction>, std::set<LI::dataclasses::Particle::ParticleType>>())
     .def("GenerationProbability",&ColumnDepthPositionDistribution::GenerationProbability)
     .def("InjectionBounds",&ColumnDepthPositionDistribution::InjectionBounds)
     .def("Name",&ColumnDepthPositionDistribution::Name);
   
-  class_<DecayRangePositionDistribution, VertexPositionDistribution>(m, "DecayRangePositionDistribution")
+  class_<DecayRangePositionDistribution, std::shared_ptr<DecayRangePositionDistribution>, VertexPositionDistribution>(m, "DecayRangePositionDistribution")
     .def(init<>())
     .def(init<double, double, std::shared_ptr<DecayRangeFunction>, std::set<LI::dataclasses::Particle::ParticleType>>())
     .def("GenerationProbability",&DecayRangePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&DecayRangePositionDistribution::InjectionBounds)
     .def("Name",&DecayRangePositionDistribution::Name);
   
-  class_<PointSourcePositionDistribution, VertexPositionDistribution>(m, "PointSourcePositionDistribution")
+  class_<PointSourcePositionDistribution, std::shared_ptr<PointSourcePositionDistribution>, VertexPositionDistribution>(m, "PointSourcePositionDistribution")
     .def(init<>())
     .def(init<LI::math::Vector3D, double, std::set<LI::dataclasses::Particle::ParticleType>>())
     .def("GenerationProbability",&PointSourcePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&PointSourcePositionDistribution::InjectionBounds)
     .def("Name",&PointSourcePositionDistribution::Name);
   
-  class_<RangePositionDistribution, VertexPositionDistribution>(m, "RangePositionDistribution")
+  class_<RangePositionDistribution, std::shared_ptr<RangePositionDistribution>, VertexPositionDistribution>(m, "RangePositionDistribution")
     .def(init<>())
     .def(init<double, double, std::shared_ptr<RangeFunction>, std::set<LI::dataclasses::Particle::ParticleType>>())
     .def("GenerationProbability",&RangePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&RangePositionDistribution::InjectionBounds)
     .def("Name",&RangePositionDistribution::Name);
   
-  class_<SecondaryPositionDistribution, VertexPositionDistribution>(m, "SecondaryPositionDistribution")
+  class_<SecondaryPositionDistribution, std::shared_ptr<SecondaryPositionDistribution>, VertexPositionDistribution>(m, "SecondaryPositionDistribution")
     .def(init<>())
     .def(init<double>())
     .def(init<double, std::shared_ptr<LI::geometry::Geometry>>())
@@ -224,6 +215,16 @@ PYBIND11_MODULE(Distributions,m) {
     .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
     .def("Name",&SecondaryPositionDistribution::Name);
 
+  // Target momentum distributions
+  
+  class_<TargetMomentumDistribution, std::shared_ptr<TargetMomentumDistribution>, InjectionDistribution>(m, "TargetMomentumDistribution")
+    .def("Sample",&TargetMomentumDistribution::Sample);
+  
+  class_<TargetAtRest, std::shared_ptr<TargetAtRest>, TargetMomentumDistribution>(m, "TargetAtRest")
+    .def(init<>())
+    .def("GenerationProbability",&TargetAtRest::GenerationProbability)
+    .def("DensityVariables",&TargetAtRest::DensityVariables)
+    .def("Name",&TargetAtRest::Name);
 }
 
 

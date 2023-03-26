@@ -18,13 +18,13 @@ using namespace pybind11;
 PYBIND11_MODULE(CrossSections,m) {
   using namespace LI::crosssections;
 
-  class_<CrossSection>(m, "CrossSection");
+  class_<CrossSection, std::shared_ptr<CrossSection>>(m, "CrossSection");
   
-  class_<Decay>(m, "Decay")
+  class_<Decay, std::shared_ptr<Decay>>(m, "Decay")
     .def("TotalDecayLength",&Decay::TotalDecayLength)
     .def("TotalDecayLengthForFinalState",&Decay::TotalDecayLengthForFinalState);
   
-  class_<DipoleFromTable, CrossSection> dipolefromtable(m, "DipoleFromTable");
+  class_<DipoleFromTable, std::shared_ptr<DipoleFromTable>, CrossSection> dipolefromtable(m, "DipoleFromTable");
 
   dipolefromtable
     .def(init<double, double, DipoleFromTable::HelicityChannel>())
@@ -57,7 +57,7 @@ PYBIND11_MODULE(CrossSections,m) {
     .value("Flipping",DipoleFromTable::HelicityChannel::Flipping)
     .export_values();
   
-  class_<NeutrissimoDecay,Decay> neutrissimodecay(m, "NeutrissimoDecay");
+  class_<NeutrissimoDecay, std::shared_ptr<NeutrissimoDecay>, Decay> neutrissimodecay(m, "NeutrissimoDecay");
 
   neutrissimodecay
     .def(init<double, std::vector<double>, NeutrissimoDecay::ChiralNature>())
@@ -79,7 +79,7 @@ PYBIND11_MODULE(CrossSections,m) {
     .value("Majorana",NeutrissimoDecay::ChiralNature::Majorana)
     .export_values();
   
-  class_<CrossSectionCollection>(m, "CrossSectionCollection")
+  class_<CrossSectionCollection, std::shared_ptr<CrossSectionCollection>>(m, "CrossSectionCollection")
     .def(init<>())
     .def(init<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())
     .def(init<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<Decay>>>())

@@ -18,7 +18,7 @@ using namespace pybind11;
 PYBIND11_MODULE(Geometry,m) {
   using namespace LI::geometry;
 
-  class_<Geometry>(m, "Geometry")
+  class_<Geometry, std::shared_ptr<Geometry>>(m, "Geometry")
     .def("IsInside",&Geometry::IsInside)
     .def("IsInfront",&Geometry::IsInfront)
     .def("IsBehind",&Geometry::IsBehind)
@@ -46,7 +46,7 @@ PYBIND11_MODULE(Geometry,m) {
     .def_readwrite("c", &ExtrPoly::plane::c)
     .def_readwrite("d", &ExtrPoly::plane::d);
   
-  class_<ExtrPoly, Geometry>(m, "ExtrPoly")
+  class_<ExtrPoly, std::shared_ptr<ExtrPoly>, Geometry>(m, "ExtrPoly")
     .def(init<>())
     .def(init<const std::vector<std::vector<double>>&,
               const std::vector<ExtrPoly::ZSection>&>())
@@ -61,7 +61,7 @@ PYBIND11_MODULE(Geometry,m) {
 
   // Box
 
-  class_<Box, Geometry>(m, "Box")
+  class_<Box, std::shared_ptr<Box>, Geometry>(m, "Box")
     .def(init<>())
     .def(init<double, double, double>())
     .def(init<Placement const &>())
@@ -73,7 +73,7 @@ PYBIND11_MODULE(Geometry,m) {
   
   // Cylinder
 
-  class_<Cylinder, Geometry>(m, "Cylinder")
+  class_<Cylinder, std::shared_ptr<Cylinder>, Geometry>(m, "Cylinder")
     .def(init<>())
     .def(init<double, double, double>())
     .def(init<Placement const &>())
@@ -85,7 +85,7 @@ PYBIND11_MODULE(Geometry,m) {
   
   // Sphere
 
-  class_<Sphere, Geometry>(m, "Sphere")
+  class_<Sphere, std::shared_ptr<Sphere>, Geometry>(m, "Sphere")
     .def(init<>())
     .def(init<double, double>())
     .def(init<Placement const &>())

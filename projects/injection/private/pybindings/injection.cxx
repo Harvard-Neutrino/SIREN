@@ -27,19 +27,23 @@ PYBIND11_MODULE(Injection,m) {
 
   // Process
 
-  class_<Process>(m, "Process")
+  class_<Process, std::shared_ptr<Process>>(m, "Process")
     .def_readwrite("primary_type",&Process::primary_type)
     .def_readwrite("cross_sections",&Process::cross_sections);
 
-  class_<InjectionProcess, Process>(m, "InjectionProcess")
+  class_<InjectionProcess, std::shared_ptr<InjectionProcess>, Process>(m, "InjectionProcess")
+    .def(init<>())
+    .def("AddInjectionDistribution",&InjectionProcess::AddInjectionDistribution)
     .def_readwrite("injection_distributions",&InjectionProcess::injection_distributions);
   
-  class_<PhysicalProcess, Process>(m, "PhysicalProcess")
+  class_<PhysicalProcess, std::shared_ptr<PhysicalProcess>, Process>(m, "PhysicalProcess")
+    .def(init<>())
+    .def("AddPhysicalDistribution",&PhysicalProcess::AddPhysicalDistribution)
     .def_readwrite("physical_distributions",&PhysicalProcess::physical_distributions);
 
   // Injection
 
-  class_<InjectorBase>(m, "InjectorBase")
+  class_<InjectorBase, std::shared_ptr<InjectorBase>>(m, "InjectorBase")
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::utilities::LI_random>>())
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<InjectionProcess>, std::shared_ptr<LI::utilities::LI_random>>())
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>>())
@@ -60,25 +64,25 @@ PYBIND11_MODULE(Injection,m) {
     .def("InjectedEvents",&InjectorBase::InjectedEvents)
     .def("EventsToInject",&InjectorBase::EventsToInject);
 
-  class_<RangedLeptonInjector, InjectorBase>(m, "RangedLeptonInjector")
+  class_<RangedLeptonInjector, std::shared_ptr<RangedLeptonInjector>, InjectorBase>(m, "RangedLeptonInjector")
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::RangeFunction>, double, double>())
     .def("Name",&RangedLeptonInjector::Name);
   
-  class_<DecayRangeLeptonInjector, InjectorBase>(m, "DecayRangeLeptonInjector")
+  class_<DecayRangeLeptonInjector, std::shared_ptr<DecayRangeLeptonInjector>, InjectorBase>(m, "DecayRangeLeptonInjector")
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::DecayRangeFunction>, double, double>())
     .def("Name",&DecayRangeLeptonInjector::Name);
   
-  class_<ColumnDepthLeptonInjector, InjectorBase>(m, "ColumnDepthLeptonInjector")
+  class_<ColumnDepthLeptonInjector, std::shared_ptr<ColumnDepthLeptonInjector>, InjectorBase>(m, "ColumnDepthLeptonInjector")
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::DepthFunction>, double, double>())
     .def("Name",&ColumnDepthLeptonInjector::Name);
   
-  class_<CylinderVolumeLeptonInjector, InjectorBase>(m, "CylinderVolumeLeptonInjector")
+  class_<CylinderVolumeLeptonInjector, std::shared_ptr<CylinderVolumeLeptonInjector>, InjectorBase>(m, "CylinderVolumeLeptonInjector")
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, LI::geometry::Cylinder>())
     .def("Name",&CylinderVolumeLeptonInjector::Name);
 
   // Weighter classes
 
-  class_<LeptonProcessWeighter>(m, "LeptonProcessWeighter")
+  class_<LeptonProcessWeighter, std::shared_ptr<LeptonProcessWeighter>>(m, "LeptonProcessWeighter")
     .def(init<std::shared_ptr<PhysicalProcess>, std::shared_ptr<InjectionProcess>, std::shared_ptr<LI::detector::EarthModel>>())
     //.def("InteractionProbability",&LeptonProcessWeighter::InteractionProbability)
     .def("NormalizedPositionProbability",&LeptonProcessWeighter::NormalizedPositionProbability)
@@ -86,11 +90,11 @@ PYBIND11_MODULE(Injection,m) {
     .def("GenerationProbability",&LeptonProcessWeighter::GenerationProbability)
     .def("EventWeight",&LeptonProcessWeighter::EventWeight);
 
-  class_<LeptonTreeWeighter>(m, "LeptonTreeWeighter")
+  class_<LeptonTreeWeighter, std::shared_ptr<LeptonTreeWeighter>>(m, "LeptonTreeWeighter")
     .def(init<std::vector<std::shared_ptr<InjectorBase>>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>())
     .def("EventWeight",&LeptonTreeWeighter::EventWeight);
 
-  class_<LeptonWeighter>(m, "LeptonWeighter")
+  class_<LeptonWeighter, std::shared_ptr<LeptonWeighter>>(m, "LeptonWeighter")
     .def(init<std::vector<std::shared_ptr<InjectorBase>>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>>>())
     .def("EventWeight",&LeptonWeighter::EventWeight)
     .def("SimplifiedEventWeight",&LeptonWeighter::SimplifiedEventWeight);
