@@ -11,7 +11,10 @@ __version__ = "0.0.1"
 builddir = "@PROJECT_BINARY_DIR@/"
 sourcedir = "@PROJECT_SOURCE_DIR@/"
 
-extra_compile_args = ['-stdlib=libc++', '-std=c++14', '-I/opt/homebrew/opt/cfitsio/include/']
+extra_compile_args = ['-std=c++14']
+
+# Uncomment the following if you are using a MAC!
+#extra_compile_args += ['-stdlib=libc++', '-I/opt/homebrew/opt/cfitsio/include/']
 
 ext_modules = [
     Pybind11Extension("Utilities",
