@@ -2,11 +2,11 @@
 import numpy as np
 
 # Import the CCM modules
+import Math
+import Utilities
+import Dataclasses
 import Geometry
 import Detector
-import Utilities
-import Math
-import Dataclasses
 import CrossSections
 import Distributions
 import Injection
