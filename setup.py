@@ -7,10 +7,14 @@ sys.path.append(os.path.join(DIR, "vendor", "pybind11"))
 from pybind11.setup_helpers import Pybind11Extension
 del sys.path[-1]
 
+#os.environ["CXX"] = "clang++"
+
 
 __version__ = "0.0.1"
 prefix = os.getenv('PREFIX')
 source = os.getenv('LEPINJSOURCEPATH')
+
+extra_compile_args = ['-lLeptonInjector', '-stdlib=libc++', '-std=c++14', '-I/opt/homebrew/opt/cfitsio/include/']
 
 ext_modules = [
     Pybind11Extension("Utilities",
@@ -18,48 +22,56 @@ ext_modules = [
         define_macros = [('VERSION_INFO', __version__)],
         library_dirs=[prefix+'/lib/'],
         libraries=['LeptonInjector'],
+        extra_compile_args=extra_compile_args,
         ),
     Pybind11Extension("Math",
         [source+"projects/math/private/pybindings/math.cxx"],
         define_macros = [('VERSION_INFO', __version__)],
         library_dirs=[prefix+'/lib/'],
         libraries=['LeptonInjector'],
+        extra_compile_args=extra_compile_args,
         ),
     Pybind11Extension("Dataclasses",
         [source+"projects/dataclasses/private/pybindings/dataclasses.cxx"],
         define_macros = [('VERSION_INFO', __version__)],
         library_dirs=[prefix+'/lib/'],
         libraries=['LeptonInjector'],
+        extra_compile_args=extra_compile_args,
         ),
     Pybind11Extension("Geometry",
         [source+"projects/geometry/private/pybindings/geometry.cxx"],
         define_macros = [('VERSION_INFO', __version__)],
         library_dirs=[prefix+'/lib/'],
         libraries=['LeptonInjector'],
+        extra_compile_args=extra_compile_args,
         ),
     Pybind11Extension("Detector",
         [source+"projects/detector/private/pybindings/detector.cxx"],
         define_macros = [('VERSION_INFO', __version__)],
         library_dirs=[prefix+'/lib/'],
         libraries=['LeptonInjector'],
+        extra_compile_args=extra_compile_args,
         ),
     Pybind11Extension("CrossSections",
         [source+"projects/crosssections/private/pybindings/crosssections.cxx"],
         define_macros = [('VERSION_INFO', __version__)],
         library_dirs=[prefix+'/lib/'],
         libraries=['LeptonInjector'],
+        extra_compile_args=extra_compile_args,
         ),
     Pybind11Extension("Distributions",
         [source+"projects/distributions/private/pybindings/distributions.cxx"],
         define_macros = [('VERSION_INFO', __version__)],
         library_dirs=[prefix+'/lib/'],
         libraries=['LeptonInjector'],
+        extra_compile_args=extra_compile_args,
         ),
     Pybind11Extension("Injection",
         [source+"projects/injection/private/pybindings/injection.cxx"],
         define_macros = [('VERSION_INFO', __version__)],
         library_dirs=[prefix+'/lib/'],
         libraries=['LeptonInjector'],
+        extra_compile_args=extra_compile_args,
         ),
 ]
 
@@ -78,7 +90,7 @@ setup(
 )
 
 # Create a new python file to add the locally installed egg to sys.path
-fpy = open(prefix+'/lib/python3.8/site-packages/sitecustomize.py','w')
+fpy = open(prefix+'/lib/python3.9/site-packages/sitecustomize.py','w')
 print('import site',file=fpy)
-print('site.addsitedir(\'%s\')'%(prefix+'/lib/python3.8/site-packages/'),file=fpy)
+print('site.addsitedir(\'%s\')'%(prefix+'/lib/python3.9/site-packages/'),file=fpy)
 fpy.close()

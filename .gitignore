@@ -46,3 +46,13 @@
 
 # vim swap files
 *.swp
+
+# rk
+*/*rk*
+*/*/*rk*
+
+# ipynb
+*ipynb*
+*/*ipynb*
+*/*/*ipynb*
+*/*/*/*ipynb*
