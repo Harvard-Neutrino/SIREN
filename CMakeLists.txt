@@ -154,6 +154,9 @@ install(TARGETS LeptonInjector
 
 #add_subdirectory(tests)
 
+configure_file("${PROJECT_SOURCE_DIR}/setup.py.in"
+               "${PROJECT_BINARY_DIR}/setup.py")
+
 MESSAGE("")
 MESSAGE("Done!")
 MESSAGE("Run `make` then `make install`")
