@@ -66,3 +66,6 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/distributions/public/"
 
 package_add_test(UnitTest_PrimaryDirectionDistribution ${CMAKE_SOURCE_DIR}/projects/distributions/private/test/PrimaryDirectionDistribution_TEST.cxx)
 package_add_test(UnitTest_PrimaryEnergyDistribution ${CMAKE_SOURCE_DIR}/projects/distributions/private/test/PrimaryEnergyDistribution_TEST.cxx)
+
+pybind11_add_module(Distributions ${CMAKE_SOURCE_DIR}/projects/distributions/private/pybindings/distributions.cxx)
+target_link_libraries(Distributions PRIVATE LI_distributions)

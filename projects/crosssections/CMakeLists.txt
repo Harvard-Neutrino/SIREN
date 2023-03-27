@@ -40,3 +40,6 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/crosssections/public/"
 package_add_test(UnitTest_DISFromSpline ${CMAKE_SOURCE_DIR}/projects/crosssections/private/test/DISFromSpline_TEST.cxx)
 package_add_test(UnitTest_DipoleFromTable ${CMAKE_SOURCE_DIR}/projects/crosssections/private/test/DipoleFromTable_TEST.cxx)
 #package_add_test(UnitTest_ElasticScattering ${CMAKE_SOURCE_DIR}/projects/crosssections/private/test/ElasticScattering_TEST.cxx)
+
+pybind11_add_module(CrossSections ${CMAKE_SOURCE_DIR}/projects/crosssections/private/pybindings/crosssections.cxx)
+target_link_libraries(CrossSections PRIVATE LI_crosssections)

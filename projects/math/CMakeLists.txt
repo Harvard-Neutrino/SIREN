@@ -41,3 +41,6 @@ package_add_test(UnitTest_Transform ${CMAKE_SOURCE_DIR}/projects/math/private/te
 package_add_test(UnitTest_InterpolationOperators ${CMAKE_SOURCE_DIR}/projects/math/private/test/InterpolationOperators_TEST.cxx)
 package_add_test(UnitTest_Indexing ${CMAKE_SOURCE_DIR}/projects/math/private/test/Indexing_TEST.cxx)
 package_add_test(UnitTest_Interpolator ${CMAKE_SOURCE_DIR}/projects/math/private/test/Interpolator_TEST.cxx)
+
+pybind11_add_module(Math ${CMAKE_SOURCE_DIR}/projects/math/private/pybindings/math.cxx)
+target_link_libraries(Math PRIVATE LI_math)

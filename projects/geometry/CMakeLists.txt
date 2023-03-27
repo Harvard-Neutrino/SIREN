@@ -37,24 +37,8 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/geometry/public/"
     PATTERN "*.tcc"
 )
 
-#file (GLOB SOURCE_FILES "${CMAKE_SOURCE_DIR}/projects/geometry/private/*.cxx")
-#file (GLOB HEADER_FILES "${CMAKE_SOURCE_DIR}/projects/geometry/public/LeptonInjector/geometry/*.h")
-#file (GLOB PYTHON_FILES "${CMAKE_SOURCE_DIR}/projects/geometry/private/pybindings/*.cxx")
-##python bindings
-#pybind11_add_module(Geometry
-#                    ${geometry_SOURCES}
-#                    ${HEADER_FILES}
-#                    ${PYTHON_FILES}
-#                    )
-#target_link_libraries(Geometry PRIVATE LI_math)
-#target_link_libraries(Geometry PUBLIC)
-
-#install(TARGETS Geometry
-#  COMPONENT python
-#  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-#  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-#  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-#)
-
 package_add_test(UnitTest_Geometry ${CMAKE_SOURCE_DIR}/projects/geometry/private/test/Geometry_TEST.cxx)
 package_add_test(UnitTest_ExtrPoly ${CMAKE_SOURCE_DIR}/projects/geometry/private/test/ExtrPoly_TEST.cxx)
+
+pybind11_add_module(Geometry ${CMAKE_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
+target_link_libraries(Geometry PRIVATE LI_geometry)
