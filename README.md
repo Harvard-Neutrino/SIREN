@@ -4,90 +4,116 @@ LeptonInjector is a group of modules used to efficiently inject events in a give
 
 To use LeptonInjector, you will
 
-    1. Prepare a Injector object by defining a primary process and a list of secondary processes
+    1. Define a primary process and a list of secondary processes by specifying a particle type and which interactions (cross sections or decays) each particle can undergo
 
-    2.  
+    2. For each (primary or secondary) process, define a set of distributions from which to sample when injecting that particle (e.g. energy, position, direction)
 
-    3. Add more injectors to the controller object using the add injector function. Verify that the controller is properly configured.
+    3. Combine this information to define an InjectorBase object
+
+    4. Generate interaction trees using the InjectorBase object
     
-    4. Specify the full paths and names of the destination output file and LeptonInjector Configuration (LIC) file.
+    5. Create a LeptonTreeWeighter object using a list of primary and secondary physical processes
 
-    5. Call Controller.Execute(). This will run the simulation. 
+    6. Calculate the event weight for each interaction tree using the LeptonTreeWeighter object
 
-For an example of this in action, see $root/resources/example/inject_muons.py
-
-To learn about the LIC files and weighting, see https://github.com/IceCubeOpenSource/LeptonWeighter
+For an example of this in action, see $root/resources/DipoleInjection/inject_HNLs_CCM.{py,ipynb}
 
 # Dependencies
 
-All of the dependencies are already installed on the CVMFS environments on the IceCube Cobalt testbeds. 
-
 For local installations, you need the following:
 
-* A C++ compiler with C++11 support.
+* A C++ compiler with C++14 support.
 
-* The `HDF5` C libraries. Read more about it here: https://portal.hdfgroup.org/display/support. These libraries are, of course, used to save the data files. 
-
-* It also requires Photospline to create and to read cross sections. Read more about it, and its installation at https://github.com/IceCubeOpenSource/photospline. Note that Photospline has dependencies that you will need that are not listed here. 
+* Some classes also require Photospline to create and to read cross sections. Read more about it, and its installation at https://github.com/IceCubeOpenSource/photospline. Note that Photospline has dependencies that you will need that are not listed here. 
 
 * LeptonInjector requires Photospline's `SuiteSparse` capabilities, whose dependencies are available here http://faculty.cse.tamu.edu/davis/suitesparse.html
 
 For building py-bindings, 
 
-* Python, but you should've known that if you're building pybindings. 
+* Python > 3.6
 
-* `BOOST`, which can be installed as easily as typing `sudo apt-get install libboost-all-dev` on linux machines (so long as you use bash and not something like tcsh). There's probably a homebrew version for mac. Boost is primarily needed to compile the python bindings or this software. 
+* That's it! We use pybind11 to generate our pybindings, which is automatically included in LeptonInjector as a submodule 
 
 
-# Included Dependencies
+# Included External Dependencies
 
-These are not ostensibly a part of LeptonInjector, but are included for its functionality. They were developed by the IceCube Collaboration and modified slightly to use the LeptonInjector datatypes instead of the IceCube proprietary ones. 
+These are not ostensibly a part of LeptonInjector, but are included automatically as submodules for its functionality. 
 
-* I3CrossSections: provies the tools for sampling DIS and GR cross sections. 
+* [cereal](https://github.com/USCiLab/cereal): for serialization
 
-* Earthmodel Services: provides the PREM for column depth calculations. 
+* [delabella](https://github.com/msokalski/delabella): for Delaunay triangulation in our interpolation classes
+
+* [googletest](https://github.com/google/googletest): for constructing our tests
+
+* [pybind11](https://github.com/pybind/pybind11): for compiling our python bindings
+
+* [rk](https://rk.hepforge.org/): a relativistic kinematics library used mostly in the CrossSection and Decay subclasses
 
 # Download, Compilation and Installation
 
-First, go to a folder where you would like to build and compile lepton injector, and run 
+We will be trying to keep our source, build, and install directories separate. To this end, these instructions will assume the following directory structure:
 
-`git clone git@github.com:IceCubeOpenSource/LeptonInjector.git`
+```
+|build (for compling LeptonInjector)
+|local (for installing built libraries)
+|sources (source code for LeptonInjector and other dependencies)
+|--LeptonInjector
+|--(LeptonInjector dependencies...)
+```
 
-to download the source code. Then, `mv` the folder that is created to rename it to `source`. We will be trying to keep our source, build, and install directories separate. Now
+We also assume external dependencies like `photospline` have already been put into the `sources` directory and the relevant libraries and header files have been installed in the `local` directory. First, run `cd sources` to navigate to the `sources` folder and run 
 
-`mkdir build` and `mkdir install`
+`git clone git@github.com:Harvard-Neutrino/LeptonInjector.git`
 
-so we have target locations. `cd ./build` to move into the build directory. Now, we call cmake
+or
 
-`cmake -DCMAKE_INSTALL_PREFIX=../install ../source`
+`git clone https://github.com/Harvard-Neutrino/LeptonInjector.git`
 
-This tells cmake to install the shared objects in the `install` directory we just made. Cmake prepares a `Makefile` which calls the `g++` compiler with the necessary instructions to... compile. So now you'll call
+to download the source code. Now `cd ../build` to get to the build directory. Now, we call cmake
+
+`cmake -DCMAKE_INSTALL_PREFIX=../local ../sources/LeptonInjector`
+
+This tells cmake to install the shared objects in the `local` directory. CMake prepares a `Makefile` which calls the `g++` compiler with the necessary instructions to... compile. So now you'll call
 
 `make -j4 && make install`
 
-to build the project and install the project. Now you need to set all the environmental variables so this actually works. You will be adding this to your .bashrc or .bash_profile. 
+to build the project and install the project. Now you need to set all the environmental variables so this actually works. We recommend putting the followig commands into a `env.sh` script that can load the environment. 
 
-To allow python to find your install directory: 
-`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/your/install/path/`
+'''
+export LEPINJSPACE=/path/to/parent/directory
+export LEPINJBUILDPATH=$LEPINJSPACE/local
+export LEPINJSOURCEPATH=$LEPINJSPACE/sources/LeptonInjector/
+export PREFIX=$LEPINJBUILDPATH
+# On linux:
+export LD_LIBRARY_PATH=$LEPINJBUILDPATH/lib/:$DYLD_FALLBACK_LIBRARY_PATH
+# On mac:
+export DYLD_FALLBACK_LIBRARY_PATH=$LEPINJBUILDPATH/lib/:$DYLD_FALLBACK_LIBRARY_PATH
+export PYTHONPATH=$LEPINJBUILDPATH/lib/python3.X/site-packages:$PYTHONPATH
+'''
 
-To allow the EarthModel to find details about the Earth:
-`export EARTH_PARAMS=/your/source/path/resources/earthparams/`
+Now that we have the envirnoment set up, we will build the python bindings. In the `build` directory, there should now be a `setup.py` file. We can use this to install the python bindings by running
 
-# Structure
-The code base is divided into several files. 
-* Constants: a header defining various constants. 
-* Controller: implements a class for managing the simulation
-* DataWriter: writes event properties and MCTrees to an HDF5 file
-* EventProps: implements a few structures used to write events in the hdf5 file. 
-* h5write: may be renamed soon. This will be used to write the configurations onto a file
-* LeptonInjector (the file): defines the Injector objects described above in addition to several configuration objects and event generators 
-* Particle: simple implementation of particles. Includes a big enum. 
-* Random: object for random number sampling.
+`python -m pip install . --prefix=$PREFIX`
 
-# Cross Sections
-For generating events you will need fits files of splines specifying the cross sections (total and differential cross sections). These should be made with photospline. 
+where the python executable used to run this command should be the same as the version picked up by CMake when building LeptonInjector. If there is a mismatch, you should either change the python executable in the above command, or re-run the LeptonInjector build using the CMake option `-DPYTHON_EXECUTABLE=/path/to/your/python/executable`.
+
+After the python bindings are installed, you should be able to import the `leptoninjector` python library. Open a python interpreter by running `python`, and then run
+
+```
+import leptoninjector
+from leptoninjector import math
+from leptoninjector import utilities
+from leptoninjector import dataclasses
+from leptoninjector import geometry
+from leptoninjector import detector
+from leptoninjector import crosssections
+from leptoninjector import distributions
+from leptoninjector import injection
+```
+
+Now you should be good to go!
 
 # Making Contributions
-If you would like to make contributions to this project, please create a branch off of the `master` branch and name it something following the template: `$YourLastName/$YourSubProject`. 
-Work on this branch until you have made the changes you wished to see and your branch is _stable._ 
-Then, pull from master, and create a pull request to merge your branch back into master. 
+If you would like to make contributions to this project, please create a branch off of the `main` branch and name it something following the template: `$YourLastName/$YourSubProject`. 
+Work on this branch until you have made the changes you wished to see and your branch is stable. 
+Then, pull from main, and create a pull request to merge your branch back into main. 
