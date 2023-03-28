@@ -69,7 +69,12 @@ or
 
 `git clone https://github.com/Harvard-Neutrino/LeptonInjector.git`
 
-to download the source code. Now `cd ../build` to get to the build directory. Now, we call cmake
+to download the source code. To download the submodules, run
+
+`git submodule init`
+`git submodule update`
+
+Now `cd ../build` to get to the build directory. We call cmake
 
 `cmake -DCMAKE_INSTALL_PREFIX=../local ../sources/LeptonInjector`
 
