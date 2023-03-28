@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 
 # Import python libraries
@@ -20,7 +20,7 @@ random = LI.utilities.LI_random()
 # HNL parameters
 hnl_mass_str = "0.02035" # make sure this matches one of the cross section tables
 hnl_mass = float(hnl_mass_str) # GeV
-d_dipole = 4e-7 # GeV^-1
+d_dipole = 5e-7 # GeV^-1
 
 # Injection parameters
 events_to_inject = int(1e5)
@@ -81,12 +81,12 @@ diff_hc_files = ['%s/dxsec_Z_%i_A_%i_mHNL_%s_hc.dat'%(diff_xsec_path,
 # For comparing data to HNL prediction later on
 CCM200_POT = 2.25e22
 CCM120_POT = 1.79e21
-bkg_reduction_factor = 1e-3 # optimistic, with Chrenkov reconstruction working
+bkg_reduction_factor = 1e-2 # optimistic, with Chrenkov reconstruction working
 pe_to_MeV = 0.1
 WorkshopToolsDir = '../../../../Sandbox/' # Change this if need be
 
 
-# In[ ]:
+# In[2]:
 
 
 # Make the earth model, add CCM detector layout and materials file
@@ -99,7 +99,7 @@ earth_model.LoadMaterialModel(materials_file)
 earth_model.LoadEarthModel(earth_model_file)
 
 
-# In[ ]:
+# In[3]:
 
 
 # Define injection processes for each target
@@ -117,7 +117,7 @@ primary_physical_process_upper_target.primary_type = primary_type
 primary_physical_process_lower_target.primary_type = primary_type
 
 
-# In[ ]:
+# In[4]:
 
 
 # Define upscattering cross section classes
@@ -146,7 +146,7 @@ primary_physical_process_upper_target.SetCrossSections(primary_cross_sections)
 primary_physical_process_lower_target.SetCrossSections(primary_cross_sections)
 
 
-# In[ ]:
+# In[5]:
 
 
 # Energy distribution: monoenergetic neutrino from pion decay at rest
@@ -165,7 +165,7 @@ primary_physical_process_upper_target.AddPhysicalDistribution(flux_units)
 primary_physical_process_lower_target.AddPhysicalDistribution(flux_units)
 
 
-# In[ ]:
+# In[6]:
 
 
 # Primary direction: A cone around CCM
@@ -187,7 +187,7 @@ primary_physical_process_upper_target.AddPhysicalDistribution(phys_ddist)
 primary_physical_process_lower_target.AddPhysicalDistribution(phys_ddist);
 
 
-# In[ ]:
+# In[7]:
 
 
 # Target momentum distribution: target is at rest
@@ -199,7 +199,7 @@ primary_physical_process_upper_target.AddPhysicalDistribution(target_momentum_di
 primary_physical_process_lower_target.AddPhysicalDistribution(target_momentum_distribution)
 
 
-# In[ ]:
+# In[8]:
 
 
 # Helicity distribution: primary neutrino helicity
@@ -211,7 +211,7 @@ primary_physical_process_upper_target.AddPhysicalDistribution(helicity_distribut
 primary_physical_process_lower_target.AddPhysicalDistribution(helicity_distribution)
 
 
-# In[ ]:
+# In[9]:
 
 
 # Position distribution: consider neutrinos from a point source
@@ -223,7 +223,7 @@ primary_injection_process_upper_target.AddInjectionDistribution(upper_pos_dist)
 primary_injection_process_lower_target.AddInjectionDistribution(lower_pos_dist)
 
 
-# In[ ]:
+# In[10]:
 
 
 # Secondary process definition
@@ -234,7 +234,7 @@ secondary_decay_injection_process.primary_type = LI.dataclasses.Particle.Particl
 secondary_decay_physical_process.primary_type = LI.dataclasses.Particle.ParticleType.NuF4
 
 
-# In[ ]:
+# In[11]:
 
 
 # Secondary cross section class: HNL decay
@@ -245,7 +245,7 @@ secondary_decay_injection_process.SetCrossSections(secondary_cross_sections)
 secondary_decay_physical_process.SetCrossSections(secondary_cross_sections)
 
 
-# In[ ]:
+# In[12]:
 
 
 # Secondary position distribution
@@ -262,7 +262,7 @@ secondary_injection_processes.append(secondary_decay_injection_process)
 secondary_physical_processes.append(secondary_decay_physical_process)
 
 
-# In[ ]:
+# In[13]:
 
 
 # Put it all together! One injector for each W target
@@ -289,7 +289,7 @@ upper_injector.SetStoppingCondition(StoppingCondition)
 lower_injector.SetStoppingCondition(StoppingCondition)
 
 
-# In[ ]:
+# In[14]:
 
 
 # Weighter instances, one for each target
@@ -304,7 +304,7 @@ lower_weighter = LI.injection.LeptonTreeWeighter([lower_injector],
                                               secondary_physical_processes)
 
 
-# In[ ]:
+# In[15]:
 
 
 c = 2.998e-1 #m/ns
@@ -349,7 +349,7 @@ while lower_injector.InjectedEvents() < events_to_inject:
         gamma_time_list.append(time - 23./c)
 
 
-# In[ ]:
+# In[16]:
 
 
 # Class for energy smearing: assumes 15% uncertainty on energy reconstruction
