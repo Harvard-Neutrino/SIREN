@@ -79,17 +79,17 @@ This tells cmake to install the shared objects in the `local` directory. CMake p
 
 to build the project and install the project. Now you need to set all the environmental variables so this actually works. We recommend putting the followig commands into a `env.sh` script that can load the environment. 
 
-'''
+```
 export LEPINJSPACE=/path/to/parent/directory
 export LEPINJBUILDPATH=$LEPINJSPACE/local
 export LEPINJSOURCEPATH=$LEPINJSPACE/sources/LeptonInjector/
 export PREFIX=$LEPINJBUILDPATH
-\# On linux:
+# On linux:
 export LD_LIBRARY_PATH=$LEPINJBUILDPATH/lib/:$DYLD_FALLBACK_LIBRARY_PATH
-\# On mac:
+# On mac:
 export DYLD_FALLBACK_LIBRARY_PATH=$LEPINJBUILDPATH/lib/:$DYLD_FALLBACK_LIBRARY_PATH
 export PYTHONPATH=$LEPINJBUILDPATH/lib/python3.X/site-packages:$PYTHONPATH
-'''
+```
 
 Now that we have the envirnoment set up, we will build the python bindings. In the `build` directory, there should now be a `setup.py` file. We can use this to install the python bindings by running
 
