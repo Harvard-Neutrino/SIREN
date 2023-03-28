@@ -22,7 +22,7 @@ PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
 
 using namespace pybind11;
 
-PYBIND11_MODULE(Injection,m) {
+PYBIND11_MODULE(injection,m) {
   using namespace LI::injection;
 
   // Process
@@ -36,7 +36,7 @@ PYBIND11_MODULE(Injection,m) {
     .def(init<>())
     .def("AddInjectionDistribution",&InjectionProcess::AddInjectionDistribution)
     .def_readwrite("injection_distributions",&InjectionProcess::injection_distributions);
-  
+
   class_<PhysicalProcess, std::shared_ptr<PhysicalProcess>, Process>(m, "PhysicalProcess")
     .def(init<>())
     .def("AddPhysicalDistribution",&PhysicalProcess::AddPhysicalDistribution)
@@ -68,15 +68,15 @@ PYBIND11_MODULE(Injection,m) {
   class_<RangedLeptonInjector, std::shared_ptr<RangedLeptonInjector>, InjectorBase>(m, "RangedLeptonInjector")
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::RangeFunction>, double, double>())
     .def("Name",&RangedLeptonInjector::Name);
-  
+
   class_<DecayRangeLeptonInjector, std::shared_ptr<DecayRangeLeptonInjector>, InjectorBase>(m, "DecayRangeLeptonInjector")
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::DecayRangeFunction>, double, double>())
     .def("Name",&DecayRangeLeptonInjector::Name);
-  
+
   class_<ColumnDepthLeptonInjector, std::shared_ptr<ColumnDepthLeptonInjector>, InjectorBase>(m, "ColumnDepthLeptonInjector")
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::DepthFunction>, double, double>())
     .def("Name",&ColumnDepthLeptonInjector::Name);
-  
+
   class_<CylinderVolumeLeptonInjector, std::shared_ptr<CylinderVolumeLeptonInjector>, InjectorBase>(m, "CylinderVolumeLeptonInjector")
     .def(init<unsigned int, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, LI::geometry::Cylinder>())
     .def("Name",&CylinderVolumeLeptonInjector::Name);
@@ -99,8 +99,8 @@ PYBIND11_MODULE(Injection,m) {
     .def(init<std::vector<std::shared_ptr<InjectorBase>>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>>>())
     .def("EventWeight",&LeptonWeighter::EventWeight)
     .def("SimplifiedEventWeight",&LeptonWeighter::SimplifiedEventWeight);
-    
 
 
-    
+
+
 }

@@ -1,96 +1,102 @@
 from setuptools import setup
-import os
-import sys
-sys.path.append(os.path.join("@PROJECT_SOURCE_DIR@", "vendor", "pybind11"))
-from pybind11.setup_helpers import Pybind11Extension
-del sys.path[-1]
-
 
 __version__ = "0.0.1"
 
 builddir = "@PROJECT_BINARY_DIR@/"
 sourcedir = "@PROJECT_SOURCE_DIR@/"
 
-extra_compile_args = ['-std=c++14']
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
-# Uncomment the following if you are using a MAC!
-#extra_compile_args += ['-stdlib=libc++', '-I/opt/homebrew/opt/cfitsio/include/']
+try:
+    from setuptools import setup, find_packages, Extension
+    from setuptools.command.build_ext import build_ext
+except ImportError:
+    from distutils import setup, find_packages, Extension
+    from distutils.command.build_ext import build_ext
+
+import os
+import sys
+import platform
+import pathlib
+import shutil
+
+suffix = None
+if platform.system() == "Linux":
+    suffix = ".so"
+elif platform.system() == "Darwin":
+    suffix = ".dylib"
+elif platform.system() == "Windows":
+    suffix = ".pyd"
+
+class PreBuiltExtension(Extension):
+    def __init__(self, name, path, *args: Any, **kwargs: Any):
+        self.path = path
+        super().__init__(name, [], *args, **kwargs)
+
+class build_PreBuiltExtensions(build_ext):
+    def run(self):
+        extension_names = []
+        for ext in (x for x in self.extensions if isinstance(x, PreBuiltExtension)):
+            source = pathlib.PurePath(f"{ext.path}{suffix}")
+            build_dir = pathlib.PurePath(self.get_ext_fullpath(ext.name)).parent
+            os.makedirs(build_dir, exist_ok=True)
+            shutil.copy(f"{source}", f"{build_dir}/{source.name}")
+            extension_name = source.name.split('.')[0]
+            extension_names.append(extension_name)
+        with open(f"{self.build_lib}/{self.distribution.ext_package}/__init__.py", "w") as f:
+            for name in extension_names:
+                f.write(f"from . import {name}\n")
+
+def find_extension_file(directory, prefix):
+    expected_prefix = f"{prefix}.cpython-{str(sys.version_info.major) + str(sys.version_info.minor)}"
+    print(expected_prefix)
+    for path, _, filenames in os.walk(directory):
+        for filename in filenames:
+            filename = pathlib.PurePath(filename)
+            if filename.stem.startswith(expected_prefix) and filename.suffix == suffix:
+                return os.path.join(path, filename.stem)
+
+def get_extension(name):
+    lower_name = name.lower()
+    return PreBuiltExtension(
+            lower_name,
+            find_extension_file(os.path.join(builddir, f"projects/{lower_name}/"), name),
+    )
 
 ext_modules = [
-    Pybind11Extension("Utilities",
-        [sourcedir+"projects/utilities/private/pybindings/utilities.cxx"],
-        define_macros = [('VERSION_INFO', __version__)],
-        library_dirs=[builddir],
-        libraries=['LeptonInjector'],
-        extra_compile_args=extra_compile_args,
-        ),
-    Pybind11Extension("Math",
-        [sourcedir+"projects/math/private/pybindings/math.cxx"],
-        define_macros = [('VERSION_INFO', __version__)],
-        library_dirs=[builddir],
-        libraries=['LeptonInjector'],
-        extra_compile_args=extra_compile_args,
-        ),
-    Pybind11Extension("Dataclasses",
-        [sourcedir+"projects/dataclasses/private/pybindings/dataclasses.cxx"],
-        define_macros = [('VERSION_INFO', __version__)],
-        library_dirs=[builddir],
-        libraries=['LeptonInjector'],
-        extra_compile_args=extra_compile_args,
-        ),
-    Pybind11Extension("Geometry",
-        [sourcedir+"projects/geometry/private/pybindings/geometry.cxx"],
-        define_macros = [('VERSION_INFO', __version__)],
-        library_dirs=[builddir],
-        libraries=['LeptonInjector'],
-        extra_compile_args=extra_compile_args,
-        ),
-    Pybind11Extension("Detector",
-        [sourcedir+"projects/detector/private/pybindings/detector.cxx"],
-        define_macros = [('VERSION_INFO', __version__)],
-        library_dirs=[builddir],
-        libraries=['LeptonInjector'],
-        extra_compile_args=extra_compile_args,
-        ),
-    Pybind11Extension("CrossSections",
-        [sourcedir+"projects/crosssections/private/pybindings/crosssections.cxx"],
-        define_macros = [('VERSION_INFO', __version__)],
-        library_dirs=[builddir],
-        libraries=['LeptonInjector'],
-        extra_compile_args=extra_compile_args,
-        ),
-    Pybind11Extension("Distributions",
-        [sourcedir+"projects/distributions/private/pybindings/distributions.cxx"],
-        define_macros = [('VERSION_INFO', __version__)],
-        library_dirs=[builddir],
-        libraries=['LeptonInjector'],
-        extra_compile_args=extra_compile_args,
-        ),
-    Pybind11Extension("Injection",
-        [sourcedir+"projects/injection/private/pybindings/injection.cxx"],
-        define_macros = [('VERSION_INFO', __version__)],
-        library_dirs=[builddir],
-        libraries=['LeptonInjector'],
-        extra_compile_args=extra_compile_args,
-        ),
+    get_extension("utilities"),
+    get_extension("math"),
+    get_extension("dataclasses"),
+    get_extension("geometry"),
+    get_extension("detector"),
+    get_extension("crosssections"),
+    get_extension("distributions"),
+    get_extension("injection"),
 ]
 
 setup(
-    name="LeptonInjector_PythonBindings",
+    name="leptoninjector",
     version=__version__,
-    author="Nicholas Kamp",
-    author_email="nwkamp@mit.edu",
-    url="https://github.com/austinschneider/LeptonInjectorDevPrivate",
-    description="pybind11 python bindings for LeptonInjector",
+    author="Austin Schneider, Nicholas Kamp",
+    author_email="aschn@mit.edu, nwkamp@mit.edu",
+    url="https://github.com/Harvard-Neutrino/LeptonInjector",
+    description="LeptonInjector, a tool for neutrino and BSM interaction final state simulation, injection, and weighting.",
     long_description="",
-    ext_modules=ext_modules,
-    extras_require={"test": "pytest"},
+    ext_package = "leptoninjector",
+    ext_modules = ext_modules,
+    cmdclass = {'build_ext': build_PreBuiltExtensions},
     zip_safe=False,
     python_requires=">=3.7",
 )
 
-# Create a new python file to add the locally installed egg to sys.path
-#fpy = open(prefix+'/lib/python3.9/site-packages/sitecustomize.py','w')
-#print('import site',file=fpy)
-#print('site.addsitedir(\'%s\')'%(prefix+'/lib/python3.9/site-packages/'),file=fpy)
-#fpy.close()

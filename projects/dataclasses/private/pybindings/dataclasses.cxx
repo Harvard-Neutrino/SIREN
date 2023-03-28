@@ -14,11 +14,11 @@
 
 using namespace pybind11;
 
-PYBIND11_MODULE(Dataclasses,m) {
+PYBIND11_MODULE(dataclasses,m) {
   using namespace LI::dataclasses;
 
   class_<Particle, std::shared_ptr<Particle>> particle(m, "Particle");
-  
+
   particle.def(init<>())
           .def(init<Particle::ParticleType>())
           .def_readwrite("type",&Particle::type)
@@ -196,13 +196,13 @@ PYBIND11_MODULE(Dataclasses,m) {
           .value("SMPPlus", Particle::ParticleType::SMPPlus)
           .value("SMPMinus", Particle::ParticleType::SMPMinus)
           .export_values();
-  
+
   class_<InteractionSignature, std::shared_ptr<InteractionSignature>>(m, "InteractionSignature")
           .def(init<>())
           .def_readwrite("primary_type",&InteractionSignature::primary_type)
           .def_readwrite("target_type",&InteractionSignature::target_type)
           .def_readwrite("secondary_types",&InteractionSignature::secondary_types);
-  
+
   class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
           .def(init<>())
           .def_readwrite("signature",&InteractionRecord::signature)
@@ -224,7 +224,7 @@ PYBIND11_MODULE(Dataclasses,m) {
           .def_readwrite("parent",&InteractionTreeDatum::parent)
           .def_readwrite("daughters",&InteractionTreeDatum::daughters)
           .def("depth",&InteractionTreeDatum::depth);
-  
+
   class_<InteractionTree, std::shared_ptr<InteractionTree>>(m, "InteractionTree")
           .def(init<>())
           .def_readwrite("tree",&InteractionTree::tree)

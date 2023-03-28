@@ -9,7 +9,7 @@
 
 using namespace pybind11;
 
-PYBIND11_MODULE(Utilities,m) {
+PYBIND11_MODULE(utilities,m) {
   using namespace LI::utilities;
 
   class_<LI_random, std::shared_ptr<LI_random>>(m, "LI_random")

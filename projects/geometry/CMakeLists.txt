@@ -40,5 +40,5 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/geometry/public/"
 package_add_test(UnitTest_Geometry ${CMAKE_SOURCE_DIR}/projects/geometry/private/test/Geometry_TEST.cxx)
 package_add_test(UnitTest_ExtrPoly ${CMAKE_SOURCE_DIR}/projects/geometry/private/test/ExtrPoly_TEST.cxx)
 
-pybind11_add_module(Geometry ${CMAKE_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
-target_link_libraries(Geometry PRIVATE LI_geometry)
+pybind11_add_module(geometry ${CMAKE_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
+target_link_libraries(geometry PRIVATE LI_geometry)

@@ -52,5 +52,5 @@ package_add_test(UnitTest_EarthModel ${CMAKE_SOURCE_DIR}/projects/detector/priva
 package_add_test(UnitTest_MaterialModel ${CMAKE_SOURCE_DIR}/projects/detector/private/test/MaterialModel_TEST.cxx)
 package_add_test(UnitTest_Path ${CMAKE_SOURCE_DIR}/projects/detector/private/test/Path_TEST.cxx)
 
-pybind11_add_module(Detector ${CMAKE_SOURCE_DIR}/projects/detector/private/pybindings/detector.cxx)
-target_link_libraries(Detector PRIVATE LI_detector)
+pybind11_add_module(detector ${CMAKE_SOURCE_DIR}/projects/detector/private/pybindings/detector.cxx)
+target_link_libraries(detector PRIVATE LI_detector)

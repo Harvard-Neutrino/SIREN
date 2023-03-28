@@ -8,7 +8,7 @@
 
 using namespace pybind11;
 
-PYBIND11_MODULE(Math,m) {
+PYBIND11_MODULE(math,m) {
   using namespace LI::math;
 
   class_<Vector3D, std::shared_ptr<Vector3D>>(m, "Vector3D")

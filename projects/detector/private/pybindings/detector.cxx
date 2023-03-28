@@ -10,7 +10,7 @@
 
 using namespace pybind11;
 
-PYBIND11_MODULE(Detector,m) {
+PYBIND11_MODULE(detector,m) {
   using namespace LI::detector;
 
   class_<EarthModel, std::shared_ptr<EarthModel>>(m, "EarthModel")
@@ -20,7 +20,7 @@ PYBIND11_MODULE(Detector,m) {
     .def("LoadEarthModel",&EarthModel::LoadEarthModel)
     .def("LoadMaterialModel",&EarthModel::LoadMaterialModel)
     .def("GetSectors",&EarthModel::GetSectors);
-  
+
   class_<EarthSector, std::shared_ptr<EarthSector>>(m, "EarthSector")
     .def_readwrite("name",&EarthSector::name)
     .def_readwrite("material_id",&EarthSector::material_id)

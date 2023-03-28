@@ -20,5 +20,5 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/utilities/public/"
     PATTERN "*.tcc"
 )
 
-pybind11_add_module(Utilities ${CMAKE_SOURCE_DIR}/projects/utilities/private/pybindings/utilities.cxx)
-target_link_libraries(Utilities PRIVATE LI_utilities)
+pybind11_add_module(utilities ${CMAKE_SOURCE_DIR}/projects/utilities/private/pybindings/utilities.cxx)
+target_link_libraries(utilities PRIVATE LI_utilities)

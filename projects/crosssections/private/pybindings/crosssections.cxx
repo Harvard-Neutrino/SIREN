@@ -15,15 +15,15 @@ PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
 
 using namespace pybind11;
 
-PYBIND11_MODULE(CrossSections,m) {
+PYBIND11_MODULE(crosssections,m) {
   using namespace LI::crosssections;
 
   class_<CrossSection, std::shared_ptr<CrossSection>>(m, "CrossSection");
-  
+
   class_<Decay, std::shared_ptr<Decay>>(m, "Decay")
     .def("TotalDecayLength",&Decay::TotalDecayLength)
     .def("TotalDecayLengthForFinalState",&Decay::TotalDecayLengthForFinalState);
-  
+
   class_<DipoleFromTable, std::shared_ptr<DipoleFromTable>, CrossSection> dipolefromtable(m, "DipoleFromTable");
 
   dipolefromtable
@@ -56,7 +56,7 @@ PYBIND11_MODULE(CrossSections,m) {
     .value("Conserving",DipoleFromTable::HelicityChannel::Conserving)
     .value("Flipping",DipoleFromTable::HelicityChannel::Flipping)
     .export_values();
-  
+
   class_<NeutrissimoDecay, std::shared_ptr<NeutrissimoDecay>, Decay> neutrissimodecay(m, "NeutrissimoDecay");
 
   neutrissimodecay
@@ -73,12 +73,12 @@ PYBIND11_MODULE(CrossSections,m) {
     .def("GetPossibleSignatures",&NeutrissimoDecay::GetPossibleSignatures)
     .def("GetPossibleSignaturesFromParent",&NeutrissimoDecay::GetPossibleSignaturesFromParent)
     .def("FinalStateProbability",&NeutrissimoDecay::FinalStateProbability);
-  
+
   enum_<NeutrissimoDecay::ChiralNature>(neutrissimodecay, "ChiralNature")
     .value("Dirac",NeutrissimoDecay::ChiralNature::Dirac)
     .value("Majorana",NeutrissimoDecay::ChiralNature::Majorana)
     .export_values();
-  
+
   class_<CrossSectionCollection, std::shared_ptr<CrossSectionCollection>>(m, "CrossSectionCollection")
     .def(init<>())
     .def(init<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())

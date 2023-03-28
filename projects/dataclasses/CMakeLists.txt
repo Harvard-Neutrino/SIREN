@@ -34,5 +34,5 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/dataclasses/public/"
     PATTERN "*.tcc"
 )
 
-pybind11_add_module(Dataclasses ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/pybindings/dataclasses.cxx)
-target_link_libraries(Dataclasses PRIVATE LI_dataclasses)
+pybind11_add_module(dataclasses ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/pybindings/dataclasses.cxx)
+target_link_libraries(dataclasses PRIVATE LI_dataclasses)

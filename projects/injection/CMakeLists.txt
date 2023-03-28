@@ -45,5 +45,5 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/injection/public/"
 #package_add_test(UnitTest_Injector ${CMAKE_SOURCE_DIR}/projects/injection/private/test/Injector_TEST.cxx)
 package_add_test(UnitTest_CCM_HNL ${CMAKE_SOURCE_DIR}/projects/injection/private/test/CCM_HNL_TEST.cxx)
 
-pybind11_add_module(Injection ${CMAKE_SOURCE_DIR}/projects/injection/private/pybindings/injection.cxx)
-target_link_libraries(Injection PRIVATE LI_injection)
+pybind11_add_module(injection ${CMAKE_SOURCE_DIR}/projects/injection/private/pybindings/injection.cxx)
+target_link_libraries(injection PRIVATE LI_injection photospline ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})

@@ -15,7 +15,7 @@
 
 using namespace pybind11;
 
-PYBIND11_MODULE(Geometry,m) {
+PYBIND11_MODULE(geometry,m) {
   using namespace LI::geometry;
 
   class_<Geometry, std::shared_ptr<Geometry>>(m, "Geometry")
@@ -31,7 +31,7 @@ PYBIND11_MODULE(Geometry,m) {
     .def("ComputeIntersections",&Geometry::ComputeIntersections)
     .def("create",&Geometry::create);
 
-  // ExtrPoly 
+  // ExtrPoly
 
   class_<ExtrPoly::ZSection>(m, "ZSection")
     .def(init<>())
@@ -45,7 +45,7 @@ PYBIND11_MODULE(Geometry,m) {
     .def_readwrite("b", &ExtrPoly::plane::b)
     .def_readwrite("c", &ExtrPoly::plane::c)
     .def_readwrite("d", &ExtrPoly::plane::d);
-  
+
   class_<ExtrPoly, std::shared_ptr<ExtrPoly>, Geometry>(m, "ExtrPoly")
     .def(init<>())
     .def(init<const std::vector<std::vector<double>>&,
@@ -70,7 +70,7 @@ PYBIND11_MODULE(Geometry,m) {
     .def_property("X",&Box::GetX, &Box::SetX)
     .def_property("Y",&Box::GetY, &Box::SetY)
     .def_property("Z",&Box::GetZ, &Box::SetZ);
-  
+
   // Cylinder
 
   class_<Cylinder, std::shared_ptr<Cylinder>, Geometry>(m, "Cylinder")
@@ -82,7 +82,7 @@ PYBIND11_MODULE(Geometry,m) {
     .def_property("InnerRadius",&Cylinder::GetInnerRadius, &Cylinder::SetInnerRadius)
     .def_property("Radius",&Cylinder::GetRadius, &Cylinder::SetRadius)
     .def_property("Z",&Cylinder::GetZ, &Cylinder::SetZ);
-  
+
   // Sphere
 
   class_<Sphere, std::shared_ptr<Sphere>, Geometry>(m, "Sphere")
