@@ -31,13 +31,7 @@ import platform
 import pathlib
 import shutil
 
-suffix = None
-if platform.system() == "Linux":
-    suffix = ".so"
-elif platform.system() == "Darwin":
-    suffix = ".dylib"
-elif platform.system() == "Windows":
-    suffix = ".pyd"
+suffixes = [".so", ".dylib", ".pyd"]
 
 class PreBuiltExtension(Extension):
     def __init__(self, name, path, *args: Any, **kwargs: Any):
@@ -48,7 +42,7 @@ class build_PreBuiltExtensions(build_ext):
     def run(self):
         extension_names = []
         for ext in (x for x in self.extensions if isinstance(x, PreBuiltExtension)):
-            source = pathlib.PurePath(f"{ext.path}{suffix}")
+            source = pathlib.PurePath(f"{ext.path}")
             build_dir = pathlib.PurePath(self.get_ext_fullpath(ext.name)).parent
             os.makedirs(build_dir, exist_ok=True)
             shutil.copy(f"{source}", f"{build_dir}/{source.name}")
@@ -57,16 +51,21 @@ class build_PreBuiltExtensions(build_ext):
         with open(f"{self.build_lib}/{self.distribution.ext_package}/__init__.py", "w") as f:
             for name in extension_names:
                 f.write(f"from . import {name}\n")
-        shutil.copy(f"{builddir}/libLeptonInjector.so", f"{self.build_lib}/{self.distribution.ext_package}/libLeptonInjector.so")
+        for path, _, filenames in os.walk(builddir):
+            for filename in filenames:
+                filename = pathlib.PurePath(filename)
+                for suffix in suffixes:
+                    if filename.suffix == suffix:
+                        shutil.copy(f"{builddir}/libLeptonInjector{suffix}", f"{self.build_lib}/{self.distribution.ext_package}/libLeptonInjector{suffix}")
 
 def find_extension_file(directory, prefix):
     expected_prefix = f"{prefix}.cpython-{str(sys.version_info.major) + str(sys.version_info.minor)}"
-    print(expected_prefix)
     for path, _, filenames in os.walk(directory):
         for filename in filenames:
             filename = pathlib.PurePath(filename)
-            if filename.stem.startswith(expected_prefix) and filename.suffix == suffix:
-                return os.path.join(path, filename.stem)
+            for suffix in suffixes:
+                if filename.stem.startswith(expected_prefix) and filename.suffix == suffix:
+                    return os.path.join(path, filename.name)
 
 def get_extension(name):
     lower_name = name.lower()
