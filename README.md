@@ -1,12 +1,12 @@
 # LeptonInjector
 
-LeptonInjector is a group of modules used to create events in IceCube. This code represents a standalone version of the original LeptonInjector which has been trimmed of the proprietary Icetray dependencies. It is currently fully functional and compatible with LeptonWeighter. 
+LeptonInjector is a group of modules used to efficiently inject events in a given detector setup. It was originally developed within the IceCube collaboration to study astrophysical neutrino interactions in the IceCube detector. However, this project has evolved significantly since; it is now capable of simulating any interactions the user provides (with support for a few pre-defined processes). It also supports generation of any number of secondary processes, e.g. the decay of a BSM particle after it has been creaetd by an initial process. LeptonInjector also includes the geometric setup for a number of existing HEP experiments out of the box, although contributions are always appreciated!
 
-To use it, you will
+To use LeptonInjector, you will
 
-    1. Prepare a Injector object (or list of Injector objects).
+    1. Prepare a Injector object by defining a primary process and a list of secondary processes
 
-    2. Use one injector object, along with several generation parameters, to create a Controller object. These were called MultiLeptonInjector in the original code. 
+    2.  
 
     3. Add more injectors to the controller object using the add injector function. Verify that the controller is properly configured.
     
