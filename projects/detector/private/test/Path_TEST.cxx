@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
 
 #include <gtest/gtest.h>
 

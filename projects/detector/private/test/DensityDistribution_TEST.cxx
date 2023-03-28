@@ -3,6 +3,7 @@
 #include <cmath>
 #include <random>
 #include <iostream>
+#include <algorithm>
 #include <gtest/gtest.h>
 
 #include "LeptonInjector/detector/DensityDistribution.h"

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
 
 #include <gtest/gtest.h>
 
