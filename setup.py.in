@@ -57,6 +57,7 @@ class build_PreBuiltExtensions(build_ext):
         with open(f"{self.build_lib}/{self.distribution.ext_package}/__init__.py", "w") as f:
             for name in extension_names:
                 f.write(f"from . import {name}\n")
+        shutil.copy(f"{builddir}/libLeptonInjector.so", f"{self.build_lib}/{self.distribution.ext_package}/libLeptonInjector.so")
 
 def find_extension_file(directory, prefix):
     expected_prefix = f"{prefix}.cpython-{str(sys.version_info.major) + str(sys.version_info.minor)}"
@@ -95,6 +96,7 @@ setup(
     long_description="",
     ext_package = "leptoninjector",
     ext_modules = ext_modules,
+    package_data = {"leptoninjector": ["libLeptonInjector.so"]},
     cmdclass = {'build_ext': build_PreBuiltExtensions},
     zip_safe=False,
     python_requires=">=3.7",

@@ -21,4 +21,4 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/utilities/public/"
 )
 
 pybind11_add_module(utilities ${CMAKE_SOURCE_DIR}/projects/utilities/private/pybindings/utilities.cxx)
-target_link_libraries(utilities PRIVATE LI_utilities)
+target_link_libraries(utilities PRIVATE LeptonInjector)

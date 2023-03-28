@@ -35,4 +35,4 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/dataclasses/public/"
 )
 
 pybind11_add_module(dataclasses ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/pybindings/dataclasses.cxx)
-target_link_libraries(dataclasses PRIVATE LI_dataclasses)
+target_link_libraries(dataclasses PRIVATE LeptonInjector)

@@ -41,4 +41,4 @@ package_add_test(UnitTest_Geometry ${CMAKE_SOURCE_DIR}/projects/geometry/private
 package_add_test(UnitTest_ExtrPoly ${CMAKE_SOURCE_DIR}/projects/geometry/private/test/ExtrPoly_TEST.cxx)
 
 pybind11_add_module(geometry ${CMAKE_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
-target_link_libraries(geometry PRIVATE LI_geometry)
+target_link_libraries(geometry PRIVATE LeptonInjector)

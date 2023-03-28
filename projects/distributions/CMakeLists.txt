@@ -68,4 +68,4 @@ package_add_test(UnitTest_PrimaryDirectionDistribution ${CMAKE_SOURCE_DIR}/proje
 package_add_test(UnitTest_PrimaryEnergyDistribution ${CMAKE_SOURCE_DIR}/projects/distributions/private/test/PrimaryEnergyDistribution_TEST.cxx)
 
 pybind11_add_module(distributions ${CMAKE_SOURCE_DIR}/projects/distributions/private/pybindings/distributions.cxx)
-target_link_libraries(distributions PRIVATE LI_distributions)
+target_link_libraries(distributions PRIVATE LeptonInjector)

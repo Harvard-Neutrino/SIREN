@@ -42,4 +42,4 @@ package_add_test(UnitTest_DipoleFromTable ${CMAKE_SOURCE_DIR}/projects/crosssect
 #package_add_test(UnitTest_ElasticScattering ${CMAKE_SOURCE_DIR}/projects/crosssections/private/test/ElasticScattering_TEST.cxx)
 
 pybind11_add_module(crosssections ${CMAKE_SOURCE_DIR}/projects/crosssections/private/pybindings/crosssections.cxx)
-target_link_libraries(crosssections PRIVATE LI_crosssections photospline ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
+target_link_libraries(crosssections PRIVATE LeptonInjector photospline ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})

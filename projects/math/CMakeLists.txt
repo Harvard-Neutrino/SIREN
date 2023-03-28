@@ -43,4 +43,4 @@ package_add_test(UnitTest_Indexing ${CMAKE_SOURCE_DIR}/projects/math/private/tes
 package_add_test(UnitTest_Interpolator ${CMAKE_SOURCE_DIR}/projects/math/private/test/Interpolator_TEST.cxx)
 
 pybind11_add_module(math ${CMAKE_SOURCE_DIR}/projects/math/private/pybindings/math.cxx)
-target_link_libraries(math PRIVATE LI_math)
+target_link_libraries(math PRIVATE LeptonInjector)
