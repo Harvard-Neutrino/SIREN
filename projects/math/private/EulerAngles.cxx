@@ -14,7 +14,7 @@ using namespace LI::math;
 
 // default constructor
 EulerAngles::EulerAngles() :
-    order_(EulerOrder::ZXZs),
+    order_(EulerOrder::ZXZr),
     alpha_(0.0),
     beta_(0.0),
     gamma_(0.0)
