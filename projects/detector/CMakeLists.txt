@@ -26,7 +26,7 @@ add_dependencies(LI_detector rk)
 add_dependencies(LI_detector LI_serialization LI_utilities LI_math LI_dataclasses LI_geometry)
 
 target_link_libraries(LI_detector photospline)
-target_link_libraries(LI_detector ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
+target_link_libraries(LI_detector ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX})
 
 target_include_directories(LI_detector PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
 target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
@@ -39,7 +39,7 @@ install(TARGETS LI_detector
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/detector/public/"
-    DESTINATION "include"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.tcc"
@@ -54,3 +54,8 @@ package_add_test(UnitTest_Path ${CMAKE_SOURCE_DIR}/projects/detector/private/tes
 
 pybind11_add_module(detector ${CMAKE_SOURCE_DIR}/projects/detector/private/pybindings/detector.cxx)
 target_link_libraries(detector PRIVATE LeptonInjector)
+if(DEFINED SKBUILD)
+set_target_properties(detector PROPERTIES
+        BUILD_WITH_INSTALL_RPATH FALSE
+        LINK_FLAGS "-Wl,-rpath,$ORIGIN/../leptoninjector.libs/")
+endif()

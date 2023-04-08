@@ -43,7 +43,7 @@ add_dependencies(LI_distributions rk)
 add_dependencies(LI_distributions LI_serialization LI_utilities LI_math LI_dataclasses LI_geometry LI_detector LI_crosssections)
 
 target_link_libraries(LI_distributions photospline)
-target_link_libraries(LI_distributions ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
+target_link_libraries(LI_distributions ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX})
 
 target_include_directories(LI_distributions PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
@@ -58,7 +58,7 @@ install(TARGETS LI_distributions
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/distributions/public/"
-    DESTINATION "include"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.tcc"
@@ -69,3 +69,8 @@ package_add_test(UnitTest_PrimaryEnergyDistribution ${CMAKE_SOURCE_DIR}/projects
 
 pybind11_add_module(distributions ${CMAKE_SOURCE_DIR}/projects/distributions/private/pybindings/distributions.cxx)
 target_link_libraries(distributions PRIVATE LeptonInjector)
+if(DEFINED SKBUILD)
+set_target_properties(distributions PROPERTIES
+        BUILD_WITH_INSTALL_RPATH FALSE
+        LINK_FLAGS "-Wl,-rpath,$ORIGIN/../leptoninjector.libs/")
+endif()

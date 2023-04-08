@@ -4,7 +4,7 @@ target_include_directories(LI_serialization INTERFACE
 )
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/serialization/public/"
-    DESTINATION "include"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.tcc"

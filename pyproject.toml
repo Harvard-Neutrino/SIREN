@@ -1,0 +1,25 @@
+[tool.cmake]
+experimental = true
+build-dir = "build/{wheel_tag}"
+
+[build-system]
+requires = ["scikit-build-core"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+wheel.packages = []
+cmake.build-type = "Release"
+#wheel.install-dir = "leptoninjector"
+
+[tool.scikit-build.cmake.define]
+BLAH = "ON"
+
+[project]
+name = "leptoninjector"
+version = "0.0.1"
+
+[wheel]
+no-clean = true
+
+[install]
+no-clean = true

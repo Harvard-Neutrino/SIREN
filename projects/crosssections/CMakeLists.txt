@@ -18,7 +18,7 @@ add_dependencies(LI_crosssections rk)
 add_dependencies(LI_crosssections LI_serialization LI_utilities LI_math LI_dataclasses LI_detector)
 
 target_link_libraries(LI_crosssections photospline)
-target_link_libraries(LI_crosssections ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
+target_link_libraries(LI_crosssections ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX})
 
 target_include_directories(LI_crosssections PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
 target_include_directories(LI_crosssections PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
@@ -31,7 +31,7 @@ install(TARGETS LI_crosssections
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/crosssections/public/"
-    DESTINATION "include"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.tcc"
@@ -42,4 +42,9 @@ package_add_test(UnitTest_DipoleFromTable ${CMAKE_SOURCE_DIR}/projects/crosssect
 #package_add_test(UnitTest_ElasticScattering ${CMAKE_SOURCE_DIR}/projects/crosssections/private/test/ElasticScattering_TEST.cxx)
 
 pybind11_add_module(crosssections ${CMAKE_SOURCE_DIR}/projects/crosssections/private/pybindings/crosssections.cxx)
-target_link_libraries(crosssections PRIVATE LeptonInjector photospline ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
+target_link_libraries(crosssections PRIVATE LeptonInjector photospline ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX})
+if(DEFINED SKBUILD)
+set_target_properties(crosssections PROPERTIES
+        BUILD_WITH_INSTALL_RPATH FALSE
+        LINK_FLAGS "-Wl,-rpath,$ORIGIN/../leptoninjector.libs/")
+endif()

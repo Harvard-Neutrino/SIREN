@@ -11,3 +11,6 @@
 [submodule "vendor/delabella"]
 	path = vendor/delabella
 	url = https://github.com/austinschneider/delabella.git
+[submodule "vendor/photospline"]
+	path = vendor/photospline
+	url = git@github.com:austinschneider/photospline.git

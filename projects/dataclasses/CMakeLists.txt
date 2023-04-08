@@ -17,7 +17,7 @@ add_dependencies(LI_dataclasses rk)
 add_dependencies(LI_dataclasses LI_serialization LI_utilities LI_math)
 
 target_link_libraries(LI_dataclasses photospline)
-target_link_libraries(LI_dataclasses ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX})
+target_link_libraries(LI_dataclasses ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX})
 
 target_include_directories(LI_dataclasses PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
 target_include_directories(LI_dataclasses PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
@@ -28,7 +28,7 @@ install(TARGETS LI_dataclasses
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/dataclasses/public/"
-    DESTINATION "include"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.tcc"
@@ -36,3 +36,8 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/projects/dataclasses/public/"
 
 pybind11_add_module(dataclasses ${CMAKE_SOURCE_DIR}/projects/dataclasses/private/pybindings/dataclasses.cxx)
 target_link_libraries(dataclasses PRIVATE LeptonInjector)
+if(DEFINED SKBUILD)
+set_target_properties(dataclasses PROPERTIES
+        BUILD_WITH_INSTALL_RPATH FALSE
+        LINK_FLAGS "-Wl,-rpath,$ORIGIN/../leptoninjector.libs/")
+endif()

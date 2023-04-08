@@ -3,24 +3,27 @@ cmake_policy(VERSION 3.3.2)
 
 include(ExternalProject)
 
-#TODO
-# + add support for Apple systems (needs an apple part??)
-# + make sure it correctly builds on the cobalt testbed
-# + verify python build.
-
-## project(lepton_injector VERSION 1.0.0 DESCRIPTION "lepton injector library")
-project(lepton_injector VERSION 1.0.0 LANGUAGES CXX C)
+project(leptoninjector VERSION 1.0.0 LANGUAGES CXX)
 
 SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_C_STANDARD 99)
 ## enable_language(cxx)
-SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake
-                       ${CMAKE_SOURCE_DIR}/cmake/Packages)
+SET (CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake
+                       ${PROJECT_SOURCE_DIR}/cmake/Packages)
 
 set(CMAKE_BUILD_TYPE Release CACHE STRING "")
 
-INCLUDE (SuiteSparse)
-INCLUDE (Python)
+if(DEFINED SKBUILD)
+    cmake_path(RELATIVE_PATH SKBUILD_HEADERS_DIR BASE_DIRECTORY ${SKBUILD_PLATLIB_DIR} OUTPUT_VARIABLE CMAKE_INSTALL_INCLUDEDIR)
+    cmake_path(RELATIVE_PATH SKBUILD_PLATLIB_DIR BASE_DIRECTORY ${SKBUILD_PLATLIB_DIR} OUTPUT_VARIABLE CMAKE_INSTALL_LIBDIR)
+    set(LI_INSTALL_INCLUDEDIR ${SKBUILD_HEADERS_DIR})
+    set(LI_INSTALL_LIBDIR ${SKBUILD_PLATLIB_DIR})
+else()
+    set(LI_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR})
+    set(LI_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+endif()
+
+include(pybind11)
 
 set(_FLAGS "-O2 -Wall -fPIC")
 set(_FLAGS_DEBUG "-g -O0 -Wall -fPIC")
@@ -56,73 +59,13 @@ else()
 	set(PYTHON_VERSION_MINOR "${Python_VERSION_MINOR}")
 endif()
 
-# find boost
-find_package(Boost REQUIRED)
-if(Boost_FOUND)
-    MESSAGE("-- Found Boost at ${Boost_INCLUDE_DIRS}")
-    include_directories(${Boost_INCLUDE_DIRS})
-else()
-    MESSAGE(FATAL_ERROR "Unable to find boost")
-endif()
-
-find_package(photospline REQUIRED)
-
-if(photospline_FOUND)
-    MESSAGE("-- photospline found")
-endif()
-
 include(GNUInstallDirs)
 
-execute_process(
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
-    COMMAND touch aclocal.m4 configure
-    COMMAND touch Makefile.am Makefile.in aclocal.m4 m4/* rk.pc.in rk/Makefile.am rk/Makefile.in
-)
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    ExternalProject_Add(
-      rk
-      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
-      CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env CXXFLAGS=-stdlib=libc++ ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk/configure --prefix=${CMAKE_BINARY_DIR}/extern/rk
-      PREFIX ${CMAKE_BINARY_DIR}/extern/rk
-      BUILD_COMMAND make
-      BUILD_IN_SOURCE 0
-    )
-else()
-    ExternalProject_Add(
-      rk
-      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk
-      CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vendor/rk/configure --prefix=${CMAKE_BINARY_DIR}/extern/rk
-      PREFIX ${CMAKE_BINARY_DIR}/extern/rk
-      BUILD_COMMAND make
-      BUILD_IN_SOURCE 0
-    )
-endif()
-
-install(DIRECTORY "${CMAKE_BINARY_DIR}/extern/rk/include/rk"
-    DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
-    FILES_MATCHING PATTERN "*.hh")
-
-install(DIRECTORY "${CMAKE_BINARY_DIR}/extern/rk/include/rk"
-    DESTINATION "${CMAKE_INSTALL_PREFIX}/include"
-    FILES_MATCHING PATTERN "*.icc")
-
-install(DIRECTORY "${CMAKE_BINARY_DIR}/extern/rk/lib"
-    DESTINATION "${CMAKE_INSTALL_PREFIX}"
-    FILES_MATCHING PATTERN "${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_SHARED_LIBRARY_SUFFIX}*")
-
-set(JUST_INSTALL_CEREAL ON CACHE INTERNAL "Cereal just install library.")
-set(SKIP_PORTABILITY_TEST ON CACHE INTERNAL "Skip cereal portability tests.")
-set(SKIP_PERFORMANCE_COMPARISON ON CACHE INTERNAL "Skip cereal performance comparison.")
-add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/cereal" "extern/cereal")
-include_directories("${PROJECT_SOURCE_DIR}/vendor/cereal/include")
-
+include(rk)
+include(cereal)
 include(testing)
-
-# add the pybind11 headers
-add_subdirectory(vendor/pybind11)
-
-add_subdirectory(vendor/delabella)
+include(delabella)
+include(photospline)
 
 add_subdirectory(projects/utilities)
 add_subdirectory(projects/serialization)
@@ -146,16 +89,68 @@ target_link_libraries(LeptonInjector
     LI_crosssections
     LI_distributions
     LI_injection
+    -Wl,--whole-archive
+    ${PROJECT_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX}
+    delabella
+    -Wl,--no-whole-archive
 )
 
-install(TARGETS LeptonInjector
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+if(DEFINED SKBUILD)
+    set_target_properties(LeptonInjector PROPERTIES
+            BUILD_WITH_INSTALL_RPATH FALSE
+            LINK_FLAGS "-Wl,-rpath,$ORIGIN")
+    install(TARGETS LeptonInjector
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+else()
+    install(TARGETS LeptonInjector
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 
-#add_subdirectory(tests)
+if(DEFINED SKBUILD)
+    install(CODE "set(LeptonInjector_LIB_FILE \"${PROJECT_BINARY_DIR}/${CMAKE_SHARED_MODULE_PREFIX}LeptonInjector${CMAKE_SHARED_MODULE_SUFFIX}\")")
+    install(CODE "set(PYTHON_DEP_LIB_DESTINATION \"${SKBUILD_PLATLIB_DIR}/leptoninjector.libs/\")")
+    install(CODE [[
+        file(GET_RUNTIME_DEPENDENCIES
+            LIBRARIES ${LeptonInjector_LIB_FILE}
+            RESOLVED_DEPENDENCIES_VAR _r_deps
+            UNRESOLVED_DEPENDENCIES_VAR _u_deps
+            )
+        foreach(_file ${_r_deps})
+            file(INSTALL
+                DESTINATION "${PYTHON_DEP_LIB_DESTINATION}"
+                TYPE SHARED_LIBRARY
+                FOLLOW_SYMLINK_CHAIN
+                FILES "${_file}"
+                )
+        endforeach()
+        list(LENGTH _u_deps _u_length)
+        if("${_u_length}" GREATER 0)
+            message(WARNING "Unresolved dependencies detected!")
+        endif()
+        ]]
+    )
+endif()
 
-configure_file("${PROJECT_SOURCE_DIR}/setup.py.in"
-               "${PROJECT_BINARY_DIR}/setup.py")
+if(DEFINED SKBUILD)
+    install(TARGETS utilities
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(TARGETS math
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(TARGETS dataclasses
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(TARGETS geometry
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(TARGETS detector
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(TARGETS crosssections
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(TARGETS distributions
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(TARGETS injection
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+endif()
 
 MESSAGE("")
 MESSAGE("Done!")
