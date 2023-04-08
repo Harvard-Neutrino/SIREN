@@ -150,6 +150,7 @@ if(DEFINED SKBUILD)
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
     install(TARGETS injection
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(FILES ${PROJECT_SOURCE_DIR}/python/__init__.py DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
 endif()
 
 MESSAGE("")
