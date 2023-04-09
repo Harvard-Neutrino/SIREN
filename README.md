@@ -39,7 +39,7 @@ To use LeptonInjector, you will
 
 6. Calculate the event weight for each interaction tree using the LeptonTreeWeighter object
 
-For an example of this in action, see resources/DipoleInjection/inject_HNLs_CCM.{py,ipynb}
+For an example of this in action, see `resources/DipoleInjection/inject_HNLs_CCM.{py,ipynb}`
 
 # Dependencies
 
@@ -47,9 +47,9 @@ For local installations, you need the following:
 
 * A C++ compiler with C++14 support.
 
-* Some classes also require Photospline to create and to read cross sections. Read more about it, and its installation at https://github.com/icecube/photospline. Note that Photospline has dependencies that you will need that are not listed here.
+* Some classes also require Photospline to create and to read cross sections. Read more about it, and its installation at [github.com/icecube/photospline](https://github.com/icecube/photospline). Note that Photospline has dependencies that you will need that are not listed here.
 
-* LeptonInjector requires Photospline's `SuiteSparse` capabilities, whose dependencies are available here http://faculty.cse.tamu.edu/davis/suitesparse.html
+* LeptonInjector requires Photospline's `SuiteSparse` capabilities, whose dependencies are available [here](http://faculty.cse.tamu.edu/davis/suitesparse.html).
 
 For building py-bindings,
 
