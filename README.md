@@ -27,17 +27,17 @@ import leptoninjector
 
 To use LeptonInjector, you will
 
-    1. Define a primary process and a list of secondary processes by specifying a particle type and which interactions (cross sections or decays) each particle can undergo
+1. Define a primary process and a list of secondary processes by specifying a particle type and which interactions (cross sections or decays) each particle can undergo
 
-    2. For each (primary or secondary) process, define a set of distributions from which to sample when injecting that particle (e.g. energy, position, direction)
+2. For each (primary or secondary) process, define a set of distributions from which to sample when injecting that particle (e.g. energy, position, direction)
 
-    3. Combine this information to define an InjectorBase object
+3. Combine this information to define an InjectorBase object
 
-    4. Generate interaction trees using the InjectorBase object
+4. Generate interaction trees using the InjectorBase object
 
-    5. Create a LeptonTreeWeighter object using a list of primary and secondary physical processes
+5. Create a LeptonTreeWeighter object using a list of primary and secondary physical processes
 
-    6. Calculate the event weight for each interaction tree using the LeptonTreeWeighter object
+6. Calculate the event weight for each interaction tree using the LeptonTreeWeighter object
 
 For an example of this in action, see resources/DipoleInjection/inject_HNLs_CCM.{py,ipynb}
 
