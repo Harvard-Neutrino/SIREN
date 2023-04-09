@@ -1,8 +1,29 @@
 # LeptonInjector
 
-LeptonInjector is a framework for injecting and weighting interaction final states in a wide variety of neutrino experiments. The original [LeptonInjector-v1](https:://github.com/icecube/LeptonInjector) was developed within the IceCube collaboration to study atmospheric and astrophysical neutrino interactions in the IceCube detector.
+LeptonInjector is a framework for injecting and weighting interaction final states of complex topology, with specific concern for the detector geometry. LeptonInjector is designed to support a wide variety of neutrino experimental setups, including atmospheric neutrinos, accelerator beam decay-in-flight neutrinos, and neutrinos from decay-at-rest sources. The original [LeptonInjector-v1](https:://github.com/icecube/LeptonInjector) was developed within the IceCube collaboration to study atmospheric and astrophysical neutrino interactions in the IceCube detector.
 
-This iteration of LeptonInjector is capable of simulating any interactions the user provides (with support for a few pre-defined processes). It also supports generation of any number of secondary processes, e.g. the decay of a BSM particle after it has been creaetd by an initial process. LeptonInjector also includes the geometric setup for a number of existing HEP experiments out of the box, although contributions are always appreciated!
+This iteration of LeptonInjector provides a generic interface for user-defined BSM processes (with support for a few pre-defined processes). It also supports generation of any number of secondary processes, e.g. the decay of a BSM particle after it has been created by an initial process. LeptonInjector also includes the geometric setup for a number of existing HEP experiments out of the box, although contributions are always appreciated!
+
+# Python installation of LeptonInjector
+
+To use LeptonInjector in a python project, simply clone the repository:
+
+```
+git clone https://github.com/Harvard-Neutrino/LeptonInjector.git
+cd LeptonInjector
+```
+
+and run the following command to build and install LeptonInjector:
+
+```
+pip install . --config-settings='build-dir=build'
+```
+
+After the python bindings are installed, you should be able to import the `leptoninjector` python library. Open a python interpreter by running `python`, and then run
+
+```
+import leptoninjector
+```
 
 To use LeptonInjector, you will
 
@@ -53,23 +74,7 @@ These are not ostensibly a part of LeptonInjector, but are included automaticall
 
 * [photospline](https://github.com/icecube/photospline): a library that uses the penalized spline technique to efficiently compute, store, and evaluate B-spline representations of such large multi-dimensional tables
 
-# Installing LeptonInjector for python
-
-To use LeptonInjector in a python project, simply clone the repository:
-
-`git clone https://github.com/Harvard-Neutrino/LeptonInjector.git`
-
-and run:
-
-`pip install . --config-settings='build-dir=build'`
-
-After the python bindings are installed, you should be able to import the `leptoninjector` python library. Open a python interpreter by running `python`, and then run
-
-```
-import leptoninjector
-```
-
-# Installing LeptonInjector for C++
+# C++ installation of LeptonInjector
 
 To use LeptonInjector in a C++ project, there are a few more steps.
 
