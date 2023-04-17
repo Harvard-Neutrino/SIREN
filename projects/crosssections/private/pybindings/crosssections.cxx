@@ -76,7 +76,6 @@ PYBIND11_MODULE(crosssections,m) {
     .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DISFromSpline::DifferentialCrossSection, const_))
     .def("DifferentialCrossSection",overload_cast<double, double, double, double>(&DISFromSpline::DifferentialCrossSection, const_))
     .def("InteractionThreshold",&DISFromSpline::InteractionThreshold)
-    .def("SampleFinalState",&DISFromSpline::SampleFinalState)
     .def("GetPossibleTargets",&DISFromSpline::GetPossibleTargets)
     .def("GetPossibleTargetsFromPrimary",&DISFromSpline::GetPossibleTargetsFromPrimary)
     .def("GetPossiblePrimaries",&DISFromSpline::GetPossiblePrimaries)

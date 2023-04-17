@@ -1,12 +1,6 @@
-all: inject_HNLs_MINERvA inject_HNLs_MB inject_HNLs_CCM
+all: inject_HNLs_CCM
 
-args=-I/usr/include/hdf5/serial/ -I${PREFIX}/include/ -I${PWD}/extern/rk/include/ -I/opt/homebrew/opt/cfitsio/include/ -L/opt/homebrew/lib/ -L${PREFIX}/lib/ -L${PREFIX}/lib/ -L${PREFIX}/lib/pkgconfig/ -lcfitsio -lLeptonInjector -g -std=c++14
-
-inject_HNLs_MINERvA:
-	g++ inject_HNLs_MINERvA.cpp inject_HNLs_MINERvA ${args}
-
-inject_HNLs_MB:
-	g++ inject_HNLs_MB.cpp -o inject_HNLs_MB ${args}
+args=-L/n/home01/awen/LeptonInjector/local/lib -I/n/home01/awen/LeptonInjector/local/include/ -I/usr/include/hdf5/serial/ -I/n/home01/awen/LeptonInjector/sources/LeptonInjector/vendor/cereal/include/ -I${PREFIX}/include/ -I${PWD}/extern/rk/include/ -I/n/home01/awen/homebrew/opt/cfitsio/include -L/n/home01/awen/homebrew/lib -L${PREFIX}/lib/ -L${PREFIX}/lib/pkgconfig/ -lcfitsio -g -std=c++14
 
 inject_HNLs_CCM:
 	g++ inject_HNLs_CCM.cpp -o inject_HNLs_CCM ${args}

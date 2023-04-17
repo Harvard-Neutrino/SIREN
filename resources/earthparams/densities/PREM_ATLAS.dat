@@ -62,7 +62,9 @@ object sphere    0 0 0   0 0 0    6478000    atmo_radius           AIR         r
 
 # just a placeholder, need a volume to detect passing muons
 # treat muon system as a big cylinder sensitive volume
-object cylinder 0 0 6371234      0 1.57 0   8 0 20        muon_system  AIR     constant    0.000811
-# hcal in the middle
+object cylinder 0 0 6371234      0 1.57 0   11 0 22        muon_system  AIR     constant    0.000811
+# hcal in the middle (or=3.82, ir=2.30, length=12.3)
 object cylinder 0 0 6371234      0 1.57 0   3.82 2.30 12.3  tilecal      TILECAL constant    7.83
+# declare center of the detector for columndepth lepton injector
+detector         0 0 6371234
 

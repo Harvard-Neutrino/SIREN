@@ -614,7 +614,7 @@ double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & inters
 
     SectorLoop(callback, intersections, dot < 0);
 
-    return column_depth * 100;
+    return column_depth / 100;
 }
 
 double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const {
@@ -634,7 +634,7 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
 
 double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & dir, double column_depth) const {
     Vector3D direction = dir;
-    column_depth /= 100;
+    column_depth *= 100;
     bool flip = column_depth < 0;
     if(column_depth < 0) {
         column_depth *= -1;
