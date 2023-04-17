@@ -15,7 +15,7 @@ cmake.build-type = "Release"
 BLAH = "ON"
 
 [tool.cibuildwheel]
-before-all = "yum install -y cfitsio-devel; pip install scikit-build-core"
+before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
 
 [tool.cibuildwheel.linux]
 repair-wheel-command = "auditwheel repair --exclude photospline -w {dest_dir} {wheel}"
