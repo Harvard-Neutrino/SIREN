@@ -4,14 +4,14 @@ cmake_policy(VERSION 3.3.2)
 # point to appropriate cmake file locations
 SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake ${CMAKE_CURRENT_LIST_DIR}/cmake/Packages)
 
-# include cmake dependencies
-include(GNUInstallDirs)
-include(ExternalProject)
-
 # parse pyproject.toml for the version
 include(pyproject)
 
 project(leptoninjector VERSION ${LI_VERSION} LANGUAGES CXX)
+
+# include cmake dependencies
+include(GNUInstallDirs)
+include(ExternalProject)
 
 SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_C_STANDARD 99)
@@ -117,7 +117,7 @@ else()
 endif()
 
 # optionally package runtime dependencies
-if(DEFINED SKBUILD)
+if((DEFINED SKBUILD) AND (PACKAGE_SHARED_DEPS))
     install(CODE "set(LeptonInjector_LIB_FILE \"${PROJECT_BINARY_DIR}/${CMAKE_SHARED_MODULE_PREFIX}LeptonInjector${CMAKE_SHARED_MODULE_SUFFIX}\")")
     install(CODE "set(PYTHON_DEP_LIB_DESTINATION \"${SKBUILD_PLATLIB_DIR}/leptoninjector.libs/\")")
     install(CODE [[

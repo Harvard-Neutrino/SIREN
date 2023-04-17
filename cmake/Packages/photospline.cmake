@@ -20,7 +20,20 @@ if(NOT EXISTS "${PROJECT_SOURCE_DIR}/vendor/photospline/CMakeLists.txt")
 endif()
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/photospline EXCLUDE_FROM_ALL)
-if(NOT DEFINED SKBUILD)
+if(DEFINED SKBUILD)
+    set_target_properties(photospline PROPERTIES
+            BUILD_WITH_INSTALL_RPATH FALSE
+            LINK_FLAGS "-Wl,-rpath,$ORIGIN")
+    install(TARGETS photospline
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    #set_target_properties(spglam PROPERTIES
+    #        BUILD_WITH_INSTALL_RPATH FALSE
+    #        LINK_FLAGS "-Wl,-rpath,$ORIGIN")
+    #install(TARGETS spglam
+    #    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
+    #    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+else()
     install(TARGETS photospline DESTINATION ${CMAKE_INSTALL_LIBDIR})
-    install(TARGETS spglam DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    #install(TARGETS spglam DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
