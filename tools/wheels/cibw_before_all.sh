@@ -2,9 +2,9 @@ set -xe
 
 PROJECT_DIR="$1"
 
-PLATFORM=$(PYTHONPATH=tools python3 -c "import get_plat; print(get_plat.get_plat())")
+PLATFORM=$(PYTHONPATH=tools python -c "import get_plat; print(get_plat.get_plat())")
 
-pip3 install scikit-build-core
+pip install scikit-build-core
 
 mkdir /tmp/downloads
 cd /tmp/downloads

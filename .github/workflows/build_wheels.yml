@@ -12,20 +12,20 @@ jobs:
         os: [macos-11]
 
     steps:
+      - name: Checkout LeptonInjector
       - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'  # update once build dependencies are available
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.12.1
+
       - name: Setup tmate session
         if: ${{ failure() }}
         uses: mxschmitt/action-tmate@v3
-        # env:
-        #   CIBW_SOME_OPTION: value
-        #    ...
-        # with:
-        #   package-dir: .
-        #   output-dir: wheelhouse
-        #   config-file: "{package}/pyproject.toml"
 
       - uses: actions/upload-artifact@v3
         with:
