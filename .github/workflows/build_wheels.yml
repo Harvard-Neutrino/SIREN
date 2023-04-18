@@ -15,6 +15,7 @@ jobs:
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.12.1
+      - uses: mxschmitt/action-tmate@v3
         # env:
         #   CIBW_SOME_OPTION: value
         #    ...
