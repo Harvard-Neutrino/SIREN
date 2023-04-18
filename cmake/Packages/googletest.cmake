@@ -19,4 +19,4 @@ if(NOT EXISTS "${PROJECT_SOURCE_DIR}/vendor/googletest/CMakeLists.txt")
     message(FATAL_ERROR "The googletest submodule was not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
 endif()
 
-add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/googletest)
+add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/googletest" "extern/googletest" EXCLUDE_FROM_ALL)

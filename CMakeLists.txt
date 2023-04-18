@@ -68,8 +68,9 @@ include(rk)
 include(cereal)
 include(delabella)
 include(photospline)
+include(googletest)
 
-# load macros for google test
+# load macros for googletest
 include(testing)
 
 # add individual source folders
