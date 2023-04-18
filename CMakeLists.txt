@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
 cmake_policy(VERSION 3.3.2)
 
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(MACOSX TRUE)
+endif()
+
 # point to appropriate cmake file locations
 SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake ${CMAKE_CURRENT_LIST_DIR}/cmake/Packages)
 
@@ -87,6 +91,21 @@ add_subdirectory(projects/injection)
 # define the target library
 add_library(LeptonInjector SHARED)
 set_property(TARGET LeptonInjector PROPERTY POSITION_INDEPENDENT_CODE ON)
+if(${MACOSX})
+target_link_libraries(LeptonInjector
+    LI_utilities
+    LI_serialization
+    LI_math
+    LI_dataclasses
+    LI_geometry
+    LI_detector
+    LI_crosssections
+    LI_distributions
+    LI_injection
+    ${PROJECT_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX}
+    delabella
+)
+else()
 target_link_libraries(LeptonInjector
     LI_utilities
     LI_serialization
@@ -102,6 +121,7 @@ target_link_libraries(LeptonInjector
     delabella
     -Wl,--no-whole-archive
 )
+endif()
 
 # define the install path normally or for python package
 if(DEFINED SKBUILD)

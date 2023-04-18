@@ -26,3 +26,7 @@ def get_plat():
         plat = str(plat_split[0]) + "-" + str(arch)
     assert plat in SUPPORTED_PLATFORMS, ('invalid platform ' + str(plat))
     return plat
+
+def is_osx():
+    plat = get_plat()
+    return plat.startswith("macosx")
