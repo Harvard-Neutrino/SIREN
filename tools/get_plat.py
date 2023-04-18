@@ -21,7 +21,7 @@ def get_plat():
     if arch == "win32":
         plat = "win-32"
     elif arch in ["universal2", "intel"]:
-        plat = f"macosx-{platform.uname().machine}"
+        plat = "macosx-" + str(platform.uname().machine)
     elif len(plat_split) > 2:
         plat = str(plat_split[0]) + "-" + str(arch)
     assert plat in SUPPORTED_PLATFORMS,  f'invalid platform {plat}'
