@@ -23,6 +23,6 @@ def get_plat():
     elif arch in ["universal2", "intel"]:
         plat = f"macosx-{platform.uname().machine}"
     elif len(plat_split) > 2:
-        plat = f"{plat_split[0]}-{arch}"
+        plat = str(plat_split[0]) + "-" + str(arch)
     assert plat in SUPPORTED_PLATFORMS,  f'invalid platform {plat}'
     return plat
