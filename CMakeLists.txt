@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
 cmake_policy(VERSION 3.3.2)
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOSX TRUE)
 endif()
 
