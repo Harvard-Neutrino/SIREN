@@ -18,7 +18,7 @@ CMAKE_PREFIX_PATH="$CI_INSTALL_PREFIX"
 
 [tool.cibuildwheel]
 before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
-environment = { CI_INSTALL_PREFIX="/tmp/downloads/local" }
+environment = { CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX"}
 
 [tool.cibuildwheel.linux]
 environment = { LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64:$LD_LIBRARY_PATH" }
