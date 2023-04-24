@@ -8,9 +8,14 @@ endif()
 # point to appropriate cmake file locations
 SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake ${CMAKE_CURRENT_LIST_DIR}/cmake/Packages)
 
+message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
+message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+
 set(CIBUILDWHEEL $ENV{CIBUILDWHEEL})
+message(STATUS "CIBUILDWHEEL: ${CIBUILDWHEEL}")
 if(${CIBUILDWHEEL})
     set(CI_INSTALL_PREFIX $ENV{CI_INSTALL_PREFIX})
+    message(STATUS "CI_INSTALL_PREFIX: ${CI_INSTALL_PREFIX}")
 endif()
 
 # parse pyproject.toml for the version
@@ -43,6 +48,8 @@ set(CMAKE_CXX_FLAGS_RELEASE ${_FLAGS_RELEASE})
 if(DEFINED SKBUILD)
     cmake_path(RELATIVE_PATH SKBUILD_HEADERS_DIR BASE_DIRECTORY ${SKBUILD_PLATLIB_DIR} OUTPUT_VARIABLE CMAKE_INSTALL_INCLUDEDIR)
     cmake_path(RELATIVE_PATH SKBUILD_PLATLIB_DIR BASE_DIRECTORY ${SKBUILD_PLATLIB_DIR} OUTPUT_VARIABLE CMAKE_INSTALL_LIBDIR)
+    message(STATUS "Setting include dir to: ${CMAKE_INSTALL_INCLUDEDIR}")
+    message(STATUS "Setting lib dir to: ${CMAKE_INSTALL_LIBDIR}")
     set(LI_INSTALL_INCLUDEDIR ${SKBUILD_HEADERS_DIR})
     set(LI_INSTALL_LIBDIR ${SKBUILD_PLATLIB_DIR})
 else()
@@ -134,6 +141,8 @@ if(DEFINED SKBUILD)
             BUILD_WITH_INSTALL_RPATH FALSE
             LINK_FLAGS "-Wl,-rpath,$ORIGIN")
     if(${CIBUILDWHEEL})
+        message(STATUS "Setting LeptonInjector install lib dir to: ${CI_INSTALL_PREFIX}/lib")
+        message(STATUS "Setting LeptonInjector install include dir to: ${CI_INSTALL_PREFIX}/include")
         install(TARGETS LeptonInjector
             LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/lib"
             PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")

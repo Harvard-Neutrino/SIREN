@@ -22,6 +22,8 @@ endif()
 add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/photospline EXCLUDE_FROM_ALL)
 if(DEFINED SKBUILD)
     if(${CIBUILDWHEEL})
+        message(STATUS "Setting photospline install lib dir to: ${CI_INSTALL_PREFIX}/lib")
+        message(STATUS "Setting photospline install include dir to: ${CI_INSTALL_PREFIX}/include")
         install(TARGETS photospline
             LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/lib"
             PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")
