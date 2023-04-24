@@ -14,7 +14,7 @@ cmake.build-type = "Release"
 #wheel.install-dir = "leptoninjector"
 
 [tool.scikit-build.cmake.define]
-BLAH = "ON"
+CMAKE_PREFIX_PATH="$CI_INSTALL_PREFIX"
 
 [tool.cibuildwheel]
 before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
