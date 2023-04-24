@@ -21,11 +21,11 @@ before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
 environment = { CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX"}
 
 [tool.cibuildwheel.linux]
-environment = { CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64:$LD_LIBRARY_PATH" }
+environment = { MAKEFLAGS="-j2", CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64:$LD_LIBRARY_PATH" }
 repair-wheel-command = "auditwheel repair --exclude photospline -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
-environment = { CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", REPO_PATH="/Users/runner/work/LeptonInjector/LeptonInjector", REPAIR_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64", LD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$LD_LIBRARY_PATH", DYLD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH" }
+environment = { MAKEFLAGS="-j2", CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", REPO_PATH="/Users/runner/work/LeptonInjector/LeptonInjector", REPAIR_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64", LD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$LD_LIBRARY_PATH", DYLD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH" }
 repair-wheel-command = "DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}"
 
 [project]
