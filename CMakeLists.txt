@@ -8,6 +8,11 @@ endif()
 # point to appropriate cmake file locations
 SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake ${CMAKE_CURRENT_LIST_DIR}/cmake/Packages)
 
+set(CIBUILDWHEEL $ENV{CIBUILDWHEEL})
+if(${CIBUILDWHEEL})
+    set(CI_INSTALL_PREFIX $ENV{CI_INSTALL_PREFIX})
+endif()
+
 # parse pyproject.toml for the version
 include(pyproject)
 
@@ -128,9 +133,15 @@ if(DEFINED SKBUILD)
     set_target_properties(LeptonInjector PROPERTIES
             BUILD_WITH_INSTALL_RPATH FALSE
             LINK_FLAGS "-Wl,-rpath,$ORIGIN")
-    install(TARGETS LeptonInjector
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    if(${CIBUILDWHEEL})
+        install(TARGETS LeptonInjector
+            LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/lib"
+            PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")
+    else()
+        install(TARGETS LeptonInjector
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
+            PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    endif()
 else()
     install(TARGETS LeptonInjector
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

@@ -21,12 +21,18 @@ endif()
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/photospline EXCLUDE_FROM_ALL)
 if(DEFINED SKBUILD)
-    set_target_properties(photospline PROPERTIES
-            BUILD_WITH_INSTALL_RPATH FALSE
-            LINK_FLAGS "-Wl,-rpath,$ORIGIN")
-    install(TARGETS photospline
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    if(${CIBUILDWHEEL})
+        install(TARGETS photospline
+            LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/lib"
+            PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")
+    else()
+        set_target_properties(photospline PROPERTIES
+                BUILD_WITH_INSTALL_RPATH FALSE
+                LINK_FLAGS "-Wl,-rpath,$ORIGIN")
+        install(TARGETS photospline
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
+            PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    endif()
     #set_target_properties(spglam PROPERTIES
     #        BUILD_WITH_INSTALL_RPATH FALSE
     #        LINK_FLAGS "-Wl,-rpath,$ORIGIN")
