@@ -6,7 +6,14 @@ echo "Project directory: $PROJECT_DIR"
 
 PLATFORM=$(PYTHONPATH=tools python -c "import get_plat; print(get_plat.get_plat())")
 
-CI_DOWNLOAD_PATH=/tmp/downloads
+if [[ $RUNNER_OS == "Linux" ]] ; then
+    CI_DOWNLOAD_PATH=/tmp/downloads
+elif [[ $RUNNER_OS == "macOS" ]]; then
+    CI_DOWNLOAD_PATH=/tmp/downloads
+elif [[ $RUNNER_OS == "Windows" ]]; then
+    CI_DOWNLOAD_PATH=C:/Users/$USER/AppData/Local/Temp/downloads
+fi
+
 CI_INSTALL_PREFIX=$CI_DOWNLOAD_PATH/local
 LD_LIBRARY_PATH=$CI_INSTALL_PREFIX/lib:$LD_LIBRARY_PATH
 LD_LIBRARY_PATH=$CI_INSTALL_PREFIX/lib64:$LD_LIBRARY_PATH
