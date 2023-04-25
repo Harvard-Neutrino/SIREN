@@ -15,6 +15,7 @@ DYLD_LIBRARY_PATH=$CI_INSTALL_PREFIX/lib64:$DYLD_LIBRARY_PATH
 
 PHOTOSPLINE_COMMIT="1faf62b8ad7116fbfcdf1ac7ade763ab9e547402"
 CFITSIO_VERSION="4.2.0"
+ZLIB_VERSION="1.2.13"
 
 mkdir -p $CI_INSTALL_PREFIX
 
@@ -23,7 +24,15 @@ if [[ $RUNNER_OS == "Linux" ]] ; then
 elif [[ $RUNNER_OS == "macOS" ]]; then
     :
 elif [[ $RUNNER_OS == "Windows" ]]; then
-    :
+    mkdir -p $CI_DOWNLOAD_PATH
+    cd $CI_DOWNLOAD_PATH
+    curl https://www.zlib.net/zlib-$ZLIB_VERSION.tar.gz --output zlib-$ZLIB_VERSION.tar.gz
+    tar -xvf zlib-$ZLIB_VERSION.tar.gz
+    mkdir -p zlib-$ZLIB_VERSION.build
+    cd zlib-$ZLIB_VERSION.build
+    cmake ../zlib-$ZLIB_VERSION -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
+    cmake --build . --config Release
+    cmake --install .
 fi
 
 pip install scikit-build-core
