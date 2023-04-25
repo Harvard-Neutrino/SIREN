@@ -53,7 +53,6 @@ elif [[ $RUNNER_OS == "Windows" ]]; then
     cd $CI_DOWNLOAD_PATH
     curl https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-$CFITSIO_VERSION.tar.gz --output cfitsio-$CFITSIO_VERSION.tar.gz
     tar -xvf cfitsio-$CFITSIO_VERSION.tar.gz
-    cd cfitsio-$CFITSIO_VERSION
     mkdir -p cfitsio-$CFITSIO_VERSION.build
     cd cfitsio-$CFITSIO_VERSION.build
     cmake ../cfitsio-$CFITSIO_VERSION -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
