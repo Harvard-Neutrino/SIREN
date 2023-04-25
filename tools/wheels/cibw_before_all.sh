@@ -33,6 +33,8 @@ elif [[ $RUNNER_OS == "Windows" ]]; then
     cmake ../zlib-$ZLIB_VERSION -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
     cmake --build . --config Release
     cmake --install .
+
+    pip install delvewheel
 fi
 
 pip install scikit-build-core
