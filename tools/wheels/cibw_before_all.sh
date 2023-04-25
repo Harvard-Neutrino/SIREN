@@ -15,7 +15,7 @@ elif [[ $RUNNER_OS == "macOS" ]]; then
 elif [[ $RUNNER_OS == "Windows" ]]; then
     CI_DOWNLOAD_PATH=C:/Users/$USER/AppData/Local/Temp/downloads
 else
-    echo "Unknown runner OS: $RUNNER OS" 1>&2
+    echo "Unknown runner OS: $RUNNER_OS" 1>&2
     exit 1
 fi
 
