@@ -37,16 +37,29 @@ fi
 
 pip install scikit-build-core
 
-mkdir -p $CI_DOWNLOAD_PATH
-cd $CI_DOWNLOAD_PATH
-curl https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-$CFITSIO_VERSION.tar.gz --output cfitsio-$CFITSIO_VERSION.tar.gz
-tar -xvf cfitsio-$CFITSIO_VERSION.tar.gz
-cd cfitsio-$CFITSIO_VERSION
-mkdir -p build
-cd build
-cmake ../ -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
-make
-make install
+if [[ $RUNNER_OS == "Linux" || $RUNNER_OS == "macOS" ]]; then
+    mkdir -p $CI_DOWNLOAD_PATH
+    cd $CI_DOWNLOAD_PATH
+    curl https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-$CFITSIO_VERSION.tar.gz --output cfitsio-$CFITSIO_VERSION.tar.gz
+    tar -xvf cfitsio-$CFITSIO_VERSION.tar.gz
+    cd cfitsio-$CFITSIO_VERSION
+    mkdir -p build
+    cd build
+    cmake ../ -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
+    make
+    make install
+elif [[ $RUNNER_OS == "Windows" ]]; then
+    mkdir -p $CI_DOWNLOAD_PATH
+    cd $CI_DOWNLOAD_PATH
+    curl https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-$CFITSIO_VERSION.tar.gz --output cfitsio-$CFITSIO_VERSION.tar.gz
+    tar -xvf cfitsio-$CFITSIO_VERSION.tar.gz
+    cd cfitsio-$CFITSIO_VERSION
+    mkdir -p cfitsio-$CFITSIO_VERSION.build
+    cd cfitsio-$CFITSIO_VERSION.build
+    cmake ../cfitsio-$CFITSIO_VERSION -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
+    cmake --build . --config Release
+    cmake --install .
+fi
 
 #cd $CI_DOWNLOAD_PATH
 #mkdir -p $CI_DOWNLOAD_PATH/photopline
