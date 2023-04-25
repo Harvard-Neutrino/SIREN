@@ -6,12 +6,17 @@ echo "Project directory: $PROJECT_DIR"
 
 PLATFORM=$(PYTHONPATH=tools python -c "import get_plat; print(get_plat.get_plat())")
 
+echo "Runner OS: $RUNNER_OS"
+
 if [[ $RUNNER_OS == "Linux" ]] ; then
     CI_DOWNLOAD_PATH=/tmp/downloads
 elif [[ $RUNNER_OS == "macOS" ]]; then
     CI_DOWNLOAD_PATH=/tmp/downloads
 elif [[ $RUNNER_OS == "Windows" ]]; then
     CI_DOWNLOAD_PATH=C:/Users/$USER/AppData/Local/Temp/downloads
+else
+    echo "Unknown runner OS: $RUNNER OS" 1>&2
+    exit 1
 fi
 
 CI_INSTALL_PREFIX=$CI_DOWNLOAD_PATH/local
@@ -42,6 +47,9 @@ elif [[ $RUNNER_OS == "Windows" ]]; then
     cmake --install .
 
     pip install delvewheel
+else
+    echo "Unknown runner OS: $RUNNER OS" 1>&2
+    exit 1
 fi
 
 pip install scikit-build-core
@@ -67,6 +75,9 @@ elif [[ $RUNNER_OS == "Windows" ]]; then
     cmake ../cfitsio-$CFITSIO_VERSION -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
     cmake --build . --config Release
     cmake --install .
+else
+    echo "Unknown runner OS: $RUNNER OS" 1>&2
+    exit 1
 fi
 
 #cd $CI_DOWNLOAD_PATH
