@@ -43,9 +43,9 @@ add_dependencies(LI_distributions rk)
 add_dependencies(LI_distributions LI_serialization LI_utilities LI_math LI_dataclasses LI_geometry LI_detector LI_crosssections)
 
 target_link_libraries(LI_distributions photospline)
-target_link_libraries(LI_distributions ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX})
+target_link_libraries(LI_distributions rk)
 
-target_include_directories(LI_distributions PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
+target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/extern/rk/include)
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/utilities/public/)
 target_include_directories(LI_distributions PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/public/)

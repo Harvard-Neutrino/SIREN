@@ -22,13 +22,12 @@ set_property(TARGET LI_detector PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_detector PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/detector/public/
 )
-add_dependencies(LI_detector rk)
 add_dependencies(LI_detector LI_serialization LI_utilities LI_math LI_dataclasses LI_geometry)
 
 target_link_libraries(LI_detector photospline)
-target_link_libraries(LI_detector ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX})
+target_link_libraries(LI_detector rk)
 
-target_include_directories(LI_detector PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
+target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/vendor/rk/include)
 target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
 target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/utilities/public/)
 target_include_directories(LI_detector PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/public/)

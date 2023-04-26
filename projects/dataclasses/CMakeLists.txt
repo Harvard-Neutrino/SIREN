@@ -13,13 +13,10 @@ set_property(TARGET LI_dataclasses PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_dataclasses PUBLIC
     ${CMAKE_SOURCE_DIR}/projects/dataclasses/public/
 )
-add_dependencies(LI_dataclasses rk)
 add_dependencies(LI_dataclasses LI_serialization LI_utilities LI_math)
 
 target_link_libraries(LI_dataclasses photospline)
-target_link_libraries(LI_dataclasses ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX})
 
-target_include_directories(LI_dataclasses PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
 target_include_directories(LI_dataclasses PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
 target_include_directories(LI_dataclasses PUBLIC ${CMAKE_SOURCE_DIR}/projects/utilities/public/)
 target_include_directories(LI_dataclasses PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/public/)

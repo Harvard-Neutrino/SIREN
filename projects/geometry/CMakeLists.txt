@@ -20,9 +20,9 @@ add_dependencies(LI_geometry LI_serialization LI_math LI_geometry)
 
 
 target_link_libraries(LI_geometry photospline)
-target_link_libraries(LI_geometry ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX})
+target_link_libraries(LI_geometry rk)
 
-target_include_directories(LI_geometry PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
+target_include_directories(LI_geometry PUBLIC ${CMAKE_SOURCE_DIR}/vendor/rk/include)
 target_include_directories(LI_geometry PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
 target_include_directories(LI_geometry PUBLIC ${CMAKE_SOURCE_DIR}/projects/math/public/)
 target_include_directories(LI_geometry PUBLIC ${CMAKE_SOURCE_DIR}/projects/geometry/public/)

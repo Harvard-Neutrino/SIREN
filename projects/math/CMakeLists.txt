@@ -16,25 +16,23 @@ target_include_directories(LI_math PUBLIC
 add_dependencies(LI_math rk)
 add_dependencies(LI_math LI_serialization)
 
-#target_link_libraries(LI_math photospline)
 if(${MACOSX})
 target_link_libraries(LI_math PUBLIC
     photospline
-    ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX}
+    rk
     delabella
 )
 else()
 target_link_libraries(LI_math PUBLIC
     photospline
-    ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX}
+    rk
     -Wl,--whole-archive
     delabella
     -Wl,--no-whole-archive
 )
 endif()
-#target_link_libraries(LI_math ${CMAKE_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX})
 
-target_include_directories(LI_math PUBLIC ${CMAKE_BINARY_DIR}/extern/rk/include)
+target_include_directories(LI_math PUBLIC ${CMAKE_SOURCE_DIR}/vendor/rk)
 target_include_directories(LI_math PUBLIC ${CMAKE_SOURCE_DIR}/projects/serialization/public/)
 
 install(TARGETS LI_math

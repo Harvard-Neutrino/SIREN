@@ -114,7 +114,7 @@ target_link_libraries(LeptonInjector
     LI_crosssections
     LI_distributions
     LI_injection
-    ${PROJECT_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX}
+    rk
     delabella
 )
 else()
@@ -129,7 +129,7 @@ target_link_libraries(LeptonInjector
     LI_distributions
     LI_injection
     -Wl,--whole-archive
-    ${PROJECT_BINARY_DIR}/extern/rk/lib/${CMAKE_SHARED_MODULE_PREFIX}rk${CMAKE_STATIC_LIBRARY_SUFFIX}
+    rk
     delabella
     -Wl,--no-whole-archive
 )
