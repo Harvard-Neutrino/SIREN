@@ -24,7 +24,9 @@ def get_plat():
         plat = "macosx-" + str(platform.uname().machine)
     elif len(plat_split) > 2:
         plat = str(plat_split[0]) + "-" + str(arch)
-    assert plat in SUPPORTED_PLATFORMS, ('invalid platform ' + str(plat))
+    #assert plat in SUPPORTED_PLATFORMS, ('invalid platform ' + str(plat))
+    if plat not in SUPPORTED_PLATFORMS:
+        print("New platform: " + plat)
     return plat
 
 def is_osx():
