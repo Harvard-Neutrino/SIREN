@@ -20,7 +20,7 @@ CMAKE_PREFIX_PATH="/tmp/downloads/local"
 before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
 
 [tool.cibuildwheel.windows]
-environment = { RUNNER_OS="Windows", CI_INSTALL_PREFIX="C:/Users/$USER/AppData/Local/Temp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib;$CI_INSTALL_PREFIX/lib64;$CI_INSTALL_PREFIX/bin;$LD_LIBRARY_PATH" }
+environment = { RUNNER_OS="Windows", CI_INSTALL_PREFIX="C:/Users/AppData/Local/Temp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib;$CI_INSTALL_PREFIX/lib64;$CI_INSTALL_PREFIX/bin;$LD_LIBRARY_PATH" }
 repair-wheel-command = "delvewheel repair --add-path $LD_LIBRARY_PATH"
 
 [tool.cibuildwheel.linux]
