@@ -1,0 +1,43 @@
+[global]
+build-dir = "build"
+
+[tool.cmake]
+experimental = true
+
+[build-system]
+requires = ["scikit-build-core"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+wheel.packages = []
+cmake.build-type = "Release"
+#wheel.install-dir = "leptoninjector"
+
+[tool.scikit-build.cmake.define]
+CMAKE_PREFIX_PATH="/tmp/downloads/local"
+
+[tool.cibuildwheel]
+before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
+
+[tool.cibuildwheel.windows]
+environment = { RUNNER_OS="Windows", CI_INSTALL_PREFIX="C:/Users/AppData/Local/Temp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib;$CI_INSTALL_PREFIX/lib64;$CI_INSTALL_PREFIX/bin;$LD_LIBRARY_PATH" }
+repair-wheel-command = "delvewheel repair --add-path $LD_LIBRARY_PATH"
+
+[tool.cibuildwheel.linux]
+environment = { RUNNER_OS="Linux", MAKEFLAGS="-j2", CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", LD_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64:$LD_LIBRARY_PATH" }
+repair-wheel-command = "auditwheel repair --exclude photospline -w {dest_dir} {wheel}"
+
+[tool.cibuildwheel.macos]
+environment = { RUNNER_OS="macOS", MAKEFLAGS="-j2", CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", REPO_PATH="/Users/runner/work/LeptonInjector/LeptonInjector", REPAIR_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64", LD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$LD_LIBRARY_PATH", DYLD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH" }
+repair-wheel-command = "DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}"
+
+[project]
+name = "leptoninjector"
+version = "0.0.1"
+requires-python = ">=3.7"
+
+[wheel]
+no-clean = true
+
+[install]
+no-clean = true

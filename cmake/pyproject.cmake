@@ -1,0 +1,5 @@
+file(READ ${CMAKE_CURRENT_LIST_DIR}/../pyproject.toml PYPROJECT_CONTENTS)
+string(REGEX MATCH "\\[project\\](\n(([A-Za-z0-9_])+([ \t\n\r])*=([ \t\n\r])*(\".*\"|\[.*\]|true|false))?([ \t\n\r])*)*([ \t]*name[ \t]*=[ \t]*\"leptoninjector\"[ \t]*)[ \t\n\r]+([ \t]*version[ \t]*=[ \t]\"[0-9\.]+\")" LI_VERSION_BLOCK ${PYPROJECT_CONTENTS})
+string(REGEX MATCH "([ \t]*version[ \t]*=[ \t]\"[0-9\.]+\")" LI_VERSION_LINE ${LI_VERSION_BLOCK})
+string(REGEX MATCH "\"[0-9\.]+\"" LI_VERSION_STRING ${LI_VERSION_LINE})
+string(REGEX MATCH "[0-9\.]+" LI_VERSION ${LI_VERSION_STRING})
