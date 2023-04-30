@@ -6,7 +6,13 @@ This iteration of LeptonInjector provides a generic interface for user-defined B
 
 # Python installation of LeptonInjector
 
-To use LeptonInjector in a python project, simply clone the repository:
+LeptonInjector is distributed on pypi as `leptoninjector`, and can be installed via pip with:
+
+```
+pip install leptoninjector
+```
+
+For development of LeptonInjector as a python project, simply clone the repository:
 
 ```
 git clone https://github.com/Harvard-Neutrino/LeptonInjector.git
