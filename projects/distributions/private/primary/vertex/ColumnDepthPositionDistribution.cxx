@@ -51,7 +51,7 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     dir.normalize();
     LI::math::Vector3D pca = SampleFromDisk(rand, dir);
 
-    double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
+    double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);//note: return is in cgs units!!! 
 
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -94,6 +94,14 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
+}
+
+// public getter function for the private SamplePosition function (for debugging)
+LI::math::Vector3D ColumnDepthPositionDistribution::GetSamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) {
+    
+    LI::math::Vector3D samplepos = ColumnDepthPositionDistribution::SamplePosition(rand, earth_model, cross_sections, record); 
+        
+    return samplepos; 
 }
 
 double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
