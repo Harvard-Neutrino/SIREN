@@ -3,6 +3,7 @@
 #include <ostream>
 #include <sstream>
 #include <utility>
+#include <algorithm>
 
 #include "LeptonInjector/math/Matrix3D.h"
 #include "LeptonInjector/math/Vector3D.h"
