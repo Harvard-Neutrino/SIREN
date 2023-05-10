@@ -68,11 +68,13 @@ double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI:
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
     path.ClipToOuterBounds();
 
-    if(not path.IsWithinBounds(vertex))
+    LI::math::Vector3D earth_vertex = earth_model->GetEarthCoordPosFromDetCoordPos(vertex);
+
+    if(not path.IsWithinBounds(earth_vertex))
         return 0.0;
 
     double total_distance = path.GetDistance();
-    double dist = LI::math::scalar_product(path.GetDirection(), vertex - path.GetFirstPoint());
+    double dist = LI::math::scalar_product(path.GetDirection(), earth_vertex - path.GetFirstPoint());
 
     double prob_density = exp(-dist / decay_length) / (decay_length * (1.0 - exp(-total_distance / decay_length))); // m^-1
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
@@ -109,7 +111,9 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
     path.ClipToOuterBounds();
 
-    if(not path.IsWithinBounds(vertex))
+    LI::math::Vector3D earth_vertex = earth_model->GetEarthCoordPosFromDetCoordPos(vertex);
+
+    if(not path.IsWithinBounds(earth_vertex))
         return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
     return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
