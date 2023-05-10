@@ -54,7 +54,7 @@ TEST_F(FakeMaterialModelTest, DuplicateFile)
     ASSERT_NO_THROW(MaterialModel("", materials_file));
     MaterialModel B("", materials_file);
     ASSERT_NO_THROW(B.AddModelFile(materials_file));
-    ASSERT_NO_THROW(MaterialModel("", {materials_file, materials_file}));
+    ASSERT_NO_THROW(MaterialModel("", std::vector<std::string>({materials_file, materials_file})));
     ASSERT_NO_THROW(B.HasMaterial(0));
 }
 
