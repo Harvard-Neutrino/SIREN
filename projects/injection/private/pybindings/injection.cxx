@@ -94,6 +94,7 @@ PYBIND11_MODULE(injection,m) {
 
   class_<LeptonTreeWeighter, std::shared_ptr<LeptonTreeWeighter>>(m, "LeptonTreeWeighter")
     .def(init<std::vector<std::shared_ptr<InjectorBase>>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>())
+    .def(init<std::vector<std::shared_ptr<InjectorBase>>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<PhysicalProcess>>())
     .def("EventWeight",&LeptonTreeWeighter::EventWeight);
 
   class_<LeptonWeighter, std::shared_ptr<LeptonWeighter>>(m, "LeptonWeighter")
