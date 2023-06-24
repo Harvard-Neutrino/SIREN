@@ -16,7 +16,9 @@
 using namespace pybind11;
 
 PYBIND11_MODULE(geometry,m) {
-  using namespace LI::geometry;
+  using namespace LI::geometry;          
+      
+  // geometry
 
   class_<Geometry, std::shared_ptr<Geometry>>(m, "Geometry")
     .def("IsInside",&Geometry::IsInside)
@@ -30,6 +32,20 @@ PYBIND11_MODULE(geometry,m) {
     .def_property("placement",&Geometry::GetPlacement, &Geometry::SetPlacement)
     .def("ComputeIntersections",&Geometry::ComputeIntersections)
     .def("create",&Geometry::create);
+    
+    // data structs in Geometry class
+    
+  class_<Geometry::Intersection>(m, "Intersection")
+    .def_readwrite("distance", &Geometry::Intersection::distance)
+    .def_readwrite("hierarchy", &Geometry::Intersection::hierarchy)
+    .def_readwrite("entering", &Geometry::Intersection::entering)
+    .def_readwrite("matID", &Geometry::Intersection::matID)  
+    .def_readwrite("position", &Geometry::Intersection::position);  
+      
+  class_<Geometry::IntersectionList>(m, "IntersectionList")
+    .def_readwrite("position", &Geometry::IntersectionList::position)   
+    .def_readwrite("direction", &Geometry::IntersectionList::direction)   
+    .def_readwrite("intersections", &Geometry::IntersectionList::intersections);   
 
   // ExtrPoly
 

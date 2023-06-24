@@ -252,7 +252,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
 
         // density data
         std::stringstream ss(buf);
-		ss >> type;
+        ss >> type;
 
         if(type.find("object") != std::string::npos) {
             EarthSector sector;
@@ -293,18 +293,18 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
                 std::vector<ExtrPoly::ZSection> zsecs;
                 ss >> nverts;
                 for (int i = 0; i < nverts; ++i){
-										ss >> v1 >> v2;
-										polyVert.push_back(v1);
-										polyVert.push_back(v2);
-										poly.push_back(polyVert);
-										polyVert.clear();
+                    ss >> v1 >> v2;
+                    polyVert.push_back(v1);
+                    polyVert.push_back(v2);
+                    poly.push_back(polyVert);
+                    polyVert.clear();
                 }
                 ss >> nzsec;
                 for (int i = 0; i < nzsec; ++i){
-										ss >> zpos >> off1 >> off2 >> scale;
-										offset[0] = off1;
-										offset[1] = off2;
-										zsecs.push_back(ExtrPoly::ZSection(zpos,offset,scale));
+                    ss >> zpos >> off1 >> off2 >> scale;
+                    offset[0] = off1;
+                    offset[1] = off2;
+                    zsecs.push_back(ExtrPoly::ZSection(zpos,offset,scale));
                 }
                 sector.geo = ExtrPoly(placement, poly, zsecs).create();
             }
@@ -823,10 +823,10 @@ double EarthModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & i
     } else {
         dot = 1;
     }
-    
+
     // If we have only decays, avoid the sector loop
     if(targets.empty()) {
-      return distance/total_decay_length; // m / m --> dimensionless 
+      return distance/total_decay_length; // m / m --> dimensionless
     }
 
     std::vector<double> interaction_depths(targets.size(), 0.0);
@@ -858,7 +858,7 @@ double EarthModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & i
     }
 
     double interaction_depth = accumulate(interaction_depths.begin(), interaction_depths.end());
-    
+
     interaction_depth += distance/total_decay_length;
 
     return interaction_depth;
@@ -996,8 +996,8 @@ void EarthModel::SortIntersections(Geometry::IntersectionList & intersections) {
 void EarthModel::SortIntersections(std::vector<Geometry::Intersection> & intersections) {
     // Intersections should be sorted according to distance and then hierarchy
     std::function<bool(Geometry::Intersection const &, Geometry::Intersection const &)> comp = [](Geometry::Intersection const & a, Geometry::Intersection const & b){
-		bool a_enter = a.entering;
-		bool b_enter = b.entering;
+        bool a_enter = a.entering;
+        bool b_enter = b.entering;
         if(a.distance < b.distance)
             return true;
         else if(a.distance == b.distance) {
@@ -1027,15 +1027,15 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Geometry::IntersectionList
     result.position = intersections.position;
     result.direction = intersections.direction;
     int min_hierarchy = std::numeric_limits<int>::min();
-    unsigned int min_index = 0;
-    for(unsigned int i=0; i<intersections.intersections.size(); ++i) {
+    ptrdiff_t min_index = 0;
+    for(ptrdiff_t i=0; i<intersections.intersections.size(); ++i) {
         if(intersections.intersections[i].hierarchy > min_hierarchy) {
             result.intersections.push_back(intersections.intersections[i]);
             min_index = i;
             break;
         }
     }
-    for(unsigned int i=intersections.intersections.size()-1; (i >= 0 and i > min_index); --i) {
+    for(ptrdiff_t i=ptrdiff_t(intersections.intersections.size())-1; (i >= 0 and i > min_index); --i) {
         if(intersections.intersections[i].hierarchy > min_hierarchy) {
             result.intersections.push_back(intersections.intersections[i]);
             break;
@@ -1209,7 +1209,7 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
             }
             done = distance >= 0;
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length); // g cm^-3 * m
-            integral *= (target_composition*LI::utilities::Constants::m/LI::utilities::Constants::cm); // --> m cm^-1 --> dimensionless 
+            integral *= (target_composition*LI::utilities::Constants::m/LI::utilities::Constants::cm); // --> m cm^-1 --> dimensionless
             total_interaction_depth += integral;
             if(done) {
                 total_distance = start_point + distance;

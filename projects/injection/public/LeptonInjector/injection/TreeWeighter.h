@@ -76,6 +76,7 @@ private:
 public:
     double EventWeight(LI::dataclasses::InteractionTree const & tree) const;
     LeptonTreeWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes);
+    LeptonTreeWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process);
 
 }; // LeptonTreeWeighter
 

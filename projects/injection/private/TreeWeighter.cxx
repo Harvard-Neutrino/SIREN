@@ -152,6 +152,15 @@ LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<InjectorBase>
   Initialize();
 }
 
+LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process)
+    : injectors(injectors)
+    , earth_model(earth_model)
+    , primary_physical_process(primary_physical_process)
+    , secondary_physical_processes(std::vector<std::shared_ptr<LI::injection::PhysicalProcess>>())
+{
+  Initialize();
+}
+
 //---------------
 // class LeptonProcessWeighter
 //---------------
