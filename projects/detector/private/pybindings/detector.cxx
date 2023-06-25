@@ -205,10 +205,13 @@ PYBIND11_MODULE(detector,m) {
                 void (*)(std::vector<LI::geometry::Geometry::Intersection> &)
                 )(&EarthModel::SortIntersections))
     .def_static("SectorLoop", &EarthModel::SectorLoop)
-    .def_static("GetOuterBounds", (
+    .def_static("GetOuterBoundsFromIntersections", (
                 LI::geometry::Geometry::IntersectionList (*)(
                     LI::geometry::Geometry::IntersectionList const &)
                 )(&EarthModel::GetOuterBounds))
+    .def("GetOuterBounds", [](LI::detector::EarthModel const & earth, LI::geometry::Geometry::IntersectionList const & intersections){
+            return earth.GetOuterBounds(intersections);
+            })
     .def("GetOuterBounds", (
                 LI::geometry::Geometry::IntersectionList (EarthModel::*)(
                     LI::math::Vector3D const &,
@@ -242,6 +245,7 @@ PYBIND11_MODULE(detector,m) {
     .def("GetDetectorOrigin",&EarthModel::GetDetectorOrigin);
 
   class_<EarthSector, std::shared_ptr<EarthSector>>(m, "EarthSector")
+    .def(init<>())
     .def_readwrite("name",&EarthSector::name)
     .def_readwrite("material_id",&EarthSector::material_id)
     .def_readwrite("level", &EarthSector::level)
