@@ -7,6 +7,7 @@
 #include "./DensityDistribution.h"
 #include "./Distribution1D.h"
 #include "./Axis1D.h"
+#include "./CartesianAxis1D.h"
 
 using namespace pybind11;
 
@@ -17,4 +18,5 @@ PYBIND11_MODULE(detector,m) {
     register_DensityDistribution(m);
     register_Distribution1D(m);
     register_Axis1D(m);
+    register_CartesianAxis1D(m);
 }
