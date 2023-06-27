@@ -44,7 +44,7 @@ public:
     }
 
     double GetX(const LI::math::Vector3D& xi) const override {
-        PYBIND11_OVERRIDE(
+        PYBIND11_OVERRIDE_PURE(
             double,
             Axis1D,
             GetX,
@@ -53,7 +53,7 @@ public:
     }
 
     double GetdX(const LI::math::Vector3D& xi, const LI::math::Vector3D& direction) const override {
-        PYBIND11_OVERRIDE(
+        PYBIND11_OVERRIDE_PURE(
             double,
             Axis1D,
             GetdX,
