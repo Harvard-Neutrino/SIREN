@@ -14,6 +14,7 @@
 #include "./CartesianAxis1D.h"
 #include "./CartesianAxisExponentialDensityDistribution.h"
 #include "./CartesianAxisPolynomialDensityDistribution.h"
+#include "./ConstantDensityDistribution.h"
 
 using namespace pybind11;
 
@@ -32,4 +33,5 @@ PYBIND11_MODULE(detector,m) {
 
     register_CartesianAxisExponentialDensityDistribution(m);
     register_CartesianAxisPolynomialDensityDistribution(m);
+    register_ConstantDensityDistribution(m);
 }
