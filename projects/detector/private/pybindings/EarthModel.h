@@ -211,7 +211,7 @@ void register_EarthModel(pybind11::module_ & m) {
         .def("GetOuterBounds", [](LI::detector::EarthModel const & earth, LI::geometry::Geometry::IntersectionList const & intersections){
                 return earth.GetOuterBounds(intersections);
                 })
-    .def("GetOuterBounds", (
+        .def("GetOuterBounds", (
                 LI::geometry::Geometry::IntersectionList (EarthModel::*)(
                     LI::math::Vector3D const &,
                     LI::math::Vector3D const &) const
