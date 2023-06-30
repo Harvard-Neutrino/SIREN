@@ -94,6 +94,24 @@ bool EarthSector::operator==(EarthSector const & o) const {
     return name == o.name and material_id == o.material_id and level == o.level and geo == o.geo and density == o.density;
 }
 
+std::ostream & EarthSector::Print(std::ostream& oss) const {
+    oss << "[EarthSector:\n"
+        << "         Name : " << name << '\n'
+        << "   MaterialID : " << material_id << '\n'
+        << "        Level : " << level << '\n'
+        << "          Geo : " << geo << '\n'
+        << "      Density : " << density << "\n]";
+    return oss;
+}
+
+std::ostream& operator<<(std::ostream& oss, EarthSector const & bcm) {
+    return(bcm.Print(oss));
+}
+
+std::ostream& operator<<(std::ostream& oss, EarthSector & bcm) {
+    return(bcm.Print(oss));
+}
+
 EarthModel::EarthModel() {
     LoadDefaultMaterials();
     LoadDefaultSectors();

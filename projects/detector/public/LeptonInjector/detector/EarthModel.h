@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -50,6 +51,7 @@ struct EarthSector {
             throw std::runtime_error("EarthSector only supports version <= 0!");
         }
     }
+	std::ostream & Print(std::ostream& oss) const;
 };
 
 class EarthModel {
@@ -188,6 +190,10 @@ public:
 
 } // namespace detector
 } // namespace LI
+
+
+std::ostream& operator<<(std::ostream& oss, LI::detector::EarthSector const & bcm);
+std::ostream& operator<<(std::ostream& oss, LI::detector::EarthSector & bcm);
 
 #include "LeptonInjector/detector/EarthModel.tcc"
 
