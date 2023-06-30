@@ -15,7 +15,7 @@ void register_ConstantDistribution1D(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace LI::detector;
 
-    class_<ConstantDistribution1D, std::shared_ptr<ConstantDistribution1D>>(m, "Distribution1D")
+    class_<ConstantDistribution1D, std::shared_ptr<ConstantDistribution1D>>(m, "ConstantDistribution1D")
         .def(init<>())
         .def(self == self)
         .def(self != self)
