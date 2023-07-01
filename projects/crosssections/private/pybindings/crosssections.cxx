@@ -8,6 +8,8 @@
 #include "../../public/LeptonInjector/crosssections/CrossSectionCollection.h"
 #include "../../public/LeptonInjector/crosssections/DISFromSpline.h"
 
+#include "./CrossSection.h"
+
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
@@ -20,6 +22,7 @@ PYBIND11_MODULE(crosssections,m) {
   using namespace LI::crosssections;
 
   class_<CrossSection, std::shared_ptr<CrossSection>>(m, "CrossSection");
+    register_CrossSection(m);
 
   class_<Decay, std::shared_ptr<Decay>>(m, "Decay")
     .def("TotalDecayLength",&Decay::TotalDecayLength)
