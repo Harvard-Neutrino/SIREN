@@ -143,6 +143,19 @@ void register_CrossSection(pybind11::module_ & m) {
     class_<CrossSection, std::shared_ptr<CrossSection>, PyCrossSection>(m, "CrossSection")
         .def(init<>())
         .def(self == self)
+        .def("equal", &CrossSection::equal)
+        .def("TotalCrossSection", (double (CrossSection::*)(LI::dataclasses::InteractionRecord const &) const)(&CrossSection::TotalCrossSection))
+        .def("TotalCrossSection", (double (CrossSection::*)(LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType) const)(&CrossSection::TotalCrossSection))
+        .def("DifferentialCrossSection", &CrossSection::DifferentialCrossSection)
+        .def("InteractionThreshold", &CrossSection::InteractionThreshold)
+        .def("SampleFinalState", &CrossSection::SampleFinalState)
+        .def("GetPossibleTargets", &CrossSection::GetPossibleTargets)
+        .def("GetPossibleTargetsFromPrimary", &CrossSection::GetPossibleTargetsFromPrimary)
+        .def("GetPossiblePrimaries", &CrossSection::GetPossiblePrimaries)
+        .def("GetPossibleSignatures", &CrossSection::GetPossibleSignatures)
+        .def("GetPossibleSignaturesFromParents", &CrossSection::GetPossibleSignaturesFromParents)
+        .def("FinalStateProbability", &CrossSection::FinalStateProbability)
+        .def("DensityVariables", &CrossSection::DensityVariables)
         ;
 }
 
