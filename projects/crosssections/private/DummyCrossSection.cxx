@@ -34,6 +34,7 @@ bool DummyCrossSection::equal(CrossSection const & other) const {
 
 double DummyCrossSection::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
     LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
@@ -44,15 +45,23 @@ double DummyCrossSection::TotalCrossSection(dataclasses::InteractionRecord const
         rk::P4 p1_lab = boost_start_to_lab * p1;
         primary_energy = p1_lab.e();
     }
-    return TotalCrossSection(primary_type, primary_energy, primary_type);
+    return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
 double DummyCrossSection::TotalCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type) const {
-    return primary_energy;
+    double interaction_length_m = 1e6;
+    double interaction_length_cm = interaction_length_m * 100;
+    double density = 1.0; // g/cm^3
+    double mol = 6.0221415e23; // particles/g
+    double per_cm2 = density * interaction_length_cm * mol; // particles / cm^2
+    double cm2 = 1.0 / per_cm2; // cm2/particle
+    return cm2 * primary_energy / 1e5; // Interaction length was computed for 100TeV
 }
 
 
 double DummyCrossSection::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
+    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
     double primary_energy;
@@ -69,7 +78,7 @@ double DummyCrossSection::DifferentialCrossSection(dataclasses::InteractionRecor
         primary_energy = p1_lab.e();
     }
 
-    return primary_energy;
+    return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
 double DummyCrossSection::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
