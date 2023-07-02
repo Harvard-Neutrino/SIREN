@@ -13,6 +13,7 @@
 #include "./Decay.h"
 #include "./NeutrissimoDecay.h"
 #include "./CrossSectionCollection.h"
+#include "./DummyCrossSection.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
@@ -31,4 +32,5 @@ PYBIND11_MODULE(crosssections,m) {
     register_Decay(m);
     register_NeutrissimoDecay(m);
     register_CrossSectionCollection(m);
+    register_DummyCrossSection(m);
 }
