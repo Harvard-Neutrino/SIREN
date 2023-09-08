@@ -142,7 +142,7 @@ void register_CrossSection(pybind11::module_ & m) {
 
     class_<CrossSection, std::shared_ptr<CrossSection>, PyCrossSection>(m, "CrossSection")
         .def(init<>())
-        .def(self == self)
+        .def("__eq__", [](const CrossSection &self, const CrossSection &other){ return self == other; })
         .def("equal", &CrossSection::equal)
         .def("TotalCrossSection", (double (CrossSection::*)(LI::dataclasses::InteractionRecord const &) const)(&CrossSection::TotalCrossSection))
         .def("TotalCrossSection", (double (CrossSection::*)(LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType) const)(&CrossSection::TotalCrossSection))

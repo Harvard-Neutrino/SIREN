@@ -69,9 +69,8 @@ void register_Axis1D(pybind11::module_ & m) {
 
     class_<Axis1D, std::shared_ptr<Axis1D>, PyAxis1D>(m, "Axis1D")
         .def(init<>())
-        .def(self == self)
-        .def(self != self)
-        .def("_compare", &Axis1D::compare)
+        .def("__eq__", [](const Axis1D &self, const Axis1D &other){ return self == other; })
+        .def("__ne__", [](const Axis1D &self, const Axis1D &other){ return self != other; }) 
         .def("_clone", &Axis1D::clone)
         .def("_create", &Axis1D::create)
         .def("GetX", &Axis1D::GetX)

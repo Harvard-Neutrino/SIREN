@@ -75,8 +75,8 @@ void register_Distribution1D(pybind11::module_ & m) {
 
     class_<Distribution1D, std::shared_ptr<Distribution1D>, PyDistribution1D>(m, "Distribution1D")
         .def(init<>())
-        .def(self == self)
-        .def(self != self)
+        .def("__eq__", [](const Distribution1D &self, const Distribution1D &other){ return self == other; })
+        .def("__ne__", [](const Distribution1D &self, const Distribution1D &other){ return self != other; }) 
         .def("_compare", &Distribution1D::compare)
         .def("_clone", &Distribution1D::clone)
         .def("_create", &Distribution1D::create)

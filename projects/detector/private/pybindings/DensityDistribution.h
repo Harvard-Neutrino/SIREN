@@ -131,8 +131,8 @@ void register_DensityDistribution(pybind11::module_ & m) {
 
     class_<DensityDistribution, std::shared_ptr<DensityDistribution>, PyDensityDistribution>(m, "DensityDistribution")
         .def(init<>())
-        .def(self == self)
-        .def(self != self)
+        .def("__eq__", [](const DensityDistribution &self, const DensityDistribution &other){ return self == other; })
+        .def("__ne__", [](const DensityDistribution &self, const DensityDistribution &other){ return self != other; })
         .def("_compare", &DensityDistribution::compare)
         .def("_clone", &DensityDistribution::clone)
         .def("_create", &DensityDistribution::create)
