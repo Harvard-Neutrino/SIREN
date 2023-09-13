@@ -5,11 +5,13 @@
 #include "../../public/LeptonInjector/crosssections/NeutrissimoDecay.h"
 #include "../../public/LeptonInjector/crosssections/CrossSectionCollection.h"
 #include "../../public/LeptonInjector/crosssections/DISFromSpline.h"
+#include "../../public/LeptonInjector/crosssections/HNLFromSpline.h"
 #include "../../public/LeptonInjector/crosssections/CrossSectionCollection.h"
 
 #include "./CrossSection.h"
 #include "./DipoleFromTable.h"
 #include "./DISFromSpline.h"
+#include "./HNLFromSpline.h"
 #include "./Decay.h"
 #include "./NeutrissimoDecay.h"
 #include "./CrossSectionCollection.h"
@@ -29,6 +31,7 @@ PYBIND11_MODULE(crosssections,m) {
     register_CrossSection(m);
     register_DipoleFromTable(m);
     register_DISFromSpline(m);
+    register_HNLFromSpline(m);
     register_Decay(m);
     register_NeutrissimoDecay(m);
     register_CrossSectionCollection(m);

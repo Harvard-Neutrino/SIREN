@@ -7,6 +7,7 @@ LIST (APPEND crosssections_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DipoleFromTable.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/NeutrissimoDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DISFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/crosssections/private/HNLFromSpline.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/ElasticScattering.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DummyCrossSection.cxx
 )
