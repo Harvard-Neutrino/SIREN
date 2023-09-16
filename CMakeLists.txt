@@ -87,33 +87,35 @@ add_library(LeptonInjector SHARED)
 set_property(TARGET LeptonInjector PROPERTY POSITION_INDEPENDENT_CODE ON)
 if(${MACOSX})
 target_link_libraries(LeptonInjector
-    LI_utilities
-    LI_serialization
-    LI_math
-    LI_dataclasses
-    LI_geometry
-    LI_detector
-    LI_crosssections
-    LI_distributions
-    LI_injection
-    rk
-    delabella
+    PRIVATE
+    PUBLIC
+        delabella_shared
+        photospline
+        LI_utilities
+        LI_serialization
+        LI_math
+        LI_dataclasses
+        LI_geometry
+        LI_detector
+        LI_crosssections
+        LI_distributions
+        LI_injection
 )
 else()
 target_link_libraries(LeptonInjector
-    LI_utilities
-    LI_serialization
-    LI_math
-    LI_dataclasses
-    LI_geometry
-    LI_detector
-    LI_crosssections
-    LI_distributions
-    LI_injection
-    -Wl,--whole-archive
-    rk
-    delabella
-    -Wl,--no-whole-archive
+    PRIVATE
+    PUBLIC
+        photospline
+        delabella_shared
+        LI_utilities
+        LI_serialization
+        LI_math
+        LI_dataclasses
+        LI_geometry
+        LI_detector
+        LI_crosssections
+        LI_distributions
+        LI_injection
 )
 endif()
 
@@ -126,15 +128,48 @@ if(DEFINED SKBUILD)
         message(STATUS "Setting LeptonInjector install lib dir to: ${CI_INSTALL_PREFIX}/lib")
         message(STATUS "Setting LeptonInjector install include dir to: ${CI_INSTALL_PREFIX}/include")
         install(TARGETS LeptonInjector
+            delabella_shared
+            LI_utilities
+            LI_serialization
+            LI_math
+            LI_dataclasses
+            LI_geometry
+            LI_detector
+            LI_crosssections
+            LI_distributions
+            LI_injection
+            EXPORT ${PROJECT_NAME}Config
             LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/lib"
             PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")
     else()
         install(TARGETS LeptonInjector
+            delabella_shared
+            LI_utilities
+            LI_serialization
+            LI_math
+            LI_dataclasses
+            LI_geometry
+            LI_detector
+            LI_crosssections
+            LI_distributions
+            LI_injection
+            EXPORT ${PROJECT_NAME}Config
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
             PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     endif()
 else()
     install(TARGETS LeptonInjector
+        delabella_shared
+        LI_utilities
+        LI_serialization
+        LI_math
+        LI_dataclasses
+        LI_geometry
+        LI_detector
+        LI_crosssections
+        LI_distributions
+        LI_injection
+        EXPORT ${PROJECT_NAME}Config
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
@@ -183,8 +218,29 @@ if(DEFINED SKBUILD)
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
     install(TARGETS injection
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
-    install(FILES ${PROJECT_SOURCE_DIR}/python/__init__.py DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(FILES ${PROJECT_SOURCE_DIR}/python/__init__.py
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
 endif()
+
+# Export targets for use in downstream CMake projects
+# -----------------------------------------------------------------------------
+include(CMakePackageConfigHelpers)
+# Make importable from build directory
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion
+)
+export(EXPORT ${PROJECT_NAME}Config FILE ${PROJECT_NAME}Config.cmake)
+
+# Make importable from install location
+set(_config_dir share/${PROJECT_NAME}/cmake)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  DESTINATION ${_config_dir}
+)
+install(EXPORT ${PROJECT_NAME}Config
+  DESTINATION ${_config_dir}
+)
 
 MESSAGE("")
 MESSAGE("Done!")

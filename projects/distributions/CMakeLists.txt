@@ -37,25 +37,23 @@ LIST (APPEND distributions_SOURCES
 add_library(LI_distributions OBJECT ${distributions_SOURCES})
 set_property(TARGET LI_distributions PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_distributions PUBLIC
-    ${PROJECT_SOURCE_DIR}/projects/distributions/public/
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/distributions/public/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/LeptonInjector/distributions/>
 )
-add_dependencies(LI_distributions rk)
-add_dependencies(LI_distributions LI_serialization LI_utilities LI_math LI_dataclasses LI_geometry LI_detector LI_crosssections)
 
-target_link_libraries(LI_distributions photospline)
-target_link_libraries(LI_distributions rk)
-
-target_include_directories(LI_distributions PUBLIC ${PROJECT_SOURCE_DIR}/extern/rk/include)
-target_include_directories(LI_distributions PUBLIC ${PROJECT_SOURCE_DIR}/projects/serialization/public/)
-target_include_directories(LI_distributions PUBLIC ${PROJECT_SOURCE_DIR}/projects/utilities/public/)
-target_include_directories(LI_distributions PUBLIC ${PROJECT_SOURCE_DIR}/projects/math/public/)
-target_include_directories(LI_distributions PUBLIC ${PROJECT_SOURCE_DIR}/projects/dataclasses/public/)
-target_include_directories(LI_distributions PUBLIC ${PROJECT_SOURCE_DIR}/projects/geometry/public/)
-target_include_directories(LI_distributions PUBLIC ${PROJECT_SOURCE_DIR}/projects/detector/public/)
-target_include_directories(LI_distributions PUBLIC ${PROJECT_SOURCE_DIR}/projects/crosssections/public/)
-
-install(TARGETS LI_distributions
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+target_link_libraries(LI_distributions
+    PRIVATE
+        $<BUILD_INTERFACE:rk_static>
+    PUBLIC
+        photospline
+        LI_serialization
+        LI_utilities
+        LI_math
+        LI_dataclasses
+        LI_geometry
+        LI_detector
+        LI_crosssections
+)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/distributions/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
