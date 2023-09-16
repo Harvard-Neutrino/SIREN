@@ -19,7 +19,7 @@ if(NOT EXISTS "${PROJECT_SOURCE_DIR}/vendor/delabella/CMakeLists.txt")
     message(FATAL_ERROR "The delabella submodule was not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
 endif()
 
-add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/delabella EXCLUDE_FROM_ALL)
+add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/delabella)
 #add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/delabella)
 #install(TARGETS delabella_shared
 #    ARCHIVE DESTINATION lib)
