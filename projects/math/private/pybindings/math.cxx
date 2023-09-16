@@ -50,7 +50,7 @@ PYBIND11_MODULE(math,m) {
         .def(init<const double, const double, const double, const double>())
         .def(init<const Quaternion &>())
         .def(init<const Vector3D &>())
-        .def(init<geom3::Rotation3::Quaternion const &>())
+        //.def(init<geom3::Rotation3::Quaternion const &>())
         .def(self == self)
         .def(self != self)
         .def(self < self)
