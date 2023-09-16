@@ -20,3 +20,13 @@ if(NOT EXISTS "${PROJECT_SOURCE_DIR}/vendor/delabella/CMakeLists.txt")
 endif()
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/delabella EXCLUDE_FROM_ALL)
+#add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/delabella)
+#install(TARGETS delabella_shared
+#    ARCHIVE DESTINATION lib)
+#set(_config_dir share/delabella/cmake)
+#install(FILES "${CMAKE_CURRENT_BINARY_DIR}/delabellaConfigVersion.cmake"
+#  DESTINATION ${_config_dir}
+#)
+#install(EXPORT delabellaConfig
+#  DESTINATION ${_config_dir}
+#)
