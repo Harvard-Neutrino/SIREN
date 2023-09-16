@@ -29,19 +29,52 @@ LIST(APPEND rk_HEADERS
     ${PROJECT_SOURCE_DIR}/rk/rkIO.hh
 )
 
-add_library(rk STATIC ${rk_SOURCES})
+add_library(rk_static STATIC ${rk_SOURCES})
 add_library(rk_shared SHARED ${rk_SOURCES})
 
-target_include_directories(rk PUBLIC ${PROJECT_SOURCE_DIR})
-target_include_directories(rk_shared PUBLIC ${PROJECT_SOURCE_DIR})
+target_include_directories(rk_static PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+target_include_directories(rk_shared PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
+install(TARGETS rk_static
+    EXPORT ${PROJECT_NAME}Config
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(TARGETS rk_shared
+    EXPORT ${PROJECT_NAME}Config
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/rk/"
+    #EXPORT ${PROJECT_NAME}Config
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
     PATTERN "*.hh"
     PATTERN "*.icc"
 )
+
+# Export targets for use in downstream CMake projects
+# -----------------------------------------------------------------------------
+include(CMakePackageConfigHelpers)
+# Make importable from build directory
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion
+)
+export(EXPORT ${PROJECT_NAME}Config FILE ${PROJECT_NAME}Config.cmake)
+
+# Make importable from install location
+set(_config_dir share/${PROJECT_NAME}/cmake)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  DESTINATION ${_config_dir}
+)
+install(EXPORT ${PROJECT_NAME}Config
+  DESTINATION ${_config_dir}
+)
+
 message("Added rk!")
