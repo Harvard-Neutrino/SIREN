@@ -31,6 +31,8 @@ LIST(APPEND rk_HEADERS
 
 add_library(rk_static STATIC ${rk_SOURCES})
 add_library(rk_shared SHARED ${rk_SOURCES})
+set_target_properties(rk_static PROPERTIES EXPORT_NAME rk)
+set_target_properties(rk_shared PROPERTIES EXPORT_NAME rk)
 
 target_include_directories(rk_static PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
