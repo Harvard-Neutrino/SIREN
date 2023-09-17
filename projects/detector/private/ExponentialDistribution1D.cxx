@@ -1,7 +1,7 @@
+#include "LeptonInjector/detector/ExponentialDistribution1D.h"
+
 #include <cmath>
 #include <vector>
-
-#include "LeptonInjector/detector/ExponentialDistribution1D.h"
 
 namespace LI {
 namespace detector {

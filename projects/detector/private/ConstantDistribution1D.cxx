@@ -1,5 +1,7 @@
 #include "LeptonInjector/detector/ConstantDistribution1D.h"
 
+#include <vector>
+
 namespace LI {
 namespace detector {
 

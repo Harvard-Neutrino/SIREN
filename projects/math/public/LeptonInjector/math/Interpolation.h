@@ -5,10 +5,19 @@
 #include <set>
 #include <array>
 #include <cmath>
+#include <tuple>
+#include <limits>
 #include <memory>
 #include <vector>
+#include <cstdint>
+#include <cstdlib>
+#include <utility>
+#include <iostream>
 #include <iterator>
+#include <typeinfo>
 #include <algorithm>
+#include <typeindex>
+#include <stdexcept>
 #include <functional>
 
 #include <cereal/cereal.hpp>

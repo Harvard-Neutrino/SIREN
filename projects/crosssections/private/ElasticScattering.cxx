@@ -1,3 +1,5 @@
+#include "LeptonInjector/crosssections/ElasticScattering.h"
+
 #include <set>
 #include <vector>
 #include <string>
@@ -13,7 +15,6 @@
 #include "LeptonInjector/utilities/Integration.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/ElasticScattering.h"
 
 namespace LI {
 namespace crosssections {

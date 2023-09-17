@@ -1,6 +1,7 @@
-#include <tuple>
-
 #include "LeptonInjector/utilities/Interpolator.h"
+
+#include <tuple>
+#include <vector>
 
 using namespace LI::utilities;
 

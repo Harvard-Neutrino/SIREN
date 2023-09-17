@@ -1,7 +1,12 @@
-#include <map>
-#include <math.h> // adds sqrt, power functions
-#include <assert.h>
 #include "LeptonInjector/dataclasses/Particle.h"
+
+#include <math.h>
+#include <string>
+#include <stdint.h>
+#include <assert.h>
+#include <stdexcept>
+
+#include "LeptonInjector/utilities/Constants.h"
 
 namespace LI {
 namespace dataclasses {

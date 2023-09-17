@@ -1,6 +1,4 @@
-/**
- * CrossSectionCollection.cxx
- */
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
 
 #include <map>
 #include <set>
@@ -11,7 +9,6 @@
 #include "LeptonInjector/dataclasses/Particle.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
 
 namespace LI {
 namespace crosssections {

@@ -1,3 +1,5 @@
+#include "LeptonInjector/detector/Path.h"
+
 #include <map>
 #include <string>
 #include <vector>
@@ -7,7 +9,6 @@
 #include <algorithm>
 
 #include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/geometry/Geometry.h"
 
 namespace LI {

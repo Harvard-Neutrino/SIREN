@@ -1,3 +1,5 @@
+#include "LeptonInjector/injection/InjectorBase.h"
+
 #include <cassert>
 #include <fstream>
 #include <algorithm>
@@ -19,8 +21,6 @@
 
 // For CrossSectionProbability
 #include "LeptonInjector/injection/WeightingUtils.h"
-
-#include "LeptonInjector/injection/InjectorBase.h"
 
 #include "LeptonInjector/utilities/Errors.h"
 

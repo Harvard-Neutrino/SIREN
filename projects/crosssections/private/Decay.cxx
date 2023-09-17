@@ -1,7 +1,8 @@
 #include "LeptonInjector/crosssections/Decay.h"
-#include "LeptonInjector/utilities/Constants.h"
 
 #include <rk/rk.hh>
+
+#include "LeptonInjector/utilities/Constants.h"
 
 namespace LI {
 namespace crosssections {

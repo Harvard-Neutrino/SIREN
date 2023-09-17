@@ -1,3 +1,5 @@
+#include "LeptonInjector/crosssections/DipoleFromTable.h"
+
 #include <set>
 #include <memory>
 #include <string>
@@ -17,7 +19,6 @@
 #include "LeptonInjector/detector/MaterialModel.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/DipoleFromTable.h"
 
 namespace LI {
 namespace crosssections {

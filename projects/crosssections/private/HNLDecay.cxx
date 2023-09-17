@@ -1,3 +1,4 @@
+#include "LeptonInjector/crosssections/HNLDecay.h"
 
 #include <rk/rk.hh>
 #include <rk/geom3.hh>
@@ -13,7 +14,6 @@
 #include "LeptonInjector/detector/MaterialModel.h"
 
 #include "LeptonInjector/crosssections/Decay.h"
-#include "LeptonInjector/crosssections/HNLDecay.h"
 
 namespace LI {
 namespace crosssections {

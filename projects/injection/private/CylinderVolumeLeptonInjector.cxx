@@ -1,3 +1,5 @@
+#include "LeptonInjector/injection/CylinderVolumeLeptonInjector.h"
+
 #include <map>
 #include <set>
 #include <string>
@@ -7,7 +9,6 @@
 #include "LeptonInjector/math/Vector3D.h"
 
 #include "LeptonInjector/injection/InjectorBase.h"
-#include "LeptonInjector/injection/CylinderVolumeLeptonInjector.h"
 
 namespace LI {
 namespace injection {

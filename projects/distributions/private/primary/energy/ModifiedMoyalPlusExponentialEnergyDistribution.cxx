@@ -1,3 +1,5 @@
+#include "LeptonInjector/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
+
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
 #include "LeptonInjector/utilities/Random.h"
 
@@ -5,7 +7,6 @@
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
-#include "LeptonInjector/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
 
 namespace LI {
 namespace distributions {

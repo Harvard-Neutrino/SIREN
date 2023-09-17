@@ -1,3 +1,5 @@
+#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
+
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"
 
@@ -7,7 +9,6 @@
 #include "LeptonInjector/utilities/Random.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
 
 namespace LI {
 namespace distributions {

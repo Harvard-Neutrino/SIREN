@@ -1,3 +1,5 @@
+#include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
+
 #include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"
@@ -9,7 +11,6 @@
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
-#include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
 
 #include "LeptonInjector/utilities/Errors.h"
 

@@ -1,7 +1,9 @@
+#include "LeptonInjector/math/Coordinates.h"
+
 #include <array>
 #include <tuple>
-#include <assert.h> //assertions
-#include "LeptonInjector/math/Coordinates.h"
+#include <assert.h>
+
 #include "LeptonInjector/math/Vector3D.h"
 
 namespace LeptonInjector {

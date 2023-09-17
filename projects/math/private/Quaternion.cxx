@@ -1,8 +1,11 @@
+#include "LeptonInjector/math/Quaternion.h"
+
 #include <cmath>
 #include <tuple>
-#include <ostream>
+#include <cstdlib>
 #include <sstream>
 #include <utility>
+#include <iterator>
 #include <algorithm>
 
 #include "LeptonInjector/math/Matrix3D.h"
@@ -10,8 +13,6 @@
 #include "LeptonInjector/math/Conversions.h"
 #include "LeptonInjector/math/EulerAngles.h"
 #include "LeptonInjector/math/EulerQuaternionConversions.h"
-
-#include "LeptonInjector/math/Quaternion.h"
 
 using namespace LI::math;
 

@@ -1,3 +1,5 @@
+#include "LeptonInjector/distributions/primary/energy/TabulatedFluxDistribution.h"
+
 #include <fstream>
 
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
@@ -7,7 +9,6 @@
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
-#include "LeptonInjector/distributions/primary/energy/TabulatedFluxDistribution.h"
 
 namespace LI {
 namespace distributions {

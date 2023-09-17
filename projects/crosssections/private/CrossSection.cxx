@@ -1,5 +1,7 @@
 #include "LeptonInjector/crosssections/CrossSection.h"
 
+#include <vector>
+
 namespace LI {
 namespace crosssections {
 

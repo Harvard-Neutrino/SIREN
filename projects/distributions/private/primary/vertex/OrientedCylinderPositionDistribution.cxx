@@ -1,3 +1,5 @@
+#include "LeptonInjector/distributions/primary/vertex/OrientedCylinderPositionDistribution.h"
+
 #include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/EarthModel.h"
@@ -9,7 +11,6 @@
 #include "LeptonInjector/utilities/Random.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/vertex/OrientedCylinderPositionDistribution.h"
 
 namespace LI {
 namespace distributions {

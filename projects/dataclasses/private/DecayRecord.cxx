@@ -1,7 +1,8 @@
+#include "LeptonInjector/dataclasses/DecayRecord.h"
+
 #include <tuple>
 
 #include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/dataclasses/DecayRecord.h"
 #include "LeptonInjector/dataclasses/DecaySignature.h"
 
 namespace LI {

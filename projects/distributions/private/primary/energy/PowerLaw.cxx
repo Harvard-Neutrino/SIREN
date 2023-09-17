@@ -1,9 +1,10 @@
+#include "LeptonInjector/distributions/primary/energy/PowerLaw.h"
+
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
 #include "LeptonInjector/utilities/Random.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
-#include "LeptonInjector/distributions/primary/energy/PowerLaw.h"
 
 namespace LI {
 namespace distributions {

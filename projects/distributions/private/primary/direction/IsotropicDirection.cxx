@@ -1,3 +1,5 @@
+#include "LeptonInjector/distributions/primary/direction/IsotropicDirection.h"
+
 #include "LeptonInjector/math/Vector3D.h"
 
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
@@ -6,7 +8,6 @@
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
-#include "LeptonInjector/distributions/primary/direction/IsotropicDirection.h"
 
 namespace LI {
 namespace distributions {

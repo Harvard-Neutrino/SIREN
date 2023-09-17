@@ -2,6 +2,11 @@
 #ifndef LI_WeightingUtils_H
 #define LI_WeightingUtils_H
 
+#include <memory>
+
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
 
 namespace LI {
 namespace injection {

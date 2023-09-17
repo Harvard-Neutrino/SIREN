@@ -1,5 +1,7 @@
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
 
+#include <tuple>
+
 namespace LI {
 namespace dataclasses {
 

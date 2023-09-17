@@ -1,3 +1,5 @@
+#include "LeptonInjector/crosssections/HNLFromSpline.h"
+
 #include <map>
 #include <set>
 #include <vector>
@@ -15,7 +17,6 @@
 #include "LeptonInjector/utilities/Random.h"
 
 #include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/HNLFromSpline.h"
 
 namespace LI {
 namespace crosssections {

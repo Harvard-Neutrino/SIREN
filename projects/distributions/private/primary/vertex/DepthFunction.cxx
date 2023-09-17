@@ -1,6 +1,7 @@
+#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
+
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 
 namespace LI {
 namespace distributions {

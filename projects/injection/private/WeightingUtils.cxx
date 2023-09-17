@@ -1,3 +1,5 @@
+#include "LeptonInjector/injection/WeightingUtils.h"
+
 #include <set>
 #include <vector>
 #include <memory>

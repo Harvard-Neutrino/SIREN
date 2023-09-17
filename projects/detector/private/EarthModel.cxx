@@ -1,3 +1,5 @@
+#include "LeptonInjector/detector/EarthModel.h"
+
 #include <tuple>
 #include <string>
 #include <vector>
@@ -10,7 +12,6 @@
 
 #include "LeptonInjector/detector/ConstantDensityDistribution.h"
 #include "LeptonInjector/detector/RadialAxisPolynomialDensityDistribution.h"
-#include "LeptonInjector/detector/EarthModel.h"
 
 #include "LeptonInjector/geometry/Box.h"
 #include "LeptonInjector/geometry/Sphere.h"

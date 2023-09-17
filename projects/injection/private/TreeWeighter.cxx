@@ -1,9 +1,9 @@
+#include "LeptonInjector/injection/TreeWeighter.h"
+
 #include <tuple>
 #include <cassert>
 #include <fstream>
 #include <algorithm>
-
-#include "LeptonInjector/injection/TreeWeighter.h"
 
 #include "LeptonInjector/injection/InjectorBase.h"
 

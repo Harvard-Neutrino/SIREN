@@ -1,10 +1,11 @@
+#include "LeptonInjector/distributions/primary/type/PrimaryInjector.h"
+
 #include "LeptonInjector/detector/EarthModel.h"
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/utilities/Random.h"
 #include "LeptonInjector/dataclasses/Particle.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/type/PrimaryInjector.h"
 
 namespace LI {
 namespace distributions {

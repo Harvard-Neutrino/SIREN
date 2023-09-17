@@ -1,5 +1,7 @@
 #include "LeptonInjector/distributions/Distributions.h"
 
+#include <vector>
+
 namespace LI {
 namespace distributions {
 

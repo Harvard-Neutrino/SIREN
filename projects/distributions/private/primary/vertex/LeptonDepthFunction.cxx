@@ -1,6 +1,8 @@
-#include <tuple>
-#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 #include "LeptonInjector/distributions/primary/vertex/LeptonDepthFunction.h"
+
+#include <tuple>
+
+#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 
 namespace LI {
 namespace distributions {

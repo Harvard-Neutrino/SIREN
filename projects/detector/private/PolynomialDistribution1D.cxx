@@ -1,7 +1,8 @@
+#include "LeptonInjector/detector/PolynomialDistribution1D.h"
+
 #include <vector>
 
 #include "LeptonInjector/math/Polynomial.h"
-#include "LeptonInjector/detector/PolynomialDistribution1D.h"
 
 namespace LI {
 namespace detector {

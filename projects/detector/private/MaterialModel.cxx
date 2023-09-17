@@ -1,3 +1,5 @@
+#include "LeptonInjector/detector/MaterialModel.h"
+
 #include <map>
 #include <set>
 #include <string>
@@ -8,8 +10,6 @@
 
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/utilities/Constants.h"
-
-#include "LeptonInjector/detector/MaterialModel.h"
 
 using namespace LI::detector ;
 

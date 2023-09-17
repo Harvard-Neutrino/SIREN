@@ -1,3 +1,5 @@
+#include "LeptonInjector/distributions/primary/direction/Cone.h"
+
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/math/Quaternion.h"
 
@@ -7,7 +9,6 @@
 
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
-#include "LeptonInjector/distributions/primary/direction/Cone.h"
 
 namespace LI {
 namespace distributions {

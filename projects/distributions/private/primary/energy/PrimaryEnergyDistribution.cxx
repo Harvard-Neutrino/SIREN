@@ -1,7 +1,8 @@
+#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
+
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
 
 namespace LI {
 namespace distributions {

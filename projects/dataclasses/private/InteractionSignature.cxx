@@ -1,6 +1,6 @@
-#include <tuple>
-
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
+
+#include <tuple>
 
 namespace LI {
 namespace dataclasses {
