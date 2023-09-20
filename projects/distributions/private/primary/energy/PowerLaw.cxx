@@ -1,10 +1,16 @@
 #include "LeptonInjector/distributions/primary/energy/PowerLaw.h"
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/utilities/Random.h"
+#include <array>                                           // for array
+#include <tuple>                                           // for tie, opera...
+#include <math.h>                                          // for pow, log10
+#include <string>                                          // for basic_string
 
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
+#include "LeptonInjector/utilities/Random.h"               // for LI_random
+
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace detector { class EarthModel; } }
 
 namespace LI {
 namespace distributions {

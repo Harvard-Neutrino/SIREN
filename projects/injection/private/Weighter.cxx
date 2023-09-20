@@ -1,20 +1,28 @@
 #include "LeptonInjector/injection/Weighter.h"
 
+#include <map>
+#include <array>
+#include <cmath>
 #include <tuple>
 #include <cassert>
-#include <fstream>
+#include <utility>
+#include <iterator>
 #include <algorithm>
-
-#include "LeptonInjector/injection/InjectorBase.h"
-
-#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
+#include <functional>
+#include <initializer_list>
 
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
-
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
-
-#include <rk/rk.hh>
+#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/distributions/Distributions.h"
+#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "LeptonInjector/geometry/Geometry.h"
+#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/WeightingUtils.h"
+#include "LeptonInjector/math/Vector3D.h"
 
 namespace LI {
 namespace injection {

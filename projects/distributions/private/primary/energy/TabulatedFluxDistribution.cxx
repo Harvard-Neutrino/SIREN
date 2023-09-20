@@ -1,14 +1,18 @@
 #include "LeptonInjector/distributions/primary/energy/TabulatedFluxDistribution.h"
+#include <array>                                           // for array
+#include <tuple>                                           // for tie, opera...
+#include <vector>                                          // for vector
+#include <fstream>                                         // for basic_istream
+#include <functional>                                      // for function
 
-#include <fstream>
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
+#include "LeptonInjector/utilities/Integration.h"          // for rombergInt...
+#include "LeptonInjector/utilities/Interpolator.h"         // for TableData1D
+#include "LeptonInjector/utilities/Random.h"               // for LI_random
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Interpolator.h"
-#include "LeptonInjector/utilities/Integration.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace detector { class EarthModel; } }
 
 namespace LI {
 namespace distributions {

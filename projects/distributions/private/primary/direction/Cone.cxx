@@ -1,14 +1,18 @@
 #include "LeptonInjector/distributions/primary/direction/Cone.h"
 
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/math/Quaternion.h"
+#include <array>                                           // for array
+#include <math.h>                                          // for acos, cos
+#include <string>                                          // for basic_string
+#include <stdlib.h>                                        // for abs
 
-#include "LeptonInjector/utilities/Random.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
+#include "LeptonInjector/math/Quaternion.h"                // for Quaternion
+#include "LeptonInjector/math/Vector3D.h"                  // for Vector3D
+#include "LeptonInjector/utilities/Random.h"               // for LI_random
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace detector { class EarthModel; } }
 
 namespace LI {
 namespace distributions {

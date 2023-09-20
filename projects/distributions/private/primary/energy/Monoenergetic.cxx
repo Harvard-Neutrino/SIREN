@@ -1,10 +1,17 @@
 #include "LeptonInjector/distributions/primary/energy/Monoenergetic.h"
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/utilities/Random.h"
+#include <array>                                           // for array
+#include <cmath>                                           // for abs
+#include <tuple>                                           // for tie, opera...
+#include <string>                                          // for basic_string
+#include <stdlib.h>                                        // for abs
 
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
+
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace distributions {

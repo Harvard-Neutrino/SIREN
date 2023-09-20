@@ -1,8 +1,10 @@
 #include "LeptonInjector/distributions/primary/vertex/LeptonDepthFunction.h"
 
 #include <tuple>
-#include <cmath>
+#include <math.h>
+#include <algorithm>
 
+#include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 
 namespace LI {

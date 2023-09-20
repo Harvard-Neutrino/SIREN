@@ -2,35 +2,24 @@
 #ifndef LI_PrimaryInjector_H
 #define LI_PrimaryInjector_H
 
-#include <string>
-#include <vector>
+#include <string>                                        // for string
+#include <memory>                                        // for shared_ptr
+#include <cstdint>                                       // for uint32_t
+#include <stdexcept>                                     // for runtime_error
+#include <vector>                                        // for vector
 
 #include <cereal/access.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"         // for Particle
+#include "LeptonInjector/distributions/Distributions.h"  // for InjectionDis...
 
-#include "LeptonInjector/distributions/Distributions.h"
-
-namespace LI {
-namespace utilities {
-class LI_random;
-} // namespace utilities
-
-namespace detector {
-class EarthModel;
-} // namespace detector
-
-namespace dataclasses {
-struct InteractionRecord;
-struct InteractionSignature;
-}
-namespace crosssections {
-class CrossSectionCollection;
-} // namespace crosssections
-} // namespace LeptonInjector
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace distributions {

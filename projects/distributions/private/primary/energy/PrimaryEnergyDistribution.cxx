@@ -1,8 +1,9 @@
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include <array>                                           // for array
+#include <string>                                          // for basic_string
 
-#include "LeptonInjector/distributions/Distributions.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
 
 namespace LI {
 namespace distributions {

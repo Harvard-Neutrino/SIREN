@@ -1,19 +1,19 @@
 #include "LeptonInjector/injection/WeightingUtils.h"
 
-#include <set>
-#include <vector>
-#include <memory>
-#include <algorithm>
+#include <set>                                                    // for set
+#include <array>                                                  // for array
+#include <vector>                                                 // for vector
 
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/crosssections/Decay.h"
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
-#include "LeptonInjector/detector/EarthModel.h"
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/utilities/Constants.h"
+#include "LeptonInjector/crosssections/CrossSection.h"            // for Cro...
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"  // for Cro...
+#include "LeptonInjector/crosssections/Decay.h"                   // for Decay
+#include "LeptonInjector/dataclasses/InteractionRecord.h"         // for Int...
+#include "LeptonInjector/dataclasses/InteractionSignature.h"      // for Int...
+#include "LeptonInjector/dataclasses/Particle.h"                  // for Par...
+#include "LeptonInjector/detector/EarthModel.h"                   // for Ear...
+#include "LeptonInjector/geometry/Geometry.h"                     // for Geo...
+#include "LeptonInjector/math/Vector3D.h"                         // for Vec...
+#include "LeptonInjector/utilities/Constants.h"                   // for cm
 
 namespace LI {
 namespace injection {

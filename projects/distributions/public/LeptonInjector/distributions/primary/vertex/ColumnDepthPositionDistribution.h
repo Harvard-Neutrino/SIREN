@@ -2,9 +2,10 @@
 #ifndef LI_ColumnDepthPositionDistribution_H
 #define LI_ColumnDepthPositionDistribution_H
 
+#include <set>
 #include <memory>
 #include <string>
-#include <vector>
+#include <cstdint>
 #include <utility>
 #include <stdexcept>
 
@@ -15,29 +16,16 @@
 #include <cereal/types/utility.hpp>
 
 #include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 #include "LeptonInjector/math/Vector3D.h"
 
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
-#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
-
-namespace LI {
-namespace utilities {
-class LI_random;
-} // namespace utilities
-
-namespace detector {
-class EarthModel;
-} // namespace detector
-
-namespace dataclasses {
-struct InteractionRecord;
-struct InteractionSignature;
-}
-namespace crosssections {
-class CrossSectionCollection;
-} // namespace crosssections
-} // namespace LeptonInjector
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class WeightableDistribution; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace distributions {

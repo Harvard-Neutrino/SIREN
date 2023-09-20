@@ -1,34 +1,32 @@
 #include "LeptonInjector/injection/InjectorBase.h"
 
-#include <cassert>
-#include <fstream>
+#include <array>
+#include <cmath>
+#include <string>
 #include <algorithm>
 
 #include <rk/rk.hh>
 
-#include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
-
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/Decay.h"
+#include "LeptonInjector/dataclasses/DecayRecord.h"
+#include "LeptonInjector/dataclasses/DecaySignature.h"
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
-
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Constants.h"
-#include "LeptonInjector/injection/Weighter.h"
+#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/MaterialModel.h"
+#include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
-
-// For CrossSectionProbability
-#include "LeptonInjector/injection/WeightingUtils.h"
-
-#include "LeptonInjector/utilities/Errors.h"
-
+#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/injection/Process.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-
-#include "LeptonInjector/crosssections/Decay.h"
+#include "LeptonInjector/injection/WeightingUtils.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/utilities/Constants.h"
+#include "LeptonInjector/utilities/Errors.h"
+#include "LeptonInjector/utilities/Random.h"
 
 namespace LI {
 namespace injection {

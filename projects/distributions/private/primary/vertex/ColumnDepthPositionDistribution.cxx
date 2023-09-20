@@ -1,19 +1,24 @@
 #include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
 
-#include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include <array>
+#include <cmath>
+#include <tuple>
+#include <string>
+#include <vector>
 
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
-
-#include "LeptonInjector/utilities/Random.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/dataclasses/Particle.h"
-
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
-
+#include "LeptonInjector/math/Quaternion.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/utilities/Errors.h"
+#include "LeptonInjector/utilities/Random.h"
 
 namespace LI {
 namespace distributions {

@@ -10,6 +10,7 @@
 #include "../../public/LeptonInjector/injection/TreeWeighter.h"
 #include "../../public/LeptonInjector/injection/Weighter.h"
 
+#include "../../../distributions/public/LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
 #include "../../../detector/public/LeptonInjector/detector/EarthModel.h"
 #include "../../../crosssections/public/LeptonInjector/crosssections/CrossSectionCollection.h"

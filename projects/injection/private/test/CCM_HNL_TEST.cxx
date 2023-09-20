@@ -16,6 +16,7 @@
 #include "LeptonInjector/utilities/Constants.h"
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/injection/RangedLeptonInjector.h"
 #include "LeptonInjector/injection/TreeWeighter.h"
 #include "LeptonInjector/geometry/Geometry.h"
@@ -29,6 +30,8 @@
 #include "LeptonInjector/distributions/primary/direction/IsotropicDirection.h"
 #include "LeptonInjector/distributions/primary/vertex/PointSourcePositionDistribution.h"
 #include "LeptonInjector/distributions/primary/vertex/SecondaryPositionDistribution.h"
+#include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
+#include "LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
 
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
 #include "LeptonInjector/crosssections/CrossSection.h"

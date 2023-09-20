@@ -1,6 +1,7 @@
 #include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
+#include <typeindex>  // for type_index
+#include <typeinfo>   // for type_info
 
 namespace LI {
 namespace distributions {

@@ -1,12 +1,19 @@
 #include "LeptonInjector/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/utilities/Random.h"
+#include <array>                                           // for array
+#include <cmath>                                           // for exp, sqrt
+#include <tuple>                                           // for tie, opera...
+#include <string>                                          // for basic_string
+#include <stdlib.h>                                        // for abs, size_t
+#include <functional>                                      // for function
 
-#include "LeptonInjector/utilities/Integration.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
+#include "LeptonInjector/utilities/Integration.h"          // for rombergInt...
+#include "LeptonInjector/utilities/Random.h"               // for LI_random
 
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace detector { class EarthModel; } }
 
 namespace LI {
 namespace distributions {

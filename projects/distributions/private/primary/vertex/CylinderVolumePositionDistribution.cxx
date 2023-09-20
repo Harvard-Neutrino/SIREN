@@ -1,16 +1,19 @@
 #include "LeptonInjector/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
 
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include <array>                                           // for array
+#include <cmath>                                           // for sqrt, cos
+#include <string>                                          // for basic_string
+#include <vector>                                          // for vector
+#include <stdlib.h>                                        // for abs
 
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/detector/EarthModel.h"            // for EarthModel
+#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
+#include "LeptonInjector/geometry/Geometry.h"              // for Geometry
+#include "LeptonInjector/math/Vector3D.h"                  // for Vector3D
+#include "LeptonInjector/utilities/Random.h"               // for LI_random
 
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
-
-#include "LeptonInjector/utilities/Errors.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
 
 namespace LI {
 namespace distributions {

@@ -2,11 +2,11 @@
 #ifndef LI_WeightingUtils_H
 #define LI_WeightingUtils_H
 
-#include <memory>
+#include <memory>                 // for shared_ptr
 
-#include "LeptonInjector/detector/EarthModel.h"
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
 
 namespace LI {
 namespace injection {
