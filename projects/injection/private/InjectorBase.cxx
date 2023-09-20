@@ -15,6 +15,7 @@
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 
 #include "LeptonInjector/utilities/Random.h"
+#include "LeptonInjector/utilities/Constants.h"
 #include "LeptonInjector/injection/Weighter.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
@@ -26,6 +27,8 @@
 
 #include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/dataclasses/Particle.h"
+
+#include "LeptonInjector/crosssections/Decay.h"
 
 namespace LI {
 namespace injection {

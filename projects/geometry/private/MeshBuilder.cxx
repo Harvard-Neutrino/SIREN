@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <tuple>
+#include <math.h>
 #include <memory>
 #include <vector>
 #include <numeric>

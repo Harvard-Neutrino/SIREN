@@ -2,12 +2,12 @@
 #ifndef LI_Cylinder_H
 #define LI_Cylinder_H
 
-#include <map>
-#include <math.h>
 #include <memory>
 #include <vector>
-#include <float.h>
+#include <cstdint>
+#include <utility>
 #include <iostream>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

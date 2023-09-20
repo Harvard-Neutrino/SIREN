@@ -2,7 +2,10 @@
 #ifndef LI_Path_H
 #define LI_Path_H
 
-#include <memory>
+#include <vector>                                 // for vector
+#include <memory>                                 // for shared_ptr
+#include <cstdint>                                // for uint32_t
+#include <stdexcept>                              // for runtime_error
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -16,7 +19,11 @@
 #include <cereal/types/utility.hpp>
 
 #include "LeptonInjector/serialization/array.h"
-#include "LeptonInjector/detector/EarthModel.h"
+
+#include "LeptonInjector/dataclasses/Particle.h"  // for Particle
+#include "LeptonInjector/geometry/Geometry.h"     // for Geometry
+#include "LeptonInjector/detector/EarthModel.h"   // for EarthModel
+#include "LeptonInjector/math/Vector3D.h"         // for Vector3D
 
 namespace LI {
 namespace detector {

@@ -1,6 +1,11 @@
 #ifndef LI_DecaySignature_H
 #define LI_DecaySignature_H
 
+#include <cstdint>                                // for uint32_t
+#include <vector>                                 // for vector
+#include <ostream>                                // for ostream
+#include <stdexcept>                              // for runtime_error
+
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
@@ -8,11 +13,6 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-
-#include <vector>
-#include <ostream>
-#include <stdint.h>
-#include <stdexcept>
 
 #include "LeptonInjector/dataclasses/Particle.h"
 

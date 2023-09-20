@@ -1,19 +1,20 @@
 #include "LeptonInjector/crosssections/NeutrissimoDecay.h"
 
-#include <rk/rk.hh>
-#include <rk/geom3.hh>
+#include <array>                                              // for array
+#include <cmath>                                              // for copysign
+#include <tuple>                                              // for tie
+#include <string>                                             // for basic_s...
 
-#include "LeptonInjector/dataclasses/Particle.h"
+#include <rk/geom3.hh>                                        // for Vector3
+#include <rk/rk.hh>                                           // for P4, Boost
 
-#include "LeptonInjector/math/Vector3D.h"
-
-#include "LeptonInjector/utilities/Errors.h"
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Constants.h"
-
-#include "LeptonInjector/detector/MaterialModel.h"
-
-#include "LeptonInjector/crosssections/Decay.h"
+#include "LeptonInjector/crosssections/Decay.h"               // for Decay
+#include "LeptonInjector/dataclasses/InteractionRecord.h"     // for Interac...
+#include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
+#include "LeptonInjector/dataclasses/Particle.h"              // for Particle
+#include "LeptonInjector/math/Vector3D.h"                     // for Vector3D
+#include "LeptonInjector/utilities/Constants.h"               // for GeV, pi
+#include "LeptonInjector/utilities/Random.h"                  // for LI_random
 
 namespace LI {
 namespace crosssections {

@@ -2,12 +2,14 @@
 #ifndef LI_ExtrPoly_H
 #define LI_ExtrPoly_H
 
-#include <map>
+#include <array>
+#include <tuple>
 #include <memory>
 #include <vector>
-#include <math.h>
-#include <float.h>
+#include <cstdint>
+#include <utility>
 #include <iostream>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

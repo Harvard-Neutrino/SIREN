@@ -1,10 +1,14 @@
 #include "LeptonInjector/dataclasses/Particle.h"
 
+#include <iosfwd>
 #include <math.h>
 #include <string>
+#include <cstdint>
 #include <stdint.h>
 #include <assert.h>
 #include <stdexcept>
+
+#include <cereal/cereal.hpp>
 
 #include "LeptonInjector/utilities/Constants.h"
 

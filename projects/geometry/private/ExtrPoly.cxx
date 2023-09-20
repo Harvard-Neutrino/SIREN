@@ -1,7 +1,7 @@
 #include "LeptonInjector/geometry/ExtrPoly.h"
 
-#include <cmath>
 #include <tuple>
+#include <math.h>
 #include <string>
 #include <vector>
 #include <float.h>

@@ -1,11 +1,17 @@
 #include "LeptonInjector/distributions/primary/direction/FixedDirection.h"
 
-#include "LeptonInjector/math/Vector3D.h"
+#include <array>                                           // for array
+#include <tuple>                                           // for tie, opera...
+#include <string>                                          // for basic_string
+#include <stdlib.h>                                        // for abs
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
+#include "LeptonInjector/math/Vector3D.h"                  // for Vector3D
 
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace distributions {

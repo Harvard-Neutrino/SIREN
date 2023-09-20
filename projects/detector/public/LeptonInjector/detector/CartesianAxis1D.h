@@ -1,10 +1,10 @@
 #pragma once
 #ifndef LI_CartesianAxis1D_H
 #define LI_CartesianAxis1D_H
-#include <memory>
-#include <string>
-#include <exception>
-#include <functional>
+
+#include <memory>                            // for shared_ptr
+#include <cstdint>                           // for uint32_t
+#include <stdexcept>                         // for runtime_error
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -12,9 +12,10 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 
-#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"    // for Vector3D
 
-#include "LeptonInjector/detector/Axis1D.h"
+#include "LeptonInjector/detector/Axis1D.h"  // for Axis1D
+
 
 namespace LI {
 namespace detector {

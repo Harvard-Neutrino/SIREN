@@ -1,6 +1,7 @@
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 
-#include <tuple>
+#include <tuple>    // for tie, operator<, operator==, tuple
+#include <ostream>  // for operator<<, char_traits, basic_ostream, endl, ost...
 
 namespace LI {
 namespace dataclasses {

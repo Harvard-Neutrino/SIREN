@@ -6,6 +6,7 @@
 #include <cassert>
 
 #include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/DensityDistribution.h"
 
 namespace LI {
 namespace detector {

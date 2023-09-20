@@ -2,9 +2,13 @@
 #ifndef LI_InteractionSignature_H
 #define LI_InteractionSignature_H
 
-#include <vector>
+#include <iosfwd>                                 // for ostream
+#include <vector>                                 // for vector
+#include <cstdint>                                // for uint32_t
+#include <stdexcept>                              // for runtime_error
+#include <cereal/cereal.hpp>                      // for make_nvp, CEREAL_CL...
 
-#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/dataclasses/Particle.h"  // for Particle
 
 namespace LI {
 namespace dataclasses {

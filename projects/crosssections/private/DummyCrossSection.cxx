@@ -1,22 +1,19 @@
 #include "LeptonInjector/crosssections/DummyCrossSection.h"
 
-#include <map>
-#include <set>
-#include <vector>
-#include <string>
-#include <memory>
+#include <array>                                              // for array
+#include <cmath>                                              // for sqrt, M_PI
+#include <string>                                             // for basic_s...
+#include <vector>                                             // for vector
+#include <stddef.h>                                           // for size_t
 
-#include <rk/rk.hh>
-#include <rk/geom3.hh>
+#include <rk/geom3.hh>                                        // for Vector3
+#include <rk/rk.hh>                                           // for P4, Boost
 
-#include <photospline/splinetable.h>
-#include <photospline/cinter/splinetable.h>
-
-#include "LeptonInjector/dataclasses/Particle.h"
-
-#include "LeptonInjector/utilities/Random.h"
-
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSection.h"        // for CrossSe...
+#include "LeptonInjector/dataclasses/InteractionRecord.h"     // for Interac...
+#include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
+#include "LeptonInjector/dataclasses/Particle.h"              // for Particle
+#include "LeptonInjector/utilities/Random.h"                  // for LI_random
 
 namespace LI {
 namespace crosssections {

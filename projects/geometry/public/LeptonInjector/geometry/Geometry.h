@@ -30,11 +30,14 @@
 #ifndef LI_Geometry_H
 #define LI_Geometry_H
 
-#include <iostream>
-#include <map>
+#include <array>
 #include <memory>
-#include <math.h>
-#include <float.h>
+#include <string>
+#include <vector>
+#include <cstdint>
+#include <utility>
+#include <iostream>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

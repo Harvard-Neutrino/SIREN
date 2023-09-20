@@ -2,11 +2,12 @@
 #ifndef LI_GeometryMesh_H
 #define LI_GeometryMesh_H
 
-#include <iostream>
-#include <map>
 #include <memory>
-#include <math.h>
-#include <float.h>
+#include <vector>
+#include <cstdint>
+#include <utility>
+#include <iostream>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

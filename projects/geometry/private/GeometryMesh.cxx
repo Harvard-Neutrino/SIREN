@@ -1,7 +1,5 @@
 #include "LeptonInjector/geometry/GeometryMesh.h"
 
-#include <cmath>
-#include <iosfwd>
 #include <string>
 #include <vector>
 #include <utility>

@@ -4,7 +4,6 @@
 #include <cmath>
 #include <tuple>
 #include <utility>
-#include <iostream>
 #include <algorithm>
 
 using namespace LI::math;

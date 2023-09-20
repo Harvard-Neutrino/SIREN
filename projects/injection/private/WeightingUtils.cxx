@@ -8,6 +8,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/crosssections/Decay.h"
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
 #include "LeptonInjector/detector/EarthModel.h"

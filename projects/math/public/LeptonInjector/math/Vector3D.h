@@ -27,7 +27,9 @@
 #define LI_Vector3D_H
 
 #include <array>
+#include <cstdint>
 #include <sstream>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

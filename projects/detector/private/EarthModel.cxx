@@ -1,15 +1,29 @@
 #include "LeptonInjector/detector/EarthModel.h"
 
 #include <tuple>
-#include <string>
+#include <cmath>
+#include <cctype>
+#include <memory>
 #include <vector>
-#include <fstream>
+#include <string>
+#include <limits>
 #include <numeric>
-#include <sstream>
+#include <utility>
+#include <assert.h>
 #include <iostream>
 #include <iterator>
+#include <stddef.h>
+#include <stdlib.h>
 #include <algorithm>
+#include <initializer_list>
 
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/EulerQuaternionConversions.h"
+
+#include "LeptonInjector/detector/MaterialModel.h"
+
+#include "LeptonInjector/detector/RadialAxis1D.h"
+#include "LeptonInjector/detector/DensityDistribution.h"
 #include "LeptonInjector/detector/ConstantDensityDistribution.h"
 #include "LeptonInjector/detector/RadialAxisPolynomialDensityDistribution.h"
 
@@ -18,8 +32,7 @@
 #include "LeptonInjector/geometry/Cylinder.h"
 #include "LeptonInjector/geometry/ExtrPoly.h"
 
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/math/EulerQuaternionConversions.h"
+#include "LeptonInjector/geometry/Placement.h"
 
 #include "LeptonInjector/utilities/Constants.h"
 

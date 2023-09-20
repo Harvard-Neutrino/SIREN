@@ -1,24 +1,36 @@
 #include "LeptonInjector/crosssections/DipoleFromTable.h"
 
-#include <set>
-#include <memory>
-#include <string>
-#include <vector>
+#include <set>                                                // for set
+#include <array>                                              // for array
+#include <cmath>                                              // for pow, sqrt
+#include <tuple>                                              // for tie
+#include <cstdio>                                             // for snprintf
+#include <memory>                                             // for allocator
+#include <string>                                             // for basic_s...
+#include <vector>                                             // for vector
 #include <fstream>
-#include <iomanip>
+#include <iomanip>                                            // for operator<<
+#include <utility>                                            // for pair
+#include <assert.h>                                           // for assert
+#include <iostream>                                           // for basic_i...
+#include <stdint.h>                                           // for int32_t
+#include <stdlib.h>                                           // for abs
+#include <iterator>                                           // for back_in...
+#include <algorithm>                                          // for find, max, min, set_int...
+#include <functional>                                         // for function
 
-#include <rk/rk.hh>
-#include <rk/geom3.hh>
+#include <rk/geom3.hh>                                        // for Vector3
+#include <rk/rk.hh>                                           // for P4, Boost
 
-#include "LeptonInjector/dataclasses/Particle.h"
-
-#include "LeptonInjector/utilities/Errors.h"
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Interpolator.h"
-
-#include "LeptonInjector/detector/MaterialModel.h"
-
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSection.h"        // for CrossSe...
+#include "LeptonInjector/dataclasses/InteractionRecord.h"     // for Interac...
+#include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
+#include "LeptonInjector/dataclasses/Particle.h"              // for Particle
+#include "LeptonInjector/detector/MaterialModel.h"            // for Materia...
+#include "LeptonInjector/utilities/Constants.h"               // for invGeVs...
+#include "LeptonInjector/utilities/Errors.h"                  // for Injecti...
+#include "LeptonInjector/utilities/Interpolator.h"            // for Interpo...
+#include "LeptonInjector/utilities/Random.h"                  // for LI_random
 
 namespace LI {
 namespace crosssections {

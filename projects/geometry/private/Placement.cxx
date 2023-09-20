@@ -3,7 +3,7 @@
 #include <tuple>
 #include <memory>
 #include <utility>
-#include <iostream>
+#include <ostream>
 
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/math/Quaternion.h"

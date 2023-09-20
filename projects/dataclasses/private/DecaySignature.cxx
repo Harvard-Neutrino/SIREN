@@ -2,8 +2,6 @@
 
 #include <tuple>
 
-#include "LeptonInjector/dataclasses/Particle.h"
-
 namespace LI {
 namespace dataclasses {
 

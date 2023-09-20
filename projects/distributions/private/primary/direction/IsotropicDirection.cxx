@@ -1,13 +1,15 @@
 #include "LeptonInjector/distributions/primary/direction/IsotropicDirection.h"
 
-#include "LeptonInjector/math/Vector3D.h"
+#include <math.h>                                        // for M_PI, cos, sin
+#include <string>                                        // for basic_string
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/distributions/Distributions.h"  // for InjectionDis...
+#include "LeptonInjector/math/Vector3D.h"                // for Vector3D
+#include "LeptonInjector/utilities/Random.h"             // for LI_random
 
-#include "LeptonInjector/utilities/Random.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
 
 namespace LI {
 namespace distributions {

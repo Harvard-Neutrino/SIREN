@@ -1,5 +1,7 @@
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 
+#include <cmath>
+
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 
 namespace LI {
@@ -10,7 +12,7 @@ namespace distributions {
 //---------------
 
 double DecayRangeFunction::DecayLength(double particle_mass, double decay_width, double energy) {
-    double beta = sqrt(energy*energy - particle_mass*particle_mass) / energy;
+    double beta = std::sqrt(energy*energy - particle_mass*particle_mass) / energy;
     double gamma = energy / particle_mass;
     double time_in_rest_frame = 1.0 / decay_width; // inverse GeV
     double time_in_lab_frame = time_in_rest_frame * gamma; // inverse GeV

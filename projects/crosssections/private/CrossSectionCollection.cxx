@@ -1,14 +1,17 @@
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
 
-#include <map>
-#include <set>
-#include <vector>
-#include <string>
-#include <memory>
+#include <map>                                                // for map
+#include <set>                                                // for operator==
+#include <tuple>                                              // for tie
+#include <limits>                                             // for numeric...
+#include <vector>                                             // for vector
+#include <utility>                                            // for pair
 
-#include "LeptonInjector/dataclasses/Particle.h"
-
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/crosssections/CrossSection.h"        // for CrossSe...
+#include "LeptonInjector/crosssections/Decay.h"               // for Decay
+#include "LeptonInjector/dataclasses/InteractionRecord.h"     // for Interac...
+#include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
+#include "LeptonInjector/dataclasses/Particle.h"              // for Particle
 
 namespace LI {
 namespace crosssections {

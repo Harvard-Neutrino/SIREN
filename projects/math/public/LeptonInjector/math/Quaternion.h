@@ -3,6 +3,7 @@
 #define LI_Quaternion_H
 
 #include <tuple>
+#include <cstdint>
 #include <ostream>
 #include <stdexcept>
 

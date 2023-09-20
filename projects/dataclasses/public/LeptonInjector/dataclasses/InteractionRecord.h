@@ -2,8 +2,11 @@
 #ifndef LI_InteractionRecord_H
 #define LI_InteractionRecord_H
 
-#include <array>
-#include <vector>
+#include <array>                                              // for array
+#include <iosfwd>                                             // for ostream
+#include <vector>                                             // for vector
+#include <cstdint>                                            // for uint32_t
+#include <stdexcept>                                          // for runtime...
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

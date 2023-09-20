@@ -5,12 +5,10 @@
 // Used to define the Particle class
 // Partiles have a type, energy, position, and direction
 
-// !!! Important !!!
-// At the moment, only leptons (charged + uncharged) and hadrons are fully supported
-
+#include <set>
 #include <string>
-#include <utility> // std::pair
-#include <exception>
+#include <utility>
+#include <stdint.h>
 
 #include <cereal/cereal.hpp>
 #include <cereal/access.hpp>
@@ -19,10 +17,7 @@
 
 #include <cereal/types/set.hpp>
 #include <cereal/types/utility.hpp>
-
-#include "LeptonInjector/utilities/Constants.h"
-
-// positions are in Cartesian, centered in the middle of IceCube
+#include <cereal/details/helpers.hpp>
 
 namespace LI {
 namespace dataclasses {

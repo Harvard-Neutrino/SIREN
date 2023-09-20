@@ -2,13 +2,14 @@
 #ifndef LI_HNLFromSpline_H
 #define LI_HNLFromSpline_H
 
-#include <map>
-#include <set>
+#include <map>                                                // for map
+#include <set>                                                // for set
 #include <memory>
 #include <string>
-#include <vector>
+#include <vector>                                             // for vector
+#include <cstdint>                                            // for uint32_t
 #include <algorithm>
-#include <stdexcept>
+#include <stdexcept>                                          // for runtime...
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -23,11 +24,15 @@
 #include <photospline/splinetable.h>
 #include <photospline/cinter/splinetable.h>
 
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/crosssections/CrossSection.h"        // for CrossSe...
+#include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
+#include "LeptonInjector/dataclasses/Particle.h"              // for Particle
+#include "photospline/detail/fitsio.h"                        // for splinet...
 
-#include "LeptonInjector/crosssections/CrossSection.h"
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace utilities { class LI_random; } }
+namespace cereal { class access; }
+
 
 namespace LI {
 namespace crosssections {

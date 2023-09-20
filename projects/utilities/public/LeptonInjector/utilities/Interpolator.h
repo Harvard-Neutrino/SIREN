@@ -6,8 +6,11 @@
 #include <set>
 #include <cmath>
 #include <tuple>
+#include <limits>
 #include <vector>
 #include <cassert>
+#include <cstdint>
+#include <stdlib.h>
 #include <algorithm>
 #include <stdexcept>
 

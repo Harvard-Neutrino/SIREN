@@ -1,6 +1,7 @@
 #include "LeptonInjector/distributions/primary/vertex/LeptonDepthFunction.h"
 
 #include <tuple>
+#include <cmath>
 
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 
@@ -56,9 +57,9 @@ double LeptonDepthFunction::GetMaxDepth() const {
 }
 
 double LeptonDepthFunction::operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const {
-    double range = log(1.0 + energy * mu_beta / mu_alpha) / mu_beta;
+    double range = std::log(1.0 + energy * mu_beta / mu_alpha) / mu_beta;
     if(tau_primaries.count(signature.primary_type) > 0)
-        range += log(1.0 + energy * tau_beta / tau_alpha) / tau_beta;
+        range += std::log(1.0 + energy * tau_beta / tau_alpha) / tau_beta;
     return std::min(range, max_depth);
 }
 

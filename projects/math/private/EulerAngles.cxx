@@ -1,7 +1,8 @@
 #include "LeptonInjector/math/EulerAngles.h"
 
+#include <ostream>
+#include <sstream>
 #include <utility>
-#include <iostream>
 
 #include "LeptonInjector/math/Vector3D.h"
 

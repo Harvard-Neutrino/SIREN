@@ -2,11 +2,12 @@
 #ifndef LI_MeshBuilder_H
 #define LI_MeshBuilder_H
 
-#include <iostream>
+#include <set>
 #include <map>
+#include <array>
+#include <tuple>
 #include <memory>
-#include <math.h>
-#include <float.h>
+#include <vector>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -18,6 +19,7 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
+
 #include "LeptonInjector/serialization/array.h"
 
 namespace LI {

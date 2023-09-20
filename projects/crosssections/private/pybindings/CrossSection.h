@@ -8,6 +8,8 @@
 
 #include "../../public/LeptonInjector/crosssections/CrossSection.h"
 #include "../../../dataclasses/public/LeptonInjector/dataclasses/Particle.h"
+#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionRecord.h"
+#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionSignature.h"
 #include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
 
