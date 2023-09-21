@@ -11,32 +11,31 @@ LIST (APPEND math_SOURCES
 add_library(LI_math OBJECT ${math_SOURCES})
 set_property(TARGET LI_math PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_math PUBLIC
-    ${PROJECT_SOURCE_DIR}/projects/math/public/
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/math/public/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/LeptonInjector/math/>
 )
-add_dependencies(LI_math rk)
-add_dependencies(LI_math LI_serialization)
 
 if(${MACOSX})
-target_link_libraries(LI_math PUBLIC
-    photospline
-    rk
-    delabella
+target_link_libraries(LI_math
+    PUBLIC
+        photospline
+        delabella_shared
+    PRIVATE
+        $<BUILD_INTERFACE:rk_static>
+        LI_serialization
 )
 else()
-target_link_libraries(LI_math PUBLIC
-    photospline
-    rk
-    -Wl,--whole-archive
-    delabella
-    -Wl,--no-whole-archive
+target_link_libraries(LI_math
+    PUBLIC
+        photospline
+        delabella_shared
+    PRIVATE
+        -Wl,--whole-archive
+        $<BUILD_INTERFACE:rk_static>
+        -Wl,--no-whole-archive
+        LI_serialization
 )
 endif()
-
-target_include_directories(LI_math PUBLIC ${PROJECT_SOURCE_DIR}/vendor/rk)
-target_include_directories(LI_math PUBLIC ${PROJECT_SOURCE_DIR}/projects/serialization/public/)
-
-install(TARGETS LI_math
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/math/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

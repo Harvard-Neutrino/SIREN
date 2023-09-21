@@ -1,5 +1,3 @@
-#include <cmath>
-#include <iostream>
 #include "LeptonInjector/detector/DensityDistribution.h"
 
 namespace LI {

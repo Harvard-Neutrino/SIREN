@@ -20,22 +20,21 @@ LIST (APPEND detector_SOURCES
 add_library(LI_detector OBJECT ${detector_SOURCES})
 set_property(TARGET LI_detector PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_detector PUBLIC
-    ${PROJECT_SOURCE_DIR}/projects/detector/public/
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/detector/public/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/LeptonInjector/detector/>
 )
-add_dependencies(LI_detector LI_serialization LI_utilities LI_math LI_dataclasses LI_geometry)
 
-target_link_libraries(LI_detector photospline)
-target_link_libraries(LI_detector rk)
-
-target_include_directories(LI_detector PUBLIC ${PROJECT_SOURCE_DIR}/vendor/rk/include)
-target_include_directories(LI_detector PUBLIC ${PROJECT_SOURCE_DIR}/projects/serialization/public/)
-target_include_directories(LI_detector PUBLIC ${PROJECT_SOURCE_DIR}/projects/utilities/public/)
-target_include_directories(LI_detector PUBLIC ${PROJECT_SOURCE_DIR}/projects/math/public/)
-target_include_directories(LI_detector PUBLIC ${PROJECT_SOURCE_DIR}/projects/dataclasses/public/)
-target_include_directories(LI_detector PUBLIC ${PROJECT_SOURCE_DIR}/projects/geometry/public/)
-
-install(TARGETS LI_detector
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+target_link_libraries(LI_detector
+    PRIVATE
+        $<BUILD_INTERFACE:rk_static>
+    PUBLIC
+        photospline
+        LI_serialization
+        LI_utilities
+        LI_math
+        LI_dataclasses
+        LI_geometry
+)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/detector/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

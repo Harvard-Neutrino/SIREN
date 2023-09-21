@@ -4,9 +4,10 @@
 
 #include <memory>
 #include <string>
-#include <vector>
+#include <vector>                                   // for vector
 #include <utility>
-#include <stdexcept>
+#include <cstdint>                                  // for uint32_t
+#include <stdexcept>                                // for runtime_error
 
 #include <cereal/cereal.hpp>
 #include <cereal/access.hpp>
@@ -19,31 +20,20 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/detector/EarthModel.h"
-
 #include "LeptonInjector/crosssections/CrossSection.h"
-
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/type/PrimaryInjector.h"
-#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
-#include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
-#include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
+#include "LeptonInjector/crosssections/Decay.h"
+#include "LeptonInjector/detector/EarthModel.h"
 #include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
-#include "LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
+#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
+#include "LeptonInjector/injection/InjectorBase.h"  // for InjectorBase
 
-#include "LeptonInjector/injection/InjectorBase.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace injection { struct InjectionProcess; } }
+namespace LI { namespace math { class Vector3D; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
-namespace math {
-class Vector3D;
-}
-
-namespace utilities {
-class LI_random;
-}
-
 namespace injection {
 
 class ColumnDepthLeptonInjector : public InjectorBase {

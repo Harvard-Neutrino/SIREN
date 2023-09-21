@@ -2,18 +2,23 @@
 #ifndef LI_Distributions_H
 #define LI_Distributions_H
 
-#include <memory>
-#include <string>
-#include <vector>
-#include <utility>
-#include <stdexcept>
+#include <string>                                        // for string
+#include <memory>                                        // for shared_ptr
+#include <cstdint>                                       // for uint32_t
+#include <stdexcept>                                     // for runtime_error
+#include <vector>                                        // for vector
 
 #include <cereal/access.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/dataclasses/InteractionTree.h"
+#include "LeptonInjector/dataclasses/InteractionTree.h"  // for InteractionT...
+
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace utilities {

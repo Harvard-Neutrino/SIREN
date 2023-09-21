@@ -2,12 +2,19 @@
 #ifndef LI_DecayRangeFunction_H
 #define LI_DecayRangeFunction_H
 
+#include <cstdint>
+#include <stdexcept>
+
 #include <cereal/access.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
 #include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
+
+namespace LI { namespace dataclasses { struct InteractionSignature; } }
 
 namespace LI {
 namespace distributions {

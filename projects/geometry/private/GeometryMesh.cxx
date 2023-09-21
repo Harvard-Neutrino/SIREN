@@ -1,12 +1,13 @@
-#include <cmath>
+#include "LeptonInjector/geometry/GeometryMesh.h"
+
+#include <string>
 #include <vector>
-#include <algorithm>
-#include <functional>
+#include <utility>
+
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/geometry/Placement.h"
 #include "LeptonInjector/geometry/MeshBuilder.h"
-#include "LeptonInjector/geometry/GeometryMesh.h"
 
 using namespace LI::geometry;
 

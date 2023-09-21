@@ -2,11 +2,17 @@
 #ifndef LI_LeptonInjector_H
 #define LI_LeptonInjector_H
 
-#include <memory>
+#include <map>                                             // for map
+#include <set>                                             // for set
 #include <string>
-#include <vector>
+#include <memory>
+#include <vector>                                          // for vector
+#include <cstdint>                                         // for uint32_t
 #include <utility>
-#include <stdexcept>
+#include <stddef.h>                                        // for NULL
+#include <stdexcept>                                       // for runtime_error
+#include <functional>
+#include <cereal/cereal.hpp>                               // for make_nvp
 
 #include <cereal/cereal.hpp>
 #include <cereal/access.hpp>
@@ -20,32 +26,21 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/serialization/array.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/dataclasses/InteractionTree.h"    // for Interactio...
+#include "LeptonInjector/dataclasses/Particle.h"           // for Particle
 
-#include "LeptonInjector/detector/EarthModel.h"
-
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
-
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/dataclasses/DecayRecord.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/injection/Process.h"
-#include "LeptonInjector/dataclasses/InteractionTree.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
-#include "LeptonInjector/distributions/primary/type/PrimaryInjector.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct DecayRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class VertexPositionDistribution; } }
+namespace LI { namespace geometry { class Geometry; } }
+namespace LI { namespace injection { struct InjectionProcess; } }
+namespace LI { namespace math { class Vector3D; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
-namespace math {
-class Vector3D;
-}
-
-namespace utilities {
-class LI_random;
-}
-
 namespace injection {
 
 class InjectorBase {

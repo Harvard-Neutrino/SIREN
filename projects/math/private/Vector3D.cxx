@@ -1,7 +1,10 @@
-#include <cmath>
-#include <iostream>
-
 #include "LeptonInjector/math/Vector3D.h"
+
+#include <array>
+#include <cmath>
+#include <tuple>
+#include <utility>
+#include <algorithm>
 
 using namespace LI::math;
 
@@ -41,24 +44,6 @@ Vector3D::Vector3D(std::array<double, 3> const & vec)
 {
 }
 
-Vector3D::Vector3D(geom3::UnitVector3 const & vec)
-    : cartesian_(vec.x(), vec.y(), vec.z())
-    , spherical_(0,0,0)
-{
-}
-
-Vector3D::Vector3D(geom3::Vector3 const & vec)
-    : cartesian_(vec.x(), vec.y(), vec.z())
-    , spherical_(0,0,0)
-{
-}
-
-Vector3D::Vector3D(geom3::Point3 const & vec)
-    : cartesian_(vec.x(), vec.y(), vec.z())
-    , spherical_(0,0,0)
-{
-}
-
 // destructor
 Vector3D::~Vector3D() {}
 
@@ -89,18 +74,6 @@ Vector3D& Vector3D::operator=(Vector3D const && other) {
 
 Vector3D::operator std::array<double, 3>() const {
     return std::array<double, 3>{cartesian_.x_, cartesian_.y_, cartesian_.z_};
-}
-
-Vector3D::operator geom3::UnitVector3() const {
-    return geom3::UnitVector3(cartesian_.x_, cartesian_.y_, cartesian_.z_, true);
-}
-
-Vector3D::operator geom3::Vector3() const {
-    return geom3::Vector3(cartesian_.x_, cartesian_.y_, cartesian_.z_);
-}
-
-Vector3D::operator geom3::Point3() const {
-    return geom3::Point3(cartesian_.x_, cartesian_.y_, cartesian_.z_);
 }
 
 bool Vector3D::operator==(const Vector3D& vector_3d) const

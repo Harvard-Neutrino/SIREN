@@ -1,12 +1,7 @@
-#include <map>
-#include <set>
-#include <string>
-#include <vector>
-#include <fstream>
-#include <sstream>
-#include <iostream>
+#include <map>                                      // for map
+#include <tuple>                                    // for tuple
 
-#include "LeptonInjector/detector/MaterialModel.h"
+#include "LeptonInjector/detector/MaterialModel.h"  // for MaterialModel
 
 using namespace LI::detector;
 

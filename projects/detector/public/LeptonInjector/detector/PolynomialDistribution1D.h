@@ -1,10 +1,11 @@
 #pragma once
 #ifndef LI_PolynomialDistribution1D_H
 #define LI_PolynomialDistribution1D_H
-#include <memory>
-#include <string>
-#include <exception>
-#include <functional>
+
+#include <memory>                                    // for shared_ptr
+#include <vector>                                    // for vector
+#include <cstdint>                                   // for uint32_t
+#include <stdexcept>                                 // for runtime_error
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -12,9 +13,9 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 
-#include "LeptonInjector/math/Polynomial.h"
+#include "LeptonInjector/math/Polynomial.h"          // for Polynom
 
-#include "LeptonInjector/detector/Distribution1D.h"
+#include "LeptonInjector/detector/Distribution1D.h"  // for Distribution1D
 
 namespace LI {
 namespace detector {

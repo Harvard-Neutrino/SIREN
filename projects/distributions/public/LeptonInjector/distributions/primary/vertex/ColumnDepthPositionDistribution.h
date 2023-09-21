@@ -2,9 +2,10 @@
 #ifndef LI_ColumnDepthPositionDistribution_H
 #define LI_ColumnDepthPositionDistribution_H
 
+#include <set>
 #include <memory>
 #include <string>
-#include <vector>
+#include <cstdint>
 #include <utility>
 #include <stdexcept>
 
@@ -15,29 +16,16 @@
 #include <cereal/types/utility.hpp>
 
 #include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 #include "LeptonInjector/math/Vector3D.h"
 
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
-#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
-
-namespace LI {
-namespace utilities {
-class LI_random;
-} // namespace utilities
-
-namespace detector {
-class EarthModel;
-} // namespace detector
-
-namespace dataclasses {
-struct InteractionRecord;
-struct InteractionSignature;
-}
-namespace crosssections {
-class CrossSectionCollection;
-} // namespace crosssections
-} // namespace LeptonInjector
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class WeightableDistribution; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace distributions {
@@ -56,6 +44,7 @@ private:
 
     LI::math::Vector3D SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const override;
 public:
+    LI::math::Vector3D GetSamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record); 
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<LI::dataclasses::Particle::ParticleType> target_types);
     std::string Name() const override;

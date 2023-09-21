@@ -3,7 +3,9 @@
 #define LI_Placement_H
 
 #include <memory>
+#include <cstdint>
 #include <sstream>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

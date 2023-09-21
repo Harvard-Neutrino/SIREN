@@ -2,8 +2,10 @@
 #ifndef LI_Process_H
 #define LI_Process_H
 
-#include <array>
-#include <vector>
+#include <memory>                                        // for shared_ptr
+#include <vector>                                        // for vector
+#include <cstdint>                                       // for uint32_t
+#include <stdexcept>                                     // for runtime_error
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -14,12 +16,10 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/serialization/array.h"
+#include "LeptonInjector/dataclasses/Particle.h"         // for Particle
+#include "LeptonInjector/distributions/Distributions.h"  // for InjectionDis...
 
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
-#include "LeptonInjector/dataclasses/InteractionTree.h"
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/crosssections/CrossSection.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
 
 namespace LI {
 namespace injection {

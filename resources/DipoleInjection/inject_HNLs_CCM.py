@@ -146,6 +146,7 @@ primary_physical_process_upper_target.SetCrossSections(primary_cross_sections)
 primary_physical_process_lower_target.SetCrossSections(primary_cross_sections)
 
 
+
 # In[5]:
 
 
@@ -262,6 +263,7 @@ secondary_injection_processes.append(secondary_decay_injection_process)
 secondary_physical_processes.append(secondary_decay_physical_process)
 
 
+
 # In[13]:
 
 
@@ -297,14 +299,14 @@ lower_injector.SetStoppingCondition(StoppingCondition)
 upper_weighter = LI.injection.LeptonTreeWeighter([upper_injector],
                                               earth_model, 
                                               primary_physical_process_upper_target, 
-                                              secondary_physical_processes)
+                                              [secondary_physical_processes])
 lower_weighter = LI.injection.LeptonTreeWeighter([lower_injector],
                                               earth_model, 
                                               primary_physical_process_upper_target, 
-                                              secondary_physical_processes)
+                                              [secondary_physical_processes])
 
 
-# In[15]:
+# In[ ]:
 
 
 c = 2.998e-1 #m/ns
@@ -349,7 +351,7 @@ while lower_injector.InjectedEvents() < events_to_inject:
         gamma_time_list.append(time - 23./c)
 
 
-# In[16]:
+# In[ ]:
 
 
 # Class for energy smearing: assumes 15% uncertainty on energy reconstruction

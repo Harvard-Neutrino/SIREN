@@ -2,6 +2,7 @@
 #ifndef LI_EulerQuaternionConversions_H
 #define LI_EulerQuaternionConversions_H
 
+#include <cmath>
 #include <limits>
 
 #include "LeptonInjector/math/Quaternion.h"

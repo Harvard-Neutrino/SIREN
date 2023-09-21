@@ -11,18 +11,16 @@ LIST (APPEND dataclasses_SOURCES
 add_library(LI_dataclasses OBJECT ${dataclasses_SOURCES})
 set_property(TARGET LI_dataclasses PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_dataclasses PUBLIC
-    ${PROJECT_SOURCE_DIR}/projects/dataclasses/public/
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/dataclasses/public/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/LeptonInjector/dataclasses/>
 )
-add_dependencies(LI_dataclasses LI_serialization LI_utilities LI_math)
 
-target_link_libraries(LI_dataclasses photospline)
-
-target_include_directories(LI_dataclasses PUBLIC ${PROJECT_SOURCE_DIR}/projects/serialization/public/)
-target_include_directories(LI_dataclasses PUBLIC ${PROJECT_SOURCE_DIR}/projects/utilities/public/)
-target_include_directories(LI_dataclasses PUBLIC ${PROJECT_SOURCE_DIR}/projects/math/public/)
-
-install(TARGETS LI_dataclasses
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+target_link_libraries(LI_dataclasses PUBLIC
+    photospline
+    LI_serialization
+    LI_utilities
+    LI_math
+)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/dataclasses/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

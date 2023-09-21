@@ -1,7 +1,12 @@
 #include "LeptonInjector/crosssections/Decay.h"
-#include "LeptonInjector/utilities/Constants.h"
 
-#include <rk/rk.hh>
+#include <array>                                           // for array
+
+#include <rk/rk.hh>                                        // for P4
+#include <rk/geom3.hh>                                     // for Vector3
+
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/utilities/Constants.h"
 
 namespace LI {
 namespace crosssections {

@@ -1,18 +1,24 @@
-#include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
+
+#include <array>
+#include <cmath>
+#include <tuple>
+#include <string>
+#include <vector>
 
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
-
-#include "LeptonInjector/utilities/Random.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/dataclasses/Particle.h"
-
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
-#include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
-
+#include "LeptonInjector/math/Quaternion.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/utilities/Errors.h"
+#include "LeptonInjector/utilities/Random.h"
 
 namespace LI {
 namespace distributions {
@@ -51,7 +57,7 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     dir.normalize();
     LI::math::Vector3D pca = SampleFromDisk(rand, dir);
 
-    double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
+    double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);//note: return is in cgs units!!!
 
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -96,6 +102,14 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     return vertex;
 }
 
+// public getter function for the private SamplePosition function (for debugging)
+LI::math::Vector3D ColumnDepthPositionDistribution::GetSamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) {
+
+    LI::math::Vector3D samplepos = ColumnDepthPositionDistribution::SamplePosition(rand, earth_model, cross_sections, record);
+
+    return samplepos;
+}
+
 double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
@@ -114,7 +128,9 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
-    if(not path.IsWithinBounds(vertex))
+    LI::math::Vector3D earth_vertex = earth_model->GetEarthCoordPosFromDetCoordPos(vertex);
+
+    if(not path.IsWithinBounds(earth_vertex))
         return 0.0;
 
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
@@ -134,11 +150,11 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(earth_model->GetEarthCoordPosFromDetCoordPos(vertex)));
+    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(earth_vertex));
 
     double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections, total_decay_length);
+    double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_vertex, targets, total_cross_sections, total_decay_length);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {

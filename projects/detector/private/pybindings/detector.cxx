@@ -1,29 +1,40 @@
-
-#include <vector>
-
-#include "../../public/LeptonInjector/detector/EarthModel.h"
-
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-
+#include "./EarthModel.h"
+#include "./EarthSector.h"
+#include "./Path.h"
+#include "./DensityDistribution.h"
+#include "./Distribution1D.h"
+#include "./ConstantDistribution1D.h"
+#include "./ExponentialDistribution1D.h"
+#include "./PolynomialDistribution1D.h"
+#include "./Axis1D.h"
+#include "./RadialAxis1D.h"
+#include "./CartesianAxis1D.h"
+#include "./CartesianAxisExponentialDensityDistribution.h"
+#include "./CartesianAxisPolynomialDensityDistribution.h"
+#include "./ConstantDensityDistribution.h"
+#include "./MaterialModel.h"
 
 using namespace pybind11;
 
 PYBIND11_MODULE(detector,m) {
-  using namespace LI::detector;
+    register_EarthModel(m);
+    register_EarthSector(m);
+    register_Path(m);
+    register_DensityDistribution(m);
+    register_Distribution1D(m);
+    register_ConstantDistribution1D(m);
+    register_ExponentialDistribution1D(m);
+    register_PolynomialDistribution1D(m);
+    register_Axis1D(m);
+    register_CartesianAxis1D(m);
+    register_RadialAxis1D(m);
 
-  class_<EarthModel, std::shared_ptr<EarthModel>>(m, "EarthModel")
-    .def(init<>())
-    .def(init<std::string const &, std::string const &>())
-    .def(init<std::string const &, std::string const &, std::string const &>())
-    .def("LoadEarthModel",&EarthModel::LoadEarthModel)
-    .def("LoadMaterialModel",&EarthModel::LoadMaterialModel)
-    .def("GetSectors",&EarthModel::GetSectors);
+    register_CartesianAxisExponentialDensityDistribution(m);
+    register_CartesianAxisPolynomialDensityDistribution(m);
+    register_ConstantDensityDistribution(m);
 
-  class_<EarthSector, std::shared_ptr<EarthSector>>(m, "EarthSector")
-    .def_readwrite("name",&EarthSector::name)
-    .def_readwrite("material_id",&EarthSector::material_id)
-    .def_readwrite("geo",&EarthSector::geo);
-
+    register_MaterialModel(m);
 }

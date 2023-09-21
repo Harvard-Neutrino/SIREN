@@ -1,15 +1,16 @@
-#include <map>
-#include <set>
-#include <string>
-#include <vector>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/utilities/Constants.h"
-
 #include "LeptonInjector/detector/MaterialModel.h"
+
+#include <map>                                    // for map, operator!=
+#include <cmath>                                  // for pow, exp, log, sqrt
+#include <string>                                 // for basic_string, opera...
+#include <vector>                                 // for vector, operator==
+#include <fstream>                                // for basic_istream, getline
+#include <sstream>
+#include <stdio.h>                                // for sprintf, sscanf
+#include <stdlib.h>                               // for abs
+
+#include "LeptonInjector/dataclasses/Particle.h"  // for Particle
+#include "LeptonInjector/utilities/Constants.h"   // for avogadro, GeV_per_amu
 
 using namespace LI::detector ;
 

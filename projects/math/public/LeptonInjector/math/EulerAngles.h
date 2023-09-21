@@ -2,7 +2,9 @@
 #ifndef LI_EulerAngles_H
 #define LI_EulerAngles_H
 
+#include <cstdint>
 #include <sstream>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

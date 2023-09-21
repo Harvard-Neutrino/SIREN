@@ -1,9 +1,9 @@
-#include <algorithm>
-#include <cmath>
-#include <functional>
-#include <iostream>
-
 #include "LeptonInjector/math/Polynomial.h"
+
+#include <cmath>
+#include <vector>
+#include <stdlib.h>
+#include <functional>
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%       Polynom      %%%%%%%%%%%%%%%%%%%%

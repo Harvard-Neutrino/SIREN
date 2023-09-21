@@ -1,15 +1,18 @@
-#include <map>
+#include "LeptonInjector/geometry/Box.h"
+
 #include <cmath>
 #include <tuple>
+#include <math.h>
 #include <string>
 #include <vector>
+#include <ostream>
+#include <utility>
 #include <algorithm>
 #include <functional>
 
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/geometry/Placement.h"
-#include "LeptonInjector/geometry/Box.h"
 
 namespace LI {
 namespace geometry {

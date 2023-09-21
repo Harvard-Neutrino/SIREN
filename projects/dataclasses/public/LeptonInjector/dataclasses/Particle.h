@@ -5,12 +5,10 @@
 // Used to define the Particle class
 // Partiles have a type, energy, position, and direction
 
-// !!! Important !!!
-// At the moment, only leptons (charged + uncharged) and hadrons are fully supported
-
+#include <set>
 #include <string>
-#include <utility> // std::pair
-#include <exception>
+#include <utility>
+#include <stdint.h>
 
 #include <cereal/cereal.hpp>
 #include <cereal/access.hpp>
@@ -19,10 +17,7 @@
 
 #include <cereal/types/set.hpp>
 #include <cereal/types/utility.hpp>
-
-#include "LeptonInjector/utilities/Constants.h"
-
-// positions are in Cartesian, centered in the middle of IceCube
+#include <cereal/details/helpers.hpp>
 
 namespace LI {
 namespace dataclasses {
@@ -42,14 +37,22 @@ public:
         Pi0 = 111,
         PiPlus = 211,
         PiMinus = -211,
+        Rho0 = 113,
+        RhoPlus = 213,
+        RhoMinus = -213,
         K0_Long = 130,
         KPlus = 321,
         KMinus = -321,
+        KStarPlus = 9000311,
+        KStarMinus = -9000311,
         Neutron = 2112,
         PPlus = 2212,
         PMinus = -2212,
         K0_Short = 310,
         Eta = 221,
+        EtaPrime= 331,
+        Omega = 223,
+        Phi = 333,
         Lambda = 3122,
         SigmaPlus = 3222,
         Sigma0 = 3212,

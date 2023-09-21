@@ -2,9 +2,14 @@
 #ifndef LI_MaterialModel_H
 #define LI_MaterialModel_H
 
-#include <map>
-#include <string>
-#include <vector>
+#include <map>                                    // for map
+#include <tuple>                                  // for tuple
+#include <string>                                 // for basic_string, opera...
+#include <vector>                                 // for vector
+#include <utility>                                // for pair
+#include <cstdint>                                // for uint32_t
+#include <stdexcept>                              // for runtime_error
+#include <type_traits>                            // for enable_if, is_same
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -19,7 +24,6 @@
 
 #include "LeptonInjector/serialization/array.h"
 #include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/utilities/Constants.h"
 
 namespace LI {
 namespace detector {

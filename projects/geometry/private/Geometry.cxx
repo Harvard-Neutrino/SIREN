@@ -1,19 +1,13 @@
-/*
- * Geometry.cxx
- *
- *  Created on: 05.06.2013
- *      Author: koehne
- */
-#include <map>
-#include <cmath>
-#include <tuple>
+#include "LeptonInjector/geometry/Geometry.h"
+
 #include <string>
 #include <vector>
-#include <algorithm>
-#include <functional>
+#include <ostream>
+#include <utility>
+#include <typeinfo>
+#include <typeindex>
 
 #include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/geometry/Placement.h"
 
 /******************************************************************************

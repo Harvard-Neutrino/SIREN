@@ -4,6 +4,8 @@
 
 #include "LeptonInjector/detector/MaterialModel.h"
 
+#include <cmath>
+
 namespace LI {
 namespace detector {
 

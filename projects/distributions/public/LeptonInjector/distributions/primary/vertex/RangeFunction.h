@@ -2,15 +2,19 @@
 #ifndef LI_RangeFunction_H
 #define LI_RangeFunction_H
 
+#include <cstdint>            // for uint32_t
+#include <stdexcept>          // for runtime_error
+
 #include <cereal/access.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
+namespace LI { namespace dataclasses { struct InteractionSignature; } }
+
 namespace LI {
-namespace dataclasses {
-struct InteractionSignature;
-}
 namespace distributions {
 
 class RangeFunction {

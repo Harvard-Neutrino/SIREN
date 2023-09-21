@@ -1,13 +1,20 @@
-#include <map>
+#include "LeptonInjector/injection/ColumnDepthLeptonInjector.h"
+
 #include <set>
 #include <string>
-#include <memory>
 #include <vector>
+#include <utility>
 
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
+#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/math/Vector3D.h"
 
-#include "LeptonInjector/injection/InjectorBase.h"
-#include "LeptonInjector/injection/ColumnDepthLeptonInjector.h"
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace distributions { class DepthFunction; } }
 
 namespace LI {
 namespace injection {

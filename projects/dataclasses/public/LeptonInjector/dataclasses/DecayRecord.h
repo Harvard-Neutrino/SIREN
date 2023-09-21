@@ -1,6 +1,12 @@
 #ifndef LI_DecayRecord_H
 #define LI_DecayRecord_H
 
+#include <array>                                        // for array
+#include <vector>                                       // for vector
+#include <cstdint>                                      // for uint32_t
+#include <ostream>                                      // for ostream
+#include <stdexcept>                                    // for runtime_error
+
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
@@ -9,13 +15,6 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include <array>
-#include <vector>
-#include <ostream>
-#include <stdint.h>
-#include <stdexcept>
-
-#include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/dataclasses/DecaySignature.h"
 
 namespace LI {

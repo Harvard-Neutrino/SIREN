@@ -157,6 +157,7 @@ PYBIND11_MODULE(distributions,m) {
 
   class_<LeptonDepthFunction, std::shared_ptr<LeptonDepthFunction>, DepthFunction>(m, "LeptonDepthFunction")
     .def(init<>())
+    .def("__call__", &LeptonDepthFunction::operator())
     .def("SetMuParams",&LeptonDepthFunction::SetMuParams)
     .def("SetTauParams",&LeptonDepthFunction::SetTauParams)
     .def("SetScale",&LeptonDepthFunction::SetScale)
@@ -166,7 +167,8 @@ PYBIND11_MODULE(distributions,m) {
     .def("GetTauAlpha",&LeptonDepthFunction::GetTauAlpha)
     .def("GetTauBeta",&LeptonDepthFunction::GetTauBeta)
     .def("GetScale",&LeptonDepthFunction::GetScale)
-    .def("GetMaxDepth",&LeptonDepthFunction::GetMaxDepth);
+    .def("GetMaxDepth",&LeptonDepthFunction::GetMaxDepth) 
+    ;
     //.def((LI::dataclasses::InteractionSignature const &, double));
 
   // VertexPositionDistribution subclasses
@@ -181,7 +183,8 @@ PYBIND11_MODULE(distributions,m) {
     .def(init<double, double, std::shared_ptr<DepthFunction>, std::set<LI::dataclasses::Particle::ParticleType>>())
     .def("GenerationProbability",&ColumnDepthPositionDistribution::GenerationProbability)
     .def("InjectionBounds",&ColumnDepthPositionDistribution::InjectionBounds)
-    .def("Name",&ColumnDepthPositionDistribution::Name);
+    .def("Name",&ColumnDepthPositionDistribution::Name)
+    .def("GetSamplePosition",&ColumnDepthPositionDistribution::GetSamplePosition);
 
   class_<DecayRangePositionDistribution, std::shared_ptr<DecayRangePositionDistribution>, VertexPositionDistribution>(m, "DecayRangePositionDistribution")
     .def(init<>())

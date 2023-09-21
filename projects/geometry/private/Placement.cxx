@@ -1,8 +1,12 @@
-#include <cmath>
-#include <tuple>
-#include <iostream>
-
 #include "LeptonInjector/geometry/Placement.h"
+
+#include <tuple>
+#include <memory>
+#include <utility>
+#include <ostream>
+
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/Quaternion.h"
 #include "LeptonInjector/math/EulerQuaternionConversions.h"
 
 using namespace LI::geometry;

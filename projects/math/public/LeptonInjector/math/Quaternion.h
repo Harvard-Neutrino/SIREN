@@ -3,11 +3,9 @@
 #define LI_Quaternion_H
 
 #include <tuple>
+#include <cstdint>
 #include <ostream>
 #include <stdexcept>
-
-#include <rk/rk.hh>
-#include <rk/geom3.hh>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -29,7 +27,6 @@ public:
     Quaternion(const Quaternion & quaternion);
     Quaternion(const Vector3D & vec);
     Quaternion(Quaternion&& other);
-    Quaternion(geom3::Rotation3::Quaternion const &);
     ~Quaternion();
 
     void SetPosition(Vector3D const & vec);
@@ -68,8 +65,6 @@ public:
     Quaternion& operator=(Quaternion const & quaternion);
     Quaternion& operator=(Quaternion const && quaternion);
     Quaternion& operator=(Quaternion && quaternion);
-
-    operator geom3::Rotation3::Quaternion() const;
 
     bool operator==(const Quaternion& quaternion) const;
     bool operator!=(const Quaternion& quaternion) const;

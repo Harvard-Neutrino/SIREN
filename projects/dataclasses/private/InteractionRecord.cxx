@@ -1,5 +1,8 @@
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
 
+#include <tuple>    // for tie, operator==, tuple
+#include <ostream>  // for operator<<, basic_ostream, char_traits, endl, ost...
+
 namespace LI {
 namespace dataclasses {
 

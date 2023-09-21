@@ -1,20 +1,20 @@
 #pragma once
 #ifndef LI_RadialAxis1D_H
 #define LI_RadialAxis1D_H
-#include <memory>
-#include <string>
-#include <exception>
-#include <functional>
 
-#include <cereal/cereal.hpp>
+#include <memory>                            // for shared_ptr
+#include <cstdint>                           // for uint32_t
+#include <stdexcept>                         // for runtime_error
+
+#include <cereal/cereal.hpp>                 // for CEREAL_CLASS_VERSION
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
-#include <cereal/types/polymorphic.hpp>
-#include <cereal/types/base_class.hpp>
+#include <cereal/types/base_class.hpp>       // for virtual_base_class
+#include <cereal/types/polymorphic.hpp>      // for CEREAL_REGISTER_POLYMORP...
 
-#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/Vector3D.h"    // for Vector3D
 
-#include "LeptonInjector/detector/Axis1D.h"
+#include "LeptonInjector/detector/Axis1D.h"  // for Axis1D
 
 namespace LI {
 namespace detector {

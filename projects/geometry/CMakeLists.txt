@@ -13,22 +13,18 @@ LIST (APPEND geometry_SOURCES
 add_library(LI_geometry OBJECT ${geometry_SOURCES})
 set_property(TARGET LI_geometry PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_geometry PUBLIC
-    ${PROJECT_SOURCE_DIR}/projects/geometry/public/
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/geometry/public/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/LeptonInjector/geometry/>
 )
-add_dependencies(LI_geometry rk)
-add_dependencies(LI_geometry LI_serialization LI_math LI_geometry)
 
-
-target_link_libraries(LI_geometry photospline)
-target_link_libraries(LI_geometry rk)
-
-target_include_directories(LI_geometry PUBLIC ${PROJECT_SOURCE_DIR}/vendor/rk/include)
-target_include_directories(LI_geometry PUBLIC ${PROJECT_SOURCE_DIR}/projects/serialization/public/)
-target_include_directories(LI_geometry PUBLIC ${PROJECT_SOURCE_DIR}/projects/math/public/)
-target_include_directories(LI_geometry PUBLIC ${PROJECT_SOURCE_DIR}/projects/geometry/public/)
-
-install(TARGETS LI_geometry
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+target_link_libraries(LI_geometry
+    PRIVATE
+        $<BUILD_INTERFACE:rk_static>
+    PUBLIC
+        photospline
+        LI_serialization
+        LI_math
+)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/geometry/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

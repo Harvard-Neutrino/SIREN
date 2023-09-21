@@ -1,16 +1,18 @@
+#include "LeptonInjector/math/Quaternion.h"
+
 #include <cmath>
 #include <tuple>
-#include <ostream>
+#include <cstdlib>
 #include <sstream>
 #include <utility>
+#include <iterator>
+#include <algorithm>
 
 #include "LeptonInjector/math/Matrix3D.h"
 #include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/math/Conversions.h"
 #include "LeptonInjector/math/EulerAngles.h"
 #include "LeptonInjector/math/EulerQuaternionConversions.h"
-
-#include "LeptonInjector/math/Quaternion.h"
 
 using namespace LI::math;
 
@@ -65,14 +67,6 @@ Quaternion::Quaternion(Quaternion&& other) :
 {
 }
 
-Quaternion::Quaternion(geom3::Rotation3::Quaternion const & q) :
-    x_(q.v_.x()),
-    y_(q.v_.y()),
-    z_(q.v_.z()),
-    w_(q.s_)
-{
-}
-
 // destructor
 Quaternion::~Quaternion() {}
 
@@ -103,10 +97,6 @@ Quaternion& Quaternion::operator=(Quaternion const && other) {
     z_ = other.z_;
     w_ = other.w_;
     return *this;
-}
-
-Quaternion::operator geom3::Rotation3::Quaternion() const {
-    return geom3::Rotation3::Quaternion(x_, y_, z_, w_);
 }
 
 bool Quaternion::operator==(const Quaternion& quaternion) const
@@ -512,10 +502,30 @@ void Quaternion::SetEulerAnglesXYZs(double alpha, double beta, double gamma)
 Quaternion LI::math::rotation_between(Vector3D const & v0, Vector3D const & v1) {
     Vector3D dir0 = v0.normalized();
     Vector3D dir1 = v1.normalized();
-    Vector3D cross = cross_product(dir0, dir1);
-    Quaternion rot(cross);
-    rot.SetW(1.0 + scalar_product(dir0, dir1));
-    rot.normalize();
-    return rot;
+    double dot = scalar_product(dir0, dir1);
+    if(dot == -1.0) {
+        // Special case for 180deg rotation
+        // Find most perpendicular axis vector
+        Vector3D vecs[3] = {
+            Vector3D(1,0,0),
+            Vector3D(0,1,0),
+            Vector3D(0,0,1)
+        };
+        double dots[3] = {
+            std::abs(scalar_product(vecs[0], dir0)),
+            std::abs(scalar_product(vecs[1], dir0)),
+            std::abs(scalar_product(vecs[2], dir0))
+        };
+        // Find axis vector most perpendicular to original direction
+        size_t idx = std::distance(&(dots), std::min_element(&(dots), &(dots)+3));
+        // Initialize quaternion with unit vector perpendicular to original direction and selected axis
+        return Quaternion(cross_product(vecs[idx], dir0).normalized());
+    } else {
+        Vector3D cross = cross_product(dir0, dir1);
+        Quaternion rot(cross);
+        rot.SetW(1.0 + dot);
+        rot.normalize();
+        return rot;
+    }
 }
 

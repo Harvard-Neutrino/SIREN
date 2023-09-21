@@ -2,12 +2,12 @@
 #ifndef LI_Sphere_H
 #define LI_Sphere_H
 
-#include <map>
 #include <memory>
 #include <vector>
-#include <math.h>
-#include <float.h>
+#include <cstdint>
+#include <utility>
 #include <iostream>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

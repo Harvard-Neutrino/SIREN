@@ -1,13 +1,19 @@
-#include <map>
+#include "LeptonInjector/injection/DecayRangeLeptonInjector.h"
+
 #include <set>
 #include <string>
-#include <memory>
 #include <vector>
 
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
+#include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
+#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/math/Vector3D.h"
 
-#include "LeptonInjector/injection/InjectorBase.h"
-#include "LeptonInjector/injection/DecayRangeLeptonInjector.h"
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
 
 namespace LI {
 namespace injection {

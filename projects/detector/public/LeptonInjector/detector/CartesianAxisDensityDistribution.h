@@ -108,9 +108,8 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
         } catch(LI::math::MathException& e) {
             return -1;
         }
-
     };
-    
+
     double InverseIntegral(const math::Vector3D& xi,
                            const math::Vector3D& direction,
                            double constant,
@@ -137,7 +136,6 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
         } catch(LI::math::MathException& e) {
             return -1;
         }
-
     };
 
     double Evaluate(const math::Vector3D& xi) const override {

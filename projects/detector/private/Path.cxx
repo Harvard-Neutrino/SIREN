@@ -1,14 +1,15 @@
-#include <map>
-#include <string>
-#include <vector>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <algorithm>
-
-#include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/geometry/Geometry.h"
+
+#include <cmath>                                  // for copysign, abs
+#include <vector>                                 // for vector
+#include <utility>                                // for swap
+#include <assert.h>                               // for assert
+#include <stdlib.h>                               // for abs
+#include <algorithm>                              // for max
+
+#include "LeptonInjector/dataclasses/Particle.h"  // for Particle
+#include "LeptonInjector/detector/EarthModel.h"   // for EarthModel
+#include "LeptonInjector/geometry/Geometry.h"     // for Geometry
 
 namespace LI {
 namespace detector {
