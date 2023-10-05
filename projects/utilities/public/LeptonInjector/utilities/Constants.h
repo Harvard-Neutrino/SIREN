@@ -42,7 +42,17 @@ static const double isoscalarMass   = 0.5*( protonMass + neutronMass );
 static const double electronMass    = 0.000511;
 static const double muonMass        = 0.105658374;
 static const double tauMass         = 1.77686;
-static const double lambda0Mass     = 1.1156836; // MeV
+static const double lambda0Mass     = 1.1156836; // GeV
+static const double Pi0Mass         = 0.1349770; // GeV
+static const double PiPlusMass      = 0.13957039; // GeV
+static const double PiMinusMass     = 0.13957039; // GeV
+static const double K0Mass          = 0.493614; // GeV
+static const double KplusMass       = 0.493677; // GeV
+static const double KminusMass      = 0.493677; // GeV
+static const double EtaMass         = 0.547862 // GeV
+static const double EtaPrimeMass    = 0.95778  // GeV
+static const double RhoMass         = 0.77526 // GeV
+static const double OmegaMass         = 0.78266 // GeV
 
 // confusing units
 // static const double second          = 1.523e15; // [eV^-1 sec^-1]

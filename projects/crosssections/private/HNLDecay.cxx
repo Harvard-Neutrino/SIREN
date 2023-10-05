@@ -55,11 +55,39 @@ double HNLDecay::TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary
 double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
   
   // All decay widths from 2007.03701
+  
+  double mixing_element, width;
 
+  if(record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuE ||
+     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuEBar ||
+     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::EMinus ||
+     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::EPlus) {
+    mixing_element = mixing[0]
+  }
+  else if(record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMu ||
+     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMuBar ||
+     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::MuMinus ||
+     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::MuPlus) {
+    mixing_element = mixing[1]
+  }
+  else if(record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuTau ||
+     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuTauBar ||
+     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::TauMinus ||
+     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::TauPlus) {
+    mixing_element = mixing[2]
+  }
   // Let's start with 2 body decays 
   if(record.signature.size() == 2) {
     // N -> P nu (P = pi0, eta, etaprime)
-    //
+    double f,x;
+    if(record.signature.secondary_types[1]==LI::dataclasses::Particle::ParticleType::Pi0) {
+      f = 0.130; #GeV
+      x = LI::utilities::Constants::Pi0Mass / hnl_mass;
+    }
+    else if(record.signature.secondary_types[1]==LI::dataclasses::Particle::ParticleType::Eta) f = 0.0816; #GeV
+    else if(record.signature.secondary_types[1]==LI::dataclasses::Particle::ParticleType::EtaPrime) f = -0.0946; #GeV
+    width = f * pow(LI::utilities::Constants::FermiConstant,2)*pow(f,2);
+
   }
 }
 
@@ -242,6 +270,7 @@ std::vector<dataclasses::InteractionSignature> HNLDecay::GetPossibleSignaturesFr
       }
 
     return signatures;
+}
 }
 
 double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
