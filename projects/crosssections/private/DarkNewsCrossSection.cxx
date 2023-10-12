@@ -21,6 +21,10 @@ namespace crosssections {
 
 DarkNewsCrossSection::DarkNewsCrossSection() {}
 
+pybind11::object DarkNewsCrossSection::get_self() {
+    return pybind11::cast<pybind11::none>(Py_None);
+}
+
 bool DarkNewsCrossSection::equal(CrossSection const & other) const {
     const DarkNewsCrossSection* x = dynamic_cast<const DarkNewsCrossSection*>(&other);
 
@@ -228,12 +232,23 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & int
     interaction.secondary_momenta[0][2] = p3.py(); // p3_y
     interaction.secondary_momenta[0][3] = p3.pz(); // p3_z
 
-    interaction.secondary_momenta[0][0] = p4.e(); // p4_energy
-    interaction.secondary_momenta[0][1] = p4.px(); // p4_x
-    interaction.secondary_momenta[0][2] = p4.py(); // p4_y
-    interaction.secondary_momenta[0][3] = p4.pz(); // p4_z
-    interaction.secondary_masses[0] = p4.m();
+    interaction.secondary_momenta[1][0] = p4.e(); // p4_energy
+    interaction.secondary_momenta[1][1] = p4.px(); // p4_x
+    interaction.secondary_momenta[1][2] = p4.py(); // p4_y
+    interaction.secondary_momenta[1][3] = p4.pz(); // p4_z
 
+}
+
+double DarkNewsCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
+    double dxs = DifferentialCrossSection(interaction);
+    double txs = TotalCrossSection(interaction);
+    if(dxs == 0) {
+        return 0.0;
+    } else if (txs == 0) {
+        return 0.0;
+    } else {
+        return dxs / txs;
+    }
 }
 
 } // namespace crosssections

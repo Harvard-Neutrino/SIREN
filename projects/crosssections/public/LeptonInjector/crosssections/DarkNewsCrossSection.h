@@ -17,9 +17,11 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
+#include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
 
 #include "LeptonInjector/crosssections/CrossSection.h"  // for CrossSection
-#include "LeptonInjector/dataclasses/Particle.h"        // for Particle
+#include "LeptonInjector/dataclasses/Particle.h"        // for Particlev
 
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
 namespace LI { namespace dataclasses { struct InteractionSignature; } }
@@ -34,22 +36,24 @@ private:
 public:
     DarkNewsCrossSection();
 
+    virtual pybind11::object get_self();
+
     virtual bool equal(CrossSection const & other) const override;
 
-    double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override = 0; // Assumes Python-side implementation
-    double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
-    double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary, LI::dataclasses::Particle::ParticleType target, double energy, double Q2) const; 
-    double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    double Q2Min(dataclasses::InteractionRecord const &) const;
-    double Q2Max(dataclasses::InteractionRecord const &) const;
-    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
+    virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
+    virtual double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override = 0; // Requires Python-side implementation
+    virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
+    virtual double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary, LI::dataclasses::Particle::ParticleType target, double energy, double Q2) const; 
+    virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
+    virtual double Q2Min(dataclasses::InteractionRecord const &) const;
+    virtual double Q2Max(dataclasses::InteractionRecord const &) const;
+    virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override = 0; // Assumes Python-side implementation
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override;
-    std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
-    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override = 0; // Assumes Python-side implementation
+    virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override = 0; // Requires Python-side implementation
+    virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override = 0; // Requires Python-side implementation
+    virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override = 0; // Requires Python-side implementation
+    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override = 0; // Requires Python-side implementation
+    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override = 0; // Requires Python-side implementation
 
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
