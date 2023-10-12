@@ -43,6 +43,8 @@ package_add_test(UnitTest_DipoleFromTable ${PROJECT_SOURCE_DIR}/projects/crossse
 
 pybind11_add_module(crosssections ${PROJECT_SOURCE_DIR}/projects/crosssections/private/pybindings/crosssections.cxx)
 target_link_libraries(crosssections PRIVATE LeptonInjector photospline rk_static)
+pybind11_add_module(pyDarkNewsCrossSectionSerializer ${PROJECT_SOURCE_DIR}/projects/crosssections/private/pybindings/pyDarkNewsCrossSectionSerializer.cxx)
+target_link_libraries(pyDarkNewsCrossSectionSerializer PRIVATE LeptonInjector photospline rk_static pybind11::embed)
 if(DEFINED SKBUILD)
 set_target_properties(crosssections PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

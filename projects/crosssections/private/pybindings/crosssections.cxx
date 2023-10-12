@@ -7,9 +7,12 @@
 #include "../../public/LeptonInjector/crosssections/DISFromSpline.h"
 #include "../../public/LeptonInjector/crosssections/HNLFromSpline.h"
 #include "../../public/LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "../../public/LeptonInjector/crosssections/DipoleFromTable.h"
+#include "../../public/LeptonInjector/crosssections/DarkNewsCrossSection.h"
 
 #include "./CrossSection.h"
 #include "./DipoleFromTable.h"
+#include "./DarkNewsCrossSection.h"
 #include "./DISFromSpline.h"
 #include "./HNLFromSpline.h"
 #include "./Decay.h"
