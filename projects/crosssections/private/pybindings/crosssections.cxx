@@ -33,6 +33,7 @@ PYBIND11_MODULE(crosssections,m) {
 
     register_CrossSection(m);
     register_DipoleFromTable(m);
+    register_DarkNewsCrossSection(m);
     register_DISFromSpline(m);
     register_HNLFromSpline(m);
     register_Decay(m);

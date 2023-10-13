@@ -17,7 +17,7 @@
 
 // Macro for defining pure virtual methods of PyDarkNewsCrossSection 
 #define C_PYBIND11_OVERRIDE_PURE(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
-        BaseType * ref; \
+        const BaseType * ref; \
         if(selfname) { \
             ref = selfname.cast<BaseType *>(); \
         } else { \
@@ -43,7 +43,7 @@
 
 // Macro for defining virtual methods of PyDarkNewsCrossSection 
 #define C_PYBIND11_OVERRIDE(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
-        BaseType * ref; \
+        const BaseType * ref; \
         if(selfname) { \
             ref = selfname.cast<BaseType *>(); \
         } else { \
@@ -66,6 +66,8 @@
             return BaseType::cfuncname(__VA_ARGS__); \
         } while (false);
 
+namespace LI {
+namespace crosssections {
 // Trampoline class for DarkNewsCrossSection
 class pyDarkNewsCrossSection : public DarkNewsCrossSection {
 public:
@@ -155,14 +157,15 @@ public:
         )
     }
 
-    void SampleFinalState(dataclasses::InteractionRecord const & interaction) const override {
+    void SampleFinalState(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsCrossSection,
-            double,
-            Q2Max,
-            "Q2Max",
-            interaction
+            void,
+            SampleFinalState,
+            "SampleFinalState",
+            interaction,
+            random
         )
     }
 
@@ -233,28 +236,25 @@ public:
     pybind11::object get_self() override {
         return self;
     }
-}
+};
+} // end crosssections namespace
+} // end LI namespace
 
 void register_DarkNewsCrossSection(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace LI::crosssections;
 
     // Bindings for pyDarkNewsCrossSection
-    class_<pyDarkNewsCrossSection> pyDarkNewsCrossSection(m, "pyDarkNewsCrossSection");
+    class_<LI::crosssections::pyDarkNewsCrossSection> pyDarkNewsCrossSection(m, "pyDarkNewsCrossSection");
 
     pyDarkNewsCrossSection
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel>())
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel, bool, bool>())
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel, bool, bool, bool>())
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel, std::set<LI::dataclasses::Particle::ParticleType>>())
-        .def(self == self)
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel, bool, bool, std::set<LI::dataclasses::Particle::ParticleType>>())
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel, bool, bool, bool, std::set<LI::dataclasses::Particle::ParticleType>>())
+        .def(init<>())
+        .def("__eq__", [](const LI::crosssections::DarkNewsCrossSection &self, const LI::crosssections::DarkNewsCrossSection &other){ return self == other; })
+        .def("equal", &LI::crosssections::DarkNewsCrossSection::equal)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
         .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType, double, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, LI::dataclasses::Particle::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
@@ -265,9 +265,9 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("GetPossibleSignaturesFromParents",&DarkNewsCrossSection::GetPossibleSignaturesFromParents)
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
-        .def(py::pickle(
-            [](const pyDarkNewsCrossSection & cpp_obj) {
-                py::object self;
+        .def(pybind11::pickle(
+            [](const LI::crosssections::pyDarkNewsCrossSection & cpp_obj) {
+                pybind11::object self;
                 if(cpp_obj.self) {
                     self = pybind11::reinterpret_borrow<pybind11::object>(cpp_obj.self);
                 } else {
@@ -275,39 +275,34 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
                     pybind11::handle self_handle = get_object_handle(static_cast<const DarkNewsCrossSection *>(&cpp_obj), tinfo);
                     self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
                 }
-                py::dict d;
-                if (py::hasattr(self, "__dict__")) {
+                pybind11::dict d;
+                if (pybind11::hasattr(self, "__dict__")) {
                     d = self.attr("__dict__");
                 }
-                return py::make_tuple(d);
+                return pybind11::make_tuple(d);
             },
-            [](const py::tuple &t) {
+            [](const pybind11::tuple &t) {
                 if (t.size() != 1) {
                     throw std::runtime_error("Invalid state!");
                 }
-                auto cpp_state = std::unique_ptr<pyDarkNewsCrossSection>(new pyDarkNewsCrossSection);
-                auto py_state = t[0].cast<py::dict>();
+                auto cpp_state = std::unique_ptr<LI::crosssections::pyDarkNewsCrossSection>(new LI::crosssections::pyDarkNewsCrossSection);
+                auto py_state = t[0].cast<pybind11::dict>();
                 return std::make_pair(std::move(cpp_state), py_state);
             })
         )
         ;
 
 
-    class_<DarkNewsCrossSection, std::shared_ptr<DarkNewsCrossSection>, pyDarkNewsCrossSection, DarkNewsCrossSection> DarkNewsCrossSection(m, "DarkNewsCrossSection");
+    class_<DarkNewsCrossSection, std::shared_ptr<DarkNewsCrossSection>, LI::crosssections::pyDarkNewsCrossSection> DarkNewsCrossSection(m, "DarkNewsCrossSection");
 
     DarkNewsCrossSection
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel>())
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel, bool, bool>())
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel, bool, bool, bool>())
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel, std::set<LI::dataclasses::Particle::ParticleType>>())
-        .def(self == self)
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel, bool, bool, std::set<LI::dataclasses::Particle::ParticleType>>())
-        .def(init<double, double, DarkNewsCrossSection::HelicityChannel, bool, bool, bool, std::set<LI::dataclasses::Particle::ParticleType>>())
+        .def(init<>())
+        .def("__eq__", [](const LI::crosssections::DarkNewsCrossSection &self, const LI::crosssections::DarkNewsCrossSection &other){ return self == other; })
+        .def("equal", &LI::crosssections::DarkNewsCrossSection::equal)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
         .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType, double, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, LI::dataclasses::Particle::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
@@ -318,28 +313,28 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("GetPossibleSignaturesFromParents",&DarkNewsCrossSection::GetPossibleSignaturesFromParents)
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
-        .def(py::pickle(
-            [](const DarkNewsCrossSection & cpp_obj) {
-                py::object self;
-                if(dynamic_cast<pyDarkNewsCrossSection const *>(&cpp_obj) != nullptr and dynamic_cast<pyDarkNewsCrossSection const *>(&cpp_obj)->self) {
-                    self = pybind11::reinterpret_borrow<pybind11::object>(dynamic_cast<pyDarkNewsCrossSection const *>(&cpp_obj)->self);
+        .def(pybind11::pickle(
+            [](const LI::crosssections::DarkNewsCrossSection & cpp_obj) {
+                pybind11::object self;
+                if(dynamic_cast<LI::crosssections::pyDarkNewsCrossSection const *>(&cpp_obj) != nullptr and dynamic_cast<LI::crosssections::pyDarkNewsCrossSection const *>(&cpp_obj)->self) {
+                    self = pybind11::reinterpret_borrow<pybind11::object>(dynamic_cast<LI::crosssections::pyDarkNewsCrossSection const *>(&cpp_obj)->self);
                 } else {
-                    auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsCrossSection));
-                    pybind11::handle self_handle = get_object_handle(static_cast<const DarkNewsCrossSection *>(&cpp_obj), tinfo);
+                    auto *tinfo = pybind11::detail::get_type_info(typeid(LI::crosssections::DarkNewsCrossSection));
+                    pybind11::handle self_handle = get_object_handle(static_cast<const LI::crosssections::DarkNewsCrossSection *>(&cpp_obj), tinfo);
                     self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
                 }
-                py::dict d;
-                if (py::hasattr(self, "__dict__")) {
+                pybind11::dict d;
+                if (pybind11::hasattr(self, "__dict__")) {
                     d = self.attr("__dict__");
                 }
-                return py::make_tuple(d);
+                return pybind11::make_tuple(d);
             },
-            [](const py::tuple &t) {
+            [](const pybind11::tuple &t) {
                 if (t.size() != 1) {
                     throw std::runtime_error("Invalid state!");
                 }
-                auto cpp_state = std::unique_ptr<ABC>(new pyDarkNewsCrossSection);
-                auto py_state = t[0].cast<py::dict>();
+                auto cpp_state = std::unique_ptr<LI::crosssections::DarkNewsCrossSection>(new LI::crosssections::pyDarkNewsCrossSection);
+                auto py_state = t[0].cast<pybind11::dict>();
                 return std::make_pair(std::move(cpp_state), py_state);
             })
         )

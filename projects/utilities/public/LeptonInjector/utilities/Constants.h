@@ -49,10 +49,10 @@ static const double PiMinusMass     = 0.13957039; // GeV
 static const double K0Mass          = 0.493614; // GeV
 static const double KplusMass       = 0.493677; // GeV
 static const double KminusMass      = 0.493677; // GeV
-static const double EtaMass         = 0.547862 // GeV
-static const double EtaPrimeMass    = 0.95778  // GeV
-static const double RhoMass         = 0.77526 // GeV
-static const double OmegaMass         = 0.78266 // GeV
+static const double EtaMass         = 0.547862; // GeV
+static const double EtaPrimeMass    = 0.95778;  // GeV
+static const double RhoMass         = 0.77526; // GeV
+static const double OmegaMass       = 0.78266; // GeV
 
 // confusing units
 // static const double second          = 1.523e15; // [eV^-1 sec^-1]
