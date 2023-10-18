@@ -265,6 +265,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("GetPossibleSignaturesFromParents",&DarkNewsCrossSection::GetPossibleSignaturesFromParents)
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
+        .def("get_self", &pyDarkNewsCrossSection::get_self)
         .def(pybind11::pickle(
             [](const LI::crosssections::pyDarkNewsCrossSection & cpp_obj) {
                 pybind11::object self;
@@ -313,6 +314,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("GetPossibleSignaturesFromParents",&DarkNewsCrossSection::GetPossibleSignaturesFromParents)
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
+        .def("get_self", &DarkNewsCrossSection::get_self)
         .def(pybind11::pickle(
             [](const LI::crosssections::DarkNewsCrossSection & cpp_obj) {
                 pybind11::object self;

@@ -5,6 +5,7 @@ LIST (APPEND crosssections_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/CrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/CrossSectionCollection.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DipoleFromTable.cxx
+    ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DarkNewsCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/NeutrissimoDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DISFromSpline.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/HNLFromSpline.cxx
@@ -21,6 +22,7 @@ target_include_directories(LI_crosssections PUBLIC
 target_link_libraries(LI_crosssections
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
+        pybind11::embed
     PUBLIC
         photospline
         LI_serialization
@@ -42,7 +44,7 @@ package_add_test(UnitTest_DipoleFromTable ${PROJECT_SOURCE_DIR}/projects/crossse
 #package_add_test(UnitTest_ElasticScattering ${PROJECT_SOURCE_DIR}/projects/crosssections/private/test/ElasticScattering_TEST.cxx)
 
 pybind11_add_module(crosssections ${PROJECT_SOURCE_DIR}/projects/crosssections/private/pybindings/crosssections.cxx)
-target_link_libraries(crosssections PRIVATE LeptonInjector photospline rk_static)
+target_link_libraries(crosssections PRIVATE LeptonInjector photospline rk_static pybind11::embed)
 pybind11_add_module(pyDarkNewsCrossSectionSerializer ${PROJECT_SOURCE_DIR}/projects/crosssections/private/pybindings/pyDarkNewsCrossSectionSerializer.cxx)
 target_link_libraries(pyDarkNewsCrossSectionSerializer PRIVATE LeptonInjector photospline rk_static pybind11::embed)
 if(DEFINED SKBUILD)
