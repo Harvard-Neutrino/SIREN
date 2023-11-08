@@ -105,8 +105,11 @@ PYBIND11_MODULE(distributions,m) {
     .def("SampleEnergy",&TabulatedFluxDistribution::SampleEnergy)
     .def("GenerationProbability",&TabulatedFluxDistribution::GenerationProbability)
     .def("SetEnergyBounds",&TabulatedFluxDistribution::SetEnergyBounds)
-    .def("Name",&TabulatedFluxDistribution::Name);
-
+    .def("Name",&TabulatedFluxDistribution::Name)
+    .def("GetIntegral",&TabulatedFluxDistribution::GetIntegral)
+    .def("SamplePDF",&TabulatedFluxDistribution::SamplePDF)
+    .def("SampleUnnormedPDF",&TabulatedFluxDistribution::SampleUnnormedPDF); 
+    
   // Helicity distributions
 
   class_<PrimaryNeutrinoHelicityDistribution, std::shared_ptr<PrimaryNeutrinoHelicityDistribution>, InjectionDistribution>(m, "PrimaryNeutrinoHelicityDistribution")

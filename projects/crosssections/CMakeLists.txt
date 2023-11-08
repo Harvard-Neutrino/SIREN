@@ -14,11 +14,16 @@ set_property(TARGET LI_crosssections PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_crosssections PUBLIC
     ${PROJECT_SOURCE_DIR}/projects/crosssections/public/
 )
-add_dependencies(LI_crosssections rk)
+add_dependencies(LI_crosssections rk photospline)
 add_dependencies(LI_crosssections LI_serialization LI_utilities LI_math LI_dataclasses LI_detector)
 
 target_link_libraries(LI_crosssections photospline)
 target_link_libraries(LI_crosssections rk)
+
+get_target_property(photospline_INCLUDES photospline INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(LI_crosssections INTERFACE ${CFITSIO_INCLUDE_DIR})
+target_include_directories(LI_crosssections PUBLIC ${photospline_INCLUDES})
+message("cfitsio include dir ${CFITSIO_INCLUDE_DIR}")
 
 target_include_directories(LI_crosssections PUBLIC ${PROJECT_SOURCE_DIR}/vendor/rk/include)
 target_include_directories(LI_crosssections PUBLIC ${PROJECT_SOURCE_DIR}/projects/serialization/public/)

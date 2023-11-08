@@ -160,7 +160,7 @@ LI::math::Vector3D Placement::GlobalToLocalPosition(LI::math::Vector3D const & p
 
 LI::math::Vector3D Placement::GlobalToLocalDirection(LI::math::Vector3D const & p0) const
 {
-    LI::math::Vector3D p1 = quaternion_.rotate(p0, false); // Inverse rotatation about local origin to get orientation in the local system
+    LI::math::Vector3D p1 = quaternion_.rotate(p0, true); // Inverse rotatation about local origin to get orientation in the local system
     return p1;
 }
 

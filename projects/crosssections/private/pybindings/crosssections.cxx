@@ -63,12 +63,12 @@ PYBIND11_MODULE(crosssections,m) {
    
   disfromspline
     .def(init<>())
-    .def(init<std::vector<char>, std::vector<char>, int, double, double, std::set<LI::dataclasses::Particle::ParticleType>, std::set<LI::dataclasses::Particle::ParticleType>>())
-    .def(init<std::vector<char>, std::vector<char>, int, double, double, std::vector<LI::dataclasses::Particle::ParticleType>, std::vector<LI::dataclasses::Particle::ParticleType>>())
-    .def(init<std::string, std::string, int, double, double, std::set<LI::dataclasses::Particle::ParticleType>, std::set<LI::dataclasses::Particle::ParticleType>>())
-    .def(init<std::string, std::string, std::set<LI::dataclasses::Particle::ParticleType>, std::set<LI::dataclasses::Particle::ParticleType>>())
-    .def(init<std::string, std::string, int, double, double, std::vector<LI::dataclasses::Particle::ParticleType>, std::vector<LI::dataclasses::Particle::ParticleType>>())
-    .def(init<std::string, std::string, std::vector<LI::dataclasses::Particle::ParticleType>, std::vector<LI::dataclasses::Particle::ParticleType>>())
+    .def(init<std::vector<char>, std::vector<char>, int, double, double, std::set<LI::dataclasses::Particle::ParticleType>, std::set<LI::dataclasses::Particle::ParticleType>, str>())
+    .def(init<std::vector<char>, std::vector<char>, int, double, double, std::vector<LI::dataclasses::Particle::ParticleType>, std::vector<LI::dataclasses::Particle::ParticleType>, str>())
+    .def(init<std::string, std::string, int, double, double, std::set<LI::dataclasses::Particle::ParticleType>, std::set<LI::dataclasses::Particle::ParticleType>, str>())
+    .def(init<std::string, std::string, std::set<LI::dataclasses::Particle::ParticleType>, std::set<LI::dataclasses::Particle::ParticleType>, str>())
+    .def(init<std::string, std::string, int, double, double, std::vector<LI::dataclasses::Particle::ParticleType>, std::vector<LI::dataclasses::Particle::ParticleType>, str>())
+    .def(init<std::string, std::string, std::vector<LI::dataclasses::Particle::ParticleType>, std::vector<LI::dataclasses::Particle::ParticleType>, str>())
     .def(self == self)
     .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DISFromSpline::TotalCrossSection, const_))
     .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double>(&DISFromSpline::TotalCrossSection, const_))

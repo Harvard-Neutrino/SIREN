@@ -546,6 +546,9 @@ double EarthModel::GetInteractionDensity(Geometry::IntersectionList const & inte
             interaction_density = 0.0;
             for(unsigned int i=0; i<targets.size(); ++i) {
                 interaction_density += density * particle_fractions[i] * total_cross_sections[i];
+                //std::cout << "        EarthModel::GetInteractionDensity: density " << density << std::endl;
+                //std::cout << "        EarthModel::GetInteractionDensity: particle_fractions[i] " << particle_fractions[i] << std::endl;
+                //std::cout << "        EarthModel::GetInteractionDensity: total_cross_sections[i] " << total_cross_sections[i] << std::endl;
             }
             interaction_density *= 100; // cm^-1 --> m^-1
             return true;
@@ -665,6 +668,10 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
             EarthSector sector = GetSector(current_intersection->hierarchy);
             double target = column_depth - total_column_depth;
             double distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
+            //std::cout << "    EarthModel::DistanceForColumnDepthFromPoint: p0+start_point*direction (" << (p0+start_point*direction).GetX() << ", " << (p0+start_point*direction).GetY() << ", " << (p0+start_point*direction).GetZ() << ")" << std::endl;
+            //std::cout << "    EarthModel::DistanceForColumnDepthFromPoint: direction (" << direction.GetX() << ", " << direction.GetY() << ", " << direction.GetZ() << ")" << std::endl;
+            //std::cout << "    EarthModel::DistanceForColumnDepthFromPoint: (target, segment_length) (" << target << ", " << segment_length << ")" <<std::endl;
+            
             done = distance >= 0;
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
             total_column_depth += integral;
@@ -841,9 +848,14 @@ double EarthModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & i
             double segment_length = end_point - start_point;
             EarthSector sector = GetSector(current_intersection->hierarchy);
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
+            
+            //std::cout << "        EarthModel::GetInteractionDepthInCGS: segment_length: " << segment_length << std::endl; 
+            //std::cout << "        EarthModel::GetInteractionDepthInCGS: integral: " << integral << std::endl; 
             std::vector<double> particle_fractions = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end());
             for(unsigned int i=0; i<targets.size(); ++i) {
                 interaction_depths[i] += (integral * 100) * particle_fractions[i]; // cm^-3 * m --> cm^-2
+                //std::cout << "        EarthModel::GetInteractionDepthInCGS: particle_fractions[i]: " << particle_fractions[i] << std::endl;
+                //std::cout << "        EarthModel::GetInteractionDepthInCGS: interaction_depths[i]: " << interaction_depths[i] << std::endl; 
             }
         }
         // last_point = end_point;

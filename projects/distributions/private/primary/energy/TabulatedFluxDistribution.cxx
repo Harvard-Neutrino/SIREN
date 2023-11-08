@@ -69,9 +69,21 @@ void TabulatedFluxDistribution::LoadFluxTable() {
 double TabulatedFluxDistribution::unnormed_pdf(double energy) const {
     return fluxTable(energy);
 }
+    
+double TabulatedFluxDistribution::SampleUnnormedPDF(double energy) const {
+    return unnormed_pdf(energy);
+}
+
+double TabulatedFluxDistribution::GetIntegral() const {
+    return integral;
+}
 
 double TabulatedFluxDistribution::pdf(double energy) const {
     return unnormed_pdf(energy) / integral;
+}
+    
+double TabulatedFluxDistribution::SamplePDF(double energy) const {
+    return pdf(energy);
 }
 
 void TabulatedFluxDistribution::SetEnergyBounds(double eMin, double eMax) {
@@ -117,12 +129,17 @@ double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI
     bool accept;
 
     // sample an initial point uniformly
-    energy = rand->Uniform(energyMin, energyMax);
+    //energy = rand->Uniform(energyMin, energyMax);
+    energy = rand->Uniform(std::log10(energyMin), std::log10(energyMax));
+    energy = std::pow(10, energy);
+    
     density = pdf(energy);
 
     // Metropolis Hastings loop
     for (size_t j = 0; j <= burnin; ++j) {
-        test_energy = rand->Uniform(energyMin, energyMax);
+        //test_energy = rand->Uniform(energyMin, energyMax);
+        test_energy = rand->Uniform(std::log10(energyMin), std::log10(energyMax));
+        test_energy = std::pow(10, test_energy);
         test_density = pdf(test_energy);
         odds = test_density / density;
         accept = (odds > 1.) or (rand->Uniform(0,1) < odds);

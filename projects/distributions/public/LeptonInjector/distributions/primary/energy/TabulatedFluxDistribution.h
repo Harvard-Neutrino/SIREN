@@ -30,11 +30,14 @@ private:
     std::string fluxTableFilename;
     LI::utilities::Interpolator1D<double> fluxTable;
     double integral;
-    const size_t burnin = 40;
+    const size_t burnin = 40; //original burnin parameter
     double unnormed_pdf(double energy) const;
     double pdf(double energy) const;
     void LoadFluxTable();
 public:
+    double SamplePDF(double energy) const; 
+    double SampleUnnormedPDF(double energy) const; 
+    double GetIntegral() const; 
     double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);

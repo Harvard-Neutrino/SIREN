@@ -25,6 +25,10 @@ using namespace pybind11;
 PYBIND11_MODULE(injection,m) {
   using namespace LI::injection;
 
+  // Utils function
+    
+    m.def("CrossSectionProbability", &CrossSectionProbability);
+    
   // Process
 
   class_<Process, std::shared_ptr<Process>>(m, "Process")
