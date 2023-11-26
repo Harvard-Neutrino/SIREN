@@ -34,9 +34,9 @@ class PyDarkNewsCrossSection(DNCS):
         #     self.table_dir = os.environ.get('LEPTONINJECTOR_SRC') + '/resources/CrossSectionTables/DarkNewsTables/'
 
         # Define the vegas integration object to be adapted
-        DIM = 3 # TODO: check this for upscattering only
-        self.integrand = integrands.UpscatteringXsec(DIM,
-                                                     )
+        # DIM = 3 # TODO: check this for upscattering only
+        # self.integrand = integrands.UpscatteringXsec(DIM,
+        #                                             )
 
 
     ##### START METHODS FOR SERIALIZATION #########
@@ -119,10 +119,18 @@ class PyDarkNewsCrossSection(DNCS):
     def DifferentialCrossSection(self, primary, target, energy, Q2):
         if primary != self.gen_case.nu_projectile:
             return 0
-        if energy < self.InteractionThreshold()
+        interaction = LI.dataclasses.InteractionRecord()
+        #interaction.signature.primary_type = primary
+        #interaction.signature.target_type = target
+        #interaction.primary_momentum[0] = energy
+        if energy < self.InteractionThreshold(interaction):
+            return 0
+        return self.gen_case.ups_case.diff_xsec_Q2(energy, Q2)
+
+
 
     def InteractionThreshold(self, interaction):
-        return 0
+        return 1.05 * self.gen_case.ups_case.Ethreshold
 
     def Q2Min(self, interaction):
         return 0
