@@ -1,14 +1,13 @@
 import leptoninjector as LI
-from leptoninjector.crosssections import DarkNewsCrossSection as DNCS
-#from leptoninjector.crosssections import DarkNewsDecay as DND
-import DarkNews
-from DarkNews import integrands
+from leptoninjector.crosssections import DarkNewsCrossSection,CrossSection
+#from leptoninjector.crosssections import DarkNewsDecay
+from DarkNews import GenLauncher,phase_space
 
 # Class containing all upscattering and decay modes available in DarkNews
 class PyDarkNewsCrossSectionCollection:
 
     def __init__(self, param_file=None, **kwargs):
-        self.gen = DarkNews.GenLauncher(param_file,**kwargs)
+        self.gen = GenLauncher(param_file,**kwargs)
         self.cross_sections = {}
         self.decays = {}
         for gen_case in self.gen.gen_cases:
@@ -24,10 +23,11 @@ class PyDarkNewsCrossSectionCollection:
 
 # A class representing a single MC_events DarkNews class
 # Only handles methods concerning the upscattering part
-class PyDarkNewsCrossSection(DNCS):
+class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     def __init__(self, gen_case, table_dir=None, **kwargs):
-        DNCS.__init__(self) # C++ constructor
+        DarkNewsCrossSection.__init__(self) # C++ constructor
+        #CrossSection.__init__(self) # C++ constructor
         self.gen_case = gen_case
         # self.table_dir = table_dir
         # if table_dir is None:
@@ -126,14 +126,23 @@ class PyDarkNewsCrossSection(DNCS):
         if energy < self.InteractionThreshold(interaction):
             return 0
         return self.gen_case.ups_case.diff_xsec_Q2(energy, Q2)
-
-
+    
+    def TotalCrossSection(self, primary, energy, target):
+        if primary != self.gen_case.nu_projectile:
+            return 0
+        interaction = LI.dataclasses.InteractionRecord()
+        #interaction.signature.primary_type = primary
+        #interaction.signature.target_type = target
+        #interaction.primary_momentum[0] = energy
+        if energy < self.InteractionThreshold(interaction):
+            return 0
+        return self.gen_case.ups_case.total_xsec(energy)
 
     def InteractionThreshold(self, interaction):
         return 1.05 * self.gen_case.ups_case.Ethreshold
 
     def Q2Min(self, interaction):
-        return 0
+        return phase_space.upscattering_Q2min(interaction.primary_momentum[0], self.gen_case.ups_case.m_ups, interaction.target_mass)
 
     def Q2Max(self, interaction):
-        return 0
+        return phase_space.upscattering_Q2max(interaction.primary_momentum[0], self.gen_case.ups_case.m_ups, interaction.target_mass)

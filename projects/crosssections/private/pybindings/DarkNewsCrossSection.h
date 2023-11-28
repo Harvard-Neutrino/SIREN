@@ -68,6 +68,139 @@
 
 namespace LI {
 namespace crosssections {
+// Trampoline class for CrossSection
+class pyCrossSection : public CrossSection {
+public:
+    using CrossSection::CrossSection;
+    pyCrossSection(CrossSection && parent) : CrossSection(std::move(parent)) {}
+    pybind11::object self;
+
+    double TotalCrossSection(dataclasses::InteractionRecord const & interaction) const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            double,
+            TotalCrossSection,
+            "TotalCrossSection",
+            interaction
+        )
+    }
+
+    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            double,
+            TotalCrossSection,
+            "TotalCrossSection",
+            primary,
+            energy,
+            target
+        )
+    }
+
+    double DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            double,
+            DifferentialCrossSection,
+            "DifferentialCrossSection",
+            interaction
+        )
+    }
+
+    double InteractionThreshold(dataclasses::InteractionRecord const & interaction) const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            double,
+            InteractionThreshold,
+            "InteractionThreshold",
+            interaction
+        )
+    }
+
+    void SampleFinalState(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            void,
+            SampleFinalState,
+            "SampleFinalState",
+            interaction,
+            random
+        )
+    }
+
+    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            std::vector<LI::dataclasses::Particle::ParticleType>,
+            GetPossibleTargets,
+            "GetPossibleTargets"
+        )
+    }
+
+    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            std::vector<LI::dataclasses::Particle::ParticleType>,
+            GetPossibleTargetsFromPrimary,
+            "GetPossibleTargetsFromPrimary",
+            primary_type
+        )
+    }
+
+    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            std::vector<LI::dataclasses::Particle::ParticleType>,
+            GetPossiblePrimaries,
+            "GetPossiblePrimaries"
+        )
+    }
+
+    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            std::vector<LI::dataclasses::InteractionSignature>,
+            GetPossibleSignatures,
+            "GetPossibleSignatures"
+        )
+    }
+
+    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            std::vector<LI::dataclasses::InteractionSignature>,
+            GetPossibleSignaturesFromParents,
+            "GetPossibleSignaturesFromParents",
+            primary_type,
+            target_type
+        )
+    }
+
+    double FinalStateProbability(dataclasses::InteractionRecord const & record) const override {
+        C_PYBIND11_OVERRIDE_PURE(
+            self,
+            CrossSection,
+            double,
+            FinalStateProbability,
+            "FinalStateProbability",
+            record
+        )
+    }
+
+    pybind11::object get_self() override {
+        return self;
+    }
+};
 // Trampoline class for DarkNewsCrossSection
 class pyDarkNewsCrossSection : public DarkNewsCrossSection {
 public:
@@ -265,6 +398,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("GetPossibleSignaturesFromParents",&DarkNewsCrossSection::GetPossibleSignaturesFromParents)
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
+        .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
         .def("get_self", &pyDarkNewsCrossSection::get_self)
         .def(pybind11::pickle(
             [](const LI::crosssections::pyDarkNewsCrossSection & cpp_obj) {
@@ -294,7 +428,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         ;
 
 
-    class_<DarkNewsCrossSection, std::shared_ptr<DarkNewsCrossSection>, LI::crosssections::pyDarkNewsCrossSection> DarkNewsCrossSection(m, "DarkNewsCrossSection");
+    class_<DarkNewsCrossSection, std::shared_ptr<DarkNewsCrossSection>, CrossSection, LI::crosssections::pyDarkNewsCrossSection> DarkNewsCrossSection(m, "DarkNewsCrossSection");
 
     DarkNewsCrossSection
         .def(init<>())
@@ -314,6 +448,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("GetPossibleSignaturesFromParents",&DarkNewsCrossSection::GetPossibleSignaturesFromParents)
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
+        .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
         .def("get_self", &DarkNewsCrossSection::get_self)
         .def(pybind11::pickle(
             [](const LI::crosssections::DarkNewsCrossSection & cpp_obj) {
