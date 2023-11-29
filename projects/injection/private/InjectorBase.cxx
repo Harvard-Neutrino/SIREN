@@ -86,7 +86,8 @@ void InjectorBase::SetPrimaryProcess(std::shared_ptr<LI::injection::InjectionPro
   try {
     vtx_dist = FindPositionDistribution(primary);
   } catch(LI::utilities::AddProcessFailure const & e) {
-    return;
+    std::cerr << e.what() << std::endl;
+    exit(0);
   }
   primary_process = primary;
   primary_position_distribution = vtx_dist;
@@ -97,7 +98,8 @@ void InjectorBase::AddSecondaryProcess(std::shared_ptr<LI::injection::InjectionP
   try {
     vtx_dist = FindPositionDistribution(secondary);
   } catch(LI::utilities::AddProcessFailure const & e) {
-    return;
+    std::cerr << e.what() << std::endl;
+    exit(0);
   }
   secondary_processes.push_back(secondary);
   secondary_position_distributions.push_back(vtx_dist);
@@ -435,6 +437,7 @@ LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
         try {
             record = this->NewRecord();
             for(auto & distribution : primary_process->injection_distributions) {
+                std::cout << "Sampling distribution << " << distribution->Name() << "\n";
                 distribution->Sample(random, earth_model, primary_process->cross_sections, record);
             }
             SampleCrossSection(record);
