@@ -188,6 +188,22 @@ public:
         Qball = 10000000,
 
         /* The following are fake particles used in Icetray and have no official codes */
+
+        /* Start with DarkNews particles. These are defined according to:
+           PDGID  =  59(particle spin code: 0-scalar 1-fermion 2-vector)(generation number)
+        */
+        NuLight = 5910,
+        Nu1 = 5911,
+        Nu2 = 5912,
+        Nu3 = 5913,
+        N4 = 5914,
+        N5 = 5915,
+        N6 = 5916,
+        ZPrime = 5921,
+        HPrime = 5901,
+        PhiPrime = 5902,
+        ALP = 5903,
+
         /* The section abs(code) > 2000000000 is reserved for this kind of use */
         NuF4 = 2000000018,
         NuF4Bar = -2000000018,
