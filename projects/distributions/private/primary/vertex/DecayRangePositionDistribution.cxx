@@ -86,7 +86,7 @@ double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI:
 
 DecayRangePositionDistribution::DecayRangePositionDistribution() {}
 
-DecayRangePositionDistribution::DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::set<LI::dataclasses::Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), range_function(range_function), target_types(target_types) {}
+DecayRangePositionDistribution::DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function) : radius(radius), endcap_length(endcap_length), range_function(range_function) {}
 
 std::string DecayRangePositionDistribution::Name() const {
     return "DecayRangePositionDistribution";
@@ -134,7 +134,7 @@ bool DecayRangePositionDistribution::equal(WeightableDistribution const & other)
                     (range_function and x->range_function and *range_function == *x->range_function)
                     or (!range_function and !x->range_function)
                 )
-            and target_types == x->target_types);
+            );
 }
 
 bool DecayRangePositionDistribution::less(WeightableDistribution const & other) const {
@@ -145,9 +145,9 @@ bool DecayRangePositionDistribution::less(WeightableDistribution const & other) 
                 and *range_function < *x->range_function); // Less than
     bool f = false;
     return
-        std::tie(radius, endcap_length, f, target_types)
+        std::tie(radius, endcap_length, f)
         <
-        std::tie(radius, x->endcap_length, range_less, x->target_types);
+        std::tie(radius, x->endcap_length, range_less);
 }
 
 bool DecayRangePositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::EarthModel const> second_earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> second_cross_sections) const {

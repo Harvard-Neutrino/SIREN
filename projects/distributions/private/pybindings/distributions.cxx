@@ -188,7 +188,7 @@ PYBIND11_MODULE(distributions,m) {
 
   class_<DecayRangePositionDistribution, std::shared_ptr<DecayRangePositionDistribution>, VertexPositionDistribution>(m, "DecayRangePositionDistribution")
     .def(init<>())
-    .def(init<double, double, std::shared_ptr<DecayRangeFunction>, std::set<LI::dataclasses::Particle::ParticleType>>())
+    .def(init<double, double, std::shared_ptr<DecayRangeFunction>>())
     .def("GenerationProbability",&DecayRangePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&DecayRangePositionDistribution::InjectionBounds)
     .def("Name",&DecayRangePositionDistribution::Name);

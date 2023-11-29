@@ -38,8 +38,7 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
     endcap_length(endcap_length)
 {
     cross_sections = primary_process->cross_sections;
-    std::set<LI::dataclasses::Particle::ParticleType> target_types = cross_sections->TargetTypes();
-    position_distribution = std::make_shared<LI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
+    position_distribution = std::make_shared<LI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func);
     primary_process->injection_distributions.push_back(position_distribution);
     SetPrimaryProcess(primary_process);
     for(auto & sec_process : secondary_processes) {

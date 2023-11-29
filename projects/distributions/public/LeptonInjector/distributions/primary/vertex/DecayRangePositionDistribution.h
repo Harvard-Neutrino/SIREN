@@ -35,7 +35,6 @@ private:
     double radius;
     double endcap_length;
     std::shared_ptr<DecayRangeFunction> range_function;
-    std::set<LI::dataclasses::Particle::ParticleType> target_types;
 
     LI::math::Vector3D SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::math::Vector3D const & dir) const;
 
@@ -44,7 +43,7 @@ public:
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     DecayRangePositionDistribution();
     DecayRangePositionDistribution(const DecayRangePositionDistribution &) = default;
-    DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function, std::set<LI::dataclasses::Particle::ParticleType> target_types);
+    DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function);
     std::string Name() const override;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
@@ -55,7 +54,6 @@ public:
             archive(::cereal::make_nvp("Radius", radius));
             archive(::cereal::make_nvp("EndcapLength", endcap_length));
             archive(::cereal::make_nvp("DecayRangeFunction", range_function));
-            archive(::cereal::make_nvp("TargetTypes", target_types));
             archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
         } else {
             throw std::runtime_error("DecayRangePositionDistribution only supports version <= 0!");
@@ -66,13 +64,11 @@ public:
         if(version == 0) {
             double r;
             double l;
-            std::set<LI::dataclasses::Particle::ParticleType> t;
             std::shared_ptr<DecayRangeFunction> f;
             archive(::cereal::make_nvp("Radius", r));
             archive(::cereal::make_nvp("EndcapLength", l));
             archive(::cereal::make_nvp("DecayRangeFunction", f));
-            archive(::cereal::make_nvp("TargetTypes", t));
-            construct(r, l, f, t);
+            construct(r, l, f);
             archive(cereal::virtual_base_class<VertexPositionDistribution>(construct.ptr()));
         } else {
             throw std::runtime_error("DecayRangePositionDistribution only supports version <= 0!");
