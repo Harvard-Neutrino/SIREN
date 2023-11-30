@@ -34,6 +34,10 @@ class DarkNewsCrossSection : public CrossSection {
 friend cereal::access;
 private:
 public:
+
+    double m_ups;
+    double m_target;
+
     DarkNewsCrossSection();
 
     virtual pybind11::object get_self();
@@ -47,6 +51,7 @@ public:
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     virtual double Q2Min(dataclasses::InteractionRecord const &) const;
     virtual double Q2Max(dataclasses::InteractionRecord const &) const;
+    virtual void SetUpscatteringMasses(dataclasses::InteractionRecord &) const;
     virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
     virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override = 0; // Requires Python-side implementation

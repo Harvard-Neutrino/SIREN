@@ -1,5 +1,6 @@
 import leptoninjector as LI
-from leptoninjector.crosssections import DarkNewsCrossSection,CrossSection
+from leptoninjector.crosssections import DarkNewsCrossSection
+from leptoninjector.dataclasses import Particle
 #from leptoninjector.crosssections import DarkNewsDecay
 from DarkNews import GenLauncher,phase_space
 
@@ -52,15 +53,15 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     ##### END METHODS FOR SERIALIZATION #########
 
     def GetPossiblePrimaries(self):
-        return [self.gen_case.nu_projectile]
+        return [Particle.ParticleType(self.gen_case.nu_projectile.pdgid)]
         # primaries = []
         # for gen_case in self.gen.gen_cases:
         #     primaries.append(gen_case.nu_projectile)
         # return primaries
     
     def GetPossibleTargetsFromPrimary(self, primary_type):
-        if self.gen_case.nu_projectile == primary_type:
-            return [self.gen_case.nuclear_target]
+        if Particle.ParticleType(self.gen_case.nu_projectile.pdgid) == primary_type:
+            return [Particle.Particle.ParticleType(self.gen_case.nuclear_target.pdgid)]
         return []
         # targets = []
         # for gen_case in self.gen.gen_cases:
@@ -69,19 +70,19 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         # return targets
 
     def GetPossibleTargets(self):
-        return [self.gen_case.nuclear_target]
+        return [Particle.ParticleType(self.gen_case.nuclear_target.pdgid)]
         # targets = []
         # for gen_case in self.gen.gen_cases:
         #     targets.append(gen_case.nuclear_target)
         # return targets
 
     def GetPossibleSignatures(self):
-        signature = LI.dataclasses.InteractionSignature
-        signature.primary_type = self.gen_case.nu_projectile
-        signature.target_type = self.gen_case.nuclear_target
+        signature = LI.dataclasses.InteractionSignature()
+        signature.primary_type = Particle.ParticleType(self.gen_case.nu_projectile.pdgid)
+        signature.target_type = Particle.ParticleType(self.gen_case.nuclear_target.pdgid)
         signature.secondary_types = []
-        signature.secondary_types.append(self.gen_case.nu_upscattered)
-        signature.secondary_types.append(self.gen_case.nuclear_target)
+        signature.secondary_types.append(Particle.ParticleType(self.gen_case.nu_upscattered.pdgid))
+        signature.secondary_types.append(Particle.ParticleType(self.gen_case.nuclear_target.pdgid))
         return [signature]
         # signatures = []
         # for gen_case in self.gen.gen_cases:
@@ -95,13 +96,14 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         # return signatures
 
     def GetPossibleSignaturesFromParents(self, primary_type, target_type):
-        if (self.gen_case.nu_projectile == primary_type) and (self.gen_case.nuclear_target == target_type):
-            signature = LI.dataclasses.InteractionSignature
-            signature.primary_type = self.gen_case.nu_projectile
-            signature.target_type = self.gen_case.nuclear_target
-            signature.secondary_types = []
-            signature.secondary_types.append(self.gen_case.nu_upscattered)
-            signature.secondary_types.append(self.gen_case.nuclear_target)
+        if (Particle.ParticleType(self.gen_case.nu_projectile.pdgid) == primary_type) and (Particle.ParticleType(self.gen_case.nuclear_target.pdgid) == target_type):
+            signature = LI.dataclasses.InteractionSignature()
+            signature.primary_type = Particle.ParticleType(self.gen_case.nu_projectile.pdgid)
+            signature.target_type = Particle.ParticleType(self.gen_case.nuclear_target.pdgid)
+            secondary_types = []
+            secondary_types.append(Particle.ParticleType(self.gen_case.nu_upscattered.pdgid))
+            secondary_types.append(Particle.ParticleType(self.gen_case.nuclear_target.pdgid))
+            signature.secondary_types = secondary_types
             return [signature]
         return []
         # signatures = []
@@ -120,23 +122,44 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         if primary != self.gen_case.nu_projectile:
             return 0
         interaction = LI.dataclasses.InteractionRecord()
-        #interaction.signature.primary_type = primary
-        #interaction.signature.target_type = target
-        #interaction.primary_momentum[0] = energy
+        interaction.signature.primary_type = primary
+        interaction.signature.target_type = target
+        interaction.primary_momentum[0] = energy
         if energy < self.InteractionThreshold(interaction):
             return 0
         return self.gen_case.ups_case.diff_xsec_Q2(energy, Q2)
     
-    def TotalCrossSection(self, primary, energy, target):
+    def SetUpscatteringMasses(self, interaction):
+        interaction.primary_mass = 0
+        interaction.target_mass = self.gen_case.ups_case.MA
+        secondary_masses = []
+        secondary_masses.append(self.gen_case.ups_case.m_ups)
+        secondary_masses.append(self.gen_case.ups_case.MA)
+        interaction.secondary_masses = secondary_masses
+        self.m_ups = self.gen_case.ups_case.m_ups
+        self.m_target = self.gen_case.ups_case.MA
+    
+    def TotalCrossSection(self, arg1, energy=None, target=None):
+        if type(arg1==LI.dataclasses.InteractionRecord):
+            primary = arg1.signature.primary_type
+            energy = arg1.primary_momentum[0]
+            target = arg1.signature.target_type
+        elif energy is not None and target is not None:
+            primary = arg1
+        else:
+            print('Incorrect function call to TotalCrossSection!')
+            exit(0)
         if primary != self.gen_case.nu_projectile:
             return 0
         interaction = LI.dataclasses.InteractionRecord()
-        #interaction.signature.primary_type = primary
-        #interaction.signature.target_type = target
-        #interaction.primary_momentum[0] = energy
+        interaction.signature.primary_type = primary
+        interaction.signature.target_type = target
+        interaction.primary_momentum[0] = energy
         if energy < self.InteractionThreshold(interaction):
-            return 0
-        return self.gen_case.ups_case.total_xsec(energy)
+            ret = 0
+        ret = self.gen_case.ups_case.total_xsec(energy)
+        print(ret)
+        return ret
 
     def InteractionThreshold(self, interaction):
         return 1.05 * self.gen_case.ups_case.Ethreshold

@@ -112,9 +112,21 @@ double DarkNewsCrossSection::Q2Max(dataclasses::InteractionRecord const & intera
     return 0;
 }
 
+void DarkNewsCrossSection::SetUpscatteringMasses(dataclasses::InteractionRecord & interaction) const {
+    // Should be implemented on the python side
+    // Not pure virtual in order to allow SampleFinalState to call
+    throw(LI::utilities::PythonImplementationError("DarkNewsCrossSection::SetUpscatteringMasses should be implemented in Python!"));
+    return;
+}
+
 
 void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
-    
+    // Set our upscattering masses using values from DarkNews
+    SetUpscatteringMasses(interaction);
+    interaction.primary_mass = 0;
+    interaction.target_mass = m_target;
+    interaction.secondary_masses.push_back(m_ups);
+    interaction.secondary_masses.push_back(m_target);
     // Uses Metropolis-Hastings Algorithm
     // Assumes we have the differential xsec v.s. Q^2
 

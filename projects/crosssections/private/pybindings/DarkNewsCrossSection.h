@@ -197,7 +197,7 @@ public:
         )
     }
 
-    pybind11::object get_self() override {
+    pybind11::object get_self() {
         return self;
     }
 };
@@ -286,6 +286,17 @@ public:
             double,
             Q2Max,
             "Q2Max",
+            interaction
+        )
+    }
+
+    void SetUpscatteringMasses(dataclasses::InteractionRecord & interaction) const override {
+        C_PYBIND11_OVERRIDE(
+            self,
+            DarkNewsCrossSection,
+            void,
+            SetUpscatteringMasses,
+            "SetUpscatteringMasses",
             interaction
         )
     }
@@ -383,6 +394,8 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
     pyDarkNewsCrossSection
         .def(init<>())
         .def("__eq__", [](const LI::crosssections::DarkNewsCrossSection &self, const LI::crosssections::DarkNewsCrossSection &other){ return self == other; })
+        .def_readwrite("m_ups",&DarkNewsCrossSection::m_ups)
+        .def_readwrite("m_target",&DarkNewsCrossSection::m_target)
         .def("equal", &LI::crosssections::DarkNewsCrossSection::equal)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
         .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
@@ -391,6 +404,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
+        .def("SetUpscatteringMasses",&DarkNewsCrossSection::SetUpscatteringMasses)
         .def("GetPossibleTargets",&DarkNewsCrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary",&DarkNewsCrossSection::GetPossibleTargetsFromPrimary)
         .def("GetPossiblePrimaries",&DarkNewsCrossSection::GetPossiblePrimaries)
@@ -433,6 +447,8 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
     DarkNewsCrossSection
         .def(init<>())
         .def("__eq__", [](const LI::crosssections::DarkNewsCrossSection &self, const LI::crosssections::DarkNewsCrossSection &other){ return self == other; })
+        .def_readwrite("m_ups",&DarkNewsCrossSection::m_ups)
+        .def_readwrite("m_target",&DarkNewsCrossSection::m_target)
         .def("equal", &LI::crosssections::DarkNewsCrossSection::equal)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
         .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
@@ -441,6 +457,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
+        .def("SetUpscatteringMasses",&DarkNewsCrossSection::SetUpscatteringMasses)
         .def("GetPossibleTargets",&DarkNewsCrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary",&DarkNewsCrossSection::GetPossibleTargetsFromPrimary)
         .def("GetPossiblePrimaries",&DarkNewsCrossSection::GetPossiblePrimaries)
