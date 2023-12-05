@@ -6,6 +6,7 @@ LIST (APPEND crosssections_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/CrossSectionCollection.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DipoleFromTable.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DarkNewsCrossSection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DarkNewsDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/NeutrissimoDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DISFromSpline.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/HNLFromSpline.cxx
@@ -45,8 +46,8 @@ package_add_test(UnitTest_DipoleFromTable ${PROJECT_SOURCE_DIR}/projects/crossse
 
 pybind11_add_module(crosssections ${PROJECT_SOURCE_DIR}/projects/crosssections/private/pybindings/crosssections.cxx)
 target_link_libraries(crosssections PRIVATE LeptonInjector photospline rk_static pybind11::embed)
-pybind11_add_module(pyDarkNewsCrossSectionSerializer ${PROJECT_SOURCE_DIR}/projects/crosssections/private/pybindings/pyDarkNewsCrossSectionSerializer.cxx)
-target_link_libraries(pyDarkNewsCrossSectionSerializer PRIVATE LeptonInjector photospline rk_static pybind11::embed)
+pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/crosssections/private/pybindings/pyDarkNewsSerializer.cxx)
+target_link_libraries(pyDarkNewsSerializer PRIVATE LeptonInjector photospline rk_static pybind11::embed)
 if(DEFINED SKBUILD)
 set_target_properties(crosssections PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

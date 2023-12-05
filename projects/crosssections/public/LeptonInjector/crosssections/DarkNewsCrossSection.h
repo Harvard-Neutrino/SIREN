@@ -45,7 +45,7 @@ public:
     virtual bool equal(CrossSection const & other) const override;
 
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    virtual double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override = 0; // Requires Python-side implementation
+    virtual double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override;
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary, LI::dataclasses::Particle::ParticleType target, double energy, double Q2) const; 
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
