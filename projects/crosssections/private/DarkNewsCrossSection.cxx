@@ -77,8 +77,8 @@ double DarkNewsCrossSection::DifferentialCrossSection(dataclasses::InteractionRe
 double DarkNewsCrossSection::TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target
 ) const {
     // Should be implemented on the python side
-    // Not pure virtual in order to allow SampleFinalState to call
-    throw(LI::utilities::PythonImplementationError("DarkNewsCrossSection::DifferentialCrossSection should be implemented in Python!"));
+    // Not pure virtual in order to allow TotalCrossSection to call
+    throw(LI::utilities::PythonImplementationError("DarkNewsCrossSection::TotalCrossSection should be implemented in Python!"));
     return 0;
 }
 

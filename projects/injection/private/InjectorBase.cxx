@@ -437,7 +437,6 @@ LI::dataclasses::InteractionTree InjectorBase::GenerateEvent() {
         try {
             record = this->NewRecord();
             for(auto & distribution : primary_process->injection_distributions) {
-                std::cout << "Sampling distribution << " << distribution->Name() << "\n";
                 distribution->Sample(random, earth_model, primary_process->cross_sections, record);
             }
             SampleCrossSection(record);
