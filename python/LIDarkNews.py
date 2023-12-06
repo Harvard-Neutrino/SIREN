@@ -1,9 +1,10 @@
 import leptoninjector as LI
-from leptoninjector.crosssections import DarkNewsCrossSection
+from leptoninjector.crosssections import DarkNewsCrossSection,DarkNewsDecay
 from leptoninjector.dataclasses import Particle
 #from leptoninjector.crosssections import DarkNewsDecay
-from DarkNews import GenLauncher,phase_space
+from DarkNews import phase_space
 from DarkNews.ModelContainer import ModelContainer
+from DarkNews.processes import *
 
 # Class containing all upscattering and decay modes available in DarkNews
 class PyDarkNewsCrossSectionCollection:
@@ -16,13 +17,13 @@ class PyDarkNewsCrossSectionCollection:
         for ups_key,ups_case in self.models.ups_cases.items():
             print(ups_case)
             self.cross_sections.append(PyDarkNewsCrossSection(ups_case))
-        # self.decays = []
-        # for dec_case in self.models.dec_cases:
-        #     self.decays.append(PyDarkNewsDecay(dec_case))
+        self.decays = []
+        for dec_case in self.models.dec_cases:
+            self.decays.append(PyDarkNewsDecay(dec_case))
         
 
 
-# A class representing a single MC_events DarkNews class
+# A class representing a single ups_case DarkNews class
 # Only handles methods concerning the upscattering part
 class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
@@ -134,3 +135,85 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     def Q2Max(self, interaction):
         return phase_space.upscattering_Q2max(interaction.primary_momentum[0], self.ups_case.m_ups, interaction.target_mass)
+
+# A class representing a single decay_case DarkNews class
+# Only handles methods concerning the decay part
+class PyDarkNewsDecay(DarkNewsDecay):
+
+    def __init__(self, dec_case, **kwargs):
+        DarkNewsDecay.__init__(self) # C++ constructor
+        self.dec_case = dec_case                                            )
+
+    ##### START METHODS FOR SERIALIZATION #########
+    # def get_initialized_dict(config):
+    #     # do the intitialization step
+    #     pddn = PyDerivedDarkNews(config)
+    #     return pddn.__dict__
+    #     # return the conent of __dict__ for PyDerivedDarkNews
+
+    # @staticmethod  
+    # def get_config(self):
+    #     return self.config
+    ##### END METHODS FOR SERIALIZATION #########
+
+    def GetPossibleSignatures(self):
+        signature = LI.dataclasses.InteractionSignature()
+        signature.primary_type = Particle.ParticleType(self.dec_case.nu_parent.pdgid)
+        signature.target_type = Particle.ParticleType.Decay
+        signature.secondary_types = []
+        signature.secondary_types.append(Particle.ParticleType(self.dec_case.nu_daughter.pdgid))
+        for secondary in self.dec_case.secondaries:
+            signature.secondary_types.append(Particle.ParticleType(secondary.pdgid))
+        return [signature]
+
+    def GetPossibleSignaturesFromParent(self, primary_type):
+        if (Particle.ParticleType(self.dec_case.nu_parent.pdgid) == primary_type):
+            signature = LI.dataclasses.InteractionSignature()
+            signature.primary_type = Particle.ParticleType(self.dec_case.nu_parent.pdgid)
+            signature.target_type = Particle.ParticleType.Decay
+            signature.secondary_types = []
+            signature.secondary_types.append(Particle.ParticleType(self.dec_case.nu_daughter.pdgid))
+            for secondary in self.dec_case.secondaries:
+                signature.secondary_types.append(Particle.ParticleType(secondary.pdgid))
+            return [signature]
+        return []
+
+    def DifferentialDecayWidth(self, record):
+        if type(self.dec_case)==FermionSinglePhotonDecay:
+            gamma_idx = 0
+            for secondary in record.signature.secondary_types:
+                if secondary == LI.dataclasses.Particle.ParticleType.Gamma:
+                    break
+                gamma_idx += 1
+            if gamma_idx >= len(record.secondary_momenta):
+                print('No gamma found in the list of secondaries!')
+                exit(0)
+
+            E1,p1x,p1y,p1z = record.primary_momentum
+            E2,p2x,p2y,p2z = record.secondary_momenta[gamma_idx]
+            cost = p2z / E2
+            return self.dec_case.diff_xsec_Q2(cost)
+        else:
+            #TODO: implement dilepton case
+            return 0
+    
+    def TotalCrossSection(self, arg1, energy=None, target=None):
+        if type(arg1)==LI.dataclasses.InteractionRecord:
+            primary = arg1.signature.primary_type
+            energy = arg1.primary_momentum[0]
+            target = arg1.signature.target_type
+        elif energy is not None and target is not None:
+            primary = arg1
+        else:
+            print('Incorrect function call to TotalCrossSection!')
+            exit(0)
+        if primary != self.ups_case.nu_projectile:
+            return 0
+        interaction = LI.dataclasses.InteractionRecord()
+        interaction.signature.primary_type = primary
+        interaction.signature.target_type = target
+        interaction.primary_momentum[0] = energy
+        if energy < self.InteractionThreshold(interaction):
+            ret = 0
+        ret = self.ups_case.total_xsec(energy)
+        return ret

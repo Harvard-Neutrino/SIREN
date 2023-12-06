@@ -9,10 +9,12 @@
 #include "../../public/LeptonInjector/crosssections/CrossSectionCollection.h"
 #include "../../public/LeptonInjector/crosssections/DipoleFromTable.h"
 #include "../../public/LeptonInjector/crosssections/DarkNewsCrossSection.h"
+#include "../../public/LeptonInjector/crosssections/DarkNewsDecay.h"
 
 #include "./CrossSection.h"
 #include "./DipoleFromTable.h"
 #include "./DarkNewsCrossSection.h"
+#include "./DarkNewsDecay.h"
 #include "./DISFromSpline.h"
 #include "./HNLFromSpline.h"
 #include "./Decay.h"
@@ -34,6 +36,7 @@ PYBIND11_MODULE(crosssections,m) {
     register_CrossSection(m);
     register_DipoleFromTable(m);
     register_DarkNewsCrossSection(m);
+    register_DarkNewsDecay(m);
     register_DISFromSpline(m);
     register_HNLFromSpline(m);
     register_Decay(m);
