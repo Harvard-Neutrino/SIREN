@@ -15,10 +15,9 @@ class PyDarkNewsCrossSectionCollection:
         self.models = ModelContainer(param_file,**kwargs)
         self.cross_sections = []
         for ups_key,ups_case in self.models.ups_cases.items():
-            print(ups_case)
             self.cross_sections.append(PyDarkNewsCrossSection(ups_case))
         self.decays = []
-        for dec_case in self.models.dec_cases:
+        for dec_key,dec_case in self.models.dec_cases.items():
             self.decays.append(PyDarkNewsDecay(dec_case))
         
 
@@ -142,7 +141,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
 
     def __init__(self, dec_case, **kwargs):
         DarkNewsDecay.__init__(self) # C++ constructor
-        self.dec_case = dec_case                                            )
+        self.dec_case = dec_case 
 
     ##### START METHODS FOR SERIALIZATION #########
     # def get_initialized_dict(config):
@@ -192,28 +191,42 @@ class PyDarkNewsDecay(DarkNewsDecay):
             E1,p1x,p1y,p1z = record.primary_momentum
             E2,p2x,p2y,p2z = record.secondary_momenta[gamma_idx]
             cost = p2z / E2
-            return self.dec_case.diff_xsec_Q2(cost)
+            return self.dec_case.differential_width(cost)
         else:
             #TODO: implement dilepton case
             return 0
     
-    def TotalCrossSection(self, arg1, energy=None, target=None):
+    def TotalDecayWidth(self, arg1):
         if type(arg1)==LI.dataclasses.InteractionRecord:
             primary = arg1.signature.primary_type
-            energy = arg1.primary_momentum[0]
-            target = arg1.signature.target_type
-        elif energy is not None and target is not None:
+        elif type(arg1)==LI.dataclasses.Particle.ParticleType:
             primary = arg1
         else:
-            print('Incorrect function call to TotalCrossSection!')
+            print('Incorrect function call to TotalDecayWidth!')
             exit(0)
-        if primary != self.ups_case.nu_projectile:
+        if primary != self.dec_case.nu_parent:
             return 0
-        interaction = LI.dataclasses.InteractionRecord()
-        interaction.signature.primary_type = primary
-        interaction.signature.target_type = target
-        interaction.primary_momentum[0] = energy
-        if energy < self.InteractionThreshold(interaction):
-            ret = 0
-        ret = self.ups_case.total_xsec(energy)
-        return ret
+        return self.dec_case.total_width()
+    
+    def TotalDecayWidthForFinalState(self,record):
+        if record.signature != self.GetPossibleSignatures()[0]:
+            return 0
+        return self.dec_case.total_width()
+    
+    def DensityVariables(self):
+        if type(self.dec_case)==FermionSinglePhotonDecay:
+            return "cost"
+        elif type(self.dec_case)==FermionDileptonDecay:
+            if self.dec_case.vector_on_shell and self.dec_case.scalar_on_shell:
+                print('Can\'t have both the scalar and vector on shell')
+                exit(0)
+            elif (self.dec_case.vector_on_shell and self.dec_case.scalar_off_shell) or \
+                 (self.dec_case.vector_on_shell and self.dec_case.scalar_off_shell):
+                return "cost"
+            elif self.dec_case.vector_off_shell and self.dec_case.scalar_off_shell:
+                return "PS"
+        return ""
+    
+    def SampleFinalState(self,record,random):
+        # TODO: implement this after talking to Matheus about how to modify DarkNews
+        return

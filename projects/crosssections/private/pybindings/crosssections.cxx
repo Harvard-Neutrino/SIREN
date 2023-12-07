@@ -34,12 +34,12 @@ PYBIND11_MODULE(crosssections,m) {
     using namespace LI::crosssections;
 
     register_CrossSection(m);
+    register_Decay(m);
     register_DipoleFromTable(m);
     register_DarkNewsCrossSection(m);
     register_DarkNewsDecay(m);
     register_DISFromSpline(m);
     register_HNLFromSpline(m);
-    register_Decay(m);
     register_NeutrissimoDecay(m);
     register_CrossSectionCollection(m);
     register_DummyCrossSection(m);
