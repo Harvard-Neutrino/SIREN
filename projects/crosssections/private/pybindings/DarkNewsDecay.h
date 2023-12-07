@@ -75,6 +75,28 @@ public:
     pyDecay(Decay && parent) : Decay(std::move(parent)) {}
     pybind11::object self;
 
+    double TotalDecayLength(dataclasses::InteractionRecord const & interaction) const override {
+        C_PYBIND11_OVERRIDE(
+            self,
+            Decay,
+            double,
+            TotalDecayLength,
+            "TotalDecayLength",
+            interaction
+        )
+    }
+
+    double TotalDecayLengthForFinalState(dataclasses::InteractionRecord const & interaction) const override {
+        C_PYBIND11_OVERRIDE(
+            self,
+            Decay,
+            double,
+            TotalDecayLengthForFinalState,
+            "TotalDecayLengthForFinalState",
+            interaction
+        )
+    }
+    
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
@@ -255,8 +277,8 @@ public:
             self,
             DarkNewsDecay,
             std::vector<LI::dataclasses::InteractionSignature>,
-            GetPossibleSignaturesFromParents,
-            "GetPossibleSignaturesFromParents",
+            GetPossibleSignaturesFromParent,
+            "GetPossibleSignaturesFromParent",
             primary_type
         )
     }

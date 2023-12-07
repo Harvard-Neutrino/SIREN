@@ -1,3 +1,5 @@
+import numpy as np
+
 import leptoninjector as LI
 from leptoninjector.crosssections import DarkNewsCrossSection,DarkNewsDecay
 from leptoninjector.dataclasses import Particle
@@ -164,14 +166,14 @@ class PyDarkNewsDecay(DarkNewsDecay):
     ##### END METHODS FOR SERIALIZATION #########
 
     def GetPossibleSignatures(self):
-        print('DarkNewsDecay::GetPossibleSignatures')
         signature = LI.dataclasses.InteractionSignature()
         signature.primary_type = Particle.ParticleType(self.dec_case.nu_parent.pdgid)
         signature.target_type = Particle.ParticleType.Decay
-        signature.secondary_types = []
-        signature.secondary_types.append(Particle.ParticleType(self.dec_case.nu_daughter.pdgid))
+        secondary_types = []
+        secondary_types.append(Particle.ParticleType(self.dec_case.nu_daughter.pdgid))
         for secondary in self.dec_case.secondaries:
-            signature.secondary_types.append(Particle.ParticleType(secondary.pdgid))
+            secondary_types.append(Particle.ParticleType(secondary.pdgid))
+        signature.secondary_types = secondary_types
         return [signature]
 
     def GetPossibleSignaturesFromParent(self, primary_type):
@@ -179,15 +181,15 @@ class PyDarkNewsDecay(DarkNewsDecay):
             signature = LI.dataclasses.InteractionSignature()
             signature.primary_type = Particle.ParticleType(self.dec_case.nu_parent.pdgid)
             signature.target_type = Particle.ParticleType.Decay
-            signature.secondary_types = []
-            signature.secondary_types.append(Particle.ParticleType(self.dec_case.nu_daughter.pdgid))
+            secondary_types = []
+            secondary_types.append(Particle.ParticleType(self.dec_case.nu_daughter.pdgid))
             for secondary in self.dec_case.secondaries:
-                signature.secondary_types.append(Particle.ParticleType(secondary.pdgid))
+                secondary_types.append(Particle.ParticleType(secondary.pdgid))
+            signature.secondary_types = secondary_types
             return [signature]
         return []
 
     def DifferentialDecayWidth(self, record):
-        print('DarkNewsDecay::DifferentialDecayWidth')
         if type(self.dec_case)==FermionSinglePhotonDecay:
             gamma_idx = 0
             for secondary in record.signature.secondary_types:
@@ -207,7 +209,6 @@ class PyDarkNewsDecay(DarkNewsDecay):
             return 0
     
     def TotalDecayWidth(self, arg1):
-        print('DarkNewsDecay::TotalDecayWidth')
         if type(arg1)==LI.dataclasses.InteractionRecord:
             primary = arg1.signature.primary_type
         elif type(arg1)==LI.dataclasses.Particle.ParticleType:
@@ -220,8 +221,11 @@ class PyDarkNewsDecay(DarkNewsDecay):
         return self.dec_case.total_width()
     
     def TotalDecayWidthForFinalState(self,record):
-        print('DarkNewsDecay::TotalDecayWidthForFinalState')
-        if record.signature != self.GetPossibleSignatures()[0]:
+        sig = self.GetPossibleSignatures()[0]
+        if (record.signature.primary_type != sig.primary_type) or \
+           (record.signature.target_type != sig.target_type) or \
+           (len(record.signature.secondary_types) != len(sig.secondary_types)) or \
+           (np.any([record.signature.secondary_types[i] != sig.secondary_types[i] for i in range(len(sig.secondary_types))])):
             return 0
         return self.dec_case.total_width()
     
@@ -240,6 +244,5 @@ class PyDarkNewsDecay(DarkNewsDecay):
         return ""
     
     def SampleFinalState(self,record,random):
-        print('DarkNewsDecay::SampleFinalState')
         # TODO: implement this after talking to Matheus about how to modify DarkNews
         return
