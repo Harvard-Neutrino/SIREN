@@ -301,6 +301,17 @@ public:
         )
     }
 
+    void SetUpscatteringHelicities(dataclasses::InteractionRecord & interaction) const override {
+        C_PYBIND11_OVERRIDE(
+            self,
+            DarkNewsCrossSection,
+            void,
+            SetUpscatteringHelicities,
+            "SetUpscatteringHelicities",
+            interaction
+        )
+    }
+
     void SampleFinalState(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE(
             self,
@@ -405,6 +416,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
         .def("SetUpscatteringMasses",&DarkNewsCrossSection::SetUpscatteringMasses)
+        .def("SetUpscatteringHelicities",&DarkNewsCrossSection::SetUpscatteringHelicities)
         .def("GetPossibleTargets",&DarkNewsCrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary",&DarkNewsCrossSection::GetPossibleTargetsFromPrimary)
         .def("GetPossiblePrimaries",&DarkNewsCrossSection::GetPossiblePrimaries)
@@ -458,6 +470,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
         .def("SetUpscatteringMasses",&DarkNewsCrossSection::SetUpscatteringMasses)
+        .def("SetUpscatteringHelicities",&DarkNewsCrossSection::SetUpscatteringHelicities)
         .def("GetPossibleTargets",&DarkNewsCrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary",&DarkNewsCrossSection::GetPossibleTargetsFromPrimary)
         .def("GetPossiblePrimaries",&DarkNewsCrossSection::GetPossiblePrimaries)

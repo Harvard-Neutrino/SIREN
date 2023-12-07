@@ -37,6 +37,8 @@ public:
 
     double m_ups;
     double m_target;
+    double h_ups;
+    double h_target;
 
     DarkNewsCrossSection();
 
@@ -52,6 +54,7 @@ public:
     virtual double Q2Min(dataclasses::InteractionRecord const &) const;
     virtual double Q2Max(dataclasses::InteractionRecord const &) const;
     virtual void SetUpscatteringMasses(dataclasses::InteractionRecord &) const;
+    virtual void SetUpscatteringHelicities(dataclasses::InteractionRecord &) const;
     virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
     virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override = 0; // Requires Python-side implementation

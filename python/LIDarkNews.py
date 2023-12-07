@@ -104,6 +104,14 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         interaction.secondary_masses = secondary_masses
         self.m_ups = self.ups_case.m_ups
         self.m_target = self.ups_case.MA
+
+    def SetUpscatteringHelicities(self, interaction):
+        secondary_helicities = []
+        secondary_helicities.append(self.ups_case.h_upscattered * interaction.primary_helicity)
+        secondary_helicities.append(interaction.target_helicity)
+        interaction.secondary_helicity = secondary_helicities
+        self.h_ups = self.ups_case.m_ups
+        self.h_target = self.ups_case.MA
     
     def TotalCrossSection(self, arg1, energy=None, target=None):
         if type(arg1==LI.dataclasses.InteractionRecord):
@@ -156,6 +164,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
     ##### END METHODS FOR SERIALIZATION #########
 
     def GetPossibleSignatures(self):
+        print('DarkNewsDecay::GetPossibleSignatures')
         signature = LI.dataclasses.InteractionSignature()
         signature.primary_type = Particle.ParticleType(self.dec_case.nu_parent.pdgid)
         signature.target_type = Particle.ParticleType.Decay
@@ -178,6 +187,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         return []
 
     def DifferentialDecayWidth(self, record):
+        print('DarkNewsDecay::DifferentialDecayWidth')
         if type(self.dec_case)==FermionSinglePhotonDecay:
             gamma_idx = 0
             for secondary in record.signature.secondary_types:
@@ -197,6 +207,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
             return 0
     
     def TotalDecayWidth(self, arg1):
+        print('DarkNewsDecay::TotalDecayWidth')
         if type(arg1)==LI.dataclasses.InteractionRecord:
             primary = arg1.signature.primary_type
         elif type(arg1)==LI.dataclasses.Particle.ParticleType:
@@ -209,6 +220,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         return self.dec_case.total_width()
     
     def TotalDecayWidthForFinalState(self,record):
+        print('DarkNewsDecay::TotalDecayWidthForFinalState')
         if record.signature != self.GetPossibleSignatures()[0]:
             return 0
         return self.dec_case.total_width()
@@ -228,5 +240,6 @@ class PyDarkNewsDecay(DarkNewsDecay):
         return ""
     
     def SampleFinalState(self,record,random):
+        print('DarkNewsDecay::SampleFinalState')
         # TODO: implement this after talking to Matheus about how to modify DarkNews
         return
