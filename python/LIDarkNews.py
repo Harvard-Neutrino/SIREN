@@ -1,4 +1,11 @@
 import numpy as np
+import os
+import datetime
+import json
+import ntpath
+import pickle
+import glob
+from collections import OrderedDict
 
 import leptoninjector as LI
 from leptoninjector.crosssections import DarkNewsCrossSection,DarkNewsDecay
@@ -7,17 +14,66 @@ from leptoninjector.dataclasses import Particle
 from DarkNews import phase_space
 from DarkNews.ModelContainer import ModelContainer
 from DarkNews.processes import *
+from DarkNews.nuclear_tools import NuclearTarget
 
 # Class containing all upscattering and decay modes available in DarkNews
 class PyDarkNewsCrossSectionCollection:
 
-    def __init__(self, param_file=None, **kwargs):
-        # This constructor follows closely from the GenLauncher constructor from DarkNews
-        # but only enough information to define upscattering/decay objects
+    def __init__(self, table_dir=None, param_file=None, **kwargs):
+        # Defines a series of upscattering and decay objects
+        # Each derive from the respective LeptonInjector classes
+        
+        # Get our model container with all ups_case and dec_case DarkNews objects
         self.models = ModelContainer(param_file,**kwargs)
+        self.table_dir = table_dir
+        
+        # Default table_dir settings
+        if self.table_dir is None:
+            self.table_dir = os.environ.get('LEPTONINJECTOR_SRC') + '/resources/CrossSectionTables/DarkNewsTables/'
+            ct = datetime.datetime.now().strftime('%Y_%m_%d__%H:%M/')
+            self.table_dir += ct
+        
+        # Make the table directory where will we store cross section integrators
+        table_dir_exists = False
+        if(os.path.exists(self.table_dir)):
+            print("Directory '%s' already exists"%self.table_dir)
+            table_dir_exists = True
+        else:
+            try:
+                os.makedirs(self.table_dir, exist_ok = False)
+                print("Directory '%s' created successfully"%self.table_dir)
+            except OSError as error:
+                print("Directory '%s' cannot be created"%self.table_dir)
+                exit(0)
+
+        if table_dir_exists:
+            # Ensure that the model requested matches the model file already in the dictionary
+            if param_file is not None:
+                # ensure the param filename already exists
+                param_filename = ntpath.basename(param_file) # should be OS-independent
+                assert(os.path.isfile(self.table_dir + param_filename))
+            # Make sure the model arguments agree
+            with open(self.table_dir+'model_parameters.json',) as f:
+                _model_args_dict = json.load(f)
+                assert(self.models.model_args_dict==_model_args_dict)
+        else:
+            # Write a file to the directory containing infomration on the parameters used to create the model
+            if param_file is not None:
+                # Copy the param_file to the folder
+                command = 'scp ' + param_file + ' ' + self.table_dir
+                os.system(command)
+            # Dump the model arguments
+            with open(self.table_dir+'model_parameters.json','w') as f:
+                json.dump(self.models.model_args_dict,f)
+        
         self.cross_sections = []
         for ups_key,ups_case in self.models.ups_cases.items():
-            self.cross_sections.append(PyDarkNewsCrossSection(ups_case))
+            table_subdirs = ''
+            for x in ups_key:
+                if(type(x)==NuclearTarget):
+                    x = x.name
+                table_subdirs += '%s/'%str(x)
+            self.cross_sections.append(PyDarkNewsCrossSection(ups_case, table_dir = self.table_dir + table_subdirs))
         self.decays = []
         for dec_key,dec_case in self.models.dec_cases.items():
             self.decays.append(PyDarkNewsDecay(dec_case))
@@ -28,20 +84,65 @@ class PyDarkNewsCrossSectionCollection:
 # Only handles methods concerning the upscattering part
 class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
-    def __init__(self, ups_case, table_dir=None, **kwargs):
+    def __init__(self,
+                 ups_case,
+                 table_dir=None,
+                 tolerance=1e-3,
+                 interp_tolerance=5e-3):
         DarkNewsCrossSection.__init__(self) # C++ constructor
-        #CrossSection.__init__(self) # C++ constructor
         self.ups_case = ups_case
-        # self.table_dir = table_dir
-        # if table_dir is None:
-        #     self.table_dir = os.environ.get('LEPTONINJECTOR_SRC') + '/resources/CrossSectionTables/DarkNewsTables/'
+        self.tolerance = tolerance
+        self.interp_tolerance = interp_tolerance
+        self.table_dir = table_dir
 
-        # Define the vegas integration object to be adapted
-        # DIM = 3 # TODO: check this for upscattering only
-        # self.integrand = integrands.UpscatteringXsec(DIM,
-        #                                             )
+        # objects that will help with interpolation
+        # will remain empty if table_dir is not set
+        self.cross_section_integrator = OrderedDict() # holds vegas integrator objects
+        self.cross_section_norms = OrderedDict() # for the pre-calculated norms of batch_integrand objects
+        self.cross_section_energies_float = np.empty(0,dtype=float)
+        self.cross_section_energies_string = np.empty(0,dtype=str)
+        
+        if table_dir is None: 
+            print('No table_dir specified; disabling interpolation\nWARNING: this will siginficantly slow down event generation')
+            return
 
+        # Make the table directory where will we store cross section integrators
+        table_dir_exists = False
+        if(os.path.exists(self.table_dir)):
+            print("Directory '%s' already exists"%self.table_dir)
+            table_dir_exists = True
+        else:
+            try:
+                os.makedirs(self.table_dir, exist_ok = False)
+                print("Directory '%s' created successfully"%self.table_dir)
+            except OSError as error:
+                print("Directory '%s' cannot be created"%self.table_dir)
+                exit(0)
+        
+        # Look in table dir and record filenames of existing integrator dumps
+        if table_dir_exists:
+            # First find the existing energies and sort an ascending order
+            existing_files = glob.glob(self.table_dir + 'cross_section_E*.pkl')
+            for file in existing_files:
+                energy_str = file[file.rfind('E'):file.find('.pkl')]
+                self.cross_section_integrator[energy_str] = file
+                self.cross_section_energies_string = np.append(self.cross_section_energies_string,energy_str)
+                self.cross_section_energies_float = np.append(self.cross_section_energies_float,float(energy_str))
+                norm_file = self.table_dir + 'norm_E%s.json'%energy_str
+                assert(os.path.isfile(norm_file)) # require that the norm file exists
+                self.cross_section_norms[energy_str] = norm_file
+            self._sort_interpolation_objects()
 
+    def _sort_interpolation_objects(self):
+        # sort in ascending energy order
+        energy_srt_idxs = self.cross_section_energies_float.argsort()
+        self.cross_section_energies_float = self.cross_section_energies_float[energy_srt_idxs]
+        self.cross_section_energies_string = self.cross_section_energies_string[energy_srt_idxs]
+        # sort the OrderedDicts
+        for energy_str in self.cross_section_energies_string:
+            self.cross_section_integrator.move_to_end(energy_str)
+            self.cross_section_norms.move_to_end(energy_str)
+    
     ##### START METHODS FOR SERIALIZATION #########
     # def get_initialized_dict(config):
     #     # do the intitialization step
@@ -115,7 +216,17 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         self.h_ups = self.ups_case.m_ups
         self.h_target = self.ups_case.MA
     
+    def GetXsecFromFiles(self, integrator_file, norm_file):
+        # given integrator file and norm file, return the total cross section
+        # assumes boeth files exist
+        with open(integrator_file, 'rb') as ifile:
+            results, integrator = pickle.load(ifile)
+        with open(norm_file,) as nfile:
+            norm = json.load(nfile)
+        return results["diff_xsec"].mean * norm["diff_xsec"]
+    
     def TotalCrossSection(self, arg1, energy=None, target=None):
+        # Handle overloaded arguments
         if type(arg1==LI.dataclasses.InteractionRecord):
             primary = arg1.signature.primary_type
             energy = arg1.primary_momentum[0]
@@ -127,14 +238,67 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             exit(0)
         if primary != self.ups_case.nu_projectile:
             return 0
+        
+        # first check if we have saved close-enough integrator(s) already
+        if len(self.cross_section_energies_float) > 0: 
+            closest_idx = np.argmin(np.abs(self.cross_section_energies_float - energy))
+            diff = self.cross_section_energies_float[closest_idx] - energy
+            if np.abs(diff) < self.tolerance:
+                # We are close enough to use one existing integrator
+                existing_integrator = self.cross_section_integrator[self.cross_section_energies_string[closest_idx]]
+                existing_norm = self.cross_section_norms[self.cross_section_energies_string[closest_idx]]
+                return self.GetXsecFromFiles(existing_integrator,existing_norm)
+            elif np.abs(diff)<self.interp_tolerance:
+                # closest existing energy is within interpolation range
+                interpolate = True # bool to tell us whether to interpolate
+                if diff>0:
+                    # closest existing energy is above requested energy
+                    diff_above = diff
+                    idx_above = closest_idx
+                    # check if we are at the boundary
+                    if closest_idx == 0: interpolate = False
+                    idx_below = closest_idx-1
+                    diff_below = energy - self.cross_section_energies_float[idx_below]
+                    # check if the node below is also within the interpolation tolerance
+                    if diff_below>=self.interp_tolerance: interpolate = False       
+                elif diff<0 and -diff<self.interp_tolerance:
+                    # closest existing energy is below requested energy
+                    diff_below = -diff
+                    idx_below = closest_idx
+                    # check if we are at boundary
+                    if closest_idx >= len(self.cross_section_energies_float): interpolate = False
+                    idx_above = closest_idx+1
+                    diff_above = self.cross_section_energies_float[idx_above] - energy
+                    # check if the node above is also within the interpolation tolerance
+                    if diff_above>=self.interp_tolerance: interpolate = False 
+                if interpolate:
+                    # carry out linear interpolation
+                    integrator_below = self.cross_section_integrator[self.cross_section_energies_string[idx_below]]
+                    norm_below = self.cross_section_norms[self.cross_section_energies_string[idx_below]]
+                    xsec_below = self.GetXsecFromFiles(integrator_below,norm_below)
+                    integrator_above = self.cross_section_integrator[self.cross_section_energies_string[idx_above]]
+                    norm_above = self.cross_section_norms[self.cross_section_energies_string[idx_above]]
+                    xsec_above = self.GetXsecFromFiles(integrator_above,norm_above)
+                    return (xsec_below/diff_below + xsec_above/diff_above) / (1./diff_below + 1./diff_above)
+        
+        # If we have reached this block, we must compute the cross section using vegas
+        print('calculating a new xsec')
         interaction = LI.dataclasses.InteractionRecord()
         interaction.signature.primary_type = primary
         interaction.signature.target_type = target
         interaction.primary_momentum[0] = energy
         if energy < self.InteractionThreshold(interaction):
             ret = 0
-        ret = self.ups_case.total_xsec(energy)
-        return ret
+        
+        self.cross_section_energies_float = np.append(self.cross_section_energies_float,energy)
+        energy_str = '%3.3e'%energy
+        self.cross_section_energies_string = np.append(self.cross_section_energies_string,energy_str)
+        self.cross_section_integrator[energy_str] = self.table_dir + 'cross_section_E%s.pkl'%energy_str
+        self.cross_section_norms[energy_str] = self.table_dir + 'norm_E%s.json'%energy_str
+        return self.ups_case.scalar_total_xsec(energy,
+                                               savefile_xsec=self.cross_section_integrator[energy_str],
+                                               savefile_norm=self.cross_section_norms[energy_str])
+        
 
     def InteractionThreshold(self, interaction):
         return 1.05 * self.ups_case.Ethreshold
