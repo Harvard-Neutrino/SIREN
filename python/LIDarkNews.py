@@ -19,7 +19,12 @@ from DarkNews.nuclear_tools import NuclearTarget
 # Class containing all upscattering and decay modes available in DarkNews
 class PyDarkNewsCrossSectionCollection:
 
-    def __init__(self, table_dir=None, param_file=None, **kwargs):
+    def __init__(self,
+                 table_dir=None,
+                 param_file=None,
+                 tolerance=1e-3,
+                 interp_tolerance=5e-3,
+                 **kwargs):
         # Defines a series of upscattering and decay objects
         # Each derive from the respective LeptonInjector classes
         
@@ -68,12 +73,16 @@ class PyDarkNewsCrossSectionCollection:
         
         self.cross_sections = []
         for ups_key,ups_case in self.models.ups_cases.items():
-            table_subdirs = ''
+            table_subdirs = 'CrossSection_'
             for x in ups_key:
                 if(type(x)==NuclearTarget):
                     x = x.name
-                table_subdirs += '%s/'%str(x)
-            self.cross_sections.append(PyDarkNewsCrossSection(ups_case, table_dir = self.table_dir + table_subdirs))
+                table_subdirs += '%s_'%str(x)
+            table_subdirs += '/'
+            self.cross_sections.append(PyDarkNewsCrossSection(ups_case,
+                                                              table_dir = self.table_dir + table_subdirs,
+                                                              tolerance=tolerance,
+                                                              interp_tolerance=interp_tolerance))
         self.decays = []
         for dec_key,dec_case in self.models.dec_cases.items():
             self.decays.append(PyDarkNewsDecay(dec_case))
@@ -124,13 +133,15 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             # First find the existing energies and sort an ascending order
             existing_files = glob.glob(self.table_dir + 'cross_section_E*.pkl')
             for file in existing_files:
-                energy_str = file[file.rfind('E'):file.find('.pkl')]
-                self.cross_section_integrator[energy_str] = file
+                energy_str = file[file.rfind('E')+1:file.find('.pkl')]
+                with open(file, 'rb') as ifile:
+                    self.cross_section_integrator[energy_str] = pickle.load(ifile)
                 self.cross_section_energies_string = np.append(self.cross_section_energies_string,energy_str)
                 self.cross_section_energies_float = np.append(self.cross_section_energies_float,float(energy_str))
                 norm_file = self.table_dir + 'norm_E%s.json'%energy_str
                 assert(os.path.isfile(norm_file)) # require that the norm file exists
-                self.cross_section_norms[energy_str] = norm_file
+                with open(norm_file,) as nfile:
+                    self.cross_section_norms[energy_str] = json.load(nfile)
             self._sort_interpolation_objects()
 
     def _sort_interpolation_objects(self):
@@ -187,16 +198,25 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             return [signature]
         return []
 
-    def DifferentialCrossSection(self, primary, target, energy, Q2):
-        if primary != self.ups_case.nu_projectile:
+    def DifferentialCrossSection(self, arg1, target=None, energy=None, Q2=None):
+        if type(arg1)==LI.dataclasses.InteractionRecord:
+            interaction = arg1
+            # Calculate Q2 assuming we are in the target rest frame
+            m1sq = interaction.primary_momentum[0]**2 - np.sum([p**2 for p in interaction.primary_momentum[1:]])
+            m3sq = interaction.secondary_momenta[0][0]**2 - np.sum([p**2 for p in interaction.secondary_momenta[0][1:]])
+            p1p3 = interaction.primary_momentum[0]*interaction.secondary_momenta[0][0] - np.sum(p1*p3 for p1,p3 in zip(interaction.primary_momentum[1:],interaction.secondary_momenta[0][1:]))
+            Q2 = -(m1sq + m3sq - 2*p1p3)
+        else:
+            primary=arg1
+            interaction = LI.dataclasses.InteractionRecord()
+            interaction.signature.primary_type = primary
+            interaction.signature.target_type = target
+            interaction.primary_momentum = [energy,0,0,0]
+        if interaction.signature.primary_type != self.ups_case.nu_projectile:
             return 0
-        interaction = LI.dataclasses.InteractionRecord()
-        interaction.signature.primary_type = primary
-        interaction.signature.target_type = target
-        interaction.primary_momentum[0] = energy
-        if energy < self.InteractionThreshold(interaction):
+        if interaction.primary_momentum[0] < self.InteractionThreshold(interaction):
             return 0
-        return self.ups_case.diff_xsec_Q2(energy, Q2)
+        return self.ups_case.diff_xsec_Q2(interaction.primary_momentum[0], Q2)
     
     def SetUpscatteringMasses(self, interaction):
         interaction.primary_mass = 0
@@ -216,13 +236,9 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         self.h_ups = self.ups_case.m_ups
         self.h_target = self.ups_case.MA
     
-    def GetXsecFromFiles(self, integrator_file, norm_file):
-        # given integrator file and norm file, return the total cross section
-        # assumes boeth files exist
-        with open(integrator_file, 'rb') as ifile:
-            results, integrator = pickle.load(ifile)
-        with open(norm_file,) as nfile:
-            norm = json.load(nfile)
+    def GetXsecFromTables(self, integrator, norm):
+        # given saved integrator and norm, return the total cross section
+        results, _ = integrator
         return results["diff_xsec"].mean * norm["diff_xsec"]
     
     def TotalCrossSection(self, arg1, energy=None, target=None):
@@ -247,7 +263,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 # We are close enough to use one existing integrator
                 existing_integrator = self.cross_section_integrator[self.cross_section_energies_string[closest_idx]]
                 existing_norm = self.cross_section_norms[self.cross_section_energies_string[closest_idx]]
-                return self.GetXsecFromFiles(existing_integrator,existing_norm)
+                return self.GetXsecFromTables(existing_integrator,existing_norm)
             elif np.abs(diff)<self.interp_tolerance:
                 # closest existing energy is within interpolation range
                 interpolate = True # bool to tell us whether to interpolate
@@ -275,10 +291,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                     # carry out linear interpolation
                     integrator_below = self.cross_section_integrator[self.cross_section_energies_string[idx_below]]
                     norm_below = self.cross_section_norms[self.cross_section_energies_string[idx_below]]
-                    xsec_below = self.GetXsecFromFiles(integrator_below,norm_below)
+                    xsec_below = self.GetXsecFromTables(integrator_below,norm_below)
                     integrator_above = self.cross_section_integrator[self.cross_section_energies_string[idx_above]]
                     norm_above = self.cross_section_norms[self.cross_section_energies_string[idx_above]]
-                    xsec_above = self.GetXsecFromFiles(integrator_above,norm_above)
+                    xsec_above = self.GetXsecFromTables(integrator_above,norm_above)
                     return (xsec_below/diff_below + xsec_above/diff_above) / (1./diff_below + 1./diff_above)
         
         # If we have reached this block, we must compute the cross section using vegas
@@ -287,17 +303,22 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         interaction.signature.primary_type = primary
         interaction.signature.target_type = target
         interaction.primary_momentum[0] = energy
+        print(energy,self.InteractionThreshold(interaction))
         if energy < self.InteractionThreshold(interaction):
-            ret = 0
-        
+            return 0
         self.cross_section_energies_float = np.append(self.cross_section_energies_float,energy)
         energy_str = '%3.3e'%energy
         self.cross_section_energies_string = np.append(self.cross_section_energies_string,energy_str)
-        self.cross_section_integrator[energy_str] = self.table_dir + 'cross_section_E%s.pkl'%energy_str
-        self.cross_section_norms[energy_str] = self.table_dir + 'norm_E%s.json'%energy_str
-        return self.ups_case.scalar_total_xsec(energy,
-                                               savefile_xsec=self.cross_section_integrator[energy_str],
-                                               savefile_norm=self.cross_section_norms[energy_str])
+        int_file = self.table_dir + 'cross_section_E%s.pkl'%energy_str
+        norm_file = self.table_dir + 'norm_E%s.json'%energy_str
+        xsec = self.ups_case.scalar_total_xsec(energy,
+                                               savefile_xsec=int_file,
+                                               savefile_norm=norm_file)
+        with open(int_file, 'rb') as ifile:
+                    self.cross_section_integrator[energy_str] = pickle.load(ifile)
+        with open(norm_file,) as nfile:
+                    self.cross_section_norms[energy_str] = json.load(nfile)
+        return xsec
         
 
     def InteractionThreshold(self, interaction):
@@ -360,13 +381,14 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 if secondary == LI.dataclasses.Particle.ParticleType.Gamma:
                     break
                 gamma_idx += 1
-            if gamma_idx >= len(record.secondary_momenta):
+            if gamma_idx >= len(record.signature.secondary_types):
                 print('No gamma found in the list of secondaries!')
                 exit(0)
 
-            E1,p1x,p1y,p1z = record.primary_momentum
-            E2,p2x,p2y,p2z = record.secondary_momenta[gamma_idx]
-            cost = p2z / E2
+            cost = 0.5
+            # E1,p1x,p1y,p1z = record.primary_momentum
+            # E2,p2x,p2y,p2z = record.secondary_momenta[gamma_idx]
+            # cost = p2z / E2
             return self.dec_case.differential_width(cost)
         else:
             #TODO: implement dilepton case
