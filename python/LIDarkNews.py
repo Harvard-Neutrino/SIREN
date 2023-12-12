@@ -1,3 +1,4 @@
+# Standard python libraries
 import numpy as np
 import os
 import datetime
@@ -7,10 +8,12 @@ import pickle
 import glob
 from collections import OrderedDict
 
+# LeptonInjector methods
 import leptoninjector as LI
 from leptoninjector.crosssections import DarkNewsCrossSection,DarkNewsDecay
 from leptoninjector.dataclasses import Particle
-#from leptoninjector.crosssections import DarkNewsDecay
+
+# DarkNews methods
 from DarkNews import phase_space
 from DarkNews.ModelContainer import ModelContainer
 from DarkNews.processes import *
@@ -71,6 +74,7 @@ class PyDarkNewsCrossSectionCollection:
             with open(self.table_dir+'model_parameters.json','w') as f:
                 json.dump(self.models.model_args_dict,f)
         
+        # Save all unique scattering processes
         self.cross_sections = []
         for ups_key,ups_case in self.models.ups_cases.items():
             table_subdirs = 'CrossSection_'
@@ -83,6 +87,7 @@ class PyDarkNewsCrossSectionCollection:
                                                               table_dir = self.table_dir + table_subdirs,
                                                               tolerance=tolerance,
                                                               interp_tolerance=interp_tolerance))
+       # Save all unique decay processes
         self.decays = []
         for dec_key,dec_case in self.models.dec_cases.items():
             self.decays.append(PyDarkNewsDecay(dec_case))
@@ -298,12 +303,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                     return (xsec_below/diff_below + xsec_above/diff_above) / (1./diff_below + 1./diff_above)
         
         # If we have reached this block, we must compute the cross section using vegas
-        print('calculating a new xsec')
         interaction = LI.dataclasses.InteractionRecord()
         interaction.signature.primary_type = primary
         interaction.signature.target_type = target
         interaction.primary_momentum[0] = energy
-        print(energy,self.InteractionThreshold(interaction))
         if energy < self.InteractionThreshold(interaction):
             return 0
         self.cross_section_energies_float = np.append(self.cross_section_energies_float,energy)
