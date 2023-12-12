@@ -268,7 +268,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 # We are close enough to use one existing integrator
                 existing_integrator = self.cross_section_integrator[self.cross_section_energies_string[closest_idx]]
                 existing_norm = self.cross_section_norms[self.cross_section_energies_string[closest_idx]]
-                return self.GetXsecFromTables(existing_integrator,existing_norm)
+                xsec = self.GetXsecFromTables(existing_integrator,existing_norm)
+                return xsec
             elif np.abs(diff)<self.interp_tolerance:
                 # closest existing energy is within interpolation range
                 interpolate = True # bool to tell us whether to interpolate
@@ -277,21 +278,25 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                     diff_above = diff
                     idx_above = closest_idx
                     # check if we are at the boundary
-                    if closest_idx == 0: interpolate = False
-                    idx_below = closest_idx-1
-                    diff_below = energy - self.cross_section_energies_float[idx_below]
-                    # check if the node below is also within the interpolation tolerance
-                    if diff_below>=self.interp_tolerance: interpolate = False       
+                    if closest_idx == 0:
+                        interpolate = False
+                    else:
+                        idx_below = closest_idx-1
+                        diff_below = energy - self.cross_section_energies_float[idx_below]
+                        # check if the node below is also within the interpolation tolerance
+                        if diff_below>=self.interp_tolerance: interpolate = False       
                 elif diff<0 and -diff<self.interp_tolerance:
                     # closest existing energy is below requested energy
                     diff_below = -diff
                     idx_below = closest_idx
                     # check if we are at boundary
-                    if closest_idx >= len(self.cross_section_energies_float): interpolate = False
-                    idx_above = closest_idx+1
-                    diff_above = self.cross_section_energies_float[idx_above] - energy
-                    # check if the node above is also within the interpolation tolerance
-                    if diff_above>=self.interp_tolerance: interpolate = False 
+                    if closest_idx >= len(self.cross_section_energies_float)-1:
+                        interpolate = False
+                    else:
+                        idx_above = closest_idx+1
+                        diff_above = self.cross_section_energies_float[idx_above] - energy
+                        # check if the node above is also within the interpolation tolerance
+                        if diff_above>=self.interp_tolerance: interpolate = False 
                 if interpolate:
                     # carry out linear interpolation
                     integrator_below = self.cross_section_integrator[self.cross_section_energies_string[idx_below]]
