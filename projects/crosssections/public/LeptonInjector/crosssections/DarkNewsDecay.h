@@ -44,7 +44,8 @@ public:
     virtual double TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const override;
     virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
-    virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override = 0; // Requires python-side implementation
+    virtual dataclasses::InteractionRecord SampleRecordFromDarkNews(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const;
+    virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
     
     virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const override = 0; // Requires python-side implementation
     virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::Particle::ParticleType primary) const override = 0; // Requires python-side implementation

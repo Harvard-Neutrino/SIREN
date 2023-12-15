@@ -250,8 +250,20 @@ public:
         )
     }
 
+    dataclasses::InteractionRecord SampleRecordFromDarkNews(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
+        C_PYBIND11_OVERRIDE(
+            self,
+            DarkNewsDecay,
+            dataclasses::InteractionRecord,
+            SampleRecordFromDarkNews,
+            "SampleRecordFromDarkNews",
+            interaction,
+            random
+        )
+    }
+
     void SampleFinalState(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        C_PYBIND11_OVERRIDE(
             self,
             DarkNewsDecay,
             void,
@@ -331,6 +343,7 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("DensityVariables",&DarkNewsDecay::DensityVariables)
         .def("FinalStateProbability",&DarkNewsDecay::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsDecay::SampleFinalState)
+        .def("SampleRecordFromDarkNews",&DarkNewsDecay::SampleRecordFromDarkNews)
         .def("get_self", &pyDarkNewsDecay::get_self)
         .def(pybind11::pickle(
             [](const LI::crosssections::pyDarkNewsDecay & cpp_obj) {
@@ -375,6 +388,7 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("DensityVariables",&DarkNewsDecay::DensityVariables)
         .def("FinalStateProbability",&DarkNewsDecay::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsDecay::SampleFinalState)
+        .def("SampleRecordFromDarkNews",&DarkNewsDecay::SampleRecordFromDarkNews)
         .def("get_self", &DarkNewsDecay::get_self)
         .def(pybind11::pickle(
             [](const LI::crosssections::DarkNewsDecay & cpp_obj) {
