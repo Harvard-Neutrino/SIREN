@@ -18,6 +18,7 @@ from DarkNews import phase_space
 from DarkNews.ModelContainer import ModelContainer
 from DarkNews.processes import *
 from DarkNews.nuclear_tools import NuclearTarget
+from DarkNews.integrands import get_decay_momenta_from_vegas_samples
 
 # Class containing all upscattering and decay modes available in DarkNews
 class PyDarkNewsCrossSectionCollection:
@@ -90,7 +91,12 @@ class PyDarkNewsCrossSectionCollection:
        # Save all unique decay processes
         self.decays = []
         for dec_key,dec_case in self.models.dec_cases.items():
-            self.decays.append(PyDarkNewsDecay(dec_case))
+            table_subdirs = 'Decay_'
+            for x in dec_key:
+                table_subdirs += '%s_'%str(x)
+            table_subdirs += '/'
+            self.decays.append(PyDarkNewsDecay(dec_case,
+                                               table_dir = self.table_dir + table_subdirs))
         
 
 
@@ -102,7 +108,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                  ups_case,
                  table_dir=None,
                  tolerance=1e-3,
-                 interp_tolerance=5e-3):
+                 interp_tolerance=5e-2):
         DarkNewsCrossSection.__init__(self) # C++ constructor
         self.ups_case = ups_case
         self.tolerance = tolerance
@@ -342,9 +348,50 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 # Only handles methods concerning the decay part
 class PyDarkNewsDecay(DarkNewsDecay):
 
-    def __init__(self, dec_case, **kwargs):
+    def __init__(self,
+                 dec_case,
+                 table_dir=None):
         DarkNewsDecay.__init__(self) # C++ constructor
-        self.dec_case = dec_case 
+        self.dec_case = dec_case
+        self.table_dir = table_dir
+        
+        # Some variables for storing the decay phase space integrator
+        self.decay_integrator = None
+        self.decay_norm = None
+        self.PS_samples = None
+        self.PS_weights = None
+        self.PS_weights_CDF = None
+
+        if table_dir is None: 
+            print('No table_dir specified; will sample from new VEGAS integrator for each decay')
+            print('WARNING: this will siginficantly slow down event generation')
+            return
+
+        # Make the table directory where will we store cross section integrators
+        table_dir_exists = False
+        if(os.path.exists(self.table_dir)):
+            print("Directory '%s' already exists"%self.table_dir)
+            table_dir_exists = True
+        else:
+            try:
+                os.makedirs(self.table_dir, exist_ok = False)
+                print("Directory '%s' created successfully"%self.table_dir)
+            except OSError as error:
+                print("Directory '%s' cannot be created"%self.table_dir)
+                exit(0)
+        
+        # Look in table dir for existing decay integrator + normalization info
+        if table_dir_exists:
+            # Try to find the decay integrator
+            int_file = self.table_dir + 'decay_integrator.pkl'
+            if os.path.isfile(int_file):
+                with open(int_file,'rb') as ifile:
+                    _,self.decay_integrator = pickle.load(ifile)
+            # Try to find the normalization information
+            norm_file = self.table_dir + 'decay_norm.json'
+            if os.path.isfile(norm_file):
+                with open(norm_file,) as nfile:
+                    self.decay_norm = json.load(nfile)
 
     ##### START METHODS FOR SERIALIZATION #########
     # def get_initialized_dict(config):
@@ -392,11 +439,15 @@ class PyDarkNewsDecay(DarkNewsDecay):
             if gamma_idx >= len(record.signature.secondary_types):
                 print('No gamma found in the list of secondaries!')
                 exit(0)
+            nu_idx = 1 - gamma_idx
 
-            cost = 0.5
-            # E1,p1x,p1y,p1z = record.primary_momentum
-            # E2,p2x,p2y,p2z = record.secondary_momenta[gamma_idx]
-            # cost = p2z / E2
+            PN = np.array(record.primary_momentum)
+            P3N = PN[1:]
+            p3N = np.sqrt(np.sum(P3N**2))
+            Pgamma = np.array(record.secondary_momenta[gamma_idx])
+            P3gamma = Pgamma[1:]
+            p3gamma = np.sqrt(np.sum(P3gamma**2))
+            cost = np.dot(P3N,P3gamma)/(p3N*p3gamma)
             return self.dec_case.differential_width(cost)
         else:
             #TODO: implement dilepton case
@@ -437,6 +488,57 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 return "PS"
         return ""
     
-    def SampleFinalState(self,record,random):
+    def GetPSSample(self, random):
+        
+        # Make the PS weight CDF if that hasn't been done
+        if self.PS_weights_CDF is None:
+            self.PS_weights_CDF = np.cumsum(self.PS_weights)
+        
+        # Random number to determine 
+        x = random.Uniform(0,self.PS_weights_CDF[-1])
+
+        # find first instance of a CDF entry greater than x
+        PSidx = np.argmax(x - self.PS_weights_CDF <= 0)
+        return self.PS_samples[:,PSidx]
+
+    def SampleRecordFromDarkNews(self,record,random):
         # TODO: implement this after talking to Matheus about how to modify DarkNews
-        return
+        
+        # First, make sure we have PS samples and weights
+        if self.PS_samples is None or self.PS_weights is None:
+            # We need to generate new PS samples
+            if self.decay_integrator is None or self.decay_norm is None:
+                # We need to initialize a new VEGAS integrator in DarkNews
+                int_file = self.table_dir + 'decay_integrator.pkl'
+                norm_file = self.table_dir + 'decay_norm.json'
+                self.PS_samples, PS_weights_dict = self.dec_case.SamplePS(savefile_norm=norm_file,savefile_dec=int_file)
+                self.PS_weights = PS_weights_dict['diff_decay_rate_0']
+            else:
+                # We already have an integrator, we just need new PS samples
+                self.PS_samples, PS_weights_dict = self.dec_case.SamplePS(existing_integrator=self.decay_integrator)
+                self.PS_weights = PS_weights_dict['diff_decay_rate_0']
+        
+        # Now we must sample an PS point on the hypercube
+        PS = self.GetPSSample(random)
+
+        # Find the four-momenta associated with this point
+        # Expand dims required to call DarkNews function on signle sample
+        four_momenta = get_decay_momenta_from_vegas_samples(np.expand_dims(PS,-1),self.dec_case,np.expand_dims(np.array(record.primary_momentum),-1))
+        if type(self.dec_case)==FermionSinglePhotonDecay:
+            gamma_idx = 0
+            for secondary in record.signature.secondary_types:
+                if secondary == LI.dataclasses.Particle.ParticleType.Gamma:
+                    break
+                gamma_idx += 1
+            if gamma_idx >= len(record.signature.secondary_types):
+                print('No gamma found in the list of secondaries!')
+                exit(0)
+            nu_idx = 1 - gamma_idx
+            secondary_momenta = []
+            secondary_momenta.insert(gamma_idx,list(np.squeeze(four_momenta["P_decay_photon"])))
+            secondary_momenta.insert(nu_idx,list(np.squeeze(four_momenta["P_decay_N_daughter"])))
+            record.secondary_momenta = secondary_momenta
+        else:
+            #TODO implement dilepton case
+            return
+        return record

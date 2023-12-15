@@ -1,8 +1,14 @@
 import os
 import h5py
+import numpy as np
 
 import leptoninjector as LI
 from LIDarkNews import PyDarkNewsCrossSectionCollection
+
+# For determining fiducial volume of different experiments
+fid_vol_dict = {'MiniBooNE':'fid_vol',
+                'CCM':'ccm_inner_argon',
+                'MINERvA':'fid_vol'}
 
 # Parent python class for handling event generation
 class LIController:
@@ -35,6 +41,7 @@ class LIController:
         
         # Save number of events to inject
         self.events_to_inject = events_to_inject
+        self.experiment = experiment
 
         # Empty list for our interaction trees
         self.events = []
@@ -69,6 +76,12 @@ class LIController:
             self.primary_injection_process.AddInjectionDistribution(LI.distributions.TargetAtRest())
         if 'helicity' not in primary_injection_distributions.keys():
             self.primary_injection_process.AddInjectionDistribution(LI.distributions.PrimaryNeutrinoHelicityDistribution())
+    
+        # Default injection distributions
+        if 'target' not in primary_physical_distributions.keys():
+            self.primary_physical_process.AddPhysicalDistribution(LI.distributions.TargetAtRest())
+        if 'helicity' not in primary_physical_distributions.keys():
+            self.primary_physical_process.AddPhysicalDistribution(LI.distributions.PrimaryNeutrinoHelicityDistribution())
 
         # Define lists for the secondary injection and physical processes
         self.secondary_injection_processes = []
@@ -88,10 +101,25 @@ class LIController:
             for pdist in secondary_physical_distributions[i_sec]:
                 secondary_physical_process.AddPhysicalDistribution(pdist)
             
+            # Add the position distribution
+            fid_vol = self.GetFiducialVolume()
+            if fid_vol is not None:
+                secondary_injection_process.AddInjectionDistribution(LI.distributions.SecondaryPositionDistribution(fid_vol))
+            else:
+                secondary_injection_process.AddInjectionDistribution(LI.distributions.SecondaryPositionDistribution())
+            
             self.secondary_injection_processes.append(secondary_injection_process)
             self.secondary_physical_processes.append(secondary_physical_process)
 
-        
+    def GetFiducialVolume(self):
+         # Get fiducial volume
+        fid_vol = None
+        for sector in self.earth_model.Sectors:
+            if self.experiment in fid_vol_dict.keys():
+                if sector.name==fid_vol_dict[self.experiment]:
+                    fid_vol = sector.geo
+        return fid_vol
+
     def GetEarthModelTargets(self):
         """
         Determines the targets that exist inside the earth model
@@ -184,4 +212,29 @@ class LIController:
 
     def SaveEvents(self,filename):
         fout = h5py.File(filename,'a')
+        fout.attrs['num_events'] = len(self.events)
+        for ie,event in enumerate(self.events):
+            print('Saving Event %d/%d  '%(ie,len(self.events)),end='\r')
+            event_group = fout.require_group("event%d"%ie)
+            event_group.attrs['event_weight'] = self.weighter.EventWeight(event)
+            event_group.attrs['num_interactions'] = len(event.tree)
+            for id,datum in enumerate(event.tree):
+                interaction_group = event_group.require_group("interaction%d"%id)
+                
+                # Add metadata on interaction signature
+                interaction_group.attrs['primary_type'] = str(datum.record.signature.primary_type)
+                interaction_group.attrs['target_type'] = str(datum.record.signature.target_type)
+                for isec,secondary in enumerate(datum.record.signature.secondary_types):
+                    interaction_group.attrs['secondary_type%d'%isec] = str(secondary)
+
+                # Save vertex as dataset
+                interaction_group.create_dataset('vertex',data=np.array(datum.record.interaction_vertex,dtype=float))
+                
+                # Save each four-momenta as a dataset
+                interaction_group.create_dataset('primary_momentum',data=np.array(datum.record.primary_momentum,dtype=float))
+                interaction_group.create_dataset('target_momentum',data=np.array(datum.record.primary_momentum,dtype=float))
+                for isec_momenta,sec_momenta in enumerate(datum.record.secondary_momenta):
+                    interaction_group.create_dataset('secondary_momentum%d'%isec_momenta,data=np.array(sec_momenta,dtype=float))
+
+        fout.close()
 
