@@ -16,23 +16,11 @@ class LIController:
     def __init__(self,
                  events_to_inject,
                  experiment,
-                 primary_type,
-                 primary_injection_distributions,
-                 primary_physical_distributions,
-                 secondary_types=[],
-                 secondary_injection_distributions=[],
-                 secondary_physical_distributions=[],
                  seed=0):
         """
         LI class constructor.
         :param int event_to_inject: number of events to generate
         :param str experiment: experiment name in string
-        :param ParticleType primary_type: The primary particle being generated
-        :param dict<InjectionDistribution> primary_injection_distributions: The dict of injection distributions for the primary process
-        :param dict<PhysicalDistribution> primary_physical_distributions: The dict of physical distributions for the primary process
-        :param list<ParticleType> secondary_types: The secondary particles being generated
-        :param list<dict<InjectionDistribution> secondary_injection_distributions: List of dict of injection distributions for each secondary process
-        :param list<dict<PhysicalDistribution> secondary_physical_distributions: List of dict of physical distributions for each secondary process
         :param int seed: Optional random number generator seed
         """
 
@@ -57,6 +45,23 @@ class LIController:
         self.earth_model = LI.detector.EarthModel()
         self.earth_model.LoadMaterialModel(materials_file)
         self.earth_model.LoadEarthModel(earth_model_file)
+
+    def SetProcesses(self,
+                     primary_type,
+                     primary_injection_distributions,
+                     primary_physical_distributions,
+                     secondary_types=[],
+                     secondary_injection_distributions=[],
+                     secondary_physical_distributions=[]):
+        """
+        LI process setter.
+        :param ParticleType primary_type: The primary particle being generated
+        :param dict<InjectionDistribution> primary_injection_distributions: The dict of injection distributions for the primary process
+        :param dict<PhysicalDistribution> primary_physical_distributions: The dict of physical distributions for the primary process
+        :param list<ParticleType> secondary_types: The secondary particles being generated
+        :param list<dict<InjectionDistribution> secondary_injection_distributions: List of dict of injection distributions for each secondary process
+        :param list<dict<PhysicalDistribution> secondary_physical_distributions: List of dict of physical distributions for each secondary process
+        """
 
         # Define the primary injection and physical process
         self.primary_injection_process = LI.injection.InjectionProcess()
