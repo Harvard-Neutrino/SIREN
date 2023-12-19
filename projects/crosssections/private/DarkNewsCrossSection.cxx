@@ -235,7 +235,7 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & int
     geom3::Rotation3 x_to_p1_lab_rot = geom3::rotationBetween(x_dir, p1_lab_dir);
     geom3::Rotation3 rand_rot(p1_lab_dir, PhiLab);
 
-    rk::P4 p3_lab(E3Lab,P1Lab*geom3::Vector3(CosThetaLab,sqrt(1-CosThetaLab*CosThetaLab),0));
+    rk::P4 p3_lab(E3Lab,P3Lab*geom3::Vector3(CosThetaLab,sqrt(1-CosThetaLab*CosThetaLab),0));
     p3_lab.rotate(x_to_p1_lab_rot);
     p3_lab.rotate(rand_rot);
     rk::P4 p4_lab = p1_lab + p2_lab - p3_lab;
