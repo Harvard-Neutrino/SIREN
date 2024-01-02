@@ -216,7 +216,7 @@ class LIController:
         return self.events
 
     def SaveEvents(self,filename):
-        fout = h5py.File(filename,'a')
+        fout = h5py.File(filename,'w')
         fout.attrs['num_events'] = len(self.events)
         for ie,event in enumerate(self.events):
             print('Saving Event %d/%d  '%(ie,len(self.events)),end='\r')

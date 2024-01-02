@@ -5,8 +5,7 @@ import datetime
 import json
 import ntpath
 import pickle
-import glob
-from collections import OrderedDict
+from scipy.interpolate import CloughTocher2DInterpolator,CubicSpline
 
 # LeptonInjector methods
 import leptoninjector as LI
@@ -27,7 +26,7 @@ class PyDarkNewsCrossSectionCollection:
                  table_dir=None,
                  param_file=None,
                  tolerance=1e-3,
-                 interp_tolerance=5e-3,
+                 interp_tolerance=1e-3,
                  **kwargs):
         # Defines a series of upscattering and decay objects
         # Each derive from the respective LeptonInjector classes
@@ -45,7 +44,7 @@ class PyDarkNewsCrossSectionCollection:
         # Make the table directory where will we store cross section integrators
         table_dir_exists = False
         if(os.path.exists(self.table_dir)):
-            print("Directory '%s' already exists"%self.table_dir)
+            #print("Directory '%s' already exists"%self.table_dir)
             table_dir_exists = True
         else:
             try:
@@ -97,6 +96,10 @@ class PyDarkNewsCrossSectionCollection:
             table_subdirs += '/'
             self.decays.append(PyDarkNewsDecay(dec_case,
                                                table_dir = self.table_dir + table_subdirs))
+            
+    def SaveCrossSectionTables(self):
+        for cross_section in self.cross_sections:
+            cross_section.SaveInterpolationTables()
         
 
 
@@ -105,22 +108,26 @@ class PyDarkNewsCrossSectionCollection:
 class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     def __init__(self,
-                 ups_case,
-                 table_dir=None,
-                 tolerance=1e-3,
-                 interp_tolerance=5e-2):
+                 ups_case, # DarkNews UpscatteringProcess instance
+                 table_dir=None, # table to store 
+                 tolerance=1e-6, # supposed to represent machine epsilon
+                 interp_tolerance=5e-2, # relative interpolation tolerance
+                 interpolate_differential = False):
+        
         DarkNewsCrossSection.__init__(self) # C++ constructor
+        
         self.ups_case = ups_case
         self.tolerance = tolerance
         self.interp_tolerance = interp_tolerance
         self.table_dir = table_dir
+        self.interpolate_differential = interpolate_differential
 
-        # objects that will help with interpolation
-        # will remain empty if table_dir is not set
-        self.cross_section_integrator = OrderedDict() # holds vegas integrator objects
-        self.cross_section_norms = OrderedDict() # for the pre-calculated norms of batch_integrand objects
-        self.cross_section_energies_float = np.empty(0,dtype=float)
-        self.cross_section_energies_string = np.empty(0,dtype=str)
+        # 2D table in E, sigma
+        self.total_cross_section_table = np.empty((0,2),dtype=float)
+        self.total_cross_section_interpolator = None
+        # 3D table in E, z, dsigma/dQ2 where z = (Q2 - Q2min) / (Q2max - Q2min)
+        self.differential_cross_section_table = np.empty((0,3),dtype=float)
+        self.differential_cross_section_interpolator = None
         
         if table_dir is None: 
             print('No table_dir specified; disabling interpolation\nWARNING: this will siginficantly slow down event generation')
@@ -129,7 +136,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         # Make the table directory where will we store cross section integrators
         table_dir_exists = False
         if(os.path.exists(self.table_dir)):
-            print("Directory '%s' already exists"%self.table_dir)
+            #print("Directory '%s' already exists"%self.table_dir)
             table_dir_exists = True
         else:
             try:
@@ -139,31 +146,114 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 print("Directory '%s' cannot be created"%self.table_dir)
                 exit(0)
         
-        # Look in table dir and record filenames of existing integrator dumps
+        # Look in table dir and check whether total/differential xsec tables exist
         if table_dir_exists:
-            # First find the existing energies and sort an ascending order
-            existing_files = glob.glob(self.table_dir + 'cross_section_E*.pkl')
-            for file in existing_files:
-                energy_str = file[file.rfind('E')+1:file.find('.pkl')]
-                with open(file, 'rb') as ifile:
-                    self.cross_section_integrator[energy_str] = pickle.load(ifile)
-                self.cross_section_energies_string = np.append(self.cross_section_energies_string,energy_str)
-                self.cross_section_energies_float = np.append(self.cross_section_energies_float,float(energy_str))
-                norm_file = self.table_dir + 'norm_E%s.json'%energy_str
-                assert(os.path.isfile(norm_file)) # require that the norm file exists
-                with open(norm_file,) as nfile:
-                    self.cross_section_norms[energy_str] = json.load(nfile)
-            self._sort_interpolation_objects()
+            total_xsec_file = self.table_dir + 'total_cross_sections.npy'
+            if os.path.exists(total_xsec_file):
+                self.total_cross_section_table = np.load(total_xsec_file)
+            diff_xsec_file = self.table_dir + 'differential_cross_sections.npy'
+            if os.path.exists(diff_xsec_file):
+                self.differential_cross_section_table = np.load(diff_xsec_file)
+            
+            self._redefine_interpolation_objects(total=True,diff=True)
 
-    def _sort_interpolation_objects(self):
-        # sort in ascending energy order
-        energy_srt_idxs = self.cross_section_energies_float.argsort()
-        self.cross_section_energies_float = self.cross_section_energies_float[energy_srt_idxs]
-        self.cross_section_energies_string = self.cross_section_energies_string[energy_srt_idxs]
-        # sort the OrderedDicts
-        for energy_str in self.cross_section_energies_string:
-            self.cross_section_integrator.move_to_end(energy_str)
-            self.cross_section_norms.move_to_end(energy_str)
+    # Sorts and redefines scipy interpolation objects
+    def _redefine_interpolation_objects(self,total=False,diff=False):
+        if total:
+            self.total_cross_section_table = np.sort(self.total_cross_section_table,axis=0)
+            if len(self.total_cross_section_table) > 1:
+                self.total_cross_section_interpolator = CubicSpline(self.total_cross_section_table[:,0],
+                                                                    self.total_cross_section_table[:,1])
+        if diff:
+            self.differential_cross_section_table = np.sort(self.differential_cross_section_table,axis=0)
+            if len(self.differential_cross_section_table) > 1:
+                # If we only have one energy point, don't try to construct interpolator
+                if len(np.unique(self.differential_cross_section_table[:,0])) <= 1: return
+                self.differential_cross_section_interpolator = CloughTocher2DInterpolator(self.differential_cross_section_table[:,:2],
+                                                                                        self.differential_cross_section_table[:,2],
+                                                                                        rescale=True)
+
+    # Check whether we have close-enough entries in the intrepolation tables
+    def _query_interpolation_table(self,inputs,mode):
+        # 
+        # returns:
+        # 0 if we are not close enough to any points in the interpolation table
+        # otherwise, returns the desired interpolated value
+        
+        # Determine which table we are using
+        if mode=='total':
+            interp_table = self.total_cross_section_table
+            interpolator = self.total_cross_section_interpolator
+        elif mode=='differential':
+            interp_table = self.differential_cross_section_table
+            interpolator = self.differential_cross_section_interpolator
+        else:
+            print('Invalid interpolation table mode %s'%mode)
+            exit(0)
+
+        # first check if we have saved table points already
+        if len(interp_table) == 0: return 0
+
+        # bools to keep track of whether to use a single point or interpolate
+        UseSinglePoint = True
+        Interpolate = True
+        prev_closest_idx = None
+        for i,input in enumerate(inputs):
+            closest_idx = np.argmin(np.abs(interp_table[:,i] - input))
+            diff = (interp_table[closest_idx,i] - input)/input # relative difference
+            # First check if we are close enough to use a single point
+            if np.abs(diff) >= self.tolerance:
+                # We are not close enough to use one existing table point
+                UseSinglePoint = False
+            elif UseSinglePoint:
+                # Check whether the closest_idx found here is the same as the previous
+                if i>0 and closest_idx != prev_closest_idx:
+                    UseSinglePoint = False
+                prev_closest_idx = closest_idx
+            # Now check if we are close enough to interpolate
+            if np.abs(diff) >= self.interp_tolerance:
+                Interpolate = False
+            else:
+                # closest existing input is within interpolation range
+                if diff>=0:
+                    # closest existing input is above or equal to requested input
+                    idx_above = closest_idx
+                    # check if we are at the boundary
+                    if closest_idx == 0:
+                        Interpolate = False
+                    else:
+                        idx_below = closest_idx-1
+                        diff_below = (input - interp_table[idx_below,i])/input
+                        # check if the node below is also within the interpolation tolerance
+                        if diff_below>=self.interp_tolerance:
+                            Interpolate = False       
+                elif diff<0 and -diff<self.interp_tolerance:
+                    # closest existing input is below requested input
+                    idx_below = closest_idx
+                    # check if we are at boundary
+                    if closest_idx >= len(interp_table)-1:
+                        Interpolate = False
+                    else:
+                        idx_above = closest_idx+1
+                        diff_above = (interp_table[idx_above,i] - input)/input
+                        # check if the node above is also within the interpolation tolerance
+                        if diff_above>=self.interp_tolerance:
+                            Interpolate = False
+        if UseSinglePoint:
+            return interp_table[closest_idx,-1]
+        elif Interpolate:
+            return interpolator(inputs)
+        else:
+            return 0    
+    
+    # Saves the tables for the scipy interpolation objects
+    def SaveInterpolationTables(self,total=True,diff=True):
+        if total:
+            with open(self.table_dir + 'total_cross_sections.npy','wb') as f:
+                np.save(f,self.total_cross_section_table)
+        if diff:
+            with open(self.table_dir + 'differential_cross_sections.npy','wb') as f:
+                np.save(f,self.differential_cross_section_table)
     
     ##### START METHODS FOR SERIALIZATION #########
     # def get_initialized_dict(config):
@@ -217,17 +307,34 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             m3sq = interaction.secondary_momenta[0][0]**2 - np.sum([p**2 for p in interaction.secondary_momenta[0][1:]])
             p1p3 = interaction.primary_momentum[0]*interaction.secondary_momenta[0][0] - np.sum(p1*p3 for p1,p3 in zip(interaction.primary_momentum[1:],interaction.secondary_momenta[0][1:]))
             Q2 = -(m1sq + m3sq - 2*p1p3)
+            energy = interaction.primary_momentum[0]
         else:
             primary=arg1
             interaction = LI.dataclasses.InteractionRecord()
             interaction.signature.primary_type = primary
             interaction.signature.target_type = target
             interaction.primary_momentum = [energy,0,0,0]
+            interaction.target_mass = self.ups_case.MA
         if interaction.signature.primary_type != self.ups_case.nu_projectile:
             return 0
         if interaction.primary_momentum[0] < self.InteractionThreshold(interaction):
             return 0
-        return self.ups_case.diff_xsec_Q2(interaction.primary_momentum[0], Q2)
+        Q2min = self.Q2Min(interaction)
+        Q2max = self.Q2Max(interaction)
+        z = (Q2-Q2min)/(Q2max-Q2min)
+
+        if self.interpolate_differential:
+            # Check if we can interpolate
+            val = self._query_interpolation_table([energy,z],mode='differential')
+            if val > 0:
+                # we have recovered the differential cross section from the interpolation table
+                return val
+        
+        # If we have reached this block, we must compute the differential cross section using DarkNews
+        dxsec = self.ups_case.diff_xsec_Q2(energy, Q2).item()
+        self.differential_cross_section_table = np.append(self.differential_cross_section_table,[[energy,z,dxsec]],axis=0)
+        if self.interpolate_differential: self._redefine_interpolation_objects(diff=True)
+        return dxsec
     
     def SetUpscatteringMasses(self, interaction):
         interaction.primary_mass = 0
@@ -247,11 +354,6 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         self.h_ups = self.ups_case.m_ups
         self.h_target = self.ups_case.MA
     
-    def GetXsecFromTables(self, integrator, norm):
-        # given saved integrator and norm, return the total cross section
-        results, _ = integrator
-        return results["diff_xsec"].mean * norm["diff_xsec"]
-    
     def TotalCrossSection(self, arg1, energy=None, target=None):
         # Handle overloaded arguments
         if type(arg1==LI.dataclasses.InteractionRecord):
@@ -265,78 +367,28 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             exit(0)
         if primary != self.ups_case.nu_projectile:
             return 0
-        
-        # first check if we have saved close-enough integrator(s) already
-        if len(self.cross_section_energies_float) > 0: 
-            closest_idx = np.argmin(np.abs(self.cross_section_energies_float - energy))
-            diff = self.cross_section_energies_float[closest_idx] - energy
-            if np.abs(diff) < self.tolerance:
-                # We are close enough to use one existing integrator
-                existing_integrator = self.cross_section_integrator[self.cross_section_energies_string[closest_idx]]
-                existing_norm = self.cross_section_norms[self.cross_section_energies_string[closest_idx]]
-                xsec = self.GetXsecFromTables(existing_integrator,existing_norm)
-                return xsec
-            elif np.abs(diff)<self.interp_tolerance:
-                # closest existing energy is within interpolation range
-                interpolate = True # bool to tell us whether to interpolate
-                if diff>0:
-                    # closest existing energy is above requested energy
-                    diff_above = diff
-                    idx_above = closest_idx
-                    # check if we are at the boundary
-                    if closest_idx == 0:
-                        interpolate = False
-                    else:
-                        idx_below = closest_idx-1
-                        diff_below = energy - self.cross_section_energies_float[idx_below]
-                        # check if the node below is also within the interpolation tolerance
-                        if diff_below>=self.interp_tolerance: interpolate = False       
-                elif diff<0 and -diff<self.interp_tolerance:
-                    # closest existing energy is below requested energy
-                    diff_below = -diff
-                    idx_below = closest_idx
-                    # check if we are at boundary
-                    if closest_idx >= len(self.cross_section_energies_float)-1:
-                        interpolate = False
-                    else:
-                        idx_above = closest_idx+1
-                        diff_above = self.cross_section_energies_float[idx_above] - energy
-                        # check if the node above is also within the interpolation tolerance
-                        if diff_above>=self.interp_tolerance: interpolate = False 
-                if interpolate:
-                    # carry out linear interpolation
-                    integrator_below = self.cross_section_integrator[self.cross_section_energies_string[idx_below]]
-                    norm_below = self.cross_section_norms[self.cross_section_energies_string[idx_below]]
-                    xsec_below = self.GetXsecFromTables(integrator_below,norm_below)
-                    integrator_above = self.cross_section_integrator[self.cross_section_energies_string[idx_above]]
-                    norm_above = self.cross_section_norms[self.cross_section_energies_string[idx_above]]
-                    xsec_above = self.GetXsecFromTables(integrator_above,norm_above)
-                    return (xsec_below/diff_below + xsec_above/diff_above) / (1./diff_below + 1./diff_above)
-        
-        # If we have reached this block, we must compute the cross section using vegas
         interaction = LI.dataclasses.InteractionRecord()
         interaction.signature.primary_type = primary
         interaction.signature.target_type = target
         interaction.primary_momentum[0] = energy
         if energy < self.InteractionThreshold(interaction):
             return 0
-        self.cross_section_energies_float = np.append(self.cross_section_energies_float,energy)
-        energy_str = '%3.3e'%energy
-        self.cross_section_energies_string = np.append(self.cross_section_energies_string,energy_str)
-        int_file = self.table_dir + 'cross_section_E%s.pkl'%energy_str
-        norm_file = self.table_dir + 'norm_E%s.json'%energy_str
-        xsec = self.ups_case.scalar_total_xsec(energy,
-                                               savefile_xsec=int_file,
-                                               savefile_norm=norm_file)
-        with open(int_file, 'rb') as ifile:
-                    self.cross_section_integrator[energy_str] = pickle.load(ifile)
-        with open(norm_file,) as nfile:
-                    self.cross_section_norms[energy_str] = json.load(nfile)
+        
+        # Check if we can interpolate
+        val = self._query_interpolation_table([energy],mode='total')
+        if val > 0:
+            # we have recovered the cross section from the interpolation table
+            return val
+        
+        # If we have reached this block, we must compute the cross section using DarkNews
+        xsec = self.ups_case.scalar_total_xsec(energy)
+        self.total_cross_section_table = np.append(self.total_cross_section_table,[[energy,xsec]],axis=0)
+        self._redefine_interpolation_objects(total=True)
         return xsec
         
 
     def InteractionThreshold(self, interaction):
-        return 1.05 * self.ups_case.Ethreshold
+        return self.ups_case.Ethreshold
 
     def Q2Min(self, interaction):
         return phase_space.upscattering_Q2min(interaction.primary_momentum[0], self.ups_case.m_ups, interaction.target_mass)
@@ -371,7 +423,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         # Make the table directory where will we store cross section integrators
         table_dir_exists = False
         if(os.path.exists(self.table_dir)):
-            print("Directory '%s' already exists"%self.table_dir)
+            #print("Directory '%s' already exists"%self.table_dir)
             table_dir_exists = True
         else:
             try:
