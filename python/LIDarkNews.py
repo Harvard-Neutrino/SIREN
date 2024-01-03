@@ -499,25 +499,35 @@ class PyDarkNewsDecay(DarkNewsDecay):
             if gamma_idx >= len(record.signature.secondary_types):
                 print('No gamma found in the list of secondaries!')
                 exit(0)
-            nu_idx = 1 - gamma_idx
-
+            
             Pgamma = np.array(record.secondary_momenta[gamma_idx])
             momenta = np.expand_dims(PN,0),np.expand_dims(Pgamma,0)
 
         elif type(self.dec_case)==FermionDileptonDecay:
-            # TODO: dilepton case
-            return
-        #     if self.dec_case.vector_on_shell and self.dec_case.scalar_on_shell:
-        #         print('Can\'t have both the scalar and vector on shell')
-        #         exit(0)
-        #     elif (self.dec_case.vector_on_shell and self.dec_case.scalar_off_shell) or \
-        #          (self.dec_case.vector_off_shell and self.dec_case.scalar_on_shell):
-        #         return "cost"
-        #     elif self.dec_case.vector_off_shell and self.dec_case.scalar_off_shell:
-        #         return "t,u,c3,phi34"
-        # else:
-        #     print('%s is not a valid decay class type!'%type(self.dec_case))
-        #     exit(0)
+            lepminus_idx = -1
+            lepplus_idx = -1
+            nu_idx = -1
+            for idx,secondary in enumerate(record.signature.secondary_types):
+                if secondary in [LI.dataclasses.Particle.ParticleType.EMinus,
+                                 LI.dataclasses.Particle.ParticleType.MuMinus,
+                                 LI.dataclasses.Particle.ParticleType.TauMinus]:
+                    lepminus_idx = idx
+                elif secondary in [LI.dataclasses.Particle.ParticleType.EPlus,
+                                   LI.dataclasses.Particle.ParticleType.MuPlus,
+                                   LI.dataclasses.Particle.ParticleType.TauPlus]:
+                    lepplus_idx = idx
+                else:
+                    nu_idx = idx
+            if -1 in [lepminus_idx,lepplus_idx,nu_idx]:
+                print('Couldn\'t find two leptons and a neutrino in the final state!')
+                exit(0)
+            Pnu = np.array(record.secondary_momenta[nu_idx])
+            Plepminus = np.array(record.secondary_momenta[lepminus_idx])
+            Plepplus = np.array(record.secondary_momenta[lepplus_idx])
+            momenta = np.expand_dims(PN,0),np.expand_dims(Plepminus,0),np.expand_dims(Plepplus,0),np.expand_dims(Pnu,0)
+        else:
+            print('%s is not a valid decay class type!'%type(self.dec_case))
+            exit(0)
         return self.dec_case.differential_width(momenta)
     
     def TotalDecayWidth(self, arg1):
@@ -588,7 +598,6 @@ class PyDarkNewsDecay(DarkNewsDecay):
         return self.PS_samples[:,PSidx]
 
     def SampleRecordFromDarkNews(self,record,random):
-        # TODO: implement this after talking to Matheus about how to modify DarkNews
         
         # First, make sure we have PS samples and weights
         if self.PS_samples is None or self.PS_weights is None:
@@ -626,7 +635,29 @@ class PyDarkNewsDecay(DarkNewsDecay):
             secondary_momenta.insert(gamma_idx,list(np.squeeze(four_momenta["P_decay_photon"])))
             secondary_momenta.insert(nu_idx,list(np.squeeze(four_momenta["P_decay_N_daughter"])))
             record.secondary_momenta = secondary_momenta
-        else:
-            #TODO implement dilepton case
-            return
+        elif type(self.dec_case)==FermionDileptonDecay:
+            lepminus_idx = -1
+            lepplus_idx = -1
+            nu_idx = -1
+            for idx,secondary in enumerate(record.signature.secondary_types):
+                if secondary in [LI.dataclasses.Particle.ParticleType.EMinus,
+                                 LI.dataclasses.Particle.ParticleType.MuMinus,
+                                 LI.dataclasses.Particle.ParticleType.TauMinus]:
+                    lepminus_idx = idx
+                elif secondary in [LI.dataclasses.Particle.ParticleType.EPlus,
+                                   LI.dataclasses.Particle.ParticleType.MuPlus,
+                                   LI.dataclasses.Particle.ParticleType.TauPlus]:
+                    lepplus_idx = idx
+                else:
+                    nu_idx = idx
+            if -1 in [lepminus_idx,lepplus_idx,nu_idx]:
+                print([lepminus_idx,lepplus_idx,nu_idx])
+                print(record.signature.secondary_types)
+                print('Couldn\'t find two leptons and a neutrino in the final state!')
+                exit(0)
+            secondary_momenta = []
+            secondary_momenta.insert(lepminus_idx,list(np.squeeze(four_momenta["P_decay_ell_minus"])))
+            secondary_momenta.insert(lepplus_idx,list(np.squeeze(four_momenta["P_decay_ell_plus"])))
+            secondary_momenta.insert(nu_idx,list(np.squeeze(four_momenta["P_decay_N_daughter"])))
+            record.secondary_momenta = secondary_momenta
         return record
