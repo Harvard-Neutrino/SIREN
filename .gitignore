@@ -59,3 +59,10 @@
 
 # build
 *build
+
+# pycache
+*pycache*
+*/*pycache*
+*/*/*pycache*
+*/*/*/*pycache*
+*/*/*/*/*pycache*
