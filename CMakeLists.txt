@@ -222,6 +222,8 @@ if(DEFINED SKBUILD)
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
     install(FILES ${PROJECT_SOURCE_DIR}/python/LIDarkNews.py
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(FILES ${PROJECT_SOURCE_DIR}/python/LIController.py
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
 endif()
 
 # Export targets for use in downstream CMake projects

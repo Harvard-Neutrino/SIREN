@@ -25,8 +25,8 @@ class PyDarkNewsCrossSectionCollection:
     def __init__(self,
                  table_dir=None,
                  param_file=None,
-                 tolerance=1e-3,
-                 interp_tolerance=1e-3,
+                 tolerance=1e-6,
+                 interp_tolerance=5e-2,
                  **kwargs):
         # Defines a series of upscattering and decay objects
         # Each derive from the respective LeptonInjector classes
@@ -167,8 +167,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         if diff:
             self.differential_cross_section_table = np.sort(self.differential_cross_section_table,axis=0)
             if len(self.differential_cross_section_table) > 1:
-                # If we only have one energy point, don't try to construct interpolator
-                if len(np.unique(self.differential_cross_section_table[:,0])) <= 1: return
+                # If we only have two energy points, don't try to construct interpolator
+                if len(np.unique(self.differential_cross_section_table[:,0])) <= 2: return
                 self.differential_cross_section_interpolator = CloughTocher2DInterpolator(self.differential_cross_section_table[:,:2],
                                                                                         self.differential_cross_section_table[:,2],
                                                                                         rescale=True)
@@ -249,9 +249,11 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     # Saves the tables for the scipy interpolation objects
     def SaveInterpolationTables(self,total=True,diff=True):
         if total:
+            self._redefine_interpolation_objects(total=True)
             with open(self.table_dir + 'total_cross_sections.npy','wb') as f:
                 np.save(f,self.total_cross_section_table)
         if diff:
+            self._redefine_interpolation_objects(diff=True)
             with open(self.table_dir + 'differential_cross_sections.npy','wb') as f:
                 np.save(f,self.differential_cross_section_table)
     
