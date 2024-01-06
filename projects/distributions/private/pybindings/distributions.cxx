@@ -108,7 +108,11 @@ PYBIND11_MODULE(distributions,m) {
     .def("Name",&TabulatedFluxDistribution::Name)
     .def("GetIntegral",&TabulatedFluxDistribution::GetIntegral)
     .def("SamplePDF",&TabulatedFluxDistribution::SamplePDF)
-    .def("SampleUnnormedPDF",&TabulatedFluxDistribution::SampleUnnormedPDF); 
+    .def("SampleUnnormedPDF",&TabulatedFluxDistribution::SampleUnnormedPDF)
+    .def("ComputeCDF",&TabulatedFluxDistribution::ComputeCDF)
+    .def("GetCDF",&TabulatedFluxDistribution::GetCDF)
+    .def("GetCDFEnergyNodes",&TabulatedFluxDistribution::GetCDFEnergyNodes)
+    .def("GetEnergyNodes",&TabulatedFluxDistribution::GetEnergyNodes); 
     
   // Helicity distributions
 

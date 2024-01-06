@@ -9,6 +9,14 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
+#include <iostream>
+#include <numeric>
+#include <algorithm>
+#include <cmath>
+#include <random>
+#include <vector>
+#include <iterator>
+
 #include "LeptonInjector/utilities/Interpolator.h"
 
 #include "LeptonInjector/distributions/Distributions.h"
@@ -29,8 +37,12 @@ private:
     bool bounds_set;
     std::string fluxTableFilename;
     LI::utilities::Interpolator1D<double> fluxTable;
+    LI::utilities::Interpolator1D<double> inverseCdfTable;
     double integral;
-    const size_t burnin = 40; //original burnin parameter
+    std::vector<double> cdf;
+    std::vector<double> energy_nodes;
+    std::vector<double> cdf_energy_nodes;
+    const size_t burnin = 40; //original burnin parameter for MH sampling
     double unnormed_pdf(double energy) const;
     double pdf(double energy) const;
     void LoadFluxTable();
@@ -38,11 +50,16 @@ public:
     double SamplePDF(double energy) const; 
     double SampleUnnormedPDF(double energy) const; 
     double GetIntegral() const; 
+    void ComputeCDF();
+    std::vector<double> GetCDF() const;
+    std::vector<double> GetEnergyNodes() const;
+    std::vector<double> GetCDFEnergyNodes() const;
     double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    //double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record, const std::string& sampleMethod) const;
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);
     TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
-    TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false);
+    TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false); 
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
