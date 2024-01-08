@@ -27,6 +27,7 @@ class PyDarkNewsCrossSectionCollection:
                  param_file=None,
                  tolerance=1e-6,
                  interp_tolerance=5e-2,
+                 fill_tables_at_exit=True,
                  **kwargs):
         # Defines a series of upscattering and decay objects
         # Each derive from the respective LeptonInjector classes
@@ -99,7 +100,12 @@ class PyDarkNewsCrossSectionCollection:
             
     def SaveCrossSectionTables(self):
         for cross_section in self.cross_sections:
+            if fill_tables_at_exit:
+                cross_section.FillInterpolationTables()
+            else:
+                print('WARNING: Not filling PyDarkNewsCrossSection interpolation tables before exiting. Future updates to DarkNews can lead to inconsistent behavior if new entries are ever added to this table')
             cross_section.SaveInterpolationTables()
+            
         
 
 
@@ -112,7 +118,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                  table_dir=None, # table to store 
                  tolerance=1e-6, # supposed to represent machine epsilon
                  interp_tolerance=5e-2, # relative interpolation tolerance
-                 interpolate_differential = False):
+                 interpolate_differential=True):
         
         DarkNewsCrossSection.__init__(self) # C++ constructor
         
@@ -245,6 +251,34 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             return interpolator(inputs)
         else:
             return 0    
+    
+    # Fills the tables 
+    def FillInterpolationTables(self,total=True,diff=True):
+        Emin = self.ups_case.Ethreshold
+        Emax = np.max(self.total_cross_section_table[:,0])
+        if total:
+            E = Emin
+            while E<Emax:
+                if not self._query_interpolation_table([E],'total'):
+                    xsec = self.ups_case.scalar_total_xsec(E)
+                    self.total_cross_section_table = np.append(self.total_cross_section_table,[[E,xsec]],axis=0)
+                E *= (1+self.interp_toleracnce)
+        if diff:
+            E = Emin
+            zmin = 0, zmax = 1
+            z = zmin
+            while E < Emax:
+                while z < zmax:
+                    if not self._query_interpolation_table([E,z],'differential'):
+                        dxsec = self.ups_case.diff_xsec_Q2(E, Q2).item()
+                        self.differential_cross_section_table = np.append(self.differential_cross_section_table,[[energy,z,dxsec]],axis=0)
+        
+                    xsec = self.ups_case.scalar_total_xsec(E)
+                    self.total_cross_section_table = np.append(self.total_cross_section_table,[[E,xsec]],axis=0)
+                E *= (1+self.interp_toleracnce)
+
+
+
     
     # Saves the tables for the scipy interpolation objects
     def SaveInterpolationTables(self,total=True,diff=True):
