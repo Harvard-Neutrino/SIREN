@@ -1,6 +1,5 @@
 import numpy as np
 import os
-import matplotlib.pyplot as plt
 
 import leptoninjector as LI
 import sys
@@ -26,7 +25,7 @@ model_kwargs = {
 events_to_inject = 1000
 
 # Expeirment to run
-experiment = 'MiniBooNE'
+experiment = 'MINERvA'
 
 # Define the controller
 controller = LIController(events_to_inject,
@@ -46,7 +45,7 @@ primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-flux_file = LI_SRC + '/resources/Fluxes/BNB_Flux_Tables/BNB_numu_flux.txt'
+flux_file = LI_SRC + '/resources/Fluxes/NUMI_Flux_Tables/ME_FHC_numu.txt'
 edist = LI.distributions.TabulatedFluxDistribution(flux_file, True)
 edist_gen = LI.distributions.TabulatedFluxDistribution(1.05*model_kwargs['m4'], 10, flux_file, False)
 primary_injection_distributions['energy'] = edist_gen
@@ -54,7 +53,7 @@ primary_physical_distributions['energy'] = edist
 
 # Flux normalization: go from cm^-2 to m^-2
 flux_units = LI.distributions.NormalizationConstant(1e4)
-primary_physical_distributions['flux_units'] = flux_units
+primary_physical_distributions['normalization'] = flux_units
 
 # direction distribution
 direction_distribution = LI.distributions.FixedDirection(LI.math.Vector3D(0, 0, 1.0))
@@ -65,8 +64,8 @@ primary_physical_distributions['direction'] = direction_distribution
 decay_range_func = LI.distributions.DecayRangeFunction(model_kwargs['m4'],
                                                        controller.DN_min_decay_width,
                                                        3,
-                                                       541)
-position_distribution = LI.distributions.RangePositionDistribution(6.2, 6.2,
+                                                       240)
+position_distribution = LI.distributions.RangePositionDistribution(1.24, 5.,
                                                                    decay_range_func,
                                                                    set(controller.GetEarthModelTargets()[0]))
 primary_injection_distributions['position'] = position_distribution
@@ -80,5 +79,4 @@ controller.Initialize()
 
 events = controller.GenerateEvents()
 
-controller.SaveEvents('output/MiniBooNE_Dipole_M%2.2f_mu%2.2e_example.hdf5'%(model_kwargs['m4'],model_kwargs['mu_tr_mu4']))
-
+controller.SaveEvents('output/MINERvA_Dipole_M%2.2f_mu%2.2e_example.hdf5'%(model_kwargs['m4'],model_kwargs['mu_tr_mu4']))

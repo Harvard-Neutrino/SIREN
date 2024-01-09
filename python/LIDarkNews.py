@@ -97,9 +97,16 @@ class PyDarkNewsCrossSectionCollection:
             self.decays.append(PyDarkNewsDecay(dec_case,
                                                table_dir = self.table_dir + table_subdirs))
             
-    def SaveCrossSectionTables(self):
+    def SaveCrossSectionTables(self,fill_tables_at_exit=True):
+        if not fill_tables_at_exit:
+            print('WARNING: Saving tables without filling PyDarkNewsCrossSection interpolation tables. Future updates to DarkNews can lead to inconsistent behavior if new entries are ever added to this table')
         for cross_section in self.cross_sections:
+            if fill_tables_at_exit:
+                print('Filling cross section table at %s'%cross_section.table_dir)
+                num = cross_section.FillInterpolationTables()
+                print('Added %d points'%num)
             cross_section.SaveInterpolationTables()
+            
         
 
 
@@ -112,7 +119,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                  table_dir=None, # table to store 
                  tolerance=1e-6, # supposed to represent machine epsilon
                  interp_tolerance=5e-2, # relative interpolation tolerance
-                 interpolate_differential = False):
+                 interpolate_differential=False):
         
         DarkNewsCrossSection.__init__(self) # C++ constructor
         
@@ -170,23 +177,22 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 # If we only have two energy points, don't try to construct interpolator
                 if len(np.unique(self.differential_cross_section_table[:,0])) <= 2: return
                 self.differential_cross_section_interpolator = CloughTocher2DInterpolator(self.differential_cross_section_table[:,:2],
-                                                                                        self.differential_cross_section_table[:,2],
-                                                                                        rescale=True)
+                                                                                          self.differential_cross_section_table[:,2],
+                                                                                          rescale=True)
 
     # Check whether we have close-enough entries in the intrepolation tables
-    def _query_interpolation_table(self,inputs,mode):
-        # 
-        # returns:
-        # 0 if we are not close enough to any points in the interpolation table
-        # otherwise, returns the desired interpolated value
-        
+    def _interpolation_flags(self,inputs,mode):
+        #
+        # returns UseSinglePoint,Interpolate,closest_idx
+        # UseSinglePoint: whether to use a single point in table
+        # Interpolate: whether to interpolate bewteen different points
+        # closest_idx: index of closest point in table (for UseSinglePoint)
+
         # Determine which table we are using
         if mode=='total':
             interp_table = self.total_cross_section_table
-            interpolator = self.total_cross_section_interpolator
         elif mode=='differential':
             interp_table = self.differential_cross_section_table
-            interpolator = self.differential_cross_section_interpolator
         else:
             print('Invalid interpolation table mode %s'%mode)
             exit(0)
@@ -197,20 +203,15 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         # bools to keep track of whether to use a single point or interpolate
         UseSinglePoint = True
         Interpolate = True
-        prev_closest_idx = None
+        # First check whether we have a close-enough single point
+        closest_idx = np.argmin(np.sum(np.abs(interp_table[:,:-1] - inputs)))
+        diff = (interp_table[closest_idx,:-1] - inputs)/inputs
+        if np.all(np.abs(diff)<self.tolerance): 
+            UseSinglePoint = True
         for i,input in enumerate(inputs):
             closest_idx = np.argmin(np.abs(interp_table[:,i] - input))
             diff = (interp_table[closest_idx,i] - input)/input # relative difference
-            # First check if we are close enough to use a single point
-            if np.abs(diff) >= self.tolerance:
-                # We are not close enough to use one existing table point
-                UseSinglePoint = False
-            elif UseSinglePoint:
-                # Check whether the closest_idx found here is the same as the previous
-                if i>0 and closest_idx != prev_closest_idx:
-                    UseSinglePoint = False
-                prev_closest_idx = closest_idx
-            # Now check if we are close enough to interpolate
+            # Check if we are close enough to interpolate
             if np.abs(diff) >= self.interp_tolerance:
                 Interpolate = False
             else:
@@ -239,12 +240,77 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                         # check if the node above is also within the interpolation tolerance
                         if diff_above>=self.interp_tolerance:
                             Interpolate = False
+        return UseSinglePoint, Interpolate, closest_idx
+    
+    # return entries in interpolation table if we have inputs 
+    def _query_interpolation_table(self,inputs,mode):
+        # 
+        # returns:
+        # 0 if we are not close enough to any points in the interpolation table
+        # otherwise, returns the desired interpolated value
+        
+        # Determine which table we are using
+        if mode=='total':
+            interp_table = self.total_cross_section_table
+            interpolator = self.total_cross_section_interpolator
+        elif mode=='differential':
+            interp_table = self.differential_cross_section_table
+            interpolator = self.differential_cross_section_interpolator
+        else:
+            print('Invalid interpolation table mode %s'%mode)
+            exit(0)
+
+        UseSinglePoint, Interpolate, closest_idx = self._interpolation_flags(inputs,mode)
+
         if UseSinglePoint:
             return interp_table[closest_idx,-1]
         elif Interpolate:
             return interpolator(inputs)
         else:
             return 0    
+    
+    # Fills the total and differential cross section tables within interp_tolerance
+    def FillInterpolationTables(self,total=True,diff=True):
+        Emin = (1.0+self.tolerance)*self.ups_case.Ethreshold
+        Emax = np.max(self.total_cross_section_table[:,0])
+        num_added_points = 0
+        if total:
+            E = Emin
+            while E<Emax:
+                UseSinglePoint,Interpolate,_ = self._interpolation_flags([E],'total')
+                if not (UseSinglePoint or Interpolate):
+                    xsec = self.ups_case.scalar_total_xsec(E)
+                    self.total_cross_section_table = np.append(self.total_cross_section_table,[[E,xsec]],axis=0)
+                    num_added_points+=1
+                E *= (1+self.interp_tolerance)
+        if diff:
+            # interaction record to calculate Q2 bounds
+            interaction = LI.dataclasses.InteractionRecord()
+            interaction.signature.primary_type = self.GetPossiblePrimaries()[0] # only one primary
+            interaction.signature.target_type = self.GetPossibleTargets()[0] # only one target
+            interaction.target_mass = self.ups_case.MA
+            E = Emin
+            zmin,zmax = self.tolerance,1
+            z = zmin
+            while E < Emax:
+                interaction.primary_momentum = [E,0,0,0]
+                Q2min = self.Q2Min(interaction)
+                Q2max = self.Q2Max(interaction)
+                z = zmin
+                while z < zmax:
+                    Q2 = Q2min + z*(Q2max-Q2min)
+                    UseSinglePoint,Interpolate,_ = self._interpolation_flags([E,z],'differential')
+                    if not (UseSinglePoint or Interpolate):
+                        dxsec = self.ups_case.diff_xsec_Q2(E, Q2).item()
+                        self.differential_cross_section_table = np.append(self.differential_cross_section_table,[[E,z,dxsec]],axis=0)
+                        num_added_points+=1
+                    z *= (1+self.interp_tolerance)
+                E *= (1+self.interp_tolerance)
+        self._redefine_interpolation_objects(total=total,diff=diff)
+        return num_added_points
+
+
+
     
     # Saves the tables for the scipy interpolation objects
     def SaveInterpolationTables(self,total=True,diff=True):
