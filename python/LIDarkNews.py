@@ -203,7 +203,6 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         # bools to keep track of whether to use a single point or interpolate
         UseSinglePoint = True
         Interpolate = True
-        #prev_closest_idx = None
         # First check whether we have a close-enough single point
         closest_idx = np.argmin(np.sum(np.abs(interp_table[:,:-1] - inputs)))
         diff = (interp_table[closest_idx,:-1] - inputs)/inputs
@@ -212,15 +211,6 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         for i,input in enumerate(inputs):
             closest_idx = np.argmin(np.abs(interp_table[:,i] - input))
             diff = (interp_table[closest_idx,i] - input)/input # relative difference
-            # # First check if we are close enough to use a single point
-            # if np.abs(diff) >= self.tolerance:
-            #     # We are not close enough to use one existing table point
-            #     UseSinglePoint = False
-            # elif UseSinglePoint:
-            #     # Check whether the closest_idx found here is the same as the previous
-            #     if i>0 and closest_idx != prev_closest_idx:
-            #         UseSinglePoint = False
-            #     prev_closest_idx = closest_idx
             # Check if we are close enough to interpolate
             if np.abs(diff) >= self.interp_tolerance:
                 Interpolate = False
