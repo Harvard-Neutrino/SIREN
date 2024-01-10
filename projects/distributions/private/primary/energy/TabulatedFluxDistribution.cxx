@@ -124,20 +124,17 @@ void TabulatedFluxDistribution::ComputeCDF() {
        cdfvector[i] = cdfvector[i-1] + area; 
     } 
     
-    //std::cout << "ComputeCDF: computed cdf" << std::endl;
 
     // find the max of CDF (should be 1 since we computed from normalized PDF)
     auto max_it = std::max_element(cdfvector.begin(), cdfvector.end());
     double max_cdf = *max_it;
 
-    //std::cout << "ComputeCDF: computed max of cdf" << std::endl;
 
     // should be normalized, but just to make sure in case energy nodes are too sparse
     for (double& value : cdfvector) {
        value *= 1/max_cdf;
     }
 
-    //std::cout << "ComputeCDF: normalized cdf" << std::endl;
 
     // assign the cdf vector so it's accessible outside of the function
     cdf = cdfvector;
@@ -146,7 +143,6 @@ void TabulatedFluxDistribution::ComputeCDF() {
     inverse_cdf_data.x = cdf; 
     inverse_cdf_data.f = energies; 
 
-    //std::cout << "ComputeCDF: put cdf and energy nodes in interpolater table" << std::endl;
 
     inverseCdfTable = LI::utilities::Interpolator1D<double>(inverse_cdf_data);
 
@@ -207,35 +203,6 @@ double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI
     return inverseCdfTable(randomValue);
 }
 
-// double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
-//     // Metropolis-Hastings algorithm to sample from PDF.
-//     // Pass in a function pointer for the PDF
-//     double energy; 
-//     double density, test_energy, test_density, odds;
-//     bool accept;
-
-//     // sample an initial point uniformly
-//     //energy = rand->Uniform(energyMin, energyMax);
-//     energy = rand->Uniform(std::log10(energyMin), std::log10(energyMax));
-//     energy = std::pow(10, energy);
-    
-//     density = pdf(energy);
-
-//     // Metropolis Hastings loop
-//     for (size_t j = 0; j <= burnin; ++j) {
-//         //test_energy = rand->Uniform(energyMin, energyMax);
-//         test_energy = rand->Uniform(std::log10(energyMin), std::log10(energyMax));
-//         test_energy = std::pow(10, test_energy);
-//         test_density = pdf(test_energy);
-//         odds = test_density / density;
-//         accept = (odds > 1.) or (rand->Uniform(0,1) < odds);
-//         if(accept) {
-//             energy = test_energy;
-//             density = test_density;
-//         }
-//     }
-//     return energy;
-// }
 
 double TabulatedFluxDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
