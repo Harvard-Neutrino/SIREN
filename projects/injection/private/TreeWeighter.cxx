@@ -8,8 +8,8 @@
 #include <iostream>                                               // for ope...
 #include <set>                                                    // for set
 #include <stdexcept>                                              // for out...
-#include "LeptonInjector/crosssections/CrossSection.h"            // for Cro...
-#include "LeptonInjector/crosssections/InteractionCollection.h"  // for Cro...
+#include "LeptonInjector/interactions/CrossSection.h"            // for Cro...
+#include "LeptonInjector/interactions/InteractionCollection.h"  // for Cro...
 #include "LeptonInjector/dataclasses/InteractionRecord.h"         // for Int...
 #include "LeptonInjector/dataclasses/InteractionSignature.h"      // for Int...
 #include "LeptonInjector/detector/EarthModel.h"                   // for Ear...
@@ -29,8 +29,8 @@
 
 #include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
 
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/InteractionCollection.h"
+#include "LeptonInjector/interactions/CrossSection.h"
+#include "LeptonInjector/interactions/InteractionCollection.h"
 
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 
@@ -225,7 +225,7 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
     primary_direction.normalize();
 
     LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), earth_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
-    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::crosssections::CrossSection>>> const & cross_sections_by_target = phys_process->GetCrossSections()->GetCrossSectionsByTarget();
+    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetCrossSections()->GetCrossSectionsByTarget();
     std::vector<LI::dataclasses::Particle::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
@@ -236,7 +236,7 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
         targets.push_back(target_xs.first);
         fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> const & xs_list = target_xs.second;
+        std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
             std::vector<LI::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
@@ -273,7 +273,7 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
     primary_direction.normalize();
 
     LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
-    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::crosssections::CrossSection>>> const & cross_sections_by_target = phys_process->GetCrossSections()->GetCrossSectionsByTarget();
+    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetCrossSections()->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
 
@@ -285,7 +285,7 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
         targets.push_back(target_xs.first);
         fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        std::vector<std::shared_ptr<LI::crosssections::CrossSection>> const & xs_list = target_xs.second;
+        std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
             std::vector<LI::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);

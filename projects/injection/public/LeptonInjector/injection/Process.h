@@ -19,7 +19,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"         // for Particle
 #include "LeptonInjector/distributions/Distributions.h"  // for InjectionDis...
 
-namespace LI { namespace crosssections { class InteractionCollection; } }
+namespace LI { namespace interactions { class InteractionCollection; } }
 
 namespace LI {
 namespace injection {
@@ -27,21 +27,23 @@ namespace injection {
 class Process {
 private:
     LI::dataclasses::Particle::ParticleType primary_type;
-    std::shared_ptr<crosssections::InteractionCollection> cross_sections;
+    std::shared_ptr<interactions::InteractionCollection> cross_sections;
 public:
     Process() = default;
-    Process(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<crosssections::InteractionCollection> _cross_sections);
+    Process(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _cross_sections);
     Process(Process const & other);
     Process(Process && other);
     Process & operator=(Process const & other);
     Process & operator=(Process && other);
     virtual ~Process() = default;
 
-    void SetCrossSections(std::shared_ptr<crosssections::InteractionCollection> _cross_sections);
-    std::shared_ptr<crosssections::InteractionCollection> GetCrossSections() const;
+    void SetCrossSections(std::shared_ptr<interactions::InteractionCollection> _cross_sections);
+    std::shared_ptr<interactions::InteractionCollection> GetCrossSections() const;
     void SetPrimaryType(LI::dataclasses::Particle::ParticleType _primary_type);
     LI::dataclasses::Particle::ParticleType GetPrimaryType() const;
 
+    std::shared_ptr<interactions::InteractionCollection> cross_sections;
+    void SetCrossSections(std::shared_ptr<interactions::InteractionCollection> _cross_sections) {cross_sections = _cross_sections;}
     bool operator==(Process const & other) const;
     bool MatchesHead(std::shared_ptr<Process> const & other) const; // required to compared instances of derived classs
     template<class Archive>
@@ -60,7 +62,7 @@ protected:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
 public:
     PhysicalProcess() = default;
-    PhysicalProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<crosssections::InteractionCollection> _cross_sections);
+    PhysicalProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _cross_sections);
     PhysicalProcess(PhysicalProcess const & other);
     PhysicalProcess(PhysicalProcess && other);
     PhysicalProcess & operator=(PhysicalProcess const & other);
@@ -84,7 +86,7 @@ protected:
     std::vector<std::shared_ptr<distributions::InjectionDistribution>> injection_distributions;
 public:
     InjectionProcess() = default;
-    InjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<crosssections::InteractionCollection> _cross_sections);
+    InjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _cross_sections);
     InjectionProcess(InjectionProcess const & other);
     InjectionProcess(InjectionProcess && other);
     InjectionProcess & operator=(InjectionProcess const & other);

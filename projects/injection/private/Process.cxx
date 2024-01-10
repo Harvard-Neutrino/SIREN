@@ -5,7 +5,7 @@
 namespace LI {
 namespace injection {
 
-Process::Process(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<crosssections::CrossSectionCollection> _cross_sections) : primary_type(_primary_type), cross_sections(_cross_sections) {}
+Process::Process(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _cross_sections) : primary_type(_primary_type), cross_sections(_cross_sections) {}
 
 Process::Process(Process const & other) : primary_type(other.primary_type), cross_sections(other.cross_sections) {}
 
@@ -23,11 +23,11 @@ Process & Process::operator=(Process && other) {
     return *this;
 }
 
-void Process::SetCrossSections(std::shared_ptr<crosssections::CrossSectionCollection> _cross_sections) {
+void Process::SetCrossSections(std::shared_ptr<interactions::InteractionCollection> _cross_sections) {
     cross_sections = _cross_sections;
 }
 
-std::shared_ptr<crosssections::CrossSectionCollection> Process::GetCrossSections() const {
+std::shared_ptr<interactions::InteractionCollection> Process::GetCrossSections() const {
     return cross_sections;
 }
 
@@ -59,7 +59,7 @@ bool Process::MatchesHead(std::shared_ptr<Process> const & other) const {
         other->cross_sections);
 }
 
-PhysicalProcess::PhysicalProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<crosssections::CrossSectionCollection> _cross_sections) : Process(_primary_type, _cross_sections) {};
+PhysicalProcess::PhysicalProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _cross_sections) : Process(_primary_type, _cross_sections) {};
 
 PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions) {};
 
@@ -88,7 +88,7 @@ std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & Phys
     return physical_distributions;
 }
 
-InjectionProcess::InjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<crosssections::CrossSectionCollection> _cross_sections) : PhysicalProcess(_primary_type, _cross_sections) {};
+InjectionProcess::InjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _cross_sections) : PhysicalProcess(_primary_type, _cross_sections) {};
 
 InjectionProcess::InjectionProcess(InjectionProcess const & other) : PhysicalProcess(other), injection_distributions(other.injection_distributions) {};
 

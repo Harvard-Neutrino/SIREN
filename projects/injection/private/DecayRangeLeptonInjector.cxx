@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "LeptonInjector/crosssections/InteractionCollection.h"
+#include "LeptonInjector/interactions/InteractionCollection.h"
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
