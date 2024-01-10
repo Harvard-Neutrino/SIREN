@@ -697,6 +697,7 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
             EarthSector sector = GetSector(current_intersection->hierarchy);
             double target = column_depth - total_column_depth;
             double distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
+            
             done = distance >= 0;
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
             total_column_depth += integral;
@@ -873,6 +874,7 @@ double EarthModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & i
             double segment_length = end_point - start_point;
             EarthSector sector = GetSector(current_intersection->hierarchy);
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
+            
             std::vector<double> particle_fractions = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end());
             for(unsigned int i=0; i<targets.size(); ++i) {
                 interaction_depths[i] += (integral * 100) * particle_fractions[i]; // cm^-3 * m --> cm^-2

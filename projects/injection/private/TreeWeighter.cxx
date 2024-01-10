@@ -230,6 +230,7 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
     double total_decay_length = phys_process->cross_sections->TotalDecayLength(record);
+    
     LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
@@ -249,6 +250,7 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
     }
 
     double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length);
+    
     double interaction_probability;
     if(total_interaction_depth < 1e-6) {
         interaction_probability = total_interaction_depth;
@@ -296,9 +298,10 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length);
+    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length); // unitless
     double traversed_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length);
-    double interaction_density = earth_model->GetInteractionDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length);
+    double interaction_density = earth_model->GetInteractionDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length); //units of m^-1
+    
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {
@@ -312,21 +315,31 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
 
 double LeptonProcessWeighter::PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds,
                                                   LI::dataclasses::InteractionRecord const & record ) const {
+    
+        
         double physical_probability = 1.0;
         double prob = InteractionProbability(bounds, record);
         physical_probability *= prob;
+ 
+        
         prob = NormalizedPositionProbability(bounds, record);
-        physical_probability *= prob;
+        physical_probability *= prob; 
+    
+        
         prob = LI::injection::CrossSectionProbability(earth_model, phys_process->cross_sections, record);
         physical_probability *= prob;
-        for(auto physical_dist : unique_phys_distributions) {
+     
+        
+    for(auto physical_dist : unique_phys_distributions) {
           physical_probability *= physical_dist->GenerationProbability(earth_model, phys_process->cross_sections, record);
         }
+        
         return normalization * physical_probability;
 }
 
 double LeptonProcessWeighter::GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum ) const {
         double gen_probability = LI::injection::CrossSectionProbability(earth_model, phys_process->cross_sections, datum.record);
+        
         for(auto gen_dist : unique_gen_distributions) {
           gen_probability *= gen_dist->GenerationProbability(earth_model, phys_process->cross_sections, datum);
         }

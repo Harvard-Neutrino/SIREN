@@ -42,6 +42,7 @@ void TabulatedFluxDistribution::LoadFluxTable() {
         std::string buf;
         std::string::size_type pos;
         LI::utilities::TableData1D<double> table_data;
+
         while(std::getline(in, buf)) {
             // Ignore comments and blank lines
             if((pos = buf.find('#')) != std::string::npos)
@@ -59,6 +60,8 @@ void TabulatedFluxDistribution::LoadFluxTable() {
             ss >> x >> f;
             table_data.x.push_back(x);
             table_data.f.push_back(f);
+
+            energy_nodes.push_back(x);
         }
         // If no physical are manually set, use first/last entry of table
         if(not bounds_set) {
@@ -74,9 +77,83 @@ void TabulatedFluxDistribution::LoadFluxTable() {
 double TabulatedFluxDistribution::unnormed_pdf(double energy) const {
     return fluxTable(energy);
 }
+    
+double TabulatedFluxDistribution::SampleUnnormedPDF(double energy) const {
+    return unnormed_pdf(energy);
+}
+
+double TabulatedFluxDistribution::GetIntegral() const {
+    return integral;
+}
+
+std::vector<double> TabulatedFluxDistribution::GetEnergyNodes() const {
+    return energy_nodes;
+}
 
 double TabulatedFluxDistribution::pdf(double energy) const {
     return unnormed_pdf(energy) / integral;
+}
+
+double TabulatedFluxDistribution::SamplePDF(double energy) const {
+    return pdf(energy);
+}
+
+void TabulatedFluxDistribution::ComputeCDF() {
+
+    // this part makes an energies vector that is within the specified energy range
+    std::vector<double> energies;
+    energies.push_back(energyMin);
+    // Use the copy_if algorithm to copy only the elements that satisfy the condition
+    std::copy_if(energy_nodes.begin(), energy_nodes.end(), std::back_inserter(energies),
+       [this](double value) {
+            return value > this->energyMin && value < this->energyMax;
+       }
+    );
+    energies.push_back(energyMax);
+    
+    // assign the energies vector so it's accessible outside of the function
+    cdf_energy_nodes = energies;
+
+    // declare the cdf vector
+    std::vector<double> cdfvector(energies.size());
+
+    cdfvector[0] = 0; 
+    for (std::size_t i = 1; i < energies.size(); ++i) {
+       double y = pdf(energies[i]);
+       double area = y * (energies[i]-energies[i-1]);
+       cdfvector[i] = cdfvector[i-1] + area; 
+    } 
+    
+
+    // find the max of CDF (should be 1 since we computed from normalized PDF)
+    auto max_it = std::max_element(cdfvector.begin(), cdfvector.end());
+    double max_cdf = *max_it;
+
+
+    // should be normalized, but just to make sure in case energy nodes are too sparse
+    for (double& value : cdfvector) {
+       value *= 1/max_cdf;
+    }
+
+
+    // assign the cdf vector so it's accessible outside of the function
+    cdf = cdfvector;
+
+    LI::utilities::TableData1D<double> inverse_cdf_data;
+    inverse_cdf_data.x = cdf; 
+    inverse_cdf_data.f = energies; 
+
+
+    inverseCdfTable = LI::utilities::Interpolator1D<double>(inverse_cdf_data);
+
+}
+
+std::vector<double> TabulatedFluxDistribution::GetCDF() const {
+    return cdf;
+}
+
+std::vector<double> TabulatedFluxDistribution::GetCDFEnergyNodes() const {
+    return cdf_energy_nodes;
 }
 
 void TabulatedFluxDistribution::SetEnergyBounds(double eMin, double eMax) {
@@ -84,6 +161,7 @@ void TabulatedFluxDistribution::SetEnergyBounds(double eMin, double eMax) {
     energyMax = eMax;
     bounds_set = true;
     ComputeIntegral();
+    ComputeCDF();
 }
 
 TabulatedFluxDistribution::TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization)
@@ -97,6 +175,8 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(std::string fluxTableFilena
     ComputeIntegral();
     if(has_physical_normalization)
         SetNormalization(integral);
+    
+    ComputeCDF(); 
 }
 
 TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization)
@@ -112,33 +192,17 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     ComputeIntegral();
     if(has_physical_normalization)
         SetNormalization(integral);
+
+    ComputeCDF();
 }
 
 double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
-    // Metropolis-Hastings algorithm to sample from PDF.
-    // Pass in a function pointer for the PDF
+    // inverse CDF algorithm to sample from PDF.
+    double randomValue = rand->Uniform(0,1);
 
-    double energy, density, test_energy, test_density, odds;
-    bool accept;
-
-    // sample an initial point uniformly
-    energy = rand->Uniform(energyMin, energyMax);
-    density = pdf(energy);
-
-    // Metropolis Hastings loop
-    for (size_t j = 0; j <= burnin; ++j) {
-        test_energy = rand->Uniform(energyMin, energyMax);
-        test_density = pdf(test_energy);
-        odds = test_density / density;
-        accept = (odds > 1.) or (rand->Uniform(0,1) < odds);
-        if(accept) {
-            energy = test_energy;
-            density = test_density;
-        }
-    }
-
-    return energy;
+    return inverseCdfTable(randomValue);
 }
+
 
 double TabulatedFluxDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
@@ -177,5 +241,6 @@ bool TabulatedFluxDistribution::less(WeightableDistribution const & other) const
 }
 
 } // namespace distributions
+
 } // namespace LI
 

@@ -41,7 +41,7 @@ double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr
             or r >= cylinder.GetRadius()) {
         return 0.0;
     } else {
-        return 1.0 / ((cylinder.GetRadius() * cylinder.GetRadius() - cylinder.GetInnerRadius() * cylinder.GetInnerRadius()) * cylinder.GetZ());
+        return 1.0 / (M_PI*(cylinder.GetRadius() * cylinder.GetRadius() - cylinder.GetInnerRadius() * cylinder.GetInnerRadius()) * cylinder.GetZ());
     }
 }
 

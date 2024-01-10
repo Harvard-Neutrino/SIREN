@@ -35,6 +35,7 @@ private:
     std::set<LI::dataclasses::Particle::ParticleType> tau_primaries = {LI::dataclasses::Particle::ParticleType::NuTau, LI::dataclasses::Particle::ParticleType::NuTauBar};
 public:
     LeptonDepthFunction();
+    double GetLeptonDepthFunctionReturnValue(LI::dataclasses::InteractionSignature const & signature, double energy) const; 
     void SetMuParams(double mu_alpha, double mu_beta);
     void SetTauParams(double tau_alpha, double tau_beta);
     void SetScale(double scale);

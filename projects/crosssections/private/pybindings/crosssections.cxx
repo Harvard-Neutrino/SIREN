@@ -6,7 +6,6 @@
 #include "../../public/LeptonInjector/crosssections/CrossSectionCollection.h"
 #include "../../public/LeptonInjector/crosssections/DISFromSpline.h"
 #include "../../public/LeptonInjector/crosssections/HNLFromSpline.h"
-#include "../../public/LeptonInjector/crosssections/CrossSectionCollection.h"
 #include "../../public/LeptonInjector/crosssections/DipoleFromTable.h"
 #include "../../public/LeptonInjector/crosssections/DarkNewsCrossSection.h"
 #include "../../public/LeptonInjector/crosssections/DarkNewsDecay.h"

@@ -372,6 +372,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(LI::math::Vec
 
     std::sort(dist.begin(), dist.end(), comp);
     return dist;
+    
 }
 
 // ------------------------------------------------------------------------- //

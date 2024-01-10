@@ -105,8 +105,15 @@ PYBIND11_MODULE(distributions,m) {
     .def("SampleEnergy",&TabulatedFluxDistribution::SampleEnergy)
     .def("GenerationProbability",&TabulatedFluxDistribution::GenerationProbability)
     .def("SetEnergyBounds",&TabulatedFluxDistribution::SetEnergyBounds)
-    .def("Name",&TabulatedFluxDistribution::Name);
-
+    .def("Name",&TabulatedFluxDistribution::Name)
+    .def("GetIntegral",&TabulatedFluxDistribution::GetIntegral)
+    .def("SamplePDF",&TabulatedFluxDistribution::SamplePDF)
+    .def("SampleUnnormedPDF",&TabulatedFluxDistribution::SampleUnnormedPDF)
+    .def("ComputeCDF",&TabulatedFluxDistribution::ComputeCDF)
+    .def("GetCDF",&TabulatedFluxDistribution::GetCDF)
+    .def("GetCDFEnergyNodes",&TabulatedFluxDistribution::GetCDFEnergyNodes)
+    .def("GetEnergyNodes",&TabulatedFluxDistribution::GetEnergyNodes); 
+    
   // Helicity distributions
 
   class_<PrimaryNeutrinoHelicityDistribution, std::shared_ptr<PrimaryNeutrinoHelicityDistribution>, InjectionDistribution>(m, "PrimaryNeutrinoHelicityDistribution")
@@ -168,7 +175,7 @@ PYBIND11_MODULE(distributions,m) {
     .def("GetTauBeta",&LeptonDepthFunction::GetTauBeta)
     .def("GetScale",&LeptonDepthFunction::GetScale)
     .def("GetMaxDepth",&LeptonDepthFunction::GetMaxDepth) 
-    ;
+    .def("GetLeptonDepthFunctionReturnValue",&LeptonDepthFunction::GetLeptonDepthFunctionReturnValue);
     //.def((LI::dataclasses::InteractionSignature const &, double));
 
   // VertexPositionDistribution subclasses

@@ -9,6 +9,7 @@
 #include "../../public/LeptonInjector/injection/RangedLeptonInjector.h"
 #include "../../public/LeptonInjector/injection/TreeWeighter.h"
 #include "../../public/LeptonInjector/injection/Weighter.h"
+#include "../../public/LeptonInjector/injection/WeightingUtils.h"
 
 #include "../../../distributions/public/LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
@@ -26,6 +27,10 @@ using namespace pybind11;
 PYBIND11_MODULE(injection,m) {
   using namespace LI::injection;
 
+  // Utils function
+    
+  m.def("CrossSectionProbability", &CrossSectionProbability);
+    
   // Process
 
   class_<Process, std::shared_ptr<Process>>(m, "Process")

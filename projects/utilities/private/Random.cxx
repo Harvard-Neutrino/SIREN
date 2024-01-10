@@ -26,6 +26,17 @@ namespace utilities {
         double range = max - min;
         return range * (this->generator(configuration)) + min;
     }
+    
+    double LI_random::PowerLaw(double min, double max, double n) {
+        if(max < min)
+            std::swap(min, max);
+        double range = max - min;
+        double unif = range * (this->generator(configuration)) + min;
+        
+        double base = (pow(max,n+1) - pow(min,n+1)) * unif + pow(min,n+1) ; 
+        double exp = 1/(n+1) ; 
+        return pow(base, exp);
+    }
 
     // reconfigures the generator with a new seed
     void LI_random::set_seed( unsigned int new_seed) {

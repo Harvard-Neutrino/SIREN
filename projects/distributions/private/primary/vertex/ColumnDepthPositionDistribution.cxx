@@ -120,9 +120,10 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
         return 0.0;
 
     double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
+    
 
-    LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
-    LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
+    LI::math::Vector3D endcap_0 = pca - (endcap_length * dir);
+    LI::math::Vector3D endcap_1 = pca + (endcap_length * dir);
 
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
@@ -138,6 +139,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = cross_sections->TotalDecayLength(record);
+    
     LI::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
@@ -162,6 +164,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     } else {
         prob_density = interaction_density * exp(-log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
     }
+    
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
 
     return prob_density;

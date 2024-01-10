@@ -65,6 +65,7 @@ include(pybind11)
 include(rk)
 include(cereal)
 include(delabella)
+include(CFITSIO)
 include(photospline)
 include(googletest)
 

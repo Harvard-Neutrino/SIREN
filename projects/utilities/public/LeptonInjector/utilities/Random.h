@@ -19,6 +19,7 @@ namespace utilities {
 
             // this naming convention is used to
             double Uniform( double from=0.0, double to=1.0);
+            double PowerLaw(double min, double max, double n); 
 
             // in case this is set up without a seed!
             void set_seed(unsigned int new_seed);
