@@ -34,19 +34,18 @@ PYBIND11_MODULE(injection,m) {
   // Process
 
   class_<Process, std::shared_ptr<Process>>(m, "Process")
-    .def_readwrite("primary_type",&Process::primary_type)
-    .def_readwrite("cross_sections",&Process::cross_sections)
-    .def("SetCrossSections",&Process::SetCrossSections);
+    .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
+    .def_property("cross_sections", &Process::GetCrossSections, &Process::SetCrossSections);
 
   class_<InjectionProcess, std::shared_ptr<InjectionProcess>, Process>(m, "InjectionProcess")
     .def(init<>())
     .def("AddInjectionDistribution",&InjectionProcess::AddInjectionDistribution)
-    .def_readwrite("injection_distributions",&InjectionProcess::injection_distributions);
+    .def("GetInjectionDistributions",&InjectionProcess::GetInjectionDistributions);
 
   class_<PhysicalProcess, std::shared_ptr<PhysicalProcess>, Process>(m, "PhysicalProcess")
     .def(init<>())
     .def("AddPhysicalDistribution",&PhysicalProcess::AddPhysicalDistribution)
-    .def_readwrite("physical_distributions",&PhysicalProcess::physical_distributions);
+    .def("GetPhysicalDistributions",&PhysicalProcess::GetPhysicalDistributions);
 
   // Injection
 
