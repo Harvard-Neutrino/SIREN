@@ -137,7 +137,6 @@ TEST(PowerLaw, SampleDistribution) {
         std::function<double(double)> f = [&](double y)->double {
             return std::pow(exp(y), -gamma) * exp(y);
         };
-        double tol = std::abs(log(std::min(std::pow(energyMin, -gamma), std::pow(energyMax, -gamma)))) * 1e-8;
         double total_integral = 0;
         for(size_t j=0; j<n_bins; ++j) {
             double min = test.bin_edges[j];

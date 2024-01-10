@@ -158,7 +158,6 @@ TEST(IsInside, Box)
     Vector3D position_geometry(0, 0, 0);
 
     int is_inside  = 0;
-    int is_outside = 0;
 
     double volumia_ratio = 0;
 
@@ -215,13 +214,11 @@ TEST(IsInside, Box)
                 EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
             } else
             {
-                is_outside++;
                 EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
             }
         }
         ASSERT_NEAR(1. * is_inside, volumia_ratio * number_particles, 3 * sqrt(volumia_ratio * number_particles));
         is_inside  = 0;
-        is_outside = 0;
     }
     // Check what happens if particles are on the border of the box
 
@@ -383,7 +380,6 @@ TEST(IsInside, Cylinder)
     Vector3D position_geometry(0, 0, 0);
 
     int is_inside  = 0;
-    int is_outside = 0;
 
     double volumia_ratio = 0;
 
@@ -449,13 +445,11 @@ TEST(IsInside, Cylinder)
                 EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
             } else
             {
-                is_outside++;
                 EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
             }
         }
         ASSERT_NEAR(1. * is_inside, volumia_ratio * number_particles, 3 * sqrt(volumia_ratio * number_particles));
         is_inside  = 0;
-        is_outside = 0;
     }
 
     // Test borders
@@ -596,7 +590,6 @@ TEST(IsInside, Sphere)
     Vector3D position_geometry(0, 0, 0);
 
     int is_inside  = 0;
-    int is_outside = 0;
 
     double volumia_ratio = 0;
 
@@ -653,13 +646,11 @@ TEST(IsInside, Sphere)
                 EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
             } else
             {
-                is_outside++;
                 EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
             }
         }
         ASSERT_NEAR(1. * is_inside, volumia_ratio * number_particles, 3 * sqrt(volumia_ratio * number_particles));
         is_inside  = 0;
-        is_outside = 0;
     }
 
     // Test borders
