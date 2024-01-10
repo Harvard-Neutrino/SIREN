@@ -2,9 +2,14 @@
 #ifndef LI_InteractionTree_H
 #define LI_InteractionTree_H
 
-#endif // LI_InteractionTree_H
-
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
+
+#include <set>                                             // for set
+#include <memory>                                          // for shared_ptr
+#include <vector>                                          // for vector
+#include <cstdint>                                         // for uint32_t
+#include <stddef.h>                                        // for NULL
+#include <stdexcept>                                       // for runtime_error
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -14,7 +19,6 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-
 
 namespace LI {
 namespace dataclasses {
@@ -55,3 +59,6 @@ struct InteractionTree {
 
 } // namespace dataclasses
 } // namespace LI
+
+#endif // LI_InteractionTree_H
+

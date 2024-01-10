@@ -25,7 +25,7 @@ random = LI.utilities.LI_random()
 # In[2]:
 
 
-events_to_inject = 20000
+events_to_inject = 10000
 
 
 # ### Define geometry
@@ -34,9 +34,8 @@ events_to_inject = 20000
 
 
 # Make the earth model, add ATLAS detector layout and materials file
-materials_file = 'geometries/ATLAS.dat'
-#earth_model_file = '../earthparams/densities/PREM_ATLAS.dat'
-earth_model_file = 'geometries/PREM_ATLAS-earthcenter.dat'
+materials_file = '../earthparams/materials/ATLAS.dat'
+earth_model_file = '../earthparams/densities/PREM_ATLAS.dat'
 
 earth_model = LI.detector.EarthModel()
 earth_model.LoadMaterialModel(materials_file)
@@ -87,8 +86,7 @@ edist = LI.distributions.TabulatedFluxDistribution(100, int(1e6), flux_file, Fal
 primary_injection_process.AddInjectionDistribution(edist)
 primary_physical_process.AddPhysicalDistribution(edist)
 
-#flux_units = LI.distributions.NormalizationConstant(3.76e-9) # normalize to a total number of events
-flux_units = LI.distributions.NormalizationConstant(1)
+flux_units = LI.distributions.NormalizationConstant(3.76e-9) # normalize to a total number of events
 primary_physical_process.AddPhysicalDistribution(flux_units)
 
 
@@ -143,10 +141,6 @@ fid_vol = None
 for sector in earth_model.GetSectors():
     if sector.name=='muon_system':
         fid_vol = sector.geo
-        #primary_pos_dist = LI.distributions.CylinderVolumePositionDistribution(fid_vol)
-
-#primary_injection_process.AddInjectionDistribution(primary_pos_dist)
-#primary_physical_process.AddPhysicalDistribution(primary_pos_dist)
 
 
 # ### Building the Injector
@@ -189,7 +183,11 @@ ATLAS_weighter = LI.injection.LeptonTreeWeighter([ATLAS_ColumnDepthInjector],
 
 # ### Event Loop
 
+<<<<<<< HEAD
 # In[ ]:
+=======
+# In[13]:
+>>>>>>> main
 
 
 vertex_xarray = np.asarray([])
@@ -199,13 +197,17 @@ lepton_energies = np.asarray([])
 HadRecoil_energies = np.asarray([])
 primary_energies = np.asarray([])
 inter_array = []
+<<<<<<< HEAD
 lepton_px = np.asarray([])
 lepton_py = np.asarray([])
 lepton_pz = np.asarray([])
+=======
+>>>>>>> main
 
 weightarray = np.asarray([])
 totalweightarray = np.asarray([])
 
+<<<<<<< HEAD
 ######################################################################################################
 intersections_only = True
 ######################################################################################################
@@ -216,11 +218,17 @@ for i in range(events_to_inject):
     print('before weighter')
     weight = ATLAS_weighter.EventWeight(tree)
     print('after weighter')
+=======
+for i in range(events_to_inject):
+    tree = ATLAS_ColumnDepthInjector.GenerateEvent()
+    weight = ATLAS_weighter.EventWeight(tree)
+>>>>>>> main
     
     totalweightarray = np.append(totalweightarray, weight)
     
     if not math.isinf(weight):
         print(i,end='\r')
+<<<<<<< HEAD
         
     
         for datum in tree.tree:
@@ -294,6 +302,33 @@ plt.xscale('log')
 # ### Plot of positions of primary vertices
 
 # In[ ]:
+=======
+        weightarray = np.append(weightarray, weight)
+    
+        for datum in tree.tree:
+            vertex_xarray = np.append(vertex_xarray, LI.math.Vector3D(datum.record.interaction_vertex).GetX())
+            vertex_yarray = np.append(vertex_yarray, LI.math.Vector3D(datum.record.interaction_vertex).GetY())
+            vertex_zarray = np.append(vertex_zarray, LI.math.Vector3D(datum.record.interaction_vertex).GetZ())
+            
+            lepton_energies = np.append(lepton_energies, datum.record.secondary_momenta[0][0])
+            HadRecoil_energies = np.append(HadRecoil_energies, datum.record.secondary_momenta[1][0])
+            primary_energies = np.append(primary_energies, datum.record.primary_momentum[0])
+    
+            vtx = LI.math.Vector3D(datum.record.interaction_vertex)
+            #vtx = LI.math.Vector3D([vtx.GetX(), vtx.GetY(), vtx.GetZ()/100])
+            lepton_direction = LI.math.Vector3D(datum.record.secondary_momenta[0][1:])
+            
+            inter = fid_vol.ComputeIntersections(vtx, lepton_direction)
+            
+            if len(inter) != 0: 
+                #print('found intersection!')
+                inter_array.append(inter)
+
+
+# ### Plot of positions of vertices
+
+# In[14]:
+>>>>>>> main
 
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 3), dpi=200)
@@ -315,6 +350,7 @@ ax = fig.add_subplot(projection='3d')
 ax.scatter(vertex_xarray, vertex_yarray, vertex_zarray)
 
 
+<<<<<<< HEAD
 # In[ ]:
 
 
@@ -324,6 +360,17 @@ len(vertex_zarray)
 # ### Plotting where the muon intersects the detector volume
 
 # In[ ]:
+=======
+# In[15]:
+
+
+vertex_xarray.size
+
+
+# ### Plotting where the lepton intersects the detector volume
+
+# In[16]:
+>>>>>>> main
 
 
 X_inter_array = []
@@ -345,7 +392,11 @@ plt.ylim(-12,12)
 
 # ### Plotting the Energy Spectrum at the primary vertex
 
+<<<<<<< HEAD
 # In[ ]:
+=======
+# In[17]:
+>>>>>>> main
 
 
 fig = plt.figure(figsize=(5, 4), dpi=200)
@@ -364,12 +415,46 @@ plt.legend()
 plt.xlabel('Energy (GeV)')
 
 
+<<<<<<< HEAD
 # ### Weights distribution
 
 # In[ ]:
+=======
+# ### Distribution of weights
+
+# In[18]:
+>>>>>>> main
 
 
 counts, bins = np.histogram(weightarray, bins=60)
 plt.stairs(counts, bins)
 #plt.yscale('log')
 
+<<<<<<< HEAD
+=======
+
+# ### Some playing around for Finding intersections
+
+# In[ ]:
+
+
+tree = ATLAS_ColumnDepthInjector.GenerateEvent()
+datum = None
+
+for datum in tree.tree: # loop over interactions in the tree
+    if(datum.record.signature.primary_type == LI.dataclasses.Particle.ParticleType.NuTau):
+        print(LI.math.Vector3D(datum.record.interaction_vertex).GetX())
+        print(LI.math.Vector3D(datum.record.interaction_vertex).GetY())
+        print(LI.math.Vector3D(datum.record.interaction_vertex).GetZ())
+
+weight = ATLAS_weighter.EventWeight(tree)
+#print(weight)
+
+vtx = LI.math.Vector3D(datum.record.interaction_vertex)
+lepton_direction = LI.math.Vector3D(datum.record.secondary_momenta[0][1:])
+
+inter = fid_vol.ComputeIntersections(vtx, lepton_direction)
+
+inter[0].position.GetZ()
+
+>>>>>>> main

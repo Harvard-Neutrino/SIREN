@@ -1,4 +1,3 @@
-#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/Distribution1D.h"
 
 namespace LI {

@@ -1,13 +1,19 @@
-#include <map>
+#include "LeptonInjector/injection/DecayRangeLeptonInjector.h"
+
 #include <set>
 #include <string>
-#include <memory>
 #include <vector>
 
+#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
+#include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
+#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/math/Vector3D.h"
 
-#include "LeptonInjector/injection/InjectorBase.h"
-#include "LeptonInjector/injection/DecayRangeLeptonInjector.h"
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
 
 namespace LI {
 namespace injection {
@@ -32,8 +38,7 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
     endcap_length(endcap_length)
 {
     cross_sections = primary_process->cross_sections;
-    std::set<LI::dataclasses::Particle::ParticleType> target_types = cross_sections->TargetTypes();
-    position_distribution = std::make_shared<LI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
+    position_distribution = std::make_shared<LI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func);
     primary_process->injection_distributions.push_back(position_distribution);
     SetPrimaryProcess(primary_process);
     for(auto & sec_process : secondary_processes) {

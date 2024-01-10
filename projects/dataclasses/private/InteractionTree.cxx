@@ -1,8 +1,10 @@
 #include "LeptonInjector/dataclasses/InteractionTree.h"
 
+#include <memory>
+
 namespace LI {
 namespace dataclasses {
-  
+
 int InteractionTreeDatum::depth() const {
   int depth = 0;
   if(parent==NULL) return depth;

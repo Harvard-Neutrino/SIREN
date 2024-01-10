@@ -164,6 +164,7 @@ PYBIND11_MODULE(distributions,m) {
 
   class_<LeptonDepthFunction, std::shared_ptr<LeptonDepthFunction>, DepthFunction>(m, "LeptonDepthFunction")
     .def(init<>())
+    .def("__call__", &LeptonDepthFunction::operator())
     .def("SetMuParams",&LeptonDepthFunction::SetMuParams)
     .def("SetTauParams",&LeptonDepthFunction::SetTauParams)
     .def("SetScale",&LeptonDepthFunction::SetScale)
@@ -194,7 +195,7 @@ PYBIND11_MODULE(distributions,m) {
 
   class_<DecayRangePositionDistribution, std::shared_ptr<DecayRangePositionDistribution>, VertexPositionDistribution>(m, "DecayRangePositionDistribution")
     .def(init<>())
-    .def(init<double, double, std::shared_ptr<DecayRangeFunction>, std::set<LI::dataclasses::Particle::ParticleType>>())
+    .def(init<double, double, std::shared_ptr<DecayRangeFunction>>())
     .def("GenerationProbability",&DecayRangePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&DecayRangePositionDistribution::InjectionBounds)
     .def("Name",&DecayRangePositionDistribution::Name);

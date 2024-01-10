@@ -1,9 +1,11 @@
-#include "LeptonInjector/math/Vector3D.h"
-
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
+
+#include <array>                                           // for array
+#include <cmath>                                           // for sqrt
+#include <string>                                          // for basic_string
+
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/math/Vector3D.h"                  // for Vector3D
 
 namespace LI {
 namespace distributions {

@@ -4,8 +4,7 @@
 
 #include <memory>
 #include <string>
-#include <vector>
-#include <utility>
+#include <cstdint>
 #include <stdexcept>
 
 #include <cereal/access.hpp>
@@ -13,8 +12,15 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
+#include "LeptonInjector/math/Vector3D.h"
+
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class WeightableDistribution; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace math {

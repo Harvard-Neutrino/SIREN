@@ -25,6 +25,13 @@ public:
     SecondaryProcessFailure(const char * s) : std::runtime_error(s) {};
 };
 
+class PythonImplementationError : public std::runtime_error {
+public:
+    PythonImplementationError() : std::runtime_error("") {};
+    PythonImplementationError(const std::string& s) : std::runtime_error(s) {};
+    PythonImplementationError(const char * s) : std::runtime_error(s) {};
+};
+
 }
 }
 

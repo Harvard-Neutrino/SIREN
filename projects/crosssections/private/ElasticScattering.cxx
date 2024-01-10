@@ -1,19 +1,26 @@
-#include <set>
-#include <vector>
-#include <string>
-#include <memory>
-#include <algorithm>
-
-#include <rk/rk.hh>
-#include <rk/geom3.hh>
-
-#include "LeptonInjector/dataclasses/Particle.h"
-
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Integration.h"
-
-#include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/ElasticScattering.h"
+
+#include <set>                                                // for set
+#include <array>                                              // for array
+#include <cmath>                                              // for pow, sqrt
+#include <string>                                             // for basic_s...
+#include <vector>                                             // for vector
+#include <assert.h>                                           // for assert
+#include <stddef.h>                                           // for size_t
+#include <iostream>                                           // for basic_o...
+#include <algorithm>
+#include <functional>
+
+#include <rk/geom3.hh>                                        // for Vector3
+#include <rk/rk.hh>                                           // for P4, Boost
+
+#include "LeptonInjector/crosssections/CrossSection.h"        // for CrossSe...
+#include "LeptonInjector/dataclasses/InteractionRecord.h"     // for Interac...
+#include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
+#include "LeptonInjector/dataclasses/Particle.h"              // for Particle
+#include "LeptonInjector/utilities/Constants.h"               // for electro...
+#include "LeptonInjector/utilities/Integration.h"             // for romberg...
+#include "LeptonInjector/utilities/Random.h"                  // for LI_random
 
 namespace LI {
 namespace crosssections {

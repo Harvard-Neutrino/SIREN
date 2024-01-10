@@ -7,11 +7,9 @@ LIST (APPEND utilities_SOURCES
 add_library(LI_utilities OBJECT ${utilities_SOURCES})
 set_property(TARGET LI_utilities PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_utilities PUBLIC
-    ${PROJECT_SOURCE_DIR}/projects/utilities/public/
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/utilities/public/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/LeptonInjector/utilities/>
 )
-
-install(TARGETS LI_utilities
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/utilities/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

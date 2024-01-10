@@ -1,15 +1,14 @@
-#include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
-
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-
-#include "LeptonInjector/utilities/Random.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/OrientedCylinderPositionDistribution.h"
+
+#include <array>                                           // for array
+#include <cmath>                                           // for sqrt, cos
+
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/math/Quaternion.h"                // for rotation_b...
+#include "LeptonInjector/math/Vector3D.h"                  // for Vector3D
+#include "LeptonInjector/utilities/Random.h"               // for LI_random
+
+namespace LI { namespace distributions { class WeightableDistribution; } }
 
 namespace LI {
 namespace distributions {

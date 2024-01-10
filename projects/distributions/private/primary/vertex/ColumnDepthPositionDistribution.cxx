@@ -1,18 +1,24 @@
-#include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
+
+#include <array>
+#include <cmath>
+#include <tuple>
+#include <string>
+#include <vector>
 
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
-
-#include "LeptonInjector/utilities/Random.h"
+#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/dataclasses/Particle.h"
-
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
-#include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
-
+#include "LeptonInjector/math/Quaternion.h"
+#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/utilities/Errors.h"
+#include "LeptonInjector/utilities/Random.h"
 
 namespace LI {
 namespace distributions {
@@ -130,7 +136,6 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     path.ClipToOuterBounds();
 
     LI::math::Vector3D earth_vertex = earth_model->GetEarthCoordPosFromDetCoordPos(vertex);
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: earth_vertex (" << earth_vertex.GetX() << ", " << earth_vertex.GetY() << ", " << earth_vertex.GetZ() << ")" << std::endl;
 
     if(not path.IsWithinBounds(earth_vertex))
         return 0.0;
@@ -162,8 +167,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: traversed_interaction_depth " << traversed_interaction_depth << std::endl;
 
     double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_vertex, targets, total_cross_sections, total_decay_length);
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: interaction_density " << interaction_density << std::endl;
-    
+
     double prob_density;
     if(total_interaction_depth < 1e-6) {
         prob_density = interaction_density / total_interaction_depth;

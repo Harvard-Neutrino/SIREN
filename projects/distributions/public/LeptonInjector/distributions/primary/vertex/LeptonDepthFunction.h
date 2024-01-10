@@ -2,21 +2,25 @@
 #ifndef LI_LeptonDepthFunction_H
 #define LI_LeptonDepthFunction_H
 
-#include <memory>
+#include <cereal/types/polymorphic.hpp>
+#include <set>
+#include <cstdint>
 #include <stdexcept>
 
 #include <cereal/access.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
 #include <cereal/types/set.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
+#include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 
+namespace LI { namespace dataclasses { struct InteractionSignature; } }
+
 namespace LI {
-namespace dataclassses {
-class InteractionSignature;
-}
 namespace distributions {
 
 class LeptonDepthFunction : virtual public DepthFunction {

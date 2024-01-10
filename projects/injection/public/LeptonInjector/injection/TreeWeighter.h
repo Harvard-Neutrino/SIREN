@@ -2,13 +2,10 @@
 #ifndef LI_TreeWeighter_H
 #define LI_TreeWeighter_H
 
-#include <queue>
-#include <memory> // adds shared pointer
-#include <iostream>
-
-#include <photospline/bspline.h>
-#include <photospline/splinetable.h>
-#include <photospline/cinter/splinetable.h>
+#include <map>                                           // for map
+#include <memory>                                        // for shared_ptr
+#include <vector>                                        // for vector
+#include <utility>                                       // for pair
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -18,17 +15,17 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/math/Coordinates.h"
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/injection/InjectorBase.h"
-#include "LeptonInjector/injection/WeightingUtils.h"
+#include "LeptonInjector/dataclasses/InteractionTree.h"  // for InteractionT...
+#include "LeptonInjector/dataclasses/Particle.h"         // for Particle
 
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
-
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
-
-#include "LeptonInjector/injection/Process.h"
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class WeightableDistribution; } }
+namespace LI { namespace injection { class InjectorBase; } }
+namespace LI { namespace injection { struct InjectionProcess; } }
+namespace LI { namespace injection { struct PhysicalProcess; } }
+namespace LI { namespace math { class Vector3D; } }
 
 namespace LI {
 namespace injection {

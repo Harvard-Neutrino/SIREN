@@ -1,24 +1,38 @@
+#include "LeptonInjector/detector/EarthModel.h"
+
 #include <tuple>
-#include <string>
+#include <cmath>
+#include <cctype>
+#include <memory>
 #include <vector>
-#include <fstream>
+#include <string>
+#include <limits>
 #include <numeric>
-#include <sstream>
+#include <utility>
+#include <assert.h>
 #include <iostream>
 #include <iterator>
+#include <stddef.h>
+#include <stdlib.h>
 #include <algorithm>
+#include <initializer_list>
 
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/math/EulerQuaternionConversions.h"
+
+#include "LeptonInjector/detector/MaterialModel.h"
+
+#include "LeptonInjector/detector/RadialAxis1D.h"
+#include "LeptonInjector/detector/DensityDistribution.h"
 #include "LeptonInjector/detector/ConstantDensityDistribution.h"
 #include "LeptonInjector/detector/RadialAxisPolynomialDensityDistribution.h"
-#include "LeptonInjector/detector/EarthModel.h"
 
 #include "LeptonInjector/geometry/Box.h"
 #include "LeptonInjector/geometry/Sphere.h"
 #include "LeptonInjector/geometry/Cylinder.h"
 #include "LeptonInjector/geometry/ExtrPoly.h"
 
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/math/EulerQuaternionConversions.h"
+#include "LeptonInjector/geometry/Placement.h"
 
 #include "LeptonInjector/utilities/Constants.h"
 
@@ -92,6 +106,24 @@ public:
 
 bool EarthSector::operator==(EarthSector const & o) const {
     return name == o.name and material_id == o.material_id and level == o.level and geo == o.geo and density == o.density;
+}
+
+std::ostream & EarthSector::Print(std::ostream& oss) const {
+    oss << "[EarthSector:\n"
+        << "         Name : " << name << '\n'
+        << "   MaterialID : " << material_id << '\n'
+        << "        Level : " << level << '\n'
+        << "          Geo : " << geo << '\n'
+        << "      Density : " << density << "\n]";
+    return oss;
+}
+
+std::ostream& operator<<(std::ostream& oss, EarthSector const & bcm) {
+    return(bcm.Print(oss));
+}
+
+std::ostream& operator<<(std::ostream& oss, EarthSector & bcm) {
+    return(bcm.Print(oss));
 }
 
 EarthModel::EarthModel() {

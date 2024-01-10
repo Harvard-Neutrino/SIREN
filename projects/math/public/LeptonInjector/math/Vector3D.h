@@ -26,13 +26,14 @@
 #ifndef LI_Vector3D_H
 #define LI_Vector3D_H
 
+#include <array>
+#include <cstdint>
 #include <sstream>
+#include <stdexcept>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
-
-#include <rk/geom3.hh>
 
 namespace LI {
 namespace math {
@@ -48,9 +49,6 @@ public:
     Vector3D(const Vector3D& vector_3d);
     Vector3D(Vector3D&& other);
     Vector3D(std::array<double, 3> const & vec);
-    Vector3D(geom3::UnitVector3 const & vec);
-    Vector3D(geom3::Vector3 const & vec);
-    Vector3D(geom3::Point3 const & vec);
     //Vector3D(const nlohmann::json&);
     ~Vector3D();
 
@@ -61,9 +59,6 @@ public:
     Vector3D& operator=(Vector3D && vector_3d);
 
     operator std::array<double, 3>() const;
-    operator geom3::UnitVector3() const;
-    operator geom3::Vector3() const;
-    operator geom3::Point3() const;
 
     bool operator==(const Vector3D& vector_3d) const;
     bool operator!=(const Vector3D& vector_3d) const;

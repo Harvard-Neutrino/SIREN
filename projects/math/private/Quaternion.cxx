@@ -1,8 +1,11 @@
+#include "LeptonInjector/math/Quaternion.h"
+
 #include <cmath>
 #include <tuple>
-#include <ostream>
+#include <cstdlib>
 #include <sstream>
 #include <utility>
+#include <iterator>
 #include <algorithm>
 
 #include "LeptonInjector/math/Matrix3D.h"
@@ -10,8 +13,6 @@
 #include "LeptonInjector/math/Conversions.h"
 #include "LeptonInjector/math/EulerAngles.h"
 #include "LeptonInjector/math/EulerQuaternionConversions.h"
-
-#include "LeptonInjector/math/Quaternion.h"
 
 using namespace LI::math;
 
@@ -66,14 +67,6 @@ Quaternion::Quaternion(Quaternion&& other) :
 {
 }
 
-Quaternion::Quaternion(geom3::Rotation3::Quaternion const & q) :
-    x_(q.v_.x()),
-    y_(q.v_.y()),
-    z_(q.v_.z()),
-    w_(q.s_)
-{
-}
-
 // destructor
 Quaternion::~Quaternion() {}
 
@@ -104,10 +97,6 @@ Quaternion& Quaternion::operator=(Quaternion const && other) {
     z_ = other.z_;
     w_ = other.w_;
     return *this;
-}
-
-Quaternion::operator geom3::Rotation3::Quaternion() const {
-    return geom3::Rotation3::Quaternion(x_, y_, z_, w_);
 }
 
 bool Quaternion::operator==(const Quaternion& quaternion) const

@@ -2,8 +2,13 @@
 #ifndef LI_SecondaryPositionDistribution_H
 #define LI_SecondaryPositionDistribution_H
 
+#include <limits>
 #include <memory>
 #include <string>
+#include <cstdint>
+#include <utility>
+#include <stddef.h>
+#include <stdexcept>
 
 #include <cereal/access.hpp>
 #include <cereal/types/set.hpp>
@@ -11,32 +16,17 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/dataclasses/Particle.h"
-
+#include "LeptonInjector/dataclasses/InteractionTree.h"
+#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "LeptonInjector/math/Vector3D.h"
 
-#include "LeptonInjector/geometry/Geometry.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
-
-namespace LI {
-namespace utilities {
-class LI_random;
-} // namespace utilities
-
-namespace detector {
-class EarthModel;
-} // namespace detector
-
-namespace dataclasses {
-struct InteractionRecord;
-struct InteractionSignature;
-}
-namespace crosssections {
-class CrossSectionCollection;
-} // namespace crosssections
-} // namespace LeptonInjector
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class WeightableDistribution; } }
+namespace LI { namespace geometry { class Geometry; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace distributions {

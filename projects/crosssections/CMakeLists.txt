@@ -5,35 +5,33 @@ LIST (APPEND crosssections_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/CrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/CrossSectionCollection.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DipoleFromTable.cxx
+    ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DarkNewsCrossSection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DarkNewsDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/NeutrissimoDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DISFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/crosssections/private/HNLFromSpline.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/ElasticScattering.cxx
+    ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DummyCrossSection.cxx
 )
 add_library(LI_crosssections OBJECT ${crosssections_SOURCES})
 set_property(TARGET LI_crosssections PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_crosssections PUBLIC
-    ${PROJECT_SOURCE_DIR}/projects/crosssections/public/
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/crosssections/public/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/LeptonInjector/crosssections/>
 )
-add_dependencies(LI_crosssections rk photospline)
-add_dependencies(LI_crosssections LI_serialization LI_utilities LI_math LI_dataclasses LI_detector)
 
-target_link_libraries(LI_crosssections photospline)
-target_link_libraries(LI_crosssections rk)
-
-get_target_property(photospline_INCLUDES photospline INTERFACE_INCLUDE_DIRECTORIES)
-target_include_directories(LI_crosssections INTERFACE ${CFITSIO_INCLUDE_DIR})
-target_include_directories(LI_crosssections PUBLIC ${photospline_INCLUDES})
-message("cfitsio include dir ${CFITSIO_INCLUDE_DIR}")
-
-target_include_directories(LI_crosssections PUBLIC ${PROJECT_SOURCE_DIR}/vendor/rk/include)
-target_include_directories(LI_crosssections PUBLIC ${PROJECT_SOURCE_DIR}/projects/serialization/public/)
-target_include_directories(LI_crosssections PUBLIC ${PROJECT_SOURCE_DIR}/projects/utilities/public/)
-target_include_directories(LI_crosssections PUBLIC ${PROJECT_SOURCE_DIR}/projects/math/public/)
-target_include_directories(LI_crosssections PUBLIC ${PROJECT_SOURCE_DIR}/projects/detector/public/)
-target_include_directories(LI_crosssections PUBLIC ${PROJECT_SOURCE_DIR}/projects/dataclasses/public/)
-
-install(TARGETS LI_crosssections
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+target_link_libraries(LI_crosssections
+    PRIVATE
+        $<BUILD_INTERFACE:rk_static>
+        pybind11::embed
+    PUBLIC
+        photospline
+        LI_serialization
+        LI_utilities
+        LI_math
+        LI_dataclasses
+        LI_detector
+)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/crosssections/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -47,7 +45,9 @@ package_add_test(UnitTest_DipoleFromTable ${PROJECT_SOURCE_DIR}/projects/crossse
 #package_add_test(UnitTest_ElasticScattering ${PROJECT_SOURCE_DIR}/projects/crosssections/private/test/ElasticScattering_TEST.cxx)
 
 pybind11_add_module(crosssections ${PROJECT_SOURCE_DIR}/projects/crosssections/private/pybindings/crosssections.cxx)
-target_link_libraries(crosssections PRIVATE LeptonInjector photospline rk)
+target_link_libraries(crosssections PRIVATE LeptonInjector photospline rk_static pybind11::embed)
+pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/crosssections/private/pybindings/pyDarkNewsSerializer.cxx)
+target_link_libraries(pyDarkNewsSerializer PRIVATE LeptonInjector photospline rk_static pybind11::embed)
 if(DEFINED SKBUILD)
 set_target_properties(crosssections PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

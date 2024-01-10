@@ -1,7 +1,6 @@
-#include <cmath>
-#include <vector>
-
 #include "LeptonInjector/detector/ExponentialDistribution1D.h"
+
+#include <cmath>  // for exp
 
 namespace LI {
 namespace detector {

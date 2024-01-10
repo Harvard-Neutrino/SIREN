@@ -28,10 +28,11 @@
 #pragma once
 #ifndef LI_DensityDistribution_H
 #define LI_DensityDistribution_H
-#include <memory>
-#include <string>
-#include <exception>
-#include <functional>
+
+#include <string>                          // for basic_string
+#include <memory>                          // for shared_ptr
+#include <cstdint>                         // for uint32_t
+#include <exception>                       // for exception
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

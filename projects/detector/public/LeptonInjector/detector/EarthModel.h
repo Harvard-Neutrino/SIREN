@@ -2,9 +2,14 @@
 #ifndef LI_EarthModel_H
 #define LI_EarthModel_H
 
-#include <memory>
-#include <string>
-#include <vector>
+#include <map>                                      // for map
+#include <set>                                      // for set
+#include <array>                                    // for array
+#include <memory>                                   // for shared_ptr
+#include <cstdint>                                  // for uint32_t
+#include <stdexcept>                                // for runtime_error
+#include <functional>                               // for function
+#include <type_traits>                              // for enable_if, is_same
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -19,14 +24,14 @@
 
 #include "LeptonInjector/serialization/array.h"
 
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/geometry/Placement.h"
-#include "LeptonInjector/detector/DensityDistribution.h"
-#include "LeptonInjector/detector/MaterialModel.h"
+#include "LeptonInjector/dataclasses/Particle.h"    // for Particle
+#include "LeptonInjector/detector/MaterialModel.h"  // for MaterialModel
+#include "LeptonInjector/geometry/Geometry.h"       // for Geometry
+#include "LeptonInjector/math/Vector3D.h"           // for Vector3D
 
-#include "LeptonInjector/utilities/Constants.h"
 #include "LeptonInjector/dataclasses/Particle.h"
+
+namespace LI { namespace detector { class DensityDistribution; } }
 
 namespace LI {
 namespace detector {
@@ -50,6 +55,7 @@ struct EarthSector {
             throw std::runtime_error("EarthSector only supports version <= 0!");
         }
     }
+	std::ostream & Print(std::ostream& oss) const;
 };
 
 class EarthModel {
@@ -188,6 +194,10 @@ public:
 
 } // namespace detector
 } // namespace LI
+
+
+std::ostream& operator<<(std::ostream& oss, LI::detector::EarthSector const & bcm);
+std::ostream& operator<<(std::ostream& oss, LI::detector::EarthSector & bcm);
 
 #include "LeptonInjector/detector/EarthModel.tcc"
 

@@ -1,13 +1,14 @@
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
-
-#include "LeptonInjector/crosssections/CrossSection.h"
-
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
+
+#include <array>                                              // for array
+#include <string>                                             // for basic_s...
+#include <stdlib.h>                                           // for abs
+
+#include "LeptonInjector/dataclasses/InteractionRecord.h"     // for Interac...
+#include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
+#include "LeptonInjector/dataclasses/Particle.h"              // for Particle
+#include "LeptonInjector/distributions/Distributions.h"       // for Injecti...
+#include "LeptonInjector/math/Vector3D.h"                     // for Vector3D
 
 namespace LI {
 namespace distributions {

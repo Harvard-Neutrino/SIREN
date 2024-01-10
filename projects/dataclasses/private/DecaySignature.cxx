@@ -1,7 +1,6 @@
-#include <tuple>
-
-#include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/dataclasses/DecaySignature.h"
+
+#include <tuple>
 
 namespace LI {
 namespace dataclasses {

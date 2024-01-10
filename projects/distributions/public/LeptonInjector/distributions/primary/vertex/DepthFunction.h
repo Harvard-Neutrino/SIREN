@@ -2,21 +2,19 @@
 #ifndef LI_DepthFunction_H
 #define LI_DepthFunction_H
 
-#include <memory>
-#include <string>
-#include <utility>
+#include <cstdint>            // for uint32_t
+#include <stdexcept>          // for runtime_error
 
 #include <cereal/access.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
+namespace LI { namespace dataclasses { struct InteractionSignature; } }
 
 namespace LI {
-namespace dataclassses {
-class InteractionSignature;
-}
 namespace distributions {
 
 class DepthFunction {

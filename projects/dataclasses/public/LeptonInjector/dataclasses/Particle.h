@@ -5,12 +5,10 @@
 // Used to define the Particle class
 // Partiles have a type, energy, position, and direction
 
-// !!! Important !!!
-// At the moment, only leptons (charged + uncharged) and hadrons are fully supported
-
+#include <set>
 #include <string>
-#include <utility> // std::pair
-#include <exception>
+#include <utility>
+#include <stdint.h>
 
 #include <cereal/cereal.hpp>
 #include <cereal/access.hpp>
@@ -19,10 +17,7 @@
 
 #include <cereal/types/set.hpp>
 #include <cereal/types/utility.hpp>
-
-#include "LeptonInjector/utilities/Constants.h"
-
-// positions are in Cartesian, centered in the middle of IceCube
+#include <cereal/details/helpers.hpp>
 
 namespace LI {
 namespace dataclasses {
@@ -42,14 +37,22 @@ public:
         Pi0 = 111,
         PiPlus = 211,
         PiMinus = -211,
+        Rho0 = 113,
+        RhoPlus = 213,
+        RhoMinus = -213,
         K0_Long = 130,
         KPlus = 321,
         KMinus = -321,
+        KStarPlus = 9000311,
+        KStarMinus = -9000311,
         Neutron = 2112,
         PPlus = 2212,
         PMinus = -2212,
         K0_Short = 310,
         Eta = 221,
+        EtaPrime= 331,
+        Omega = 223,
+        Phi = 333,
         Lambda = 3122,
         SigmaPlus = 3222,
         Sigma0 = 3212,
@@ -185,6 +188,22 @@ public:
         Qball = 10000000,
 
         /* The following are fake particles used in Icetray and have no official codes */
+
+        /* Start with DarkNews particles. These are defined according to:
+           PDGID  =  59(particle spin code: 0-scalar 1-fermion 2-vector)(generation number)
+        */
+        NuLight = 5910,
+        Nu1 = 5911,
+        Nu2 = 5912,
+        Nu3 = 5913,
+        N4 = 5914,
+        N5 = 5915,
+        N6 = 5916,
+        ZPrime = 5921,
+        HPrime = 5901,
+        PhiPrime = 5902,
+        ALP = 5903,
+
         /* The section abs(code) > 2000000000 is reserved for this kind of use */
         NuF4 = 2000000018,
         NuF4Bar = -2000000018,

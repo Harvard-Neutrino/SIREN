@@ -28,9 +28,12 @@
  *                                                                            *
  ******************************************************************************/
 
-#include <functional>
+#include <string>
 #include <vector>
+#include <cstdint>
 #include <fstream>
+#include <stdexcept>
+#include <functional>
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/vector.hpp>

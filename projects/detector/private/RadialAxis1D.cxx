@@ -1,5 +1,6 @@
-#include "LeptonInjector/math/Vector3D.h"
 #include "LeptonInjector/detector/RadialAxis1D.h"
+
+#include "LeptonInjector/math/Vector3D.h"
 
 namespace LI {
 namespace detector {

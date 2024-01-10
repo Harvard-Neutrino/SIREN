@@ -1,13 +1,18 @@
-#include <fstream>
-
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Interpolator.h"
-#include "LeptonInjector/utilities/Integration.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
 #include "LeptonInjector/distributions/primary/energy/TabulatedFluxDistribution.h"
+#include <array>                                           // for array
+#include <tuple>                                           // for tie, opera...
+#include <vector>                                          // for vector
+#include <fstream>                                         // for basic_istream
+#include <functional>                                      // for function
+
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
+#include "LeptonInjector/utilities/Integration.h"          // for rombergInt...
+#include "LeptonInjector/utilities/Interpolator.h"         // for TableData1D
+#include "LeptonInjector/utilities/Random.h"               // for LI_random
+
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace detector { class EarthModel; } }
 
 namespace LI {
 namespace distributions {
@@ -197,11 +202,7 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
 
 double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     // inverse CDF algorithm to sample from PDF.
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0, 1);
-    // Generate a random number from a uniform distribution [0, 1]
-    double randomValue = dis(gen);
+    double randomValue = rand->Uniform(0,1);
 
     return inverseCdfTable(randomValue);
 }

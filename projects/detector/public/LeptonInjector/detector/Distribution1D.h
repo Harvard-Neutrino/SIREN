@@ -1,10 +1,8 @@
 #pragma once
 #ifndef LI_Distribution1D_H
 #define LI_Distribution1D_H
-#include <memory>
-#include <string>
-#include <exception>
-#include <functional>
+#include <memory>                 // for shared_ptr
+#include <cstdint>                // for uint32_t
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

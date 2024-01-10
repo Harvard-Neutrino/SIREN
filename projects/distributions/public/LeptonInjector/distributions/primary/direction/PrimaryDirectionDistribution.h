@@ -2,14 +2,19 @@
 #ifndef LI_PrimaryDirectionDistribution_H
 #define LI_PrimaryDirectionDistribution_H
 
-#include <string>
+#include <string>                                        // for string
+#include <memory>                                        // for shared_ptr
+#include <vector>                                        // for vector
+#include <cstdint>                                       // for uint32_t
+#include <stdexcept>                                     // for runtime_error
 
-#include <cereal/access.hpp>
-#include <cereal/types/polymorphic.hpp>
-#include <cereal/types/base_class.hpp>
-#include <cereal/types/utility.hpp>
+#include "LeptonInjector/distributions/Distributions.h"  // for WeightableDi...
 
-#include "LeptonInjector/distributions/Distributions.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace math { class Vector3D; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace utilities {

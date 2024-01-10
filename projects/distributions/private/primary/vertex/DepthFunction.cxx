@@ -1,6 +1,9 @@
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
-#include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
+
+#include <typeinfo>   // for type_info
+#include <typeindex>  // for type_index
+
+namespace LI { namespace dataclasses { struct InteractionSignature; } }
 
 namespace LI {
 namespace distributions {

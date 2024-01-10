@@ -2,25 +2,27 @@
 #ifndef LI_TabulatedFluxDistribution_H
 #define LI_TabulatedFluxDistribution_H
 
+#include <memory>
 #include <string>
+#include <cstdint>
+#include <stddef.h>
+#include <stdexcept>
+#include <vector>
 
 #include <cereal/access.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include <iostream>
-#include <numeric>
-#include <algorithm>
-#include <cmath>
-#include <random>
-#include <vector>
-#include <iterator>
-
+#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
 #include "LeptonInjector/utilities/Interpolator.h"
 
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class WeightableDistribution; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace distributions {

@@ -1,31 +1,32 @@
-#include <cassert>
-#include <fstream>
+#include "LeptonInjector/injection/InjectorBase.h"
+
+#include <array>
+#include <cmath>
+#include <string>
 #include <algorithm>
 
 #include <rk/rk.hh>
 
-#include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
-
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/Decay.h"
+#include "LeptonInjector/dataclasses/DecayRecord.h"
+#include "LeptonInjector/dataclasses/DecaySignature.h"
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
-
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/injection/Weighter.h"
+#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/MaterialModel.h"
+#include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
-
-// For CrossSectionProbability
-#include "LeptonInjector/injection/WeightingUtils.h"
-
-#include "LeptonInjector/injection/InjectorBase.h"
-
-#include "LeptonInjector/utilities/Errors.h"
-
+#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/injection/Process.h"
-#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/injection/WeightingUtils.h"
+#include "LeptonInjector/math/Vector3D.h"
+#include "LeptonInjector/utilities/Constants.h"
+#include "LeptonInjector/utilities/Errors.h"
+#include "LeptonInjector/utilities/Random.h"
 
 namespace LI {
 namespace injection {
@@ -85,7 +86,8 @@ void InjectorBase::SetPrimaryProcess(std::shared_ptr<LI::injection::InjectionPro
   try {
     vtx_dist = FindPositionDistribution(primary);
   } catch(LI::utilities::AddProcessFailure const & e) {
-    return;
+    std::cerr << e.what() << std::endl;
+    exit(0);
   }
   primary_process = primary;
   primary_position_distribution = vtx_dist;
@@ -96,7 +98,8 @@ void InjectorBase::AddSecondaryProcess(std::shared_ptr<LI::injection::InjectionP
   try {
     vtx_dist = FindPositionDistribution(secondary);
   } catch(LI::utilities::AddProcessFailure const & e) {
-    return;
+    std::cerr << e.what() << std::endl;
+    exit(0);
   }
   secondary_processes.push_back(secondary);
   secondary_position_distributions.push_back(vtx_dist);

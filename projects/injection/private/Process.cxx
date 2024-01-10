@@ -1,5 +1,7 @@
 #include "LeptonInjector/injection/Process.h"
 
+#include <tuple>
+
 namespace LI {
 namespace injection {
 

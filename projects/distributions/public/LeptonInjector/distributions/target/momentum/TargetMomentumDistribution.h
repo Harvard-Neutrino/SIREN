@@ -2,11 +2,12 @@
 #ifndef LI_TargetMomentumDistribution_H
 #define LI_TargetMomentumDistribution_H
 
+#include <array>                                         // for array
 #include <memory>
 #include <string>
-#include <vector>
-#include <utility>
-#include <stdexcept>
+#include <vector>                                        // for vector
+#include <cstdint>                                       // for uint32_t
+#include <stdexcept>                                     // for runtime_error
 
 #include <cereal/access.hpp>
 #include <cereal/types/array.hpp>
@@ -14,29 +15,12 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/serialization/array.h"
+#include "LeptonInjector/distributions/Distributions.h"  // for InjectionDis...
 
-#include "LeptonInjector/math/Vector3D.h"
-
-#include "LeptonInjector/distributions/Distributions.h"
-
-namespace LI {
-namespace utilities {
-class LI_random;
-} // namespace utilities
-
-namespace detector {
-class EarthModel;
-} // namespace detector
-
-namespace dataclasses {
-struct InteractionRecord;
-struct InteractionSignature;
-}
-namespace crosssections {
-class CrossSectionCollection;
-} // namespace crosssections
-} // namespace LeptonInjector
+namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
 namespace distributions {

@@ -1,5 +1,7 @@
-
 #include "LeptonInjector/math/Interpolation.h"
+
+#include <tuple>
+#include <memory>
 
 namespace LI {
 namespace math {

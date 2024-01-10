@@ -1,23 +1,26 @@
-#include <map>
-#include <set>
-#include <cctype>
-#include <vector>
-#include <string>
-#include <memory>
-#include <algorithm>
-
-#include <rk/rk.hh>
-#include <rk/geom3.hh>
-
-#include <photospline/splinetable.h>
-#include <photospline/cinter/splinetable.h>
-
-#include "LeptonInjector/dataclasses/Particle.h"
-
-#include "LeptonInjector/utilities/Random.h"
-
-#include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/DISFromSpline.h"
+
+#include <map>                                             // for map, opera...
+#include <set>                                             // for set, opera...
+#include <array>                                           // for array
+#include <cmath>                                           // for pow, log10
+#include <tuple>                                           // for tie, opera...
+#include <memory>                                          // for allocator
+#include <string>                                          // for basic_string
+#include <vector>                                          // for vector
+#include <assert.h>                                        // for assert
+#include <stddef.h>                                        // for size_t
+
+#include <rk/rk.hh>                                        // for P4, Boost
+#include <rk/geom3.hh>                                     // for Vector3
+
+#include <photospline/splinetable.h>                       // for splinetable
+//#include <photospline/cinter/splinetable.h>
+
+#include "LeptonInjector/crosssections/CrossSection.h"     // for CrossSection
+#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "LeptonInjector/dataclasses/Particle.h"           // for Particle
+#include "LeptonInjector/utilities/Random.h"               // for LI_random
 
 namespace LI {
 namespace crosssections {

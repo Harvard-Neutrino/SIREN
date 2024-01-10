@@ -10,6 +10,7 @@
 #include "../../public/LeptonInjector/injection/TreeWeighter.h"
 #include "../../public/LeptonInjector/injection/Weighter.h"
 
+#include "../../../distributions/public/LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
 #include "../../../detector/public/LeptonInjector/detector/EarthModel.h"
 #include "../../../crosssections/public/LeptonInjector/crosssections/CrossSectionCollection.h"
@@ -90,7 +91,7 @@ PYBIND11_MODULE(injection,m) {
 
   class_<LeptonProcessWeighter, std::shared_ptr<LeptonProcessWeighter>>(m, "LeptonProcessWeighter")
     .def(init<std::shared_ptr<PhysicalProcess>, std::shared_ptr<InjectionProcess>, std::shared_ptr<LI::detector::EarthModel>>())
-    //.def("InteractionProbability",&LeptonProcessWeighter::InteractionProbability)
+    .def("InteractionProbability",&LeptonProcessWeighter::InteractionProbability)
     .def("NormalizedPositionProbability",&LeptonProcessWeighter::NormalizedPositionProbability)
     .def("PhysicalProbability",&LeptonProcessWeighter::PhysicalProbability)
     .def("GenerationProbability",&LeptonProcessWeighter::GenerationProbability)

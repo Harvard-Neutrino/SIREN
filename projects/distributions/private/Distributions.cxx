@@ -1,5 +1,10 @@
 #include "LeptonInjector/distributions/Distributions.h"
 
+#include <string>     // for basic_string
+#include <vector>     // for vector
+#include <typeinfo>   // for type_info
+#include <typeindex>  // for type_index
+
 namespace LI {
 namespace distributions {
 
