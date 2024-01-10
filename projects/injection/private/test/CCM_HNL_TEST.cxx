@@ -33,7 +33,7 @@
 #include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
 #include "LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
 
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/InteractionCollection.h"
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/DipoleFromTable.h"
 #include "LeptonInjector/crosssections/Decay.h"
@@ -215,7 +215,7 @@ TEST(Injector, Generation)
     
     std::cout << "GotCrossSections!\n";
 
-    std::shared_ptr<CrossSectionCollection> primary_cross_sections = std::make_shared<CrossSectionCollection>(primary_type, cross_sections);
+    std::shared_ptr<InteractionCollection> primary_cross_sections = std::make_shared<InteractionCollection>(primary_type, cross_sections);
     primary_injection_process_upper_injector->cross_sections = primary_cross_sections;
     primary_injection_process_lower_injector->cross_sections = primary_cross_sections;
     primary_physical_process_upper_injector->cross_sections = primary_cross_sections;
@@ -284,7 +284,7 @@ TEST(Injector, Generation)
     // Assume dirac HNL for now
     std::shared_ptr<NeutrissimoDecay> sec_decay = std::make_shared<NeutrissimoDecay>(hnl_mass, dipole_coupling_vec, NeutrissimoDecay::ChiralNature::Majorana);  
     std::vector<std::shared_ptr<Decay>> sec_decays = {sec_decay};
-    std::shared_ptr<CrossSectionCollection> secondary_cross_sections = std::make_shared<CrossSectionCollection>(ParticleType::NuF4, sec_decays);
+    std::shared_ptr<InteractionCollection> secondary_cross_sections = std::make_shared<InteractionCollection>(ParticleType::NuF4, sec_decays);
     secondary_decay_inj_process->cross_sections = secondary_cross_sections;
     secondary_decay_phys_process->cross_sections = secondary_cross_sections;
 

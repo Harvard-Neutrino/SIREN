@@ -7,30 +7,30 @@
 #include <pybind11/stl.h>
 
 #include "../../public/LeptonInjector/crosssections/CrossSection.h"
-#include "../../public/LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "../../public/LeptonInjector/crosssections/InteractionCollection.h"
 #include "../../public/LeptonInjector/crosssections/Decay.h"
 #include "../../../dataclasses/public/LeptonInjector/dataclasses/Particle.h"
 #include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
 
-void register_CrossSectionCollection(pybind11::module_ & m) {
+void register_InteractionCollection(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace LI::crosssections;
 
-    class_<CrossSectionCollection, std::shared_ptr<CrossSectionCollection>>(m, "CrossSectionCollection")
+    class_<InteractionCollection, std::shared_ptr<InteractionCollection>>(m, "InteractionCollection")
         .def(init<>())
         .def(init<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())
         .def(init<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<Decay>>>())
         .def(init<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>>())
         .def(self == self)
-        .def("GetDecays",&CrossSectionCollection::GetDecays)
-        .def("HasCrossSections",&CrossSectionCollection::HasCrossSections)
-        .def("HasDecays",&CrossSectionCollection::HasDecays)
-        .def("GetCrossSectionsForTarget",&CrossSectionCollection::GetCrossSectionsForTarget)
-        .def("GetCrossSectionsByTarget",&CrossSectionCollection::GetCrossSectionsByTarget)
-        .def("TargetTypes",&CrossSectionCollection::TargetTypes)
-        .def("TotalDecayWidth",&CrossSectionCollection::TotalDecayWidth)
-        .def("TotalDecayLength",&CrossSectionCollection::TotalDecayLength)
-        .def("MatchesPrimary",&CrossSectionCollection::MatchesPrimary)
+        .def("GetDecays",&InteractionCollection::GetDecays)
+        .def("HasCrossSections",&InteractionCollection::HasCrossSections)
+        .def("HasDecays",&InteractionCollection::HasDecays)
+        .def("GetCrossSectionsForTarget",&InteractionCollection::GetCrossSectionsForTarget)
+        .def("GetCrossSectionsByTarget",&InteractionCollection::GetCrossSectionsByTarget)
+        .def("TargetTypes",&InteractionCollection::TargetTypes)
+        .def("TotalDecayWidth",&InteractionCollection::TotalDecayWidth)
+        .def("TotalDecayLength",&InteractionCollection::TotalDecayLength)
+        .def("MatchesPrimary",&InteractionCollection::MatchesPrimary)
         ;
 }

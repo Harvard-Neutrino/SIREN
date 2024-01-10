@@ -27,7 +27,7 @@
 
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
 #include "../../../detector/public/LeptonInjector/detector/EarthModel.h"
-#include "../../../crosssections/public/LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "../../../crosssections/public/LeptonInjector/crosssections/InteractionCollection.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
@@ -56,8 +56,8 @@ PYBIND11_MODULE(distributions,m) {
     .def("Name",&NormalizationConstant::Name);
 
   class_<InjectionDistribution, std::shared_ptr<InjectionDistribution>, WeightableDistribution>(m, "InjectionDistribution")
-    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord &>(&InjectionDistribution::Sample, const_))
-    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum &>(&InjectionDistribution::Sample, const_))
+    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::InteractionCollection const>, LI::dataclasses::InteractionRecord &>(&InjectionDistribution::Sample, const_))
+    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::InteractionCollection const>, LI::dataclasses::InteractionTreeDatum &>(&InjectionDistribution::Sample, const_))
     .def("IsPositionDistribution",&InjectionDistribution::IsPositionDistribution);
 
   // Direciton distributions
@@ -219,12 +219,12 @@ PYBIND11_MODULE(distributions,m) {
     .def(init<double>())
     .def(init<double, std::shared_ptr<LI::geometry::Geometry>>())
     .def(init<std::shared_ptr<LI::geometry::Geometry>>())
-    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord &>(&SecondaryPositionDistribution::Sample, const_))
-    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum &>(&SecondaryPositionDistribution::Sample, const_))
-    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPositionDistribution::GenerationProbability, const_))
-    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum const &>(&SecondaryPositionDistribution::GenerationProbability, const_))
-    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
-    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::CrossSectionCollection const>, LI::dataclasses::InteractionTreeDatum const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
+    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::InteractionCollection const>, LI::dataclasses::InteractionRecord &>(&SecondaryPositionDistribution::Sample, const_))
+    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::InteractionCollection const>, LI::dataclasses::InteractionTreeDatum &>(&SecondaryPositionDistribution::Sample, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPositionDistribution::GenerationProbability, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::InteractionCollection const>, LI::dataclasses::InteractionTreeDatum const &>(&SecondaryPositionDistribution::GenerationProbability, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::crosssections::InteractionCollection const>, LI::dataclasses::InteractionTreeDatum const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
     .def("Name",&SecondaryPositionDistribution::Name);
 
   // Target momentum distributions

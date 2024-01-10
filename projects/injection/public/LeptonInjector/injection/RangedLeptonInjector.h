@@ -18,7 +18,7 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/InteractionCollection.h"
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/Decay.h"
 #include "LeptonInjector/detector/EarthModel.h"
@@ -41,7 +41,7 @@ protected:
     double disk_radius;
     double endcap_length;
     std::shared_ptr<LI::distributions::RangePositionDistribution> position_distribution;
-    std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections;
+    std::shared_ptr<LI::crosssections::InteractionCollection> cross_sections;
     RangedLeptonInjector();
 public:
     RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::RangeFunction> range_func, double disk_radius, double endcap_length);

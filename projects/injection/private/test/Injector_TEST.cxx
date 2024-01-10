@@ -31,7 +31,7 @@
 #include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/InteractionCollection.h"
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/DipoleFromTable.h"
 
@@ -156,7 +156,7 @@ bool inFiducial(std::array<double,3> & int_vtx, Sphere & fidVol) {
     return fidVol.IsInside(pos,dir);
 }
 
-double ComputeInteractionLengths(std::shared_ptr<EarthModel const> earth_model, std::shared_ptr<CrossSectionCollection const> cross_sections, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
+double ComputeInteractionLengths(std::shared_ptr<EarthModel const> earth_model, std::shared_ptr<InteractionCollection const> cross_sections, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
     Vector3D interaction_vertex = record.interaction_vertex;
     Vector3D direction(
             record.primary_momentum[1],

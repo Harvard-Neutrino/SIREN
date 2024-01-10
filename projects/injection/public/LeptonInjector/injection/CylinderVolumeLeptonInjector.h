@@ -20,7 +20,7 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/InteractionCollection.h"
 #include "LeptonInjector/crosssections/CrossSection.h"
 #include "LeptonInjector/crosssections/Decay.h"
 #include "LeptonInjector/detector/EarthModel.h"
@@ -48,7 +48,7 @@ class CylinderVolumeLeptonInjector : public InjectorBase {
 friend cereal::access;
 protected:
     std::shared_ptr<LI::distributions::CylinderVolumePositionDistribution> position_distribution;
-    std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections;
+    std::shared_ptr<LI::crosssections::InteractionCollection> cross_sections;
     CylinderVolumeLeptonInjector();
 public:
     CylinderVolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, LI::geometry::Cylinder cylinder);

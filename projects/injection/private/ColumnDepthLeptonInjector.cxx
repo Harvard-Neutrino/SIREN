@@ -5,7 +5,7 @@
 #include <vector>
 #include <utility>
 
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/InteractionCollection.h"
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
 #include "LeptonInjector/injection/InjectorBase.h"

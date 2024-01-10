@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_CrossSectionCollection_H
-#define LI_CrossSectionCollection_H
+#ifndef LI_InteractionCollection_H
+#define LI_InteractionCollection_H
 
 #include <map>                                    // for map
 #include <set>                                    // for set
@@ -32,7 +32,7 @@ namespace LI { namespace dataclasses { struct InteractionRecord; } }
 namespace LI {
 namespace crosssections {
 
-class CrossSectionCollection{
+class InteractionCollection{
 private:
     LI::dataclasses::Particle::ParticleType primary_type;
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
@@ -42,12 +42,12 @@ private:
     static const std::vector<std::shared_ptr<CrossSection>> empty;
     void InitializeTargetTypes();
 public:
-    CrossSectionCollection();
-    virtual ~CrossSectionCollection() {};
-    CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
-    CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays);
-    CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays);
-    bool operator==(CrossSectionCollection const & other) const;
+    InteractionCollection();
+    virtual ~InteractionCollection() {};
+    InteractionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
+    InteractionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays);
+    InteractionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays);
+    bool operator==(InteractionCollection const & other) const;
     std::vector<std::shared_ptr<CrossSection>> const & GetCrossSections() const {return cross_sections;}
     std::vector<std::shared_ptr<Decay>> const & GetDecays() const {return decays;}
     bool const HasCrossSections() const {return cross_sections.size() > 0;}
@@ -70,7 +70,7 @@ public:
             archive(cereal::make_nvp("CrossSections", cross_sections));
             archive(cereal::make_nvp("Decays", decays));
         } else {
-            throw std::runtime_error("CrossSectionCollection only supports version <= 0!");
+            throw std::runtime_error("InteractionCollection only supports version <= 0!");
         }
     }
 
@@ -81,7 +81,7 @@ public:
             archive(cereal::make_nvp("CrossSections", cross_sections));
             archive(cereal::make_nvp("Decays", decays));
         } else {
-            throw std::runtime_error("CrossSectionCollection only supports version <= 0!");
+            throw std::runtime_error("InteractionCollection only supports version <= 0!");
         }
     }
 };
@@ -89,6 +89,6 @@ public:
 } // namespace crosssections
 } // namespace LI
 
-CEREAL_CLASS_VERSION(LI::crosssections::CrossSectionCollection, 0);
+CEREAL_CLASS_VERSION(LI::crosssections::InteractionCollection, 0);
 
-#endif // LI_CrossSectionCollection_H
+#endif // LI_InteractionCollection_H
