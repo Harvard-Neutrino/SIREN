@@ -9,6 +9,7 @@
 #include "../../public/LeptonInjector/injection/RangedLeptonInjector.h"
 #include "../../public/LeptonInjector/injection/TreeWeighter.h"
 #include "../../public/LeptonInjector/injection/Weighter.h"
+#include "../../public/LeptonInjector/injection/WeightingUtils.h"
 
 #include "../../../distributions/public/LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
@@ -28,7 +29,7 @@ PYBIND11_MODULE(injection,m) {
 
   // Utils function
     
-    m.def("CrossSectionProbability", &CrossSectionProbability);
+  m.def("CrossSectionProbability", &CrossSectionProbability);
     
   // Process
 
