@@ -24,12 +24,26 @@ namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI {
 namespace injection {
 
-struct Process {
+class Process {
+private:
     LI::dataclasses::Particle::ParticleType primary_type;
     std::shared_ptr<interactions::InteractionCollection> cross_sections;
-    void SetCrossSections(std::shared_ptr<interactions::InteractionCollection> _cross_sections) {cross_sections = _cross_sections;}
+public:
+    Process() = default;
+    Process(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _cross_sections);
+    Process(Process const & other);
+    Process(Process && other);
+    Process & operator=(Process const & other);
+    Process & operator=(Process && other);
+    virtual ~Process() = default;
+
+    void SetCrossSections(std::shared_ptr<interactions::InteractionCollection> _cross_sections);
+    std::shared_ptr<interactions::InteractionCollection> GetCrossSections() const;
+    void SetPrimaryType(LI::dataclasses::Particle::ParticleType _primary_type);
+    LI::dataclasses::Particle::ParticleType GetPrimaryType() const;
+
     bool operator==(Process const & other) const;
-    bool MatchesHead(std::shared_ptr<Process> const & other) const; // required to compared instances of derived structs
+    bool MatchesHead(std::shared_ptr<Process> const & other) const; // required to compared instances of derived classs
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
@@ -41,33 +55,19 @@ struct Process {
     };
 };
 
-struct InjectionProcess : Process {
-    std::vector<std::shared_ptr<distributions::InjectionDistribution>> injection_distributions;
-    void AddInjectionDistribution(std::shared_ptr<distributions::InjectionDistribution> dist) {
-      for(auto _dist: injection_distributions) {
-        if((*_dist) == (*dist)) return;
-      }
-      injection_distributions.push_back(dist);
-    }
-    template<class Archive>
-    void serialize(Archive & archive, std::uint32_t const version) {
-        if(version == 0) {
-            archive(::cereal::make_nvp("InjectionDistributions", injection_distributions));
-            archive(cereal::virtual_base_class<Process>(this));
-        } else {
-            throw std::runtime_error("InjectionProcess only supports version <= 0!");
-        }
-    };
-};
-
-struct PhysicalProcess : Process{
+class PhysicalProcess : public Process {
+protected:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
-    void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) {
-      for(auto _dist: physical_distributions) {
-        if((*_dist) == (*dist)) return;
-      }
-      physical_distributions.push_back(dist);
-    }
+public:
+    PhysicalProcess() = default;
+    PhysicalProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _cross_sections);
+    PhysicalProcess(PhysicalProcess const & other);
+    PhysicalProcess(PhysicalProcess && other);
+    PhysicalProcess & operator=(PhysicalProcess const & other);
+    PhysicalProcess & operator=(PhysicalProcess && other);
+    virtual ~PhysicalProcess() = default;
+    virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist);
+    std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & GetPhysicalDistributions() const;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
@@ -75,6 +75,31 @@ struct PhysicalProcess : Process{
             archive(cereal::virtual_base_class<Process>(this));
         } else {
             throw std::runtime_error("PhysicalProcess only supports version <= 0!");
+        }
+    };
+};
+
+class InjectionProcess : public PhysicalProcess {
+protected:
+    std::vector<std::shared_ptr<distributions::InjectionDistribution>> injection_distributions;
+public:
+    InjectionProcess() = default;
+    InjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _cross_sections);
+    InjectionProcess(InjectionProcess const & other);
+    InjectionProcess(InjectionProcess && other);
+    InjectionProcess & operator=(InjectionProcess const & other);
+    InjectionProcess & operator=(InjectionProcess && other);
+    virtual ~InjectionProcess() = default;
+    virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) override;
+    virtual void AddInjectionDistribution(std::shared_ptr<distributions::InjectionDistribution> dist);
+    std::vector<std::shared_ptr<distributions::InjectionDistribution>> const & GetInjectionDistributions() const;
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("InjectionDistributions", injection_distributions));
+            archive(cereal::virtual_base_class<PhysicalProcess>(this));
+        } else {
+            throw std::runtime_error("InjectionProcess only supports version <= 0!");
         }
     };
 };

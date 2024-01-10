@@ -38,18 +38,18 @@ ColumnDepthLeptonInjector::ColumnDepthLeptonInjector(
     disk_radius(disk_radius),
     endcap_length(endcap_length)
 {
-    cross_sections = primary_process->cross_sections;
+    cross_sections = primary_process->GetCrossSections();
     std::set<LI::dataclasses::Particle::ParticleType> target_types = cross_sections->TargetTypes();
     position_distribution = std::make_shared<LI::distributions::ColumnDepthPositionDistribution>(disk_radius, endcap_length, depth_func, target_types);
-    primary_process->injection_distributions.push_back(position_distribution);
+    primary_process->AddInjectionDistribution(position_distribution);
     SetPrimaryProcess(primary_process);
     for(auto & sec_process : secondary_processes) {
       AddSecondaryProcess(sec_process);
       // Assume each secondary process already has a position distribution
       // Otherwise uncomment below
       /*
-      target_types = sec_process->cross_sections->TargetTypes();
-      sec_process->injection_distributions.push_back(std::make_shared<LI::distributions::ColumnDepthPositionDistribution>(disk_radius, endcap_length, depth_func, target_types));
+      target_types = sec_process->GetCrossSections()->TargetTypes();
+      sec_process->GetInjectionDistributions().push_back(std::make_shared<LI::distributions::ColumnDepthPositionDistribution>(disk_radius, endcap_length, depth_func, target_types));
       */
     }
 }

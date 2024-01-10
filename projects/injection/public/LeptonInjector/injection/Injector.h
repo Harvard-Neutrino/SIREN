@@ -36,7 +36,7 @@ namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace distributions { class InjectionDistribution; } }
 namespace LI { namespace distributions { class VertexPositionDistribution; } }
 namespace LI { namespace geometry { class Geometry; } }
-namespace LI { namespace injection { struct InjectionProcess; } }
+namespace LI { namespace injection { class InjectionProcess; } }
 namespace LI { namespace math { class Vector3D; } }
 namespace LI { namespace utilities { class LI_random; } }
 

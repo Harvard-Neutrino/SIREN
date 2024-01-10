@@ -241,8 +241,8 @@ class LIController:
             for sec_xs in secondary_interaction_collections:
                 # Match cross section collection on  the primary type
                 if sec_xs.MatchesPrimary(record):
-                    sec_inj.SetCrossSections(sec_xs)
-                    sec_phys.SetCrossSections(sec_xs)
+                    sec_inj.cross_sections = sec_xs
+                    sec_phys.cross_sections = sec_xs
                     found_collection = True
             if(not found_collection):
                 print('Couldn\'t find cross section collection for secondary particle %s; Exiting'%record.primary_type)

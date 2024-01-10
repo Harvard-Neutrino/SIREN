@@ -23,8 +23,8 @@ namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace distributions { class InjectionDistribution; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }
 namespace LI { namespace injection { class Injector; } }
-namespace LI { namespace injection { struct InjectionProcess; } }
-namespace LI { namespace injection { struct PhysicalProcess; } }
+namespace LI { namespace injection { class InjectionProcess; } }
+namespace LI { namespace injection { class PhysicalProcess; } }
 namespace LI { namespace math { class Vector3D; } }
 
 namespace LI {
