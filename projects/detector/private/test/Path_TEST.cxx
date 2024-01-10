@@ -11,7 +11,7 @@
 #include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/geometry/Sphere.h"
 #include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/detector/DensityDistribution.h"
 #include "LeptonInjector/detector/DensityDistribution1D.h"
 #include "LeptonInjector/detector/Distribution1D.h"
@@ -25,7 +25,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"
 
 #include "FakeMaterialModel.h"
-#include "FakeEarthModel.h"
+#include "FakeDetectorModel.h"
 
 using namespace LI::detector;
 using namespace LI::geometry;
@@ -38,7 +38,7 @@ TEST(DefaultConstructor, NoThrow)
 TEST(DefaultConstructor, HasNone)
 {
     Path A;
-    EXPECT_FALSE(A.HasEarthModel());
+    EXPECT_FALSE(A.HasDetectorModel());
     EXPECT_FALSE(A.HasPoints());
     EXPECT_FALSE(A.HasIntersections());
 }
@@ -46,7 +46,7 @@ TEST(DefaultConstructor, HasNone)
 TEST(DefaultConstructor, MembersAreDefault)
 {
     Path A;
-    EXPECT_EQ(std::shared_ptr<const EarthModel>(), A.GetEarthModel());
+    EXPECT_EQ(std::shared_ptr<const DetectorModel>(), A.GetDetectorModel());
     EXPECT_EQ(Vector3D(), A.GetFirstPoint());
     EXPECT_EQ(Vector3D(), A.GetLastPoint());
     EXPECT_EQ(Vector3D(), A.GetDirection());
@@ -54,17 +54,17 @@ TEST(DefaultConstructor, MembersAreDefault)
     EXPECT_EQ(Geometry::IntersectionList(), A.GetIntersections());
 }
 
-TEST(EarthModelConstructor, NoThrow)
+TEST(DetectorModelConstructor, NoThrow)
 {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     EXPECT_NO_THROW(Path A(EMp));
 }
 
-TEST(EarthModelConstructor, MemberValues)
+TEST(DetectorModelConstructor, MemberValues)
 {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Path A(EMp);
-    EXPECT_EQ(EMp, A.GetEarthModel());
+    EXPECT_EQ(EMp, A.GetDetectorModel());
     EXPECT_EQ(Vector3D(), A.GetFirstPoint());
     EXPECT_EQ(Vector3D(), A.GetLastPoint());
     EXPECT_EQ(Vector3D(), A.GetDirection());
@@ -74,7 +74,7 @@ TEST(EarthModelConstructor, MemberValues)
 
 TEST(PointsConstructor, NoThrow)
 {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1, 2, 3);
     Vector3D C(4, 6, 8);
     EXPECT_NO_THROW(Path A(EMp, B, C));
@@ -82,14 +82,14 @@ TEST(PointsConstructor, NoThrow)
 
 TEST(PointsConstructor, MemberValues)
 {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1, 2, 3);
     Vector3D C(4, 6, 8);
     Vector3D direction = C - B;
     double distance = direction.magnitude();
     direction.normalize();
     Path A(EMp, B, C);
-    EXPECT_EQ(EMp, A.GetEarthModel());
+    EXPECT_EQ(EMp, A.GetDetectorModel());
     EXPECT_EQ(B, A.GetFirstPoint());
     EXPECT_EQ(C, A.GetLastPoint());
     EXPECT_EQ(direction, A.GetDirection());
@@ -99,7 +99,7 @@ TEST(PointsConstructor, MemberValues)
 
 TEST(RayConstructor, NoThrow)
 {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1, 2, 3);
     Vector3D C(4, 6, 8);
     Vector3D direction = C - B;
@@ -110,7 +110,7 @@ TEST(RayConstructor, NoThrow)
 
 TEST(RayConstructor, MemberValues)
 {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1, 2, 3);
     Vector3D C(4, 6, 8);
     Vector3D direction = C - B;
@@ -122,7 +122,7 @@ TEST(RayConstructor, MemberValues)
     direction.normalize();
     direction.normalize();
     Path A(EMp, B, direction, distance);
-    EXPECT_EQ(EMp, A.GetEarthModel());
+    EXPECT_EQ(EMp, A.GetDetectorModel());
     EXPECT_EQ(B, A.GetFirstPoint());
     EXPECT_EQ(B + direction * distance, A.GetLastPoint());
     EXPECT_EQ(direction, A.GetDirection());
@@ -130,22 +130,22 @@ TEST(RayConstructor, MemberValues)
     EXPECT_EQ(Geometry::IntersectionList(), A.GetIntersections());
 }
 
-TEST(EarthModel, SetGet) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+TEST(DetectorModel, SetGet) {
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Path A;
-    A.SetEarthModel(EMp);
-    EXPECT_EQ(EMp, A.GetEarthModel());
+    A.SetDetectorModel(EMp);
+    EXPECT_EQ(EMp, A.GetDetectorModel());
 }
 
-TEST(EnsureEarthModel, Throw) {
+TEST(EnsureDetectorModel, Throw) {
     Path A;
-    EXPECT_THROW(A.EnsureEarthModel(), std::runtime_error);
+    EXPECT_THROW(A.EnsureDetectorModel(), std::runtime_error);
 }
 
-TEST(EnsureEarthModel, NoThrow) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+TEST(EnsureDetectorModel, NoThrow) {
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Path A(EMp);
-    EXPECT_NO_THROW(A.EnsureEarthModel());
+    EXPECT_NO_THROW(A.EnsureDetectorModel());
 }
 
 TEST(Points, SetGet) {
@@ -216,7 +216,7 @@ TEST(EnsureIntersections, Throw) {
     Path A;
     EXPECT_THROW(A.EnsureIntersections(), std::runtime_error);
 
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     A = Path(EMp);
     EXPECT_THROW(A.EnsureIntersections(), std::runtime_error);
 
@@ -235,7 +235,7 @@ TEST(EnsureIntersections, Throw) {
 }
 
 TEST(EnsureIntersections, NoThrow) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
     Vector3D direction = C - B;
@@ -245,12 +245,12 @@ TEST(EnsureIntersections, NoThrow) {
     Path A;
 
     A = Path();
-    A.SetEarthModel(EMp);
+    A.SetDetectorModel(EMp);
     A.SetPoints(B, C);
     EXPECT_NO_THROW(A.EnsureIntersections());
 
     A = Path();
-    A.SetEarthModel(EMp);
+    A.SetDetectorModel(EMp);
     A.SetPointsWithRay(B, direction, distance);
     EXPECT_NO_THROW(A.EnsureIntersections());
 
@@ -270,7 +270,7 @@ TEST(EnsureIntersections, NoThrow) {
 }
 
 TEST(PointManipulation, Flip) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
     Vector3D direction = C - B;
@@ -299,7 +299,7 @@ TEST(PointManipulation, Flip) {
 }
 
 TEST(PointManipulation, ExtendFromEndByDistance) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
     Vector3D direction = C - B;
@@ -330,20 +330,20 @@ TEST(PointManipulation, ExtendFromEndByDistance) {
     EXPECT_EQ(0, A.GetDistance());
 }
 
-TEST_F(FakeLegacyEarthModelTest, ExtendFromEndByColumnDepth) {
+TEST_F(FakeLegacyDetectorModelTest, ExtendFromEndByColumnDepth) {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -408,7 +408,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndByColumnDepth) {
 }
 
 TEST(PointManipulation, ExtendFromStartByDistance) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
     Vector3D direction = C - B;
@@ -440,20 +440,20 @@ TEST(PointManipulation, ExtendFromStartByDistance) {
     EXPECT_EQ(0, A.GetDistance());
 }
 
-TEST_F(FakeLegacyEarthModelTest, ExtendFromStartByColumnDepth) {
+TEST_F(FakeLegacyDetectorModelTest, ExtendFromStartByColumnDepth) {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -520,7 +520,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromStartByColumnDepth) {
 }
 
 TEST(PointManipulation, ShrinkFromEndByDistance) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
     Vector3D direction = C - B;
@@ -551,20 +551,20 @@ TEST(PointManipulation, ShrinkFromEndByDistance) {
     EXPECT_EQ(0, A.GetDistance());
 }
 
-TEST_F(FakeLegacyEarthModelTest, ShrinkFromEndByColumnDepth) {
+TEST_F(FakeLegacyDetectorModelTest, ShrinkFromEndByColumnDepth) {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -629,7 +629,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromEndByColumnDepth) {
 }
 
 TEST(PointManipulation, ShrinkFromStartByDistance) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
     Vector3D direction = C - B;
@@ -661,20 +661,20 @@ TEST(PointManipulation, ShrinkFromStartByDistance) {
     EXPECT_EQ(0, A.GetDistance());
 }
 
-TEST_F(FakeLegacyEarthModelTest, ShrinkFromStartByColumnDepth) {
+TEST_F(FakeLegacyDetectorModelTest, ShrinkFromStartByColumnDepth) {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -740,7 +740,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromStartByColumnDepth) {
 }
 
 TEST(PointManipulation, ExtendFromEndToDistance) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
     Vector3D direction = C - B;
@@ -774,20 +774,20 @@ TEST(PointManipulation, ExtendFromEndToDistance) {
     EXPECT_EQ(distance, A.GetDistance());
 }
 
-TEST_F(FakeLegacyEarthModelTest, ExtendFromEndToColumnDepth) {
+TEST_F(FakeLegacyDetectorModelTest, ExtendFromEndToColumnDepth) {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -859,7 +859,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromEndToColumnDepth) {
 
 
 TEST(PointManipulation, ExtendFromStartToDistance) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
     Vector3D direction = C - B;
@@ -894,20 +894,20 @@ TEST(PointManipulation, ExtendFromStartToDistance) {
     EXPECT_EQ(distance, A.GetDistance());
 }
 
-TEST_F(FakeLegacyEarthModelTest, ExtendFromStartToColumnDepth) {
+TEST_F(FakeLegacyDetectorModelTest, ExtendFromStartToColumnDepth) {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -980,7 +980,7 @@ TEST_F(FakeLegacyEarthModelTest, ExtendFromStartToColumnDepth) {
 }
 
 TEST(PointManipulation, ShrinkFromEndToDistance) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
     Vector3D direction = C - B;
@@ -1014,20 +1014,20 @@ TEST(PointManipulation, ShrinkFromEndToDistance) {
     EXPECT_EQ(0, A.GetDistance());
 }
 
-TEST_F(FakeLegacyEarthModelTest, ShrinkFromEndToColumnDepth) {
+TEST_F(FakeLegacyDetectorModelTest, ShrinkFromEndToColumnDepth) {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1098,7 +1098,7 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromEndToColumnDepth) {
 }
 
 TEST(PointManipulation, ShrinkFromStartToDistance) {
-    std::shared_ptr<const EarthModel> EMp(new EarthModel());
+    std::shared_ptr<const DetectorModel> EMp(new DetectorModel());
     Vector3D B(1,2,3);
     Vector3D C(4,6,8);
     Vector3D direction = C - B;
@@ -1133,20 +1133,20 @@ TEST(PointManipulation, ShrinkFromStartToDistance) {
     EXPECT_EQ(0, A.GetDistance());
 }
 
-TEST_F(FakeLegacyEarthModelTest, ShrinkFromStartToColumnDepth) {
+TEST_F(FakeLegacyDetectorModelTest, ShrinkFromStartToColumnDepth) {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1217,21 +1217,21 @@ TEST_F(FakeLegacyEarthModelTest, ShrinkFromStartToColumnDepth) {
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetColumnDepthInBounds)
+TEST_F(FakeLegacyDetectorModelTest, GetColumnDepthInBounds)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1252,21 +1252,21 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthInBounds)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromStartInBounds)
+TEST_F(FakeLegacyDetectorModelTest, GetColumnDepthFromStartInBounds)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1303,21 +1303,21 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromStartInBounds)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromEndInBounds)
+TEST_F(FakeLegacyDetectorModelTest, GetColumnDepthFromEndInBounds)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1354,21 +1354,21 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromEndInBounds)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromStartAlongPath)
+TEST_F(FakeLegacyDetectorModelTest, GetColumnDepthFromStartAlongPath)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1405,21 +1405,21 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromStartAlongPath)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromEndAlongPath)
+TEST_F(FakeLegacyDetectorModelTest, GetColumnDepthFromEndAlongPath)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1456,21 +1456,21 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromEndAlongPath)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromStartInReverse)
+TEST_F(FakeLegacyDetectorModelTest, GetColumnDepthFromStartInReverse)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1507,21 +1507,21 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromStartInReverse)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromEndInReverse)
+TEST_F(FakeLegacyDetectorModelTest, GetColumnDepthFromEndInReverse)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1560,21 +1560,21 @@ TEST_F(FakeLegacyEarthModelTest, GetColumnDepthFromEndInReverse)
 
 /////////////////////////////////////////////////////////
 
-TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartInBounds)
+TEST_F(FakeLegacyDetectorModelTest, GetDistanceFromStartInBounds)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1611,21 +1611,21 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartInBounds)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndInBounds)
+TEST_F(FakeLegacyDetectorModelTest, GetDistanceFromEndInBounds)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1662,21 +1662,21 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndInBounds)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartAlongPath)
+TEST_F(FakeLegacyDetectorModelTest, GetDistanceFromStartAlongPath)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1713,21 +1713,21 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartAlongPath)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndAlongPath)
+TEST_F(FakeLegacyDetectorModelTest, GetDistanceFromEndAlongPath)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1764,21 +1764,21 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndAlongPath)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartInReverse)
+TEST_F(FakeLegacyDetectorModelTest, GetDistanceFromStartInReverse)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -1815,21 +1815,21 @@ TEST_F(FakeLegacyEarthModelTest, GetDistanceFromStartInReverse)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, GetDistanceFromEndInReverse)
+TEST_F(FakeLegacyDetectorModelTest, GetDistanceFromEndInReverse)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        std::shared_ptr<EarthModel> A(new EarthModel());
+        std::shared_ptr<DetectorModel> A(new DetectorModel());
         ASSERT_NO_THROW(A->LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A->LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A->GetSectors();
+        std::vector<DetectorSector> sectors = A->GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();

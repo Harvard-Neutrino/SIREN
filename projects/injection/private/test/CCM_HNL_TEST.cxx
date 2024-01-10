@@ -167,11 +167,11 @@ TEST(Injector, Generation)
 
 
     // Load the earth model
-    std::shared_ptr<EarthModel> earth_model = std::make_shared<EarthModel>();
+    std::shared_ptr<DetectorModel> earth_model = std::make_shared<DetectorModel>();
     std::cout << "Loading MaterialModel...\n";
     earth_model->LoadMaterialModel(material_file);
-    std::cout << "Loading EarthModel...\n";
-    earth_model->LoadEarthModel(earth_file);
+    std::cout << "Loading DetectorModel...\n";
+    earth_model->LoadDetectorModel(earth_file);
 
     // random class instance
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();

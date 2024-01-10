@@ -10,7 +10,7 @@
 #include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
 
 namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
@@ -23,7 +23,7 @@ Monoenergetic::Monoenergetic(double gen_energy)
     : gen_energy(gen_energy)
 {}
 
-double Monoenergetic::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double Monoenergetic::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     return gen_energy;
 }
 
@@ -33,7 +33,7 @@ double Monoenergetic::pdf(double energy) const {
     return 0.0;
 }
 
-double Monoenergetic::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double Monoenergetic::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     return pdf(record.primary_momentum[0]);
 }
 

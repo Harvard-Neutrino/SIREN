@@ -12,7 +12,7 @@
 #include "LeptonInjector/interactions/InteractionCollection.h"  // for Cro...
 #include "LeptonInjector/dataclasses/InteractionRecord.h"         // for Int...
 #include "LeptonInjector/dataclasses/InteractionSignature.h"      // for Int...
-#include "LeptonInjector/detector/EarthModel.h"                   // for Ear...
+#include "LeptonInjector/detector/DetectorModel.h"                   // for Ear...
 #include "LeptonInjector/distributions/Distributions.h"           // for Inj...
 #include "LeptonInjector/geometry/Geometry.h"                     // for Geo...
 #include "LeptonInjector/injection/Injector.h"                // for Inj...
@@ -163,7 +163,7 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
   return 1./inv_weight;
 }
 
-LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes)
+LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes)
     : injectors(injectors)
     , earth_model(earth_model)
     , primary_physical_process(primary_physical_process)
@@ -172,7 +172,7 @@ LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> in
   Initialize();
 }
 
-LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process)
+LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process)
     : injectors(injectors)
     , earth_model(earth_model)
     , primary_physical_process(primary_physical_process)
@@ -351,7 +351,7 @@ double LeptonProcessWeighter::EventWeight(std::pair<LI::math::Vector3D, LI::math
   return PhysicalProbability(bounds,datum.record)/GenerationProbability(datum);
 }
 
-LeptonProcessWeighter::LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process, std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::EarthModel> earth_model)
+LeptonProcessWeighter::LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process, std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::DetectorModel> earth_model)
     : phys_process(phys_process)
     , inj_process(inj_process)
     , earth_model(earth_model)

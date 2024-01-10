@@ -5,122 +5,122 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/detector/EarthModel.h"
+#include "../../public/LeptonInjector/detector/DetectorModel.h"
 #include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
 
-void register_EarthModel(pybind11::module_ & m) {
+void register_DetectorModel(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace LI::detector;
 
-    class_<EarthModel, std::shared_ptr<EarthModel>>(m, "EarthModel")
+    class_<DetectorModel, std::shared_ptr<DetectorModel>>(m, "DetectorModel")
         .def(init<>())
         .def(init<std::string const &, std::string const &>())
         .def(init<std::string const &, std::string const &, std::string const &>())
-        .def("LoadEarthModel",&EarthModel::LoadEarthModel)
-        .def("LoadMaterialModel",&EarthModel::LoadMaterialModel)
+        .def("LoadDetectorModel",&DetectorModel::LoadDetectorModel)
+        .def("LoadMaterialModel",&DetectorModel::LoadMaterialModel)
         .def("GetMassDensity", (
-                    double (EarthModel::*)(LI::geometry::Geometry::IntersectionList const &, LI::math::Vector3D const &) const
-                    )(&EarthModel::GetMassDensity))
+                    double (DetectorModel::*)(LI::geometry::Geometry::IntersectionList const &, LI::math::Vector3D const &) const
+                    )(&DetectorModel::GetMassDensity))
         .def("GetMassDensity", (
-                    double (EarthModel::*)(LI::math::Vector3D const &) const
-                    )(&EarthModel::GetMassDensity))
+                    double (DetectorModel::*)(LI::math::Vector3D const &) const
+                    )(&DetectorModel::GetMassDensity))
         .def("GetParticleDensity", (
-                    double (EarthModel::*)(LI::geometry::Geometry::IntersectionList const &, LI::math::Vector3D const &, LI::dataclasses::Particle::ParticleType) const
-                    )(&EarthModel::GetParticleDensity))
+                    double (DetectorModel::*)(LI::geometry::Geometry::IntersectionList const &, LI::math::Vector3D const &, LI::dataclasses::Particle::ParticleType) const
+                    )(&DetectorModel::GetParticleDensity))
         .def("GetParticleDensity", (
-                    double (EarthModel::*)(LI::math::Vector3D const &, LI::dataclasses::Particle::ParticleType) const
-                    )(&EarthModel::GetParticleDensity))
+                    double (DetectorModel::*)(LI::math::Vector3D const &, LI::dataclasses::Particle::ParticleType) const
+                    )(&DetectorModel::GetParticleDensity))
         .def("GetInteractionDensity", (
-                    double (EarthModel::*)(LI::geometry::Geometry::IntersectionList const &,
+                    double (DetectorModel::*)(LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const &,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
-                    )(&EarthModel::GetInteractionDensity))
+                    )(&DetectorModel::GetInteractionDensity))
         .def("GetInteractionDensity", (
-                    double (EarthModel::*)(LI::math::Vector3D const &,
+                    double (DetectorModel::*)(LI::math::Vector3D const &,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
-                    )(&EarthModel::GetInteractionDensity))
+                    )(&DetectorModel::GetInteractionDensity))
         .def("GetColumnDepthInCGS", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &) const
-                    )(&EarthModel::GetColumnDepthInCGS))
+                    )(&DetectorModel::GetColumnDepthInCGS))
         .def("GetColumnDepthInCGS", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &) const
-                    )(&EarthModel::GetColumnDepthInCGS))
+                    )(&DetectorModel::GetColumnDepthInCGS))
         .def("DistanceForColumnDepthFromPoint", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
                         double) const
-                    )(&EarthModel::DistanceForColumnDepthFromPoint))
+                    )(&DetectorModel::DistanceForColumnDepthFromPoint))
         .def("DistanceForColumnDepthFromPoint", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
                         double) const
-                    )(&EarthModel::DistanceForColumnDepthFromPoint))
+                    )(&DetectorModel::DistanceForColumnDepthFromPoint))
         .def("DistanceForColumnDepthToPoint", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
                         double) const
-                    )(&EarthModel::DistanceForColumnDepthToPoint))
+                    )(&DetectorModel::DistanceForColumnDepthToPoint))
         .def("DistanceForColumnDepthToPoint", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
                         double) const
-                    )(&EarthModel::DistanceForColumnDepthToPoint))
+                    )(&DetectorModel::DistanceForColumnDepthToPoint))
         .def("GetMassDensity", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const &,
                         std::set<LI::dataclasses::Particle::ParticleType>) const
-                    )(&EarthModel::GetMassDensity))
+                    )(&DetectorModel::GetMassDensity))
         .def("GetMassDensity", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::math::Vector3D const &,
                         std::set<LI::dataclasses::Particle::ParticleType>) const
-                    )(&EarthModel::GetMassDensity))
+                    )(&DetectorModel::GetMassDensity))
         .def("GetParticleDensity", (
-                    std::vector<double> (EarthModel::*)(
+                    std::vector<double> (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const &,
                         std::set<LI::dataclasses::Particle::ParticleType>) const
-                    )(&EarthModel::GetParticleDensity))
+                    )(&DetectorModel::GetParticleDensity))
         .def("GetParticleDensity", (
-                    std::vector<double> (EarthModel::*)(
+                    std::vector<double> (DetectorModel::*)(
                         LI::math::Vector3D const &,
                         std::set<LI::dataclasses::Particle::ParticleType>) const
-                    )(&EarthModel::GetParticleDensity))
+                    )(&DetectorModel::GetParticleDensity))
         .def("GetInteractionDepthInCGS", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
-                    )(&EarthModel::GetInteractionDepthInCGS))
+                    )(&DetectorModel::GetInteractionDepthInCGS))
         .def("GetInteractionDepthInCGS", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
-                    )(&EarthModel::GetInteractionDepthInCGS))
+                    )(&DetectorModel::GetInteractionDepthInCGS))
         .def("DistanceForInteractionDepthFromPoint", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
@@ -128,18 +128,18 @@ void register_EarthModel(pybind11::module_ & m) {
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
-                    )(&EarthModel::DistanceForInteractionDepthFromPoint))
+                    )(&DetectorModel::DistanceForInteractionDepthFromPoint))
         .def("DistanceForInteractionDepthFromPoint", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
                         double,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
-                    )(&EarthModel::DistanceForInteractionDepthFromPoint))
+                    )(&DetectorModel::DistanceForInteractionDepthFromPoint))
         .def("DistanceForInteractionDepthToPoint", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
@@ -147,86 +147,86 @@ void register_EarthModel(pybind11::module_ & m) {
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
-                    )(&EarthModel::DistanceForInteractionDepthToPoint))
+                    )(&DetectorModel::DistanceForInteractionDepthToPoint))
         .def("DistanceForInteractionDepthToPoint", (
-                    double (EarthModel::*)(
+                    double (DetectorModel::*)(
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
                         double,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
-                    )(&EarthModel::DistanceForInteractionDepthToPoint))
+                    )(&DetectorModel::DistanceForInteractionDepthToPoint))
         .def("GetParticleColumnDepth", (
-                    std::vector<double> (EarthModel::*)(
+                    std::vector<double> (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const &,
                         LI::math::Vector3D const &,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &) const
-                    )(&EarthModel::GetParticleColumnDepth))
+                    )(&DetectorModel::GetParticleColumnDepth))
         .def("GetContainingSector", (
-                    EarthSector (EarthModel::*)(
+                    DetectorSector (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         LI::math::Vector3D const & p0) const
-                    )(&EarthModel::GetContainingSector))
+                    )(&DetectorModel::GetContainingSector))
         .def("GetContainingSector", (
-                    EarthSector (EarthModel::*)(
+                    DetectorSector (DetectorModel::*)(
                         LI::math::Vector3D const & p0) const
-                    )(&EarthModel::GetContainingSector))
+                    )(&DetectorModel::GetContainingSector))
         .def("GetEarthCoordPosFromDetCoordPos", (
-                    LI::math::Vector3D (EarthModel::*)(
+                    LI::math::Vector3D (DetectorModel::*)(
                         LI::math::Vector3D const &) const
-                    )(&EarthModel::GetEarthCoordPosFromDetCoordPos))
+                    )(&DetectorModel::GetEarthCoordPosFromDetCoordPos))
         .def("GetEarthCoordDirFromDetCoordDir", (
-                    LI::math::Vector3D (EarthModel::*)(
+                    LI::math::Vector3D (DetectorModel::*)(
                         LI::math::Vector3D const &) const
-                    )(&EarthModel::GetEarthCoordDirFromDetCoordDir))
+                    )(&DetectorModel::GetEarthCoordDirFromDetCoordDir))
         .def("GetDetCoordPosFromEarthCoordPos", (
-                    LI::math::Vector3D (EarthModel::*)(
+                    LI::math::Vector3D (DetectorModel::*)(
                         LI::math::Vector3D const &) const
-                    )(&EarthModel::GetDetCoordPosFromEarthCoordPos))
+                    )(&DetectorModel::GetDetCoordPosFromEarthCoordPos))
         .def("GetDetCoordDirFromEarthCoordDir", (
-                    LI::math::Vector3D (EarthModel::*)(
+                    LI::math::Vector3D (DetectorModel::*)(
                         LI::math::Vector3D const &) const
-                    )(&EarthModel::GetDetCoordDirFromEarthCoordDir))
-        .def_property("Path", &EarthModel::GetPath, &EarthModel::SetPath)
-        .def_property("Materials", &EarthModel::GetMaterials, &EarthModel::SetMaterials)
-        .def_property("Sectors", &EarthModel::GetSectors, &EarthModel::SetSectors)
-        .def_property("DetectorOrigin", &EarthModel::GetDetectorOrigin, &EarthModel::SetDetectorOrigin)
-        .def("AddSector", &EarthModel::AddSector)
-        .def("GetSector", &EarthModel::GetSector)
-        .def("ClearSectors", &EarthModel::ClearSectors)
-        .def("GetIntersections", &EarthModel::GetIntersections)
+                    )(&DetectorModel::GetDetCoordDirFromEarthCoordDir))
+        .def_property("Path", &DetectorModel::GetPath, &DetectorModel::SetPath)
+        .def_property("Materials", &DetectorModel::GetMaterials, &DetectorModel::SetMaterials)
+        .def_property("Sectors", &DetectorModel::GetSectors, &DetectorModel::SetSectors)
+        .def_property("DetectorOrigin", &DetectorModel::GetDetectorOrigin, &DetectorModel::SetDetectorOrigin)
+        .def("AddSector", &DetectorModel::AddSector)
+        .def("GetSector", &DetectorModel::GetSector)
+        .def("ClearSectors", &DetectorModel::ClearSectors)
+        .def("GetIntersections", &DetectorModel::GetIntersections)
         .def_static("SortIntersections", (
                     void (*)(LI::geometry::Geometry::IntersectionList &)
-                    )(&EarthModel::SortIntersections))
+                    )(&DetectorModel::SortIntersections))
         .def_static("SortIntersections", (
                     void (*)(std::vector<LI::geometry::Geometry::Intersection> &)
-                    )(&EarthModel::SortIntersections))
-        .def_static("SectorLoop", &EarthModel::SectorLoop)
+                    )(&DetectorModel::SortIntersections))
+        .def_static("SectorLoop", &DetectorModel::SectorLoop)
         .def_static("GetOuterBoundsFromIntersections", (
                     LI::geometry::Geometry::IntersectionList (*)(
                         LI::geometry::Geometry::IntersectionList const &)
-                    )(&EarthModel::GetOuterBounds))
-        .def("GetOuterBounds", [](LI::detector::EarthModel const & earth, LI::geometry::Geometry::IntersectionList const & intersections){
+                    )(&DetectorModel::GetOuterBounds))
+        .def("GetOuterBounds", [](LI::detector::DetectorModel const & earth, LI::geometry::Geometry::IntersectionList const & intersections){
                 return earth.GetOuterBounds(intersections);
                 })
         .def("GetOuterBounds", (
-                LI::geometry::Geometry::IntersectionList (EarthModel::*)(
+                LI::geometry::Geometry::IntersectionList (DetectorModel::*)(
                     LI::math::Vector3D const &,
                     LI::math::Vector3D const &) const
-                )(&EarthModel::GetOuterBounds))
+                )(&DetectorModel::GetOuterBounds))
         .def("GetAvailableTargets", (
-                    std::set<LI::dataclasses::Particle::ParticleType> (EarthModel::*)(
+                    std::set<LI::dataclasses::Particle::ParticleType> (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
                         std::array<double,3> const &) const
-                    )(&EarthModel::GetAvailableTargets))
+                    )(&DetectorModel::GetAvailableTargets))
         .def("GetAvailableTargets", (
-                    std::set<LI::dataclasses::Particle::ParticleType> (EarthModel::*)(
+                    std::set<LI::dataclasses::Particle::ParticleType> (DetectorModel::*)(
                         std::array<double,3> const &) const
-                    )(&EarthModel::GetAvailableTargets))
-        .def("GetTargetMass", &EarthModel::GetTargetMass)
-        .def("GetMaterials",&EarthModel::GetMaterials)
-        .def("GetDetectorOrigin",&EarthModel::GetDetectorOrigin);
+                    )(&DetectorModel::GetAvailableTargets))
+        .def("GetTargetMass", &DetectorModel::GetTargetMass)
+        .def("GetMaterials",&DetectorModel::GetMaterials)
+        .def("GetDetectorOrigin",&DetectorModel::GetDetectorOrigin);
 
 }

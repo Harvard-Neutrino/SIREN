@@ -17,7 +17,7 @@
 
 namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
-namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace distributions { class InjectionDistribution; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }
 namespace LI { namespace utilities { class LI_random; } }
@@ -43,8 +43,8 @@ private:
     double pdf(double energy) const;
     double pdf_integral() const;
 public:
-    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     ModifiedMoyalPlusExponentialEnergyDistribution(double energyMin, double energyMax, double mu, double sigma, double A, double l, double B, bool has_physical_normalization=false);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;

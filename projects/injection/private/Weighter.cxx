@@ -16,7 +16,7 @@
 #include "LeptonInjector/dataclasses/InteractionRecord.h"
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "LeptonInjector/geometry/Geometry.h"
@@ -310,14 +310,14 @@ void LeptonWeighter::Initialize() {
                     continue;
                 }
                 // Check if dists are equivalent
-                // Must consider the EarthModel and InteractionCollection context in the comparison
+                // Must consider the DetectorModel and InteractionCollection context in the comparison
                 std::shared_ptr<LI::distributions::WeightableDistribution> gen_dist_ptr(gen_dist.second);
                 bool equivalent_dists =
                     phys_dist.second->AreEquivalent( // physical dist
                             earth_model, // physical context
                             cross_sections, // physical context
                             gen_dist_ptr, // generation dist
-                            injectors[i]->GetEarthModel(), // generation context
+                            injectors[i]->GetDetectorModel(), // generation context
                             injectors[i]->GetCrossSections()); // generation context
                 if(not equivalent_dists) {
                     continue;
@@ -333,7 +333,7 @@ void LeptonWeighter::Initialize() {
     // The one exception to this is vertex position distributions
     // Physical vertex position distributions depend on the injection bounds and so cannot be common across terms
 
-    // Physical distributions have the same EarthModel+CrossSection context so we do not need to compare them
+    // Physical distributions have the same DetectorModel+CrossSection context so we do not need to compare them
     // We just need to check that these distributions have not been cancelled out for any terms
     std::vector<unsigned int> common_physical_dist_idxs;
     for(unsigned int phys_idx=0; phys_idx<physical_distributions.size(); ++phys_idx) {
@@ -377,10 +377,10 @@ void LeptonWeighter::Initialize() {
                     continue;
                 bool equivalent_dists =
                     gen_dist_0.second->AreEquivalent( // gen dist 0
-                            injectors[i]->GetEarthModel(), // gen dist 0 context
+                            injectors[i]->GetDetectorModel(), // gen dist 0 context
                             injectors[i]->GetCrossSections(), // gen dist 0 context
                             (std::shared_ptr<LI::distributions::WeightableDistribution>)(gen_dist_1.second), // gen dist 1
-                            injectors[j]->GetEarthModel(), // gen dist 1 context
+                            injectors[j]->GetDetectorModel(), // gen dist 1 context
                             injectors[j]->GetCrossSections()); // gen dist 1 context
                 if(not equivalent_dists)
                     continue;
@@ -410,9 +410,9 @@ void LeptonWeighter::Initialize() {
     for(unsigned int gen_idx : common_generation_dist_idxs) {
         // These are common to all injectors, so we pull information from the first injector
         std::shared_ptr<LI::distributions::WeightableDistribution> dist = generation_distribution_state[0][gen_idx].second;
-        std::shared_ptr<LI::detector::EarthModel> dist_earth = injectors[0]->GetEarthModel();
+        std::shared_ptr<LI::detector::DetectorModel> dist_earth = injectors[0]->GetDetectorModel();
         std::shared_ptr<LI::interactions::InteractionCollection> dist_cross_sections = injectors[0]->GetCrossSections();
-        std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
+        std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
             return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_earth, dist_cross_sections);
         };
         auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -420,14 +420,14 @@ void LeptonWeighter::Initialize() {
             unsigned int index = std::distance(unique_distributions.begin(), it);
             common_gen_idxs.push_back(index);
         } else {
-            unique_distributions.push_back(std::make_tuple(dist, injectors[0]->GetEarthModel(), injectors[0]->GetCrossSections()));
+            unique_distributions.push_back(std::make_tuple(dist, injectors[0]->GetDetectorModel(), injectors[0]->GetCrossSections()));
             common_gen_idxs.push_back(unique_distributions.size()-1);
         }
     }
 
     for(unsigned int phys_idx : common_physical_dist_idxs) {
         std::shared_ptr<LI::distributions::WeightableDistribution> dist = physical_distributions[phys_idx];
-        std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
+        std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
             return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, earth_model, cross_sections);
         };
         auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -452,9 +452,9 @@ void LeptonWeighter::Initialize() {
                 continue;
             std::shared_ptr<LI::distributions::WeightableDistribution> dist = gen_dists[gen_idx].second;
             // These are common to all injectors, so we pull information from the first injector
-            std::shared_ptr<LI::detector::EarthModel> dist_earth = injectors[injector_idx]->GetEarthModel();
+            std::shared_ptr<LI::detector::DetectorModel> dist_earth = injectors[injector_idx]->GetDetectorModel();
             std::shared_ptr<LI::interactions::InteractionCollection> dist_cross_sections = injectors[injector_idx]->GetCrossSections();
-            std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
+            std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
                 return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_earth, dist_cross_sections);
             };
             auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -462,7 +462,7 @@ void LeptonWeighter::Initialize() {
                 unsigned int index = std::distance(unique_distributions.begin(), it);
                 gen_idxs.push_back(index);
             } else {
-                unique_distributions.push_back(std::make_tuple(dist, injectors[injector_idx]->GetEarthModel(), injectors[injector_idx]->GetCrossSections()));
+                unique_distributions.push_back(std::make_tuple(dist, injectors[injector_idx]->GetDetectorModel(), injectors[injector_idx]->GetCrossSections()));
                 gen_idxs.push_back(unique_distributions.size()-1);
             }
         }
@@ -472,7 +472,7 @@ void LeptonWeighter::Initialize() {
             if(not included)
                 continue;
             std::shared_ptr<LI::distributions::WeightableDistribution> dist = phys_dists[phys_idx].second;
-            std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
+            std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
                 return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, earth_model, cross_sections);
             };
             auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -490,11 +490,11 @@ void LeptonWeighter::Initialize() {
 
     //TODO
     // Find unique contexts
-    // std::vector<std::tuple<std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::interactions::InteractionCollection>>> unique_contexts;
+    // std::vector<std::tuple<std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>> unique_contexts;
     // std::vector<unsigned int> context_idx_by_injector;
 }
 
-LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::interactions::InteractionCollection> cross_sections, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> physical_distributions)
+LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<LI::interactions::InteractionCollection> cross_sections, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> physical_distributions)
     : injectors(injectors)
     , earth_model(earth_model)
     , cross_sections(cross_sections)
@@ -547,7 +547,7 @@ double LeptonWeighter::EventWeight(LI::dataclasses::InteractionRecord const & re
         physical_probability *= prob;
         prob = NormalizedPositionProbability(bounds, record);
         physical_probability *= prob;
-        prob = LI::injection::CrossSectionProbability(injector->GetEarthModel(), injector->GetCrossSections(), record);
+        prob = LI::injection::CrossSectionProbability(injector->GetDetectorModel(), injector->GetCrossSections(), record);
         physical_probability *= prob;
         // Number of events is already in GenerationProbability
         // double num_events = injector->EventsToInject();
@@ -574,7 +574,7 @@ double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord 
     for(unsigned int i=0; i<unique_distributions.size(); ++i) {
         std::tuple<
             std::shared_ptr<LI::distributions::WeightableDistribution>,
-            std::shared_ptr<LI::detector::EarthModel>,
+            std::shared_ptr<LI::detector::DetectorModel>,
             std::shared_ptr<LI::interactions::InteractionCollection>
         > const & p = unique_distributions[i];
         probs.push_back(std::get<0>(p)->GenerationProbability(std::get<1>(p), std::get<2>(p), record));
@@ -598,7 +598,7 @@ double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord 
         for(unsigned int j=0; j<distinct_gen_idxs_by_injector[i].size(); ++j) {
             prob *= probs[distinct_gen_idxs_by_injector[i][j]];
         }
-        double cross_section_probability = LI::injection::CrossSectionProbability(injectors[i]->GetEarthModel(), injectors[i]->GetCrossSections(), record);
+        double cross_section_probability = LI::injection::CrossSectionProbability(injectors[i]->GetDetectorModel(), injectors[i]->GetCrossSections(), record);
         prob *= cross_section_probability;
         for(unsigned int j=0; j<distinct_physical_idxs_by_injector[i].size(); ++j) {
             prob /= probs[distinct_physical_idxs_by_injector[i][j]];

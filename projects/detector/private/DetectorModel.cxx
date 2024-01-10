@@ -1,4 +1,4 @@
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/DetectorModel.h"
 
 #include <tuple>
 #include <cmath>
@@ -104,12 +104,12 @@ public:
 };
 }
 
-bool EarthSector::operator==(EarthSector const & o) const {
+bool DetectorSector::operator==(DetectorSector const & o) const {
     return name == o.name and material_id == o.material_id and level == o.level and geo == o.geo and density == o.density;
 }
 
-std::ostream & EarthSector::Print(std::ostream& oss) const {
-    oss << "[EarthSector:\n"
+std::ostream & DetectorSector::Print(std::ostream& oss) const {
+    oss << "[DetectorSector:\n"
         << "         Name : " << name << '\n'
         << "   MaterialID : " << material_id << '\n'
         << "        Level : " << level << '\n'
@@ -118,73 +118,73 @@ std::ostream & EarthSector::Print(std::ostream& oss) const {
     return oss;
 }
 
-std::ostream& operator<<(std::ostream& oss, EarthSector const & bcm) {
+std::ostream& operator<<(std::ostream& oss, DetectorSector const & bcm) {
     return(bcm.Print(oss));
 }
 
-std::ostream& operator<<(std::ostream& oss, EarthSector & bcm) {
+std::ostream& operator<<(std::ostream& oss, DetectorSector & bcm) {
     return(bcm.Print(oss));
 }
 
-EarthModel::EarthModel() {
+DetectorModel::DetectorModel() {
     LoadDefaultMaterials();
     LoadDefaultSectors();
 }
 
-EarthModel::EarthModel(std::string const & earth_model, std::string const & material_model) {
-    LoadDefaultMaterials();
-    LoadDefaultSectors();
-    LoadMaterialModel(material_model);
-    LoadEarthModel(earth_model);
-}
-
-EarthModel::EarthModel(std::string const & path, std::string const & earth_model, std::string const & material_model) : path_(path) {
+DetectorModel::DetectorModel(std::string const & earth_model, std::string const & material_model) {
     LoadDefaultMaterials();
     LoadDefaultSectors();
     LoadMaterialModel(material_model);
-    LoadEarthModel(earth_model);
+    LoadDetectorModel(earth_model);
 }
 
-bool EarthModel::operator==(EarthModel const & o) const {
+DetectorModel::DetectorModel(std::string const & path, std::string const & earth_model, std::string const & material_model) : path_(path) {
+    LoadDefaultMaterials();
+    LoadDefaultSectors();
+    LoadMaterialModel(material_model);
+    LoadDetectorModel(earth_model);
+}
+
+bool DetectorModel::operator==(DetectorModel const & o) const {
     return
         std::tie(materials_, sectors_, sector_map_, detector_origin_)
         ==
         std::tie(o.materials_, o.sectors_, o.sector_map_, o.detector_origin_);
 }
 
-std::string EarthModel::GetPath() const {
+std::string DetectorModel::GetPath() const {
     return path_;
 }
 
-void EarthModel::SetPath(std::string const & path) {
+void DetectorModel::SetPath(std::string const & path) {
     path_ = path;
 }
 
-MaterialModel const & EarthModel::GetMaterials() const {
+MaterialModel const & DetectorModel::GetMaterials() const {
     return materials_;
 }
 
-void EarthModel::SetMaterials(MaterialModel const & materials) {
+void DetectorModel::SetMaterials(MaterialModel const & materials) {
     materials_ = materials;
 }
 
-std::vector<EarthSector> const & EarthModel::GetSectors() const {
+std::vector<DetectorSector> const & DetectorModel::GetSectors() const {
     return sectors_;
 }
 
-void EarthModel::SetSectors(std::vector<EarthSector> const & sectors) {
+void DetectorModel::SetSectors(std::vector<DetectorSector> const & sectors) {
     sectors_ = sectors;
 }
 
-Vector3D EarthModel::GetDetectorOrigin() const {
+Vector3D DetectorModel::GetDetectorOrigin() const {
     return detector_origin_;
 }
 
-void EarthModel::SetDetectorOrigin(Vector3D const & detector_origin) {
+void DetectorModel::SetDetectorOrigin(Vector3D const & detector_origin) {
     detector_origin_ = detector_origin;
 }
 
-void EarthModel::AddSector(EarthSector sector) {
+void DetectorModel::AddSector(DetectorSector sector) {
     if(sector_map_.count(sector.level) > 0) {
         throw(std::runtime_error("Already have a sector of that heirarchy!"));
     }
@@ -194,7 +194,7 @@ void EarthModel::AddSector(EarthSector sector) {
     }
 }
 
-EarthSector EarthModel::GetSector(int heirarchy) const {
+DetectorSector DetectorModel::GetSector(int heirarchy) const {
     auto const iter = sector_map_.find(heirarchy);
     assert(iter != sector_map_.end());
     unsigned int index = sector_map_.at(heirarchy);
@@ -204,7 +204,7 @@ EarthSector EarthModel::GetSector(int heirarchy) const {
     return sectors_[index];
 }
 
-void EarthModel::ClearSectors() {
+void DetectorModel::ClearSectors() {
     sectors_.clear();
     sector_map_.clear();
 }
@@ -217,7 +217,7 @@ bool fexists(const std::string filename)
 }
 }
 
-void EarthModel::LoadEarthModel(std::string const & earth_model) {
+void DetectorModel::LoadDetectorModel(std::string const & earth_model) {
     if(earth_model.empty())
         throw(std::runtime_error("Received empty earth model filename!"));
 
@@ -287,7 +287,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
         ss >> type;
 
         if(type.find("object") != std::string::npos) {
-            EarthSector sector;
+            DetectorSector sector;
             sector.level = level;
             level += 1;
             double xc, yc, zc; // Coordinates of the center of the shape
@@ -411,7 +411,7 @@ void EarthModel::LoadEarthModel(std::string const & earth_model) {
     in.close();
 }
 
-void EarthModel::LoadDefaultMaterials() {
+void DetectorModel::LoadDefaultMaterials() {
     // Interstellar medium mass composition from
     // https://arxiv.org/abs/astro-ph/0106359
     // Limited information exists for Z > 2
@@ -429,8 +429,8 @@ void EarthModel::LoadDefaultMaterials() {
         ); // Assume there are 1 neutrons for every 7 protons in the universe
 }
 
-void EarthModel::LoadDefaultSectors() {
-    EarthSector sector;
+void DetectorModel::LoadDefaultSectors() {
+    DetectorSector sector;
     sector.material_id = materials_.GetMaterialId("VACUUM");
     sector.level = std::numeric_limits<int>::min();
     sector.geo = Sphere(std::numeric_limits<double>::infinity(), 0).create();
@@ -438,13 +438,13 @@ void EarthModel::LoadDefaultSectors() {
     AddSector(sector);
 }
 
-void EarthModel::LoadMaterialModel(std::string const & material_model) {
+void DetectorModel::LoadMaterialModel(std::string const & material_model) {
     materials_.SetPath(path_);
     materials_.AddModelFile(material_model);
 }
 
 
-double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0) const {
+double DetectorModel::GetMassDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -469,7 +469,7 @@ double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersectio
         // whereas the lower end is bounded by the end of the last line segment, and the entry into the sector
         double start_point = std::max(offset + dot * current_intersection->distance, offset + dot * last_point);
         if(start_point <= 0 and end_point >= 0) {
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             density = sector.density->Evaluate(p0);
             return true;
         } else {
@@ -484,13 +484,13 @@ double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersectio
     return density;
 }
 
-double EarthModel::GetMassDensity(Vector3D const & p0) const {
+double DetectorModel::GetMassDensity(Vector3D const & p0) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetMassDensity(intersections, p0);
 }
 
-double EarthModel::GetParticleDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, LI::dataclasses::Particle::ParticleType target) const {
+double DetectorModel::GetParticleDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0, LI::dataclasses::Particle::ParticleType target) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -515,7 +515,7 @@ double EarthModel::GetParticleDensity(Geometry::IntersectionList const & interse
         // whereas the lower end is bounded by the end of the last line segment, and the entry into the sector
         double start_point = std::max(offset + dot * current_intersection->distance, offset + dot * last_point);
         if(start_point <= 0 and end_point >= 0) {
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             density = sector.density->Evaluate(p0);
             density *= materials_.GetTargetParticleFraction(sector.material_id, target);
             return true;
@@ -531,13 +531,13 @@ double EarthModel::GetParticleDensity(Geometry::IntersectionList const & interse
     return density;
 }
 
-double EarthModel::GetParticleDensity(Vector3D const & p0, LI::dataclasses::Particle::ParticleType target) const {
+double DetectorModel::GetParticleDensity(Vector3D const & p0, LI::dataclasses::Particle::ParticleType target) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetParticleDensity(intersections, p0, target);
 }
 
-double EarthModel::GetInteractionDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0,
+double DetectorModel::GetInteractionDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const {
@@ -572,7 +572,7 @@ double EarthModel::GetInteractionDensity(Geometry::IntersectionList const & inte
         // whereas the lower end is bounded by the end of the last line segment, and the entry into the sector
         double start_point = std::max(offset + dot * current_intersection->distance, offset + dot * last_point);
         if(start_point <= 0 and end_point >= 0) {
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             double density = sector.density->Evaluate(p0);
             std::vector<double> particle_fractions = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end());
             interaction_density = 0.0;
@@ -595,7 +595,7 @@ double EarthModel::GetInteractionDensity(Geometry::IntersectionList const & inte
     return interaction_density;
 }
 
-double EarthModel::GetInteractionDensity(Vector3D const & p0,
+double DetectorModel::GetInteractionDensity(Vector3D const & p0,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const {
@@ -604,7 +604,7 @@ double EarthModel::GetInteractionDensity(Vector3D const & p0,
     return GetInteractionDensity(intersections, p0, targets, total_cross_sections, total_decay_length);
 }
 
-double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1) const {
+double DetectorModel::GetColumnDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1) const {
     if(p0 == p1) {
         return 0.0;
     }
@@ -635,7 +635,7 @@ double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & inters
         double start_point = std::max(std::max(offset + dot * current_intersection->distance, 0.0), offset + dot * last_point);
         if(end_point > 0) {
             double segment_length = end_point - start_point;
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
             column_depth += integral;
         }
@@ -649,7 +649,7 @@ double EarthModel::GetColumnDepthInCGS(Geometry::IntersectionList const & inters
     return column_depth * 100;
 }
 
-double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const {
+double DetectorModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1) const {
     if(p0 == p1) {
         return 0.0;
     }
@@ -664,7 +664,7 @@ double EarthModel::GetColumnDepthInCGS(Vector3D const & p0, Vector3D const & p1)
     return GetColumnDepthInCGS(intersections, p0, p1);
 }
 
-double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & dir, double column_depth) const {
+double DetectorModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & dir, double column_depth) const {
     Vector3D direction = dir;
     column_depth /= 100;
     bool flip = column_depth < 0;
@@ -694,7 +694,7 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
             // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
             double start_point = std::max(std::max(offset + dot * current_intersection->distance, 0.0), offset + dot * last_point);
             double segment_length = end_point - start_point;
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             double target = column_depth - total_column_depth;
             double distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
             
@@ -720,20 +720,20 @@ double EarthModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList co
     return total_distance;
 }
 
-double EarthModel::DistanceForColumnDepthFromPoint(Vector3D const & p0, Vector3D const & direction, double column_depth) const {
+double DetectorModel::DistanceForColumnDepthFromPoint(Vector3D const & p0, Vector3D const & direction, double column_depth) const {
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return DistanceForColumnDepthFromPoint(intersections, p0, direction, column_depth);
 }
 
-double EarthModel::DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double column_depth) const {
+double DetectorModel::DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double column_depth) const {
     return DistanceForColumnDepthFromPoint(intersections, p0, -direction, column_depth);
 }
 
-double EarthModel::DistanceForColumnDepthToPoint(Vector3D const & p0, Vector3D const & direction, double column_depth) const {
+double DetectorModel::DistanceForColumnDepthToPoint(Vector3D const & p0, Vector3D const & direction, double column_depth) const {
     return DistanceForColumnDepthFromPoint(p0, -direction, column_depth);
 }
 
-double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0,  std::set<LI::dataclasses::Particle::ParticleType> targets) const {
+double DetectorModel::GetMassDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0,  std::set<LI::dataclasses::Particle::ParticleType> targets) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -758,7 +758,7 @@ double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersectio
         // whereas the lower end is bounded by the end of the last line segment, and the entry into the sector
         double start_point = std::max(offset + dot * current_intersection->distance, offset + dot * last_point);
         if(start_point <= 0 and end_point >= 0) {
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             density = sector.density->Evaluate(p0);
             std::vector<double> mass_fractions = materials_.GetTargetMassFraction(sector.material_id, targets.begin(), targets.end());
             density *= std::accumulate(mass_fractions.begin(), mass_fractions.end(), 0.0);
@@ -775,13 +775,13 @@ double EarthModel::GetMassDensity(Geometry::IntersectionList const & intersectio
     return density;
 }
 
-double EarthModel::GetMassDensity(Vector3D const & p0,  std::set<LI::dataclasses::Particle::ParticleType> targets) const {
+double DetectorModel::GetMassDensity(Vector3D const & p0,  std::set<LI::dataclasses::Particle::ParticleType> targets) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetMassDensity(intersections, p0, targets);
 }
 
-std::vector<double> EarthModel::GetParticleDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0,  std::set<LI::dataclasses::Particle::ParticleType> targets) const {
+std::vector<double> DetectorModel::GetParticleDensity(Geometry::IntersectionList const & intersections, Vector3D const & p0,  std::set<LI::dataclasses::Particle::ParticleType> targets) const {
     Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -807,7 +807,7 @@ std::vector<double> EarthModel::GetParticleDensity(Geometry::IntersectionList co
         // whereas the lower end is bounded by the end of the last line segment, and the entry into the sector
         double start_point = std::max(offset + dot * current_intersection->distance, offset + dot * last_point);
         if(start_point <= 0 and end_point >= 0) {
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             density = sector.density->Evaluate(p0);
             particle_fractions = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end());
             return true;
@@ -827,13 +827,13 @@ std::vector<double> EarthModel::GetParticleDensity(Geometry::IntersectionList co
     return particle_fractions;
 }
 
-std::vector<double> EarthModel::GetParticleDensity(Vector3D const & p0,  std::set<LI::dataclasses::Particle::ParticleType> targets) const {
+std::vector<double> DetectorModel::GetParticleDensity(Vector3D const & p0,  std::set<LI::dataclasses::Particle::ParticleType> targets) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetParticleDensity(intersections, p0, targets);
 }
 
-double EarthModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1,
+double DetectorModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
@@ -872,7 +872,7 @@ double EarthModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & i
         double start_point = std::max(std::max(offset + dot * current_intersection->distance, 0.0), offset + dot * last_point);
         if(end_point > 0) {
             double segment_length = end_point - start_point;
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
             
             std::vector<double> particle_fractions = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end());
@@ -898,7 +898,7 @@ double EarthModel::GetInteractionDepthInCGS(Geometry::IntersectionList const & i
     return interaction_depth;
 }
 
-std::vector<double> EarthModel::GetParticleColumnDepth(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1,  std::vector<LI::dataclasses::Particle::ParticleType> const & targets) const {
+std::vector<double> DetectorModel::GetParticleColumnDepth(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & p1,  std::vector<LI::dataclasses::Particle::ParticleType> const & targets) const {
     if(p0 == p1) {
         return std::vector<double>(targets.size(), 0.0);
     }
@@ -930,7 +930,7 @@ std::vector<double> EarthModel::GetParticleColumnDepth(Geometry::IntersectionLis
         double start_point = std::max(std::max(offset + dot * current_intersection->distance, 0.0), offset + dot * last_point);
         if(end_point > 0) {
             double segment_length = end_point - start_point;
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
             std::vector<double> particle_fractions = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end());
             for(unsigned int i=0; i<target_counts.size(); ++i) {
@@ -947,7 +947,7 @@ std::vector<double> EarthModel::GetParticleColumnDepth(Geometry::IntersectionLis
     return target_counts;
 }
 
-double EarthModel::GetInteractionDepthInCGS(Vector3D const & p0, Vector3D const & p1,
+double DetectorModel::GetInteractionDepthInCGS(Vector3D const & p0, Vector3D const & p1,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
@@ -965,7 +965,7 @@ double EarthModel::GetInteractionDepthInCGS(Vector3D const & p0, Vector3D const 
     return GetInteractionDepthInCGS(intersections, p0, p1, targets, total_cross_sections, total_decay_length);
 }
 
-EarthSector EarthModel::GetContainingSector(Geometry::IntersectionList const & intersections, Vector3D const & p0) const {
+DetectorSector DetectorModel::GetContainingSector(Geometry::IntersectionList const & intersections, Vector3D const & p0) const {
     Vector3D direction = intersections.direction;
 
     double offset = (intersections.position - p0) * direction;
@@ -977,7 +977,7 @@ EarthSector EarthModel::GetContainingSector(Geometry::IntersectionList const & i
         dot = 1;
     }
 
-    EarthSector sector;
+    DetectorSector sector;
 
     std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
         [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
@@ -996,13 +996,13 @@ EarthSector EarthModel::GetContainingSector(Geometry::IntersectionList const & i
     return sector;
 }
 
-EarthSector EarthModel::GetContainingSector(Vector3D const & p0) const {
+DetectorSector DetectorModel::GetContainingSector(Vector3D const & p0) const {
     Vector3D direction(0, 0, 1);
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetContainingSector(intersections, p0);
 }
 
-Geometry::IntersectionList EarthModel::GetIntersections(Vector3D const & p0, Vector3D const & direction) const {
+Geometry::IntersectionList DetectorModel::GetIntersections(Vector3D const & p0, Vector3D const & direction) const {
     Geometry::IntersectionList intersections;
     intersections.position = p0;
     intersections.direction = direction;
@@ -1023,11 +1023,11 @@ Geometry::IntersectionList EarthModel::GetIntersections(Vector3D const & p0, Vec
     return intersections;
 }
 
-void EarthModel::SortIntersections(Geometry::IntersectionList & intersections) {
+void DetectorModel::SortIntersections(Geometry::IntersectionList & intersections) {
     SortIntersections(intersections.intersections);
 }
 
-void EarthModel::SortIntersections(std::vector<Geometry::Intersection> & intersections) {
+void DetectorModel::SortIntersections(std::vector<Geometry::Intersection> & intersections) {
     // Intersections should be sorted according to distance and then hierarchy
     std::function<bool(Geometry::Intersection const &, Geometry::Intersection const &)> comp = [](Geometry::Intersection const & a, Geometry::Intersection const & b){
         bool a_enter = a.entering;
@@ -1056,7 +1056,7 @@ void EarthModel::SortIntersections(std::vector<Geometry::Intersection> & interse
     std::sort(intersections.begin(), intersections.end(), comp);
 }
 
-Geometry::IntersectionList EarthModel::GetOuterBounds(Geometry::IntersectionList const & intersections) {
+Geometry::IntersectionList DetectorModel::GetOuterBounds(Geometry::IntersectionList const & intersections) {
     Geometry::IntersectionList result;
     result.position = intersections.position;
     result.direction = intersections.direction;
@@ -1078,23 +1078,23 @@ Geometry::IntersectionList EarthModel::GetOuterBounds(Geometry::IntersectionList
     return result;
 }
 
-Geometry::IntersectionList EarthModel::GetOuterBounds(Vector3D const & p0, Vector3D const & direction) const {
+Geometry::IntersectionList DetectorModel::GetOuterBounds(Vector3D const & p0, Vector3D const & direction) const {
     Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetOuterBounds(intersections);
 }
 
-std::set<LI::dataclasses::Particle::ParticleType> EarthModel::GetAvailableTargets(std::array<double,3> const & vertex) const {
+std::set<LI::dataclasses::Particle::ParticleType> DetectorModel::GetAvailableTargets(std::array<double,3> const & vertex) const {
     Geometry::IntersectionList intersections = GetIntersections(vertex, math::Vector3D(0,0,1));
     return GetAvailableTargets(intersections, vertex);
 }
 
-std::set<LI::dataclasses::Particle::ParticleType> EarthModel::GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, std::array<double,3> const & vertex) const {
+std::set<LI::dataclasses::Particle::ParticleType> DetectorModel::GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, std::array<double,3> const & vertex) const {
     int matID = GetContainingSector(intersections, Vector3D(vertex[0],vertex[1],vertex[2])).material_id;
     std::vector<LI::dataclasses::Particle::ParticleType> particles = materials_.GetMaterialConstituents(matID);
     return std::set<LI::dataclasses::Particle::ParticleType>(particles.begin(), particles.end());
 }
 
-void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections, bool reverse) {
+void DetectorModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback, Geometry::IntersectionList const & intersections, bool reverse) {
     // Keep track of the integral progress
     double last_point;
 
@@ -1180,7 +1180,7 @@ void EarthModel::SectorLoop(std::function<bool(std::vector<Geometry::Intersectio
     }
 }
 
-double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & dir, double interaction_depth,
+double DetectorModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & dir, double interaction_depth,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
@@ -1221,7 +1221,7 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
             // whereas the lower end is bounded by the global start point, the end of the last line segment, and the entry into the sector
             double start_point = std::max(std::max(offset + dot * current_intersection->distance, 0.0), offset + dot * last_point);
             double segment_length = end_point - start_point;
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             double target = interaction_depth - total_interaction_depth;
             // This next line is because when we evaluate the density integral,
             // we end up calculating an interaction length in units of m/cm.
@@ -1264,7 +1264,7 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Geometry::IntersectionLi
     return total_distance;
 }
 
-double EarthModel::DistanceForInteractionDepthFromPoint(Vector3D const & p0, Vector3D const & direction, double interaction_depth,
+double DetectorModel::DistanceForInteractionDepthFromPoint(Vector3D const & p0, Vector3D const & direction, double interaction_depth,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
@@ -1272,37 +1272,37 @@ double EarthModel::DistanceForInteractionDepthFromPoint(Vector3D const & p0, Vec
     return DistanceForInteractionDepthFromPoint(intersections, p0, direction, interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
-double EarthModel::DistanceForInteractionDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double interaction_depth,
+double DetectorModel::DistanceForInteractionDepthToPoint(Geometry::IntersectionList const & intersections, Vector3D const & p0, Vector3D const & direction, double interaction_depth,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
     return DistanceForInteractionDepthFromPoint(intersections, p0, -direction, interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
-double EarthModel::DistanceForInteractionDepthToPoint(Vector3D const & p0, Vector3D const & direction, double interaction_depth,
+double DetectorModel::DistanceForInteractionDepthToPoint(Vector3D const & p0, Vector3D const & direction, double interaction_depth,
         std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
     return DistanceForInteractionDepthFromPoint(p0, -direction, interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
-Vector3D EarthModel::GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const {
+Vector3D DetectorModel::GetEarthCoordPosFromDetCoordPos(Vector3D const & point) const {
     return point + detector_origin_;
 }
 
-Vector3D EarthModel::GetEarthCoordDirFromDetCoordDir(Vector3D const & direction) const {
+Vector3D DetectorModel::GetEarthCoordDirFromDetCoordDir(Vector3D const & direction) const {
     return direction;
 }
 
-Vector3D EarthModel::GetDetCoordPosFromEarthCoordPos(Vector3D const & point) const {
+Vector3D DetectorModel::GetDetCoordPosFromEarthCoordPos(Vector3D const & point) const {
     return point - detector_origin_;
 }
 
-Vector3D EarthModel::GetDetCoordDirFromEarthCoordDir(Vector3D const & direction) const {
+Vector3D DetectorModel::GetDetCoordDirFromEarthCoordDir(Vector3D const & direction) const {
    return direction;
 }
 
-void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, double detector_depth, double ice_cap_angle) {
+void DetectorModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, double detector_depth, double ice_cap_angle) {
     if(model_fname.empty())
         throw(std::runtime_error("Received empty earth model filename!"));
 
@@ -1381,7 +1381,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
             throw(std::runtime_error(ss.str()));
         }
 
-        EarthSector sector;
+        DetectorSector sector;
         sector.material_id = materials_.GetMaterialId(medtype);
         sector.level = level;
         sector.name = label;
@@ -1416,7 +1416,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
     std::vector<int> ice_layers;
     bool saw_ice = false;
     for(unsigned int i=1; i<sectors_.size(); ++i) {
-        EarthSector const & sector = sectors_[i];
+        DetectorSector const & sector = sectors_[i];
         std::string name = materials_.GetMaterialName(sector.material_id);
         string_to_lower(name);
 
@@ -1472,7 +1472,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
             double ice_offset = r - d; // z-pos of center of sphere of icecap
 
             for(auto const & i : ice_layers) {
-                EarthSector & sector = sectors_[i];
+                DetectorSector & sector = sectors_[i];
                 Sphere const * geo = dynamic_cast<Sphere const *>(sector.geo.get());
                 sector.geo = Sphere(Placement(Vector3D(0,0,ice_offset), QFromZXZr(0,0,0)), geo->GetRadius()-ice_offset, 0).create();
                 //geo->SetRadius(geo->GetRadius()-ice_offset);
@@ -1482,7 +1482,7 @@ void EarthModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, dou
     }
 }
 
-double EarthModel::GetTargetMass(LI::dataclasses::Particle::ParticleType target) const {
+double DetectorModel::GetTargetMass(LI::dataclasses::Particle::ParticleType target) const {
     double molar_mass = materials_.GetMolarMass(target); // grams per mole
     return molar_mass * LI::utilities::Constants::GeV_per_amu;
 }
