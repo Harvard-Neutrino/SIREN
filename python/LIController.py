@@ -227,8 +227,8 @@ class LIController:
         :param list<CrossSectionCollection> secondary_cross_section_collections: The list of cross section collections for the primary process
         """
         # Set primary cross sections
-        self.primary_injection_process.SetCrossSections(primary_cross_section_collection)
-        self.primary_physical_process.SetCrossSections(primary_cross_section_collection)
+        self.primary_injection_process.cross_sections = primary_cross_section_collection
+        self.primary_physical_process.cross_sections = primary_cross_section_collection
         
         # Loop through secondary processes
         for sec_inj,sec_phys in zip(self.secondary_injection_processes,
@@ -241,8 +241,8 @@ class LIController:
             for sec_xs in secondary_cross_section_collections:
                 # Match cross section collection on  the primary type
                 if sec_xs.MatchesPrimary(record):
-                    sec_inj.SetCrossSections(sec_xs)
-                    sec_phys.SetCrossSections(sec_xs)
+                    sec_inj.cross_sections = sec_xs
+                    sec_phys.cross_sections = sec_xs
                     found_collection = True
             if(not found_collection):
                 print('Couldn\'t find cross section collection for secondary particle %s; Exiting'%record.primary_type)
