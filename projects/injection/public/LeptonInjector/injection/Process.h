@@ -42,8 +42,6 @@ public:
     void SetPrimaryType(LI::dataclasses::Particle::ParticleType _primary_type);
     LI::dataclasses::Particle::ParticleType GetPrimaryType() const;
 
-    std::shared_ptr<interactions::InteractionCollection> cross_sections;
-    void SetCrossSections(std::shared_ptr<interactions::InteractionCollection> _cross_sections) {cross_sections = _cross_sections;}
     bool operator==(Process const & other) const;
     bool MatchesHead(std::shared_ptr<Process> const & other) const; // required to compared instances of derived classs
     template<class Archive>
