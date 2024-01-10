@@ -78,8 +78,8 @@ class WeightableDistribution {
 friend cereal::access;
 public:
     virtual ~WeightableDistribution() {};
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const = 0;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum const & datum) const;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const = 0;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     template<class Archive>
@@ -98,7 +98,7 @@ public:
     }
     bool operator==(WeightableDistribution const & distribution) const;
     bool operator<(WeightableDistribution const & distribution) const;
-    virtual bool AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_cross_sections) const;
+    virtual bool AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const;
 protected:
     virtual bool equal(WeightableDistribution const & distribution) const = 0;
     virtual bool less(WeightableDistribution const & distribution) const = 0;
@@ -111,7 +111,7 @@ protected:
 public:
     virtual ~NormalizationConstant() {};
     NormalizationConstant(double norm);
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
     virtual std::string Name() const override;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -141,8 +141,8 @@ friend cereal::access;
 private:
 public:
     virtual ~InjectionDistribution() {};
-    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const;
-    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum & datum) const;
+    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const;
+    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const;
     virtual bool IsPositionDistribution() const {return false;}
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     template<class Archive>
