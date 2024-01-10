@@ -136,15 +136,15 @@ class LIController:
         self.DN_processes = PyDarkNewsCrossSectionCollection(table_dir=table_dir,
                                                              **model_kwargs)
         
-        # Initialize primary CrossSectionCollection
+        # Initialize primary InteractionCollection
         # Loop over available cross sections and save those which match primary type
         primary_cross_sections = []
         for cross_section in self.DN_processes.cross_sections:
             if primary_type == LI.dataclasses.Particle.ParticleType(cross_section.ups_case.nu_projectile.pdgid):
                 primary_cross_sections.append(cross_section)
-        primary_cross_section_collection = LI.crosssections.CrossSectionCollection(primary_type, primary_cross_sections)
+        primary_interaction_collection = LI.crosssections.InteractionCollection(primary_type, primary_cross_sections)
         
-        # Initialize secondary processes and define secondary CrossSectionCollection objects
+        # Initialize secondary processes and define secondary InteractionCollection objects
         secondary_decays = {}
         # Also keep track of the minimum decay width for defining the position distribution later
         self.DN_min_decay_width = 0
@@ -160,7 +160,7 @@ class LIController:
         # Now make the list of secondary cross section collections
         # Add new secondary injection and physical processes at the same time
         fid_vol = self.GetFiducialVolume() # find fiducial volume for secondary position distirbutions
-        secondary_cross_section_collections = []
+        secondary_interaction_collections = []
         for secondary_type,decay_list in secondary_decays.items():
             
             # Define a sedcondary injection distribution
@@ -178,9 +178,9 @@ class LIController:
             self.secondary_injection_processes.append(secondary_injection_process)
             self.secondary_physical_processes.append(secondary_physical_process)
 
-            secondary_cross_section_collections.append(LI.crosssections.CrossSectionCollection(secondary_type, decay_list))
+            secondary_interaction_collections.append(LI.crosssections.InteractionCollection(secondary_type, decay_list))
 
-        self.SetCrossSections(primary_cross_section_collection,secondary_cross_section_collections)
+        self.SetCrossSections(primary_interaction_collection,secondary_interaction_collections)
     
         
 
@@ -219,16 +219,16 @@ class LIController:
         return targets, target_strs
     
     def SetCrossSections(self,
-                         primary_cross_section_collection,
-                         secondary_cross_section_collections):
+                         primary_interaction_collection,
+                         secondary_interaction_collections):
         """
         Set cross sections for the primary and secondary processes
-        :param CrossSectionCollection primary_cross_section_collection: The cross section collection for the primary process
-        :param list<CrossSectionCollection> secondary_cross_section_collections: The list of cross section collections for the primary process
+        :param InteractionCollection primary_interaction_collection: The cross section collection for the primary process
+        :param list<InteractionCollection> secondary_interaction_collections: The list of cross section collections for the primary process
         """
         # Set primary cross sections
-        self.primary_injection_process.cross_sections = primary_cross_section_collection
-        self.primary_physical_process.cross_sections = primary_cross_section_collection
+        self.primary_injection_process.cross_sections = primary_interaction_collection
+        self.primary_physical_process.cross_sections = primary_interaction_collection
         
         # Loop through secondary processes
         for sec_inj,sec_phys in zip(self.secondary_injection_processes,
@@ -238,7 +238,7 @@ class LIController:
             record.signature.primary_type = sec_inj.primary_type
             found_collection = False
             # Loop through possible seconday cross sections
-            for sec_xs in secondary_cross_section_collections:
+            for sec_xs in secondary_interaction_collections:
                 # Match cross section collection on  the primary type
                 if sec_xs.MatchesPrimary(record):
                     sec_inj.cross_sections = sec_xs

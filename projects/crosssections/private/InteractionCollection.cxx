@@ -1,4 +1,4 @@
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/InteractionCollection.h"
 
 #include <map>                                                // for map
 #include <set>                                                // for operator==
@@ -16,7 +16,7 @@
 namespace LI {
 namespace crosssections {
 
-void CrossSectionCollection::InitializeTargetTypes() {
+void InteractionCollection::InitializeTargetTypes() {
     target_types.clear();
     cross_sections_by_target.clear();
     for(unsigned int i=0; i<cross_sections.size(); ++i) {
@@ -44,30 +44,30 @@ void CrossSectionCollection::InitializeTargetTypes() {
     // std::copy(target_set.begin(), target_set.end(), target_types.begin());
 }
 
-const std::vector<std::shared_ptr<CrossSection>> CrossSectionCollection::empty = {};
+const std::vector<std::shared_ptr<CrossSection>> InteractionCollection::empty = {};
 
-CrossSectionCollection::CrossSectionCollection() {}
+InteractionCollection::InteractionCollection() {}
 
-CrossSectionCollection::CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections) : primary_type(primary_type), cross_sections(cross_sections) {
+InteractionCollection::InteractionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections) : primary_type(primary_type), cross_sections(cross_sections) {
     InitializeTargetTypes();
 }
 
-CrossSectionCollection::CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays) : primary_type(primary_type), decays(decays) {
+InteractionCollection::InteractionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays) : primary_type(primary_type), decays(decays) {
     InitializeTargetTypes();
 }
 
-CrossSectionCollection::CrossSectionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays) : primary_type(primary_type), cross_sections(cross_sections), decays(decays) {
+InteractionCollection::InteractionCollection(LI::dataclasses::Particle::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays) : primary_type(primary_type), cross_sections(cross_sections), decays(decays) {
     InitializeTargetTypes();
 }
 
-bool CrossSectionCollection::operator==(CrossSectionCollection const & other) const {
+bool InteractionCollection::operator==(InteractionCollection const & other) const {
     return
         std::tie(primary_type, target_types, cross_sections, decays)
         ==
         std::tie(other.primary_type, other.target_types, other.cross_sections, other.decays);
 }
 
-std::vector<std::shared_ptr<CrossSection>> const & CrossSectionCollection::GetCrossSectionsForTarget(LI::dataclasses::Particle::ParticleType p) const {
+std::vector<std::shared_ptr<CrossSection>> const & InteractionCollection::GetCrossSectionsForTarget(LI::dataclasses::Particle::ParticleType p) const {
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>::const_iterator it = cross_sections_by_target.find(p);
     if(it != cross_sections_by_target.end()) {
         return it->second;
@@ -76,7 +76,7 @@ std::vector<std::shared_ptr<CrossSection>> const & CrossSectionCollection::GetCr
     }
 }
 
-double CrossSectionCollection::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
+double InteractionCollection::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
   double width = 0;
   if(!HasDecays()) return width;
   for(auto dec : decays) {
@@ -85,7 +85,7 @@ double CrossSectionCollection::TotalDecayWidth(dataclasses::InteractionRecord co
   return width;
 }
 
-double CrossSectionCollection::TotalDecayLength(dataclasses::InteractionRecord const & record) const {
+double InteractionCollection::TotalDecayLength(dataclasses::InteractionRecord const & record) const {
   double inv_length = 0;
   if(!HasDecays()) return std::numeric_limits<double>::infinity();
   for(auto dec : decays) {
@@ -94,7 +94,7 @@ double CrossSectionCollection::TotalDecayLength(dataclasses::InteractionRecord c
   return 1./inv_length;
 }
 
-bool CrossSectionCollection::MatchesPrimary(dataclasses::InteractionRecord const & record) const {
+bool InteractionCollection::MatchesPrimary(dataclasses::InteractionRecord const & record) const {
     return primary_type == record.signature.primary_type;
 }
 

@@ -14,7 +14,7 @@
 #include "../../../distributions/public/LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
 #include "../../../detector/public/LeptonInjector/detector/EarthModel.h"
-#include "../../../crosssections/public/LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "../../../crosssections/public/LeptonInjector/crosssections/InteractionCollection.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/functional.h>
@@ -103,7 +103,7 @@ PYBIND11_MODULE(injection,m) {
     .def("EventWeight",&LeptonTreeWeighter::EventWeight);
 
   class_<LeptonWeighter, std::shared_ptr<LeptonWeighter>>(m, "LeptonWeighter")
-    .def(init<std::vector<std::shared_ptr<InjectorBase>>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::CrossSectionCollection>, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>>>())
+    .def(init<std::vector<std::shared_ptr<InjectorBase>>, std::shared_ptr<LI::detector::EarthModel>, std::shared_ptr<LI::crosssections::InteractionCollection>, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>>>())
     .def("EventWeight",&LeptonWeighter::EventWeight)
     .def("SimplifiedEventWeight",&LeptonWeighter::SimplifiedEventWeight);
 

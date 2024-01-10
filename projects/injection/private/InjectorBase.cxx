@@ -8,7 +8,7 @@
 #include <rk/rk.hh>
 
 #include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "LeptonInjector/crosssections/InteractionCollection.h"
 #include "LeptonInjector/crosssections/Decay.h"
 #include "LeptonInjector/dataclasses/DecayRecord.h"
 #include "LeptonInjector/dataclasses/DecaySignature.h"
@@ -121,7 +121,7 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
   SampleCrossSection(record, primary_process->GetCrossSections());
 }
 
-void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections) const {
+void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::crosssections::InteractionCollection> cross_sections) const {
 
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
@@ -404,7 +404,7 @@ bool InjectorBase::SampleSecondaryProcess(unsigned int idx,
     return false;
     throw(LI::utilities::SecondaryProcessFailure("No process defined for this particle type!"));
   }
-  std::shared_ptr<LI::crosssections::CrossSectionCollection> sec_cross_sections = (*it)->GetCrossSections();
+  std::shared_ptr<LI::crosssections::InteractionCollection> sec_cross_sections = (*it)->GetCrossSections();
   std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> sec_distributions = (*it)->GetInjectionDistributions();
   datum.record.signature.primary_type = parent->record.signature.secondary_types[idx];
   datum.record.primary_mass = parent->record.secondary_masses[idx];
@@ -563,7 +563,7 @@ std::shared_ptr<LI::detector::EarthModel> InjectorBase::GetEarthModel() const {
     return earth_model;
 }
 
-std::shared_ptr<LI::crosssections::CrossSectionCollection> InjectorBase::GetCrossSections() const {
+std::shared_ptr<LI::crosssections::InteractionCollection> InjectorBase::GetCrossSections() const {
     return primary_process->GetCrossSections();
 }
 

@@ -3,7 +3,7 @@
 
 #include "../../public/LeptonInjector/crosssections/CrossSection.h"
 #include "../../public/LeptonInjector/crosssections/NeutrissimoDecay.h"
-#include "../../public/LeptonInjector/crosssections/CrossSectionCollection.h"
+#include "../../public/LeptonInjector/crosssections/InteractionCollection.h"
 #include "../../public/LeptonInjector/crosssections/DISFromSpline.h"
 #include "../../public/LeptonInjector/crosssections/HNLFromSpline.h"
 #include "../../public/LeptonInjector/crosssections/DipoleFromTable.h"
@@ -18,7 +18,7 @@
 #include "./HNLFromSpline.h"
 #include "./Decay.h"
 #include "./NeutrissimoDecay.h"
-#include "./CrossSectionCollection.h"
+#include "./InteractionCollection.h"
 #include "./DummyCrossSection.h"
 
 #include <pybind11/pybind11.h>
@@ -40,6 +40,6 @@ PYBIND11_MODULE(crosssections,m) {
     register_DISFromSpline(m);
     register_HNLFromSpline(m);
     register_NeutrissimoDecay(m);
-    register_CrossSectionCollection(m);
+    register_InteractionCollection(m);
     register_DummyCrossSection(m);
 }

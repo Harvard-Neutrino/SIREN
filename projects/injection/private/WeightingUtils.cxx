@@ -5,7 +5,7 @@
 #include <vector>                                                 // for vector
 
 #include "LeptonInjector/crosssections/CrossSection.h"            // for Cro...
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"  // for Cro...
+#include "LeptonInjector/crosssections/InteractionCollection.h"  // for Cro...
 #include "LeptonInjector/crosssections/Decay.h"                   // for Decay
 #include "LeptonInjector/dataclasses/InteractionRecord.h"         // for Int...
 #include "LeptonInjector/dataclasses/InteractionSignature.h"      // for Int...
@@ -18,7 +18,7 @@
 namespace LI {
 namespace injection {
 
-double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) {
+double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) {
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
     std::set<LI::dataclasses::Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(earth_model->GetEarthCoordPosFromDetCoordPos(record.interaction_vertex));
     std::set<LI::dataclasses::Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());

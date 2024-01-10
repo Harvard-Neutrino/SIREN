@@ -3,7 +3,7 @@
 LIST (APPEND crosssections_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/Decay.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/CrossSection.cxx
-    ${PROJECT_SOURCE_DIR}/projects/crosssections/private/CrossSectionCollection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/crosssections/private/InteractionCollection.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DipoleFromTable.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DarkNewsCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/crosssections/private/DarkNewsDecay.cxx
