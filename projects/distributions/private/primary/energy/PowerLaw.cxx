@@ -9,7 +9,7 @@
 #include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
 #include "LeptonInjector/utilities/Random.h"               // for LI_random
 
-namespace LI { namespace crosssections { class InteractionCollection; } }
+namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace detector { class EarthModel; } }
 
 namespace LI {
@@ -24,7 +24,7 @@ PowerLaw::PowerLaw(double powerLawIndex, double energyMin, double energyMax)
     , energyMax(energyMax)
 {}
 
-double PowerLaw::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double PowerLaw::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     if(energyMin == energyMax)
         return energyMin; //return the only allowed energy
 
@@ -48,7 +48,7 @@ double PowerLaw::pdf(double energy) const {
     }
 }
 
-double PowerLaw::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double PowerLaw::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     return pdf(record.primary_momentum[0]);
 }
 

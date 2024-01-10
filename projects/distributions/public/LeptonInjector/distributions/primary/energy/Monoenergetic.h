@@ -14,7 +14,7 @@
 
 #include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
 
-namespace LI { namespace crosssections { class InteractionCollection; } }
+namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
 namespace LI { namespace detector { class EarthModel; } }
 namespace LI { namespace distributions { class InjectionDistribution; } }
@@ -33,8 +33,8 @@ private:
 public:
     Monoenergetic(double gen_energy);
     double pdf(double energy) const;
-    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>

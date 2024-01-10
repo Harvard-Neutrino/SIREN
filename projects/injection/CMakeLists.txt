@@ -29,7 +29,7 @@ target_link_libraries(LI_injection
         LI_dataclasses
         LI_geometry
         LI_detector
-        LI_crosssections
+        LI_interactions
         LI_distributions
 )
 

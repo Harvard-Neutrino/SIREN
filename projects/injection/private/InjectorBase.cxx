@@ -7,9 +7,9 @@
 
 #include <rk/rk.hh>
 
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/InteractionCollection.h"
-#include "LeptonInjector/crosssections/Decay.h"
+#include "LeptonInjector/interactions/CrossSection.h"
+#include "LeptonInjector/interactions/InteractionCollection.h"
+#include "LeptonInjector/interactions/Decay.h"
 #include "LeptonInjector/dataclasses/DecayRecord.h"
 #include "LeptonInjector/dataclasses/DecaySignature.h"
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
@@ -121,7 +121,7 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
   SampleCrossSection(record, primary_process->cross_sections);
 }
 
-void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::crosssections::InteractionCollection> cross_sections) const {
+void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::interactions::InteractionCollection> cross_sections) const {
 
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
@@ -152,8 +152,8 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
     std::vector<double> probs;
     std::vector<LI::dataclasses::Particle::ParticleType> matching_targets;
     std::vector<LI::dataclasses::InteractionSignature> matching_signatures;
-    std::vector<std::shared_ptr<LI::crosssections::CrossSection>> matching_cross_sections;
-    std::vector<std::shared_ptr<LI::crosssections::Decay>> matching_decays;
+    std::vector<std::shared_ptr<LI::interactions::CrossSection>> matching_cross_sections;
+    std::vector<std::shared_ptr<LI::interactions::Decay>> matching_decays;
     LI::dataclasses::InteractionRecord fake_record = record;
     double fake_prob;
     if (cross_sections->HasCrossSections()) {
@@ -162,7 +162,7 @@ void InjectorBase::SampleCrossSection(LI::dataclasses::InteractionRecord & recor
               // Get target density
               double target_density = earth_model->GetParticleDensity(intersections, interaction_vertex, target);
               // Loop over cross sections that have this target
-              std::vector<std::shared_ptr<LI::crosssections::CrossSection>> const & target_cross_sections = cross_sections->GetCrossSectionsForTarget(target);
+              std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & target_cross_sections = cross_sections->GetCrossSectionsForTarget(target);
               for(auto const & cross_section : target_cross_sections) {
                   // Loop over cross section signatures with the same target
                   std::vector<LI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
@@ -404,7 +404,7 @@ bool InjectorBase::SampleSecondaryProcess(unsigned int idx,
     return false;
     throw(LI::utilities::SecondaryProcessFailure("No process defined for this particle type!"));
   }
-  std::shared_ptr<LI::crosssections::InteractionCollection> sec_cross_sections = (*it)->cross_sections;
+  std::shared_ptr<LI::interactions::InteractionCollection> sec_cross_sections = (*it)->cross_sections;
   std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> sec_distributions = (*it)->injection_distributions;
   datum.record.signature.primary_type = parent->record.signature.secondary_types[idx];
   datum.record.primary_mass = parent->record.secondary_masses[idx];
@@ -527,7 +527,7 @@ std::set<std::vector<std::string>> InjectorBase::DensityVariables() const {
         variables.reserve(variables.size() + new_variables.size());
         variables.insert(variables.end(), new_variables.begin(), new_variables.end());
     }
-    std::vector<std::shared_ptr<LI::crosssections::CrossSection>> xs_vec = primary_process->cross_sections->GetCrossSections();
+    std::vector<std::shared_ptr<LI::interactions::CrossSection>> xs_vec = primary_process->cross_sections->GetCrossSections();
     for(auto const & xs : xs_vec) {
         std::vector<std::string> new_variables = xs->DensityVariables();
         std::vector<std::string> variable_list;
@@ -563,7 +563,7 @@ std::shared_ptr<LI::detector::EarthModel> InjectorBase::GetEarthModel() const {
     return earth_model;
 }
 
-std::shared_ptr<LI::crosssections::InteractionCollection> InjectorBase::GetCrossSections() const {
+std::shared_ptr<LI::interactions::InteractionCollection> InjectorBase::GetCrossSections() const {
     return primary_process->cross_sections;
 }
 

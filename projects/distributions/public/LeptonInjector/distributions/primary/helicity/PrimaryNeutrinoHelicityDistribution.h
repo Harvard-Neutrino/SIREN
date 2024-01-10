@@ -15,7 +15,7 @@
 
 #include "LeptonInjector/distributions/Distributions.h"  // for InjectionDis...
 
-namespace LI { namespace crosssections { class InteractionCollection; } }
+namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
 namespace LI { namespace detector { class EarthModel; } }
 namespace LI { namespace utilities { class LI_random; } }
@@ -26,8 +26,8 @@ namespace distributions {
 class PrimaryNeutrinoHelicityDistribution : virtual public InjectionDistribution {
 friend cereal::access;
 public:
-    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
+    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
 	PrimaryNeutrinoHelicityDistribution();
 	PrimaryNeutrinoHelicityDistribution(const PrimaryNeutrinoHelicityDistribution &) = default;
     virtual std::vector<std::string> DensityVariables() const override;

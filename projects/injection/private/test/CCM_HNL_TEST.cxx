@@ -10,7 +10,7 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/interactions/CrossSection.h"
 
 #include "LeptonInjector/utilities/Random.h"
 #include "LeptonInjector/utilities/Constants.h"
@@ -33,18 +33,18 @@
 #include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
 #include "LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
 
-#include "LeptonInjector/crosssections/InteractionCollection.h"
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/DipoleFromTable.h"
-#include "LeptonInjector/crosssections/Decay.h"
-#include "LeptonInjector/crosssections/NeutrissimoDecay.h"
+#include "LeptonInjector/interactions/InteractionCollection.h"
+#include "LeptonInjector/interactions/CrossSection.h"
+#include "LeptonInjector/interactions/DipoleFromTable.h"
+#include "LeptonInjector/interactions/Decay.h"
+#include "LeptonInjector/interactions/NeutrissimoDecay.h"
 
 using namespace LI::math;
 using namespace LI::geometry;
 using namespace LI::detector;
 using namespace LI::injection;
 using namespace LI::dataclasses;
-using namespace LI::crosssections;
+using namespace LI::interactions;
 using namespace LI::utilities;
 using namespace LI::distributions;
 

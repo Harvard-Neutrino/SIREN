@@ -20,14 +20,14 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/Decay.h"
+#include "LeptonInjector/interactions/CrossSection.h"
+#include "LeptonInjector/interactions/Decay.h"
 #include "LeptonInjector/detector/EarthModel.h"
 #include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 #include "LeptonInjector/injection/InjectorBase.h"  // for InjectorBase
 
-namespace LI { namespace crosssections { class InteractionCollection; } }
+namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
 namespace LI { namespace injection { struct InjectionProcess; } }
 namespace LI { namespace math { class Vector3D; } }
@@ -43,7 +43,7 @@ protected:
     double disk_radius;
     double endcap_length;
     std::shared_ptr<LI::distributions::ColumnDepthPositionDistribution> position_distribution;
-    std::shared_ptr<LI::crosssections::InteractionCollection> cross_sections;
+    std::shared_ptr<LI::interactions::InteractionCollection> cross_sections;
     ColumnDepthLeptonInjector();
 public:
     ColumnDepthLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::DepthFunction> depth_func, double disk_radius, double endcap_length);

@@ -20,9 +20,9 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/crosssections/InteractionCollection.h"
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/Decay.h"
+#include "LeptonInjector/interactions/InteractionCollection.h"
+#include "LeptonInjector/interactions/CrossSection.h"
+#include "LeptonInjector/interactions/Decay.h"
 #include "LeptonInjector/detector/EarthModel.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
@@ -43,7 +43,7 @@ protected:
     double disk_radius;
     double endcap_length;
     std::shared_ptr<LI::distributions::DecayRangePositionDistribution> position_distribution;
-    std::shared_ptr<LI::crosssections::InteractionCollection> cross_sections;
+    std::shared_ptr<LI::interactions::InteractionCollection> cross_sections;
     DecayRangeLeptonInjector();
 public:
     DecayRangeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::DecayRangeFunction> range_func, double disk_radius, double endcap_length);

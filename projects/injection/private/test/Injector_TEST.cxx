@@ -10,7 +10,7 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/interactions/CrossSection.h"
 
 #include "LeptonInjector/utilities/Random.h"
 #include "LeptonInjector/utilities/Constants.h"
@@ -31,9 +31,9 @@
 #include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 
-#include "LeptonInjector/crosssections/InteractionCollection.h"
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/DipoleFromTable.h"
+#include "LeptonInjector/interactions/InteractionCollection.h"
+#include "LeptonInjector/interactions/CrossSection.h"
+#include "LeptonInjector/interactions/DipoleFromTable.h"
 
 #define AUSTIN
 
@@ -42,7 +42,7 @@ using namespace LI::geometry;
 using namespace LI::detector;
 using namespace LI::injection;
 using namespace LI::dataclasses;
-using namespace LI::crosssections;
+using namespace LI::interactions;
 using namespace LI::utilities;
 using namespace LI::distributions;
 

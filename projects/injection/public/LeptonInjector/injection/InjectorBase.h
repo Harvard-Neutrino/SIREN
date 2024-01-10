@@ -30,7 +30,7 @@
 #include "LeptonInjector/dataclasses/InteractionTree.h"    // for Interactio...
 #include "LeptonInjector/dataclasses/Particle.h"           // for Particle
 
-namespace LI { namespace crosssections { class InteractionCollection; } }
+namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct DecayRecord; } }
 namespace LI { namespace detector { class EarthModel; } }
 namespace LI { namespace distributions { class InjectionDistribution; } }
@@ -79,7 +79,7 @@ public:
     void SetRandom(std::shared_ptr<LI::utilities::LI_random> random);
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record) const;
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record,
-                                    std::shared_ptr<LI::crosssections::InteractionCollection> cross_sections) const;
+                                    std::shared_ptr<LI::interactions::InteractionCollection> cross_sections) const;
     virtual void SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
     virtual void SamplePairProduction(LI::dataclasses::DecayRecord const & decay, LI::dataclasses::InteractionRecord & pairprod) const;
     bool SampleSecondaryProcess(unsigned int idx,
@@ -96,7 +96,7 @@ public:
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionTreeDatum const & datum, LI::dataclasses::Particle::ParticleType const & primary_type) const;
     virtual std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> GetInjectionDistributions() const;
     virtual std::shared_ptr<LI::detector::EarthModel> GetEarthModel() const;
-    virtual std::shared_ptr<LI::crosssections::InteractionCollection> GetCrossSections() const;
+    virtual std::shared_ptr<LI::interactions::InteractionCollection> GetCrossSections() const;
     unsigned int InjectedEvents() const;
     unsigned int EventsToInject() const;
     operator bool() const;

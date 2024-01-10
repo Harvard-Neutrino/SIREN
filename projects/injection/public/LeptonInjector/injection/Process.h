@@ -19,15 +19,15 @@
 #include "LeptonInjector/dataclasses/Particle.h"         // for Particle
 #include "LeptonInjector/distributions/Distributions.h"  // for InjectionDis...
 
-namespace LI { namespace crosssections { class InteractionCollection; } }
+namespace LI { namespace interactions { class InteractionCollection; } }
 
 namespace LI {
 namespace injection {
 
 struct Process {
     LI::dataclasses::Particle::ParticleType primary_type;
-    std::shared_ptr<crosssections::InteractionCollection> cross_sections;
-    void SetCrossSections(std::shared_ptr<crosssections::InteractionCollection> _cross_sections) {cross_sections = _cross_sections;}
+    std::shared_ptr<interactions::InteractionCollection> cross_sections;
+    void SetCrossSections(std::shared_ptr<interactions::InteractionCollection> _cross_sections) {cross_sections = _cross_sections;}
     bool operator==(Process const & other) const;
     bool MatchesHead(std::shared_ptr<Process> const & other) const; // required to compared instances of derived structs
     template<class Archive>
