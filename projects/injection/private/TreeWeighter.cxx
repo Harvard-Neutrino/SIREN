@@ -223,7 +223,7 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
-    
+
     LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), earth_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::crosssections::CrossSection>>> const & cross_sections_by_target = phys_process->cross_sections->GetCrossSectionsByTarget();
     std::vector<LI::dataclasses::Particle::ParticleType> targets;
@@ -265,7 +265,7 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
-    
+
     LI::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],

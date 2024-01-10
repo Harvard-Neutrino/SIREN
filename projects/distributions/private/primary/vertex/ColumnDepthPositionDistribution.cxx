@@ -166,7 +166,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     }
     
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
-    
+
     return prob_density;
 }
 
