@@ -29,7 +29,7 @@
 #include "LeptonInjector/injection/InjectorBase.h"  // for InjectorBase
 
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
-namespace LI { namespace injection { struct InjectionProcess; } }
+namespace LI { namespace injection { class InjectionProcess; } }
 namespace LI { namespace math { class Vector3D; } }  // lines 40-40
 namespace LI { namespace utilities { class LI_random; } }  // lines 44-44
 

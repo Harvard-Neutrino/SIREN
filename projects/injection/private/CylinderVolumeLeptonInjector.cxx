@@ -28,15 +28,15 @@ CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector(
         LI::geometry::Cylinder cylinder) :
     InjectorBase(events_to_inject, earth_model, random),
     position_distribution(std::make_shared<LI::distributions::CylinderVolumePositionDistribution>(cylinder)) {
-    cross_sections = primary_process->cross_sections;
-    primary_process->injection_distributions.push_back(position_distribution);
+    cross_sections = primary_process->GetCrossSections();
+    primary_process->AddInjectionDistribution(position_distribution);
     SetPrimaryProcess(primary_process);
     for(auto & sec_process : secondary_processes) {
       AddSecondaryProcess(sec_process);
       // Assume each secondary process already has a position distribution
       // Otherwise uncomment below
       /*
-      sec_process->injection_distributions.push_back(position_distribution);
+      sec_process->GetInjectionDistributions().push_back(position_distribution);
       */
     }
 }
