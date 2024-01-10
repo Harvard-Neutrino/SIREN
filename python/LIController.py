@@ -3,7 +3,7 @@ import h5py
 import numpy as np
 
 import leptoninjector as LI
-from LIDarkNews import PyDarkNewsCrossSectionCollection
+from LIDarkNews import PyDarkNewsInteractionCollection
 
 # For determining fiducial volume of different experiments
 fid_vol_dict = {'MiniBooNE':'fid_vol',
@@ -133,7 +133,7 @@ class LIController:
         # Add nuclear targets to the model arguments
         model_kwargs['nuclear_targets'] = self.GetDetectorModelTargets()[1]
         # Initialize DarkNews cross sections and decays
-        self.DN_processes = PyDarkNewsCrossSectionCollection(table_dir=table_dir,
+        self.DN_processes = PyDarkNewsInteractionCollection(table_dir=table_dir,
                                                              **model_kwargs)
         
         # Initialize primary InteractionCollection
