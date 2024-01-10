@@ -14,7 +14,7 @@
 #include "LeptonInjector/dataclasses/DecaySignature.h"
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/detector/MaterialModel.h"
 #include "LeptonInjector/detector/Path.h"
 #include "LeptonInjector/distributions/Distributions.h"
@@ -39,7 +39,7 @@ Injector::Injector() {}
 
 Injector::Injector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::EarthModel> earth_model,
+        std::shared_ptr<LI::detector::DetectorModel> earth_model,
         std::shared_ptr<LI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
@@ -48,7 +48,7 @@ Injector::Injector(
 
 Injector::Injector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::EarthModel> earth_model,
+        std::shared_ptr<LI::detector::DetectorModel> earth_model,
         std::shared_ptr<injection::InjectionProcess> primary_process,
         std::shared_ptr<LI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
@@ -60,7 +60,7 @@ Injector::Injector(
 
 Injector::Injector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::EarthModel> earth_model,
+        std::shared_ptr<LI::detector::DetectorModel> earth_model,
         std::shared_ptr<injection::InjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes,
         std::shared_ptr<LI::utilities::LI_random> random) :
@@ -559,7 +559,7 @@ std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> Injector:
     return primary_process->injection_distributions;
 }
 
-std::shared_ptr<LI::detector::EarthModel> Injector::GetEarthModel() const {
+std::shared_ptr<LI::detector::DetectorModel> Injector::GetDetectorModel() const {
     return earth_model;
 }
 

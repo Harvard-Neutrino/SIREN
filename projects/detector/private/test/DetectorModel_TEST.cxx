@@ -13,7 +13,7 @@
 
 #include "LeptonInjector/geometry/Geometry.h"
 #include "LeptonInjector/geometry/Sphere.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/utilities/Constants.h"
 #include "LeptonInjector/detector/DensityDistribution.h"
 #include "LeptonInjector/detector/Distribution1D.h"
@@ -25,7 +25,7 @@
 #include "LeptonInjector/detector/ExponentialDistribution1D.h"
 #include "LeptonInjector/detector/DensityDistribution1D.h"
 
-#include "FakeEarthModel.h"
+#include "FakeDetectorModel.h"
 #include "FakeMaterialModel.h"
 
 using namespace LI::math;
@@ -36,12 +36,12 @@ using namespace LI::dataclasses;
 
 TEST(Constructor, Default)
 {
-    EXPECT_NO_THROW(EarthModel A);
+    EXPECT_NO_THROW(DetectorModel A);
 }
 
 TEST(DefaultMaterials, VacuumOnly)
 {
-    EarthModel A;
+    DetectorModel A;
     MaterialModel materials = A.GetMaterials();
 
     int material_count = 0;
@@ -86,7 +86,7 @@ TEST(DefaultMaterials, VacuumOnly)
 }
 
 /*
-    EarthSector sector;
+    DetectorSector sector;
     sector.material_id = materials_.GetMaterialId("VACUUM");
     sector.level = sectors_.size();
     sector.geo = Sphere(Vector3D(0,0,0), std::numeric_limits<double>::infinity(), 0).create();
@@ -96,10 +96,10 @@ TEST(DefaultMaterials, VacuumOnly)
 
 TEST(DefaultSectors, VacuumOnly)
 {
-    EarthModel A;
-    std::vector<EarthSector> sectors = A.GetSectors();
+    DetectorModel A;
+    std::vector<DetectorSector> sectors = A.GetSectors();
     ASSERT_EQ(1, sectors.size());
-    EarthSector sector = sectors[0];
+    DetectorSector sector = sectors[0];
     EXPECT_EQ(0, sector.material_id);
     EXPECT_EQ(std::numeric_limits<int>::min(), sector.level);
     Sphere geo(Vector3D(0,0,0),std::numeric_limits<double>::infinity(), 0);
@@ -108,44 +108,44 @@ TEST(DefaultSectors, VacuumOnly)
     EXPECT_EQ(density, *sector.density);
 }
 
-TEST_F(FakeMaterialModelTest, EarthModelConstructorEmptyModel)
+TEST_F(FakeMaterialModelTest, DetectorModelConstructorEmptyModel)
 {
-    EXPECT_THROW(EarthModel A("", materials_file), std::runtime_error);
+    EXPECT_THROW(DetectorModel A("", materials_file), std::runtime_error);
 }
 
-TEST_F(FakeMaterialModelTest, EarthModelConstructorEmptyPathEmptyModel)
+TEST_F(FakeMaterialModelTest, DetectorModelConstructorEmptyPathEmptyModel)
 {
-    EXPECT_THROW(EarthModel A("", "", materials_file), std::runtime_error);
+    EXPECT_THROW(DetectorModel A("", "", materials_file), std::runtime_error);
 }
 
-TEST(Constructor, EarthModelConstructorEmptyModelEmptyMaterials)
+TEST(Constructor, DetectorModelConstructorEmptyModelEmptyMaterials)
 {
-    EXPECT_THROW(EarthModel A("", ""), std::runtime_error);
+    EXPECT_THROW(DetectorModel A("", ""), std::runtime_error);
 }
 
-TEST(Constructor, EarthModelConstructorEmptyPathEmptyModelEmptyMaterials)
+TEST(Constructor, DetectorModelConstructorEmptyPathEmptyModelEmptyMaterials)
 {
-    EXPECT_THROW(EarthModel A("", "", ""), std::runtime_error);
+    EXPECT_THROW(DetectorModel A("", "", ""), std::runtime_error);
 }
 
-TEST_F(FakeMaterialModelTest, EarthModelConstructorEmptyPathBadModel)
+TEST_F(FakeMaterialModelTest, DetectorModelConstructorEmptyPathBadModel)
 {
-    EXPECT_THROW(EarthModel("", std::tmpnam(nullptr), materials_file), std::runtime_error);
+    EXPECT_THROW(DetectorModel("", std::tmpnam(nullptr), materials_file), std::runtime_error);
 }
 
-TEST_F(FakeMaterialModelTest, EarthModelConstructorBadModel)
+TEST_F(FakeMaterialModelTest, DetectorModelConstructorBadModel)
 {
-    EXPECT_THROW(EarthModel(std::tmpnam(nullptr), materials_file), std::runtime_error);
+    EXPECT_THROW(DetectorModel(std::tmpnam(nullptr), materials_file), std::runtime_error);
 }
 
-TEST_F(FakeMaterialModelTest, EarthModelConstructorBadModelEmptyMaterial)
+TEST_F(FakeMaterialModelTest, DetectorModelConstructorBadModelEmptyMaterial)
 {
-    EXPECT_THROW(EarthModel(std::tmpnam(nullptr), ""), std::runtime_error);
+    EXPECT_THROW(DetectorModel(std::tmpnam(nullptr), ""), std::runtime_error);
 }
 
 TEST(Path, SetGet)
 {
-    EarthModel A;
+    DetectorModel A;
     std::string result;
     std::string expect;
     A.SetPath("a");
@@ -167,7 +167,7 @@ TEST(Path, SetGet)
 
 TEST(EdgeCases, ColumnDepthWithEqualPoints)
 {
-    EarthModel A;
+    DetectorModel A;
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         Vector3D v;
@@ -175,49 +175,49 @@ TEST(EdgeCases, ColumnDepthWithEqualPoints)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileLoadWithNoIce)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileLoadWithNoIce)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset());
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         EXPECT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileLoadWithIce)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileLoadWithIce)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset());
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
-        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyDetectorModelFile::RandomDouble()*180;
         EXPECT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileLayerNames)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileLayerNames)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset());
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
-        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyDetectorModelFile::RandomDouble()*180;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         EXPECT_EQ(layer_names.size(), sectors.size() - 1);
         unsigned int n_layers = std::min(layer_names.size(), sectors.size() - 1);
         for(unsigned int j=0; j<n_layers; ++j) {
@@ -226,19 +226,19 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileLayerNames)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileLayerMaterials)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileLayerMaterials)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset());
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
-        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyDetectorModelFile::RandomDouble()*180;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         EXPECT_EQ(layer_materials.size(), sectors.size() - 1);
         unsigned int n_layers = std::min(layer_materials.size(), sectors.size() - 1);
         MaterialModel materials = A.GetMaterials();
@@ -248,26 +248,26 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileLayerMaterials)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileSectorTypes)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileSectorTypes)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset());
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
-        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyDetectorModelFile::RandomDouble()*180;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         unsigned int n_layers = sectors.size()-1;
         ASSERT_EQ(n_layers, layer_thicknesses.size());
         double max_radius = 0.0;
         for(unsigned int j=0; j<n_layers; ++j) {
             unsigned int sector_index = j+1;
             unsigned int layer_index = j;
-            EarthSector & sector = sectors[sector_index];
+            DetectorSector & sector = sectors[sector_index];
             std::shared_ptr<const Geometry> geo = sector.geo;
             Placement placement = geo->GetPlacement();
             Sphere const* sphere = dynamic_cast<Sphere const*>(geo.get());
@@ -308,25 +308,25 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileSectorTypes)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileGetMassDensityCachedIntersections)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileGetMassDensityCachedIntersections)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset());
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         double max_radius = *std::max_element(layer_radii.begin(), layer_radii.end());
         max_depth = std::min(max_depth, max_radius);
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
-        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyDetectorModelFile::RandomDouble()*180;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
         Vector3D p0 = RandomVector(max_radius);
         Vector3D direction = RandomVector(1.0);
         direction.normalize();
         Geometry::IntersectionList intersections = A.GetIntersections(p0, direction);
         for(unsigned int j=0; j<10; ++j) {
-            Vector3D p1 = p0 + direction * (FakeLegacyEarthModelFile::RandomDouble()*max_radius*2 - max_radius);
+            Vector3D p1 = p0 + direction * (FakeLegacyDetectorModelFile::RandomDouble()*max_radius*2 - max_radius);
             double expect = A.GetMassDensity(p1);
             double density = A.GetMassDensity(intersections, p1);
             EXPECT_DOUBLE_EQ(density, expect) << i << " " << j;
@@ -334,26 +334,26 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileGetMassDensityCachedIntersections)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileIntegralCachedIntersections)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileIntegralCachedIntersections)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset());
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         double max_radius = *std::max_element(layer_radii.begin(), layer_radii.end());
         max_depth = std::min(max_depth, max_radius);
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
-        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyDetectorModelFile::RandomDouble()*180;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
         Vector3D p0 = RandomVector(max_radius);
         Vector3D direction = RandomVector(1.0);
         direction.normalize();
         Geometry::IntersectionList intersections = A.GetIntersections(p0, direction);
         for(unsigned int j=0; j<10; ++j) {
-            Vector3D p1 = p0 + direction * (FakeLegacyEarthModelFile::RandomDouble()*max_radius*2 - max_radius);
-            Vector3D p2 = p0 + direction * (FakeLegacyEarthModelFile::RandomDouble()*max_radius*2 - max_radius);
+            Vector3D p1 = p0 + direction * (FakeLegacyDetectorModelFile::RandomDouble()*max_radius*2 - max_radius);
+            Vector3D p2 = p0 + direction * (FakeLegacyDetectorModelFile::RandomDouble()*max_radius*2 - max_radius);
             double expect = A.GetColumnDepthInCGS(p1, p2);
             double integral = A.GetColumnDepthInCGS(intersections, p1, p2);
             EXPECT_NEAR(integral, expect, std::max(std::abs(integral), std::abs(expect))*1e-8);
@@ -361,18 +361,18 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileIntegralCachedIntersections)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileInverseIntegralCachedIntersections)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileInverseIntegralCachedIntersections)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset());
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         double max_radius = *std::max_element(layer_radii.begin(), layer_radii.end());
         max_depth = std::min(max_depth, max_radius);
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
-        double ice_angle = FakeLegacyEarthModelFile::RandomDouble()*180;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
+        double ice_angle = FakeLegacyDetectorModelFile::RandomDouble()*180;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
         Vector3D p0 = RandomVector(max_radius);
         Vector3D p1 = RandomVector(max_radius);
@@ -388,21 +388,21 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileInverseIntegralCachedIntersections)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralInternal)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralInternal)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -417,21 +417,21 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralInternal)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityInternal)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantGetMassDensityInternal)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset(1, 1));
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(2, sectors.size());
-        EarthSector sector = sectors[1];
+        DetectorSector sector = sectors[1];
         Sphere const * sphere = dynamic_cast<Sphere const *>(sector.geo.get());
         ASSERT_TRUE(sphere);
         double max_radius = sphere->GetRadius();
@@ -445,23 +445,23 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityInternal)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         reset();
         ASSERT_NO_THROW(reset(2, 1));
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(3, sectors.size());
-        EarthSector sector_0 = sectors[1];
-        EarthSector sector_1 = sectors[2];
+        DetectorSector sector_0 = sectors[1];
+        DetectorSector sector_1 = sectors[2];
         Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
         Sphere const * sphere_1 = dynamic_cast<Sphere const *>(sector_1.geo.get());
         ASSERT_TRUE(sphere_0);
@@ -547,23 +547,23 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralNested)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityNested)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantGetMassDensityNested)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         reset();
         ASSERT_NO_THROW(reset(2, 1));
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(3, sectors.size());
-        EarthSector sector_0 = sectors[1];
-        EarthSector sector_1 = sectors[2];
+        DetectorSector sector_0 = sectors[1];
+        DetectorSector sector_1 = sectors[2];
         Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
         Sphere const * sphere_1 = dynamic_cast<Sphere const *>(sector_1.geo.get());
         ASSERT_TRUE(sphere_0);
@@ -591,44 +591,44 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityNested)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralIntersecting)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         reset();
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         MaterialModel materials = A.GetMaterials();
         int material_count = 0;
         while(materials.HasMaterial(material_count)) {
             material_count += 1;
         }
-        double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
+        double radius = FakeLegacyDetectorModelFile::RandomDouble()*1000;
 
-        EarthSector upper_sector;
+        DetectorSector upper_sector;
         Vector3D upper_center(-radius/4.0,0,0);
         upper_sector.name = "upper";
-        upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        upper_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
-        EarthSector lower_sector;
+        DetectorSector lower_sector;
         Vector3D lower_center(radius/4.0,0,0);
         lower_sector.name = "lower";
-        lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        lower_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius, 0).create();
-        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
 
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(3, sectors.size());
-        EarthSector sector_vacuum = sectors[0];
-        EarthSector sector_0 = sectors[1];
-        EarthSector sector_1 = sectors[2];
+        DetectorSector sector_vacuum = sectors[0];
+        DetectorSector sector_0 = sectors[1];
+        DetectorSector sector_1 = sectors[2];
         ASSERT_EQ(lower_sector.name, sector_0.name);
         ASSERT_EQ(upper_sector.name, sector_1.name);
         Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
@@ -885,44 +885,44 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralIntersecting)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityIntersecting)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantGetMassDensityIntersecting)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         reset();
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         MaterialModel materials = A.GetMaterials();
         int material_count = 0;
         while(materials.HasMaterial(material_count)) {
             material_count += 1;
         }
-        double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
+        double radius = FakeLegacyDetectorModelFile::RandomDouble()*1000;
 
-        EarthSector upper_sector;
+        DetectorSector upper_sector;
         Vector3D upper_center(-radius/4.0,0,0);
         upper_sector.name = "upper";
-        upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        upper_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
-        EarthSector lower_sector;
+        DetectorSector lower_sector;
         Vector3D lower_center(radius/4.0,0,0);
         lower_sector.name = "lower";
-        lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        lower_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius, 0).create();
-        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
 
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(3, sectors.size());
-        EarthSector sector_vacuum = sectors[0];
-        EarthSector sector_0 = sectors[1];
-        EarthSector sector_1 = sectors[2];
+        DetectorSector sector_vacuum = sectors[0];
+        DetectorSector sector_0 = sectors[1];
+        DetectorSector sector_1 = sectors[2];
         ASSERT_EQ(lower_sector.name, sector_0.name);
         ASSERT_EQ(upper_sector.name, sector_1.name);
         Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
@@ -956,44 +956,44 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityIntersecting)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralHidden)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         reset();
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         MaterialModel materials = A.GetMaterials();
         int material_count = 0;
         while(materials.HasMaterial(material_count)) {
             material_count += 1;
         }
-        double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
+        double radius = FakeLegacyDetectorModelFile::RandomDouble()*1000;
 
-        EarthSector upper_sector;
+        DetectorSector upper_sector;
         Vector3D upper_center(0,0,0);
         upper_sector.name = "upper";
-        upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        upper_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
-        EarthSector lower_sector;
+        DetectorSector lower_sector;
         Vector3D lower_center(0,0,0);
         lower_sector.name = "lower";
-        lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        lower_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius/2.0, 0).create();
-        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
 
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(3, sectors.size());
-        EarthSector sector_vacuum = sectors[0];
-        EarthSector sector_0 = sectors[1];
-        EarthSector sector_1 = sectors[2];
+        DetectorSector sector_vacuum = sectors[0];
+        DetectorSector sector_0 = sectors[1];
+        DetectorSector sector_1 = sectors[2];
         ASSERT_EQ(lower_sector.name, sector_0.name);
         ASSERT_EQ(upper_sector.name, sector_1.name);
         Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
@@ -1060,44 +1060,44 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantIntegralHidden)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityHidden)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantGetMassDensityHidden)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         reset();
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         MaterialModel materials = A.GetMaterials();
         int material_count = 0;
         while(materials.HasMaterial(material_count)) {
             material_count += 1;
         }
-        double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
+        double radius = FakeLegacyDetectorModelFile::RandomDouble()*1000;
 
-        EarthSector upper_sector;
+        DetectorSector upper_sector;
         Vector3D upper_center(0,0,0);
         upper_sector.name = "upper";
-        upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        upper_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
-        EarthSector lower_sector;
+        DetectorSector lower_sector;
         Vector3D lower_center(0,0,0);
         lower_sector.name = "lower";
-        lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        lower_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius/2.0, 0).create();
-        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
 
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(3, sectors.size());
-        EarthSector sector_vacuum = sectors[0];
-        EarthSector sector_0 = sectors[1];
-        EarthSector sector_1 = sectors[2];
+        DetectorSector sector_vacuum = sectors[0];
+        DetectorSector sector_0 = sectors[1];
+        DetectorSector sector_1 = sectors[2];
         ASSERT_EQ(lower_sector.name, sector_0.name);
         ASSERT_EQ(upper_sector.name, sector_1.name);
         Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
@@ -1126,19 +1126,19 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantGetMassDensityHidden)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralInternal)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantInverseIntegralInternal)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset());
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         double max_depth = 5000;
         max_depth = std::min(max_depth, *std::max_element(layer_radii.begin(), layer_radii.end()));
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         unsigned int n_layers = std::min(layer_names.size(), sectors.size() - 1);
         double max_radius = 0.0;
         for(unsigned int j=0; j<n_layers; ++j) {
@@ -1162,53 +1162,53 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralInternal)
         EXPECT_NEAR(distance, found_distance, std::max(std::abs(distance), std::abs(found_distance))*1e-12);
     }
 }
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantInverseIntegralHidden)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         reset();
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         MaterialModel materials = A.GetMaterials();
         int material_count = 0;
         while(materials.HasMaterial(material_count)) {
             material_count += 1;
         }
-        double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
+        double radius = FakeLegacyDetectorModelFile::RandomDouble()*1000;
 
-        EarthSector upper_sector;
+        DetectorSector upper_sector;
         Vector3D upper_center(0,0,0);
         upper_sector.name = "upper";
-        upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        upper_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
-        EarthSector lower_sector;
+        DetectorSector lower_sector;
         Vector3D lower_center(0,0,0);
         lower_sector.name = "lower";
-        lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        lower_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius/2.0, 0).create();
-        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
-        EarthSector bg_sector;
+        DetectorSector bg_sector;
         Vector3D bg_center(0,0,0);
         bg_sector.name = "bg";
-        bg_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        bg_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         bg_sector.level = -100;
         bg_sector.geo = Sphere(bg_center, radius*100, 0).create();
-        bg_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        bg_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
         A.AddSector(bg_sector);
 
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(4, sectors.size());
-        EarthSector sector_vacuum = sectors[0];
-        EarthSector sector_0 = sectors[1];
-        EarthSector sector_1 = sectors[2];
+        DetectorSector sector_vacuum = sectors[0];
+        DetectorSector sector_0 = sectors[1];
+        DetectorSector sector_1 = sectors[2];
         ASSERT_EQ(lower_sector.name, sector_0.name);
         ASSERT_EQ(upper_sector.name, sector_1.name);
         Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
@@ -1235,53 +1235,53 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralHidden)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantInverseIntegralIntersecting)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         reset();
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
         MaterialModel materials = A.GetMaterials();
         int material_count = 0;
         while(materials.HasMaterial(material_count)) {
             material_count += 1;
         }
-        double radius = FakeLegacyEarthModelFile::RandomDouble()*1000;
+        double radius = FakeLegacyDetectorModelFile::RandomDouble()*1000;
 
-        EarthSector upper_sector;
+        DetectorSector upper_sector;
         Vector3D upper_center(-radius/4.0,0,0);
         upper_sector.name = "upper";
-        upper_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        upper_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         upper_sector.level = -1;
         upper_sector.geo = Sphere(upper_center, radius, 0).create();
-        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        upper_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
-        EarthSector lower_sector;
+        DetectorSector lower_sector;
         Vector3D lower_center(radius/4.0,0,0);
         lower_sector.name = "lower";
-        lower_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        lower_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         lower_sector.level = -2;
         lower_sector.geo = Sphere(lower_center, radius, 0).create();
-        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        lower_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
-        EarthSector bg_sector;
+        DetectorSector bg_sector;
         Vector3D bg_center(0,0,0);
         bg_sector.name = "bg";
-        bg_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        bg_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         bg_sector.level = -100;
         bg_sector.geo = Sphere(bg_center, radius*100, 0).create();
-        bg_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        bg_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
         A.AddSector(lower_sector);
         A.AddSector(upper_sector);
         A.AddSector(bg_sector);
 
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(4, sectors.size());
-        EarthSector sector_vacuum = sectors[0];
-        EarthSector sector_0 = sectors[1];
-        EarthSector sector_1 = sectors[2];
+        DetectorSector sector_vacuum = sectors[0];
+        DetectorSector sector_0 = sectors[1];
+        DetectorSector sector_1 = sectors[2];
         ASSERT_EQ(lower_sector.name, sector_0.name);
         ASSERT_EQ(upper_sector.name, sector_1.name);
         Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
@@ -1308,13 +1308,13 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralIntersecting)
     }
 }
 
-TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralNested)
+TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantInverseIntegralNested)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         reset();
         ASSERT_NO_THROW(reset(2, 1));
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
 
         MaterialModel materials = A.GetMaterials();
@@ -1327,23 +1327,23 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralNested)
         double max_radius = *std::max_element(layer_radii.begin(), layer_radii.end());
         max_depth = std::min(max_depth, max_radius);
 
-        double depth = FakeLegacyEarthModelFile::RandomDouble()*max_depth;
+        double depth = FakeLegacyDetectorModelFile::RandomDouble()*max_depth;
         double ice_angle = -1;
         ASSERT_NO_THROW(A.LoadConcentricShellsFromLegacyFile(model_file, depth, ice_angle));
 
-        EarthSector bg_sector;
+        DetectorSector bg_sector;
         Vector3D bg_center(0,0,0);
         bg_sector.name = "bg";
-        bg_sector.material_id = FakeLegacyEarthModelFile::RandomDouble()*material_count;
+        bg_sector.material_id = FakeLegacyDetectorModelFile::RandomDouble()*material_count;
         bg_sector.level = -100;
         bg_sector.geo = Sphere(bg_center, max_radius*100, 0).create();
-        bg_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyEarthModelFile::RandomDouble()*15).create();
+        bg_sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>(FakeLegacyDetectorModelFile::RandomDouble()*15).create();
 
         A.AddSector(bg_sector);
-        std::vector<EarthSector> sectors = A.GetSectors();
+        std::vector<DetectorSector> sectors = A.GetSectors();
         ASSERT_EQ(4, sectors.size());
-        EarthSector sector_0 = sectors[1];
-        EarthSector sector_1 = sectors[2];
+        DetectorSector sector_0 = sectors[1];
+        DetectorSector sector_1 = sectors[2];
         Sphere const * sphere_0 = dynamic_cast<Sphere const *>(sector_0.geo.get());
         Sphere const * sphere_1 = dynamic_cast<Sphere const *>(sector_1.geo.get());
         ASSERT_TRUE(sphere_0);
@@ -1369,14 +1369,14 @@ TEST_F(FakeLegacyEarthModelTest, LegacyFileConstantInverseIntegralNested)
     }
 }
 
-TEST_F(FakeEarthModelTest, FileLoad)
+TEST_F(FakeDetectorModelTest, FileLoad)
 {
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         ASSERT_NO_THROW(reset());
-        EarthModel A;
+        DetectorModel A;
         ASSERT_NO_THROW(A.LoadMaterialModel(materials_file));
-        EXPECT_NO_THROW(A.LoadEarthModel(model_file));
+        EXPECT_NO_THROW(A.LoadDetectorModel(model_file));
     }
 }
 

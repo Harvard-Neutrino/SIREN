@@ -7,7 +7,7 @@
 #include <stdlib.h>                                        // for abs
 
 #include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
-#include "LeptonInjector/detector/EarthModel.h"            // for EarthModel
+#include "LeptonInjector/detector/DetectorModel.h"            // for DetectorModel
 #include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
 #include "LeptonInjector/geometry/Geometry.h"              // for Geometry
 #include "LeptonInjector/math/Vector3D.h"                  // for Vector3D
@@ -21,7 +21,7 @@ namespace distributions {
 //---------------
 // class CylinderVolumePositionDistribution : public VertexPositionDistribution
 //---------------
-LI::math::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
+LI::math::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
     double t = rand->Uniform(0, 2 * M_PI);
     const double outer_radius = cylinder.GetRadius();
     const double inner_radius = cylinder.GetInnerRadius();
@@ -32,7 +32,7 @@ LI::math::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::share
     return cylinder.LocalToGlobalPosition(pos);
 }
 
-double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D pos(record.interaction_vertex);
     double z = pos.GetZ();
     double r = sqrt(pos.GetX() * pos.GetX() + pos.GetY() * pos.GetY());
@@ -56,12 +56,12 @@ std::shared_ptr<InjectionDistribution> CylinderVolumePositionDistribution::clone
     return std::shared_ptr<InjectionDistribution>(new CylinderVolumePositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & interaction) const {
     LI::math::Vector3D dir(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D pos(interaction.interaction_vertex);
     std::vector<LI::geometry::Geometry::Intersection> intersections = cylinder.Intersections(pos, dir);
-    LI::detector::EarthModel::SortIntersections(intersections);
+    LI::detector::DetectorModel::SortIntersections(intersections);
     if(intersections.size() == 0) {
         return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
     } else if(intersections.size() >= 2) {
@@ -85,7 +85,7 @@ bool CylinderVolumePositionDistribution::less(WeightableDistribution const & oth
     return cylinder < x->cylinder;
 }
 
-bool CylinderVolumePositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::EarthModel const> second_earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_cross_sections) const {
+bool CylinderVolumePositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_cross_sections) const {
     return this->operator==(*distribution);
 }
 

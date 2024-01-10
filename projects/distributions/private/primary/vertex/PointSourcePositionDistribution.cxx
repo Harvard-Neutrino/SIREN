@@ -11,7 +11,7 @@
 #include "LeptonInjector/dataclasses/InteractionRecord.h"         // for Int...
 #include "LeptonInjector/dataclasses/InteractionSignature.h"      // for Int...
 #include "LeptonInjector/dataclasses/Particle.h"                  // for Par...
-#include "LeptonInjector/detector/EarthModel.h"                   // for Ear...
+#include "LeptonInjector/detector/DetectorModel.h"                   // for Ear...
 #include "LeptonInjector/detector/Path.h"                         // for Path
 #include "LeptonInjector/distributions/Distributions.h"           // for Inj...
 #include "LeptonInjector/math/Vector3D.h"                         // for Vec...
@@ -43,7 +43,7 @@ namespace {
 // class PointSourcePositionDistribution : public VertexPositionDistribution
 //---------------
 
-LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
+LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
 
@@ -89,7 +89,7 @@ LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_p
     return vertex;
 }
 
-double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
@@ -149,7 +149,7 @@ std::shared_ptr<InjectionDistribution> PointSourcePositionDistribution::clone() 
     return std::shared_ptr<InjectionDistribution>(new PointSourcePositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m

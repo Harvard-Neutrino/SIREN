@@ -36,15 +36,15 @@ class LIController:
 
         # Find the density and materials files
         self.LI_SRC = os.environ.get('LEPTONINJECTOR_SRC')
-        materials_file = self.LI_SRC + '/resources/earthparams/materials/%s.dat'%experiment
+        materials_file = self.LI_SRC + '/resources/DetectorParams/materials/%s.dat'%experiment
         if experiment in ['ATLAS','dune']:
-            earth_model_file = self.LI_SRC + '/resources/earthparams/densities/PREM_%s.dat'%experiment
+            detector_model_file = self.LI_SRC + '/resources/DetectorParams/densities/PREM_%s.dat'%experiment
         else:
-            earth_model_file = self.LI_SRC + '/resources/earthparams/densities/%s.dat'%experiment
+            detector_model_file = self.LI_SRC + '/resources/DetectorParams/densities/%s.dat'%experiment
         
-        self.earth_model = LI.detector.EarthModel()
-        self.earth_model.LoadMaterialModel(materials_file)
-        self.earth_model.LoadEarthModel(earth_model_file)
+        self.detector_model = LI.detector.DetectorModel()
+        self.detector_model.LoadMaterialModel(materials_file)
+        self.detector_model.LoadDetectorModel(detector_model_file)
 
         # Define the primary injection and physical process
         self.primary_injection_process = LI.injection.InjectionProcess()
@@ -131,7 +131,7 @@ class LIController:
         :param dict<str,val> model_kwargs: The dict of DarkNews model parameters
         """
         # Add nuclear targets to the model arguments
-        model_kwargs['nuclear_targets'] = self.GetEarthModelTargets()[1]
+        model_kwargs['nuclear_targets'] = self.GetDetectorModelTargets()[1]
         # Initialize DarkNews cross sections and decays
         self.DN_processes = PyDarkNewsCrossSectionCollection(table_dir=table_dir,
                                                              **model_kwargs)
@@ -189,23 +189,23 @@ class LIController:
         :return: identified fiducial volume for the experiment, None if not found
         """
         fid_vol = None
-        for sector in self.earth_model.Sectors:
+        for sector in self.detector_model.Sectors:
             if self.experiment in fid_vol_dict.keys():
                 if sector.name==fid_vol_dict[self.experiment]:
                     fid_vol = sector.geo
         return fid_vol
 
-    def GetEarthModelTargets(self):
+    def GetDetectorModelTargets(self):
         """
-        Determines the targets that exist inside the earth model
+        Determines the targets that exist inside the detector model
         :return: lists of targets and strings
         :rtype: (list<ParticleType>, list<str>)
         """
         count = 0
         targets = []
         target_strs = []
-        while self.earth_model.Materials.HasMaterial(count):
-            for _target in self.earth_model.Materials.GetMaterialTargets(count):
+        while self.detector_model.Materials.HasMaterial(count):
+            for _target in self.detector_model.Materials.GetMaterialTargets(count):
                 if _target not in targets:
                     targets.append(_target)
                 if str(_target).find('Nucleus') == -1: 
@@ -260,7 +260,7 @@ class LIController:
         
         # Define the injector object
         self.injector = LI.injection.Injector(self.events_to_inject,
-                                              self.earth_model, 
+                                              self.detector_model, 
                                               self.primary_injection_process, 
                                               self.secondary_injection_processes,
                                               self.random)
@@ -269,7 +269,7 @@ class LIController:
 
         # Define the weighter object
         self.weighter = LI.injection.LeptonTreeWeighter([self.injector],
-                                                        self.earth_model, 
+                                                        self.detector_model, 
                                                         self.primary_physical_process, 
                                                         self.secondary_physical_processes)
         

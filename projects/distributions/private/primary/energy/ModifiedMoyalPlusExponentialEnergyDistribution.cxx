@@ -13,7 +13,7 @@
 #include "LeptonInjector/utilities/Random.h"               // for LI_random
 
 namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace detector { class DetectorModel; } }
 
 namespace LI {
 namespace distributions {
@@ -62,7 +62,7 @@ ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEner
     }
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     // Metropolis-Hastings algorithm to sample from PDF.
     // Pass in a function pointer for the PDF
 
@@ -88,7 +88,7 @@ double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_
     return energy;
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
     if(energy < energyMin or energy > energyMax)
         return 0.0;

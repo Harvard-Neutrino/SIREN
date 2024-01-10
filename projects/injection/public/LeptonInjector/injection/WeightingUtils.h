@@ -6,12 +6,12 @@
 
 namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
-namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace detector { class DetectorModel; } }
 
 namespace LI {
 namespace injection {
 
-double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &);
+double CrossSectionProbability(std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &);
 
 } // namespace injection
 } // namespace LI

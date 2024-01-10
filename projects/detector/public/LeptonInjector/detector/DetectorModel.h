@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_EarthModel_H
-#define LI_EarthModel_H
+#ifndef LI_DetectorModel_H
+#define LI_DetectorModel_H
 
 #include <map>                                      // for map
 #include <set>                                      // for set
@@ -36,13 +36,13 @@ namespace LI { namespace detector { class DensityDistribution; } }
 namespace LI {
 namespace detector {
 
-struct EarthSector {
+struct DetectorSector {
     std::string name;
     int material_id;
     int level;
     std::shared_ptr<const geometry::Geometry> geo;
     std::shared_ptr<const DensityDistribution> density;
-    bool operator==(EarthSector const & o) const;
+    bool operator==(DetectorSector const & o) const;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
@@ -52,25 +52,25 @@ struct EarthSector {
             archive(cereal::make_nvp("Geometry", geo));
             archive(cereal::make_nvp("density", density));
         } else {
-            throw std::runtime_error("EarthSector only supports version <= 0!");
+            throw std::runtime_error("DetectorSector only supports version <= 0!");
         }
     }
 	std::ostream & Print(std::ostream& oss) const;
 };
 
-class EarthModel {
+class DetectorModel {
 private:
     std::string path_;
     MaterialModel materials_;
-    std::vector<EarthSector> sectors_;
+    std::vector<DetectorSector> sectors_;
     std::map<int, unsigned int> sector_map_;
     math::Vector3D detector_origin_;
 public:
-    EarthModel();
-    EarthModel(std::string const & earth_model, std::string const & material_model);
-    EarthModel(std::string const & path, std::string const & earth_model, std::string const & material_model);
+    DetectorModel();
+    DetectorModel(std::string const & earth_model, std::string const & material_model);
+    DetectorModel(std::string const & path, std::string const & earth_model, std::string const & material_model);
 
-    bool operator==(EarthModel const & o) const;
+    bool operator==(DetectorModel const & o) const;
 
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
@@ -81,11 +81,11 @@ public:
             archive(cereal::make_nvp("SectorMap", sector_map_));
             archive(cereal::make_nvp("DetectorOrigin", detector_origin_));
         } else {
-            throw std::runtime_error("EarthModel only supports version <= 0!");
+            throw std::runtime_error("DetectorModel only supports version <= 0!");
         }
     }
 
-    void LoadEarthModel(std::string const & earth_model);
+    void LoadDetectorModel(std::string const & earth_model);
     void LoadMaterialModel(std::string const & material_model);
 
     double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0) const;
@@ -149,8 +149,8 @@ public:
 
     std::vector<double> GetParticleColumnDepth(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, math::Vector3D const & p1, std::vector<LI::dataclasses::Particle::ParticleType> const & targets) const;
 
-    EarthSector GetContainingSector(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0) const;
-    EarthSector GetContainingSector(math::Vector3D const & p0) const;
+    DetectorSector GetContainingSector(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0) const;
+    DetectorSector GetContainingSector(math::Vector3D const & p0) const;
     math::Vector3D GetEarthCoordPosFromDetCoordPos(math::Vector3D const & point) const;
     math::Vector3D GetEarthCoordDirFromDetCoordDir(math::Vector3D const & direction) const;
     math::Vector3D GetDetCoordPosFromEarthCoordPos(math::Vector3D const & point) const;
@@ -162,14 +162,14 @@ public:
     MaterialModel const & GetMaterials() const;
     void SetMaterials(MaterialModel const & materials);
 
-    std::vector<EarthSector> const & GetSectors() const;
-    void SetSectors(std::vector<EarthSector> const & sectors);
+    std::vector<DetectorSector> const & GetSectors() const;
+    void SetSectors(std::vector<DetectorSector> const & sectors);
 
     math::Vector3D GetDetectorOrigin() const;
     void SetDetectorOrigin(math::Vector3D const & detector_origin);
 
-    void AddSector(EarthSector sector);
-    EarthSector GetSector(int level) const;
+    void AddSector(DetectorSector sector);
+    DetectorSector GetSector(int level) const;
 
     void ClearSectors();
 
@@ -196,11 +196,11 @@ public:
 } // namespace LI
 
 
-std::ostream& operator<<(std::ostream& oss, LI::detector::EarthSector const & bcm);
-std::ostream& operator<<(std::ostream& oss, LI::detector::EarthSector & bcm);
+std::ostream& operator<<(std::ostream& oss, LI::detector::DetectorSector const & bcm);
+std::ostream& operator<<(std::ostream& oss, LI::detector::DetectorSector & bcm);
 
-#include "LeptonInjector/detector/EarthModel.tcc"
+#include "LeptonInjector/detector/DetectorModel.tcc"
 
-CEREAL_CLASS_VERSION(LI::detector::EarthModel, 0);
+CEREAL_CLASS_VERSION(LI::detector::DetectorModel, 0);
 
-#endif // LI_EarthModel_H
+#endif // LI_DetectorModel_H

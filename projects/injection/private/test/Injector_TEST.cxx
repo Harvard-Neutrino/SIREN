@@ -156,7 +156,7 @@ bool inFiducial(std::array<double,3> & int_vtx, Sphere & fidVol) {
     return fidVol.IsInside(pos,dir);
 }
 
-double ComputeInteractionLengths(std::shared_ptr<EarthModel const> earth_model, std::shared_ptr<InteractionCollection const> cross_sections, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
+double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> earth_model, std::shared_ptr<InteractionCollection const> cross_sections, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
     Vector3D interaction_vertex = record.interaction_vertex;
     Vector3D direction(
             record.primary_momentum[1],
@@ -275,9 +275,9 @@ TEST(Injector, Generation)
     cross_sections.push_back(hc_xs);
 
     // Load the earth model
-    std::shared_ptr<EarthModel> earth_model = std::make_shared<EarthModel>();
+    std::shared_ptr<DetectorModel> earth_model = std::make_shared<DetectorModel>();
     earth_model->LoadMaterialModel(material_file);
-    earth_model->LoadEarthModel(earth_file);
+    earth_model->LoadDetectorModel(earth_file);
 
     // Setup the primary type and mass
     //std::shared_ptr<PrimaryInjector> primary_injector = std::make_shared<PrimaryInjector>(primary_type, hnl_mass);

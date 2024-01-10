@@ -32,7 +32,7 @@
 
 namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct DecayRecord; } }
-namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace distributions { class InjectionDistribution; } }
 namespace LI { namespace distributions { class VertexPositionDistribution; } }
 namespace LI { namespace geometry { class Geometry; } }
@@ -51,7 +51,7 @@ protected:
     unsigned int events_to_inject = 0;
     unsigned int injected_events = 0;
     std::shared_ptr<LI::utilities::LI_random> random;
-    std::shared_ptr<LI::detector::EarthModel> earth_model;
+    std::shared_ptr<LI::detector::DetectorModel> earth_model;
     // This funciton returns true if the given datum is the last entry to be saved in a tree
     std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition;
     Injector();
@@ -64,9 +64,9 @@ private:
     std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<distributions::VertexPositionDistribution>> secondary_position_distribution_map;
 public:
     // Constructors
-    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
-    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::shared_ptr<LI::utilities::LI_random> random);
-    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::shared_ptr<LI::utilities::LI_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random);
 
     void SetStoppingCondition(std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> f_in) {stopping_condition = f_in;}
     std::shared_ptr<distributions::VertexPositionDistribution> FindPositionDistribution(std::shared_ptr<LI::injection::InjectionProcess> process);
@@ -95,7 +95,7 @@ public:
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionTreeDatum const & datum, LI::dataclasses::Particle::ParticleType const & primary_type) const;
     virtual std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> GetInjectionDistributions() const;
-    virtual std::shared_ptr<LI::detector::EarthModel> GetEarthModel() const;
+    virtual std::shared_ptr<LI::detector::DetectorModel> GetDetectorModel() const;
     virtual std::shared_ptr<LI::interactions::InteractionCollection> GetCrossSections() const;
     unsigned int InjectedEvents() const;
     unsigned int EventsToInject() const;
@@ -107,7 +107,7 @@ public:
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             //archive(::cereal::make_nvp("StoppingCondition", stopping_condition));
-            archive(::cereal::make_nvp("EarthModel", earth_model));
+            archive(::cereal::make_nvp("DetectorModel", earth_model));
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
         } else {
@@ -121,7 +121,7 @@ public:
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             //archive(::cereal::make_nvp("StoppingCondition", stopping_condition));
-            archive(::cereal::make_nvp("EarthModel", earth_model));
+            archive(::cereal::make_nvp("DetectorModel", earth_model));
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
         } else {

@@ -1,18 +1,18 @@
 #pragma once
-#ifndef LI_EarthModel_TCC
-#define LI_EarthModel_TCC
+#ifndef LI_DetectorModel_TCC
+#define LI_DetectorModel_TCC
 
 #include <numeric>
 #include <cassert>
 
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/detector/DensityDistribution.h"
 
 namespace LI {
 namespace detector {
 
 template<typename Iterator, class>
-double EarthModel::GetMassDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, Iterator begin, Iterator end) const {
+double DetectorModel::GetMassDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, Iterator begin, Iterator end) const {
     math::Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -37,7 +37,7 @@ double EarthModel::GetMassDensity(geometry::Geometry::IntersectionList const & i
         // whereas the lower end is bounded by the end of the last line segment, and the entry into the sector
         double start_point = std::max(offset + dot * current_intersection->distance, offset + dot * last_point);
         if(start_point <= 0 and end_point >= 0) {
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             density = sector.density->Evaluate(p0);
             std::vector<double> mass_fractions = materials_.GetTargetMassFraction(sector.material_id, begin, end);
             density *= std::accumulate(mass_fractions.begin(), mass_fractions.end(), 0.0);
@@ -55,7 +55,7 @@ double EarthModel::GetMassDensity(geometry::Geometry::IntersectionList const & i
 }
 
 template<typename Iterator, class>
-double EarthModel::GetMassDensity(math::Vector3D const & p0, Iterator begin, Iterator end) const {
+double DetectorModel::GetMassDensity(math::Vector3D const & p0, Iterator begin, Iterator end) const {
     math::Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     geometry::Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetMassDensity(intersections, p0, begin, end);
@@ -63,7 +63,7 @@ double EarthModel::GetMassDensity(math::Vector3D const & p0, Iterator begin, Ite
 
 
 template<typename Iterator, class>
-std::vector<double> EarthModel::GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, Iterator begin, Iterator end) const {
+std::vector<double> DetectorModel::GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, Iterator begin, Iterator end) const {
     math::Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -89,7 +89,7 @@ std::vector<double> EarthModel::GetParticleDensity(geometry::Geometry::Intersect
         // whereas the lower end is bounded by the end of the last line segment, and the entry into the sector
         double start_point = std::max(offset + dot * current_intersection->distance, offset + dot * last_point);
         if(start_point <= 0 and end_point >= 0) {
-            EarthSector sector = GetSector(current_intersection->hierarchy);
+            DetectorSector sector = GetSector(current_intersection->hierarchy);
             density = sector.density->Evaluate(p0);
             particle_fractions = materials_.GetTargetParticleFraction(sector.material_id, begin, end);
             return true;
@@ -110,7 +110,7 @@ std::vector<double> EarthModel::GetParticleDensity(geometry::Geometry::Intersect
 }
 
 template<typename Iterator, typename>
-std::vector<double> EarthModel::GetParticleDensity(math::Vector3D const & p0, Iterator begin, Iterator end) const {
+std::vector<double> DetectorModel::GetParticleDensity(math::Vector3D const & p0, Iterator begin, Iterator end) const {
     math::Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
     geometry::Geometry::IntersectionList intersections = GetIntersections(p0, direction);
     return GetParticleDensity(intersections, p0, begin, end);

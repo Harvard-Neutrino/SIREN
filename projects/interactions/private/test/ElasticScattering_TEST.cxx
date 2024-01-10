@@ -83,9 +83,9 @@ TEST(ElasticScattering, Generation)
     cross_sections.push_back(es_xs);
 
     // Load the earth model
-    std::shared_ptr<EarthModel> earth_model = std::make_shared<EarthModel>();
+    std::shared_ptr<DetectorModel> earth_model = std::make_shared<DetectorModel>();
     earth_model->LoadMaterialModel(material_file);
-    earth_model->LoadEarthModel(earth_file);
+    earth_model->LoadDetectorModel(earth_file);
 
     // Setup the primary type and mass
     //std::shared_ptr<PrimaryInjector> primary_injector = std::make_shared<PrimaryInjector>(primary_type, hnl_mass);

@@ -9,7 +9,7 @@
 #include "LeptonInjector/math/Vector3D.h"
 
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
-namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace detector { class DetectorModel; } }
 
 namespace LI {
 namespace injection {
@@ -21,7 +21,7 @@ CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector() {}
 
 CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::EarthModel> earth_model,
+        std::shared_ptr<LI::detector::DetectorModel> earth_model,
         std::shared_ptr<injection::InjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes,
         std::shared_ptr<LI::utilities::LI_random> random,

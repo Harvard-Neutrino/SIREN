@@ -1,5 +1,5 @@
-#ifndef LI_TEST_FakeEarthModel_H
-#define LI_TEST_FakeEarthModel_H
+#ifndef LI_TEST_FakeDetectorModel_H
+#define LI_TEST_FakeDetectorModel_H
 
 #include <cmath>
 #include <math.h>
@@ -14,7 +14,7 @@
 #include "FakeMaterialModel.h"
 
 #include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/math/Quaternion.h"
 #include "LeptonInjector/math/Polynomial.h"
 
@@ -45,7 +45,7 @@ struct ModelToken {
 };
 
 
-class FakeEarthModelFile {
+class FakeDetectorModelFile {
 protected:
     bool file_exists;
     std::mt19937 rng_;
@@ -465,15 +465,15 @@ protected:
     }
 };
 
-class FakeEarthModelTest : public FakeEarthModelFile, public FakeMaterialModelFile, public ::testing::Test {
+class FakeDetectorModelTest : public FakeDetectorModelFile, public FakeMaterialModelFile, public ::testing::Test {
 protected:
     void setup() {
         FakeMaterialModelFile::create_file(std::vector<std::string>{"air", "atmosphere", "ice"}, 6);
-        FakeEarthModelFile::create_file(FakeMaterialModelFile::material_names_);
+        FakeDetectorModelFile::create_file(FakeMaterialModelFile::material_names_);
     }
     void setup(unsigned int n_layers, int poly_max) {
         FakeMaterialModelFile::create_file(std::vector<std::string>{"air", "atmosphere", "ice"}, 6);
-        FakeEarthModelFile::create_file(FakeMaterialModelFile::material_names_, n_layers, 0, poly_max);
+        FakeDetectorModelFile::create_file(FakeMaterialModelFile::material_names_, n_layers, 0, poly_max);
     }
     void reset() {
         setup();
@@ -483,18 +483,18 @@ protected:
     }
     void SetUp() override {
         FakeMaterialModelFile::file_exists = false;
-        FakeEarthModelFile::file_exists = false;
+        FakeDetectorModelFile::file_exists = false;
         setup();
     }
     void TearDown() override {
         //FakeMaterialModelFile::remove_file();
-        //FakeLegacyEarthModelFile::remove_file();
+        //FakeLegacyDetectorModelFile::remove_file();
         FakeMaterialModelFile::clear();
-        FakeEarthModelFile::clear();
+        FakeDetectorModelFile::clear();
     }
 };
 
-class FakeLegacyEarthModelFile {
+class FakeLegacyDetectorModelFile {
 protected:
     bool file_exists;
     std::mt19937 rng_;
@@ -731,15 +731,15 @@ protected:
     }
 };
 
-class FakeLegacyEarthModelTest : public FakeLegacyEarthModelFile, public FakeMaterialModelFile, public ::testing::Test {
+class FakeLegacyDetectorModelTest : public FakeLegacyDetectorModelFile, public FakeMaterialModelFile, public ::testing::Test {
 protected:
     void setup() {
         FakeMaterialModelFile::create_file(std::vector<std::string>{"air", "atmosphere", "ice"}, 6);
-        FakeLegacyEarthModelFile::create_file(FakeMaterialModelFile::material_names_);
+        FakeLegacyDetectorModelFile::create_file(FakeMaterialModelFile::material_names_);
     }
     void setup(unsigned int n_layers, int poly_max) {
         FakeMaterialModelFile::create_file(std::vector<std::string>{"air", "atmosphere", "ice"}, 6);
-        FakeLegacyEarthModelFile::create_file(FakeMaterialModelFile::material_names_, n_layers, 0, poly_max);
+        FakeLegacyDetectorModelFile::create_file(FakeMaterialModelFile::material_names_, n_layers, 0, poly_max);
     }
     void reset() {
         setup();
@@ -749,16 +749,16 @@ protected:
     }
     void SetUp() override {
         FakeMaterialModelFile::file_exists = false;
-        FakeLegacyEarthModelFile::file_exists = false;
+        FakeLegacyDetectorModelFile::file_exists = false;
         setup();
     }
     void TearDown() override {
         //FakeMaterialModelFile::remove_file();
-        //FakeLegacyEarthModelFile::remove_file();
+        //FakeLegacyDetectorModelFile::remove_file();
         FakeMaterialModelFile::clear();
-        FakeLegacyEarthModelFile::clear();
+        FakeLegacyDetectorModelFile::clear();
     }
 };
 
-#endif // LI_TEST_FakeEarthModel_H
+#endif // LI_TEST_FakeDetectorModel_H
 

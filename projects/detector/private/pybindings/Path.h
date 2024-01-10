@@ -4,7 +4,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/detector/EarthModel.h"
+#include "../../public/LeptonInjector/detector/DetectorModel.h"
 #include "../../public/LeptonInjector/detector/Path.h"
 
 void register_Path(pybind11::module_ & m) {
@@ -12,16 +12,16 @@ void register_Path(pybind11::module_ & m) {
     using namespace LI::detector;
 
     class_<Path, std::shared_ptr<Path>>(m, "Path")
-        .def(init<std::shared_ptr<const EarthModel>>())
-        .def(init<std::shared_ptr<const EarthModel>, LI::math::Vector3D const &, LI::math::Vector3D const &>())
-        .def(init<std::shared_ptr<const EarthModel>, LI::math::Vector3D const &, LI::math::Vector3D const &, double>())
+        .def(init<std::shared_ptr<const DetectorModel>>())
+        .def(init<std::shared_ptr<const DetectorModel>, LI::math::Vector3D const &, LI::math::Vector3D const &>())
+        .def(init<std::shared_ptr<const DetectorModel>, LI::math::Vector3D const &, LI::math::Vector3D const &, double>())
 
-        .def("HasEarthModel",&Path::HasEarthModel)
+        .def("HasDetectorModel",&Path::HasDetectorModel)
         .def("HasPoints",&Path::HasPoints)
         .def("HasIntersections",&Path::HasIntersections)
         .def("HasColumnDepth",&Path::HasColumnDepth)
-        .def("GetEarthModel",&Path::GetEarthModel)
-        .def("HasEarthModel",&Path::HasEarthModel)
+        .def("GetDetectorModel",&Path::GetDetectorModel)
+        .def("HasDetectorModel",&Path::HasDetectorModel)
         .def("GetFirstPoint",&Path::GetFirstPoint)
         .def("GetLastPoint",&Path::GetLastPoint)
         .def("GetDirection",&Path::GetDirection)
