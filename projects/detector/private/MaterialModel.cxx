@@ -6,7 +6,7 @@
 #include <vector>                                 // for vector, operator==
 #include <fstream>                                // for basic_istream, getline
 #include <sstream>
-#include <stdio.h>                                // for sprintf, sscanf
+#include <stdio.h>                                // for snprintf, sscanf
 #include <stdlib.h>                               // for abs
 
 #include "LeptonInjector/dataclasses/Particle.h"  // for Particle
@@ -412,7 +412,7 @@ int MaterialModel::GetNucleonContent(int code, int & strange_count, int & neutro
     int excitation = 0;
 
     char buf[CHAR_BUF_SIZE];
-    sprintf(buf, "%d", code);
+    snprintf(buf, CHAR_BUF_SIZE, "%d", code);
     int nread = sscanf(buf, "%2d%1d%3d%3d%1d", &prefix, &strange_count, &proton_count, &nucleon_count, &excitation);
     if (nread != 5) {
         throw std::runtime_error("Failed to convert nuclear pdg to 10LZZZAAAI "
