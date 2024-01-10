@@ -35,7 +35,7 @@ PYBIND11_MODULE(injection,m) {
 
   class_<Process, std::shared_ptr<Process>>(m, "Process")
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
-    .def_property("cross_sections", &Process::GetInteractions, &Process::SetInteractions);
+    .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions);
 
   class_<InjectionProcess, std::shared_ptr<InjectionProcess>, Process>(m, "InjectionProcess")
     .def(init<>())
