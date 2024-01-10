@@ -124,7 +124,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
 
     LI::math::Vector3D endcap_0 = pca - (endcap_length * dir);
     LI::math::Vector3D endcap_1 = pca + (endcap_length * dir);
-    
+
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
