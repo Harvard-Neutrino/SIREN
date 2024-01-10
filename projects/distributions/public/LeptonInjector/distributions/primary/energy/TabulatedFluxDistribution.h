@@ -60,7 +60,7 @@ public:
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);
     TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
-    TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false); 
+    TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false);
     std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
