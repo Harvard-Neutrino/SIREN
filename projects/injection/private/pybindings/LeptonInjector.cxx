@@ -2,7 +2,7 @@
 #include <vector>
 #include <utility>
 
-#include <LeptonInjector/InjectorBase.h>
+#include <LeptonInjector/Injector.h>
 #include <LeptonInjector/Random.h>
 #include <LeptonInjector/Constants.h>
 
@@ -267,7 +267,7 @@ BOOST_PYTHON_MODULE(LeptonInjector){
     def("deduceInitialType", &deduceInitialType);
     def("getInteraction", &getInteraction);
 
-    class_<InjectorBase, std::shared_ptr<InjectorBase>>("InjectorBase",
+    class_<Injector, std::shared_ptr<Injector>>("Injector",
 	  init<unsigned int, std::shared_ptr<PrimaryInjector>, std::vector<std::shared_ptr<CrossSection>>, std::shared_ptr<LI::detector::EarthModel>, std::vector<std::shared_ptr<InjectionDistribution>>, std::shared_ptr<LI_random>>(
 	    (args("events_to_inject"),args("primary_injector"),args("cross_sections"),args("earth_model"),args("distributions"),args("random"))
 	  )

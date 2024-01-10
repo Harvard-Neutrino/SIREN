@@ -259,11 +259,11 @@ class LIController:
             return True
         
         # Define the injector object
-        self.injector = LI.injection.InjectorBase(self.events_to_inject,
-                                                  self.earth_model, 
-                                                  self.primary_injection_process, 
-                                                  self.secondary_injection_processes,
-                                                  self.random)
+        self.injector = LI.injection.Injector(self.events_to_inject,
+                                              self.earth_model, 
+                                              self.primary_injection_process, 
+                                              self.secondary_injection_processes,
+                                              self.random)
         
         self.injector.SetStoppingCondition(StoppingCondition)
 

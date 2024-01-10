@@ -22,7 +22,7 @@ namespace LI { namespace dataclasses { struct InteractionRecord; } }
 namespace LI { namespace detector { class EarthModel; } }
 namespace LI { namespace distributions { class InjectionDistribution; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }
-namespace LI { namespace injection { class InjectorBase; } }
+namespace LI { namespace injection { class Injector; } }
 namespace LI { namespace injection { class InjectionProcess; } }
 namespace LI { namespace injection { class PhysicalProcess; } }
 namespace LI { namespace math { class Vector3D; } }
@@ -55,7 +55,7 @@ public:
 class LeptonTreeWeighter {
 private:
     // Supplied by constructor
-    std::vector<std::shared_ptr<InjectorBase>> injectors;
+    std::vector<std::shared_ptr<Injector>> injectors;
     std::shared_ptr<LI::detector::EarthModel> earth_model;
     std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process;
     std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes;
@@ -72,8 +72,8 @@ private:
     void Initialize();
 public:
     double EventWeight(LI::dataclasses::InteractionTree const & tree) const;
-    LeptonTreeWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes);
-    LeptonTreeWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process);
+    LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes);
+    LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process);
 
 }; // LeptonTreeWeighter
 

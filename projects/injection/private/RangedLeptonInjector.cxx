@@ -8,7 +8,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 #include "LeptonInjector/distributions/primary/vertex/RangePositionDistribution.h"
-#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Injector.h"
 #include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/math/Vector3D.h"
 
@@ -19,7 +19,7 @@ namespace LI {
 namespace injection {
 
 //---------------
-// class RangedLeptonInjector : InjectorBase
+// class RangedLeptonInjector : Injector
 //---------------
 RangedLeptonInjector::RangedLeptonInjector() {}
 
@@ -32,7 +32,7 @@ RangedLeptonInjector::RangedLeptonInjector(
         std::shared_ptr<LI::distributions::RangeFunction> range_func,
         double disk_radius,
         double endcap_length) :
-    InjectorBase(events_to_inject, earth_model, random),
+    Injector(events_to_inject, earth_model, random),
     range_func(range_func),
     disk_radius(disk_radius),
     endcap_length(endcap_length)

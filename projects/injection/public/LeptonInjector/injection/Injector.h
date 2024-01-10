@@ -43,10 +43,10 @@ namespace LI { namespace utilities { class LI_random; } }
 namespace LI {
 namespace injection {
 
-class InjectorBase {
+class Injector {
 friend cereal::access;
 public:
-    virtual ~InjectorBase() {};
+    virtual ~Injector() {};
 protected:
     unsigned int events_to_inject = 0;
     unsigned int injected_events = 0;
@@ -54,7 +54,7 @@ protected:
     std::shared_ptr<LI::detector::EarthModel> earth_model;
     // This funciton returns true if the given datum is the last entry to be saved in a tree
     std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition;
-    InjectorBase();
+    Injector();
 private:
     std::shared_ptr<injection::InjectionProcess> primary_process;
     std::shared_ptr<distributions::VertexPositionDistribution> primary_position_distribution;
@@ -64,9 +64,9 @@ private:
     std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<distributions::VertexPositionDistribution>> secondary_position_distribution_map;
 public:
     // Constructors
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::shared_ptr<LI::utilities::LI_random> random);
-    InjectorBase(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::utilities::LI_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::shared_ptr<LI::utilities::LI_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random);
 
     void SetStoppingCondition(std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> f_in) {stopping_condition = f_in;}
     std::shared_ptr<distributions::VertexPositionDistribution> FindPositionDistribution(std::shared_ptr<LI::injection::InjectionProcess> process);
@@ -111,7 +111,7 @@ public:
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
         } else {
-            throw std::runtime_error("InjectorBase only supports version <= 0!");
+            throw std::runtime_error("Injector only supports version <= 0!");
         }
     }
 
@@ -125,7 +125,7 @@ public:
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
         } else {
-            throw std::runtime_error("InjectorBase only supports version <= 0!");
+            throw std::runtime_error("Injector only supports version <= 0!");
         }
     }
 };
@@ -133,7 +133,7 @@ public:
 } // namespace injection
 } // namespace LI
 
-CEREAL_CLASS_VERSION(LI::injection::InjectorBase, 0);
+CEREAL_CLASS_VERSION(LI::injection::Injector, 0);
 
 #endif // LI_LeptonInjector_H
 

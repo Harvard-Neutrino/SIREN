@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "LeptonInjector/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
-#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Injector.h"
 #include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/math/Vector3D.h"
 
@@ -15,7 +15,7 @@ namespace LI {
 namespace injection {
 
 //---------------
-// class CylinderVolumeLeptonInjector : InjectorBase
+// class CylinderVolumeLeptonInjector : Injector
 //---------------
 CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector() {}
 
@@ -26,7 +26,7 @@ CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector(
         std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes,
         std::shared_ptr<LI::utilities::LI_random> random,
         LI::geometry::Cylinder cylinder) :
-    InjectorBase(events_to_inject, earth_model, random),
+    Injector(events_to_inject, earth_model, random),
     position_distribution(std::make_shared<LI::distributions::CylinderVolumePositionDistribution>(cylinder)) {
     cross_sections = primary_process->GetCrossSections();
     primary_process->AddInjectionDistribution(position_distribution);

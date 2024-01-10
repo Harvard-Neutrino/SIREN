@@ -15,7 +15,7 @@
 #include "LeptonInjector/utilities/Random.h"
 #include "LeptonInjector/utilities/Constants.h"
 #include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Injector.h"
 #include "LeptonInjector/injection/RangedLeptonInjector.h"
 #include "LeptonInjector/injection/Weighter.h"
 #include "LeptonInjector/geometry/Geometry.h"
@@ -315,7 +315,7 @@ TEST(Injector, Generation)
 
     // Put it all together!
     //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
-    std::shared_ptr<InjectorBase> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
+    std::shared_ptr<Injector> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
 
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
         std::shared_ptr<WeightableDistribution>(tab_pdf),
@@ -325,7 +325,7 @@ TEST(Injector, Generation)
         std::shared_ptr<WeightableDistribution>(helicity_distribution)
     };
 
-    LeptonWeighter weighter(std::vector<std::shared_ptr<InjectorBase>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
+    LeptonWeighter weighter(std::vector<std::shared_ptr<Injector>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
 
     std::vector<std::vector<double>> poly;
     // MINERvA Fiducial Volume
