@@ -20,7 +20,7 @@ from DarkNews.nuclear_tools import NuclearTarget
 from DarkNews.integrands import get_decay_momenta_from_vegas_samples
 
 # Class containing all upscattering and decay modes available in DarkNews
-class PyDarkNewsCrossSectionCollection:
+class PyDarkNewsInteractionCollection:
 
     def __init__(self,
                  table_dir=None,
