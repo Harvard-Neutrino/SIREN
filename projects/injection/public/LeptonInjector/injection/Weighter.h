@@ -19,7 +19,7 @@ namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
 namespace LI { namespace detector { class EarthModel; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }
-namespace LI { namespace injection { class InjectorBase; } }
+namespace LI { namespace injection { class Injector; } }
 namespace LI { namespace math { class Vector3D; } }
 
 namespace LI {
@@ -27,10 +27,10 @@ namespace injection {
 
 class LeptonWeighter {
 private:
-    std::vector<std::shared_ptr<InjectorBase>> injectors;
+    std::vector<std::shared_ptr<Injector>> injectors;
     std::shared_ptr<LI::detector::EarthModel> earth_model;
     //TODO Think about whether we want to pass a CrossSection collection, or a vector of cross sections
-    //TODO Think about what to do with multiple neutrino primary types. Do we want to support mutiple types across one InteractionCollection, across one InjectorBase, across one LeptonWeighter?
+    //TODO Think about what to do with multiple neutrino primary types. Do we want to support mutiple types across one InteractionCollection, across one Injector, across one LeptonWeighter?
     std::shared_ptr<LI::interactions::InteractionCollection> cross_sections;
     std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> physical_distributions;
 
@@ -49,14 +49,14 @@ private:
 public:
     //TODO Think about the relationship between interaction probability and the positional distribution. Check that the math works out
     //TODO Add versions of these functions that take precomputed intersections
-    double InteractionProbability(std::shared_ptr<InjectorBase const> injector, LI::dataclasses::InteractionRecord const & record) const;
+    double InteractionProbability(std::shared_ptr<Injector const> injector, LI::dataclasses::InteractionRecord const & record) const;
     double InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const;
-    double UnnormalizedPositionProbability(std::shared_ptr<InjectorBase const> injector, LI::dataclasses::InteractionRecord const & record) const;
+    double UnnormalizedPositionProbability(std::shared_ptr<Injector const> injector, LI::dataclasses::InteractionRecord const & record) const;
     double UnnormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const;
     double NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const;
     //TODO Add a function to check that we have the right match up of variables between generator and physical distribution
     //TODO Figure out a way to check that physical and generation probabilities match, and ignore those when weighting
-    LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::interactions::InteractionCollection> cross_sections, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> physical_distributions);
+    LeptonWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::interactions::InteractionCollection> cross_sections, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> physical_distributions);
     double EventWeight(LI::dataclasses::InteractionRecord const & record) const;
     double SimplifiedEventWeight(LI::dataclasses::InteractionRecord const & record) const;
 };

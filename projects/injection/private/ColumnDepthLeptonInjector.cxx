@@ -8,7 +8,7 @@
 #include "LeptonInjector/interactions/InteractionCollection.h"
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
-#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Injector.h"
 #include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/math/Vector3D.h"
 
@@ -20,7 +20,7 @@ namespace LI {
 namespace injection {
 
 //---------------
-// class ColumnDepthLeptonInjector : InjectorBase
+// class ColumnDepthLeptonInjector : Injector
 //---------------
 ColumnDepthLeptonInjector::ColumnDepthLeptonInjector() {}
 
@@ -33,7 +33,7 @@ ColumnDepthLeptonInjector::ColumnDepthLeptonInjector(
         std::shared_ptr<LI::distributions::DepthFunction> depth_func,
         double disk_radius,
         double endcap_length) :
-    InjectorBase(events_to_inject, earth_model, random),
+    Injector(events_to_inject, earth_model, random),
     depth_func(depth_func),
     disk_radius(disk_radius),
     endcap_length(endcap_length)

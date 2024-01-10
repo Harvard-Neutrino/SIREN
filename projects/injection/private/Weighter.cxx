@@ -20,7 +20,7 @@
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Injector.h"
 #include "LeptonInjector/injection/WeightingUtils.h"
 #include "LeptonInjector/math/Vector3D.h"
 
@@ -82,7 +82,7 @@ namespace {
 // class LeptonWeighter
 //---------------
 
-double LeptonWeighter::InteractionProbability(std::shared_ptr<InjectorBase const> injector, LI::dataclasses::InteractionRecord const & record) const {
+double LeptonWeighter::InteractionProbability(std::shared_ptr<Injector const> injector, LI::dataclasses::InteractionRecord const & record) const {
     std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->InjectionBounds(record);
     return InteractionProbability(bounds, record);
 }
@@ -133,7 +133,7 @@ double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::
     return interaction_probability;
 }
 
-double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<InjectorBase const> injector, LI::dataclasses::InteractionRecord const & record) const {
+double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<Injector const> injector, LI::dataclasses::InteractionRecord const & record) const {
     std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->InjectionBounds(record);
     return UnnormalizedPositionProbability(bounds, record);
 }
@@ -494,7 +494,7 @@ void LeptonWeighter::Initialize() {
     // std::vector<unsigned int> context_idx_by_injector;
 }
 
-LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<InjectorBase>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::interactions::InteractionCollection> cross_sections, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> physical_distributions)
+LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<LI::interactions::InteractionCollection> cross_sections, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> physical_distributions)
     : injectors(injectors)
     , earth_model(earth_model)
     , cross_sections(cross_sections)
@@ -534,13 +534,13 @@ double LeptonWeighter::EventWeight(LI::dataclasses::InteractionRecord const & re
             // Need pos_prob * int_prob
             // pos_prob already supplied
             // just need int_prob
-            physical_probability *= InteractionProbability((std::shared_ptr<InjectorBase const>)injector, record);
+            physical_probability *= InteractionProbability((std::shared_ptr<Injector const>)injector, record);
         } else {
             // Need pos_prob * int_prob
             // nothing is already supplied
             // need pos_prob and int_prob
             // pos_prob * int_prob == unnormalized pos_prob
-            physical_probability *= UnnormalizedPositionProbability((std::shared_ptr<InjectorBase const>)injector, record);
+            physical_probability *= UnnormalizedPositionProbability((std::shared_ptr<Injector const>)injector, record);
         }
         */
         double prob = InteractionProbability(bounds, record);
@@ -608,14 +608,14 @@ double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord 
             // Need pos_prob * int_prob
             // pos_prob already supplied
             // just need int_prob
-            double int_prob = InteractionProbability((std::shared_ptr<InjectorBase const>)injectors[i], record);
+            double int_prob = InteractionProbability((std::shared_ptr<Injector const>)injectors[i], record);
             prob /= int_prob;
         } else {
             // Need pos_prob * int_prob
             // nothing is already supplied
             // need pos_prob and int_prob
             // pos_prob * int_prob == unnormalized pos_prob
-            double pos_prob = UnnormalizedPositionProbability((std::shared_ptr<InjectorBase const>)injectors[i], record);
+            double pos_prob = UnnormalizedPositionProbability((std::shared_ptr<Injector const>)injectors[i], record);
             prob /= pos_prob;
         }*/
         std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injectors[i]->InjectionBounds(record);

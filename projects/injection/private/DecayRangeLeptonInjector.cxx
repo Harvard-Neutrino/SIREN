@@ -8,7 +8,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
-#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Injector.h"
 #include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/math/Vector3D.h"
 
@@ -19,7 +19,7 @@ namespace LI {
 namespace injection {
 
 //---------------
-// class DecayRangeLeptonInjector : InjectorBase
+// class DecayRangeLeptonInjector : Injector
 //---------------
 DecayRangeLeptonInjector::DecayRangeLeptonInjector() {}
 
@@ -32,7 +32,7 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
         std::shared_ptr<LI::distributions::DecayRangeFunction> range_func,
         double disk_radius,
         double endcap_length) :
-    InjectorBase(events_to_inject, earth_model, random),
+    Injector(events_to_inject, earth_model, random),
     range_func(range_func),
     disk_radius(disk_radius),
     endcap_length(endcap_length)

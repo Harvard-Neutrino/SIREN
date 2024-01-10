@@ -26,7 +26,7 @@
 #include "LeptonInjector/detector/EarthModel.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
-#include "LeptonInjector/injection/InjectorBase.h"  // for InjectorBase
+#include "LeptonInjector/injection/Injector.h"  // for Injector
 
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
 namespace LI { namespace injection { struct InjectionProcess; } }
@@ -36,7 +36,7 @@ namespace LI { namespace utilities { class LI_random; } }
 namespace LI {
 namespace injection {
 
-class DecayRangeLeptonInjector : public InjectorBase {
+class DecayRangeLeptonInjector : public Injector {
 friend cereal::access;
 protected:
     std::shared_ptr<LI::distributions::DecayRangeFunction> range_func;
@@ -56,7 +56,7 @@ public:
             archive(::cereal::make_nvp("DiskRadius", disk_radius));
             archive(::cereal::make_nvp("EndcapLength", endcap_length));
             archive(::cereal::make_nvp("PositionDistribution", position_distribution));
-            archive(cereal::virtual_base_class<InjectorBase>(this));
+            archive(cereal::virtual_base_class<Injector>(this));
         } else {
             throw std::runtime_error("DecayRangeLeptonInjector only supports version <= 0!");
         }
@@ -69,7 +69,7 @@ public:
             archive(::cereal::make_nvp("DiskRadius", disk_radius));
             archive(::cereal::make_nvp("EndcapLength", endcap_length));
             archive(::cereal::make_nvp("PositionDistribution", position_distribution));
-            archive(cereal::virtual_base_class<InjectorBase>(this));
+            archive(cereal::virtual_base_class<Injector>(this));
         } else {
             throw std::runtime_error("DecayRangeLeptonInjector only supports version <= 0!");
         }
@@ -81,6 +81,6 @@ public:
 
 CEREAL_CLASS_VERSION(LI::injection::DecayRangeLeptonInjector, 0);
 CEREAL_REGISTER_TYPE(LI::injection::DecayRangeLeptonInjector);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::injection::InjectorBase, LI::injection::DecayRangeLeptonInjector);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::injection::Injector, LI::injection::DecayRangeLeptonInjector);
 
 #endif // LI_DecayRangeLeptonInjector_H

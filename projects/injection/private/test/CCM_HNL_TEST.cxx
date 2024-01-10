@@ -15,7 +15,7 @@
 #include "LeptonInjector/utilities/Random.h"
 #include "LeptonInjector/utilities/Constants.h"
 #include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Injector.h"
 #include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/injection/RangedLeptonInjector.h"
 #include "LeptonInjector/injection/TreeWeighter.h"
@@ -300,8 +300,8 @@ TEST(Injector, Generation)
     secondary_physical_processes.push_back(secondary_decay_phys_process);
 
     // Put it all together!
-    std::shared_ptr<InjectorBase> upper_injector = std::make_shared<InjectorBase>(events_to_inject, earth_model, primary_injection_process_upper_injector, secondary_injection_processes, random);
-    std::shared_ptr<InjectorBase> lower_injector = std::make_shared<InjectorBase>(events_to_inject, earth_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
+    std::shared_ptr<Injector> upper_injector = std::make_shared<Injector>(events_to_inject, earth_model, primary_injection_process_upper_injector, secondary_injection_processes, random);
+    std::shared_ptr<Injector> lower_injector = std::make_shared<Injector>(events_to_inject, earth_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
 
     // Set stopping condition
     std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition = 
@@ -312,8 +312,8 @@ TEST(Injector, Generation)
     upper_injector->SetStoppingCondition(stopping_condition);
     lower_injector->SetStoppingCondition(stopping_condition);
 
-    std::shared_ptr<LeptonTreeWeighter> upper_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<InjectorBase>>{upper_injector}, earth_model, primary_physical_process_upper_injector, secondary_physical_processes);
-    std::shared_ptr<LeptonTreeWeighter> lower_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<InjectorBase>>{lower_injector}, earth_model, primary_physical_process_lower_injector, secondary_physical_processes);
+    std::shared_ptr<LeptonTreeWeighter> upper_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<Injector>>{upper_injector}, earth_model, primary_physical_process_upper_injector, secondary_physical_processes);
+    std::shared_ptr<LeptonTreeWeighter> lower_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<Injector>>{lower_injector}, earth_model, primary_physical_process_lower_injector, secondary_physical_processes);
 
 
     int i = 0;
