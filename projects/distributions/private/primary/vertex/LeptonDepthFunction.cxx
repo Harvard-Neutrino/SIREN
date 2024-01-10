@@ -63,7 +63,6 @@ double LeptonDepthFunction::operator()(LI::dataclasses::InteractionSignature con
     if(tau_primaries.count(signature.primary_type) > 0)
         range += std::log(1.0 + energy * tau_beta / tau_alpha) / tau_beta;
     return std::min(range, max_depth);
-    //return 2.65*1000000; //10 km uniform injection
 }
     
 double LeptonDepthFunction::GetLeptonDepthFunctionReturnValue(LI::dataclasses::InteractionSignature const & signature, double energy) const {

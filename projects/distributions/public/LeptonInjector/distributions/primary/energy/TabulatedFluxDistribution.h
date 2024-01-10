@@ -57,7 +57,6 @@ public:
     std::vector<double> GetEnergyNodes() const;
     std::vector<double> GetCDFEnergyNodes() const;
     double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
-    //double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record, const std::string& sampleMethod) const;
     virtual double GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);
     TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);

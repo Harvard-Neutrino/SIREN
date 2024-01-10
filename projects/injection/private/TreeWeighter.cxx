@@ -150,7 +150,6 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
           bounds = injectors[idx]->InjectionBounds(*datum, datum->record.signature.primary_type);
           double phys_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->PhysicalProbability(bounds, datum->record);
           double gen_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->GenerationProbability(*datum);
-          std::cout << "Secondary gen prob: " <<  gen_prob << std::endl; 
           physical_probability *= phys_prob;
           generation_probability *= gen_prob;
         } catch(const std::out_of_range& oor) {
@@ -160,8 +159,6 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
       }
     }
     inv_weight += generation_probability / physical_probability;
-    // std::cout << "TreeWeighter FINAL Generation_probability: " << generation_probability << std::endl;
-    // std::cout << "TreeWeighter FINAL physical_probability: " << physical_probability << std::endl;
   }
   return 1./inv_weight;
 }
@@ -195,7 +192,6 @@ void LeptonProcessWeighter::Initialize() {
     if(p) {
       if(p->IsNormalizationSet()) {
         normalization *= p->GetNormalization();
-        //std::cout << "ProcessWeighter Normalization contribution: " << p->GetNormalization() << std::endl;
       }
     }
   }
@@ -227,8 +223,6 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
-    //std::cout << "    InteractionProbability: interaction_vertex (" << interaction_vertex.GetX() << ", " << interaction_vertex.GetY() << ", " << interaction_vertex.GetZ() << ")" << std::endl;
-    //std::cout << "    InteractionProbability: primary_direction (" << primary_direction.GetX() << ", " << primary_direction.GetY() << ", " << primary_direction.GetZ() << ")" << std::endl;
     
     LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), earth_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::crosssections::CrossSection>>> const & cross_sections_by_target = phys_process->cross_sections->GetCrossSectionsByTarget();
@@ -236,7 +230,6 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
     double total_decay_length = phys_process->cross_sections->TotalDecayLength(record);
-    //std::cout << "    InteractionProbability: total_decay_length " << total_decay_length << std::endl;
     
     LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
@@ -251,14 +244,12 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
                 fake_record.signature = signature;
                 // Add total cross section
                 total_xs += xs->TotalCrossSection(fake_record);
-                //std::cout << "    InteractionProbability: total_xs " << total_xs << std::endl;
             }
         }
         total_cross_sections.push_back(total_xs);
     }
 
     double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length);
-    //std::cout << "    InteractionProbability: total_interaction_depth " << total_interaction_depth << std::endl;
     
     double interaction_probability;
     if(total_interaction_depth < 1e-6) {
@@ -280,8 +271,6 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
-    //std::cout << "    NormalizedPositionProbability: interaction_vertex (" << interaction_vertex.GetX() << ", " << interaction_vertex.GetY() << ", " << interaction_vertex.GetZ() << ")" << std::endl;
-    //std::cout << "    NormalizedPositionProbability: primary_direction (" << primary_direction.GetX() << ", " << primary_direction.GetY() << ", " << primary_direction.GetZ() << ")" << std::endl;
 
     LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::crosssections::CrossSection>>> const & cross_sections_by_target = phys_process->cross_sections->GetCrossSectionsByTarget();
@@ -304,7 +293,6 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
                 fake_record.signature = signature;
                 // Add total cross section
                 total_xs += xs->TotalCrossSection(fake_record);
-                //std::cout << "    NormalizedPositionProbability: total_xs " << total_xs << std::endl;
             }
         }
         total_cross_sections.push_back(total_xs);
@@ -314,9 +302,6 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
     double traversed_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length);
     double interaction_density = earth_model->GetInteractionDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length); //units of m^-1
     
-    //std::cout << "    NormalizedPositionProbability: total_interaction_depth " << total_interaction_depth << std::endl;
-    //std::cout << "    NormalizedPositionProbability: traversed_interaction_depth " << traversed_interaction_depth << std::endl;
-    //std::cout << "    NormalizedPositionProbability: interaction_density " << interaction_density << std::endl;
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {
@@ -331,27 +316,22 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
 double LeptonProcessWeighter::PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds,
                                                   LI::dataclasses::InteractionRecord const & record ) const {
     
-        // std::cout << "Physical Probability: normalization: " << normalization << std::endl;
         
         double physical_probability = 1.0;
         double prob = InteractionProbability(bounds, record);
         physical_probability *= prob;
  
-        // std::cout << "Physical Probability: InteractionProbability: " << prob << std::endl;
         
         prob = NormalizedPositionProbability(bounds, record);
         physical_probability *= prob; 
     
-        // std::cout << "Physical Probability: NormalizedPositionProbability: " << prob << std::endl;
         
         prob = LI::injection::CrossSectionProbability(earth_model, phys_process->cross_sections, record);
         physical_probability *= prob;
      
-        // std::cout << "Physical Probability: CrossSectionProbability: " << prob << std::endl;
         
     for(auto physical_dist : unique_phys_distributions) {
           physical_probability *= physical_dist->GenerationProbability(earth_model, phys_process->cross_sections, record);
-          // std::cout << "Physical Dist: " << physical_dist->Name() << " ->GenerationProbability: " << physical_dist->GenerationProbability(earth_model, phys_process->cross_sections, record) << std::endl;
         }
         
         return normalization * physical_probability;
@@ -360,10 +340,8 @@ double LeptonProcessWeighter::PhysicalProbability(std::pair<LI::math::Vector3D, 
 double LeptonProcessWeighter::GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum ) const {
         double gen_probability = LI::injection::CrossSectionProbability(earth_model, phys_process->cross_sections, datum.record);
         
-        // std::cout << "Generation Probability: CrossSectionProbability: " << gen_probability << std::endl;
         for(auto gen_dist : unique_gen_distributions) {
           gen_probability *= gen_dist->GenerationProbability(earth_model, phys_process->cross_sections, datum);
-          // std::cout << "Generation Dist: " << gen_dist->Name() << " ->GenerationProbability: " << gen_dist->GenerationProbability(earth_model, phys_process->cross_sections, datum) << std::endl;
         }
         return gen_probability;
 }

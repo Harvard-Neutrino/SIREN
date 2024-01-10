@@ -1,7 +1,3 @@
-/**
- * CrossSection.cxx
- */
-
 #ifndef LI_FixedDirection_H
 #define LI_FixedDirection_H
 
