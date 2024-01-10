@@ -113,23 +113,17 @@ LI::math::Vector3D ColumnDepthPositionDistribution::GetSamplePosition(std::share
 double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: dir (" << dir.GetX() << ", " << dir.GetY() << ", " << dir.GetZ() << ")" << std::endl;
     LI::math::Vector3D vertex(record.interaction_vertex); // m
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: vertex (" << vertex.GetX() << ", " << vertex.GetY() << ", " << vertex.GetZ() << ")" << std::endl;
     LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: pca (" << pca.GetX() << ", " << pca.GetY() << ", " << pca.GetZ() << ")" << std::endl;
 
     if(pca.magnitude() >= radius)
         return 0.0;
 
     double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
     
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: lepton_depth " << lepton_depth << std::endl;
 
     LI::math::Vector3D endcap_0 = pca - (endcap_length * dir);
     LI::math::Vector3D endcap_1 = pca + (endcap_length * dir);
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: endcap_0 (" << endcap_0.GetX() << ", " << endcap_0.GetY() << ", " << endcap_0.GetZ() << ")" << std::endl;
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: endcap_1 (" << endcap_1.GetX() << ", " << endcap_1.GetY() << ", " << endcap_1.GetZ() << ")" << std::endl;
     
     LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
@@ -145,7 +139,6 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = cross_sections->TotalDecayLength(record);
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: total_decay_length " << total_decay_length << std::endl;
     
     LI::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
@@ -155,16 +148,13 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         for(auto const & cross_section : cross_sections->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
-            //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: total_cross_sections " << cross_section->TotalCrossSection(fake_record) << std::endl;
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: total_interaction_depth " << total_interaction_depth << std::endl;
 
     path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(earth_vertex));
 
     double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: traversed_interaction_depth " << traversed_interaction_depth << std::endl;
 
     double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_vertex, targets, total_cross_sections, total_decay_length);
 
@@ -174,10 +164,8 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     } else {
         prob_density = interaction_density * exp(-log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
     }
-    //std::cout << "        prob_density " << prob_density << " div by circle of radius " << radius << std::endl;
     
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
-    //std::cout << "    ColumnDepthPositionDistribution::GenerationProbability: prob_density " << prob_density << std::endl;
     
     return prob_density;
 }
