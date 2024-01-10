@@ -127,7 +127,7 @@ TEST(ElasticScattering, Generation)
         std::shared_ptr<WeightableDistribution>(helicity_distribution)
     };
 
-    LeptonWeighter weighter(std::vector<std::shared_ptr<Injector>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
+    LeptonWeighter weighter(std::vector<std::shared_ptr<Injector>>{injector}, earth_model, injector->GetInteractions(), physical_distributions);
 
     // MINERvA Fiducial Volume
     std::vector<std::vector<double>> poly;

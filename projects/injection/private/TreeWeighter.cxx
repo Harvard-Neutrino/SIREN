@@ -225,11 +225,11 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
     primary_direction.normalize();
 
     LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), earth_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
-    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetCrossSections()->GetCrossSectionsByTarget();
+    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
     std::vector<LI::dataclasses::Particle::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
-    double total_decay_length = phys_process->GetCrossSections()->TotalDecayLength(record);
+    double total_decay_length = phys_process->GetInteractions()->TotalDecayLength(record);
     
     LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
@@ -273,13 +273,13 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
     primary_direction.normalize();
 
     LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
-    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetCrossSections()->GetCrossSectionsByTarget();
+    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
-    double total_decay_length = phys_process->GetCrossSections()->TotalDecayLength(record);
+    double total_decay_length = phys_process->GetInteractions()->TotalDecayLength(record);
     LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
@@ -326,22 +326,22 @@ double LeptonProcessWeighter::PhysicalProbability(std::pair<LI::math::Vector3D, 
         physical_probability *= prob; 
     
         
-        prob = LI::injection::CrossSectionProbability(earth_model, phys_process->GetCrossSections(), record);
+        prob = LI::injection::CrossSectionProbability(earth_model, phys_process->GetInteractions(), record);
         physical_probability *= prob;
      
         
     for(auto physical_dist : unique_phys_distributions) {
-          physical_probability *= physical_dist->GenerationProbability(earth_model, phys_process->GetCrossSections(), record);
+          physical_probability *= physical_dist->GenerationProbability(earth_model, phys_process->GetInteractions(), record);
         }
         
         return normalization * physical_probability;
 }
 
 double LeptonProcessWeighter::GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum ) const {
-        double gen_probability = LI::injection::CrossSectionProbability(earth_model, phys_process->GetCrossSections(), datum.record);
+        double gen_probability = LI::injection::CrossSectionProbability(earth_model, phys_process->GetInteractions(), datum.record);
         
         for(auto gen_dist : unique_gen_distributions) {
-          gen_probability *= gen_dist->GenerationProbability(earth_model, phys_process->GetCrossSections(), datum);
+          gen_probability *= gen_dist->GenerationProbability(earth_model, phys_process->GetInteractions(), datum);
         }
         return gen_probability;
 }

@@ -96,7 +96,7 @@ public:
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionTreeDatum const & datum, LI::dataclasses::Particle::ParticleType const & primary_type) const;
     virtual std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> GetInjectionDistributions() const;
     virtual std::shared_ptr<LI::detector::DetectorModel> GetDetectorModel() const;
-    virtual std::shared_ptr<LI::interactions::InteractionCollection> GetCrossSections() const;
+    virtual std::shared_ptr<LI::interactions::InteractionCollection> GetInteractions() const;
     unsigned int InjectedEvents() const;
     unsigned int EventsToInject() const;
     operator bool() const;

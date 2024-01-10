@@ -325,7 +325,7 @@ TEST(Injector, Generation)
         std::shared_ptr<WeightableDistribution>(helicity_distribution)
     };
 
-    LeptonWeighter weighter(std::vector<std::shared_ptr<Injector>>{injector}, earth_model, injector->GetCrossSections(), physical_distributions);
+    LeptonWeighter weighter(std::vector<std::shared_ptr<Injector>>{injector}, earth_model, injector->GetInteractions(), physical_distributions);
 
     std::vector<std::vector<double>> poly;
     // MINERvA Fiducial Volume
@@ -389,7 +389,7 @@ TEST(Injector, Generation)
             injector->SamplePairProduction(decay, pair_prod);
             //basic_weight = weighter.EventWeight(event);
             simplified_weight = weighter.SimplifiedEventWeight(event);
-            interaction_lengths = ComputeInteractionLengths(earth_model, injector->GetCrossSections(), injector->InjectionBounds(event), event);
+            interaction_lengths = ComputeInteractionLengths(earth_model, injector->GetInteractions(), injector->InjectionBounds(event), event);
             interaction_prob = weighter.InteractionProbability(injector->InjectionBounds(event), event);
         }
         if(event.secondary_momenta.size() > 0) {

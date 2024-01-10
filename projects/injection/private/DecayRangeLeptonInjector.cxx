@@ -37,7 +37,7 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
     disk_radius(disk_radius),
     endcap_length(endcap_length)
 {
-    cross_sections = primary_process->GetCrossSections();
+    cross_sections = primary_process->GetInteractions();
     position_distribution = std::make_shared<LI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func);
     primary_process->AddInjectionDistribution(position_distribution);
     SetPrimaryProcess(primary_process);
@@ -46,7 +46,7 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
       // Assume each secondary process already has a position distribution
       // Otherwise uncomment below
       /*
-      target_types = sec_process->GetCrossSections()->TargetTypes();
+      target_types = sec_process->GetInteractions()->TargetTypes();
       sec_process->GetInjectionDistributions().push_back(std::make_shared<LI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func, target_types));
       */
     }
