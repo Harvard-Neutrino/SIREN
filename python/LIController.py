@@ -178,7 +178,7 @@ class LIController:
             self.secondary_injection_processes.append(secondary_injection_process)
             self.secondary_physical_processes.append(secondary_physical_process)
 
-            secondary_interaction_collections.append(LI.crosssections.InteractionCollection(secondary_type, decay_list))
+            secondary_interaction_collections.append(LI.interactions.InteractionCollection(secondary_type, decay_list))
 
         self.SetCrossSections(primary_interaction_collection,secondary_interaction_collections)
     
