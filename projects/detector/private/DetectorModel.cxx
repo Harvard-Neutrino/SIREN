@@ -219,7 +219,7 @@ bool fexists(const std::string filename)
 
 void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
     if(detector_model.empty())
-        throw(std::runtime_error("Received empty earth model filename!"));
+        throw(std::runtime_error("Received empty detector model filename!"));
 
     std::string fname;
 
@@ -235,11 +235,11 @@ void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
     else if(fexists(path_ + "/densities/" + detector_model + ".dat")) {
         fname = path_ + "/densities/" + detector_model + ".dat";
     }
-    else if(fexists(path_ + "/earthparams/" + detector_model)) {
-        fname = path_ + "/earthparams/" + detector_model;
+    else if(fexists(path_ + "/DetectorParams/" + detector_model)) {
+        fname = path_ + "/DetectorParams/" + detector_model;
     }
-    else if(fexists(path_ + "/earthparams/" + detector_model + ".dat")) {
-        fname = path_ + "/earthparams/" + detector_model + ".dat";
+    else if(fexists(path_ + "/DetectorParams/" + detector_model + ".dat")) {
+        fname = path_ + "/DetectorParams/" + detector_model + ".dat";
     }
     else if(fexists(path_ + "/" + detector_model)) {
         fname = path_ + "/" + detector_model;
@@ -248,14 +248,14 @@ void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
         fname = path_ + "/" + detector_model + ".dat";
     }
     else {
-        throw(std::runtime_error("Cannot open earth model file!"));
+        throw(std::runtime_error("Cannot open detector model file!"));
     }
 
     std::ifstream in(fname.c_str());
 
-    // if the earthmodel file doesn't exist, stop simulation
+    // if the detectormodel file doesn't exist, stop simulation
     if(in.fail()){
-        throw(std::runtime_error("Failed to open " + fname + " Set correct EarthParamsPath."));
+        throw(std::runtime_error("Failed to open " + fname + " Set correct DetectorParamsPath."));
     }
 
     ClearSectors();
@@ -357,7 +357,7 @@ void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
             if(not materials_.HasMaterial(medtype)) {
                 std::stringstream ss_err;
                 ss_err
-                    << "Earth model uses undefined material \""
+                    << "Detector model uses undefined material \""
                     << medtype
                     << "\" on line:\n"
                     << ss.str();
@@ -1304,7 +1304,7 @@ Vector3D DetectorModel::GetDetCoordDirFromEarthCoordDir(Vector3D const & directi
 
 void DetectorModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, double detector_depth, double ice_cap_angle) {
     if(model_fname.empty())
-        throw(std::runtime_error("Received empty earth model filename!"));
+        throw(std::runtime_error("Received empty detector model filename!"));
 
     std::string fname;
 
@@ -1320,11 +1320,11 @@ void DetectorModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, 
     else if(fexists(path_ + "/densities/" + model_fname + ".dat")) {
         fname = path_ + "/densities/" + model_fname + ".dat";
     }
-    else if(fexists(path_ + "/earthparams/" + model_fname)) {
-        fname = path_ + "/earthparams/" + model_fname;
+    else if(fexists(path_ + "/DetectorParams/" + model_fname)) {
+        fname = path_ + "/DetectorParams/" + model_fname;
     }
-    else if(fexists(path_ + "/earthparams/" + model_fname + ".dat")) {
-        fname = path_ + "/earthparams/" + model_fname + ".dat";
+    else if(fexists(path_ + "/DetectorParams/" + model_fname + ".dat")) {
+        fname = path_ + "/DetectorParams/" + model_fname + ".dat";
     }
     else if(fexists(path_ + "/" + model_fname)) {
         fname = path_ + "/" + model_fname;
@@ -1333,14 +1333,14 @@ void DetectorModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, 
         fname = path_ + "/" + model_fname + ".dat";
     }
     else {
-        throw(std::runtime_error("Cannot open earth model file!"));
+        throw(std::runtime_error("Cannot open detector model file!"));
     }
 
     std::ifstream in(fname.c_str());
 
-    // if the earthmodel file doesn't exist, stop simulation
+    // if the detectormodel file doesn't exist, stop simulation
     if(in.fail()){
-        throw(std::runtime_error("Failed to open " + fname + " Set correct EarthParamsPath."));
+        throw(std::runtime_error("Failed to open " + fname + " Set correct DetectorParamsPath."));
     }
 
     ClearSectors();
@@ -1377,7 +1377,7 @@ void DetectorModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, 
 
         if(not materials_.HasMaterial(medtype)) {
             std::stringstream ss;
-            ss << "Earth model uses undefined material " << medtype;
+            ss << "Detector model uses undefined material " << medtype;
             throw(std::runtime_error(ss.str()));
         }
 
