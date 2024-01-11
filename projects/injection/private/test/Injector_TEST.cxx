@@ -156,7 +156,7 @@ bool inFiducial(std::array<double,3> & int_vtx, Sphere & fidVol) {
     return fidVol.IsInside(pos,dir);
 }
 
-double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> earth_model, std::shared_ptr<InteractionCollection const> cross_sections, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
+double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> earth_model, std::shared_ptr<InteractionCollection const> interactions, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
     Vector3D interaction_vertex = record.interaction_vertex;
     Vector3D direction(
             record.primary_momentum[1],
@@ -165,7 +165,7 @@ double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> earth_mode
     direction.normalize();
 
     Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), direction);
-	std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = cross_sections->GetCrossSectionsByTarget();
+	std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
     std::vector<double> total_cross_sections;
     std::vector<Particle::ParticleType> targets;
 	InteractionRecord fake_record = record;

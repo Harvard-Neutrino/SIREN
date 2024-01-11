@@ -37,8 +37,8 @@ RangedLeptonInjector::RangedLeptonInjector(
     disk_radius(disk_radius),
     endcap_length(endcap_length)
 {
-    cross_sections = primary_process->GetInteractions();
-    std::set<LI::dataclasses::Particle::ParticleType> target_types = cross_sections->TargetTypes();
+    interactions = primary_process->GetInteractions();
+    std::set<LI::dataclasses::Particle::ParticleType> target_types = interactions->TargetTypes();
     position_distribution = std::make_shared<LI::distributions::RangePositionDistribution>(disk_radius, endcap_length, range_func, target_types);
     primary_process->AddInjectionDistribution(position_distribution);
     SetPrimaryProcess(primary_process);
@@ -58,7 +58,7 @@ std::string RangedLeptonInjector::Name() const {
 }
 
 std::pair<LI::math::Vector3D, LI::math::Vector3D> RangedLeptonInjector::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
-    return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
+    return position_distribution->InjectionBounds(earth_model, interactions, interaction);
 }
 
 } // namespace injection

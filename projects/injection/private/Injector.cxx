@@ -121,7 +121,7 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record) c
   SampleCrossSection(record, primary_process->GetInteractions());
 }
 
-void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::interactions::InteractionCollection> cross_sections) const {
+void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::interactions::InteractionCollection> interactions) const {
 
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
@@ -130,7 +130,7 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
 	    throw(LI::utilities::InjectionFailure("No particle interaction!"));
     }
 
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
+    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
 
     LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
@@ -156,13 +156,13 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     std::vector<std::shared_ptr<LI::interactions::Decay>> matching_decays;
     LI::dataclasses::InteractionRecord fake_record = record;
     double fake_prob;
-    if (cross_sections->HasCrossSections()) {
+    if (interactions->HasCrossSections()) {
       for(auto const target : available_targets) {
           if(possible_targets.find(target) != possible_targets.end()) {
               // Get target density
               double target_density = earth_model->GetParticleDensity(intersections, interaction_vertex, target);
               // Loop over cross sections that have this target
-              std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & target_cross_sections = cross_sections->GetCrossSectionsForTarget(target);
+              std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
               for(auto const & cross_section : target_cross_sections) {
                   // Loop over cross section signatures with the same target
                   std::vector<LI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
@@ -185,8 +185,8 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
           }
       }
     }
-    if (cross_sections->HasDecays()) {
-      for(auto const & decay : cross_sections->GetDecays() ) {
+    if (interactions->HasDecays()) {
+      for(auto const & decay : interactions->GetDecays() ) {
         for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
           fake_record.signature = signature;
           // fake_prob has units of 1/cm to match cross section probabilities
@@ -404,7 +404,7 @@ bool Injector::SampleSecondaryProcess(unsigned int idx,
     return false;
     throw(LI::utilities::SecondaryProcessFailure("No process defined for this particle type!"));
   }
-  std::shared_ptr<LI::interactions::InteractionCollection> sec_cross_sections = (*it)->GetInteractions();
+  std::shared_ptr<LI::interactions::InteractionCollection> sec_interactions = (*it)->GetInteractions();
   std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> sec_distributions = (*it)->GetInjectionDistributions();
   datum.record.signature.primary_type = parent->record.signature.secondary_types[idx];
   datum.record.primary_mass = parent->record.secondary_masses[idx];
@@ -412,16 +412,16 @@ bool Injector::SampleSecondaryProcess(unsigned int idx,
   datum.record.primary_helicity = parent->record.secondary_helicity[idx];
   datum.parent = parent;
   for(auto & distribution : sec_distributions) {
-      distribution->Sample(random, earth_model, sec_cross_sections, datum);
+      distribution->Sample(random, earth_model, sec_interactions, datum);
   }
-  SampleCrossSection(datum.record,sec_cross_sections);
+  SampleCrossSection(datum.record,sec_interactions);
   // TODO: properly weight for secondary injection failure
   /*while(true) {
       try {
           for(auto & distribution : sec_distributions) {
-              distribution->Sample(random, earth_model, sec_cross_sections, datum);
+              distribution->Sample(random, earth_model, sec_interactions, datum);
           }
-          SampleCrossSection(record,sec_cross_sections);
+          SampleCrossSection(record,sec_interactions);
           break;
       } catch(LI::utilities::InjectionFailure const & e) {
           continue;

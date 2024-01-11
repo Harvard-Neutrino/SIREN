@@ -37,7 +37,7 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
     disk_radius(disk_radius),
     endcap_length(endcap_length)
 {
-    cross_sections = primary_process->GetInteractions();
+    interactions = primary_process->GetInteractions();
     position_distribution = std::make_shared<LI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func);
     primary_process->AddInjectionDistribution(position_distribution);
     SetPrimaryProcess(primary_process);
@@ -57,7 +57,7 @@ std::string DecayRangeLeptonInjector::Name() const {
 }
 
 std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangeLeptonInjector::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
-    return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
+    return position_distribution->InjectionBounds(earth_model, interactions, interaction);
 }
 
 } // namespace injection

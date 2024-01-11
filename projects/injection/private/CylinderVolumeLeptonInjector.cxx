@@ -28,7 +28,7 @@ CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector(
         LI::geometry::Cylinder cylinder) :
     Injector(events_to_inject, earth_model, random),
     position_distribution(std::make_shared<LI::distributions::CylinderVolumePositionDistribution>(cylinder)) {
-    cross_sections = primary_process->GetInteractions();
+    interactions = primary_process->GetInteractions();
     primary_process->AddInjectionDistribution(position_distribution);
     SetPrimaryProcess(primary_process);
     for(auto & sec_process : secondary_processes) {
@@ -46,7 +46,7 @@ std::string CylinderVolumeLeptonInjector::Name() const {
 }
 
 std::pair<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumeLeptonInjector::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
-    return position_distribution->InjectionBounds(earth_model, cross_sections, interaction);
+    return position_distribution->InjectionBounds(earth_model, interactions, interaction);
 }
 
 } // namespace injection

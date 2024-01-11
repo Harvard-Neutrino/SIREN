@@ -48,7 +48,7 @@ class CylinderVolumeLeptonInjector : public Injector {
 friend cereal::access;
 protected:
     std::shared_ptr<LI::distributions::CylinderVolumePositionDistribution> position_distribution;
-    std::shared_ptr<LI::interactions::InteractionCollection> cross_sections;
+    std::shared_ptr<LI::interactions::InteractionCollection> interactions;
     CylinderVolumeLeptonInjector();
 public:
     CylinderVolumeLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, LI::geometry::Cylinder cylinder);

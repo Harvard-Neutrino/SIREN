@@ -41,7 +41,7 @@ protected:
     double disk_radius;
     double endcap_length;
     std::shared_ptr<LI::distributions::RangePositionDistribution> position_distribution;
-    std::shared_ptr<LI::interactions::InteractionCollection> cross_sections;
+    std::shared_ptr<LI::interactions::InteractionCollection> interactions;
     RangedLeptonInjector();
 public:
     RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::RangeFunction> range_func, double disk_radius, double endcap_length);

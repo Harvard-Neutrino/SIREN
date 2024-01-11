@@ -16,7 +16,7 @@ namespace distributions {
 //---------------
 // class PrimaryNeutrinoHelicityDistribution : InjectionDistribution
 //---------------
-void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
+void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
     LI::dataclasses::Particle::ParticleType & t = record.signature.primary_type;
     if(t > 0) // Particles are left handed, anti-particles are right handed
         record.primary_helicity = -0.5;
@@ -24,7 +24,7 @@ void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI::utilities::
         record.primary_helicity = 0.5;
 }
 
-double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     std::array<double, 4> const & mom = record.primary_momentum;
     LI::math::Vector3D dir(mom[1], mom[2], mom[3]);
     dir.normalize();

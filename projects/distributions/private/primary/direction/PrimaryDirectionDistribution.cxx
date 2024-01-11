@@ -13,8 +13,8 @@ namespace distributions {
 //---------------
 // class PrimaryDirectionDistribution : InjectionDistribution
 //---------------
-void PrimaryDirectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
-    LI::math::Vector3D dir = SampleDirection(rand, earth_model, cross_sections, record);
+void PrimaryDirectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
+    LI::math::Vector3D dir = SampleDirection(rand, earth_model, interactions, record);
     double energy = record.primary_momentum[0];
     double mass = record.primary_mass;
     double momentum = std::sqrt(energy*energy - mass*mass);

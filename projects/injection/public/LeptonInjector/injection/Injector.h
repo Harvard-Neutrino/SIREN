@@ -79,7 +79,7 @@ public:
     void SetRandom(std::shared_ptr<LI::utilities::LI_random> random);
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record) const;
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record,
-                                    std::shared_ptr<LI::interactions::InteractionCollection> cross_sections) const;
+                                    std::shared_ptr<LI::interactions::InteractionCollection> interactions) const;
     virtual void SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
     virtual void SamplePairProduction(LI::dataclasses::DecayRecord const & decay, LI::dataclasses::InteractionRecord & pairprod) const;
     bool SampleSecondaryProcess(unsigned int idx,

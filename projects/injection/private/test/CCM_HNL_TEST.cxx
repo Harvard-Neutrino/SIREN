@@ -215,11 +215,11 @@ TEST(Injector, Generation)
     
     std::cout << "GotCrossSections!\n";
 
-    std::shared_ptr<InteractionCollection> primary_cross_sections = std::make_shared<InteractionCollection>(primary_type, cross_sections);
-    primary_injection_process_upper_injector->SetInteractions(primary_cross_sections);
-    primary_injection_process_lower_injector->SetInteractions(primary_cross_sections);
-    primary_physical_process_upper_injector->SetInteractions(primary_cross_sections);
-    primary_physical_process_lower_injector->SetInteractions(primary_cross_sections);
+    std::shared_ptr<InteractionCollection> primary_interactions = std::make_shared<InteractionCollection>(primary_type, cross_sections);
+    primary_injection_process_upper_injector->SetInteractions(primary_interactions);
+    primary_injection_process_lower_injector->SetInteractions(primary_interactions);
+    primary_physical_process_upper_injector->SetInteractions(primary_interactions);
+    primary_physical_process_lower_injector->SetInteractions(primary_interactions);
 
     // Primary energy distribution: pion decay-at-rest
     double nu_energy = 0.02965;
@@ -267,8 +267,8 @@ TEST(Injector, Generation)
 
     // Primary position distribution: treat targets as point sources, generate from center
     double max_dist = 25; // m
-    std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist, primary_cross_sections->TargetTypes()); 
-    std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist, primary_cross_sections->TargetTypes());
+    std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist, primary_interactions->TargetTypes()); 
+    std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist, primary_interactions->TargetTypes());
     primary_injection_process_upper_injector->AddInjectionDistribution(upper_pos_dist);
     primary_injection_process_lower_injector->AddInjectionDistribution(lower_pos_dist);
     //primary_physical_process_upper_injector->AddPhysicalDistribution(upper_pos_dist);
@@ -284,9 +284,9 @@ TEST(Injector, Generation)
     // Assume dirac HNL for now
     std::shared_ptr<NeutrissimoDecay> sec_decay = std::make_shared<NeutrissimoDecay>(hnl_mass, dipole_coupling_vec, NeutrissimoDecay::ChiralNature::Majorana);  
     std::vector<std::shared_ptr<Decay>> sec_decays = {sec_decay};
-    std::shared_ptr<InteractionCollection> secondary_cross_sections = std::make_shared<InteractionCollection>(ParticleType::NuF4, sec_decays);
-    secondary_decay_inj_process->SetInteractions(secondary_cross_sections);
-    secondary_decay_phys_process->SetInteractions(secondary_cross_sections);
+    std::shared_ptr<InteractionCollection> secondary_interactions = std::make_shared<InteractionCollection>(ParticleType::NuF4, sec_decays);
+    secondary_decay_inj_process->SetInteractions(secondary_interactions);
+    secondary_decay_phys_process->SetInteractions(secondary_interactions);
 
     // Secondary physical distribution
     std::shared_ptr<const LI::geometry::Geometry> fid_vol = NULL;
