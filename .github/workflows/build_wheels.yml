@@ -22,7 +22,7 @@ jobs:
           python-version: '3.9'  # update once build dependencies are available
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.12.1
+        uses: pypa/cibuildwheel@v2.16.2
 
       - name: Setup tmate session
         if: ${{ failure() }}
