@@ -60,8 +60,8 @@ bool inelastic = true;
 std::string tot_xsec_table_path = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/tot_xsec_Enu/";
 std::string diff_xsec_table_path = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/";
 
-std::string material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/earthparams/materials/CCM.dat";
-std::string earth_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/earthparams/densities/PREM_ccm.dat";
+std::string material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/DetectorParams/materials/CCM.dat";
+std::string detector_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/DetectorParams/densities/PREM_ccm.dat";
     
 double hnl_mass = 0.01375; // in GeV; The HNL mass we are injecting
 double dipole_coupling = 1.0e-6; // in GeV^-1; the effective dipole coupling strength
@@ -166,12 +166,12 @@ TEST(Injector, Generation)
     using ParticleType = Particle::ParticleType;
 
 
-    // Load the earth model
+    // Load the detector model
     std::shared_ptr<DetectorModel> detector_model = std::make_shared<DetectorModel>();
     std::cout << "Loading MaterialModel...\n";
     detector_model->LoadMaterialModel(material_file);
     std::cout << "Loading DetectorModel...\n";
-    detector_model->LoadDetectorModel(earth_file);
+    detector_model->LoadDetectorModel(detector_file);
 
     // random class instance
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();

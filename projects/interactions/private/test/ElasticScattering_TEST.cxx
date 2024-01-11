@@ -58,12 +58,12 @@ TEST(ElasticScattering, Generation)
     using ParticleType = Particle::ParticleType;
 
 #ifdef AUSTIN
-    std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
-    std::string earth_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
+    std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/DetectorParams/materials/Minerva.dat";
+    std::string detector_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/DetectorParams/densities/PREM_minerva.dat";
     std::string flux_file = "/home/austin/nu-dipole/fluxes/LE_FHC_numu.txt";
 #else
-    std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/materials/Minerva.dat";
-    std::string earth_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/earthparams/densities/PREM_minerva.dat";
+    std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/DetectorParams/materials/Minerva.dat";
+    std::string detector_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/DetectorParams/densities/PREM_minerva.dat";
     std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/ME_FHC_numu.txt";
 #endif
 
@@ -82,10 +82,10 @@ TEST(ElasticScattering, Generation)
     std::shared_ptr<ElasticScattering> es_xs = std::make_shared<ElasticScattering>();
     cross_sections.push_back(es_xs);
 
-    // Load the earth model
+    // Load the detector model
     std::shared_ptr<DetectorModel> detector_model = std::make_shared<DetectorModel>();
     detector_model->LoadMaterialModel(material_file);
-    detector_model->LoadDetectorModel(earth_file);
+    detector_model->LoadDetectorModel(detector_file);
 
     // Setup the primary type and mass
     //std::shared_ptr<PrimaryInjector> primary_injector = std::make_shared<PrimaryInjector>(primary_type, hnl_mass);

@@ -208,8 +208,8 @@ void register_DetectorModel(pybind11::module_ & m) {
                     LI::geometry::Geometry::IntersectionList (*)(
                         LI::geometry::Geometry::IntersectionList const &)
                     )(&DetectorModel::GetOuterBounds))
-        .def("GetOuterBounds", [](LI::detector::DetectorModel const & earth, LI::geometry::Geometry::IntersectionList const & intersections){
-                return earth.GetOuterBounds(intersections);
+        .def("GetOuterBounds", [](LI::detector::DetectorModel const & detector, LI::geometry::Geometry::IntersectionList const & intersections){
+                return detector.GetOuterBounds(intersections);
                 })
         .def("GetOuterBounds", (
                 LI::geometry::Geometry::IntersectionList (DetectorModel::*)(
