@@ -100,7 +100,7 @@ void LeptonTreeWeighter::Initialize() {
   secondary_process_weighter_maps.reserve(injectors.size());
   for(auto const & injector : injectors) {
     assert(primary_physical_process->MatchesHead(injector->GetPrimaryProcess()));
-    primary_process_weighters.push_back(std::make_shared<LeptonProcessWeighter>(LeptonProcessWeighter(primary_physical_process,injector->GetPrimaryProcess(),earth_model)));
+    primary_process_weighters.push_back(std::make_shared<LeptonProcessWeighter>(LeptonProcessWeighter(primary_physical_process,injector->GetPrimaryProcess(),detector_model)));
     std::map<LI::dataclasses::Particle::ParticleType,
              std::shared_ptr<LeptonProcessWeighter>
     > injector_sec_process_weighter_map;
@@ -111,7 +111,7 @@ void LeptonTreeWeighter::Initialize() {
       try{
         std::shared_ptr<LI::injection::InjectionProcess> sec_inj_process = injector_sec_process_map.at(sec_phys_process->GetPrimaryType());
         assert(sec_phys_process->MatchesHead(sec_inj_process)); // make sure cross section collection matches
-        injector_sec_process_weighter_map[sec_phys_process->GetPrimaryType()] = std::make_shared<LeptonProcessWeighter>(LeptonProcessWeighter(sec_phys_process,sec_inj_process,earth_model));
+        injector_sec_process_weighter_map[sec_phys_process->GetPrimaryType()] = std::make_shared<LeptonProcessWeighter>(LeptonProcessWeighter(sec_phys_process,sec_inj_process,detector_model));
       } catch(const std::out_of_range& oor) {
         std::cout << "Out of Range error: " << oor.what() << '\n';
         std::cout << "Initialization Incomplete: Particle " <<  sec_phys_process->GetPrimaryType() << " does not exist in injector\n";
@@ -163,18 +163,18 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
   return 1./inv_weight;
 }
 
-LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes)
+LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes)
     : injectors(injectors)
-    , earth_model(earth_model)
+    , detector_model(detector_model)
     , primary_physical_process(primary_physical_process)
     , secondary_physical_processes(secondary_physical_processes)
 {
   Initialize();
 }
 
-LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process)
+LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process)
     : injectors(injectors)
-    , earth_model(earth_model)
+    , detector_model(detector_model)
     , primary_physical_process(primary_physical_process)
     , secondary_physical_processes(std::vector<std::shared_ptr<LI::injection::PhysicalProcess>>())
 {
@@ -224,7 +224,7 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), earth_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
+    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), detector_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
     std::vector<LI::dataclasses::Particle::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
@@ -234,7 +234,7 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
     LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
-        fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
+        fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
@@ -249,7 +249,7 @@ double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length);
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length);
     
     double interaction_probability;
     if(total_interaction_depth < 1e-6) {
@@ -272,7 +272,7 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
+    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
@@ -283,7 +283,7 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
     LI::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
-        fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
+        fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
@@ -298,9 +298,9 @@ double LeptonProcessWeighter::NormalizedPositionProbability(std::pair<LI::math::
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length); // unitless
-    double traversed_interaction_depth = earth_model->GetInteractionDepthInCGS(intersections, bounds.first, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length);
-    double interaction_density = earth_model->GetInteractionDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length); //units of m^-1
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length); // unitless
+    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, bounds.first, detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length);
+    double interaction_density = detector_model->GetInteractionDensity(intersections, detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length); //units of m^-1
     
 
     double prob_density;
@@ -326,22 +326,22 @@ double LeptonProcessWeighter::PhysicalProbability(std::pair<LI::math::Vector3D, 
         physical_probability *= prob; 
     
         
-        prob = LI::injection::CrossSectionProbability(earth_model, phys_process->GetInteractions(), record);
+        prob = LI::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), record);
         physical_probability *= prob;
      
         
     for(auto physical_dist : unique_phys_distributions) {
-          physical_probability *= physical_dist->GenerationProbability(earth_model, phys_process->GetInteractions(), record);
+          physical_probability *= physical_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), record);
         }
         
         return normalization * physical_probability;
 }
 
 double LeptonProcessWeighter::GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum ) const {
-        double gen_probability = LI::injection::CrossSectionProbability(earth_model, phys_process->GetInteractions(), datum.record);
+        double gen_probability = LI::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), datum.record);
         
         for(auto gen_dist : unique_gen_distributions) {
-          gen_probability *= gen_dist->GenerationProbability(earth_model, phys_process->GetInteractions(), datum);
+          gen_probability *= gen_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), datum);
         }
         return gen_probability;
 }
@@ -351,10 +351,10 @@ double LeptonProcessWeighter::EventWeight(std::pair<LI::math::Vector3D, LI::math
   return PhysicalProbability(bounds,datum.record)/GenerationProbability(datum);
 }
 
-LeptonProcessWeighter::LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process, std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::DetectorModel> earth_model)
+LeptonProcessWeighter::LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process, std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::DetectorModel> detector_model)
     : phys_process(phys_process)
     , inj_process(inj_process)
-    , earth_model(earth_model)
+    , detector_model(detector_model)
 {
   Initialize();
 }

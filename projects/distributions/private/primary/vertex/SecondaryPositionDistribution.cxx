@@ -45,23 +45,23 @@ namespace {
 // class SecondaryPositionDistribution : public VertexPositionDistribution
 //---------------
 
-LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
+LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
   throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::SamplePosition without a datum to access the parent"));
   return LI::math::Vector3D(0,0,0);
 }
 
-void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
-    LI::math::Vector3D pos = SamplePosition(rand, earth_model, interactions, datum);
+void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
+    LI::math::Vector3D pos = SamplePosition(rand, detector_model, interactions, datum);
     datum.record.interaction_vertex[0] = pos.GetX();
     datum.record.interaction_vertex[1] = pos.GetY();
     datum.record.interaction_vertex[2] = pos.GetZ();
 }
 
-void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
+void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
     throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::Sample without a datum to access the parent"));
 }
 
-LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
+LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
 
@@ -70,13 +70,13 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
-    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), max_length);
+    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), max_length);
     path.ClipToOuterBounds();
 
     // Check if fiducial volume is provided
     if(fiducial) {
-      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0),
-                                                                                                    earth_model->GetEarthCoordDirFromDetCoordDir(dir));
+      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0),
+                                                                                                    detector_model->GetEarthCoordDirFromDetCoordDir(dir));
       // If the path intersects the fiducial volume, restrict position to that volume
       if(!fid_intersections.empty()) {
         // make sure the first intersection happens before the maximum generation length
@@ -100,7 +100,7 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
-        fake_record.target_mass = earth_model->GetTargetMass(target);
+        fake_record.target_mass = detector_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
@@ -121,17 +121,17 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
-    LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+    LI::math::Vector3D vertex = detector_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
 }
 
-double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
   throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::GenerationProbability without a datum to access the parent"));
   return 0;
 }
 
-double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
+double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(datum.record.interaction_vertex);
@@ -139,16 +139,16 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
-    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), max_length);
+    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), max_length);
     path.ClipToOuterBounds();
 
-    if(not path.IsWithinBounds(earth_model->GetEarthCoordPosFromDetCoordPos(vertex)))
+    if(not path.IsWithinBounds(detector_model->GetEarthCoordPosFromDetCoordPos(vertex)))
         return 0.0;
 
     // Check if fiducial volume is provided
     if(fiducial) {
-      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0),
-                                                                                                    earth_model->GetEarthCoordDirFromDetCoordDir(dir));
+      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0),
+                                                                                                    detector_model->GetEarthCoordDirFromDetCoordDir(dir));
       // If the path intersects the fiducial volume, restrict position to that volume
       if(!fid_intersections.empty()) {
         // make sure the first intersection happens before the maximum generation length
@@ -172,7 +172,7 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
-        fake_record.target_mass = earth_model->GetTargetMass(target);
+        fake_record.target_mass = detector_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
@@ -180,11 +180,11 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(earth_model->GetEarthCoordPosFromDetCoordPos(vertex)));
+    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(detector_model->GetEarthCoordPosFromDetCoordPos(vertex)));
 
     double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections, total_decay_length);
+    double interaction_density = detector_model->GetInteractionDensity(path.GetIntersections(), detector_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections, total_decay_length);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {
@@ -214,12 +214,12 @@ std::shared_ptr<InjectionDistribution> SecondaryPositionDistribution::clone() co
     return std::shared_ptr<InjectionDistribution>(new SecondaryPositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
   throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::InjectionBounds without a datum to access the parent"));
   return std::make_pair(LI::math::Vector3D(0,0,0),LI::math::Vector3D(0,0,0));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(datum.record.interaction_vertex);
@@ -227,7 +227,7 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution:
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
-    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), max_length);
+    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), max_length);
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(vertex))

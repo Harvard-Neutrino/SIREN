@@ -18,22 +18,22 @@ Path::Path() {
 
 }
 
-Path::Path(std::shared_ptr<const DetectorModel> earth_model) {
-    SetDetectorModel(earth_model);
+Path::Path(std::shared_ptr<const DetectorModel> detector_model) {
+    SetDetectorModel(detector_model);
 }
 
-Path::Path(std::shared_ptr<const DetectorModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & last_point) {
-    SetDetectorModel(earth_model);
+Path::Path(std::shared_ptr<const DetectorModel> detector_model, math::Vector3D const & first_point, math::Vector3D const & last_point) {
+    SetDetectorModel(detector_model);
     SetPoints(first_point, last_point);
 }
 
-Path::Path(std::shared_ptr<const DetectorModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & direction, double distance) {
-    SetDetectorModel(earth_model);
+Path::Path(std::shared_ptr<const DetectorModel> detector_model, math::Vector3D const & first_point, math::Vector3D const & direction, double distance) {
+    SetDetectorModel(detector_model);
     SetPointsWithRay(first_point, direction, distance);
 }
 
 bool Path::HasDetectorModel() {
-    return set_earth_model_;
+    return set_detector_model_;
 }
 
 bool Path::HasPoints() {
@@ -49,7 +49,7 @@ bool Path::HasColumnDepth() {
 }
 
 std::shared_ptr<const DetectorModel> Path::GetDetectorModel() {
-    return earth_model_;
+    return detector_model_;
 }
 
 math::Vector3D const & Path::GetFirstPoint() {
@@ -72,13 +72,13 @@ geometry::Geometry::IntersectionList const & Path::GetIntersections() {
     return intersections_;
 }
 
-void Path::SetDetectorModel(std::shared_ptr<const DetectorModel> earth_model) {
-    earth_model_ = earth_model;
-    set_earth_model_ = true;
+void Path::SetDetectorModel(std::shared_ptr<const DetectorModel> detector_model) {
+    detector_model_ = detector_model;
+    set_detector_model_ = true;
 }
 
 void Path::EnsureDetectorModel() {
-    if(not set_earth_model_) {
+    if(not set_detector_model_) {
         throw(std::runtime_error("Earth model not set!"));
     }
 }
@@ -121,7 +121,7 @@ void Path::SetIntersections(geometry::Geometry::IntersectionList const & interse
 void Path::ComputeIntersections() {
     EnsureDetectorModel();
     EnsurePoints();
-    intersections_ = earth_model_->GetIntersections(first_point_, direction_);
+    intersections_ = detector_model_->GetIntersections(first_point_, direction_);
     set_intersections_ = true;
 }
 
@@ -382,7 +382,7 @@ double Path::GetColumnDepthInBounds() {
     if(HasColumnDepth()) {
         return column_depth_cached_;
     } else {
-        double column_depth = earth_model_->GetColumnDepthInCGS(intersections_, first_point_, last_point_);
+        double column_depth = detector_model_->GetColumnDepthInCGS(intersections_, first_point_, last_point_);
         column_depth_cached_ = column_depth;
         return column_depth;
     }
@@ -398,7 +398,7 @@ double Path::GetInteractionDepthInBounds(
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    double interaction_depth = earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, last_point_, targets, total_cross_sections, total_decay_length);
+    double interaction_depth = detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, last_point_, targets, total_cross_sections, total_decay_length);
     return interaction_depth;
 }
 
@@ -414,7 +414,7 @@ double Path::GetColumnDepthFromStartInBounds(double distance) {
     }
     EnsureIntersections();
     EnsurePoints();
-    return earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance);
+    return detector_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance);
 }
 
 double Path::GetColumnDepthFromEndInBounds(double distance) {
@@ -425,31 +425,31 @@ double Path::GetColumnDepthFromEndInBounds(double distance) {
     }
     EnsureIntersections();
     EnsurePoints();
-    return earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance);
+    return detector_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance);
 }
 
 double Path::GetColumnDepthFromStartAlongPath(double distance) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance), distance);
+    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance), distance);
 }
 
 double Path::GetColumnDepthFromEndAlongPath(double distance) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance), distance);
+    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance), distance);
 }
 
 double Path::GetColumnDepthFromStartInReverse(double distance) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance), distance);
+    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance), distance);
 }
 
 double Path::GetColumnDepthFromEndInReverse(double distance) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(earth_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance), distance);
+    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance), distance);
 }
 
 
@@ -467,7 +467,7 @@ double Path::GetInteractionDepthFromStartInBounds(double distance,
     }
     EnsureIntersections();
     EnsurePoints();
-    return earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets, total_cross_sections, total_decay_length);
+    return detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets, total_cross_sections, total_decay_length);
 }
 
 double Path::GetInteractionDepthFromEndInBounds(double distance,
@@ -481,7 +481,7 @@ double Path::GetInteractionDepthFromEndInBounds(double distance,
     }
     EnsureIntersections();
     EnsurePoints();
-    return earth_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets, total_cross_sections, total_decay_length);
+    return detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets, total_cross_sections, total_decay_length);
 }
 
 double Path::GetInteractionDepthFromStartAlongPath(double distance,
@@ -490,7 +490,7 @@ double Path::GetInteractionDepthFromStartAlongPath(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets, total_cross_sections, total_decay_length), distance);
+    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets, total_cross_sections, total_decay_length), distance);
 }
 
 double Path::GetInteractionDepthFromEndAlongPath(double distance,
@@ -499,7 +499,7 @@ double Path::GetInteractionDepthFromEndAlongPath(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance, targets, total_cross_sections, total_decay_length), distance);
+    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance, targets, total_cross_sections, total_decay_length), distance);
 }
 
 double Path::GetInteractionDepthFromStartInReverse(double distance,
@@ -508,7 +508,7 @@ double Path::GetInteractionDepthFromStartInReverse(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance, targets, total_cross_sections, total_decay_length), distance);
+    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance, targets, total_cross_sections, total_decay_length), distance);
 }
 
 double Path::GetInteractionDepthFromEndInReverse(double distance,
@@ -517,7 +517,7 @@ double Path::GetInteractionDepthFromEndInReverse(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(earth_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets, total_cross_sections, total_decay_length), distance);
+    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets, total_cross_sections, total_decay_length), distance);
 }
 
 
@@ -527,7 +527,7 @@ double Path::GetInteractionDepthFromEndInReverse(double distance,
 double Path::GetDistanceFromStartInBounds(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth);
+    double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth);
     if(distance > distance_) {
         distance = distance_;
     } else if(column_depth <= 0) {
@@ -539,7 +539,7 @@ double Path::GetDistanceFromStartInBounds(double column_depth) {
 double Path::GetDistanceFromEndInBounds(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth);
+    double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth);
     if(distance > distance_) {
         distance = distance_;
     } else if(column_depth <= 0) {
@@ -551,28 +551,28 @@ double Path::GetDistanceFromEndInBounds(double column_depth) {
 double Path::GetDistanceFromStartAlongPath(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth);
+    double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth);
     return distance;
 }
 
 double Path::GetDistanceFromEndAlongPath(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, direction_, column_depth);
+    double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, direction_, column_depth);
     return distance;
 }
 
 double Path::GetDistanceFromStartInReverse(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, -direction_, column_depth);
+    double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, -direction_, column_depth);
     return distance;
 }
 
 double Path::GetDistanceFromEndInReverse(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth);
+    double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth);
     return distance;
 }
 
@@ -586,7 +586,7 @@ double Path::GetDistanceFromStartInBounds(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
+    double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     if(distance > distance_) {
         distance = distance_;
     } else if(interaction_depth <= 0) {
@@ -601,7 +601,7 @@ double Path::GetDistanceFromEndInBounds(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
+    double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     if(distance > distance_) {
         distance = distance_;
     } else if(interaction_depth <= 0) {
@@ -616,7 +616,7 @@ double Path::GetDistanceFromStartAlongPath(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
+    double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     return distance;
 }
 
@@ -626,7 +626,7 @@ double Path::GetDistanceFromEndAlongPath(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
+    double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     return distance;
 }
 
@@ -636,7 +636,7 @@ double Path::GetDistanceFromStartInReverse(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
+    double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     return distance;
 }
 
@@ -646,7 +646,7 @@ double Path::GetDistanceFromEndInReverse(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    double distance = earth_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
+    double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     return distance;
 }
 

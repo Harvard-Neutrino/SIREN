@@ -25,14 +25,14 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector() {}
 
 DecayRangeLeptonInjector::DecayRangeLeptonInjector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::DetectorModel> earth_model,
+        std::shared_ptr<LI::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::InjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes,
         std::shared_ptr<LI::utilities::LI_random> random,
         std::shared_ptr<LI::distributions::DecayRangeFunction> range_func,
         double disk_radius,
         double endcap_length) :
-    Injector(events_to_inject, earth_model, random),
+    Injector(events_to_inject, detector_model, random),
     range_func(range_func),
     disk_radius(disk_radius),
     endcap_length(endcap_length)
@@ -57,7 +57,7 @@ std::string DecayRangeLeptonInjector::Name() const {
 }
 
 std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangeLeptonInjector::InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
-    return position_distribution->InjectionBounds(earth_model, interactions, interaction);
+    return position_distribution->InjectionBounds(detector_model, interactions, interaction);
 }
 
 } // namespace injection

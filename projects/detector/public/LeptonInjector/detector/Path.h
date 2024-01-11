@@ -30,8 +30,8 @@ namespace detector {
 
 class Path {
 private:
-    std::shared_ptr<const DetectorModel> earth_model_;
-    bool set_earth_model_ = false;
+    std::shared_ptr<const DetectorModel> detector_model_;
+    bool set_detector_model_ = false;
 
     math::Vector3D first_point_;
     math::Vector3D last_point_;
@@ -46,15 +46,15 @@ private:
     bool set_intersections_ = false;
 public:
     Path();
-    Path(std::shared_ptr<const DetectorModel> earth_model);
-    Path(std::shared_ptr<const DetectorModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & last_point);
-    Path(std::shared_ptr<const DetectorModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & direction, double distance);
+    Path(std::shared_ptr<const DetectorModel> detector_model);
+    Path(std::shared_ptr<const DetectorModel> detector_model, math::Vector3D const & first_point, math::Vector3D const & last_point);
+    Path(std::shared_ptr<const DetectorModel> detector_model, math::Vector3D const & first_point, math::Vector3D const & direction, double distance);
 
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
-            archive(cereal::make_nvp("DetectorModel", earth_model_));
-            archive(cereal::make_nvp("SetDetectorModel", set_earth_model_));
+            archive(cereal::make_nvp("DetectorModel", detector_model_));
+            archive(cereal::make_nvp("SetDetectorModel", set_detector_model_));
             archive(cereal::make_nvp("FirstPoint", first_point_));
             archive(cereal::make_nvp("LastPoint", last_point_));
             archive(cereal::make_nvp("Distance", distance_));
@@ -76,7 +76,7 @@ public:
     double GetDistance();
     geometry::Geometry::IntersectionList const & GetIntersections();
 
-    void SetDetectorModel(std::shared_ptr<const DetectorModel> earth_model);
+    void SetDetectorModel(std::shared_ptr<const DetectorModel> detector_model);
     void EnsureDetectorModel();
 
     void SetPoints(math::Vector3D first_point, math::Vector3D last_point);

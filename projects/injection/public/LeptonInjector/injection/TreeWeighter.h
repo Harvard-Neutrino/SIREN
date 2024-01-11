@@ -37,7 +37,7 @@ private:
     std::shared_ptr<LI::injection::InjectionProcess> inj_process;
     std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> unique_gen_distributions;
     std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> unique_phys_distributions;
-    std::shared_ptr<LI::detector::DetectorModel> earth_model;
+    std::shared_ptr<LI::detector::DetectorModel> detector_model;
     void Initialize();
     double normalization;
 public:
@@ -46,7 +46,7 @@ public:
     double PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const;
     double GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum) const;
     double EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionTreeDatum const & datum) const;
-    LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process, std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::DetectorModel> earth_model);
+    LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process, std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::DetectorModel> detector_model);
 
 }; // LeptonProcessWeighter
 
@@ -56,7 +56,7 @@ class LeptonTreeWeighter {
 private:
     // Supplied by constructor
     std::vector<std::shared_ptr<Injector>> injectors;
-    std::shared_ptr<LI::detector::DetectorModel> earth_model;
+    std::shared_ptr<LI::detector::DetectorModel> detector_model;
     std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process;
     std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes;
 
@@ -72,8 +72,8 @@ private:
     void Initialize();
 public:
     double EventWeight(LI::dataclasses::InteractionTree const & tree) const;
-    LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes);
-    LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process);
+    LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes);
+    LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<LI::injection::PhysicalProcess> primary_physical_process);
 
 }; // LeptonTreeWeighter
 

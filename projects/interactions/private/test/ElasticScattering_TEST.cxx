@@ -83,9 +83,9 @@ TEST(ElasticScattering, Generation)
     cross_sections.push_back(es_xs);
 
     // Load the earth model
-    std::shared_ptr<DetectorModel> earth_model = std::make_shared<DetectorModel>();
-    earth_model->LoadMaterialModel(material_file);
-    earth_model->LoadDetectorModel(earth_file);
+    std::shared_ptr<DetectorModel> detector_model = std::make_shared<DetectorModel>();
+    detector_model->LoadMaterialModel(material_file);
+    detector_model->LoadDetectorModel(earth_file);
 
     // Setup the primary type and mass
     //std::shared_ptr<PrimaryInjector> primary_injector = std::make_shared<PrimaryInjector>(primary_type, hnl_mass);
@@ -117,7 +117,7 @@ TEST(ElasticScattering, Generation)
     std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
 
     // Put it all together!
-    std::shared_ptr<Injector> injector = std::make_shared<ColumnDepthLeptonInjector>(events_to_inject, primary_injector, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, depth_func, disk_radius, endcap_length, helicity_distribution);
+    std::shared_ptr<Injector> injector = std::make_shared<ColumnDepthLeptonInjector>(events_to_inject, primary_injector, cross_sections, detector_model, random, edist, ddist, target_momentum_distribution, depth_func, disk_radius, endcap_length, helicity_distribution);
 
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
         std::shared_ptr<WeightableDistribution>(tab_pdf),
@@ -127,7 +127,7 @@ TEST(ElasticScattering, Generation)
         std::shared_ptr<WeightableDistribution>(helicity_distribution)
     };
 
-    LeptonWeighter weighter(std::vector<std::shared_ptr<Injector>>{injector}, earth_model, injector->GetInteractions(), physical_distributions);
+    LeptonWeighter weighter(std::vector<std::shared_ptr<Injector>>{injector}, detector_model, injector->GetInteractions(), physical_distributions);
 
     // MINERvA Fiducial Volume
     std::vector<std::vector<double>> poly;

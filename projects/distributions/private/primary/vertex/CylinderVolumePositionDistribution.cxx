@@ -21,7 +21,7 @@ namespace distributions {
 //---------------
 // class CylinderVolumePositionDistribution : public VertexPositionDistribution
 //---------------
-LI::math::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
+LI::math::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
     double t = rand->Uniform(0, 2 * M_PI);
     const double outer_radius = cylinder.GetRadius();
     const double inner_radius = cylinder.GetInnerRadius();
@@ -32,7 +32,7 @@ LI::math::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::share
     return cylinder.LocalToGlobalPosition(pos);
 }
 
-double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D pos(record.interaction_vertex);
     double z = pos.GetZ();
     double r = sqrt(pos.GetX() * pos.GetX() + pos.GetY() * pos.GetY());
@@ -56,7 +56,7 @@ std::shared_ptr<InjectionDistribution> CylinderVolumePositionDistribution::clone
     return std::shared_ptr<InjectionDistribution>(new CylinderVolumePositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const {
     LI::math::Vector3D dir(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D pos(interaction.interaction_vertex);
@@ -85,7 +85,7 @@ bool CylinderVolumePositionDistribution::less(WeightableDistribution const & oth
     return cylinder < x->cylinder;
 }
 
-bool CylinderVolumePositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const {
+bool CylinderVolumePositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const {
     return this->operator==(*distribution);
 }
 

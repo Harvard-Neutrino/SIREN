@@ -39,34 +39,34 @@ Injector::Injector() {}
 
 Injector::Injector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::DetectorModel> earth_model,
+        std::shared_ptr<LI::detector::DetectorModel> detector_model,
         std::shared_ptr<LI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
-    earth_model(earth_model)
+    detector_model(detector_model)
 {}
 
 Injector::Injector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::DetectorModel> earth_model,
+        std::shared_ptr<LI::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::InjectionProcess> primary_process,
         std::shared_ptr<LI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
-    earth_model(earth_model)
+    detector_model(detector_model)
 {
   SetPrimaryProcess(primary_process);
 }
 
 Injector::Injector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::DetectorModel> earth_model,
+        std::shared_ptr<LI::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::InjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes,
         std::shared_ptr<LI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
-    earth_model(earth_model)
+    detector_model(detector_model)
 {
   SetPrimaryProcess(primary_process);
   for(auto secondary_process : secondary_processes) {
@@ -144,8 +144,8 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     primary_direction.normalize();
 
 
-    LI::geometry::Geometry::IntersectionList intersections = earth_model->GetIntersections(interaction_vertex, primary_direction);
-    std::set<LI::dataclasses::Particle::ParticleType> available_targets = earth_model->GetAvailableTargets(intersections, record.interaction_vertex);
+    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(interaction_vertex, primary_direction);
+    std::set<LI::dataclasses::Particle::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, record.interaction_vertex);
 
     double total_prob = 0.0;
     double xsec_prob = 0.0;
@@ -160,7 +160,7 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
       for(auto const target : available_targets) {
           if(possible_targets.find(target) != possible_targets.end()) {
               // Get target density
-              double target_density = earth_model->GetParticleDensity(intersections, interaction_vertex, target);
+              double target_density = detector_model->GetParticleDensity(intersections, interaction_vertex, target);
               // Loop over cross sections that have this target
               std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
               for(auto const & cross_section : target_cross_sections) {
@@ -168,7 +168,7 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
                   std::vector<LI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
                   for(auto const & signature : signatures) {
                       fake_record.signature = signature;
-                      fake_record.target_mass = earth_model->GetTargetMass(target);
+                      fake_record.target_mass = detector_model->GetTargetMass(target);
                       fake_record.target_momentum = {fake_record.target_mass,0,0,0};
                       // Add total cross section times density to the total prob
                       fake_prob = target_density * cross_section->TotalCrossSection(fake_record);
@@ -216,7 +216,7 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     }
     if(total_prob == 0 or selected_prob == 0)
         throw(LI::utilities::InjectionFailure("No valid interactions for this event!"));
-    record.target_mass = earth_model->GetTargetMass(record.signature.target_type);
+    record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
     record.target_momentum = {record.target_mass,0,0,0};
     if(r <= xsec_prob)
       matching_cross_sections[index]->SampleFinalState(record, random);
@@ -321,7 +321,7 @@ void Injector::SamplePairProduction(LI::dataclasses::DecayRecord const & decay, 
     // considers the different radiation lengths of materials in the detector
     // Nick TODO: comment more
 
-    LI::detector::MaterialModel const & mat_model = earth_model->GetMaterials();
+    LI::detector::MaterialModel const & mat_model = detector_model->GetMaterials();
     LI::math::Vector3D decay_vtx(decay.decay_vertex);
     unsigned int gamma_index = 0;
     LI::math::Vector3D decay_dir(decay.secondary_momenta[gamma_index][1],
@@ -335,7 +335,7 @@ void Injector::SamplePairProduction(LI::dataclasses::DecayRecord const & decay, 
 
     decay_dir.normalize();
 
-    LI::detector::Path path(earth_model, decay_vtx, decay_dir, 0);
+    LI::detector::Path path(detector_model, decay_vtx, decay_dir, 0);
     path.ComputeIntersections();
 
     std::vector<double> X0;
@@ -355,7 +355,7 @@ void Injector::SamplePairProduction(LI::dataclasses::DecayRecord const & decay, 
         D.push_back(intersection.distance);
         x0 = (9./7.)*mat_model.GetMaterialRadiationLength(intersection.matID); // in g/cm^2
         density_point += 0.5*(intersection.position - density_point);
-        density = earth_model->GetMassDensity(density_point);
+        density = detector_model->GetMassDensity(density_point);
         x0 *= 0.01/density; // in m
         X0.push_back(x0);
         p = std::exp(-D[i]/x0) - std::exp(-D[i+1]/x0);
@@ -412,14 +412,14 @@ bool Injector::SampleSecondaryProcess(unsigned int idx,
   datum.record.primary_helicity = parent->record.secondary_helicity[idx];
   datum.parent = parent;
   for(auto & distribution : sec_distributions) {
-      distribution->Sample(random, earth_model, sec_interactions, datum);
+      distribution->Sample(random, detector_model, sec_interactions, datum);
   }
   SampleCrossSection(datum.record,sec_interactions);
   // TODO: properly weight for secondary injection failure
   /*while(true) {
       try {
           for(auto & distribution : sec_distributions) {
-              distribution->Sample(random, earth_model, sec_interactions, datum);
+              distribution->Sample(random, detector_model, sec_interactions, datum);
           }
           SampleCrossSection(record,sec_interactions);
           break;
@@ -437,7 +437,7 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
         try {
             record = this->NewRecord();
             for(auto & distribution : primary_process->GetInjectionDistributions()) {
-                distribution->Sample(random, earth_model, primary_process->GetInteractions(), record);
+                distribution->Sample(random, detector_model, primary_process->GetInteractions(), record);
             }
             SampleCrossSection(record);
             break;
@@ -494,10 +494,10 @@ double Injector::GenerationProbability(std::shared_ptr<LI::dataclasses::Interact
       probability *= events_to_inject; // only do this for the primary process
     }
     for(auto const & dist : process->GetInjectionDistributions()) {
-        double prob = dist->GenerationProbability(earth_model, process->GetInteractions(), *datum);
+        double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), *datum);
         probability *= prob;
     }
-    double prob = LI::injection::CrossSectionProbability(earth_model, process->GetInteractions(), datum->record);
+    double prob = LI::injection::CrossSectionProbability(detector_model, process->GetInteractions(), datum->record);
     probability *= prob;
     return probability;
 }
@@ -510,10 +510,10 @@ double Injector::GenerationProbability(LI::dataclasses::InteractionRecord const 
       probability *= events_to_inject; // only do this for the primary process
     }
     for(auto const & dist : process->GetInjectionDistributions()) {
-        double prob = dist->GenerationProbability(earth_model, process->GetInteractions(), record);
+        double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), record);
         probability *= prob;
     }
-    double prob = LI::injection::CrossSectionProbability(earth_model, process->GetInteractions(), record);
+    double prob = LI::injection::CrossSectionProbability(detector_model, process->GetInteractions(), record);
     probability *= prob;
     return probability;
 }
@@ -547,12 +547,12 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> Injector::InjectionBounds(LI::
     if(!primary_position_distribution) {
       return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
     }
-    return primary_position_distribution->InjectionBounds(earth_model, primary_process->GetInteractions(), interaction);
+    return primary_position_distribution->InjectionBounds(detector_model, primary_process->GetInteractions(), interaction);
 }
 
 // Assumes there is a secondary process and position distribuiton for the provided particle type
 std::pair<LI::math::Vector3D, LI::math::Vector3D> Injector::InjectionBounds(LI::dataclasses::InteractionTreeDatum const & datum, LI::dataclasses::Particle::ParticleType const & primary_type) const {
-    return secondary_position_distribution_map.at(primary_type)->InjectionBounds(earth_model, secondary_process_map.at(primary_type)->GetInteractions(), datum);
+    return secondary_position_distribution_map.at(primary_type)->InjectionBounds(detector_model, secondary_process_map.at(primary_type)->GetInteractions(), datum);
 }
 
 std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> Injector::GetInjectionDistributions() const {
@@ -560,7 +560,7 @@ std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> Injector:
 }
 
 std::shared_ptr<LI::detector::DetectorModel> Injector::GetDetectorModel() const {
-    return earth_model;
+    return detector_model;
 }
 
 std::shared_ptr<LI::interactions::InteractionCollection> Injector::GetInteractions() const {
