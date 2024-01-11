@@ -34,7 +34,7 @@ repair-wheel-command = "DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PAT
 [project]
 name = "leptoninjector"
 version = "0.0.1"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 
 [wheel]
 no-clean = true
