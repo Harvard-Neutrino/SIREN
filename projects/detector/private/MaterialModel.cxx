@@ -233,7 +233,7 @@ void MaterialModel::AddModelFile(std::string matratio) {
         throw(std::runtime_error("Cannot open matratio file!"));
     }
 
-    // check earthmodel file
+    // check detectormodel file
     std::ifstream in(fname.c_str(), std::ifstream::in);
 
     if (in.fail())

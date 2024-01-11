@@ -410,10 +410,10 @@ void LeptonWeighter::Initialize() {
     for(unsigned int gen_idx : common_generation_dist_idxs) {
         // These are common to all injectors, so we pull information from the first injector
         std::shared_ptr<LI::distributions::WeightableDistribution> dist = generation_distribution_state[0][gen_idx].second;
-        std::shared_ptr<LI::detector::DetectorModel> dist_earth = injectors[0]->GetDetectorModel();
+        std::shared_ptr<LI::detector::DetectorModel> dist_detector = injectors[0]->GetDetectorModel();
         std::shared_ptr<LI::interactions::InteractionCollection> dist_interactions = injectors[0]->GetInteractions();
         std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
-            return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_earth, dist_interactions);
+            return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_detector, dist_interactions);
         };
         auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
         if(it != unique_distributions.end()) {
@@ -452,10 +452,10 @@ void LeptonWeighter::Initialize() {
                 continue;
             std::shared_ptr<LI::distributions::WeightableDistribution> dist = gen_dists[gen_idx].second;
             // These are common to all injectors, so we pull information from the first injector
-            std::shared_ptr<LI::detector::DetectorModel> dist_earth = injectors[injector_idx]->GetDetectorModel();
+            std::shared_ptr<LI::detector::DetectorModel> dist_detector = injectors[injector_idx]->GetDetectorModel();
             std::shared_ptr<LI::interactions::InteractionCollection> dist_interactions = injectors[injector_idx]->GetInteractions();
             std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
-                return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_earth, dist_interactions);
+                return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_detector, dist_interactions);
             };
             auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
             if(it != unique_distributions.end()) {
