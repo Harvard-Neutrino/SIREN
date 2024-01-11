@@ -34,7 +34,7 @@ Cone::Cone(LI::math::Vector3D dir, double opening_angle) : dir(dir), opening_ang
     }
 }
 
-LI::math::Vector3D Cone::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const{
+LI::math::Vector3D Cone::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const{
     double theta = acos(rand->Uniform(cos(opening_angle), 1));
     double phi = rand->Uniform(0, 2.0 * M_PI);
     LI::math::Quaternion q;
@@ -42,7 +42,7 @@ LI::math::Vector3D Cone::SampleDirection(std::shared_ptr<LI::utilities::LI_rando
     return rotation.rotate(q.rotate(LI::math::Vector3D(0,0,1), false), false);
 }
 
-double Cone::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double Cone::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     event_dir.normalize();
     double c = LI::math::scalar_product(dir, event_dir);

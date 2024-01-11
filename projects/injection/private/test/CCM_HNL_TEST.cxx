@@ -167,11 +167,11 @@ TEST(Injector, Generation)
 
 
     // Load the earth model
-    std::shared_ptr<DetectorModel> earth_model = std::make_shared<DetectorModel>();
+    std::shared_ptr<DetectorModel> detector_model = std::make_shared<DetectorModel>();
     std::cout << "Loading MaterialModel...\n";
-    earth_model->LoadMaterialModel(material_file);
+    detector_model->LoadMaterialModel(material_file);
     std::cout << "Loading DetectorModel...\n";
-    earth_model->LoadDetectorModel(earth_file);
+    detector_model->LoadDetectorModel(earth_file);
 
     // random class instance
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
@@ -290,7 +290,7 @@ TEST(Injector, Generation)
 
     // Secondary physical distribution
     std::shared_ptr<const LI::geometry::Geometry> fid_vol = NULL;
-    for(auto sector : earth_model->GetSectors()) {
+    for(auto sector : detector_model->GetSectors()) {
       if(sector.name=="ccm_inner_argon") fid_vol = sector.geo;
     }
     std::shared_ptr<VertexPositionDistribution> secondary_pos_dist = std::make_shared<SecondaryPositionDistribution>(fid_vol);
@@ -300,8 +300,8 @@ TEST(Injector, Generation)
     secondary_physical_processes.push_back(secondary_decay_phys_process);
 
     // Put it all together!
-    std::shared_ptr<Injector> upper_injector = std::make_shared<Injector>(events_to_inject, earth_model, primary_injection_process_upper_injector, secondary_injection_processes, random);
-    std::shared_ptr<Injector> lower_injector = std::make_shared<Injector>(events_to_inject, earth_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
+    std::shared_ptr<Injector> upper_injector = std::make_shared<Injector>(events_to_inject, detector_model, primary_injection_process_upper_injector, secondary_injection_processes, random);
+    std::shared_ptr<Injector> lower_injector = std::make_shared<Injector>(events_to_inject, detector_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
 
     // Set stopping condition
     std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition = 
@@ -312,8 +312,8 @@ TEST(Injector, Generation)
     upper_injector->SetStoppingCondition(stopping_condition);
     lower_injector->SetStoppingCondition(stopping_condition);
 
-    std::shared_ptr<LeptonTreeWeighter> upper_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<Injector>>{upper_injector}, earth_model, primary_physical_process_upper_injector, secondary_physical_processes);
-    std::shared_ptr<LeptonTreeWeighter> lower_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<Injector>>{lower_injector}, earth_model, primary_physical_process_lower_injector, secondary_physical_processes);
+    std::shared_ptr<LeptonTreeWeighter> upper_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<Injector>>{upper_injector}, detector_model, primary_physical_process_upper_injector, secondary_physical_processes);
+    std::shared_ptr<LeptonTreeWeighter> lower_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<Injector>>{lower_injector}, detector_model, primary_physical_process_lower_injector, secondary_physical_processes);
 
 
     int i = 0;

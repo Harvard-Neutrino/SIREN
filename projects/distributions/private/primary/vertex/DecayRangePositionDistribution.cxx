@@ -30,7 +30,7 @@ LI::math::Vector3D DecayRangePositionDistribution::SampleFromDisk(std::shared_pt
     return q.rotate(pos, false);
 }
 
-LI::math::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
+LI::math::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D pca = SampleFromDisk(rand, dir);
@@ -40,7 +40,7 @@ LI::math::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_pt
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
     path.ClipToOuterBounds();
 
@@ -48,12 +48,12 @@ LI::math::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_pt
     double total_distance = path.GetDistance();
     double dist = -decay_length * log(y * (exp(-total_distance/decay_length) - 1) + 1);
 
-    LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+    LI::math::Vector3D vertex = detector_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
 }
 
-double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
@@ -67,11 +67,11 @@ double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI:
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
     path.ClipToOuterBounds();
 
-    LI::math::Vector3D earth_vertex = earth_model->GetEarthCoordPosFromDetCoordPos(vertex);
+    LI::math::Vector3D earth_vertex = detector_model->GetEarthCoordPosFromDetCoordPos(vertex);
 
     if(not path.IsWithinBounds(earth_vertex))
         return 0.0;
@@ -96,7 +96,7 @@ std::shared_ptr<InjectionDistribution> DecayRangePositionDistribution::clone() c
     return std::shared_ptr<InjectionDistribution>(new DecayRangePositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
@@ -110,11 +110,11 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
     path.ClipToOuterBounds();
 
-    LI::math::Vector3D earth_vertex = earth_model->GetEarthCoordPosFromDetCoordPos(vertex);
+    LI::math::Vector3D earth_vertex = detector_model->GetEarthCoordPosFromDetCoordPos(vertex);
 
     if(not path.IsWithinBounds(earth_vertex))
         return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
@@ -150,7 +150,7 @@ bool DecayRangePositionDistribution::less(WeightableDistribution const & other) 
         std::tie(radius, x->endcap_length, range_less);
 }
 
-bool DecayRangePositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const {
+bool DecayRangePositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const {
     return this->operator==(*distribution);
 }
 

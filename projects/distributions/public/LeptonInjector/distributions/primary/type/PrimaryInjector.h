@@ -35,8 +35,8 @@ public:
     PrimaryInjector(LI::dataclasses::Particle::ParticleType primary_type, double primary_mass = 0);
     LI::dataclasses::Particle::ParticleType PrimaryType() const;
     double PrimaryMass() const;
-    void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
+    void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;

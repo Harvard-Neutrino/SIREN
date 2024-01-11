@@ -156,7 +156,7 @@ bool inFiducial(std::array<double,3> & int_vtx, Sphere & fidVol) {
     return fidVol.IsInside(pos,dir);
 }
 
-double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> earth_model, std::shared_ptr<InteractionCollection const> interactions, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
+double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> detector_model, std::shared_ptr<InteractionCollection const> interactions, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
     Vector3D interaction_vertex = record.interaction_vertex;
     Vector3D direction(
             record.primary_momentum[1],
@@ -164,14 +164,14 @@ double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> earth_mode
             record.primary_momentum[3]);
     direction.normalize();
 
-    Geometry::IntersectionList intersections = earth_model->GetIntersections(earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), direction);
+    Geometry::IntersectionList intersections = detector_model->GetIntersections(detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), direction);
 	std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
     std::vector<double> total_cross_sections;
     std::vector<Particle::ParticleType> targets;
 	InteractionRecord fake_record = record;
 	for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
-		fake_record.target_mass = earth_model->GetTargetMass(target_xs.first);
+		fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
 		fake_record.target_momentum = {fake_record.target_mass,0,0,0};
 		std::vector<std::shared_ptr<CrossSection>> const & xs_list = target_xs.second;
 		double total_xs = 0.0;
@@ -185,7 +185,7 @@ double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> earth_mode
 		}
 		total_cross_sections.push_back(total_xs);
 	}
-    std::vector<double> particle_depths = earth_model->GetParticleColumnDepth(intersections, bounds.first, bounds.second, targets);
+    std::vector<double> particle_depths = detector_model->GetParticleColumnDepth(intersections, bounds.first, bounds.second, targets);
 
     double interaction_depth = 0.0;
     for(unsigned int i=0; i<targets.size(); ++i) {
@@ -275,9 +275,9 @@ TEST(Injector, Generation)
     cross_sections.push_back(hc_xs);
 
     // Load the earth model
-    std::shared_ptr<DetectorModel> earth_model = std::make_shared<DetectorModel>();
-    earth_model->LoadMaterialModel(material_file);
-    earth_model->LoadDetectorModel(earth_file);
+    std::shared_ptr<DetectorModel> detector_model = std::make_shared<DetectorModel>();
+    detector_model->LoadMaterialModel(material_file);
+    detector_model->LoadDetectorModel(earth_file);
 
     // Setup the primary type and mass
     //std::shared_ptr<PrimaryInjector> primary_injector = std::make_shared<PrimaryInjector>(primary_type, hnl_mass);
@@ -314,8 +314,8 @@ TEST(Injector, Generation)
     std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
 
     // Put it all together!
-    //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
-    std::shared_ptr<Injector> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, earth_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
+    //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, detector_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
+    std::shared_ptr<Injector> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, detector_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
 
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
         std::shared_ptr<WeightableDistribution>(tab_pdf),
@@ -325,7 +325,7 @@ TEST(Injector, Generation)
         std::shared_ptr<WeightableDistribution>(helicity_distribution)
     };
 
-    LeptonWeighter weighter(std::vector<std::shared_ptr<Injector>>{injector}, earth_model, injector->GetInteractions(), physical_distributions);
+    LeptonWeighter weighter(std::vector<std::shared_ptr<Injector>>{injector}, detector_model, injector->GetInteractions(), physical_distributions);
 
     std::vector<std::vector<double>> poly;
     // MINERvA Fiducial Volume
@@ -389,7 +389,7 @@ TEST(Injector, Generation)
             injector->SamplePairProduction(decay, pair_prod);
             //basic_weight = weighter.EventWeight(event);
             simplified_weight = weighter.SimplifiedEventWeight(event);
-            interaction_lengths = ComputeInteractionLengths(earth_model, injector->GetInteractions(), injector->InjectionBounds(event), event);
+            interaction_lengths = ComputeInteractionLengths(detector_model, injector->GetInteractions(), injector->InjectionBounds(event), event);
             interaction_prob = weighter.InteractionProbability(injector->InjectionBounds(event), event);
         }
         if(event.secondary_momenta.size() > 0) {

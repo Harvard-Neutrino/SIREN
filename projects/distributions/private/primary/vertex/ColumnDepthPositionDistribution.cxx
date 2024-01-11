@@ -52,7 +52,7 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SampleFromDisk(std::shared_p
     return q.rotate(pos, false);
 }
 
-LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
+LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D pca = SampleFromDisk(rand, dir);
@@ -62,7 +62,7 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
@@ -75,7 +75,7 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
-        fake_record.target_mass = earth_model->GetTargetMass(target);
+        fake_record.target_mass = detector_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
@@ -97,20 +97,20 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
-    LI::math::Vector3D vertex = earth_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+    LI::math::Vector3D vertex = detector_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
 
     return vertex;
 }
 
 // public getter function for the private SamplePosition function (for debugging)
-LI::math::Vector3D ColumnDepthPositionDistribution::GetSamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) {
+LI::math::Vector3D ColumnDepthPositionDistribution::GetSamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) {
 
-    LI::math::Vector3D samplepos = ColumnDepthPositionDistribution::SamplePosition(rand, earth_model, interactions, record);
+    LI::math::Vector3D samplepos = ColumnDepthPositionDistribution::SamplePosition(rand, detector_model, interactions, record);
 
     return samplepos;
 }
 
-double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
@@ -125,11 +125,11 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     LI::math::Vector3D endcap_0 = pca - (endcap_length * dir);
     LI::math::Vector3D endcap_1 = pca + (endcap_length * dir);
 
-    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
-    LI::math::Vector3D earth_vertex = earth_model->GetEarthCoordPosFromDetCoordPos(vertex);
+    LI::math::Vector3D earth_vertex = detector_model->GetEarthCoordPosFromDetCoordPos(vertex);
 
     if(not path.IsWithinBounds(earth_vertex))
         return 0.0;
@@ -144,7 +144,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
-        fake_record.target_mass = earth_model->GetTargetMass(target);
+        fake_record.target_mass = detector_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
@@ -156,7 +156,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
 
     double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    double interaction_density = earth_model->GetInteractionDensity(path.GetIntersections(), earth_vertex, targets, total_cross_sections, total_decay_length);
+    double interaction_density = detector_model->GetInteractionDensity(path.GetIntersections(), earth_vertex, targets, total_cross_sections, total_decay_length);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {
@@ -180,7 +180,7 @@ std::shared_ptr<InjectionDistribution> ColumnDepthPositionDistribution::clone() 
     return std::shared_ptr<InjectionDistribution>(new ColumnDepthPositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
@@ -194,7 +194,7 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistributio
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    LI::detector::Path path(earth_model, earth_model->GetEarthCoordPosFromDetCoordPos(endcap_0), earth_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
     return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());

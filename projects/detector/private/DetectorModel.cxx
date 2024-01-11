@@ -131,18 +131,18 @@ DetectorModel::DetectorModel() {
     LoadDefaultSectors();
 }
 
-DetectorModel::DetectorModel(std::string const & earth_model, std::string const & material_model) {
+DetectorModel::DetectorModel(std::string const & detector_model, std::string const & material_model) {
     LoadDefaultMaterials();
     LoadDefaultSectors();
     LoadMaterialModel(material_model);
-    LoadDetectorModel(earth_model);
+    LoadDetectorModel(detector_model);
 }
 
-DetectorModel::DetectorModel(std::string const & path, std::string const & earth_model, std::string const & material_model) : path_(path) {
+DetectorModel::DetectorModel(std::string const & path, std::string const & detector_model, std::string const & material_model) : path_(path) {
     LoadDefaultMaterials();
     LoadDefaultSectors();
     LoadMaterialModel(material_model);
-    LoadDetectorModel(earth_model);
+    LoadDetectorModel(detector_model);
 }
 
 bool DetectorModel::operator==(DetectorModel const & o) const {
@@ -217,35 +217,35 @@ bool fexists(const std::string filename)
 }
 }
 
-void DetectorModel::LoadDetectorModel(std::string const & earth_model) {
-    if(earth_model.empty())
+void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
+    if(detector_model.empty())
         throw(std::runtime_error("Received empty earth model filename!"));
 
     std::string fname;
 
-    if(fexists(earth_model)) {
-        fname = earth_model;
+    if(fexists(detector_model)) {
+        fname = detector_model;
     }
-    else if(fexists(earth_model + ".dat")) {
-        fname = earth_model + ".dat";
+    else if(fexists(detector_model + ".dat")) {
+        fname = detector_model + ".dat";
     }
-    else if(fexists(path_ + "/densities/" + earth_model)) {
-        fname = path_ + "/densities/" + earth_model;
+    else if(fexists(path_ + "/densities/" + detector_model)) {
+        fname = path_ + "/densities/" + detector_model;
     }
-    else if(fexists(path_ + "/densities/" + earth_model + ".dat")) {
-        fname = path_ + "/densities/" + earth_model + ".dat";
+    else if(fexists(path_ + "/densities/" + detector_model + ".dat")) {
+        fname = path_ + "/densities/" + detector_model + ".dat";
     }
-    else if(fexists(path_ + "/earthparams/" + earth_model)) {
-        fname = path_ + "/earthparams/" + earth_model;
+    else if(fexists(path_ + "/earthparams/" + detector_model)) {
+        fname = path_ + "/earthparams/" + detector_model;
     }
-    else if(fexists(path_ + "/earthparams/" + earth_model + ".dat")) {
-        fname = path_ + "/earthparams/" + earth_model + ".dat";
+    else if(fexists(path_ + "/earthparams/" + detector_model + ".dat")) {
+        fname = path_ + "/earthparams/" + detector_model + ".dat";
     }
-    else if(fexists(path_ + "/" + earth_model)) {
-        fname = path_ + "/" + earth_model;
+    else if(fexists(path_ + "/" + detector_model)) {
+        fname = path_ + "/" + detector_model;
     }
-    else if(fexists(path_ + "/" + earth_model + ".dat")) {
-        fname = path_ + "/" + earth_model + ".dat";
+    else if(fexists(path_ + "/" + detector_model + ".dat")) {
+        fname = path_ + "/" + detector_model + ".dat";
     }
     else {
         throw(std::runtime_error("Cannot open earth model file!"));

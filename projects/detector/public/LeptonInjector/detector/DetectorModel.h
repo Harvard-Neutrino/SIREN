@@ -67,8 +67,8 @@ private:
     math::Vector3D detector_origin_;
 public:
     DetectorModel();
-    DetectorModel(std::string const & earth_model, std::string const & material_model);
-    DetectorModel(std::string const & path, std::string const & earth_model, std::string const & material_model);
+    DetectorModel(std::string const & detector_model, std::string const & material_model);
+    DetectorModel(std::string const & path, std::string const & detector_model, std::string const & material_model);
 
     bool operator==(DetectorModel const & o) const;
 
@@ -85,7 +85,7 @@ public:
         }
     }
 
-    void LoadDetectorModel(std::string const & earth_model);
+    void LoadDetectorModel(std::string const & detector_model);
     void LoadMaterialModel(std::string const & material_model);
 
     double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0) const;

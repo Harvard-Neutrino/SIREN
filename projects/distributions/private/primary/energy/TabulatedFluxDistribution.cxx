@@ -196,7 +196,7 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     ComputeCDF();
 }
 
-double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     // inverse CDF algorithm to sample from PDF.
     double randomValue = rand->Uniform(0,1);
 
@@ -204,7 +204,7 @@ double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI
 }
 
 
-double TabulatedFluxDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double TabulatedFluxDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
     if(energy < energyMin or energy > energyMax)
         return 0.0;
