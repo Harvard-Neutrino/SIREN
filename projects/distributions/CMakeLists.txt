@@ -52,7 +52,7 @@ target_link_libraries(LI_distributions
         LI_dataclasses
         LI_geometry
         LI_detector
-        LI_crosssections
+        LI_interactions
 )
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/distributions/public/"

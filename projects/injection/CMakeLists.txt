@@ -2,7 +2,7 @@
 #core files
 LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Process.cxx
-    ${PROJECT_SOURCE_DIR}/projects/injection/private/InjectorBase.cxx
+    ${PROJECT_SOURCE_DIR}/projects/injection/private/Injector.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/TreeWeighter.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Weighter.cxx
@@ -29,7 +29,7 @@ target_link_libraries(LI_injection
         LI_dataclasses
         LI_geometry
         LI_detector
-        LI_crosssections
+        LI_interactions
         LI_distributions
 )
 

@@ -10,12 +10,12 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/crosssections/CrossSection.h"
+#include "LeptonInjector/interactions/CrossSection.h"
 
 #include "LeptonInjector/utilities/Random.h"
 #include "LeptonInjector/utilities/Constants.h"
 #include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/injection/InjectorBase.h"
+#include "LeptonInjector/injection/Injector.h"
 #include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/injection/RangedLeptonInjector.h"
 #include "LeptonInjector/injection/TreeWeighter.h"
@@ -33,18 +33,18 @@
 #include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
 #include "LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
 
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/DipoleFromTable.h"
-#include "LeptonInjector/crosssections/Decay.h"
-#include "LeptonInjector/crosssections/NeutrissimoDecay.h"
+#include "LeptonInjector/interactions/InteractionCollection.h"
+#include "LeptonInjector/interactions/CrossSection.h"
+#include "LeptonInjector/interactions/DipoleFromTable.h"
+#include "LeptonInjector/interactions/Decay.h"
+#include "LeptonInjector/interactions/NeutrissimoDecay.h"
 
 using namespace LI::math;
 using namespace LI::geometry;
 using namespace LI::detector;
 using namespace LI::injection;
 using namespace LI::dataclasses;
-using namespace LI::crosssections;
+using namespace LI::interactions;
 using namespace LI::utilities;
 using namespace LI::distributions;
 
@@ -167,11 +167,11 @@ TEST(Injector, Generation)
 
 
     // Load the earth model
-    std::shared_ptr<EarthModel> earth_model = std::make_shared<EarthModel>();
+    std::shared_ptr<DetectorModel> earth_model = std::make_shared<DetectorModel>();
     std::cout << "Loading MaterialModel...\n";
     earth_model->LoadMaterialModel(material_file);
-    std::cout << "Loading EarthModel...\n";
-    earth_model->LoadEarthModel(earth_file);
+    std::cout << "Loading DetectorModel...\n";
+    earth_model->LoadDetectorModel(earth_file);
 
     // random class instance
     std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
@@ -215,11 +215,11 @@ TEST(Injector, Generation)
     
     std::cout << "GotCrossSections!\n";
 
-    std::shared_ptr<CrossSectionCollection> primary_cross_sections = std::make_shared<CrossSectionCollection>(primary_type, cross_sections);
-    primary_injection_process_upper_injector->SetCrossSections(primary_cross_sections);
-    primary_injection_process_lower_injector->SetCrossSections(primary_cross_sections);
-    primary_physical_process_upper_injector->SetCrossSections(primary_cross_sections);
-    primary_physical_process_lower_injector->SetCrossSections(primary_cross_sections);
+    std::shared_ptr<InteractionCollection> primary_interactions = std::make_shared<InteractionCollection>(primary_type, cross_sections);
+    primary_injection_process_upper_injector->SetInteractions(primary_interactions);
+    primary_injection_process_lower_injector->SetInteractions(primary_interactions);
+    primary_physical_process_upper_injector->SetInteractions(primary_interactions);
+    primary_physical_process_lower_injector->SetInteractions(primary_interactions);
 
     // Primary energy distribution: pion decay-at-rest
     double nu_energy = 0.02965;
@@ -267,8 +267,8 @@ TEST(Injector, Generation)
 
     // Primary position distribution: treat targets as point sources, generate from center
     double max_dist = 25; // m
-    std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist, primary_cross_sections->TargetTypes()); 
-    std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist, primary_cross_sections->TargetTypes());
+    std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist, primary_interactions->TargetTypes()); 
+    std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist, primary_interactions->TargetTypes());
     primary_injection_process_upper_injector->AddInjectionDistribution(upper_pos_dist);
     primary_injection_process_lower_injector->AddInjectionDistribution(lower_pos_dist);
     //primary_physical_process_upper_injector->AddPhysicalDistribution(upper_pos_dist);
@@ -284,9 +284,9 @@ TEST(Injector, Generation)
     // Assume dirac HNL for now
     std::shared_ptr<NeutrissimoDecay> sec_decay = std::make_shared<NeutrissimoDecay>(hnl_mass, dipole_coupling_vec, NeutrissimoDecay::ChiralNature::Majorana);  
     std::vector<std::shared_ptr<Decay>> sec_decays = {sec_decay};
-    std::shared_ptr<CrossSectionCollection> secondary_cross_sections = std::make_shared<CrossSectionCollection>(ParticleType::NuF4, sec_decays);
-    secondary_decay_inj_process->GetCrossSections() = secondary_cross_sections;
-    secondary_decay_phys_process->GetCrossSections() = secondary_cross_sections;
+    std::shared_ptr<InteractionCollection> secondary_interactions = std::make_shared<InteractionCollection>(ParticleType::NuF4, sec_decays);
+    secondary_decay_inj_process->SetInteractions(secondary_interactions);
+    secondary_decay_phys_process->SetInteractions(secondary_interactions);
 
     // Secondary physical distribution
     std::shared_ptr<const LI::geometry::Geometry> fid_vol = NULL;
@@ -300,8 +300,8 @@ TEST(Injector, Generation)
     secondary_physical_processes.push_back(secondary_decay_phys_process);
 
     // Put it all together!
-    std::shared_ptr<InjectorBase> upper_injector = std::make_shared<InjectorBase>(events_to_inject, earth_model, primary_injection_process_upper_injector, secondary_injection_processes, random);
-    std::shared_ptr<InjectorBase> lower_injector = std::make_shared<InjectorBase>(events_to_inject, earth_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
+    std::shared_ptr<Injector> upper_injector = std::make_shared<Injector>(events_to_inject, earth_model, primary_injection_process_upper_injector, secondary_injection_processes, random);
+    std::shared_ptr<Injector> lower_injector = std::make_shared<Injector>(events_to_inject, earth_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
 
     // Set stopping condition
     std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition = 
@@ -312,8 +312,8 @@ TEST(Injector, Generation)
     upper_injector->SetStoppingCondition(stopping_condition);
     lower_injector->SetStoppingCondition(stopping_condition);
 
-    std::shared_ptr<LeptonTreeWeighter> upper_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<InjectorBase>>{upper_injector}, earth_model, primary_physical_process_upper_injector, secondary_physical_processes);
-    std::shared_ptr<LeptonTreeWeighter> lower_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<InjectorBase>>{lower_injector}, earth_model, primary_physical_process_lower_injector, secondary_physical_processes);
+    std::shared_ptr<LeptonTreeWeighter> upper_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<Injector>>{upper_injector}, earth_model, primary_physical_process_upper_injector, secondary_physical_processes);
+    std::shared_ptr<LeptonTreeWeighter> lower_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<Injector>>{lower_injector}, earth_model, primary_physical_process_lower_injector, secondary_physical_processes);
 
 
     int i = 0;

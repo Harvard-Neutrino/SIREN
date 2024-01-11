@@ -14,10 +14,10 @@ namespace distributions {
 
 void TargetMomentumDistribution::Sample(
         std::shared_ptr<LI::utilities::LI_random> rand,
-        std::shared_ptr<LI::detector::EarthModel const> earth_model,
-        std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections,
+        std::shared_ptr<LI::detector::DetectorModel const> earth_model,
+        std::shared_ptr<LI::interactions::InteractionCollection const> interactions,
         LI::dataclasses::InteractionRecord & record) const {
-    record.target_momentum = SampleMomentum(rand, earth_model, cross_sections, record);
+    record.target_momentum = SampleMomentum(rand, earth_model, interactions, record);
 }
 
 std::vector<std::string> TargetMomentumDistribution::DensityVariables() const {
@@ -29,13 +29,13 @@ std::vector<std::string> TargetMomentumDistribution::DensityVariables() const {
 //---------------
 std::array<double, 4> TargetAtRest::SampleMomentum(
         std::shared_ptr<LI::utilities::LI_random> rand,
-        std::shared_ptr<LI::detector::EarthModel const> earth_model,
-        std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections,
+        std::shared_ptr<LI::detector::DetectorModel const> earth_model,
+        std::shared_ptr<LI::interactions::InteractionCollection const> interactions,
         LI::dataclasses::InteractionRecord const & record) const {
     return std::array<double, 4>{record.target_mass, 0, 0, 0};
 }
 
-double TargetAtRest::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double TargetAtRest::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     return 1.0;
 }
 

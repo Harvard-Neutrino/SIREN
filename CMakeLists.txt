@@ -79,7 +79,7 @@ add_subdirectory(projects/math)
 add_subdirectory(projects/dataclasses)
 add_subdirectory(projects/geometry)
 add_subdirectory(projects/detector)
-add_subdirectory(projects/crosssections)
+add_subdirectory(projects/interactions)
 add_subdirectory(projects/distributions)
 add_subdirectory(projects/injection)
 
@@ -98,7 +98,7 @@ target_link_libraries(LeptonInjector
         LI_dataclasses
         LI_geometry
         LI_detector
-        LI_crosssections
+        LI_interactions
         LI_distributions
         LI_injection
 )
@@ -114,7 +114,7 @@ target_link_libraries(LeptonInjector
         LI_dataclasses
         LI_geometry
         LI_detector
-        LI_crosssections
+        LI_interactions
         LI_distributions
         LI_injection
 )
@@ -136,7 +136,7 @@ if(DEFINED SKBUILD)
             LI_dataclasses
             LI_geometry
             LI_detector
-            LI_crosssections
+            LI_interactions
             LI_distributions
             LI_injection
             EXPORT ${PROJECT_NAME}Config
@@ -151,7 +151,7 @@ if(DEFINED SKBUILD)
             LI_dataclasses
             LI_geometry
             LI_detector
-            LI_crosssections
+            LI_interactions
             LI_distributions
             LI_injection
             EXPORT ${PROJECT_NAME}Config
@@ -167,7 +167,7 @@ else()
         LI_dataclasses
         LI_geometry
         LI_detector
-        LI_crosssections
+        LI_interactions
         LI_distributions
         LI_injection
         EXPORT ${PROJECT_NAME}Config
@@ -213,7 +213,7 @@ if(DEFINED SKBUILD)
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
     install(TARGETS detector
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
-    install(TARGETS crosssections
+    install(TARGETS interactions
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
     install(TARGETS distributions
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)

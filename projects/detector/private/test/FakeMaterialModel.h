@@ -12,7 +12,7 @@
 #include <gtest/gtest.h>
 
 #include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/detector/MaterialModel.h"
 
 using namespace LI::detector;

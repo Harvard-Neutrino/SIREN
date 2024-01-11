@@ -3,7 +3,7 @@ import h5py
 import numpy as np
 
 import leptoninjector as LI
-from LIDarkNews import PyDarkNewsCrossSectionCollection
+from LIDarkNews import PyDarkNewsInteractionCollection
 
 # For determining fiducial volume of different experiments
 fid_vol_dict = {'MiniBooNE':'fid_vol',
@@ -36,15 +36,15 @@ class LIController:
 
         # Find the density and materials files
         self.LI_SRC = os.environ.get('LEPTONINJECTOR_SRC')
-        materials_file = self.LI_SRC + '/resources/earthparams/materials/%s.dat'%experiment
+        materials_file = self.LI_SRC + '/resources/DetectorParams/materials/%s.dat'%experiment
         if experiment in ['ATLAS','dune']:
-            earth_model_file = self.LI_SRC + '/resources/earthparams/densities/PREM_%s.dat'%experiment
+            detector_model_file = self.LI_SRC + '/resources/DetectorParams/densities/PREM_%s.dat'%experiment
         else:
-            earth_model_file = self.LI_SRC + '/resources/earthparams/densities/%s.dat'%experiment
+            detector_model_file = self.LI_SRC + '/resources/DetectorParams/densities/%s.dat'%experiment
         
-        self.earth_model = LI.detector.EarthModel()
-        self.earth_model.LoadMaterialModel(materials_file)
-        self.earth_model.LoadEarthModel(earth_model_file)
+        self.detector_model = LI.detector.DetectorModel()
+        self.detector_model.LoadMaterialModel(materials_file)
+        self.detector_model.LoadDetectorModel(detector_model_file)
 
         # Define the primary injection and physical process
         self.primary_injection_process = LI.injection.InjectionProcess()
@@ -131,20 +131,20 @@ class LIController:
         :param dict<str,val> model_kwargs: The dict of DarkNews model parameters
         """
         # Add nuclear targets to the model arguments
-        model_kwargs['nuclear_targets'] = self.GetEarthModelTargets()[1]
+        model_kwargs['nuclear_targets'] = self.GetDetectorModelTargets()[1]
         # Initialize DarkNews cross sections and decays
-        self.DN_processes = PyDarkNewsCrossSectionCollection(table_dir=table_dir,
+        self.DN_processes = PyDarkNewsInteractionCollection(table_dir=table_dir,
                                                              **model_kwargs)
         
-        # Initialize primary CrossSectionCollection
+        # Initialize primary InteractionCollection
         # Loop over available cross sections and save those which match primary type
         primary_cross_sections = []
         for cross_section in self.DN_processes.cross_sections:
             if primary_type == LI.dataclasses.Particle.ParticleType(cross_section.ups_case.nu_projectile.pdgid):
                 primary_cross_sections.append(cross_section)
-        primary_cross_section_collection = LI.crosssections.CrossSectionCollection(primary_type, primary_cross_sections)
+        primary_interaction_collection = LI.crosssections.InteractionCollection(primary_type, primary_cross_sections)
         
-        # Initialize secondary processes and define secondary CrossSectionCollection objects
+        # Initialize secondary processes and define secondary InteractionCollection objects
         secondary_decays = {}
         # Also keep track of the minimum decay width for defining the position distribution later
         self.DN_min_decay_width = 0
@@ -160,7 +160,7 @@ class LIController:
         # Now make the list of secondary cross section collections
         # Add new secondary injection and physical processes at the same time
         fid_vol = self.GetFiducialVolume() # find fiducial volume for secondary position distirbutions
-        secondary_cross_section_collections = []
+        secondary_interaction_collections = []
         for secondary_type,decay_list in secondary_decays.items():
             
             # Define a sedcondary injection distribution
@@ -178,9 +178,9 @@ class LIController:
             self.secondary_injection_processes.append(secondary_injection_process)
             self.secondary_physical_processes.append(secondary_physical_process)
 
-            secondary_cross_section_collections.append(LI.crosssections.CrossSectionCollection(secondary_type, decay_list))
+            secondary_interaction_collections.append(LI.crosssections.InteractionCollection(secondary_type, decay_list))
 
-        self.SetCrossSections(primary_cross_section_collection,secondary_cross_section_collections)
+        self.SetCrossSections(primary_interaction_collection,secondary_interaction_collections)
     
         
 
@@ -189,23 +189,23 @@ class LIController:
         :return: identified fiducial volume for the experiment, None if not found
         """
         fid_vol = None
-        for sector in self.earth_model.Sectors:
+        for sector in self.detector_model.Sectors:
             if self.experiment in fid_vol_dict.keys():
                 if sector.name==fid_vol_dict[self.experiment]:
                     fid_vol = sector.geo
         return fid_vol
 
-    def GetEarthModelTargets(self):
+    def GetDetectorModelTargets(self):
         """
-        Determines the targets that exist inside the earth model
+        Determines the targets that exist inside the detector model
         :return: lists of targets and strings
         :rtype: (list<ParticleType>, list<str>)
         """
         count = 0
         targets = []
         target_strs = []
-        while self.earth_model.Materials.HasMaterial(count):
-            for _target in self.earth_model.Materials.GetMaterialTargets(count):
+        while self.detector_model.Materials.HasMaterial(count):
+            for _target in self.detector_model.Materials.GetMaterialTargets(count):
                 if _target not in targets:
                     targets.append(_target)
                 if str(_target).find('Nucleus') == -1: 
@@ -219,16 +219,16 @@ class LIController:
         return targets, target_strs
     
     def SetCrossSections(self,
-                         primary_cross_section_collection,
-                         secondary_cross_section_collections):
+                         primary_interaction_collection,
+                         secondary_interaction_collections):
         """
         Set cross sections for the primary and secondary processes
-        :param CrossSectionCollection primary_cross_section_collection: The cross section collection for the primary process
-        :param list<CrossSectionCollection> secondary_cross_section_collections: The list of cross section collections for the primary process
+        :param InteractionCollection primary_interaction_collection: The cross section collection for the primary process
+        :param list<InteractionCollection> secondary_interaction_collections: The list of cross section collections for the primary process
         """
         # Set primary cross sections
-        self.primary_injection_process.cross_sections = primary_cross_section_collection
-        self.primary_physical_process.cross_sections = primary_cross_section_collection
+        self.primary_injection_process.interactions = primary_interaction_collection
+        self.primary_physical_process.interactions = primary_interaction_collection
         
         # Loop through secondary processes
         for sec_inj,sec_phys in zip(self.secondary_injection_processes,
@@ -238,11 +238,11 @@ class LIController:
             record.signature.primary_type = sec_inj.primary_type
             found_collection = False
             # Loop through possible seconday cross sections
-            for sec_xs in secondary_cross_section_collections:
+            for sec_xs in secondary_interaction_collections:
                 # Match cross section collection on  the primary type
                 if sec_xs.MatchesPrimary(record):
-                    sec_inj.cross_sections = sec_xs
-                    sec_phys.cross_sections = sec_xs
+                    sec_inj.interactions = sec_xs
+                    sec_phys.interactions = sec_xs
                     found_collection = True
             if(not found_collection):
                 print('Couldn\'t find cross section collection for secondary particle %s; Exiting'%record.primary_type)
@@ -259,17 +259,17 @@ class LIController:
             return True
         
         # Define the injector object
-        self.injector = LI.injection.InjectorBase(self.events_to_inject,
-                                                  self.earth_model, 
-                                                  self.primary_injection_process, 
-                                                  self.secondary_injection_processes,
-                                                  self.random)
+        self.injector = LI.injection.Injector(self.events_to_inject,
+                                              self.detector_model, 
+                                              self.primary_injection_process, 
+                                              self.secondary_injection_processes,
+                                              self.random)
         
         self.injector.SetStoppingCondition(StoppingCondition)
 
         # Define the weighter object
         self.weighter = LI.injection.LeptonTreeWeighter([self.injector],
-                                                        self.earth_model, 
+                                                        self.detector_model, 
                                                         self.primary_physical_process, 
                                                         self.secondary_physical_processes)
         

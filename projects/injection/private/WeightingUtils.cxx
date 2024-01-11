@@ -4,13 +4,13 @@
 #include <array>                                                  // for array
 #include <vector>                                                 // for vector
 
-#include "LeptonInjector/crosssections/CrossSection.h"            // for Cro...
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"  // for Cro...
-#include "LeptonInjector/crosssections/Decay.h"                   // for Decay
+#include "LeptonInjector/interactions/CrossSection.h"            // for Cro...
+#include "LeptonInjector/interactions/InteractionCollection.h"  // for Cro...
+#include "LeptonInjector/interactions/Decay.h"                   // for Decay
 #include "LeptonInjector/dataclasses/InteractionRecord.h"         // for Int...
 #include "LeptonInjector/dataclasses/InteractionSignature.h"      // for Int...
 #include "LeptonInjector/dataclasses/Particle.h"                  // for Par...
-#include "LeptonInjector/detector/EarthModel.h"                   // for Ear...
+#include "LeptonInjector/detector/DetectorModel.h"                   // for Ear...
 #include "LeptonInjector/geometry/Geometry.h"                     // for Geo...
 #include "LeptonInjector/math/Vector3D.h"                         // for Vec...
 #include "LeptonInjector/utilities/Constants.h"                   // for cm
@@ -18,8 +18,8 @@
 namespace LI {
 namespace injection {
 
-double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) {
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
+double CrossSectionProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) {
+    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
     std::set<LI::dataclasses::Particle::ParticleType> available_targets_list = earth_model->GetAvailableTargets(earth_model->GetEarthCoordPosFromDetCoordPos(record.interaction_vertex));
     std::set<LI::dataclasses::Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
@@ -41,7 +41,7 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> e
     double selected_final_state = 0.0;
     LI::dataclasses::InteractionRecord fake_record = record;
     // first let's check decays
-    std::vector<std::shared_ptr<LI::crosssections::Decay>> decays = cross_sections->GetDecays();
+    std::vector<std::shared_ptr<LI::interactions::Decay>> decays = interactions->GetDecays();
     for(auto const & decay : decays) {
       std::vector<LI::dataclasses::InteractionSignature> signatures = decay->GetPossibleSignaturesFromParent(record.signature.primary_type);
       for(auto const & signature : signatures) {
@@ -60,7 +60,7 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::EarthModel const> e
             // Get target density
             double target_density = earth_model->GetParticleDensity(intersections, earth_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), target);
             // Loop over cross sections that have this target
-            std::vector<std::shared_ptr<LI::crosssections::CrossSection>> const & target_cross_sections = cross_sections->GetCrossSectionsForTarget(target);
+            std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
             for(auto const & cross_section : target_cross_sections) {
                 // Loop over cross section signatures with the same target
                 std::vector<LI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);

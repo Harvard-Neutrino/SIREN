@@ -8,7 +8,7 @@
 #include <algorithm>                              // for max
 
 #include "LeptonInjector/dataclasses/Particle.h"  // for Particle
-#include "LeptonInjector/detector/EarthModel.h"   // for EarthModel
+#include "LeptonInjector/detector/DetectorModel.h"   // for DetectorModel
 #include "LeptonInjector/geometry/Geometry.h"     // for Geometry
 
 namespace LI {
@@ -18,21 +18,21 @@ Path::Path() {
 
 }
 
-Path::Path(std::shared_ptr<const EarthModel> earth_model) {
-    SetEarthModel(earth_model);
+Path::Path(std::shared_ptr<const DetectorModel> earth_model) {
+    SetDetectorModel(earth_model);
 }
 
-Path::Path(std::shared_ptr<const EarthModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & last_point) {
-    SetEarthModel(earth_model);
+Path::Path(std::shared_ptr<const DetectorModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & last_point) {
+    SetDetectorModel(earth_model);
     SetPoints(first_point, last_point);
 }
 
-Path::Path(std::shared_ptr<const EarthModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & direction, double distance) {
-    SetEarthModel(earth_model);
+Path::Path(std::shared_ptr<const DetectorModel> earth_model, math::Vector3D const & first_point, math::Vector3D const & direction, double distance) {
+    SetDetectorModel(earth_model);
     SetPointsWithRay(first_point, direction, distance);
 }
 
-bool Path::HasEarthModel() {
+bool Path::HasDetectorModel() {
     return set_earth_model_;
 }
 
@@ -48,7 +48,7 @@ bool Path::HasColumnDepth() {
     return set_column_depth_;
 }
 
-std::shared_ptr<const EarthModel> Path::GetEarthModel() {
+std::shared_ptr<const DetectorModel> Path::GetDetectorModel() {
     return earth_model_;
 }
 
@@ -72,12 +72,12 @@ geometry::Geometry::IntersectionList const & Path::GetIntersections() {
     return intersections_;
 }
 
-void Path::SetEarthModel(std::shared_ptr<const EarthModel> earth_model) {
+void Path::SetDetectorModel(std::shared_ptr<const DetectorModel> earth_model) {
     earth_model_ = earth_model;
     set_earth_model_ = true;
 }
 
-void Path::EnsureEarthModel() {
+void Path::EnsureDetectorModel() {
     if(not set_earth_model_) {
         throw(std::runtime_error("Earth model not set!"));
     }
@@ -119,7 +119,7 @@ void Path::SetIntersections(geometry::Geometry::IntersectionList const & interse
 }
 
 void Path::ComputeIntersections() {
-    EnsureEarthModel();
+    EnsureDetectorModel();
     EnsurePoints();
     intersections_ = earth_model_->GetIntersections(first_point_, direction_);
     set_intersections_ = true;
@@ -134,7 +134,7 @@ void Path::EnsureIntersections() {
 void Path::ClipToOuterBounds() {
     EnsureIntersections();
     EnsurePoints();
-    geometry::Geometry::IntersectionList bounds = EarthModel::GetOuterBounds(intersections_);
+    geometry::Geometry::IntersectionList bounds = DetectorModel::GetOuterBounds(intersections_);
     if(bounds.intersections.size() > 0) {
         assert(bounds.intersections.size() == 2);
         math::Vector3D p0 = bounds.intersections[0].position;

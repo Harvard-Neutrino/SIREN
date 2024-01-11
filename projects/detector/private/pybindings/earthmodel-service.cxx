@@ -8,8 +8,8 @@
 #include <LeptonInjector/Coordinates.h>
 #include <LeptonInjector/Random.h>
 #include <LeptonInjector/Constants.h>
-#include <earthmodel-service/EarthModelCalculator.h>
-#include <earthmodel-service/EarthModel.h>
+#include <earthmodel-service/DetectorModelCalculator.h>
+#include <earthmodel-service/DetectorModel.h>
 
 // #include <converter/LeptonInjectionConfigurationConverter.h>
 #include <boost/python.hpp>
@@ -71,13 +71,13 @@ void ListToVec(std::vector<unsigned int> &ret, boost::python::list l){
 }
 
 namespace earthmodel{
-	struct LIEarthModelCalculator {
+	struct LIDetectorModelCalculator {
 	};
 }
 
-BOOST_PYTHON_MODULE(EarthModelService){
+BOOST_PYTHON_MODULE(DetectorModelService){
 	using namespace earthmodel;
-    typedef std::vector<EarthSector> Sectors;
+    typedef std::vector<DetectorSector> Sectors;
 
     class_<Sectors>("Sectors")
         .def(vector_indexing_suite<Sectors>());
@@ -109,57 +109,57 @@ BOOST_PYTHON_MODULE(EarthModelService){
         .def("SetSphericalCoordinates",&Vector3D::SetSphericalCoordinates)
         ;
 
-	class_<EarthSector>("EarthSector", init<>())
-        .def_readwrite("name", &EarthSector::name)
-        .def_readwrite("material_id", &EarthSector::material_id)
-        .def_readwrite("level", &EarthSector::level)
-        .def_readwrite("geo", &EarthSector::geo)
-        .def_readwrite("density", &EarthSector::density)
+	class_<DetectorSector>("DetectorSector", init<>())
+        .def_readwrite("name", &DetectorSector::name)
+        .def_readwrite("material_id", &DetectorSector::material_id)
+        .def_readwrite("level", &DetectorSector::level)
+        .def_readwrite("geo", &DetectorSector::geo)
+        .def_readwrite("density", &DetectorSector::density)
 		;
 
-    double (EarthModel::*GetMassDensity_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0) const = &EarthModel::GetMassDensity;
-    double (EarthModel::*GetMassDensity)(Vector3D const & p0) const = &EarthModel::GetMassDensity;
+    double (DetectorModel::*GetMassDensity_cached)(Geometry::IntersectionList const & intersections, Vector3D const & p0) const = &DetectorModel::GetMassDensity;
+    double (DetectorModel::*GetMassDensity)(Vector3D const & p0) const = &DetectorModel::GetMassDensity;
 
-    double (EarthModel::*DistanceForColumnDepthToPoint_cached)(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth) const = &EarthModel::DistanceForColumnDepthToPoint;
-    double (EarthModel::*DistanceForColumnDepthToPoint)(Vector3D const & end_point, Vector3D const & direction, double column_depth) const = &EarthModel::DistanceForColumnDepthToPoint;
+    double (DetectorModel::*DistanceForColumnDepthToPoint_cached)(Geometry::IntersectionList const & intersections, Vector3D const & end_point, Vector3D const & direction, double column_depth) const = &DetectorModel::DistanceForColumnDepthToPoint;
+    double (DetectorModel::*DistanceForColumnDepthToPoint)(Vector3D const & end_point, Vector3D const & direction, double column_depth) const = &DetectorModel::DistanceForColumnDepthToPoint;
 
 
-	class_<EarthModel>("EarthModel", init<>())
+	class_<DetectorModel>("DetectorModel", init<>())
         .def(init<const std::string&, const std::string&>())
         .def(init<const std::string &, const std::string &, const std::string &>())
-        .def("LoadEarthModel",&EarthModel::LoadEarthModel)
-        .def("LoadMaterialModel",&EarthModel::LoadMaterialModel)
-        //.def("GetColumnDepthInCGS",&EarthModel::GetColumnDepthInCGS)
+        .def("LoadDetectorModel",&DetectorModel::LoadDetectorModel)
+        .def("LoadMaterialModel",&DetectorModel::LoadMaterialModel)
+        //.def("GetColumnDepthInCGS",&DetectorModel::GetColumnDepthInCGS)
         .def("GetColumnDepthInCGS", GetMassDensity)
         .def("GetColumnDepthInCGS", GetMassDensity_cached)
         .def("DistanceForColumnDepthToPoint", DistanceForColumnDepthToPoint)
         .def("DistanceForColumnDepthToPoint", DistanceForColumnDepthToPoint_cached)
-        .def("GetEarthCoordPosFromDetCoordPos",&EarthModel::GetEarthCoordPosFromDetCoordPos)
-        .def("GetEarthCoordDirFromDetCoordDir",&EarthModel::GetEarthCoordDirFromDetCoordDir)
-        .def("GetDetCoordPosFromEarthCoordPos",&EarthModel::GetDetCoordPosFromEarthCoordPos)
-        .def("GetDetCoordDirFromEarthCoordDir",&EarthModel::GetDetCoordDirFromEarthCoordDir)
-        .def("GetPath",&EarthModel::GetPath)
-        .def("SetPath",&EarthModel::SetPath)
-        .def("GetMaterials",&EarthModel::GetMaterials, return_value_policy<copy_const_reference>())
-        .def("SetMaterials",&EarthModel::SetMaterials)
-        .def("GetSectors",&EarthModel::GetSectors, return_value_policy<copy_const_reference>())
-        .def("SetSectors",&EarthModel::SetSectors)
-        .def("GetDetectorOrigin",&EarthModel::GetDetectorOrigin)
-        .def("SetDetectorOrigin",&EarthModel::SetDetectorOrigin)
-        .def("AddSector",&EarthModel::AddSector)
-        .def("GetSector",&EarthModel::GetSector)
-        .def("ClearSectors",&EarthModel::ClearSectors)
+        .def("GetEarthCoordPosFromDetCoordPos",&DetectorModel::GetEarthCoordPosFromDetCoordPos)
+        .def("GetEarthCoordDirFromDetCoordDir",&DetectorModel::GetEarthCoordDirFromDetCoordDir)
+        .def("GetDetCoordPosFromEarthCoordPos",&DetectorModel::GetDetCoordPosFromEarthCoordPos)
+        .def("GetDetCoordDirFromEarthCoordDir",&DetectorModel::GetDetCoordDirFromEarthCoordDir)
+        .def("GetPath",&DetectorModel::GetPath)
+        .def("SetPath",&DetectorModel::SetPath)
+        .def("GetMaterials",&DetectorModel::GetMaterials, return_value_policy<copy_const_reference>())
+        .def("SetMaterials",&DetectorModel::SetMaterials)
+        .def("GetSectors",&DetectorModel::GetSectors, return_value_policy<copy_const_reference>())
+        .def("SetSectors",&DetectorModel::SetSectors)
+        .def("GetDetectorOrigin",&DetectorModel::GetDetectorOrigin)
+        .def("SetDetectorOrigin",&DetectorModel::SetDetectorOrigin)
+        .def("AddSector",&DetectorModel::AddSector)
+        .def("GetSector",&DetectorModel::GetSector)
+        .def("ClearSectors",&DetectorModel::ClearSectors)
         ;
 
 	{
-		scope earthmodel = class_<LIEarthModelCalculator>("EarthModelCalculator");
+		scope earthmodel = class_<LIDetectorModelCalculator>("DetectorModelCalculator");
 
-		def("GetImpactParameter", &EarthModelCalculator::GetImpactParameter);
-		def("GetIntersectionsWithSphere", &EarthModelCalculator::GetIntersectionsWithSphere);
-		def("GetDistsToIntersectionsWithSphere", &EarthModelCalculator::GetDistsToIntersectionsWithSphere);
-		def("GetLeptonRange", &EarthModelCalculator::GetLeptonRange);
-		def("ColumnDepthCGStoMWE",&EarthModelCalculator::ColumnDepthCGStoMWE);
-		def("MWEtoColumnDepthCGS",&EarthModelCalculator::MWEtoColumnDepthCGS);
+		def("GetImpactParameter", &DetectorModelCalculator::GetImpactParameter);
+		def("GetIntersectionsWithSphere", &DetectorModelCalculator::GetIntersectionsWithSphere);
+		def("GetDistsToIntersectionsWithSphere", &DetectorModelCalculator::GetDistsToIntersectionsWithSphere);
+		def("GetLeptonRange", &DetectorModelCalculator::GetLeptonRange);
+		def("ColumnDepthCGStoMWE",&DetectorModelCalculator::ColumnDepthCGStoMWE);
+		def("MWEtoColumnDepthCGS",&DetectorModelCalculator::MWEtoColumnDepthCGS);
 	}
 
 	using namespace scitbx::boost_python::container_conversions;

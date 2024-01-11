@@ -20,14 +20,14 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/crosssections/CrossSection.h"
-#include "LeptonInjector/crosssections/Decay.h"
-#include "LeptonInjector/detector/EarthModel.h"
+#include "LeptonInjector/interactions/CrossSection.h"
+#include "LeptonInjector/interactions/Decay.h"
+#include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
-#include "LeptonInjector/injection/InjectorBase.h"  // for InjectorBase
+#include "LeptonInjector/injection/Injector.h"  // for Injector
 
-namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
 namespace LI { namespace injection { class InjectionProcess; } }
 namespace LI { namespace math { class Vector3D; } }
@@ -36,17 +36,17 @@ namespace LI { namespace utilities { class LI_random; } }
 namespace LI {
 namespace injection {
 
-class ColumnDepthLeptonInjector : public InjectorBase {
+class ColumnDepthLeptonInjector : public Injector {
 friend cereal::access;
 protected:
     std::shared_ptr<LI::distributions::DepthFunction> depth_func;
     double disk_radius;
     double endcap_length;
     std::shared_ptr<LI::distributions::ColumnDepthPositionDistribution> position_distribution;
-    std::shared_ptr<LI::crosssections::CrossSectionCollection> cross_sections;
+    std::shared_ptr<LI::interactions::InteractionCollection> interactions;
     ColumnDepthLeptonInjector();
 public:
-    ColumnDepthLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::EarthModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::DepthFunction> depth_func, double disk_radius, double endcap_length);
+    ColumnDepthLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> earth_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::DepthFunction> depth_func, double disk_radius, double endcap_length);
     std::string Name() const override;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const override;
 
@@ -57,7 +57,7 @@ public:
             archive(::cereal::make_nvp("DiskRadius", disk_radius));
             archive(::cereal::make_nvp("EndcapLength", endcap_length));
             archive(::cereal::make_nvp("PositionDistribution", position_distribution));
-            archive(cereal::virtual_base_class<InjectorBase>(this));
+            archive(cereal::virtual_base_class<Injector>(this));
         } else {
             throw std::runtime_error("ColumnDepthLeptonInjector only supports version <= 0!");
         }
@@ -70,7 +70,7 @@ public:
             archive(::cereal::make_nvp("DiskRadius", disk_radius));
             archive(::cereal::make_nvp("EndcapLength", endcap_length));
             archive(::cereal::make_nvp("PositionDistribution", position_distribution));
-            archive(cereal::virtual_base_class<InjectorBase>(this));
+            archive(cereal::virtual_base_class<Injector>(this));
         } else {
             throw std::runtime_error("ColumnDepthLeptonInjector only supports version <= 0!");
         }
@@ -82,6 +82,6 @@ public:
 
 CEREAL_CLASS_VERSION(LI::injection::ColumnDepthLeptonInjector, 0);
 CEREAL_REGISTER_TYPE(LI::injection::ColumnDepthLeptonInjector);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::injection::InjectorBase, LI::injection::ColumnDepthLeptonInjector);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::injection::Injector, LI::injection::ColumnDepthLeptonInjector);
 
 #endif // LI_ColumnDepthLeptonInjector_H

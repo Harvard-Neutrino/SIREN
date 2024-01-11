@@ -13,7 +13,7 @@ LIST (APPEND detector_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/detector/private/ExponentialDistribution1D.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/detector/private/DensityDistribution.cxx
-    ${PROJECT_SOURCE_DIR}/projects/detector/private/EarthModel.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/DetectorModel.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/MaterialModel.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/Path.cxx
 )
@@ -46,7 +46,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/detector/public/"
 package_add_test(UnitTest_Axis ${PROJECT_SOURCE_DIR}/projects/detector/private/test/Axis_TEST.cxx)
 package_add_test(UnitTest_DensityDistribution ${PROJECT_SOURCE_DIR}/projects/detector/private/test/DensityDistribution_TEST.cxx)
 package_add_test(UnitTest_Distribution1D ${PROJECT_SOURCE_DIR}/projects/detector/private/test/Distribution1D_TEST.cxx)
-package_add_test(UnitTest_EarthModel ${PROJECT_SOURCE_DIR}/projects/detector/private/test/EarthModel_TEST.cxx)
+package_add_test(UnitTest_DetectorModel ${PROJECT_SOURCE_DIR}/projects/detector/private/test/DetectorModel_TEST.cxx)
 package_add_test(UnitTest_MaterialModel ${PROJECT_SOURCE_DIR}/projects/detector/private/test/MaterialModel_TEST.cxx)
 package_add_test(UnitTest_Path ${PROJECT_SOURCE_DIR}/projects/detector/private/test/Path_TEST.cxx)
 

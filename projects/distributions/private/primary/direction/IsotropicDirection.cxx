@@ -7,9 +7,9 @@
 #include "LeptonInjector/math/Vector3D.h"                // for Vector3D
 #include "LeptonInjector/utilities/Random.h"             // for LI_random
 
-namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct InteractionRecord; } }
-namespace LI { namespace detector { class EarthModel; } }
+namespace LI { namespace detector { class DetectorModel; } }
 
 namespace LI {
 namespace distributions {
@@ -17,7 +17,7 @@ namespace distributions {
 //---------------
 // class IsotropicDirection : PrimaryDirectionDistribution
 //---------------
-LI::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+LI::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     double nz = rand->Uniform(-1, 1);
     double nr = sqrt(1.0 - nz*nz);
     double phi = rand->Uniform(-M_PI, M_PI);
@@ -28,7 +28,7 @@ LI::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI::utili
     return res;
 }
 
-double IsotropicDirection::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double IsotropicDirection::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     return 1.0 / (4.0 * M_PI);
 }
 

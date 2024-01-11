@@ -6,7 +6,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/detector/EarthModel.h"
+#include "../../public/LeptonInjector/detector/DetectorModel.h"
 #include "../../public/LeptonInjector/detector/DensityDistribution.h"
 #include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
 

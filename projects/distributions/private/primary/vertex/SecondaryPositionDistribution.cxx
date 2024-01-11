@@ -7,12 +7,12 @@
 #include <string>                                                 // for bas...
 #include <vector>                                                 // for vector
 
-#include "LeptonInjector/crosssections/CrossSection.h"            // for Cro...
-#include "LeptonInjector/crosssections/CrossSectionCollection.h"  // for Cro...
+#include "LeptonInjector/interactions/CrossSection.h"            // for Cro...
+#include "LeptonInjector/interactions/InteractionCollection.h"  // for Cro...
 #include "LeptonInjector/dataclasses/InteractionRecord.h"         // for Int...
 #include "LeptonInjector/dataclasses/InteractionSignature.h"      // for Int...
 #include "LeptonInjector/dataclasses/Particle.h"                  // for Par...
-#include "LeptonInjector/detector/EarthModel.h"                   // for Ear...
+#include "LeptonInjector/detector/DetectorModel.h"                   // for Ear...
 #include "LeptonInjector/detector/Path.h"                         // for Path
 #include "LeptonInjector/distributions/Distributions.h"           // for Inj...
 #include "LeptonInjector/geometry/Geometry.h"                     // for Geo...
@@ -45,23 +45,23 @@ namespace {
 // class SecondaryPositionDistribution : public VertexPositionDistribution
 //---------------
 
-LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
+LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
   throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::SamplePosition without a datum to access the parent"));
   return LI::math::Vector3D(0,0,0);
 }
 
-void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum & datum) const {
-    LI::math::Vector3D pos = SamplePosition(rand, earth_model, cross_sections, datum);
+void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
+    LI::math::Vector3D pos = SamplePosition(rand, earth_model, interactions, datum);
     datum.record.interaction_vertex[0] = pos.GetX();
     datum.record.interaction_vertex[1] = pos.GetY();
     datum.record.interaction_vertex[2] = pos.GetZ();
 }
 
-void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord & record) const {
+void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
     throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::Sample without a datum to access the parent"));
 }
 
-LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum & datum) const {
+LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
 
@@ -91,18 +91,18 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
       }
     }
 
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
+    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_length = cross_sections->TotalDecayLength(datum.record);
+    double total_decay_length = interactions->TotalDecayLength(datum.record);
     LI::dataclasses::InteractionRecord fake_record = datum.record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = earth_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        for(auto const & cross_section : cross_sections->GetCrossSectionsForTarget(target)) {
+        for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
@@ -126,12 +126,12 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     return vertex;
 }
 
-double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
   throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::GenerationProbability without a datum to access the parent"));
   return 0;
 }
 
-double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum const & datum) const {
+double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(datum.record.interaction_vertex);
@@ -163,18 +163,18 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
       }
     }
 
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = cross_sections->TargetTypes();
+    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_length = cross_sections->TotalDecayLength(datum.record);
+    double total_decay_length = interactions->TotalDecayLength(datum.record);
     LI::dataclasses::InteractionRecord fake_record = datum.record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = earth_model->GetTargetMass(target);
         fake_record.target_momentum = {fake_record.target_mass,0,0,0};
-        for(auto const & cross_section : cross_sections->GetCrossSectionsForTarget(target)) {
+        for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
     }
@@ -214,12 +214,12 @@ std::shared_ptr<InjectionDistribution> SecondaryPositionDistribution::clone() co
     return std::shared_ptr<InjectionDistribution>(new SecondaryPositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionRecord const & record) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
   throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::InjectionBounds without a datum to access the parent"));
   return std::make_pair(LI::math::Vector3D(0,0,0),LI::math::Vector3D(0,0,0));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::EarthModel const> earth_model, std::shared_ptr<LI::crosssections::CrossSectionCollection const> cross_sections, LI::dataclasses::InteractionTreeDatum const & datum) const {
+std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> earth_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(datum.record.interaction_vertex);

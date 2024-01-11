@@ -19,7 +19,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"         // for Particle
 #include "LeptonInjector/distributions/Distributions.h"  // for InjectionDis...
 
-namespace LI { namespace crosssections { class CrossSectionCollection; } }
+namespace LI { namespace interactions { class InteractionCollection; } }
 
 namespace LI {
 namespace injection {
@@ -27,18 +27,18 @@ namespace injection {
 class Process {
 private:
     LI::dataclasses::Particle::ParticleType primary_type;
-    std::shared_ptr<crosssections::CrossSectionCollection> cross_sections;
+    std::shared_ptr<interactions::InteractionCollection> interactions;
 public:
     Process() = default;
-    Process(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<crosssections::CrossSectionCollection> _cross_sections);
+    Process(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     Process(Process const & other);
     Process(Process && other);
     Process & operator=(Process const & other);
     Process & operator=(Process && other);
     virtual ~Process() = default;
 
-    void SetCrossSections(std::shared_ptr<crosssections::CrossSectionCollection> _cross_sections);
-    std::shared_ptr<crosssections::CrossSectionCollection> GetCrossSections() const;
+    void SetInteractions(std::shared_ptr<interactions::InteractionCollection> _interactions);
+    std::shared_ptr<interactions::InteractionCollection> GetInteractions() const;
     void SetPrimaryType(LI::dataclasses::Particle::ParticleType _primary_type);
     LI::dataclasses::Particle::ParticleType GetPrimaryType() const;
 
@@ -48,7 +48,7 @@ public:
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("PrimaryType", primary_type));
-            archive(::cereal::make_nvp("CrossSections", cross_sections));
+            archive(::cereal::make_nvp("Interactions", interactions));
         } else {
             throw std::runtime_error("Process only supports version <= 0!");
         }
@@ -60,7 +60,7 @@ protected:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
 public:
     PhysicalProcess() = default;
-    PhysicalProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<crosssections::CrossSectionCollection> _cross_sections);
+    PhysicalProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     PhysicalProcess(PhysicalProcess const & other);
     PhysicalProcess(PhysicalProcess && other);
     PhysicalProcess & operator=(PhysicalProcess const & other);
@@ -84,7 +84,7 @@ protected:
     std::vector<std::shared_ptr<distributions::InjectionDistribution>> injection_distributions;
 public:
     InjectionProcess() = default;
-    InjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<crosssections::CrossSectionCollection> _cross_sections);
+    InjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     InjectionProcess(InjectionProcess const & other);
     InjectionProcess(InjectionProcess && other);
     InjectionProcess & operator=(InjectionProcess const & other);
