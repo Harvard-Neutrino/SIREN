@@ -79,7 +79,7 @@ void Path::SetDetectorModel(std::shared_ptr<const DetectorModel> detector_model)
 
 void Path::EnsureDetectorModel() {
     if(not set_detector_model_) {
-        throw(std::runtime_error("Earth model not set!"));
+        throw(std::runtime_error("Detector model not set!"));
     }
 }
 
