@@ -142,7 +142,7 @@ class LIController:
         for cross_section in self.DN_processes.cross_sections:
             if primary_type == LI.dataclasses.Particle.ParticleType(cross_section.ups_case.nu_projectile.pdgid):
                 primary_cross_sections.append(cross_section)
-        primary_interaction_collection = LI.crosssections.InteractionCollection(primary_type, primary_cross_sections)
+        primary_interaction_collection = LI.interactions.InteractionCollection(primary_type, primary_cross_sections)
         
         # Initialize secondary processes and define secondary InteractionCollection objects
         secondary_decays = {}

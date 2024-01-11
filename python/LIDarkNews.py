@@ -9,7 +9,7 @@ from scipy.interpolate import CloughTocher2DInterpolator,CubicSpline
 
 # LeptonInjector methods
 import leptoninjector as LI
-from leptoninjector.crosssections import DarkNewsCrossSection,DarkNewsDecay
+from leptoninjector.interactions import DarkNewsCrossSection,DarkNewsDecay
 from leptoninjector.dataclasses import Particle
 
 # DarkNews methods
