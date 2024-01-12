@@ -63,8 +63,8 @@ if [[ $RUNNER_OS == "Linux" || $RUNNER_OS == "macOS" ]]; then
     mkdir -p build
     cd build
     cmake ../ -DCMAKE_INSTALL_PREFIX=$CI_INSTALL_PREFIX
-    make
-    make install
+    cmake --build . --config Release
+    cmake --install .
 elif [[ $RUNNER_OS == "Windows" ]]; then
     mkdir -p $CI_DOWNLOAD_PATH
     cd $CI_DOWNLOAD_PATH
