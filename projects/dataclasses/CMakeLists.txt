@@ -34,5 +34,5 @@ target_link_libraries(dataclasses PRIVATE LeptonInjector)
 if(DEFINED SKBUILD)
 set_target_properties(dataclasses PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,$ORIGIN/../leptoninjector.libs/")
+        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../leptoninjector.libs/")
 endif()

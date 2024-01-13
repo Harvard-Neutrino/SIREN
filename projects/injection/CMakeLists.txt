@@ -48,5 +48,5 @@ target_link_libraries(injection PRIVATE LeptonInjector photospline)
 if(DEFINED SKBUILD)
 set_target_properties(injection PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,$ORIGIN/../leptoninjector.libs/")
+        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../leptoninjector.libs/")
 endif()

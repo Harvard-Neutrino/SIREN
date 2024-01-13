@@ -41,5 +41,5 @@ target_link_libraries(geometry PRIVATE LeptonInjector)
 if(DEFINED SKBUILD)
 set_target_properties(geometry PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,$ORIGIN/../leptoninjector.libs/")
+        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../leptoninjector.libs/")
 endif()
