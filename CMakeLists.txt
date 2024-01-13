@@ -86,7 +86,13 @@ add_subdirectory(projects/injection)
 # define the target library
 add_library(LeptonInjector SHARED)
 set_property(TARGET LeptonInjector PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 if(${MACOSX})
+if(CMAKE_VERSION VERSION_LESS 3.13)
+    target_link_libraries(LeptonInjector PUBLIC "$<$<PLATFORM_ID:Darwin>:LINKER:-undefined,dynamic_lookup>")
+else()
+    target_link_options(LeptonInjector PUBLIC "$<$<PLATFORM_ID:Darwin>:LINKER:-undefined,dynamic_lookup>")
+endif()
 target_link_libraries(LeptonInjector
     PRIVATE
     PUBLIC

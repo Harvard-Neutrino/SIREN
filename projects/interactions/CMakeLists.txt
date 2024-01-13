@@ -24,7 +24,6 @@ target_link_libraries(LI_interactions
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
         pybind11::embed
-        pybind11::python_link_helper
     PUBLIC
         photospline
         LI_serialization
