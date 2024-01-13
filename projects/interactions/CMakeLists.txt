@@ -51,5 +51,5 @@ target_link_libraries(pyDarkNewsSerializer PRIVATE LeptonInjector photospline rk
 if(DEFINED SKBUILD)
 set_target_properties(interactions PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,$ORIGIN/../leptoninjector.libs/")
+        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../leptoninjector.libs/")
 endif()
