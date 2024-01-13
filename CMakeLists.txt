@@ -132,7 +132,7 @@ if(DEFINED SKBUILD)
             BUILD_WITH_INSTALL_RPATH FALSE
             LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN")
     if(${CIBUILDWHEEL})
-        message(STATUS "Setting LeptonInjector install lib dir to: ${CI_INSTALL_PREFIX}/leptoninjector.libs")
+        message(STATUS "Setting LeptonInjector install lib dir to: ${CI_INSTALL_PREFIX}/lib")
         message(STATUS "Setting LeptonInjector install include dir to: ${CI_INSTALL_PREFIX}/include")
         install(TARGETS LeptonInjector
             delabella_shared
@@ -146,7 +146,7 @@ if(DEFINED SKBUILD)
             LI_distributions
             LI_injection
             EXPORT ${PROJECT_NAME}Config
-            LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/leptoninjector.libs"
+            LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/lib"
             PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")
     else()
         install(TARGETS LeptonInjector
