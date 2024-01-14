@@ -30,7 +30,14 @@ repair-wheel-command = "auditwheel repair --exclude photospline -w {dest_dir} {w
 
 [tool.cibuildwheel.macos]
 environment = { RUNNER_OS="macOS", MAKEFLAGS="-j2", CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", REPO_PATH="/Users/runner/work/LeptonInjector/LeptonInjector", REPAIR_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64", LD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$LD_LIBRARY_PATH", DYLD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH" }
-repair-wheel-command = "echo $DYLD_LIBRARY_PATH && echo $REPAIR_LIBRARY_PATH && DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH echo $DYLD_LIBRARY_PATH && DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH delocate-listdeps {wheel} && which python && python --version && delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}"
+repair-wheel-command = """\
+echo $DYLD_LIBRARY_PATH && \
+echo $REPAIR_LIBRARY_PATH && \
+DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH echo $DYLD_LIBRARY_PATH && \
+DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH delocate-listdeps {wheel} && \
+DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH which python && \
+DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH python --version && \
+DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}"""
 
 [project]
 name = "leptoninjector"
