@@ -1,6 +1,4 @@
-import numpy as np
 import os
-import matplotlib.pyplot as plt
 
 import leptoninjector as LI
 import sys
@@ -68,7 +66,7 @@ decay_range_func = LI.distributions.DecayRangeFunction(model_kwargs['m4'],
                                                        541)
 position_distribution = LI.distributions.RangePositionDistribution(6.2, 6.2,
                                                                    decay_range_func,
-                                                                   set(controller.GetEarthModelTargets()[0]))
+                                                                   set(controller.GetDetectorModelTargets()[0]))
 primary_injection_distributions['position'] = position_distribution
 
 # SetProcesses

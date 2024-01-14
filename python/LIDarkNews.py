@@ -97,7 +97,7 @@ class PyDarkNewsInteractionCollection:
             self.decays.append(PyDarkNewsDecay(dec_case,
                                                table_dir = self.table_dir + table_subdirs))
             
-    def SaveCrossSectionTables(self,fill_tables_at_exit=True):
+    def SaveCrossSectionTables(self,fill_tables_at_exit=False):
         if not fill_tables_at_exit:
             print('WARNING: Saving tables without filling PyDarkNewsCrossSection interpolation tables. Future updates to DarkNews can lead to inconsistent behavior if new entries are ever added to this table')
         for cross_section in self.cross_sections:
@@ -198,7 +198,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             exit(0)
 
         # first check if we have saved table points already
-        if len(interp_table) == 0: return 0
+        if len(interp_table) == 0: 
+            return False,False,-1
 
         # bools to keep track of whether to use a single point or interpolate
         UseSinglePoint = True
