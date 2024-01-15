@@ -172,6 +172,16 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & int
     double log_minQ2 = log10(minQ2);
     double log_maxQ2 = log10(maxQ2);
 
+    // Function for computing CosTheta in the lab frame
+    auto ComputeCosThetaLab = [&](double Q2) {
+        double E4Lab = (Q2 + m2*m2 + m4*m4) / (2*m2);
+        double E3Lab = primary_energy + p2_lab.e() - E4Lab;
+        double P1Lab = sqrt(primary_energy*primary_energy - m1*m1);
+        double P3Lab = sqrt(E3Lab*E3Lab - m3*m3);
+        double CosThetaLab = (primary_energy*E3Lab - 0.5*(Q2 + m1*m1 + m3*m3))/(P1Lab*P3Lab);
+        return CosThetaLab;
+    };
+
     bool accept;
 
     // kin_vars and its twin are 2-vectors containing [nu-energy, Q2]
@@ -185,6 +195,10 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & int
 
     // sample an intial point
     kin_vars[1] = std::pow(10,random->Uniform(log_minQ2,log_maxQ2));
+    // make sure it is physical
+    while(std::abs(ComputeCosThetaLab(kin_vars[1]))>1) {
+        kin_vars[1] = std::pow(10,random->Uniform(log_minQ2,log_maxQ2));
+    }
     
     test_cross_section = DifferentialCrossSection(interaction.signature.primary_type, interaction.signature.target_type, primary_energy, kin_vars[1]);
     cross_section = test_cross_section;
@@ -196,13 +210,18 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & int
     for(size_t j = 0; j <= burnin; j++) {
         // repeat the sampling from above to get a new valid point
         test_kin_vars[1] = std::pow(10,random->Uniform(log_minQ2,log_maxQ2));
-        test_cross_section = DifferentialCrossSection(interaction.signature.primary_type, interaction.signature.target_type, primary_energy, kin_vars[1]);
+        test_cross_section = DifferentialCrossSection(interaction.signature.primary_type, interaction.signature.target_type, primary_energy, test_kin_vars[1]);
         double odds = (test_cross_section / cross_section);
         accept = (cross_section == 0 || (odds > 1.) || random->Uniform(0, 1) < odds);
 
         if(accept) {
-            kin_vars = test_kin_vars;
-            cross_section = test_cross_section;
+            // Make sure we have a physical point
+            double CosThetaLabTest = ComputeCosThetaLab(test_kin_vars[1]);
+            bool physical = (std::abs(CosThetaLabTest) <= 1);
+            if(physical) {
+                kin_vars = test_kin_vars;
+                cross_section = test_cross_section;
+            }
         }
     }
     double final_Q2 = kin_vars[1];
