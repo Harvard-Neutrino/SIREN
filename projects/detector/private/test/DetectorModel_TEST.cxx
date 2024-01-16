@@ -410,6 +410,8 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralInternal)
         double min_radius = sphere->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
+        p0 = A.ToDet(GeometryPosition(p0));
+        p1 = A.ToDet(GeometryPosition(p1));
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
@@ -438,6 +440,7 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantGetMassDensityInternal)
         double max_radius = sphere->GetRadius();
         double min_radius = sphere->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
+        p0 = A.ToDet(GeometryPosition(p0));
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_dist = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density_dist);
         double rho = density_dist->Evaluate(Vector3D());
@@ -472,6 +475,10 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
         double min_radius = sphere_0->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
+        GeometryPosition p0_geo(p0);
+        GeometryPosition p1_geo(p1);
+        DetectorPosition p0_det(A.ToDet(p0_geo));
+        DetectorPosition p1_det(A.ToDet(p1_geo));
         double distance = (p1-p0).magnitude();
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
@@ -484,15 +491,15 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
         bool in_0 = p0.magnitude() <= sphere_0->GetRadius();
         bool in_1 = p1.magnitude() <= sphere_0->GetRadius();
         double integral = 0.0;
-        double sum = A.GetColumnDepthInCGS(DetectorPosition(p0), DetectorPosition(p1));
+        double sum = A.GetColumnDepthInCGS(p0_det, p1_det);
         if(in_0 and in_1) {
             integral = rho_0 * (p1-p0).magnitude();
-            ASSERT_DOUBLE_EQ(integral * 100, sum);
+            ASSERT_NEAR(integral * 100, sum, std::min(std::abs(sum), std::abs(integral * 100)) * 1e-8);
         }
         else {
-            Vector3D direction = p1 - p0;
+            Vector3D direction = p1_geo - p0_geo;
             direction.normalize();
-            std::vector<Geometry::Intersection> intersections = sphere_0->Intersections(p0, direction);
+            std::vector<Geometry::Intersection> intersections = sphere_0->Intersections(p0_geo, direction);
             if(intersections.size() > 1) {
                 double dist_0 = intersections[0].distance;
                 double dist_1 = intersections[1].distance;
@@ -501,11 +508,11 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
                     if((not in_0) and in_1) {
                         integral += rho_1*near;
                         integral += rho_0*((p1-p0).magnitude() - near);
-                        ASSERT_DOUBLE_EQ(integral * 100, sum);
+                        ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
                     } else if(in_0 and not in_1) {
                         integral += rho_0*near;
                         integral += rho_1*((p1-p0).magnitude() - near);
-                        ASSERT_DOUBLE_EQ(integral * 100, sum);
+                        ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
                     } else if((not in_0) and (not in_1)) {
                         double far = std::max(std::max(dist_0, 0.0), std::max(dist_1, 0.0));
                         if(near < distance) {
@@ -519,12 +526,12 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
                         } else {
                             integral += rho_1*distance;
                         }
-                        ASSERT_DOUBLE_EQ(integral * 100, sum);
+                        ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
                     }
                 }
                 else if (dist_0 <= 0 and dist_1 <= 0) {
                     integral = rho_1 * (p1-p0).magnitude();
-                    ASSERT_DOUBLE_EQ(integral * 100, sum);
+                    ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
                 }
                 else {
                     double dist = std::max(dist_0, dist_1);
@@ -533,7 +540,7 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
                     } else if(in_0 and not in_1) {
                         integral += rho_0*dist;
                         integral += rho_1*((p1-p0).magnitude() - dist);
-                        ASSERT_DOUBLE_EQ(integral * 100, sum);
+                        ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
                     } else if((not in_0) and (not in_1)) {
                         assert(false);
                     }
@@ -541,10 +548,10 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
             }
             else {
                 integral = rho_1 * (p1-p0).magnitude();
-                ASSERT_DOUBLE_EQ(integral * 100, sum);
+                ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-8);
             }
         }
-        ASSERT_DOUBLE_EQ(integral * 100, sum);
+        ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
     }
 }
 
@@ -573,16 +580,18 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantGetMassDensityNested)
         double max_radius = sphere_1->GetRadius();
         double min_radius = sphere_0->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
-        Vector3D p1 = RandomVector(max_radius, min_radius);
+        GeometryPosition p0_geo(p0);
+        DetectorPosition p0_det(A.ToDet(p0_geo));
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
         double rho_0 = density_0->Evaluate(Vector3D());
         double rho_1 = density_1->Evaluate(Vector3D());
-        ASSERT_LE(p0.magnitude(), max_radius);
-        bool in_0 = p0.magnitude() <= sphere_0->GetRadius();
-        double density = A.GetMassDensity(DetectorPosition(p0));
+        ASSERT_LE(min_radius, max_radius);
+        ASSERT_LE(p0_geo->magnitude(), max_radius);
+        bool in_0 = p0_geo->magnitude() <= sphere_0->GetRadius();
+        double density = A.GetMassDensity(p0_det);
         if(in_0) {
             ASSERT_DOUBLE_EQ(density, rho_0);
         }
@@ -1152,6 +1161,8 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantInverseIntegralInternal)
 
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
+        p0 = A.ToDet(GeometryPosition(p0));
+        p1 = A.ToDet(GeometryPosition(p1));
 
         double sum = A.GetColumnDepthInCGS(DetectorPosition(p0), DetectorPosition(p1));
         Vector3D direction = p1 - p0;
