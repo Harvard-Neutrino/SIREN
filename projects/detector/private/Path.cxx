@@ -36,12 +36,22 @@ Path::Path(std::shared_ptr<const DetectorModel> detector_model) {
     SetDetectorModel(detector_model);
 }
 
-Path::Path(std::shared_ptr<const DetectorModel> detector_model, math::Vector3D const & first_point, math::Vector3D const & last_point) {
+Path::Path(std::shared_ptr<const DetectorModel> detector_model, GeometryPosition const & first_point, GeometryPosition const & last_point) {
     SetDetectorModel(detector_model);
     SetPoints(first_point, last_point);
 }
 
-Path::Path(std::shared_ptr<const DetectorModel> detector_model, math::Vector3D const & first_point, math::Vector3D const & direction, double distance) {
+Path::Path(std::shared_ptr<const DetectorModel> detector_model, GeometryPosition const & first_point, GeometryDirection const & direction, double distance) {
+    SetDetectorModel(detector_model);
+    SetPointsWithRay(first_point, direction, distance);
+}
+
+Path::Path(std::shared_ptr<const DetectorModel> detector_model, DetectorPosition const & first_point, DetectorPosition const & last_point) {
+    SetDetectorModel(detector_model);
+    SetPoints(first_point, last_point);
+}
+
+Path::Path(std::shared_ptr<const DetectorModel> detector_model, DetectorPosition const & first_point, DetectorDirection const & direction, double distance) {
     SetDetectorModel(detector_model);
     SetPointsWithRay(first_point, direction, distance);
 }
@@ -76,7 +86,7 @@ DetectorPosition const & Path::GetLastPoint() {
     return last_point_det_;
 }
 
-DetectorPosition const & Path::GetDirection() {
+DetectorDirection const & Path::GetDirection() {
     UpdatePoints();
     return direction_det_;
 }
@@ -91,13 +101,13 @@ GeometryPosition const & Path::GetGeoLastPoint() {
     return last_point_;
 }
 
-GeometryPosition const & Path::GetGeoDirection() {
+GeometryDirection const & Path::GetGeoDirection() {
     UpdatePoints();
     return direction_;
 }
 
 double Path::GetDistance() {
-    return distance__;
+    return distance_;
 }
 
 geometry::Geometry::IntersectionList const & Path::GetIntersections() {
@@ -122,9 +132,9 @@ void Path::EnsureDetectorModel() {
 void Path::SetPoints(GeometryPosition first_point, GeometryPosition last_point) {
     first_point_ = first_point;
     last_point_ = last_point;
-    direction_ = last_point_ - first_point_;
-    distance_ = direction_.magnitude();
-    direction_.normalize();
+    direction_ = GeometryDirection(last_point_ - first_point_);
+    distance_ = direction_->magnitude();
+    direction_->normalize();
     set_points_ = true;
     set_det_points_ = false;
     set_intersections_ = false;
@@ -135,9 +145,9 @@ void Path::SetPoints(GeometryPosition first_point, GeometryPosition last_point) 
 void Path::SetPoints(DetectorPosition first_point, DetectorPosition last_point) {
     first_point_det_ = first_point;
     last_point_det_ = last_point;
-    direction_det_ = last_point_det_ - first_point_det_;
-    distance_ = direction_det_.magnitude();
-    direction_det_.normalize();
+    direction_det_ = DetectorDirection(last_point_det_ - first_point_det_);
+    distance_ = direction_det_->magnitude();
+    direction_det_->normalize();
     set_points_ = false;
     set_det_points_ = true;
     set_intersections_ = false;
@@ -145,14 +155,14 @@ void Path::SetPoints(DetectorPosition first_point, DetectorPosition last_point) 
     UpdatePoints();
 }
 
-void Path::SetPointsWithRay(GeometryPosition first_point, GeometryPosition direction, double distance) {
+void Path::SetPointsWithRay(GeometryPosition first_point, GeometryDirection direction, double distance) {
     first_point_ = first_point;
     direction_ = direction;
-    direction_.normalize();
+    direction_->normalize();
     //double dif = std::abs(direction_.magnitude() - direction.magnitude()) / std::max(direction_.magnitude(), direction.magnitude());
     //if(not std::isnan(dif)) assert(dif < 1e-12);
     distance_ = distance;
-    last_point_ = first_point + direction * distance;
+    last_point_ = first_point + GeometryPosition(direction * distance);
     set_points_ = true;
     set_det_points_ = false;
     set_intersections_ = false;
@@ -160,14 +170,14 @@ void Path::SetPointsWithRay(GeometryPosition first_point, GeometryPosition direc
     UpdatePoints();
 }
 
-void Path::SetPointsWithRay(DetectorPosition first_point, DetectorPosition direction, double distance) {
+void Path::SetPointsWithRay(DetectorPosition first_point, DetectorDirection direction, double distance) {
     first_point_det_ = first_point;
     direction_det_ = direction;
-    direction_det_.normalize();
+    direction_det_->normalize();
     //double dif = std::abs(direction_.magnitude() - direction.magnitude()) / std::max(direction_.magnitude(), direction.magnitude());
     //if(not std::isnan(dif)) assert(dif < 1e-12);
-    distance_det_ = distance;
-    last_point_det_ = first_point + direction * distance;
+    distance_ = distance;
+    last_point_det_ = first_point + DetectorPosition(direction * distance);
     set_points_ = false;
     set_det_points_ = true;
     set_intersections_ = false;
@@ -219,13 +229,13 @@ void Path::ClipToOuterBounds() {
         bool clip_1 = (p1 - last_point_) * direction_ < 0;
         bool clip = clip_0 or clip_1;
         if(clip_0) {
-            first_point_ = p0;
+            first_point_ = GeometryPosition(p0);
         }
         if(clip_1) {
-            last_point_ = p1;
+            last_point_ = GeometryPosition(p1);
         }
         if(clip) {
-            distance_ = (last_point_ - first_point_).magnitude();
+            distance_ = (last_point_ - first_point_)->magnitude();
             set_column_depth_ = false;
         }
         set_det_points_ = false;
@@ -487,7 +497,7 @@ double Path::GetColumnDepthFromStartInBounds(double distance) {
     }
     EnsureIntersections();
     EnsurePoints();
-    return detector_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance);
+    return detector_model_->GetColumnDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * distance));
 }
 
 double Path::GetColumnDepthFromEndInBounds(double distance) {
@@ -498,31 +508,31 @@ double Path::GetColumnDepthFromEndInBounds(double distance) {
     }
     EnsureIntersections();
     EnsurePoints();
-    return detector_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance);
+    return detector_model_->GetColumnDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * -distance));
 }
 
 double Path::GetColumnDepthFromStartAlongPath(double distance) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance), distance);
+    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * distance)), distance);
 }
 
 double Path::GetColumnDepthFromEndAlongPath(double distance) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance), distance);
+    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * distance)), distance);
 }
 
 double Path::GetColumnDepthFromStartInReverse(double distance) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance), distance);
+    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * -distance)), distance);
 }
 
 double Path::GetColumnDepthFromEndInReverse(double distance) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance), distance);
+    return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * -distance)), distance);
 }
 
 
@@ -540,7 +550,7 @@ double Path::GetInteractionDepthFromStartInBounds(double distance,
     }
     EnsureIntersections();
     EnsurePoints();
-    return detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets, total_cross_sections, total_decay_length);
+    return detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * distance), targets, total_cross_sections, total_decay_length);
 }
 
 double Path::GetInteractionDepthFromEndInBounds(double distance,
@@ -554,7 +564,7 @@ double Path::GetInteractionDepthFromEndInBounds(double distance,
     }
     EnsureIntersections();
     EnsurePoints();
-    return detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets, total_cross_sections, total_decay_length);
+    return detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * -distance), targets, total_cross_sections, total_decay_length);
 }
 
 double Path::GetInteractionDepthFromStartAlongPath(double distance,
@@ -563,7 +573,7 @@ double Path::GetInteractionDepthFromStartAlongPath(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * distance, targets, total_cross_sections, total_decay_length), distance);
+    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * distance), targets, total_cross_sections, total_decay_length), distance);
 }
 
 double Path::GetInteractionDepthFromEndAlongPath(double distance,
@@ -572,7 +582,7 @@ double Path::GetInteractionDepthFromEndAlongPath(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * distance, targets, total_cross_sections, total_decay_length), distance);
+    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * distance), targets, total_cross_sections, total_decay_length), distance);
 }
 
 double Path::GetInteractionDepthFromStartInReverse(double distance,
@@ -581,7 +591,7 @@ double Path::GetInteractionDepthFromStartInReverse(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, first_point_ + direction_ * -distance, targets, total_cross_sections, total_decay_length), distance);
+    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * -distance), targets, total_cross_sections, total_decay_length), distance);
 }
 
 double Path::GetInteractionDepthFromEndInReverse(double distance,
@@ -590,7 +600,7 @@ double Path::GetInteractionDepthFromEndInReverse(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
-    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, last_point_ + direction_ * -distance, targets, total_cross_sections, total_decay_length), distance);
+    return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * -distance), targets, total_cross_sections, total_decay_length), distance);
 }
 
 
@@ -760,10 +770,10 @@ bool Path::IsWithinBounds(DetectorPosition point) {
 
 double Path::GetDistanceFromStartInBounds(DetectorPosition point) {
     UpdatePoints();
-    if(set_det_points) {
+    if(set_det_points_) {
         double d0 = LI::math::scalar_product(direction_det_, point - first_point_det_);
         return std::max(0.0, d0);
-    else if (set_points_ and set_detector_model_) {
+    } else if (set_points_ and set_detector_model_) {
         return GetDistanceFromStartInBounds(detector_model_->ToGeo(point));
     } else {
         throw(std::runtime_error("Detector points not set!"));

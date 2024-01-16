@@ -82,10 +82,10 @@ public:
     std::shared_ptr<const DetectorModel> GetDetectorModel();
     DetectorPosition const & GetFirstPoint();
     DetectorPosition const & GetLastPoint();
-    DetectorPosition const & GetDirection();
+    DetectorDirection const & GetDirection();
     GeometryPosition const & GetGeoFirstPoint();
     GeometryPosition const & GetGeoLastPoint();
-    GeometryPosition const & GetGeoDirection();
+    GeometryDirection const & GetGeoDirection();
     double GetDistance();
     geometry::Geometry::IntersectionList const & GetIntersections();
 
