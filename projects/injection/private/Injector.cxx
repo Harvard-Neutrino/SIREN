@@ -17,6 +17,7 @@
 #include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/detector/MaterialModel.h"
 #include "LeptonInjector/detector/Path.h"
+#include "LeptonInjector/detector/Coordinates.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 #include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
@@ -30,6 +31,9 @@
 
 namespace LI {
 namespace injection {
+
+using detector::DetectorPosition;
+using detector::DetectorDirection;
 
 //---------------
 // class Injector
@@ -144,8 +148,8 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     primary_direction.normalize();
 
 
-    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(interaction_vertex, primary_direction);
-    std::set<LI::dataclasses::Particle::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, record.interaction_vertex);
+    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+    std::set<LI::dataclasses::Particle::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, DetectorPosition(record.interaction_vertex));
 
     double total_prob = 0.0;
     double xsec_prob = 0.0;
@@ -160,7 +164,7 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
       for(auto const target : available_targets) {
           if(possible_targets.find(target) != possible_targets.end()) {
               // Get target density
-              double target_density = detector_model->GetParticleDensity(intersections, interaction_vertex, target);
+              double target_density = detector_model->GetParticleDensity(intersections, DetectorPosition(interaction_vertex), target);
               // Loop over cross sections that have this target
               std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
               for(auto const & cross_section : target_cross_sections) {
@@ -314,73 +318,6 @@ void Injector::SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const &
     decay.decay_parameters[2] = (1+alpha_phys*costh)/(1+alpha_gen*costh);
     decay.decay_parameters[3] = a;
     decay.decay_parameters[4] = b;
-}
-
-void Injector::SamplePairProduction(LI::dataclasses::DecayRecord const & decay, LI::dataclasses::InteractionRecord & interaction) const {
-    // function for simulating the pair production of the photon created in HNL decay
-    // considers the different radiation lengths of materials in the detector
-    // Nick TODO: comment more
-
-    LI::detector::MaterialModel const & mat_model = detector_model->GetMaterials();
-    LI::math::Vector3D decay_vtx(decay.decay_vertex);
-    unsigned int gamma_index = 0;
-    LI::math::Vector3D decay_dir(decay.secondary_momenta[gamma_index][1],
-                                 decay.secondary_momenta[gamma_index][2],
-                                 decay.secondary_momenta[gamma_index][3]);
-
-    interaction.signature.primary_type = decay.signature.secondary_types[gamma_index];
-    interaction.primary_mass = decay.secondary_masses[gamma_index];
-    interaction.primary_momentum = decay.secondary_momenta[gamma_index];
-    interaction.primary_helicity = decay.secondary_helicity[gamma_index];
-
-    decay_dir.normalize();
-
-    LI::detector::Path path(detector_model, decay_vtx, decay_dir, 0);
-    path.ComputeIntersections();
-
-    std::vector<double> X0;
-    std::vector<double> P;
-    std::vector<double> D;
-    double x0; double p; double density;
-    D.push_back(0.);
-    double N = 0;
-    double lnP_nopp = 0; // for calculating the probability that no pair production occurs
-    LI::geometry::Geometry::IntersectionList const & ilist = path.GetIntersections();
-    LI::math::Vector3D density_point = decay_vtx;
-    unsigned int i = 0;
-    for(unsigned int j=0; j < ilist.intersections.size(); ++j) {
-        auto const & intersection = ilist.intersections[j];
-        if(intersection.distance<0 || std::isinf(intersection.distance))
-            continue;
-        D.push_back(intersection.distance);
-        x0 = (9./7.)*mat_model.GetMaterialRadiationLength(intersection.matID); // in g/cm^2
-        density_point += 0.5*(intersection.position - density_point);
-        density = detector_model->GetMassDensity(density_point);
-        x0 *= 0.01/density; // in m
-        X0.push_back(x0);
-        p = std::exp(-D[i]/x0) - std::exp(-D[i+1]/x0);
-        P.push_back(p);
-        N += p;
-        lnP_nopp += -(D[i+1] - D[i])/x0;
-        density_point = intersection.position;
-        ++i;
-    }
-
-    interaction.interaction_parameters.resize(1);
-    interaction.interaction_parameters[0] = std::exp(lnP_nopp);
-
-    // sample the PDF by inverting the CDF
-    double X = random->Uniform(0, 1);
-    double C = 0;
-    if(P.size() > 0) {
-        unsigned int j=0;
-        for(; j < P.size(); ++j){
-            C += P[j]/N;
-            if(C>X) {C -= P[j]/N; break;}
-        }
-        double pairprod_dist = -X0[j]*std::log(-N*(X - C) + std::exp(-D[j]/X0[j]));
-        interaction.interaction_vertex = LI::math::Vector3D(decay.decay_vertex) + pairprod_dist * decay_dir;
-    }
 }
 
 // Function to sample secondary processes
