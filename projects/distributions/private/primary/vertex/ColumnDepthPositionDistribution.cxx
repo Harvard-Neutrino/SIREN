@@ -13,6 +13,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/detector/Path.h"
+#include "LeptonInjector/detector/Coordinates.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
 #include "LeptonInjector/math/Quaternion.h"
@@ -22,6 +23,9 @@
 
 namespace LI {
 namespace distributions {
+
+using detector::DetectorPosition;
+using detector::DetectorDirection;
 
 namespace {
     double log_one_minus_exp_of_negative(double x) {
@@ -62,7 +66,7 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
@@ -97,7 +101,7 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
-    LI::math::Vector3D vertex = detector_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+    LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
     return vertex;
 }
@@ -125,13 +129,11 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     LI::math::Vector3D endcap_0 = pca - (endcap_length * dir);
     LI::math::Vector3D endcap_1 = pca + (endcap_length * dir);
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
-    LI::math::Vector3D earth_vertex = detector_model->GetEarthCoordPosFromDetCoordPos(vertex);
-
-    if(not path.IsWithinBounds(earth_vertex))
+    if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
 
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
@@ -152,11 +154,11 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(earth_vertex));
+    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(DetectorPosition(vertex)));
 
     double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    double interaction_density = detector_model->GetInteractionDensity(path.GetIntersections(), earth_vertex, targets, total_cross_sections, total_decay_length);
+    double interaction_density = detector_model->GetInteractionDensity(path.GetIntersections(), DetectorPosition(vertex), targets, total_cross_sections, total_decay_length);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {
@@ -194,7 +196,7 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistributio
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
     return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
