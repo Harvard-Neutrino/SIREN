@@ -14,6 +14,20 @@
 namespace LI {
 namespace detector {
 
+void Path::UpdatePoints() {
+    if((not set_points_) and set_det_points_ and set_detector_model_) {
+        first_point_ = detector_model_->ToGeo(first_point_det_);
+        last_point_ = detector_model_->ToGeo(last_point_det_);
+        direction_ = detector_model_->ToGeo(direction_det_);
+        set_points_ = true;
+    } else if ((not set_det_points_) and set_points_ and set_detector_model_) {
+        first_point_det_ = detector_model_->ToDet(first_point_);
+        last_point_det_ = detector_model_->ToDet(last_point_);
+        direction_det_ = detector_model_->ToDet(direction_);
+        set_det_points_ = true;
+    }
+}
+
 Path::Path() {
 
 }
@@ -52,20 +66,38 @@ std::shared_ptr<const DetectorModel> Path::GetDetectorModel() {
     return detector_model_;
 }
 
-math::Vector3D const & Path::GetFirstPoint() {
+DetectorPosition const & Path::GetFirstPoint() {
+    UpdatePoints();
+    return first_point_det_;
+}
+
+DetectorPosition const & Path::GetLastPoint() {
+    UpdatePoints();
+    return last_point_det_;
+}
+
+DetectorPosition const & Path::GetDirection() {
+    UpdatePoints();
+    return direction_det_;
+}
+
+GeometryPosition const & Path::GetGeoFirstPoint() {
+    UpdatePoints();
     return first_point_;
 }
 
-math::Vector3D const & Path::GetLastPoint() {
+GeometryPosition const & Path::GetGeoLastPoint() {
+    UpdatePoints();
     return last_point_;
 }
 
-math::Vector3D const & Path::GetDirection() {
+GeometryPosition const & Path::GetGeoDirection() {
+    UpdatePoints();
     return direction_;
 }
 
 double Path::GetDistance() {
-    return distance_;
+    return distance__;
 }
 
 geometry::Geometry::IntersectionList const & Path::GetIntersections() {
@@ -73,8 +105,12 @@ geometry::Geometry::IntersectionList const & Path::GetIntersections() {
 }
 
 void Path::SetDetectorModel(std::shared_ptr<const DetectorModel> detector_model) {
+    if(set_detector_model_ and set_det_points_) {
+        set_points_ = false;
+    }
     detector_model_ = detector_model;
     set_detector_model_ = true;
+    UpdatePoints();
 }
 
 void Path::EnsureDetectorModel() {
@@ -83,18 +119,33 @@ void Path::EnsureDetectorModel() {
     }
 }
 
-void Path::SetPoints(math::Vector3D first_point, math::Vector3D last_point) {
+void Path::SetPoints(GeometryPosition first_point, GeometryPosition last_point) {
     first_point_ = first_point;
     last_point_ = last_point;
     direction_ = last_point_ - first_point_;
     distance_ = direction_.magnitude();
     direction_.normalize();
     set_points_ = true;
+    set_det_points_ = false;
     set_intersections_ = false;
     set_column_depth_ = false;
+    UpdatePoints();
 }
 
-void Path::SetPointsWithRay(math::Vector3D first_point, math::Vector3D direction, double distance) {
+void Path::SetPoints(DetectorPosition first_point, DetectorPosition last_point) {
+    first_point_det_ = first_point;
+    last_point_det_ = last_point;
+    direction_det_ = last_point_det_ - first_point_det_;
+    distance_ = direction_det_.magnitude();
+    direction_det_.normalize();
+    set_points_ = false;
+    set_det_points_ = true;
+    set_intersections_ = false;
+    set_column_depth_ = false;
+    UpdatePoints();
+}
+
+void Path::SetPointsWithRay(GeometryPosition first_point, GeometryPosition direction, double distance) {
     first_point_ = first_point;
     direction_ = direction;
     direction_.normalize();
@@ -103,11 +154,29 @@ void Path::SetPointsWithRay(math::Vector3D first_point, math::Vector3D direction
     distance_ = distance;
     last_point_ = first_point + direction * distance;
     set_points_ = true;
+    set_det_points_ = false;
     set_intersections_ = false;
     set_column_depth_ = false;
+    UpdatePoints();
+}
+
+void Path::SetPointsWithRay(DetectorPosition first_point, DetectorPosition direction, double distance) {
+    first_point_det_ = first_point;
+    direction_det_ = direction;
+    direction_det_.normalize();
+    //double dif = std::abs(direction_.magnitude() - direction.magnitude()) / std::max(direction_.magnitude(), direction.magnitude());
+    //if(not std::isnan(dif)) assert(dif < 1e-12);
+    distance_det_ = distance;
+    last_point_det_ = first_point + direction * distance;
+    set_points_ = false;
+    set_det_points_ = true;
+    set_intersections_ = false;
+    set_column_depth_ = false;
+    UpdatePoints();
 }
 
 void Path::EnsurePoints() {
+    UpdatePoints();
     if(not set_points_) {
         throw(std::runtime_error("Points not set!"));
     }
@@ -159,6 +228,7 @@ void Path::ClipToOuterBounds() {
             distance_ = (last_point_ - first_point_).magnitude();
             set_column_depth_ = false;
         }
+        set_det_points_ = false;
     } else {
         return;
     }
@@ -168,6 +238,7 @@ void Path::Flip() {
     EnsurePoints();
     std::swap(first_point_, last_point_);
     direction_ *= -1;
+    set_det_points_ = false;
 }
 
 
@@ -183,6 +254,7 @@ void Path::ExtendFromEndByDistance(double distance) {
         last_point_ = first_point_;
     }
     set_column_depth_ = false;
+    set_det_points_ = false;
 }
 
 void Path::ExtendFromStartByDistance(double distance) {
@@ -194,6 +266,7 @@ void Path::ExtendFromStartByDistance(double distance) {
         first_point_ = last_point_;
     }
     set_column_depth_ = false;
+    set_det_points_ = false;
 }
 
 void Path::ShrinkFromEndByDistance(double distance) {
@@ -651,17 +724,50 @@ double Path::GetDistanceFromEndInReverse(double interaction_depth,
 }
 
 
-bool Path::IsWithinBounds(math::Vector3D point) {
-    EnsurePoints();
-    double d0 = LI::math::scalar_product(direction_, first_point_ - point);
-    double d1 = LI::math::scalar_product(direction_, last_point_ - point);
-    return d0 <= 0 and d1 >= 0;
+bool Path::IsWithinBounds(GeometryPosition point) {
+    UpdatePoints();
+    if(set_points_) {
+        double d0 = LI::math::scalar_product(direction_, first_point_ - point);
+        double d1 = LI::math::scalar_product(direction_, last_point_ - point);
+        return d0 <= 0 and d1 >= 0;
+    } else {
+        EnsurePoints();
+    }
 }
 
-double Path::GetDistanceFromStartInBounds(math::Vector3D point) {
-    EnsurePoints();
-    double d0 = LI::math::scalar_product(direction_, point - first_point_);
-    return std::max(0.0, d0);
+double Path::GetDistanceFromStartInBounds(GeometryPosition point) {
+    UpdatePoints();
+    if(set_points_) {
+        double d0 = LI::math::scalar_product(direction_, point - first_point_);
+        return std::max(0.0, d0);
+    } else {
+        EnsurePoints();
+    }
+}
+
+bool Path::IsWithinBounds(DetectorPosition point) {
+    UpdatePoints();
+    if(set_det_points_) {
+        double d0 = LI::math::scalar_product(direction_det_, first_point_det_ - point);
+        double d1 = LI::math::scalar_product(direction_det_, last_point_det_ - point);
+        return d0 <= 0 and d1 >= 0;
+    } else if(set_points_ and set_detector_model_) {
+        return IsWithinBounds(detector_model_->ToGeo(point));
+    } else {
+        throw(std::runtime_error("Detector points not set!"));
+    }
+}
+
+double Path::GetDistanceFromStartInBounds(DetectorPosition point) {
+    UpdatePoints();
+    if(set_det_points) {
+        double d0 = LI::math::scalar_product(direction_det_, point - first_point_det_);
+        return std::max(0.0, d0);
+    else if (set_points_ and set_detector_model_) {
+        return GetDistanceFromStartInBounds(detector_model_->ToGeo(point));
+    } else {
+        throw(std::runtime_error("Detector points not set!"));
+    }
 }
 
 } // namespace detector
