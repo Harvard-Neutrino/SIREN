@@ -17,6 +17,7 @@
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/detector/DetectorModel.h"
+#include "LeptonInjector/detector/Coordinates.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "LeptonInjector/geometry/Geometry.h"
@@ -26,6 +27,9 @@
 
 namespace LI {
 namespace injection {
+
+using detector::DetectorPosition;
+using detector::DetectorDirection;
 
 namespace {
     template <class InIt>
@@ -99,7 +103,7 @@ double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), detector_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
+    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
     std::vector<LI::dataclasses::Particle::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
@@ -123,7 +127,7 @@ double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length);
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(bounds.second), targets, total_cross_sections, total_decay_length);
     double interaction_probability;
     if(total_interaction_depth < 1e-6) {
         interaction_probability = total_interaction_depth;
@@ -150,7 +154,7 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::math::Vecto
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
+    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
@@ -176,9 +180,9 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::math::Vecto
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length);
-    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, bounds.first, detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length);
-    double interaction_density = detector_model->GetInteractionDensity(intersections, detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length);
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(bounds.second), targets, total_cross_sections, total_decay_length);
+    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
+    double interaction_density = detector_model->GetInteractionDensity(intersections, DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {
@@ -202,7 +206,7 @@ double LeptonWeighter::NormalizedPositionProbability(std::pair<LI::math::Vector3
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), primary_direction);
+    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
     std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
@@ -228,9 +232,9 @@ double LeptonWeighter::NormalizedPositionProbability(std::pair<LI::math::Vector3
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, bounds.first, bounds.second, targets, total_cross_sections, total_decay_length);
-    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, bounds.first, detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length);
-    double interaction_density = detector_model->GetInteractionDensity(intersections, detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), targets, total_cross_sections, total_decay_length);
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(bounds.second), targets, total_cross_sections, total_decay_length);
+    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
+    double interaction_density = detector_model->GetInteractionDensity(intersections, DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {
