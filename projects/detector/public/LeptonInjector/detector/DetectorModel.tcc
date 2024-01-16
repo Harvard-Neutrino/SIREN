@@ -5,6 +5,7 @@
 #include <numeric>
 #include <cassert>
 
+#include "LeptonInjector/detector/Coordinates.h"
 #include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/detector/DensityDistribution.h"
 
@@ -12,7 +13,7 @@ namespace LI {
 namespace detector {
 
 template<typename Iterator, class>
-double DetectorModel::GetMassDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, Iterator begin, Iterator end) const {
+double DetectorModel::GetMassDensity(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0, Iterator begin, Iterator end) const {
     math::Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -55,15 +56,15 @@ double DetectorModel::GetMassDensity(geometry::Geometry::IntersectionList const 
 }
 
 template<typename Iterator, class>
-double DetectorModel::GetMassDensity(math::Vector3D const & p0, Iterator begin, Iterator end) const {
+double DetectorModel::GetMassDensity(GeometryPosition const & p0, Iterator begin, Iterator end) const {
     math::Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    geometry::Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    geometry::Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetMassDensity(intersections, p0, begin, end);
 }
 
 
 template<typename Iterator, class>
-std::vector<double> DetectorModel::GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, Iterator begin, Iterator end) const {
+std::vector<double> DetectorModel::GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0, Iterator begin, Iterator end) const {
     math::Vector3D direction = p0 - intersections.position;
     if(direction.magnitude() == 0) {
         direction = intersections.direction;
@@ -110,12 +111,31 @@ std::vector<double> DetectorModel::GetParticleDensity(geometry::Geometry::Inters
 }
 
 template<typename Iterator, typename>
-std::vector<double> DetectorModel::GetParticleDensity(math::Vector3D const & p0, Iterator begin, Iterator end) const {
+std::vector<double> DetectorModel::GetParticleDensity(GeometryPosition const & p0, Iterator begin, Iterator end) const {
     math::Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    geometry::Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    geometry::Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetParticleDensity(intersections, p0, begin, end);
 }
 
+template<typename Iterator, class>
+double DetectorModel::GetMassDensity(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0, Iterator begin, Iterator end) const {
+    return GetMassDensity(intersections, ToGeo(p0), begin, end);
+}
+
+template<typename Iterator, class>
+double DetectorModel::GetMassDensity(DetectorPosition const & p0, Iterator begin, Iterator end) const {
+    return GetMassDensity(ToGeo(p0), begin, end);
+}
+
+template<typename Iterator, class>
+std::vector<double> DetectorModel::GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0, Iterator begin, Iterator end) const {
+    return GetParticleDensity(intersections, ToGeo(p0), begin, end);
+}
+
+template<typename Iterator, typename>
+std::vector<double> DetectorModel::GetParticleDensity(DetectorPosition const & p0, Iterator begin, Iterator end) const {
+    return GetParticleDensity(ToGeo(p0), begin, end);
+}
 
 } // namespace detector
 } // namespace LI
