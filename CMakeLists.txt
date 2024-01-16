@@ -68,6 +68,7 @@ include(delabella)
 include(CFITSIO)
 include(photospline)
 include(googletest)
+include(NamedType)
 
 # load macros for googletest
 include(testing)
