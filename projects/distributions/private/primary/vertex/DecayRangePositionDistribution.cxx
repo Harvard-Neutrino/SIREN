@@ -9,6 +9,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"
 #include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/detector/Path.h"
+#include "LeptonInjector/detector/Coordinates.h"
 #include "LeptonInjector/distributions/Distributions.h"
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 #include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
@@ -18,6 +19,9 @@
 
 namespace LI {
 namespace distributions {
+
+using detector::DetectorPosition;
+using detector::DetectorDirection;
 
 //---------------
 // class DecayRangePositionDistribution : public VertexPositionDistribution
@@ -40,7 +44,7 @@ LI::math::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_pt
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
     path.ClipToOuterBounds();
 
@@ -48,7 +52,7 @@ LI::math::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_pt
     double total_distance = path.GetDistance();
     double dist = -decay_length * log(y * (exp(-total_distance/decay_length) - 1) + 1);
 
-    LI::math::Vector3D vertex = detector_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+    LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
     return vertex;
 }
@@ -67,17 +71,15 @@ double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI:
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
     path.ClipToOuterBounds();
 
-    LI::math::Vector3D earth_vertex = detector_model->GetEarthCoordPosFromDetCoordPos(vertex);
-
-    if(not path.IsWithinBounds(earth_vertex))
+    if(not path.IsWithinBounds(vertex))
         return 0.0;
 
     double total_distance = path.GetDistance();
-    double dist = LI::math::scalar_product(path.GetDirection(), earth_vertex - path.GetFirstPoint());
+    double dist = LI::math::scalar_product(path.GetDirection(), vertex - path.GetFirstPoint());
 
     double prob_density = exp(-dist / decay_length) / (decay_length * (1.0 - exp(-total_distance / decay_length))); // m^-1
     prob_density /= (M_PI * radius * radius); // (m^-1 * m^-2) -> m^-3
@@ -110,13 +112,11 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), endcap_length*2);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
     path.ClipToOuterBounds();
 
-    LI::math::Vector3D earth_vertex = detector_model->GetEarthCoordPosFromDetCoordPos(vertex);
-
-    if(not path.IsWithinBounds(earth_vertex))
+    if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
     return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
