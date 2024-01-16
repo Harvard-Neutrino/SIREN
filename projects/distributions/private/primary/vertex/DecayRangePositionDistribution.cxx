@@ -75,7 +75,7 @@ double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI:
     path.ExtendFromStartByDistance(decay_length * range_function->Multiplier());
     path.ClipToOuterBounds();
 
-    if(not path.IsWithinBounds(vertex))
+    if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
 
     double total_distance = path.GetDistance();
