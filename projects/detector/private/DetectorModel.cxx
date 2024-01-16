@@ -135,7 +135,7 @@ DetectorDirection DetectorModel::ToDet(GeometryDirection && dir) const {
 }
 
 GeometryPosition DetectorModel::ToGeo(DetectorPosition const & pos) const {
-    return GeometryPosition(detector_rotation_..rotate(pos, true) + detector_origin_);
+    return GeometryPosition(detector_rotation_.rotate(pos, true) + detector_origin_);
 }
 
 GeometryDirection DetectorModel::ToGeo(DetectorDirection const & dir) const {
@@ -209,7 +209,7 @@ void DetectorModel::SetSectors(std::vector<DetectorSector> const & sectors) {
 }
 
 GeometryPosition DetectorModel::GetDetectorOrigin() const {
-    return detector_origin_;
+    return GeometryPosition(detector_origin_);
 }
 
 void DetectorModel::SetDetectorOrigin(GeometryPosition const & detector_origin) {
@@ -518,7 +518,7 @@ double DetectorModel::GetMassDensity(Geometry::IntersectionList const & intersec
 
 double DetectorModel::GetMassDensity(GeometryPosition const & p0) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetMassDensity(intersections, p0);
 }
 
@@ -565,7 +565,7 @@ double DetectorModel::GetParticleDensity(Geometry::IntersectionList const & inte
 
 double DetectorModel::GetParticleDensity(GeometryPosition const & p0, LI::dataclasses::Particle::ParticleType target) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetParticleDensity(intersections, p0, target);
 }
 
@@ -632,7 +632,7 @@ double DetectorModel::GetInteractionDensity(GeometryPosition const & p0,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetInteractionDensity(intersections, p0, targets, total_cross_sections, total_decay_length);
 }
 
@@ -692,7 +692,7 @@ double DetectorModel::GetColumnDepthInCGS(GeometryPosition const & p0, GeometryP
     }
     direction.normalize();
 
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetColumnDepthInCGS(intersections, p0, p1);
 }
 
@@ -809,7 +809,7 @@ double DetectorModel::GetMassDensity(Geometry::IntersectionList const & intersec
 
 double DetectorModel::GetMassDensity(GeometryPosition const & p0,  std::set<LI::dataclasses::Particle::ParticleType> targets) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetMassDensity(intersections, p0, targets);
 }
 
@@ -861,7 +861,7 @@ std::vector<double> DetectorModel::GetParticleDensity(Geometry::IntersectionList
 
 std::vector<double> DetectorModel::GetParticleDensity(GeometryPosition const & p0,  std::set<LI::dataclasses::Particle::ParticleType> targets) const {
     Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetParticleDensity(intersections, p0, targets);
 }
 
@@ -993,7 +993,7 @@ double DetectorModel::GetInteractionDepthInCGS(GeometryPosition const & p0, Geom
     }
     direction.normalize();
 
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetInteractionDepthInCGS(intersections, p0, p1, targets, total_cross_sections, total_decay_length);
 }
 
@@ -1030,11 +1030,11 @@ DetectorSector DetectorModel::GetContainingSector(Geometry::IntersectionList con
 
 DetectorSector DetectorModel::GetContainingSector(GeometryPosition const & p0) const {
     Vector3D direction(0, 0, 1);
-    Geometry::IntersectionList intersections = GetIntersections(p0, direction);
+    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetContainingSector(intersections, p0);
 }
 
-Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition const & p0, GeometryPosition const & direction) const {
+Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const {
     Geometry::IntersectionList intersections;
     intersections.position = p0;
     intersections.direction = direction;
@@ -1116,12 +1116,12 @@ Geometry::IntersectionList DetectorModel::GetOuterBounds(GeometryPosition const 
 }
 
 std::set<LI::dataclasses::Particle::ParticleType> DetectorModel::GetAvailableTargets(GeometryPosition const & vertex) const {
-    Geometry::IntersectionList intersections = GetIntersections(vertex, math::Vector3D(0,0,1));
+    Geometry::IntersectionList intersections = GetIntersections(vertex, GeometryDirection(math::Vector3D(0,0,1)));
     return GetAvailableTargets(intersections, vertex);
 }
 
 std::set<LI::dataclasses::Particle::ParticleType> DetectorModel::GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & vertex) const {
-    int matID = GetContainingSector(intersections, Vector3D(vertex[0],vertex[1],vertex[2])).material_id;
+    int matID = GetContainingSector(intersections, vertex).material_id;
     std::vector<LI::dataclasses::Particle::ParticleType> particles = materials_.GetMaterialConstituents(matID);
     return std::set<LI::dataclasses::Particle::ParticleType>(particles.begin(), particles.end());
 }
@@ -1417,7 +1417,7 @@ DetectorSector DetectorModel::GetContainingSector(DetectorPosition const & p0) c
     return GetContainingSector(ToGeo(p0));
 }
 
-Geometry::IntersectionList DetectorModel::GetIntersections(DetectorPosition const & p0, DetectorPosition const & direction) const {
+Geometry::IntersectionList DetectorModel::GetIntersections(DetectorPosition const & p0, DetectorDirection const & direction) const {
     return GetIntersections(ToGeo(p0), ToGeo(direction));
 }
 
