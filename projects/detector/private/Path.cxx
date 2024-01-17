@@ -245,10 +245,10 @@ void Path::ClipToOuterBounds() {
 }
 
 void Path::Flip() {
-    EnsurePoints();
     std::swap(first_point_, last_point_);
+    std::swap(first_point_det_, last_point_det_);
     direction_ *= -1;
-    set_det_points_ = false;
+    direction_det_ *= -1;
 }
 
 
