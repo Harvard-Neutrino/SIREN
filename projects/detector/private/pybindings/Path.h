@@ -11,6 +11,7 @@
 void register_Path(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace LI::detector;
+    using namespace LI::math;
 
     class_<Path, std::shared_ptr<Path>>(m, "Path")
         .def(init<std::shared_ptr<const DetectorModel>>())
@@ -23,9 +24,9 @@ void register_Path(pybind11::module_ & m) {
         .def("HasColumnDepth", &Path::HasColumnDepth)
 
         .def("GetDetectorModel", &Path::GetDetectorModel)
-        .def("GetFirstPoint", &Path::GetFirstPoint)
-        .def("GetLastPoint", &Path::GetLastPoint)
-        .def("GetDirection", &Path::GetDirection)
+        .def("GetFirstPoint", [](Path & p)->Vector3D{return p.GetFirstPoint().get(); })
+        .def("GetLastPoint", [](Path & p)->Vector3D{return p.GetLastPoint().get(); })
+        .def("GetDirection", [](Path & p)->Vector3D{return p.GetDirection().get(); })
         .def("GetGeoFirstPoint", &Path::GetGeoFirstPoint)
         .def("GetGeoLastPoint", &Path::GetGeoLastPoint)
         .def("GetGeoDirection", &Path::GetGeoDirection)

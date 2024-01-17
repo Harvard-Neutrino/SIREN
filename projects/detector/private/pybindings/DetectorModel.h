@@ -216,6 +216,18 @@ void register_DetectorModel(pybind11::module_ & m) {
                     )(&DetectorModel::GetAvailableTargets))
         .def("GetTargetMass", &DetectorModel::GetTargetMass)
         .def("GetMaterials",&DetectorModel::GetMaterials)
-        .def("GetDetectorOrigin",&DetectorModel::GetDetectorOrigin);
-
+        .def("GetDetectorOrigin",&DetectorModel::GetDetectorOrigin)
+        .def("GeoPositionToDetPosition", (
+                    DetectorPosition (DetectorModel::*)(GeometryPosition const &) const
+                    )(&DetectorModel::ToDet))
+        .def("GeoDirectionToDetDirection", (
+                    DetectorDirection (DetectorModel::*)(GeometryDirection const &) const
+                    )(&DetectorModel::ToDet))
+        .def("DetPositionToGeoPosition", (
+                    GeometryPosition (DetectorModel::*)(DetectorPosition const &) const
+                    )(&DetectorModel::ToGeo))
+        .def("DetDirectionToGeoDirection", (
+                    GeometryDirection (DetectorModel::*)(DetectorDirection const &) const
+                    )(&DetectorModel::ToGeo))
+        ;
 }
