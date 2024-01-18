@@ -2,13 +2,14 @@
 #ifndef LI_Coordinates_H
 #define LI_Coordinates_H
 
+#include <utility>
 #include "LeptonInjector/math/Vector3D.h"           // for Vector3D
 #include <NamedType/named_type.hpp>
 
 namespace fluent {
 
 template<typename O>
-struct AltArithmetic {
+struct A {
 
 template <typename T>
 struct MultiplicableBy : crtp<T, MultiplicableBy>
@@ -38,15 +39,6 @@ struct DivisibleBy : crtp<T, DivisibleBy>
     }
 };
 
-template <typename T>
-struct MultiplicableTo : crtp<T, MultiplicableTo>
-{
-    FLUENT_NODISCARD constexpr O operator*(T const& other) const
-    {
-        return O(this->underlying().get() * other.get());
-    }
-};
-
 };
 
 } // namespace fluent
@@ -55,10 +47,10 @@ struct MultiplicableTo : crtp<T, MultiplicableTo>
 namespace LI {
 namespace detector {
 
-using GeometryPosition = fluent::NamedType<LI::math::Vector3D, struct GeometryPositionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::AltArithmetic<double>::MultiplicableBy, fluent::AltArithmetic<double>::DivisibleBy, fluent::AltArithmetic<double>::MultiplicableTo>;
-using GeometryDirection = fluent::NamedType<LI::math::Vector3D, struct GeometryDirectionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::AltArithmetic<double>::MultiplicableBy, fluent::AltArithmetic<double>::DivisibleBy, fluent::AltArithmetic<double>::MultiplicableTo>;
-using DetectorPosition = fluent::NamedType<LI::math::Vector3D, struct DetectorPositionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::AltArithmetic<double>::MultiplicableBy, fluent::AltArithmetic<double>::DivisibleBy, fluent::AltArithmetic<double>::MultiplicableTo>;
-using DetectorDirection = fluent::NamedType<LI::math::Vector3D, struct DetectorDirectionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::AltArithmetic<double>::MultiplicableBy, fluent::AltArithmetic<double>::DivisibleBy, fluent::AltArithmetic<double>::MultiplicableTo>;
+using GeometryPosition = fluent::NamedType<LI::math::Vector3D, struct GeometryPositionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
+using GeometryDirection = fluent::NamedType<LI::math::Vector3D, struct GeometryDirectionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
+using DetectorPosition = fluent::NamedType<LI::math::Vector3D, struct DetectorPositionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
+using DetectorDirection = fluent::NamedType<LI::math::Vector3D, struct DetectorDirectionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
 
 } // namespace detector
 } // namespace LI
