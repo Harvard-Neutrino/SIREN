@@ -21,6 +21,10 @@
 
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 
+namespace LI { namespace dataclasses { struct InteractionRecord; } }
+
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord const& record);
+
 namespace LI {
 namespace dataclasses {
 
@@ -38,7 +42,7 @@ struct InteractionRecord {
     std::vector<double> secondary_helicity;
     std::vector<double> interaction_parameters;
     bool operator==(InteractionRecord const & other) const;
-    friend std::ostream& operator<<(std::ostream& os, InteractionRecord const& record);
+    friend std::ostream& ::operator<<(std::ostream& os, InteractionRecord const& record);
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
