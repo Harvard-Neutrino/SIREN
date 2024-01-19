@@ -322,10 +322,10 @@ double DISFromSpline::DifferentialCrossSection(dataclasses::InteractionRecord co
     double x = Q2 / (2.0 * p2.dot(q));
     double lepton_mass = particleMass(interaction.signature.secondary_types[lepton_index]);
 
-    return DifferentialCrossSection(primary_energy, x, y, lepton_mass);
+    return DifferentialCrossSection(primary_energy, x, y, lepton_mass, Q2);
 }
 
-double DISFromSpline::DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass) const {
+double DISFromSpline::DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2) const {
     double log_energy = log10(energy);
     // check preconditions
     if(log_energy < differential_cross_section_.lower_extent(0)
@@ -339,7 +339,9 @@ double DISFromSpline::DifferentialCrossSection(double energy, double x, double y
     // we assume that:
     // the target is stationary so its energy is just its mass
     // the incoming neutrino is massless, so its kinetic energy is its total energy
-    double Q2 = 2.0 * energy * target_mass_ * x * y;
+    if(std::isnan(Q2)) {
+        Q2 = 2.0 * energy * target_mass_ * x * y;
+    }
     if(Q2 < minimum_Q2_) // cross section not calculated, assumed to be zero
         return 0;
 
@@ -401,6 +403,7 @@ void DISFromSpline::SampleFinalState(dataclasses::InteractionRecord& interaction
     double m3 = m;
     double E1_lab = p1_lab.e();
     double E2_lab = p2_lab.e();
+
 
     // The out-going particle always gets at least enough energy for its rest mass
     double yMax = 1 - m / primary_energy;
