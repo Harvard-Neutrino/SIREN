@@ -228,6 +228,8 @@ if(DEFINED SKBUILD)
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
     install(DIRECTORY ${PROJECT_SOURCE_DIR}/python/
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+    install(DIRECTORY ${PROJECT_SOURCE_DIR}/resources
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
 endif()
 
 # Export targets for use in downstream CMake projects
