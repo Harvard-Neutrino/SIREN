@@ -261,8 +261,8 @@ void Path::ClipToOuterBounds() {
         if(dot < 0) {
             p0.swap(p1);
         }
-        bool clip_0 = ((p0 - first_point_) * direction_ > 0) || (first_inf_);
-        bool clip_1 = ((p1 - last_point_) * direction_ < 0) || (last_inf_);
+        bool clip_0 = (first_inf_) || ((p0 - first_point_) * direction_ > 0);
+        bool clip_1 = (last_inf_) || ((p1 - last_point_) * direction_ < 0);
         bool clip = clip_0 or clip_1;
         if(clip_0) {
             first_point_ = GeometryPosition(p0);
