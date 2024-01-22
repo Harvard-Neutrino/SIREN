@@ -11,6 +11,7 @@ from scipy.interpolate import CloughTocher2DInterpolator, CubicSpline
 import leptoninjector as LI
 from leptoninjector.interactions import DarkNewsCrossSection, DarkNewsDecay
 from leptoninjector.dataclasses import Particle
+from leptoninjector import _util
 
 # DarkNews methods
 from DarkNews import phase_space
@@ -18,6 +19,9 @@ from DarkNews.ModelContainer import ModelContainer
 from DarkNews.processes import *
 from DarkNews.nuclear_tools import NuclearTarget
 from DarkNews.integrands import get_decay_momenta_from_vegas_samples
+
+
+resources_dir = _util.resource_package_dir()
 
 
 # Class containing all upscattering and decay modes available in DarkNews
@@ -39,12 +43,12 @@ class PyDarkNewsInteractionCollection:
 
         # Default table_dir settings
         if self.table_dir is None:
-            self.table_dir = (
-                os.environ.get("LEPTONINJECTOR_SRC")
-                + "/resources/CrossSectionTables/DarkNewsTables/"
+            self.table_dir = os.path.join(
+                resources_dir,
+                "CrossSectionTables",
+                "DarkNewsTables",
+                datetime.datetime.now().strftime("%Y_%m_%d__%H:%M"),
             )
-            ct = datetime.datetime.now().strftime("%Y_%m_%d__%H:%M/")
-            self.table_dir += ct
 
         # Make the table directory where will we store cross section integrators
         table_dir_exists = False
