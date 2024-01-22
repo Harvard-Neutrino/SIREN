@@ -1,8 +1,8 @@
-import numpy as np
 import os
+import sys
+import numpy as np
 
 import leptoninjector as LI
-import sys
 from leptoninjector import _util
 from leptoninjector.LIController import LIController
 
