@@ -81,7 +81,7 @@ PYBIND11_MODULE(distributions,m) {
 
   // Energy distributions
 
-  class_<PrimaryEnergyDistribution, std::shared_ptr<PrimaryEnergyDistribution>, InjectionDistribution>(m, "PrimaryEnergyDistribution")
+  class_<PrimaryEnergyDistribution, std::shared_ptr<PrimaryEnergyDistribution>, InjectionDistribution, PhysicallyNormalizedDistribution>(m, "PrimaryEnergyDistribution")
     .def("Sample",&PrimaryEnergyDistribution::Sample);
 
   class_<Monoenergetic, std::shared_ptr<Monoenergetic>, PrimaryEnergyDistribution>(m, "Monoenergetic")
