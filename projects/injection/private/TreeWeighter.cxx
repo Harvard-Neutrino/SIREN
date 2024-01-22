@@ -202,8 +202,6 @@ void LeptonProcessWeighter::Initialize() {
     }
     unique_gen_distributions = inj_process->GetInjectionDistributions();
     unique_phys_distributions = phys_process->GetPhysicalDistributions();
-    std::cout << "Num gen distributions: " << unique_gen_distributions.size() << std::endl;
-    std::cout << "Num phys distributions: " << unique_phys_distributions.size() << std::endl;
     for(std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>>::reverse_iterator gen_it = unique_gen_distributions.rbegin();
             gen_it != unique_gen_distributions.rend(); ++gen_it) {
         for(std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>>::reverse_iterator phys_it = unique_phys_distributions.rbegin();
@@ -215,8 +213,6 @@ void LeptonProcessWeighter::Initialize() {
             }
         }
     }
-    std::cout << "Num gen distributions: " << unique_gen_distributions.size() << std::endl;
-    std::cout << "Num phys distributions: " << unique_phys_distributions.size() << std::endl;
 }
 
 double LeptonProcessWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const {
