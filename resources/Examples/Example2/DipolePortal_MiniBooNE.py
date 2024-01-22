@@ -1,15 +1,10 @@
 import os
 
 import leptoninjector as LI
-import sys
+from leptoninjector import _util
+from leptoninjector.LIController import LIController
 
-sys.path.insert(
-    1,
-    "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/LIV2/sources/LeptonInjector/python",
-)
-from LIController import LIController
-
-LI_SRC = os.environ.get("LEPTONINJECTOR_SRC")
+resources_dir = _util.resource_package_dir()
 
 # Define a DarkNews model
 model_kwargs = {
@@ -37,10 +32,11 @@ controller = LIController(events_to_inject, experiment)
 primary_type = LI.dataclasses.Particle.ParticleType.NuMu
 
 # Define DarkNews Model
-table_dir = (
-    LI_SRC
-    + "/resources/CrossSectionTables/DarkNewsTables/Dipole_M%2.2f_mu%2.2e/"
-    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
+table_dir = os.path.join(
+    resources_dir,
+    "CrossSectionTables",
+    "DarkNewsTables",
+    "Dipole_M%2.2f_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
 )
 controller.InputDarkNewsModel(primary_type, table_dir, model_kwargs)
 
@@ -49,7 +45,12 @@ primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-flux_file = LI_SRC + "/resources/Fluxes/BNB_Flux_Tables/BNB_numu_flux.txt"
+flux_file = os.path.join(
+    resources_dir,
+    "Fluxes",
+    "BNB_Flux_Tables",
+    "BNB_numu_flux.txt",
+)
 edist = LI.distributions.TabulatedFluxDistribution(flux_file, True)
 edist_gen = LI.distributions.TabulatedFluxDistribution(
     1.05 * model_kwargs["m4"], 10, flux_file, False
@@ -71,7 +72,7 @@ decay_range_func = LI.distributions.DecayRangeFunction(
     model_kwargs["m4"], controller.DN_min_decay_width, 3, 541
 )
 position_distribution = LI.distributions.RangePositionDistribution(
-    6.2, 6.2, decay_range_func, set(controller.GetEarthModelTargets()[0])
+    6.2, 6.2, decay_range_func, set(controller.GetDetectorModelTargets()[0])
 )
 primary_injection_distributions["position"] = position_distribution
 
