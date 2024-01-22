@@ -28,6 +28,30 @@ void Path::UpdatePoints() {
     }
 }
 
+bool Path::IsInfinite(LI::math::Vector3D const & vec) {
+    return std::isinf(vec.GetX()) or std::isinf(vec.GetY()) or std::isinf(vec.GetZ());
+}
+
+void Path::RequireFirstFinite() {
+    if(first_inf_)
+        throw std::runtime_error("First point is required to be finite here");
+}
+
+void Path::RequireLastFinite() {
+    if(last_inf_)
+        throw std::runtime_error("Last point is required to be finite here");
+}
+
+void Path::RequireBothFinite() {
+    if(first_inf_ or last_inf_)
+        throw std::runtime_error("Both points are required to be finite here");
+}
+
+void Path::RequireOneFinite() {
+    if(first_inf_ and last_inf_)
+        throw std::runtime_error("At least one point is required to be finite here");
+}
+
 Path::Path() {
 
 }
