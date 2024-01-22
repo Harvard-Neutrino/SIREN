@@ -163,6 +163,9 @@ void Path::SetPoints(GeometryPosition first_point, GeometryPosition last_point) 
     set_det_points_ = false;
     set_intersections_ = false;
     set_column_depth_ = false;
+    first_inf_ = IsInfinite(first_point);
+    last_inf_ = IsInfinite(last_point);
+    RequireBothFinite();
     UpdatePoints();
 }
 
@@ -176,6 +179,9 @@ void Path::SetPoints(DetectorPosition first_point, DetectorPosition last_point) 
     set_det_points_ = true;
     set_intersections_ = false;
     set_column_depth_ = false;
+    first_inf_ = IsInfinite(first_point);
+    last_inf_ = IsInfinite(last_point);
+    RequireBothFinite();
     UpdatePoints();
 }
 
@@ -191,6 +197,9 @@ void Path::SetPointsWithRay(GeometryPosition first_point, GeometryDirection dire
     set_det_points_ = false;
     set_intersections_ = false;
     set_column_depth_ = false;
+    first_inf_ = IsInfinite(first_point_); // Set using GeometryPosition
+    last_inf_ = IsInfinite(last_point_); // Set using GeometryPosition
+    RequireFirstFinite();
     UpdatePoints();
 }
 
@@ -206,6 +215,9 @@ void Path::SetPointsWithRay(DetectorPosition first_point, DetectorDirection dire
     set_det_points_ = true;
     set_intersections_ = false;
     set_column_depth_ = false;
+    first_inf_ = IsInfinite(first_point_det_); // Set using DetectorPosition
+    last_inf_ = IsInfinite(last_point_det_); // Set using DetectorPosition
+    RequireFirstFinite();
     UpdatePoints();
 }
 
@@ -249,14 +261,16 @@ void Path::ClipToOuterBounds() {
         if(dot < 0) {
             p0.swap(p1);
         }
-        bool clip_0 = (p0 - first_point_) * direction_ > 0;
-        bool clip_1 = (p1 - last_point_) * direction_ < 0;
+        bool clip_0 = ((p0 - first_point_) * direction_ > 0) || (first_inf_);
+        bool clip_1 = ((p1 - last_point_) * direction_ < 0) || (last_inf_);
         bool clip = clip_0 or clip_1;
         if(clip_0) {
             first_point_ = GeometryPosition(p0);
+            first_inf_ = IsInfinite(first_point_); // re-check infinite
         }
         if(clip_1) {
             last_point_ = GeometryPosition(p1);
+            last_inf_ = IsInfinite(last_point_); // re-check infinite
         }
         if(clip) {
             distance_ = (last_point_ - first_point_)->magnitude();
@@ -271,6 +285,7 @@ void Path::ClipToOuterBounds() {
 void Path::Flip() {
     std::swap(first_point_, last_point_);
     std::swap(first_point_det_, last_point_det_);
+    std::swap(first_inf_, last_inf_);
     direction_ *= -1;
     direction_det_ *= -1;
 }
@@ -281,6 +296,7 @@ void Path::Flip() {
 ////
 void Path::ExtendFromEndByDistance(double distance) {
     EnsurePoints();
+    RequireLastFinite();
     distance_ += distance;
     last_point_ += direction_ * distance;
     if(distance_ < 0) {
@@ -293,6 +309,7 @@ void Path::ExtendFromEndByDistance(double distance) {
 
 void Path::ExtendFromStartByDistance(double distance) {
     EnsurePoints();
+    RequireFirstFinite();
     distance_ += distance;
     first_point_ += direction_ * -distance;
     if(distance_ < 0) {
@@ -486,6 +503,7 @@ void Path::ShrinkFromStartToInteractionDepth(double interaction_depth,
 double Path::GetColumnDepthInBounds() {
     EnsureIntersections();
     EnsurePoints();
+    RequireBothFinite();
     if(HasColumnDepth()) {
         return column_depth_cached_;
     } else {
@@ -505,6 +523,7 @@ double Path::GetInteractionDepthInBounds(
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireBothFinite();
     double interaction_depth = detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, last_point_, targets, total_cross_sections, total_decay_length);
     return interaction_depth;
 }
@@ -521,6 +540,7 @@ double Path::GetColumnDepthFromStartInBounds(double distance) {
     }
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     return detector_model_->GetColumnDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * distance));
 }
 
@@ -532,30 +552,35 @@ double Path::GetColumnDepthFromEndInBounds(double distance) {
     }
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     return detector_model_->GetColumnDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * -distance));
 }
 
 double Path::GetColumnDepthFromStartAlongPath(double distance) {
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * distance)), distance);
 }
 
 double Path::GetColumnDepthFromEndAlongPath(double distance) {
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * distance)), distance);
 }
 
 double Path::GetColumnDepthFromStartInReverse(double distance) {
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * -distance)), distance);
 }
 
 double Path::GetColumnDepthFromEndInReverse(double distance) {
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     return std::copysign(detector_model_->GetColumnDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * -distance)), distance);
 }
 
@@ -574,6 +599,7 @@ double Path::GetInteractionDepthFromStartInBounds(double distance,
     }
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     return detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * distance), targets, total_cross_sections, total_decay_length);
 }
 
@@ -588,6 +614,7 @@ double Path::GetInteractionDepthFromEndInBounds(double distance,
     }
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     return detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * -distance), targets, total_cross_sections, total_decay_length);
 }
 
@@ -597,6 +624,7 @@ double Path::GetInteractionDepthFromStartAlongPath(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * distance), targets, total_cross_sections, total_decay_length), distance);
 }
 
@@ -606,6 +634,7 @@ double Path::GetInteractionDepthFromEndAlongPath(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * distance), targets, total_cross_sections, total_decay_length), distance);
 }
 
@@ -615,6 +644,7 @@ double Path::GetInteractionDepthFromStartInReverse(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, first_point_, GeometryPosition(first_point_ + direction_ * -distance), targets, total_cross_sections, total_decay_length), distance);
 }
 
@@ -624,6 +654,7 @@ double Path::GetInteractionDepthFromEndInReverse(double distance,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     return std::copysign(detector_model_->GetInteractionDepthInCGS(intersections_, last_point_, GeometryPosition(last_point_ + direction_ * -distance), targets, total_cross_sections, total_decay_length), distance);
 }
 
@@ -634,6 +665,7 @@ double Path::GetInteractionDepthFromEndInReverse(double distance,
 double Path::GetDistanceFromStartInBounds(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth);
     if(distance > distance_) {
         distance = distance_;
@@ -646,6 +678,7 @@ double Path::GetDistanceFromStartInBounds(double column_depth) {
 double Path::GetDistanceFromEndInBounds(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth);
     if(distance > distance_) {
         distance = distance_;
@@ -658,6 +691,7 @@ double Path::GetDistanceFromEndInBounds(double column_depth) {
 double Path::GetDistanceFromStartAlongPath(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, direction_, column_depth);
     return distance;
 }
@@ -665,6 +699,7 @@ double Path::GetDistanceFromStartAlongPath(double column_depth) {
 double Path::GetDistanceFromEndAlongPath(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, direction_, column_depth);
     return distance;
 }
@@ -672,6 +707,7 @@ double Path::GetDistanceFromEndAlongPath(double column_depth) {
 double Path::GetDistanceFromStartInReverse(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, first_point_, -direction_, column_depth);
     return distance;
 }
@@ -679,6 +715,7 @@ double Path::GetDistanceFromStartInReverse(double column_depth) {
 double Path::GetDistanceFromEndInReverse(double column_depth) {
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     double distance = detector_model_->DistanceForColumnDepthFromPoint(intersections_, last_point_, -direction_, column_depth);
     return distance;
 }
@@ -693,6 +730,7 @@ double Path::GetDistanceFromStartInBounds(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     if(distance > distance_) {
         distance = distance_;
@@ -708,6 +746,7 @@ double Path::GetDistanceFromEndInBounds(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     if(distance > distance_) {
         distance = distance_;
@@ -723,6 +762,7 @@ double Path::GetDistanceFromStartAlongPath(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     return distance;
 }
@@ -733,6 +773,7 @@ double Path::GetDistanceFromEndAlongPath(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     return distance;
 }
@@ -743,6 +784,7 @@ double Path::GetDistanceFromStartInReverse(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireFirstFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, first_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     return distance;
 }
@@ -753,6 +795,7 @@ double Path::GetDistanceFromEndInReverse(double interaction_depth,
             double const & total_decay_length) {
     EnsureIntersections();
     EnsurePoints();
+    RequireLastFinite();
     double distance = detector_model_->DistanceForInteractionDepthFromPoint(intersections_, last_point_, -direction_, interaction_depth, targets, total_cross_sections, total_decay_length);
     return distance;
 }
@@ -760,6 +803,7 @@ double Path::GetDistanceFromEndInReverse(double interaction_depth,
 
 bool Path::IsWithinBounds(GeometryPosition point) {
     UpdatePoints();
+    RequireBothFinite();
     if(set_points_) {
         double d0 = LI::math::scalar_product(direction_, first_point_ - point);
         double d1 = LI::math::scalar_product(direction_, last_point_ - point);
@@ -771,6 +815,7 @@ bool Path::IsWithinBounds(GeometryPosition point) {
 
 double Path::GetDistanceFromStartInBounds(GeometryPosition point) {
     UpdatePoints();
+    RequireFirstFinite();
     if(set_points_) {
         double d0 = LI::math::scalar_product(direction_, point - first_point_);
         return std::max(0.0, d0);
@@ -781,6 +826,7 @@ double Path::GetDistanceFromStartInBounds(GeometryPosition point) {
 
 bool Path::IsWithinBounds(DetectorPosition point) {
     UpdatePoints();
+    RequireBothFinite();
     if(set_det_points_) {
         double d0 = LI::math::scalar_product(direction_det_, first_point_det_ - point);
         double d1 = LI::math::scalar_product(direction_det_, last_point_det_ - point);
@@ -794,6 +840,7 @@ bool Path::IsWithinBounds(DetectorPosition point) {
 
 double Path::GetDistanceFromStartInBounds(DetectorPosition point) {
     UpdatePoints();
+    RequireFirstFinite();
     if(set_det_points_) {
         double d0 = LI::math::scalar_product(direction_det_, point - first_point_det_);
         return std::max(0.0, d0);
