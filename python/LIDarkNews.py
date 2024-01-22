@@ -68,10 +68,10 @@ class PyDarkNewsInteractionCollection:
             if param_file is not None:
                 # ensure the param filename already exists
                 param_filename = ntpath.basename(param_file)  # should be OS-independent
-                assert os.path.isfile(self.table_dir + param_filename)
+                assert os.path.isfile(os.path.join(self.table_dir, param_filename))
             # Make sure the model arguments agree
             with open(
-                self.table_dir + "model_parameters.json",
+                os.path.join(self.table_dir, "model_parameters.json"),
             ) as f:
                 _model_args_dict = json.load(f)
                 assert self.models.model_args_dict == _model_args_dict
@@ -82,7 +82,7 @@ class PyDarkNewsInteractionCollection:
                 command = "scp " + param_file + " " + self.table_dir
                 os.system(command)
             # Dump the model arguments
-            with open(self.table_dir + "model_parameters.json", "w") as f:
+            with open(os.path.join(self.table_dir, "model_parameters.json"), "w") as f:
                 json.dump(self.models.model_args_dict, f)
 
         # Save all unique scattering processes
@@ -97,7 +97,7 @@ class PyDarkNewsInteractionCollection:
             self.cross_sections.append(
                 PyDarkNewsCrossSection(
                     ups_case,
-                    table_dir=self.table_dir + table_subdirs,
+                    table_dir=os.path.join(self.table_dir, table_subdirs),
                     tolerance=tolerance,
                     interp_tolerance=interp_tolerance,
                 )
@@ -110,7 +110,7 @@ class PyDarkNewsInteractionCollection:
                 table_subdirs += "%s_" % str(x)
             table_subdirs += "/"
             self.decays.append(
-                PyDarkNewsDecay(dec_case, table_dir=self.table_dir + table_subdirs)
+                PyDarkNewsDecay(dec_case, table_dir=os.path.join(self.table_dir, table_subdirs))
             )
 
     def SaveCrossSectionTables(self, fill_tables_at_exit=True):
@@ -173,10 +173,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
         # Look in table dir and check whether total/differential xsec tables exist
         if table_dir_exists:
-            total_xsec_file = self.table_dir + "total_cross_sections.npy"
+            total_xsec_file = os.path.join(self.table_dir, "total_cross_sections.npy")
             if os.path.exists(total_xsec_file):
                 self.total_cross_section_table = np.load(total_xsec_file)
-            diff_xsec_file = self.table_dir + "differential_cross_sections.npy"
+            diff_xsec_file = os.path.join(self.table_dir, "differential_cross_sections.npy")
             if os.path.exists(diff_xsec_file):
                 self.differential_cross_section_table = np.load(diff_xsec_file)
 
@@ -357,11 +357,11 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     def SaveInterpolationTables(self, total=True, diff=True):
         if total:
             self._redefine_interpolation_objects(total=True)
-            with open(self.table_dir + "total_cross_sections.npy", "wb") as f:
+            with open(os.path.join(self.table_dir, "total_cross_sections.npy"), "wb") as f:
                 np.save(f, self.total_cross_section_table)
         if diff:
             self._redefine_interpolation_objects(diff=True)
-            with open(self.table_dir + "differential_cross_sections.npy", "wb") as f:
+            with open(os.path.join(self.table_dir, "differential_cross_sections.npy"), "wb") as f:
                 np.save(f, self.differential_cross_section_table)
 
     ##### START METHODS FOR SERIALIZATION #########
@@ -594,12 +594,12 @@ class PyDarkNewsDecay(DarkNewsDecay):
 
     def SetIntegratorAndNorm(self):
         # Try to find the decay integrator
-        int_file = self.table_dir + "decay_integrator.pkl"
+        int_file = os.path.join(self.table_dir, "decay_integrator.pkl")
         if os.path.isfile(int_file):
             with open(int_file, "rb") as ifile:
                 _, self.decay_integrator = pickle.load(ifile)
         # Try to find the normalization information
-        norm_file = self.table_dir + "decay_norm.json"
+        norm_file = os.path.join(self.table_dir, "decay_norm.json")
         if os.path.isfile(norm_file):
             with open(
                 norm_file,
@@ -717,8 +717,8 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 # total width calculation requires evaluating an integral
                 if self.decay_integrator is None or self.decay_norm is None:
                     # We need to initialize a new VEGAS integrator in DarkNews
-                    int_file = self.table_dir + "decay_integrator.pkl"
-                    norm_file = self.table_dir + "decay_norm.json"
+                    int_file = os.path.join(self.table_dir, "decay_integrator.pkl")
+                    norm_file = os.path.join(self.table_dir, "decay_norm.json")
                     self.total_width = self.dec_case.total_width(
                         savefile_norm=norm_file, savefile_dec=int_file
                     )
@@ -786,8 +786,8 @@ class PyDarkNewsDecay(DarkNewsDecay):
             # We need to generate new PS samples
             if self.decay_integrator is None or self.decay_norm is None:
                 # We need to initialize a new VEGAS integrator in DarkNews
-                int_file = self.table_dir + "decay_integrator.pkl"
-                norm_file = self.table_dir + "decay_norm.json"
+                int_file = os.path.join(self.table_dir, "decay_integrator.pkl")
+                norm_file = os.path.join(self.table_dir, "decay_norm.json")
                 self.PS_samples, PS_weights_dict = self.dec_case.SamplePS(
                     savefile_norm=norm_file, savefile_dec=int_file
                 )
