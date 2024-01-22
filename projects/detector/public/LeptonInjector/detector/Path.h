@@ -39,6 +39,8 @@ private:
     GeometryDirection direction_;
     double distance_ = 0;
     bool set_points_ = false;
+    bool first_inf_ = false;
+    bool last_inf_ = false;
 
     DetectorPosition first_point_det_;
     DetectorPosition last_point_det_;
@@ -52,6 +54,11 @@ private:
     bool set_intersections_ = false;
 
     void UpdatePoints();
+    static bool IsInfinite(LI::math::Vector3D const & vec);
+    void RequireFirstFinite();
+    void RequireLastFinite();
+    void RequireBothFinite();
+    void RequireOneFinite();
 public:
     Path();
     Path(std::shared_ptr<const DetectorModel> detector_model);
