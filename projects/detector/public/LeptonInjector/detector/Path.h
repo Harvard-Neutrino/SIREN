@@ -23,6 +23,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"  // for Particle
 #include "LeptonInjector/geometry/Geometry.h"     // for Geometry
 #include "LeptonInjector/detector/DetectorModel.h"   // for DetectorModel
+#include "LeptonInjector/detector/Coordinates.h"
 #include "LeptonInjector/math/Vector3D.h"         // for Vector3D
 
 namespace LI {
@@ -33,22 +34,38 @@ private:
     std::shared_ptr<const DetectorModel> detector_model_;
     bool set_detector_model_ = false;
 
-    math::Vector3D first_point_;
-    math::Vector3D last_point_;
-    math::Vector3D direction_;
+    GeometryPosition first_point_;
+    GeometryPosition last_point_;
+    GeometryDirection direction_;
     double distance_ = 0;
     bool set_points_ = false;
+    bool first_inf_ = false;
+    bool last_inf_ = false;
+
+    DetectorPosition first_point_det_;
+    DetectorPosition last_point_det_;
+    DetectorDirection direction_det_;
+    bool set_det_points_ = false;
 
     double column_depth_cached_;
     bool set_column_depth_ = false;
 
     geometry::Geometry::IntersectionList intersections_;
     bool set_intersections_ = false;
+
+    void UpdatePoints();
+    static bool IsInfinite(LI::math::Vector3D const & vec);
+    void RequireFirstFinite();
+    void RequireLastFinite();
+    void RequireBothFinite();
+    void RequireOneFinite();
 public:
     Path();
     Path(std::shared_ptr<const DetectorModel> detector_model);
-    Path(std::shared_ptr<const DetectorModel> detector_model, math::Vector3D const & first_point, math::Vector3D const & last_point);
-    Path(std::shared_ptr<const DetectorModel> detector_model, math::Vector3D const & first_point, math::Vector3D const & direction, double distance);
+    Path(std::shared_ptr<const DetectorModel> detector_model, GeometryPosition const & first_point, GeometryPosition const & last_point);
+    Path(std::shared_ptr<const DetectorModel> detector_model, GeometryPosition const & first_point, GeometryDirection const & direction, double distance);
+    Path(std::shared_ptr<const DetectorModel> detector_model, DetectorPosition const & first_point, DetectorPosition const & last_point);
+    Path(std::shared_ptr<const DetectorModel> detector_model, DetectorPosition const & first_point, DetectorDirection const & direction, double distance);
 
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
@@ -70,17 +87,22 @@ public:
     bool HasColumnDepth();
 
     std::shared_ptr<const DetectorModel> GetDetectorModel();
-    math::Vector3D const & GetFirstPoint();
-    math::Vector3D const & GetLastPoint();
-    math::Vector3D const & GetDirection();
+    DetectorPosition const & GetFirstPoint();
+    DetectorPosition const & GetLastPoint();
+    DetectorDirection const & GetDirection();
+    GeometryPosition const & GetGeoFirstPoint();
+    GeometryPosition const & GetGeoLastPoint();
+    GeometryDirection const & GetGeoDirection();
     double GetDistance();
     geometry::Geometry::IntersectionList const & GetIntersections();
 
     void SetDetectorModel(std::shared_ptr<const DetectorModel> detector_model);
     void EnsureDetectorModel();
 
-    void SetPoints(math::Vector3D first_point, math::Vector3D last_point);
-    void SetPointsWithRay(math::Vector3D first_point, math::Vector3D direction, double distance);
+    void SetPoints(GeometryPosition first_point, GeometryPosition last_point);
+    void SetPointsWithRay(GeometryPosition first_point, GeometryDirection direction, double distance);
+    void SetPoints(DetectorPosition first_point, DetectorPosition last_point);
+    void SetPointsWithRay(DetectorPosition first_point, DetectorDirection direction, double distance);
     void EnsurePoints();
 
     void SetIntersections(geometry::Geometry::IntersectionList const & intersections);
@@ -224,8 +246,10 @@ public:
             double const & total_decay_length);
     //
 
-    bool IsWithinBounds(math::Vector3D point);
-    double GetDistanceFromStartInBounds(math::Vector3D point);
+    bool IsWithinBounds(GeometryPosition point);
+    double GetDistanceFromStartInBounds(GeometryPosition point);
+    bool IsWithinBounds(DetectorPosition point);
+    double GetDistanceFromStartInBounds(DetectorPosition point);
 };
 
 } // namespace detector

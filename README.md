@@ -1,3 +1,5 @@
+[![Build](https://github.com/Harvard-Neutrino/LeptonInjector/actions/workflows/build_wheels.yml/badge.svg)](https://github.com/Harvard-Neutrino/LeptonInjector/actions/workflows/build_wheels.yml)
+
 # LeptonInjector
 
 LeptonInjector is a framework for injecting and weighting interaction final states of complex topology, with specific concern for the detector geometry. LeptonInjector is designed to support a wide variety of neutrino experimental setups, including atmospheric neutrinos, accelerator beam decay-in-flight neutrinos, and neutrinos from decay-at-rest sources. The original [LeptonInjector-v1](https://github.com/icecube/LeptonInjector) was developed within the IceCube collaboration to study atmospheric and astrophysical neutrino interactions in the IceCube detector.

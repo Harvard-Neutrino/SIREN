@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "./Coordinates.h"
 #include "./DetectorModel.h"
 #include "./DetectorSector.h"
 #include "./Path.h"
@@ -20,6 +21,7 @@
 using namespace pybind11;
 
 PYBIND11_MODULE(detector,m) {
+    register_Coordinates(m);
     register_DetectorModel(m);
     register_DetectorSector(m);
     register_Path(m);

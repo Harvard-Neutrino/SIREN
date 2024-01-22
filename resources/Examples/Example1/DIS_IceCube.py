@@ -25,12 +25,12 @@ primary_type = LI.dataclasses.Particle.ParticleType.NuMu
 xsfiledir = LI_SRC+'resources/CrossSectionTables/DISSplines/'
 target_type = LI.dataclasses.Particle.ParticleType.Nucleon
 
-DIS_xs = LI.crosssections.DISFromSpline(xsfiledir+'test_xs.fits',
+DIS_xs = LI.interactions.DISFromSpline(xsfiledir+'test_xs.fits',
                                         xsfiledir+'test_xs_total.fits',
                                         [primary_type],
                                         [target_type])
 
-primary_xs = LI.crosssections.CrossSectionCollection(primary_type, [DIS_xs])
+primary_xs = LI.interactions.CrossSectionCollection(primary_type, [DIS_xs])
 controller.SetCrossSections(primary_xs)
 
 # Primary distributions

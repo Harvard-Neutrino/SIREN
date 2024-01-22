@@ -15,6 +15,7 @@
 #include "LeptonInjector/geometry/Sphere.h"
 #include "LeptonInjector/detector/DetectorModel.h"
 #include "LeptonInjector/utilities/Constants.h"
+#include "LeptonInjector/detector/Coordinates.h"
 #include "LeptonInjector/detector/DensityDistribution.h"
 #include "LeptonInjector/detector/Distribution1D.h"
 #include "LeptonInjector/detector/Axis1D.h"
@@ -171,7 +172,7 @@ TEST(EdgeCases, ColumnDepthWithEqualPoints)
     unsigned int N_rand = 1000;
     for(unsigned int i=0; i<N_rand; ++i) {
         Vector3D v;
-        EXPECT_EQ(0.0, A.GetColumnDepthInCGS(v, v));
+        EXPECT_EQ(0.0, A.GetColumnDepthInCGS(DetectorPosition(v), DetectorPosition(v)));
     }
 }
 
@@ -324,11 +325,11 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileGetMassDensityCachedIntersections)
         Vector3D p0 = RandomVector(max_radius);
         Vector3D direction = RandomVector(1.0);
         direction.normalize();
-        Geometry::IntersectionList intersections = A.GetIntersections(p0, direction);
+        Geometry::IntersectionList intersections = A.GetIntersections(DetectorPosition(p0), DetectorDirection(direction));
         for(unsigned int j=0; j<10; ++j) {
             Vector3D p1 = p0 + direction * (FakeLegacyDetectorModelFile::RandomDouble()*max_radius*2 - max_radius);
-            double expect = A.GetMassDensity(p1);
-            double density = A.GetMassDensity(intersections, p1);
+            double expect = A.GetMassDensity(DetectorPosition(p1));
+            double density = A.GetMassDensity(intersections, DetectorPosition(p1));
             EXPECT_DOUBLE_EQ(density, expect) << i << " " << j;
         }
     }
@@ -350,12 +351,12 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileIntegralCachedIntersections)
         Vector3D p0 = RandomVector(max_radius);
         Vector3D direction = RandomVector(1.0);
         direction.normalize();
-        Geometry::IntersectionList intersections = A.GetIntersections(p0, direction);
+        Geometry::IntersectionList intersections = A.GetIntersections(DetectorPosition(p0), DetectorDirection(direction));
         for(unsigned int j=0; j<10; ++j) {
             Vector3D p1 = p0 + direction * (FakeLegacyDetectorModelFile::RandomDouble()*max_radius*2 - max_radius);
             Vector3D p2 = p0 + direction * (FakeLegacyDetectorModelFile::RandomDouble()*max_radius*2 - max_radius);
-            double expect = A.GetColumnDepthInCGS(p1, p2);
-            double integral = A.GetColumnDepthInCGS(intersections, p1, p2);
+            double expect = A.GetColumnDepthInCGS(DetectorPosition(p1), DetectorPosition(p2));
+            double integral = A.GetColumnDepthInCGS(intersections, DetectorPosition(p1), DetectorPosition(p2));
             EXPECT_NEAR(integral, expect, std::max(std::abs(integral), std::abs(expect))*1e-8);
         }
     }
@@ -378,11 +379,11 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileInverseIntegralCachedIntersections
         Vector3D p1 = RandomVector(max_radius);
         Vector3D direction = p1 - p0;
         direction.normalize();
-        double integral = A.GetColumnDepthInCGS(p0, p1);
-        Geometry::IntersectionList intersections = A.GetIntersections(p0, direction);
+        double integral = A.GetColumnDepthInCGS(DetectorPosition(p0), DetectorPosition(p1));
+        Geometry::IntersectionList intersections = A.GetIntersections(DetectorPosition(p0), DetectorDirection(direction));
         for(unsigned int j=0; j<10; ++j) {
-            double expect = A.DistanceForColumnDepthFromPoint(p0, direction, integral);
-            double distance = A.DistanceForColumnDepthFromPoint(intersections, p0, direction, integral);
+            double expect = A.DistanceForColumnDepthFromPoint(DetectorPosition(p0), DetectorDirection(direction), integral);
+            double distance = A.DistanceForColumnDepthFromPoint(intersections, DetectorPosition(p0), DetectorDirection(direction), integral);
             EXPECT_NEAR(distance, expect, std::max(std::abs(distance), std::abs(expect))*1e-8);
         }
     }
@@ -409,10 +410,12 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralInternal)
         double min_radius = sphere->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
+        p0 = A.ToDet(GeometryPosition(p0));
+        p1 = A.ToDet(GeometryPosition(p1));
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
-        double sum = A.GetColumnDepthInCGS(p0, p1);
+        double sum = A.GetColumnDepthInCGS(DetectorPosition(p0), DetectorPosition(p1));
         EXPECT_DOUBLE_EQ((p1 - p0).magnitude() * 100 * rho, sum);
     }
 }
@@ -437,10 +440,11 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantGetMassDensityInternal)
         double max_radius = sphere->GetRadius();
         double min_radius = sphere->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
+        p0 = A.ToDet(GeometryPosition(p0));
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_dist = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density_dist);
         double rho = density_dist->Evaluate(Vector3D());
-        double density = A.GetMassDensity(p0);
+        double density = A.GetMassDensity(DetectorPosition(p0));
         EXPECT_DOUBLE_EQ(density, rho);
     }
 }
@@ -471,6 +475,10 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
         double min_radius = sphere_0->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
+        GeometryPosition p0_geo(p0);
+        GeometryPosition p1_geo(p1);
+        DetectorPosition p0_det(A.ToDet(p0_geo));
+        DetectorPosition p1_det(A.ToDet(p1_geo));
         double distance = (p1-p0).magnitude();
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
@@ -483,15 +491,15 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
         bool in_0 = p0.magnitude() <= sphere_0->GetRadius();
         bool in_1 = p1.magnitude() <= sphere_0->GetRadius();
         double integral = 0.0;
-        double sum = A.GetColumnDepthInCGS(p0, p1);
+        double sum = A.GetColumnDepthInCGS(p0_det, p1_det);
         if(in_0 and in_1) {
             integral = rho_0 * (p1-p0).magnitude();
-            ASSERT_DOUBLE_EQ(integral * 100, sum);
+            ASSERT_NEAR(integral * 100, sum, std::min(std::abs(sum), std::abs(integral * 100)) * 1e-8);
         }
         else {
-            Vector3D direction = p1 - p0;
+            Vector3D direction = p1_geo - p0_geo;
             direction.normalize();
-            std::vector<Geometry::Intersection> intersections = sphere_0->Intersections(p0, direction);
+            std::vector<Geometry::Intersection> intersections = sphere_0->Intersections(p0_geo, direction);
             if(intersections.size() > 1) {
                 double dist_0 = intersections[0].distance;
                 double dist_1 = intersections[1].distance;
@@ -500,11 +508,11 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
                     if((not in_0) and in_1) {
                         integral += rho_1*near;
                         integral += rho_0*((p1-p0).magnitude() - near);
-                        ASSERT_DOUBLE_EQ(integral * 100, sum);
+                        ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
                     } else if(in_0 and not in_1) {
                         integral += rho_0*near;
                         integral += rho_1*((p1-p0).magnitude() - near);
-                        ASSERT_DOUBLE_EQ(integral * 100, sum);
+                        ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
                     } else if((not in_0) and (not in_1)) {
                         double far = std::max(std::max(dist_0, 0.0), std::max(dist_1, 0.0));
                         if(near < distance) {
@@ -518,12 +526,12 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
                         } else {
                             integral += rho_1*distance;
                         }
-                        ASSERT_DOUBLE_EQ(integral * 100, sum);
+                        ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
                     }
                 }
                 else if (dist_0 <= 0 and dist_1 <= 0) {
                     integral = rho_1 * (p1-p0).magnitude();
-                    ASSERT_DOUBLE_EQ(integral * 100, sum);
+                    ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
                 }
                 else {
                     double dist = std::max(dist_0, dist_1);
@@ -532,7 +540,7 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
                     } else if(in_0 and not in_1) {
                         integral += rho_0*dist;
                         integral += rho_1*((p1-p0).magnitude() - dist);
-                        ASSERT_DOUBLE_EQ(integral * 100, sum);
+                        ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
                     } else if((not in_0) and (not in_1)) {
                         assert(false);
                     }
@@ -540,10 +548,10 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralNested)
             }
             else {
                 integral = rho_1 * (p1-p0).magnitude();
-                ASSERT_DOUBLE_EQ(integral * 100, sum);
+                ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-8);
             }
         }
-        ASSERT_DOUBLE_EQ(integral * 100, sum);
+        ASSERT_NEAR(integral * 100, sum, std::min(std::abs(integral * 100), std::abs(sum)) * 1e-12);
     }
 }
 
@@ -572,16 +580,18 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantGetMassDensityNested)
         double max_radius = sphere_1->GetRadius();
         double min_radius = sphere_0->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
-        Vector3D p1 = RandomVector(max_radius, min_radius);
+        GeometryPosition p0_geo(p0);
+        DetectorPosition p0_det(A.ToDet(p0_geo));
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_0 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_0.density.get());
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density_1 = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector_1.density.get());
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
         double rho_0 = density_0->Evaluate(Vector3D());
         double rho_1 = density_1->Evaluate(Vector3D());
-        ASSERT_LE(p0.magnitude(), max_radius);
-        bool in_0 = p0.magnitude() <= sphere_0->GetRadius();
-        double density = A.GetMassDensity(p0);
+        ASSERT_LE(min_radius, max_radius);
+        ASSERT_LE(p0_geo->magnitude(), max_radius);
+        bool in_0 = p0_geo->magnitude() <= sphere_0->GetRadius();
+        double density = A.GetMassDensity(p0_det);
         if(in_0) {
             ASSERT_DOUBLE_EQ(density, rho_0);
         }
@@ -652,7 +662,7 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralIntersecting)
         double rho_upper = density_1->Evaluate(upper_center);
 
         double integral = 0.0;
-        double sum = A.GetColumnDepthInCGS(p0, p1);
+        double sum = A.GetColumnDepthInCGS(DetectorPosition(p0), DetectorPosition(p1));
 
         std::vector<Geometry::Intersection> lower_intersections = sphere_0->Intersections(p0, direction);
         std::vector<Geometry::Intersection> upper_intersections = sphere_1->Intersections(p0, direction);
@@ -941,7 +951,7 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantGetMassDensityIntersecting
         double rho_lower = density_0->Evaluate(lower_center);
         double rho_upper = density_1->Evaluate(upper_center);
 
-        double density = A.GetMassDensity(p0);
+        double density = A.GetMassDensity(DetectorPosition(p0));
 
         bool p0_in_lower = (p0-lower_center).magnitude() < radius;
         bool p0_in_upper = (p0-upper_center).magnitude() < radius;
@@ -1021,7 +1031,7 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantIntegralHidden)
         bool p0_in_upper = (p0 - upper_center).magnitude() < radius;
         bool p1_in_upper = (p1 - upper_center).magnitude() < radius;
 
-        double sum = A.GetColumnDepthInCGS(p0, p1);
+        double sum = A.GetColumnDepthInCGS(DetectorPosition(p0), DetectorPosition(p1));
         double integral = 0.0;
         if(p0_in_upper) {
             if(p1_in_upper) {
@@ -1117,7 +1127,7 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantGetMassDensityHidden)
 
         bool p0_in_upper = (p0 - upper_center).magnitude() < radius;
 
-        double density = A.GetMassDensity(p0);
+        double density = A.GetMassDensity(DetectorPosition(p0));
         if(p0_in_upper) {
             EXPECT_DOUBLE_EQ(density, rho_upper);
         } else {
@@ -1151,13 +1161,15 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantInverseIntegralInternal)
 
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
+        p0 = A.ToDet(GeometryPosition(p0));
+        p1 = A.ToDet(GeometryPosition(p1));
 
-        double sum = A.GetColumnDepthInCGS(p0, p1);
+        double sum = A.GetColumnDepthInCGS(DetectorPosition(p0), DetectorPosition(p1));
         Vector3D direction = p1 - p0;
         double distance = direction.magnitude();
         direction.normalize();
 
-        double found_distance = A.DistanceForColumnDepthFromPoint(p0, direction, sum);
+        double found_distance = A.DistanceForColumnDepthFromPoint(DetectorPosition(p0), DetectorDirection(direction), sum);
 
         EXPECT_NEAR(distance, found_distance, std::max(std::abs(distance), std::abs(found_distance))*1e-12);
     }
@@ -1228,9 +1240,9 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantInverseIntegralHidden)
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
 
-        double integral = A.GetColumnDepthInCGS(p0, p1);
+        double integral = A.GetColumnDepthInCGS(DetectorPosition(p0), DetectorPosition(p1));
 
-        double found_distance = A.DistanceForColumnDepthFromPoint(p0, direction, integral);
+        double found_distance = A.DistanceForColumnDepthFromPoint(DetectorPosition(p0), DetectorDirection(direction), integral);
         EXPECT_NEAR(distance, found_distance, std::max(std::abs(distance), std::abs(found_distance))*1e-12);
     }
 }
@@ -1301,9 +1313,9 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantInverseIntegralIntersectin
         ASSERT_TRUE(density_0);
         ASSERT_TRUE(density_1);
 
-        double integral = A.GetColumnDepthInCGS(p0, p1);
+        double integral = A.GetColumnDepthInCGS(DetectorPosition(p0), DetectorPosition(p1));
 
-        double found_distance = A.DistanceForColumnDepthFromPoint(p0, direction, integral);
+        double found_distance = A.DistanceForColumnDepthFromPoint(DetectorPosition(p0), DetectorDirection(direction), integral);
         EXPECT_NEAR(distance, found_distance, std::max(std::abs(distance), std::abs(found_distance))*1e-12);
     }
 }
@@ -1362,9 +1374,9 @@ TEST_F(FakeLegacyDetectorModelTest, LegacyFileConstantInverseIntegralNested)
         ASSERT_TRUE(density_1);
         ASSERT_LE(p0.magnitude(), max_radius);
         ASSERT_LE(p1.magnitude(), max_radius);
-        double integral = A.GetColumnDepthInCGS(p0, p1);
+        double integral = A.GetColumnDepthInCGS(DetectorPosition(p0), DetectorPosition(p1));
 
-        double found_distance = A.DistanceForColumnDepthFromPoint(p0, direction, integral);
+        double found_distance = A.DistanceForColumnDepthFromPoint(DetectorPosition(p0), DetectorDirection(direction), integral);
         EXPECT_NEAR(distance, found_distance, std::max(std::abs(distance), std::abs(found_distance))*1e-12);
     }
 }

@@ -79,7 +79,8 @@ PhysicalProcess & PhysicalProcess::operator=(PhysicalProcess && other) {
 
 void PhysicalProcess::AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) {
     for(auto _dist: physical_distributions) {
-        if((*_dist) == (*dist)) return;
+        if((*_dist) == (*dist))
+            throw std::runtime_error("Cannot add duplicate WeightableDistributions");
     }
     physical_distributions.push_back(dist);
 }
@@ -111,7 +112,8 @@ void InjectionProcess::AddPhysicalDistribution(std::shared_ptr<distributions::We
 }
 void InjectionProcess::AddInjectionDistribution(std::shared_ptr<distributions::InjectionDistribution> dist) {
     for(auto _dist: injection_distributions) {
-        if((*_dist) == (*dist)) return;
+        if((*_dist) == (*dist))
+            throw std::runtime_error("Cannot add duplicate InjectionDistributions");
     }
     injection_distributions.push_back(dist);
     physical_distributions.push_back(std::static_pointer_cast<distributions::WeightableDistribution>(dist));

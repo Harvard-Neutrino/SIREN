@@ -112,36 +112,53 @@ void TabulatedFluxDistribution::ComputeCDF() {
     energies.push_back(energyMax);
     
     // assign the energies vector so it's accessible outside of the function
-    cdf_energy_nodes = energies;
+    //cdf_energy_nodes = energies;
 
-    // declare the cdf vector
-    std::vector<double> cdfvector(energies.size());
+    // declare the cdf vectors
+    std::vector<double> cdf_vector;
+    std::vector<double> cdf_energy_nodes;
 
-    cdfvector[0] = 0; 
-    for (std::size_t i = 1; i < energies.size(); ++i) {
-       double y = pdf(energies[i]);
-       double area = y * (energies[i]-energies[i-1]);
-       cdfvector[i] = cdfvector[i-1] + area; 
+    cdf_vector.push_back(0); // start the CDF at zero
+    cdf_energy_nodes.push_back(energies[0]);
+    for(int i = 1; i < energies.size(); ++i) {
+        double p1 = pdf(energies[i-1]);
+        double p2 = pdf(energies[i]);
+
+        // skip unsupported parts of pdf
+        if((p1+p2)<=0) continue;
+
+        // Check if we have skipped previous energy node
+        if(cdf_energy_nodes.back() != energies[i-1]){
+            // if so, we need to add small epsilon to CDF to
+            // ignore unsupported part of PDF during interpolation
+            cdf_energy_nodes.push_back(energies[i-1]);
+            cdf_vector.push_back(cdf_vector.back()+1e-12);
+        }
+
+        // trapezoidal area
+        double area = 0.5 * (p1 + p2) * (energies[i]-energies[i-1]);
+        cdf_vector.push_back(cdf_vector.back() + area);
+        cdf_energy_nodes.push_back(energies[i]);
     } 
     
 
     // find the max of CDF (should be 1 since we computed from normalized PDF)
-    auto max_it = std::max_element(cdfvector.begin(), cdfvector.end());
+    auto max_it = std::max_element(cdf_vector.begin(), cdf_vector.end());
     double max_cdf = *max_it;
 
 
     // should be normalized, but just to make sure in case energy nodes are too sparse
-    for (double& value : cdfvector) {
+    for (double& value : cdf_vector) {
        value *= 1/max_cdf;
     }
 
 
     // assign the cdf vector so it's accessible outside of the function
-    cdf = cdfvector;
+    cdf = cdf_vector;
 
     LI::utilities::TableData1D<double> inverse_cdf_data;
     inverse_cdf_data.x = cdf; 
-    inverse_cdf_data.f = energies; 
+    inverse_cdf_data.f = cdf_energy_nodes;
 
 
     inverseCdfTable = LI::utilities::Interpolator1D<double>(inverse_cdf_data);

@@ -11,6 +11,7 @@
 #include "LeptonInjector/dataclasses/InteractionSignature.h"      // for Int...
 #include "LeptonInjector/dataclasses/Particle.h"                  // for Par...
 #include "LeptonInjector/detector/DetectorModel.h"                   // for Ear...
+#include "LeptonInjector/detector/Coordinates.h"
 #include "LeptonInjector/geometry/Geometry.h"                     // for Geo...
 #include "LeptonInjector/math/Vector3D.h"                         // for Vec...
 #include "LeptonInjector/utilities/Constants.h"                   // for cm
@@ -18,9 +19,12 @@
 namespace LI {
 namespace injection {
 
+using detector::DetectorPosition;
+using detector::DetectorDirection;
+
 double CrossSectionProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) {
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
-    std::set<LI::dataclasses::Particle::ParticleType> available_targets_list = detector_model->GetAvailableTargets(detector_model->GetEarthCoordPosFromDetCoordPos(record.interaction_vertex));
+    std::set<LI::dataclasses::Particle::ParticleType> available_targets_list = detector_model->GetAvailableTargets(DetectorPosition(record.interaction_vertex));
     std::set<LI::dataclasses::Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
     LI::math::Vector3D interaction_vertex(
@@ -34,7 +38,7 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::DetectorModel const
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), detector_model->GetEarthCoordDirFromDetCoordDir(primary_direction));
+    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
 
     double total_prob = 0.0;
     // double selected_prob = 0.0;
@@ -58,7 +62,7 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::DetectorModel const
     for(auto const target : available_targets) {
         if(possible_targets.find(target) != possible_targets.end()) {
             // Get target density
-            double target_density = detector_model->GetParticleDensity(intersections, detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), target);
+            double target_density = detector_model->GetParticleDensity(intersections, DetectorPosition(interaction_vertex), target);
             // Loop over cross sections that have this target
             std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
             for(auto const & cross_section : target_cross_sections) {

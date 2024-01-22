@@ -28,9 +28,12 @@
 #include "LeptonInjector/detector/MaterialModel.h"  // for MaterialModel
 #include "LeptonInjector/geometry/Geometry.h"       // for Geometry
 #include "LeptonInjector/math/Vector3D.h"           // for Vector3D
+#include "LeptonInjector/math/Quaternion.h"         // for Quaternion
+#include "LeptonInjector/detector/Coordinates.h"
 
 #include "LeptonInjector/dataclasses/Particle.h"
 
+namespace LI { namespace detector { class Path; } }
 namespace LI { namespace detector { class DensityDistribution; } }
 
 namespace LI {
@@ -60,11 +63,13 @@ struct DetectorSector {
 
 class DetectorModel {
 private:
+friend LI::detector::Path;
     std::string path_;
     MaterialModel materials_;
     std::vector<DetectorSector> sectors_;
     std::map<int, unsigned int> sector_map_;
     math::Vector3D detector_origin_;
+    math::Quaternion detector_rotation_;
 public:
     DetectorModel();
     DetectorModel(std::string const & detector_model, std::string const & material_model);
@@ -87,74 +92,157 @@ public:
 
     void LoadDetectorModel(std::string const & detector_model);
     void LoadMaterialModel(std::string const & material_model);
-
-    double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0) const;
-    double GetMassDensity(math::Vector3D const & p0) const;
-    double GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, LI::dataclasses::Particle::ParticleType target) const;
-    double GetParticleDensity(math::Vector3D const & p0, LI::dataclasses::Particle::ParticleType target) const;
-    double GetInteractionDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0,
+private:
+    double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0) const;
+    double GetMassDensity(GeometryPosition const & p0) const;
+    double GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0, LI::dataclasses::Particle::ParticleType target) const;
+    double GetParticleDensity(GeometryPosition const & p0, LI::dataclasses::Particle::ParticleType target) const;
+    double GetInteractionDensity(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const;
-    double GetInteractionDensity(math::Vector3D const & p0,
+    double GetInteractionDensity(GeometryPosition const & p0,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const;
 
-    double GetColumnDepthInCGS(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, math::Vector3D const & p1) const;
-    double GetColumnDepthInCGS(math::Vector3D const & p0, math::Vector3D const & p1) const;
-    double DistanceForColumnDepthFromPoint(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & end_point, math::Vector3D const & direction, double column_depth) const;
-    double DistanceForColumnDepthFromPoint(math::Vector3D const & end_point, math::Vector3D const & direction, double column_depth) const;
-    double DistanceForColumnDepthToPoint(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & end_point, math::Vector3D const & direction, double column_depth) const;
-    double DistanceForColumnDepthToPoint(math::Vector3D const & end_point, math::Vector3D const & direction, double column_depth) const;
+    double GetColumnDepthInCGS(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0, GeometryPosition const & p1) const;
+    double GetColumnDepthInCGS(GeometryPosition const & p0, GeometryPosition const & p1) const;
+    double DistanceForColumnDepthFromPoint(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & end_point, GeometryDirection const & direction, double column_depth) const;
+    double DistanceForColumnDepthFromPoint(GeometryPosition const & end_point, GeometryDirection const & direction, double column_depth) const;
+    double DistanceForColumnDepthToPoint(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & end_point, GeometryDirection const & direction, double column_depth) const;
+    double DistanceForColumnDepthToPoint(GeometryPosition const & end_point, GeometryDirection const & direction, double column_depth) const;
 
     // Density/CD calculations with general target list, not just nucleon/electron
-    double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
-    double GetMassDensity(math::Vector3D const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
+    double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
+    double GetMassDensity(GeometryPosition const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
     template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
-    double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, Iterator begin, Iterator end) const;
+    double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0, Iterator begin, Iterator end) const;
     template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
-    double GetMassDensity(math::Vector3D const & p0, Iterator begin, Iterator end) const;
-    std::vector<double> GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
-    std::vector<double> GetParticleDensity(math::Vector3D const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
+    double GetMassDensity(GeometryPosition const & p0, Iterator begin, Iterator end) const;
+    std::vector<double> GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
+    std::vector<double> GetParticleDensity(GeometryPosition const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
     template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
-    std::vector<double> GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, Iterator begin, Iterator end) const;
+    std::vector<double> GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0, Iterator begin, Iterator end) const;
     template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
-    std::vector<double> GetParticleDensity(math::Vector3D const & p0, Iterator begin, Iterator end) const;
+    std::vector<double> GetParticleDensity(GeometryPosition const & p0, Iterator begin, Iterator end) const;
 
-    double GetInteractionDepthInCGS(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, math::Vector3D const & p1,
+    double GetInteractionDepthInCGS(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0, GeometryPosition const & p1,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const;
-    double GetInteractionDepthInCGS(math::Vector3D const & p0, math::Vector3D const & p1,
+    double GetInteractionDepthInCGS(GeometryPosition const & p0, GeometryPosition const & p1,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const;
-    double DistanceForInteractionDepthFromPoint(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & end_point, math::Vector3D const & direction, double interaction_depth,
+    double DistanceForInteractionDepthFromPoint(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & end_point, GeometryDirection const & direction, double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const;
-    double DistanceForInteractionDepthFromPoint(math::Vector3D const & end_point, math::Vector3D const & direction, double interaction_depth,
+    double DistanceForInteractionDepthFromPoint(GeometryPosition const & end_point, GeometryDirection const & direction, double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const;
-    double DistanceForInteractionDepthToPoint(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & end_point, math::Vector3D const & direction, double interaction_depth,
+    double DistanceForInteractionDepthToPoint(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & end_point, GeometryDirection const & direction, double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const;
-    double DistanceForInteractionDepthToPoint(math::Vector3D const & end_point, math::Vector3D const & direction, double interaction_depth,
+    double DistanceForInteractionDepthToPoint(GeometryPosition const & end_point, GeometryDirection const & direction, double interaction_depth,
             std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const;
 
-    std::vector<double> GetParticleColumnDepth(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0, math::Vector3D const & p1, std::vector<LI::dataclasses::Particle::ParticleType> const & targets) const;
+    std::vector<double> GetParticleColumnDepth(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0, GeometryPosition const & p1, std::vector<LI::dataclasses::Particle::ParticleType> const & targets) const;
 
-    DetectorSector GetContainingSector(geometry::Geometry::IntersectionList const & intersections, math::Vector3D const & p0) const;
-    DetectorSector GetContainingSector(math::Vector3D const & p0) const;
-    math::Vector3D GetEarthCoordPosFromDetCoordPos(math::Vector3D const & point) const;
-    math::Vector3D GetEarthCoordDirFromDetCoordDir(math::Vector3D const & direction) const;
-    math::Vector3D GetDetCoordPosFromEarthCoordPos(math::Vector3D const & point) const;
-    math::Vector3D GetDetCoordDirFromEarthCoordDir(math::Vector3D const & direction) const;
+    DetectorSector GetContainingSector(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & p0) const;
+    DetectorSector GetContainingSector(GeometryPosition const & p0) const;
+
+    geometry::Geometry::IntersectionList GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const;
+    geometry::Geometry::IntersectionList GetOuterBounds(GeometryPosition const & p0, GeometryDirection const & direction) const;
+
+    std::set<LI::dataclasses::Particle::ParticleType> GetAvailableTargets(GeometryPosition const & vertex) const;
+    std::set<LI::dataclasses::Particle::ParticleType> GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & vertex) const;
+
+public:
+    double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0) const;
+    double GetMassDensity(DetectorPosition const & p0) const;
+    double GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0, LI::dataclasses::Particle::ParticleType target) const;
+    double GetParticleDensity(DetectorPosition const & p0, LI::dataclasses::Particle::ParticleType target) const;
+    double GetInteractionDensity(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
+            std::vector<double> const & total_cross_sections,
+            double const & total_decay_length) const;
+    double GetInteractionDensity(DetectorPosition const & p0,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
+            std::vector<double> const & total_cross_sections,
+            double const & total_decay_length) const;
+
+    double GetColumnDepthInCGS(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0, DetectorPosition const & p1) const;
+    double GetColumnDepthInCGS(DetectorPosition const & p0, DetectorPosition const & p1) const;
+    double DistanceForColumnDepthFromPoint(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & end_point, DetectorDirection const & direction, double column_depth) const;
+    double DistanceForColumnDepthFromPoint(DetectorPosition const & end_point, DetectorDirection const & direction, double column_depth) const;
+    double DistanceForColumnDepthToPoint(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & end_point, DetectorDirection const & direction, double column_depth) const;
+    double DistanceForColumnDepthToPoint(DetectorPosition const & end_point, DetectorDirection const & direction, double column_depth) const;
+
+    // Density/CD calculations with general target list, not just nucleon/electron
+    double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
+    double GetMassDensity(DetectorPosition const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    double GetMassDensity(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0, Iterator begin, Iterator end) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    double GetMassDensity(DetectorPosition const & p0, Iterator begin, Iterator end) const;
+    std::vector<double> GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
+    std::vector<double> GetParticleDensity(DetectorPosition const & p0, std::set<LI::dataclasses::Particle::ParticleType> targets) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetParticleDensity(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0, Iterator begin, Iterator end) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetParticleDensity(DetectorPosition const & p0, Iterator begin, Iterator end) const;
+
+    double GetInteractionDepthInCGS(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0, DetectorPosition const & p1,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
+            std::vector<double> const & total_cross_sections,
+            double const & total_decay_length) const;
+    double GetInteractionDepthInCGS(DetectorPosition const & p0, DetectorPosition const & p1,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
+            std::vector<double> const & total_cross_sections,
+            double const & total_decay_length) const;
+    double DistanceForInteractionDepthFromPoint(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & end_point, DetectorDirection const & direction, double interaction_depth,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
+            std::vector<double> const & total_cross_sections,
+            double const & total_decay_length) const;
+    double DistanceForInteractionDepthFromPoint(DetectorPosition const & end_point, DetectorDirection const & direction, double interaction_depth,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
+            std::vector<double> const & total_cross_sections,
+            double const & total_decay_length) const;
+    double DistanceForInteractionDepthToPoint(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & end_point, DetectorDirection const & direction, double interaction_depth,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
+            std::vector<double> const & total_cross_sections,
+            double const & total_decay_length) const;
+    double DistanceForInteractionDepthToPoint(DetectorPosition const & end_point, DetectorDirection const & direction, double interaction_depth,
+            std::vector<LI::dataclasses::Particle::ParticleType> const & targets,
+            std::vector<double> const & total_cross_sections,
+            double const & total_decay_length) const;
+
+    std::vector<double> GetParticleColumnDepth(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0, DetectorPosition const & p1, std::vector<LI::dataclasses::Particle::ParticleType> const & targets) const;
+
+    DetectorSector GetContainingSector(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & p0) const;
+    DetectorSector GetContainingSector(DetectorPosition const & p0) const;
+
+    geometry::Geometry::IntersectionList GetIntersections(DetectorPosition const & p0, DetectorDirection const & direction) const;
+    geometry::Geometry::IntersectionList GetOuterBounds(DetectorPosition const & p0, DetectorDirection const & direction) const;
+
+    std::set<LI::dataclasses::Particle::ParticleType> GetAvailableTargets(DetectorPosition const & vertex) const;
+    std::set<LI::dataclasses::Particle::ParticleType> GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & vertex) const;
+
+    DetectorPosition ToDet(GeometryPosition const &) const;
+    DetectorDirection ToDet(GeometryDirection const &) const;
+    DetectorPosition ToDet(GeometryPosition &&) const;
+    DetectorDirection ToDet(GeometryDirection &&) const;
+    GeometryPosition ToGeo(DetectorPosition const &) const;
+    GeometryDirection ToGeo(DetectorDirection const &) const;
+    GeometryPosition ToGeo(DetectorPosition &&) const;
+    GeometryDirection ToGeo(DetectorDirection &&) const;
+
 
     std::string GetPath() const;
     void SetPath(std::string const & path);
@@ -165,23 +253,19 @@ public:
     std::vector<DetectorSector> const & GetSectors() const;
     void SetSectors(std::vector<DetectorSector> const & sectors);
 
-    math::Vector3D GetDetectorOrigin() const;
-    void SetDetectorOrigin(math::Vector3D const & detector_origin);
+    GeometryPosition GetDetectorOrigin() const;
+    void SetDetectorOrigin(GeometryPosition const & detector_origin);
 
     void AddSector(DetectorSector sector);
     DetectorSector GetSector(int level) const;
 
     void ClearSectors();
 
-    geometry::Geometry::IntersectionList GetIntersections(math::Vector3D const & p0, math::Vector3D const & direction) const;
     static void SortIntersections(geometry::Geometry::IntersectionList & intersections);
     static void SortIntersections(std::vector<geometry::Geometry::Intersection> & intersections);
     static void SectorLoop(std::function<bool(std::vector<geometry::Geometry::Intersection>::const_iterator, std::vector<geometry::Geometry::Intersection>::const_iterator, double)> callback, geometry::Geometry::IntersectionList const & intersections, bool reverse=false);
 
     static geometry::Geometry::IntersectionList GetOuterBounds(geometry::Geometry::IntersectionList const & intersections);
-    geometry::Geometry::IntersectionList GetOuterBounds(math::Vector3D const & p0, math::Vector3D const & direction) const;
-    std::set<LI::dataclasses::Particle::ParticleType> GetAvailableTargets(std::array<double,3> const & vertex) const;
-    std::set<LI::dataclasses::Particle::ParticleType> GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, std::array<double,3> const & vertex) const;
 
 private:
     void LoadDefaultMaterials();

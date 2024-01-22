@@ -13,6 +13,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"                  // for Par...
 #include "LeptonInjector/detector/DetectorModel.h"                   // for Ear...
 #include "LeptonInjector/detector/Path.h"                         // for Path
+#include "LeptonInjector/detector/Coordinates.h"
 #include "LeptonInjector/distributions/Distributions.h"           // for Inj...
 #include "LeptonInjector/math/Vector3D.h"                         // for Vec...
 #include "LeptonInjector/utilities/Errors.h"                      // for Inj...
@@ -20,6 +21,9 @@
 
 namespace LI {
 namespace distributions {
+
+using detector::DetectorPosition;
+using detector::DetectorDirection;
 
 namespace {
     double log_one_minus_exp_of_negative(double x) {
@@ -47,11 +51,10 @@ LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_p
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
 
-
     LI::math::Vector3D endcap_0 = origin;
     LI::math::Vector3D endcap_1 = origin + max_distance * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), max_distance);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
     path.ClipToOuterBounds();
 
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
@@ -84,7 +87,7 @@ LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_p
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
-    LI::math::Vector3D vertex = detector_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+    LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
     return vertex;
 }
@@ -97,10 +100,10 @@ double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI
     LI::math::Vector3D endcap_0 = origin;
     LI::math::Vector3D endcap_1 = origin + max_distance * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), max_distance);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
     path.ClipToOuterBounds();
 
-    if(not path.IsWithinBounds(detector_model->GetEarthCoordPosFromDetCoordPos(vertex)))
+    if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
     
 
@@ -121,11 +124,11 @@ double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(detector_model->GetEarthCoordPosFromDetCoordPos(vertex)));
+    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(DetectorPosition(vertex)));
 
     double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    double interaction_density = detector_model->GetInteractionDensity(path.GetIntersections(), detector_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections, total_decay_length);
+    double interaction_density = detector_model->GetInteractionDensity(path.GetIntersections(), DetectorPosition(vertex), targets, total_cross_sections, total_decay_length);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {
@@ -157,10 +160,10 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistributio
     LI::math::Vector3D endcap_0 = origin;
     LI::math::Vector3D endcap_1 = origin + max_distance * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), max_distance);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
     path.ClipToOuterBounds();
 
-    if(not path.IsWithinBounds(vertex))
+    if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
     return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }

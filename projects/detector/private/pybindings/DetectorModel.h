@@ -6,6 +6,7 @@
 #include <pybind11/stl.h>
 
 #include "../../public/LeptonInjector/detector/DetectorModel.h"
+#include "../../public/LeptonInjector/detector/Coordinates.h"
 #include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
 
 void register_DetectorModel(pybind11::module_ & m) {
@@ -19,26 +20,26 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("LoadDetectorModel",&DetectorModel::LoadDetectorModel)
         .def("LoadMaterialModel",&DetectorModel::LoadMaterialModel)
         .def("GetMassDensity", (
-                    double (DetectorModel::*)(LI::geometry::Geometry::IntersectionList const &, LI::math::Vector3D const &) const
+                    double (DetectorModel::*)(LI::geometry::Geometry::IntersectionList const &, DetectorPosition const &) const
                     )(&DetectorModel::GetMassDensity))
         .def("GetMassDensity", (
-                    double (DetectorModel::*)(LI::math::Vector3D const &) const
+                    double (DetectorModel::*)(DetectorPosition const &) const
                     )(&DetectorModel::GetMassDensity))
         .def("GetParticleDensity", (
-                    double (DetectorModel::*)(LI::geometry::Geometry::IntersectionList const &, LI::math::Vector3D const &, LI::dataclasses::Particle::ParticleType) const
+                    double (DetectorModel::*)(LI::geometry::Geometry::IntersectionList const &, DetectorPosition const &, LI::dataclasses::Particle::ParticleType) const
                     )(&DetectorModel::GetParticleDensity))
         .def("GetParticleDensity", (
-                    double (DetectorModel::*)(LI::math::Vector3D const &, LI::dataclasses::Particle::ParticleType) const
+                    double (DetectorModel::*)(DetectorPosition const &, LI::dataclasses::Particle::ParticleType) const
                     )(&DetectorModel::GetParticleDensity))
         .def("GetInteractionDensity", (
                     double (DetectorModel::*)(LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
                     )(&DetectorModel::GetInteractionDensity))
         .def("GetInteractionDensity", (
-                    double (DetectorModel::*)(LI::math::Vector3D const &,
+                    double (DetectorModel::*)(DetectorPosition const &,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
@@ -46,75 +47,75 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("GetColumnDepthInCGS", (
                     double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &) const
+                        DetectorPosition const &,
+                        DetectorPosition const &) const
                     )(&DetectorModel::GetColumnDepthInCGS))
         .def("GetColumnDepthInCGS", (
                     double (DetectorModel::*)(
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &) const
+                        DetectorPosition const &,
+                        DetectorPosition const &) const
                     )(&DetectorModel::GetColumnDepthInCGS))
         .def("DistanceForColumnDepthFromPoint", (
                     double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorDirection const &,
                         double) const
                     )(&DetectorModel::DistanceForColumnDepthFromPoint))
         .def("DistanceForColumnDepthFromPoint", (
                     double (DetectorModel::*)(
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorDirection const &,
                         double) const
                     )(&DetectorModel::DistanceForColumnDepthFromPoint))
         .def("DistanceForColumnDepthToPoint", (
                     double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorDirection const &,
                         double) const
                     )(&DetectorModel::DistanceForColumnDepthToPoint))
         .def("DistanceForColumnDepthToPoint", (
                     double (DetectorModel::*)(
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorDirection const &,
                         double) const
                     )(&DetectorModel::DistanceForColumnDepthToPoint))
         .def("GetMassDensity", (
                     double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
                         std::set<LI::dataclasses::Particle::ParticleType>) const
                     )(&DetectorModel::GetMassDensity))
         .def("GetMassDensity", (
                     double (DetectorModel::*)(
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
                         std::set<LI::dataclasses::Particle::ParticleType>) const
                     )(&DetectorModel::GetMassDensity))
         .def("GetParticleDensity", (
                     std::vector<double> (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
                         std::set<LI::dataclasses::Particle::ParticleType>) const
                     )(&DetectorModel::GetParticleDensity))
         .def("GetParticleDensity", (
                     std::vector<double> (DetectorModel::*)(
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
                         std::set<LI::dataclasses::Particle::ParticleType>) const
                     )(&DetectorModel::GetParticleDensity))
         .def("GetInteractionDepthInCGS", (
                     double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorPosition const &,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
                     )(&DetectorModel::GetInteractionDepthInCGS))
         .def("GetInteractionDepthInCGS", (
                     double (DetectorModel::*)(
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorPosition const &,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
@@ -122,8 +123,8 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("DistanceForInteractionDepthFromPoint", (
                     double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorDirection const &,
                         double,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
@@ -131,8 +132,8 @@ void register_DetectorModel(pybind11::module_ & m) {
                     )(&DetectorModel::DistanceForInteractionDepthFromPoint))
         .def("DistanceForInteractionDepthFromPoint", (
                     double (DetectorModel::*)(
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorDirection const &,
                         double,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
@@ -141,8 +142,8 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("DistanceForInteractionDepthToPoint", (
                     double (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorDirection const &,
                         double,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
@@ -150,8 +151,8 @@ void register_DetectorModel(pybind11::module_ & m) {
                     )(&DetectorModel::DistanceForInteractionDepthToPoint))
         .def("DistanceForInteractionDepthToPoint", (
                     double (DetectorModel::*)(
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorDirection const &,
                         double,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &,
                         std::vector<double> const &,
@@ -160,35 +161,19 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("GetParticleColumnDepth", (
                     std::vector<double> (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const &,
-                        LI::math::Vector3D const &,
+                        DetectorPosition const &,
+                        DetectorPosition const &,
                         std::vector<LI::dataclasses::Particle::ParticleType> const &) const
                     )(&DetectorModel::GetParticleColumnDepth))
         .def("GetContainingSector", (
                     DetectorSector (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        LI::math::Vector3D const & p0) const
+                        DetectorPosition const & p0) const
                     )(&DetectorModel::GetContainingSector))
         .def("GetContainingSector", (
                     DetectorSector (DetectorModel::*)(
-                        LI::math::Vector3D const & p0) const
+                        DetectorPosition const & p0) const
                     )(&DetectorModel::GetContainingSector))
-        .def("GetEarthCoordPosFromDetCoordPos", (
-                    LI::math::Vector3D (DetectorModel::*)(
-                        LI::math::Vector3D const &) const
-                    )(&DetectorModel::GetEarthCoordPosFromDetCoordPos))
-        .def("GetEarthCoordDirFromDetCoordDir", (
-                    LI::math::Vector3D (DetectorModel::*)(
-                        LI::math::Vector3D const &) const
-                    )(&DetectorModel::GetEarthCoordDirFromDetCoordDir))
-        .def("GetDetCoordPosFromEarthCoordPos", (
-                    LI::math::Vector3D (DetectorModel::*)(
-                        LI::math::Vector3D const &) const
-                    )(&DetectorModel::GetDetCoordPosFromEarthCoordPos))
-        .def("GetDetCoordDirFromEarthCoordDir", (
-                    LI::math::Vector3D (DetectorModel::*)(
-                        LI::math::Vector3D const &) const
-                    )(&DetectorModel::GetDetCoordDirFromEarthCoordDir))
         .def_property("Path", &DetectorModel::GetPath, &DetectorModel::SetPath)
         .def_property("Materials", &DetectorModel::GetMaterials, &DetectorModel::SetMaterials)
         .def_property("Sectors", &DetectorModel::GetSectors, &DetectorModel::SetSectors)
@@ -196,7 +181,11 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("AddSector", &DetectorModel::AddSector)
         .def("GetSector", &DetectorModel::GetSector)
         .def("ClearSectors", &DetectorModel::ClearSectors)
-        .def("GetIntersections", &DetectorModel::GetIntersections)
+        .def("GetIntersections", (
+                    LI::geometry::Geometry::IntersectionList (DetectorModel::*)(
+                        DetectorPosition const &,
+                        DetectorDirection const &) const
+                    )(&DetectorModel::GetIntersections))
         .def_static("SortIntersections", (
                     void (*)(LI::geometry::Geometry::IntersectionList &)
                     )(&DetectorModel::SortIntersections))
@@ -213,20 +202,32 @@ void register_DetectorModel(pybind11::module_ & m) {
                 })
         .def("GetOuterBounds", (
                 LI::geometry::Geometry::IntersectionList (DetectorModel::*)(
-                    LI::math::Vector3D const &,
-                    LI::math::Vector3D const &) const
+                    DetectorPosition const &,
+                    DetectorDirection const &) const
                 )(&DetectorModel::GetOuterBounds))
         .def("GetAvailableTargets", (
                     std::set<LI::dataclasses::Particle::ParticleType> (DetectorModel::*)(
                         LI::geometry::Geometry::IntersectionList const &,
-                        std::array<double,3> const &) const
+                        DetectorPosition const &) const
                     )(&DetectorModel::GetAvailableTargets))
         .def("GetAvailableTargets", (
                     std::set<LI::dataclasses::Particle::ParticleType> (DetectorModel::*)(
-                        std::array<double,3> const &) const
+                        DetectorPosition const &) const
                     )(&DetectorModel::GetAvailableTargets))
         .def("GetTargetMass", &DetectorModel::GetTargetMass)
         .def("GetMaterials",&DetectorModel::GetMaterials)
-        .def("GetDetectorOrigin",&DetectorModel::GetDetectorOrigin);
-
+        .def("GetDetectorOrigin",&DetectorModel::GetDetectorOrigin)
+        .def("GeoPositionToDetPosition", (
+                    DetectorPosition (DetectorModel::*)(GeometryPosition const &) const
+                    )(&DetectorModel::ToDet))
+        .def("GeoDirectionToDetDirection", (
+                    DetectorDirection (DetectorModel::*)(GeometryDirection const &) const
+                    )(&DetectorModel::ToDet))
+        .def("DetPositionToGeoPosition", (
+                    GeometryPosition (DetectorModel::*)(DetectorPosition const &) const
+                    )(&DetectorModel::ToGeo))
+        .def("DetDirectionToGeoDirection", (
+                    GeometryDirection (DetectorModel::*)(DetectorDirection const &) const
+                    )(&DetectorModel::ToGeo))
+        ;
 }

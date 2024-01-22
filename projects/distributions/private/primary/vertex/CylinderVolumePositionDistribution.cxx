@@ -33,7 +33,7 @@ LI::math::Vector3D CylinderVolumePositionDistribution::SamplePosition(std::share
 }
 
 double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-    LI::math::Vector3D pos(record.interaction_vertex);
+    LI::math::Vector3D pos(cylinder.GlobalToLocalPosition(record.interaction_vertex));
     double z = pos.GetZ();
     double r = sqrt(pos.GetX() * pos.GetX() + pos.GetY() * pos.GetY());
     if(abs(z) >= 0.5 * cylinder.GetZ()

@@ -14,6 +14,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"                  // for Par...
 #include "LeptonInjector/detector/DetectorModel.h"                   // for Ear...
 #include "LeptonInjector/detector/Path.h"                         // for Path
+#include "LeptonInjector/detector/Coordinates.h"
 #include "LeptonInjector/distributions/Distributions.h"           // for Inj...
 #include "LeptonInjector/geometry/Geometry.h"                     // for Geo...
 #include "LeptonInjector/math/Vector3D.h"                         // for Vec...
@@ -22,6 +23,9 @@
 
 namespace LI {
 namespace distributions {
+
+using detector::DetectorPosition;
+using detector::DetectorDirection;
 
 namespace {
     double log_one_minus_exp_of_negative(double x) {
@@ -70,13 +74,13 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), max_length);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
     path.ClipToOuterBounds();
 
     // Check if fiducial volume is provided
     if(fiducial) {
-      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0),
-                                                                                                    detector_model->GetEarthCoordDirFromDetCoordDir(dir));
+      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(DetectorPosition(endcap_0),
+                                                                                                    DetectorDirection(dir));
       // If the path intersects the fiducial volume, restrict position to that volume
       if(!fid_intersections.empty()) {
         // make sure the first intersection happens before the maximum generation length
@@ -86,7 +90,7 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
         if(update_path) {
           LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
           LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
-          path.SetPoints(first_point,last_point);
+          path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
         }
       }
     }
@@ -121,7 +125,7 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
-    LI::math::Vector3D vertex = detector_model->GetDetCoordPosFromEarthCoordPos(path.GetFirstPoint() + dist * path.GetDirection());
+    LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
     return vertex;
 }
@@ -139,16 +143,16 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), max_length);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
     path.ClipToOuterBounds();
 
-    if(not path.IsWithinBounds(detector_model->GetEarthCoordPosFromDetCoordPos(vertex)))
+    if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
 
     // Check if fiducial volume is provided
     if(fiducial) {
-      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0),
-                                                                                                    detector_model->GetEarthCoordDirFromDetCoordDir(dir));
+      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(DetectorPosition(endcap_0),
+                                                                                                    DetectorDirection(dir));
       // If the path intersects the fiducial volume, restrict position to that volume
       if(!fid_intersections.empty()) {
         // make sure the first intersection happens before the maximum generation length
@@ -158,7 +162,7 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
         if(update_path) {
           LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
           LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
-          path.SetPoints(first_point,last_point);
+          path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
         }
       }
     }
@@ -180,11 +184,11 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(detector_model->GetEarthCoordPosFromDetCoordPos(vertex)));
+    path.SetPointsWithRay(path.GetFirstPoint(), path.GetDirection(), path.GetDistanceFromStartInBounds(DetectorPosition(vertex)));
 
     double traversed_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
 
-    double interaction_density = detector_model->GetInteractionDensity(path.GetIntersections(), detector_model->GetEarthCoordPosFromDetCoordPos(vertex), targets, total_cross_sections, total_decay_length);
+    double interaction_density = detector_model->GetInteractionDensity(path.GetIntersections(), DetectorPosition(vertex), targets, total_cross_sections, total_decay_length);
 
     double prob_density;
     if(total_interaction_depth < 1e-6) {
@@ -227,10 +231,10 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution:
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
-    LI::detector::Path path(detector_model, detector_model->GetEarthCoordPosFromDetCoordPos(endcap_0), detector_model->GetEarthCoordDirFromDetCoordDir(dir), max_length);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
     path.ClipToOuterBounds();
 
-    if(not path.IsWithinBounds(vertex))
+    if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
     return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }

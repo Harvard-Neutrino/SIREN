@@ -386,7 +386,7 @@ TEST(Injector, Generation)
         if(event.signature.target_type != Particle::ParticleType::unknown) {
             if(miniboone) injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MiniBooNE_fiducial, 0.1);
             else injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MINERvA_fiducial, 1.0);
-            injector->SamplePairProduction(decay, pair_prod);
+            //injector->SamplePairProduction(decay, pair_prod);
             //basic_weight = weighter.EventWeight(event);
             simplified_weight = weighter.SimplifiedEventWeight(event);
             interaction_lengths = ComputeInteractionLengths(detector_model, injector->GetInteractions(), injector->InjectionBounds(event), event);

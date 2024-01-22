@@ -14,3 +14,6 @@
 [submodule "vendor/photospline"]
 	path = vendor/photospline
 	url = https://github.com/austinschneider/photospline.git
+[submodule "vendor/NamedType"]
+	path = vendor/NamedType
+	url = https://github.com/joboccara/NamedType.git

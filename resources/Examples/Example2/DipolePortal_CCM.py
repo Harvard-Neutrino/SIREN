@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 import leptoninjector as LI
 import sys
@@ -9,7 +10,7 @@ LI_SRC = os.environ.get('LEPTONINJECTOR_SRC')
 
 # Define a DarkNews model 
 model_kwargs = {
-    'm4': 0.47,#0.140,
+    'm4': 0.02,
     'mu_tr_mu4': 2.5e-6, #1e-6, # GeV^-1
     'UD4': 0,
     'Umu4': 0,
@@ -24,7 +25,7 @@ model_kwargs = {
 events_to_inject = 1000
 
 # Expeirment to run
-experiment = 'MiniBooNE'
+experiment = 'CCM'
 
 # Define the controller
 controller = LIController(events_to_inject,
@@ -44,30 +45,31 @@ primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-flux_file = LI_SRC + '/resources/Fluxes/BNB_Flux_Tables/BNB_numu_flux.txt'
-edist = LI.distributions.TabulatedFluxDistribution(flux_file, True)
-edist_gen = LI.distributions.TabulatedFluxDistribution(1.05*model_kwargs['m4'], 10, flux_file, False)
-primary_injection_distributions['energy'] = edist_gen
+nu_energy = 0.02965 # from pi+ DAR
+edist = LI.distributions.Monoenergetic(nu_energy)
+primary_injection_distributions['energy'] = edist
 primary_physical_distributions['energy'] = edist
 
-# Flux normalization: go from cm^-2 to m^-2
-flux_units = LI.distributions.NormalizationConstant(1e4)
+# Flux normalization: 
+# using the number quoted in 2105.14020, 4.74e9 nu/m^2/s / (6.2e14 POT/s) * 4*pi*20m^2 to get nu/POT
+flux_units = LI.distributions.NormalizationConstant(3.76e-2)
 primary_physical_distributions['flux_units'] = flux_units
 
-# direction distribution
-direction_distribution = LI.distributions.FixedDirection(LI.math.Vector3D(0, 0, 1.0))
-primary_injection_distributions['direction'] = direction_distribution
-primary_physical_distributions['direction'] = direction_distribution
+# direction distribution: cone from lower W target
+opening_angle = np.arctan(12/23.); # slightly larger than CCM
+lower_target_origin = LI.math.Vector3D(0, 0, -0.241)
+detector_origin = LI.math.Vector3D(23, 0, -0.65)
+lower_dir = detector_origin - lower_target_origin
+lower_dir.normalize()
+lower_inj_ddist = LI.distributions.Cone(lower_dir,opening_angle)
+phys_ddist = LI.distributions.IsotropicDirection() # truly we are isotropicprimary_injection_distributions['direction'] = direction_distribution
+primary_injection_distributions['direction'] = lower_inj_ddist
+primary_physical_distributions['direction'] = phys_ddist
 
-# position distribution
-decay_range_func = LI.distributions.DecayRangeFunction(model_kwargs['m4'],
-                                                       controller.DN_min_decay_width,
-                                                       3,
-                                                       541)
-position_distribution = LI.distributions.RangePositionDistribution(6.2, 6.2,
-                                                                   decay_range_func,
-                                                                   set(controller.GetDetectorModelTargets()[0]))
-primary_injection_distributions['position'] = position_distribution
+# Position distribution: consider neutrinos from a point source
+max_dist = 25
+lower_pos_dist = LI.distributions.PointSourcePositionDistribution(lower_target_origin, max_dist, set(controller.GetDetectorModelTargets()[0]))
+primary_injection_distributions['position'] = lower_pos_dist
 
 # SetProcesses
 controller.SetProcesses(primary_type,
@@ -78,5 +80,4 @@ controller.Initialize()
 
 events = controller.GenerateEvents()
 
-controller.SaveEvents('output/MiniBooNE_Dipole_M%2.2f_mu%2.2e_example.hdf5'%(model_kwargs['m4'],model_kwargs['mu_tr_mu4']))
-
+controller.SaveEvents('output/CCM_Dipole_M%2.2f_mu%2.2e_example.hdf5'%(model_kwargs['m4'],model_kwargs['mu_tr_mu4']))
