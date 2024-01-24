@@ -1,14 +1,14 @@
 import os
+import sys
 import numpy as np
 
 import leptoninjector as LI
-import sys
-sys.path.insert(1,'/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/nkamp/LIV2/sources/LeptonInjector/python')
-from LIController import LIController
- 
-LI_SRC = os.environ.get('LEPTONINJECTOR_SRC')
+from leptoninjector import _util
+from leptoninjector.LIController import LIController
 
-# Define a DarkNews model 
+resources_dir = _util.resource_package_dir()
+
+# Define a DarkNews model
 model_kwargs = {
     'm4': 0.02,
     'mu_tr_mu4': 2.5e-6, #1e-6, # GeV^-1
@@ -35,7 +35,7 @@ controller = LIController(events_to_inject,
 primary_type = LI.dataclasses.Particle.ParticleType.NuMu
 
 # Define DarkNews Model
-table_dir = LI_SRC+'/resources/CrossSectionTables/DarkNewsTables/Dipole_M%2.2f_mu%2.2e/'%(model_kwargs['m4'],model_kwargs['mu_tr_mu4'])
+table_dir = os.path.join(resources_dir, "CrossSections", "DarkNewsTables", "Dipole_M%2.2f_mu%2.2e"%(model_kwargs['m4'],model_kwargs['mu_tr_mu4']))
 controller.InputDarkNewsModel(primary_type,
                               table_dir,
                               model_kwargs)
@@ -50,7 +50,7 @@ edist = LI.distributions.Monoenergetic(nu_energy)
 primary_injection_distributions['energy'] = edist
 primary_physical_distributions['energy'] = edist
 
-# Flux normalization: 
+# Flux normalization:
 # using the number quoted in 2105.14020, 4.74e9 nu/m^2/s / (6.2e14 POT/s) * 4*pi*20m^2 to get nu/POT
 flux_units = LI.distributions.NormalizationConstant(3.76e-2)
 primary_physical_distributions['flux_units'] = flux_units
