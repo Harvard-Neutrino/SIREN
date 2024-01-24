@@ -189,29 +189,31 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     # Sorts and redefines scipy interpolation objects
     def _redefine_interpolation_objects(self, total=False, diff=False):
         if total:
-            self.total_cross_section_table = np.sort(
-                self.total_cross_section_table, axis=0
+            if len(self.total_cross_section_table) <= 1: return
+            idxs = np.argsort(
+                self.total_cross_section_table[:,0]
             )
-            if len(self.total_cross_section_table) > 1:
-                self.total_cross_section_interpolator = CubicSpline(
-                    self.total_cross_section_table[:, 0],
-                    self.total_cross_section_table[:, 1],
-                )
+            self.total_cross_section_table = self.total_cross_section_table[idxs]
+            self.total_cross_section_interpolator = CubicSpline(
+                self.total_cross_section_table[:, 0],
+                self.total_cross_section_table[:, 1],
+            )
         if diff:
-            self.differential_cross_section_table = np.sort(
-                self.differential_cross_section_table, axis=0
+            if len(self.differential_cross_section_table) <= 1: return
+            idxs = np.lexsort(
+                (self.differential_cross_section_table[:,1],
+                 self.differential_cross_section_table[:,0])
             )
-            if len(self.differential_cross_section_table) > 1:
-                # If we only have two energy points, don't try to construct interpolator
-                if len(np.unique(self.differential_cross_section_table[:, 0])) <= 2:
-                    return
-                self.differential_cross_section_interpolator = (
-                    CloughTocher2DInterpolator(
-                        self.differential_cross_section_table[:, :2],
-                        self.differential_cross_section_table[:, 2],
-                        rescale=True,
-                    )
+            self.differential_cross_section_table = self.differential_cross_section_table[idxs]
+            # If we only have two energy points, don't try to construct interpolator
+            if len(np.unique(self.differential_cross_section_table[:, 0])) <= 2: return
+            self.differential_cross_section_interpolator = (
+                CloughTocher2DInterpolator(
+                    self.differential_cross_section_table[:, :2],
+                    self.differential_cross_section_table[:, 2],
+                    rescale=True,
                 )
+            )
 
     # Check whether we have close-enough entries in the intrepolation tables
     def _interpolation_flags(self, inputs, mode):
@@ -235,10 +237,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             return False, False, -1
 
         # bools to keep track of whether to use a single point or interpolate
-        UseSinglePoint = True
+        UseSinglePoint = False
         Interpolate = True
         # First check whether we have a close-enough single point
-        closest_idx = np.argmin(np.sum(np.abs(interp_table[:, :-1] - inputs)))
+        closest_idx = np.argmin(np.sum(np.abs(interp_table[:, :-1] - inputs),axis=-1))
         diff = (interp_table[closest_idx, :-1] - inputs) / inputs
         if np.all(np.abs(diff) < self.tolerance):
             UseSinglePoint = True
@@ -320,7 +322,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                         self.total_cross_section_table, [[E, xsec]], axis=0
                     )
                     num_added_points += 1
-                E *= 1 + self.interp_tolerance
+                E *= (1 + self.interp_tolerance)
         if diff:
             # interaction record to calculate Q2 bounds
             interaction = LI.dataclasses.InteractionRecord()
@@ -352,8 +354,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                             axis=0,
                         )
                         num_added_points += 1
-                    z *= 1 + self.interp_tolerance
-                E *= 1 + self.interp_tolerance
+                    z *= (1 + self.interp_tolerance)
+                E *= (1 + self.interp_tolerance)
         self._redefine_interpolation_objects(total=total, diff=diff)
         return num_added_points
 
