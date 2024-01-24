@@ -1,7 +1,9 @@
 import os
+import re
 import sys
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
+
 
 # From pyzolib/paths.py (https://bitbucket.org/pyzo/pyzolib/src/tip/paths.py)
 def appdata_dir(appname=None, roaming=False):
@@ -59,6 +61,7 @@ def appdata_dir(appname=None, roaming=False):
 
     # Done
     return path
+
 
 # from imageio
 # https://github.com/imageio/imageio/blob/65d79140018bb7c64c0692ea72cb4093e8d632a0/imageio/core/util.py
@@ -162,3 +165,253 @@ def has_module(module_name):
         except ImportError:
             return False
         return True
+
+
+_VERSION_PATTERN = r"""
+    v?
+    (?:
+        (?:(?P<epoch>[0-9]+)!)?                           # epoch
+        (?P<release>[0-9]+(?:\.[0-9]+)*)                  # release segment
+        (?P<pre>                                          # pre-release
+            [-_\.]?
+            (?P<pre_l>(a|b|c|rc|alpha|beta|pre|preview))
+            [-_\.]?
+            (?P<pre_n>[0-9]+)?
+        )?
+        (?P<post>                                         # post release
+            (?:-(?P<post_n1>[0-9]+))
+            |
+            (?:
+                [-_\.]?
+                (?P<post_l>post|rev|r)
+                [-_\.]?
+                (?P<post_n2>[0-9]+)?
+            )
+        )?
+        (?P<dev>                                          # dev release
+            [-_\.]?
+            (?P<dev_l>dev)
+            [-_\.]?
+            (?P<dev_n>[0-9]+)?
+        )?
+    )
+    (?:\+(?P<local>[a-z0-9]+(?:[-_\.][a-z0-9]+)*))?       # local version
+"""
+
+_version_regex = re.compile(
+    r"^\s*" + _VERSION_PATTERN + r"\s*$",
+    re.VERBOSE | re.IGNORECASE,
+)
+
+_MODEL_PATTERN = (
+    r"""
+    (?P<model_name>
+        (?:
+            [a-zA-Z0-9]+
+        )
+        |
+        (?:
+            (?:[a-zA-Z0-9]+(?:[-_\.][a-zA-Z0-9]+)*(?:[-_\.][a-zA-Z]+[a-zA-Z0-9]*))?
+        )
+    )
+    (?:
+        -
+        (?P<version>"""
+    + _VERSION_PATTERN
+    + r"))?(?:\.dat)?"
+)
+
+_model_regex = re.compile(
+    r"^\s*" + _MODEL_PATTERN + r"\s*$",
+    re.VERBOSE | re.IGNORECASE,
+)
+
+
+def decompose_version(version):
+    matches = _version_regex.match(version)
+    if matches is None:
+        return dict()
+    else:
+        return matches.groupdict()
+
+
+def normalize_version(version):
+    d = decompose_version(version)
+    n_version = ""
+    if d["epoch"] is not None:
+        n_version += str(int(d["epoch"])) + "!"
+    if d["release"] is not None:
+        n_version += ".".join(
+            [str(int(s)) for s in d["release"].strip(". ").lower().split(".")]
+        )
+    if d["pre"] is not None:
+        if d["pre_l"] is not None:
+            if d["pre_l"] in ["a", "alpha"]:
+                n_version += "a"
+            elif d["pre_l"] in ["b", "beta"]:
+                n_version += "b"
+            elif d["pre_l"] in ["c", "rc", "pre", "preview"]:
+                n_version += "rc"
+            if d["pre_n"] is not None:
+                n_version += str(int(d["pre_n"]))
+    if d["post"] is not None:
+        n_version += ".post"
+        if d["post_n1"] is not None:
+            n_version += str(int(d["post_n1"]))
+        elif d["post_n2"] is not None:
+            n_version += str(int(d["post_n2"]))
+    if d["dev"] is not None:
+        n_version += ".dev"
+        if d["dev_n"] is not None:
+            n_version += str(int(d["dev_n"]))
+    if d["local"] is not None:
+        n_version += "+"
+        segments = []
+        for s in d["local"].lower().split("."):
+            try:
+                segments.append(str(int(s)))
+            except:
+                segments.append(s)
+        n_version += ".".join(segments)
+    return n_version
+
+
+def tokenize_version(version):
+    d = decompose_version(normalize_version(version))
+    tokens = []
+    tokens = dict()
+
+    if d["epoch"] is not None:
+        tokens["epoch"] = int(d["epoch"])
+    else:
+        tokens["epoch"] = 0
+
+    if d["release"] is not None:
+        tokens["release"] = tuple(
+            [int(s) for s in d["release"].strip(". ").lower().split(".")]
+        )
+
+    if d["pre"] is not None:
+        pre_token = [0]
+        if d["pre_l"] is not None:
+            if d["pre_l"] in ["a", "alpha"]:
+                pre_token.append(1)
+            elif d["pre_l"] in ["b", "beta"]:
+                pre_token.append(2)
+            elif d["pre_l"] in ["c", "rc", "pre", "preview"]:
+                pre_token.append(3)
+            if d["pre_n"] is not None:
+                pre_token.append(int(d["pre_n"]))
+            else:
+                pre_token.append(0)
+            tokens["pre"] = tuple(pre_token)
+        else:
+            tokens["pre"] = tuple(pre_token)
+    else:
+        tokens["pre"] = (1,)
+
+    if d["post"] is not None:
+        post_token = [1]
+        if d["post_n1"] is not None:
+            post_token.append(int(d["post_n1"]))
+        elif d["post_n2"] is not None:
+            post_token.append(int(d["post_n2"]))
+        else:
+            post_token.append(0)
+        tokens["post"] = tuple(post_token)
+    else:
+        tokens["post"] = (0,)
+
+    if d["dev"] is not None:
+        dev_token = [1]
+        if d["dev_n"] is not None:
+            dev_token.append(int(d["dev_n"]))
+        else:
+            dev_token.append(0)
+        tokens["dev"] = tuple(dev_token)
+    else:
+        tokens["dev"] = (0,)
+
+    if d["local"] is not None:
+        local_token = [1]
+        for s in d["local"].lower().split("."):
+            try:
+                local_token.append((1, int(s)))
+            except:
+                local_token.append((0, s))
+        tokens["local"] = tuple(local_token)
+    else:
+        tokens["local"] = (0,)
+
+    token_list = [
+        tokens["epoch"],
+        tokens["release"],
+        tokens["pre"],
+        tokens["post"],
+        tokens["dev"],
+        tokens["local"],
+    ]
+
+    return tuple(token_list)
+
+
+def _get_model_path(model_name, prefix=None):
+    resources_dir = resource_package_dir()
+    base_dir = resources_dir
+    if prefix is not None:
+        base_dir = os.path.join(base_dir, prefix)
+    model_name = model_name.lower()
+    d = _model_regex.match(model_name)
+    if d is None:
+        raise ValueError("Invalid model name: {}".format(model_name))
+    d = d.groupdict()
+    model_name = d["model_name"]
+    version = d["version"]
+
+    model_names = [
+        f for f in os.listdir(base_dir) if not os.path.isfile(os.path.join(base_dir, f))
+    ]
+    model_names = [f for f in model_names if f.lower().startswith(model_name)]
+
+    if len(model_names) == 0:
+        raise ValueError("No model found for {}".format(model_name))
+    elif len(model_names) == 1:
+        model_name = model_names[0]
+    else:
+        raise ValueError("Multiple directories found for {}".format(model_name))
+
+    model_files = [
+        f
+        for f in os.listdir(os.path.join(base_dir, model_name))
+        if os.path.isfile(os.path.join(base_dir, model_name, f))
+    ]
+    model_versions = []
+    for f in model_files:
+        d = _model_regex.match(f)
+        if d is not None:
+            model_versions.append(normalize_version(d.groupdict()["version"]))
+        elif f.lower().startswith(model_name.lower()):
+            pass
+            # raise ValueError("Unable to parse version from {}".format(f))
+
+    if version is None:
+        version_idx, version = max(
+            enumerate(model_versions), key=lambda x: tokenize_version(x[1])
+        )
+    else:
+        version = normalize_version(version)
+        if version not in model_versions:
+            raise ValueError("No model found for {} {}".format(model_name, version))
+        version_idx = model_versions.index(version)
+
+    model_file_name = model_files[version_idx]
+
+    return os.path.join(base_dir, model_name, model_file_name)
+
+
+def get_detector_model_path(model_name):
+    return _get_model_path(model_name, prefix="DetectorParams/densities")
+
+
+def get_material_model_path(model_name):
+    return _get_model_path(model_name, prefix="DetectorParams/materials")
