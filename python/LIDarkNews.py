@@ -45,7 +45,7 @@ class PyDarkNewsInteractionCollection:
         if self.table_dir is None:
             self.table_dir = os.path.join(
                 resources_dir,
-                "CrossSectionTables",
+                "CrossSections",
                 "DarkNewsTables",
                 datetime.datetime.now().strftime("%Y_%m_%d__%H:%M"),
             )
