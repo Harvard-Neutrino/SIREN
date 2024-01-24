@@ -218,14 +218,8 @@ _MODEL_PATTERN = (
         -
         (?P<version>"""
     + _VERSION_PATTERN
-    + r"))?(?:\.dat)?"
+    + r"))?"
 )
-
-_model_regex = re.compile(
-    r"^\s*" + _MODEL_PATTERN + r"\s*$",
-    re.VERBOSE | re.IGNORECASE,
-)
-
 
 def decompose_version(version):
     matches = _version_regex.match(version)
@@ -355,12 +349,17 @@ def tokenize_version(version):
     return tuple(token_list)
 
 
-def _get_model_path(model_name, prefix=None, is_file=True):
+def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exist=True):
+    _model_regex = re.compile(
+        r"^\s*" + _MODEL_PATTERN + ("" if suffix is None else r"(?:" + suffix + r")?") + r"\s*$",
+        re.VERBOSE | re.IGNORECASE,
+    )
+    if suffix is None:
+        suffix = ""
     resources_dir = resource_package_dir()
     base_dir = resources_dir
     if prefix is not None:
         base_dir = os.path.join(base_dir, prefix)
-    model_name = model_name.lower()
     d = _model_regex.match(model_name)
     if d is None:
         raise ValueError("Invalid model name: {}".format(model_name))
@@ -371,13 +370,18 @@ def _get_model_path(model_name, prefix=None, is_file=True):
     model_names = [
         f for f in os.listdir(base_dir) if not os.path.isfile(os.path.join(base_dir, f))
     ]
-    model_names = [f for f in model_names if f.lower().startswith(model_name)]
+    model_names = [f for f in model_names if f.lower().startswith(model_name.lower())]
 
-    if len(model_names) == 0:
+    folder_exists = False
+
+    if len(model_names) == 0 and must_exist:
         raise ValueError(
             "No model folders found for {}\nSearched in ".format(model_name, base_dir)
         )
+    elif len(model_names) == 0 and not must_exist:
+        model_name = model_name
     elif len(model_names) == 1:
+        folder_exists = True
         model_name = model_names[0]
     else:
         raise ValueError(
@@ -386,11 +390,15 @@ def _get_model_path(model_name, prefix=None, is_file=True):
             )
         )
 
-    model_files = [
-        f
-        for f in os.listdir(os.path.join(base_dir, model_name))
-        if is_file == os.path.isfile(os.path.join(base_dir, model_name, f))
-    ]
+    if folder_exists:
+        model_files = [
+            f
+            for f in os.listdir(os.path.join(base_dir, model_name))
+            if is_file == os.path.isfile(os.path.join(base_dir, model_name, f))
+        ]
+    else:
+        model_files = []
+
     model_versions = []
     for f in model_files:
         d = _model_regex.match(f)
@@ -398,51 +406,61 @@ def _get_model_path(model_name, prefix=None, is_file=True):
             if d.groupdict()["version"] is not None:
                 model_versions.append(normalize_version(d.groupdict()["version"]))
             else:
-                raise ValueError(
+                print(ValueError(
                     "Input model file has no version: {}\nSearched in ".format(
                         f, os.path.join(base_dir, model_name)
                     )
-                )
+                ))
         elif f.lower().startswith(model_name.lower()):
-            raise ValueError(
+            print(ValueError(
                 "Unable to parse version from {}\nFound in ".format(
                     f, os.path.join(base_dir, model_name)
                 )
-            )
+            ))
 
-    if len(model_versions) == 0:
+    if len(model_versions) == 0 and must_exist:
         raise ValueError(
             "No model found for {}\nSearched in ".format(
                 model_name, os.path.join(base_dir, model_name)
             )
         )
 
-    if version is None:
+    if version is None and must_exist:
         version_idx, version = max(
             enumerate(model_versions), key=lambda x: tokenize_version(x[1])
         )
+        model_file_name = model_files[version_idx]
+    elif version is None and not must_exist:
+        version = "v1"
+        model_file_name = "{}-v{}{}".format(model_name, version, suffix)
     else:
         version = normalize_version(version)
-        if version not in model_versions:
-            raise ValueError(
-                "No model found for {}-{}\nSearched in ".format(
-                    model_name, version, os.path.join(base_dir, model_name)
+        if must_exist:
+            if version not in model_versions:
+                raise ValueError(
+                    "No model found for {}-{}\nSearched in ".format(
+                        model_name, version, os.path.join(base_dir, model_name)
+                    )
                 )
-            )
-        version_idx = model_versions.index(version)
-
-    model_file_name = model_files[version_idx]
+            version_idx = model_versions.index(version)
+            model_file_name = model_files[version_idx]
+        else:
+            if version in model_versions:
+                version_idx = model_versions.index(version)
+                model_file_name = model_files[version_idx]
+            else:
+                model_file_name = "{}-v{}{}".format(model_name, version, suffix)
 
     return os.path.join(base_dir, model_name, model_file_name)
 
 
-def get_detector_model_path(model_name):
-    return _get_model_path(model_name, prefix="Detectors/densities", is_file=True)
+def get_detector_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix="Detectors/densities", suffix=".dat", is_file=True, must_exist=must_exist)
 
 
-def get_material_model_path(model_name):
-    return _get_model_path(model_name, prefix="Detectors/materials", is_file=True)
+def get_material_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix="Detectors/materials", suffix=".dat", is_file=True, must_exist=must_exist)
 
 
-def get_cross_section_model_path(model_name):
-    return _get_model_path(model_name, prefix="CrossSections", is_file=False)
+def get_cross_section_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix="CrossSections", is_file=False, must_exist=must_exist)
