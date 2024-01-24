@@ -6,6 +6,10 @@ import leptoninjector as LI
 from leptoninjector import _util
 from leptoninjector.LIController import LIController
 
+import DarkNews
+
+darknews_version = _util.normalize_version(DarkNews.__version__)
+
 resources_dir = _util.resource_package_dir()
 
 # Define a DarkNews model
@@ -33,11 +37,10 @@ controller = LIController(events_to_inject, experiment)
 # Particle to inject
 primary_type = LI.dataclasses.Particle.ParticleType.NuMu
 
+xs_path = _util.get_cross_section_model_path(f"DarkNewsTables-v{darknews_version}", must_exist=False)
 # Define DarkNews Model
 table_dir = os.path.join(
-    resources_dir,
-    "CrossSectionTables",
-    "DarkNewsTables",
+    xs_path,
     "Dipole_M%2.2f_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
 )
 controller.InputDarkNewsModel(primary_type, table_dir, model_kwargs)
