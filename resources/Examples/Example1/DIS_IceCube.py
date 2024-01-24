@@ -64,6 +64,4 @@ controller.Initialize()
 
 events = controller.GenerateEvents()
 
-controller.SaveEvents(
-    "IceCube_DIS.hdf5"
-)
+controller.SaveEvents("IceCube_DIS.hdf5")

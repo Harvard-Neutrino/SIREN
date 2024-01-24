@@ -374,11 +374,17 @@ def _get_model_path(model_name, prefix=None):
     model_names = [f for f in model_names if f.lower().startswith(model_name)]
 
     if len(model_names) == 0:
-        raise ValueError("No model folders found for {}\nSearched in ".format(model_name, base_dir))
+        raise ValueError(
+            "No model folders found for {}\nSearched in ".format(model_name, base_dir)
+        )
     elif len(model_names) == 1:
         model_name = model_names[0]
     else:
-        raise ValueError("Multiple directories found for {}\nSearched in ".format(model_name, base_dir))
+        raise ValueError(
+            "Multiple directories found for {}\nSearched in ".format(
+                model_name, base_dir
+            )
+        )
 
     model_files = [
         f
@@ -392,12 +398,24 @@ def _get_model_path(model_name, prefix=None):
             if d.groupdict()["version"] is not None:
                 model_versions.append(normalize_version(d.groupdict()["version"]))
             else:
-                raise ValueError("Input model file has no version: {}\nSearched in ".format(f, os.path.join(base_dir, model_name)))
+                raise ValueError(
+                    "Input model file has no version: {}\nSearched in ".format(
+                        f, os.path.join(base_dir, model_name)
+                    )
+                )
         elif f.lower().startswith(model_name.lower()):
-            raise ValueError("Unable to parse version from {}\nFound in ".format(f, os.path.join(base_dir, model_name)))
+            raise ValueError(
+                "Unable to parse version from {}\nFound in ".format(
+                    f, os.path.join(base_dir, model_name)
+                )
+            )
 
     if len(model_versions) == 0:
-        raise ValueError("No model found for {}\nSearched in ".format(model_name, os.path.join(base_dir, model_name)))
+        raise ValueError(
+            "No model found for {}\nSearched in ".format(
+                model_name, os.path.join(base_dir, model_name)
+            )
+        )
 
     if version is None:
         version_idx, version = max(
@@ -406,7 +424,11 @@ def _get_model_path(model_name, prefix=None):
     else:
         version = normalize_version(version)
         if version not in model_versions:
-            raise ValueError("No model found for {}-{}\nSearched in ".format(model_name, version, os.path.join(base_dir, model_name)))
+            raise ValueError(
+                "No model found for {}-{}\nSearched in ".format(
+                    model_name, version, os.path.join(base_dir, model_name)
+                )
+            )
         version_idx = model_versions.index(version)
 
     model_file_name = model_files[version_idx]

@@ -110,7 +110,9 @@ class PyDarkNewsInteractionCollection:
                 table_subdirs += "%s_" % str(x)
             table_subdirs += "/"
             self.decays.append(
-                PyDarkNewsDecay(dec_case, table_dir=os.path.join(self.table_dir, table_subdirs))
+                PyDarkNewsDecay(
+                    dec_case, table_dir=os.path.join(self.table_dir, table_subdirs)
+                )
             )
 
     def SaveCrossSectionTables(self, fill_tables_at_exit=True):
@@ -176,7 +178,9 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             total_xsec_file = os.path.join(self.table_dir, "total_cross_sections.npy")
             if os.path.exists(total_xsec_file):
                 self.total_cross_section_table = np.load(total_xsec_file)
-            diff_xsec_file = os.path.join(self.table_dir, "differential_cross_sections.npy")
+            diff_xsec_file = os.path.join(
+                self.table_dir, "differential_cross_sections.npy"
+            )
             if os.path.exists(diff_xsec_file):
                 self.differential_cross_section_table = np.load(diff_xsec_file)
 
@@ -357,11 +361,15 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     def SaveInterpolationTables(self, total=True, diff=True):
         if total:
             self._redefine_interpolation_objects(total=True)
-            with open(os.path.join(self.table_dir, "total_cross_sections.npy"), "wb") as f:
+            with open(
+                os.path.join(self.table_dir, "total_cross_sections.npy"), "wb"
+            ) as f:
                 np.save(f, self.total_cross_section_table)
         if diff:
             self._redefine_interpolation_objects(diff=True)
-            with open(os.path.join(self.table_dir, "differential_cross_sections.npy"), "wb") as f:
+            with open(
+                os.path.join(self.table_dir, "differential_cross_sections.npy"), "wb"
+            ) as f:
                 np.save(f, self.differential_cross_section_table)
 
     ##### START METHODS FOR SERIALIZATION #########
