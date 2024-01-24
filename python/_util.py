@@ -6,7 +6,7 @@ THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 # From pyzolib/paths.py (https://bitbucket.org/pyzo/pyzolib/src/tip/paths.py)
-def appdata_dir(appname=None, roaming=False):
+def appdata_dir(appname=None, roaming=False, is_file=True):
     """appdata_dir(appname=None, roaming=False)
 
     Get the path to the application directory, where applications are allowed
@@ -355,7 +355,7 @@ def tokenize_version(version):
     return tuple(token_list)
 
 
-def _get_model_path(model_name, prefix=None):
+def _get_model_path(model_name, prefix=None, is_file=True):
     resources_dir = resource_package_dir()
     base_dir = resources_dir
     if prefix is not None:
@@ -389,7 +389,7 @@ def _get_model_path(model_name, prefix=None):
     model_files = [
         f
         for f in os.listdir(os.path.join(base_dir, model_name))
-        if os.path.isfile(os.path.join(base_dir, model_name, f))
+        if is_file == os.path.isfile(os.path.join(base_dir, model_name, f))
     ]
     model_versions = []
     for f in model_files:
@@ -437,8 +437,12 @@ def _get_model_path(model_name, prefix=None):
 
 
 def get_detector_model_path(model_name):
-    return _get_model_path(model_name, prefix="Detectors/densities")
+    return _get_model_path(model_name, prefix="Detectors/densities", is_file=True)
 
 
 def get_material_model_path(model_name):
-    return _get_model_path(model_name, prefix="Detectors/materials")
+    return _get_model_path(model_name, prefix="Detectors/materials", is_file=True)
+
+
+def get_cross_section_model_path(model_name):
+    return _get_model_path(model_name, prefix="CrossSections", is_file=False)
