@@ -6,7 +6,7 @@ THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 # From pyzolib/paths.py (https://bitbucket.org/pyzo/pyzolib/src/tip/paths.py)
-def appdata_dir(appname=None, roaming=False, is_file=True):
+def appdata_dir(appname=None, roaming=False):
     """appdata_dir(appname=None, roaming=False)
 
     Get the path to the application directory, where applications are allowed
