@@ -1,3 +1,14 @@
+# Detector model file
+# Detector: IceCube
+# Version: v1
+# Material model file: IceCube-v1.dat
+# Date: 2014-08-14
+# Authors: Kotoyo Hoshina
+# Notes:
+#   Uses PREM model of the Earth
+#   Assumes ice is a spherical cap on the earth
+#   Assumes IceCube is in clear ice
+
 object sphere    0 0 0   0 0 0    6478000    atmo_radius           AIR         radial_polynomial 0 0 0    1    0.000811   # 0.673atm x 1.205e-3(g/cm3 for 1atm)
 object sphere    0 0 0   0 0 0    6374134    iceair_boundary       ICE         radial_polynomial 0 0 0    1    0.762944   # surface of ice, 0.832 x 0.917
 object sphere    0 0 0   0 0 0    6373934    clearice_boundary     ICE         radial_polynomial 0 0 0    1    0.921585   # 200m below ice surface, 1.005 x 0.917
@@ -13,7 +24,6 @@ object sphere    0 0 0   0 0 0    1221500    innercore_boundary    INNERCORE   r
 
 # IceCube detector: 1km^3 cylinder of ice
 object cylinder  0 0 6372184  0 0 0  564.19 0 1000  icecube        ICE         radial_polynomial 0 0 0    1    0.921585  # same as rockice
-
 
 # center of detector at IceCube
 detector      0 0 6372184

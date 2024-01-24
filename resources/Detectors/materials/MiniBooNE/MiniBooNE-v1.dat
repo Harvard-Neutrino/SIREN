@@ -1,0 +1,19 @@
+# Material model file
+# Detector: MiniBooNE
+# Version: v1
+# Date: 2022-04-01
+# Authors: Nicholas Kamp
+# Notes:
+#
+
+MINERAL_OIL 2 # MB Detector Medium
+1000010010    0.1438253     # H1 14.4%
+1000060120    0.8561715     # C12 85.6%
+
+AIR 2       # N2 + O2
+1000070140    0.7562326     # N2 78% in volume
+1000080160    0.2437674     # O2 22% in volume
+
+ROCK  2     # SiO2
+1000140280    0.4674349     # Si, 33%
+1000080160    0.5325651     # 20, 66%

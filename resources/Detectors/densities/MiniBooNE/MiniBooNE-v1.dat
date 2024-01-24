@@ -1,3 +1,13 @@
+# Detector model file
+# Detector: MiniBooNE
+# Version: v1
+# Material model file: MiniBooNE-v1.dat
+# Date: 2022-04-01
+# Authors: Nicholas Kamp
+# Notes:
+#   Assumes MinBooNE is a sphere of mineral oil suspended in air
+#
+
 # Dirt
 object box       0 0 -250            0 0 0      100 100 600    surr_earth           ROCK         constant    2.900 
 

@@ -60,8 +60,8 @@ bool inelastic = true;
 std::string tot_xsec_table_path = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/tot_xsec_Enu/";
 std::string diff_xsec_table_path = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/";
 
-std::string material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/DetectorParams/materials/CCM.dat";
-std::string detector_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/DetectorParams/densities/PREM_ccm.dat";
+std::string material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/Detectors/materials/CCM.dat";
+std::string detector_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/Detectors/densities/PREM_ccm.dat";
     
 double hnl_mass = 0.01375; // in GeV; The HNL mass we are injecting
 double dipole_coupling = 1.0e-6; // in GeV^-1; the effective dipole coupling strength

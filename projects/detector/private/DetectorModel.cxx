@@ -267,11 +267,11 @@ void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
     else if(fexists(path_ + "/densities/" + detector_model + ".dat")) {
         fname = path_ + "/densities/" + detector_model + ".dat";
     }
-    else if(fexists(path_ + "/DetectorParams/" + detector_model)) {
-        fname = path_ + "/DetectorParams/" + detector_model;
+    else if(fexists(path_ + "/Detectors/" + detector_model)) {
+        fname = path_ + "/Detectors/" + detector_model;
     }
-    else if(fexists(path_ + "/DetectorParams/" + detector_model + ".dat")) {
-        fname = path_ + "/DetectorParams/" + detector_model + ".dat";
+    else if(fexists(path_ + "/Detectors/" + detector_model + ".dat")) {
+        fname = path_ + "/Detectors/" + detector_model + ".dat";
     }
     else if(fexists(path_ + "/" + detector_model)) {
         fname = path_ + "/" + detector_model;
@@ -287,7 +287,7 @@ void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
 
     // if the detectormodel file doesn't exist, stop simulation
     if(in.fail()){
-        throw(std::runtime_error("Failed to open " + fname + " Set correct DetectorParamsPath."));
+        throw(std::runtime_error("Failed to open " + fname + " Set correct DetectorsPath."));
     }
 
     ClearSectors();
@@ -1482,11 +1482,11 @@ void DetectorModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, 
     else if(fexists(path_ + "/densities/" + model_fname + ".dat")) {
         fname = path_ + "/densities/" + model_fname + ".dat";
     }
-    else if(fexists(path_ + "/DetectorParams/" + model_fname)) {
-        fname = path_ + "/DetectorParams/" + model_fname;
+    else if(fexists(path_ + "/Detectors/" + model_fname)) {
+        fname = path_ + "/Detectors/" + model_fname;
     }
-    else if(fexists(path_ + "/DetectorParams/" + model_fname + ".dat")) {
-        fname = path_ + "/DetectorParams/" + model_fname + ".dat";
+    else if(fexists(path_ + "/Detectors/" + model_fname + ".dat")) {
+        fname = path_ + "/Detectors/" + model_fname + ".dat";
     }
     else if(fexists(path_ + "/" + model_fname)) {
         fname = path_ + "/" + model_fname;
@@ -1502,7 +1502,7 @@ void DetectorModel::LoadConcentricShellsFromLegacyFile(std::string model_fname, 
 
     // if the detectormodel file doesn't exist, stop simulation
     if(in.fail()){
-        throw(std::runtime_error("Failed to open " + fname + " Set correct DetectorParamsPath."));
+        throw(std::runtime_error("Failed to open " + fname + " Set correct DetectorsPath."));
     }
 
     ClearSectors();

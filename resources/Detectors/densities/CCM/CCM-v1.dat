@@ -1,3 +1,12 @@
+# Detector model file
+# Detector: CCM
+# Version: v1
+# Material model file: CCM-v1.dat
+# Date: 2023-03-18
+# Authors: Nicholas Kamp
+# Notes:
+#   Uses PREM model of the Earth, assumes a single far detector with the liquid argon embedded directly in the roc
+
 # Detector Hall
 object box    0 0 0           0 0 0      100 100 100    surr_air           AIR         constant    0.001225   # 0.673atm x 1.205e-3(g/cm3 for 1atm)
 # adjust floor z pos if necessary: this is a guess

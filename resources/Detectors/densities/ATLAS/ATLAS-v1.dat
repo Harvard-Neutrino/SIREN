@@ -1,0 +1,30 @@
+# Detector model file
+# Detector: ATLAS
+# Version: v1
+# Material model file: ATLAS-v1.dat
+# Date: 2023-05-02
+# Authors: Alex Wen
+# Notes:
+#   Uses PREM model of the Earth
+#   ATLAS is modeled only as AIR and iron
+
+object sphere    0 0 0   0 0 0    6478000    atmo_radius           AIR         radial_polynomial 0 0 0    1    0.000811   # 0.673atm x 1.205e-3(g/cm3 for 1atm)
+object sphere    0 0 0   0 0 0    6371324    rockair_boundary      ROCK        radial_polynomial 0 0 0    1    2.650      # surface of bed rock, 1.0 x 2.65
+object sphere    0 0 0   0 0 0    6356000    inner_crust           ROCK        radial_polynomial 0 0 0    1    2.900
+object sphere    0 0 0   0 0 0    6346600    moho_boundary         MANTLE      radial_polynomial 0 0 0    2    2.691     1.08679956050855438e-07   # surface of mantle
+object sphere    0 0 0   0 0 0    6151000    upper_transition      MANTLE      radial_polynomial 0 0 0    2    7.1089    -5.97159001726573544e-07
+object sphere    0 0 0   0 0 0    5971000    middle_transition     MANTLE      radial_polynomial 0 0 0    2    11.2494   -1.26036728927954783e-06
+object sphere    0 0 0   0 0 0    5771000    lower_transition      MANTLE      radial_polynomial 0 0 0    2    5.3197    -2.32867681682624407e-07
+object sphere    0 0 0   0 0 0    5701000    lowermantle_boundary  MANTLE      radial_polynomial 0 0 0    4    7.9565    -1.01649662533354259e-06   1.36199775701391389e-13    -1.19131495406828110e-20
+object sphere    0 0 0   0 0 0    3480000    coremantle_boundary   OUTERCORE   radial_polynomial 0 0 0    4    12.5815   -1.98367603202009108e-07   -8.97421093229181259e-14   -2.13773109929070169e-20
+object sphere    0 0 0   0 0 0    1221500    innercore_boundary    INNERCORE   radial_polynomial 0 0 0    3    13.0885   0                          -2.17742748697875934e-13
+
+# just a placeholder, need a volume to detect passing muons
+# treat muon system as a big cylinder sensitive volume
+object cylinder 0 0 6371234      0 1.57 0   11 0 22        muon_system  AIR     constant    0.000811
+# hcal in the middle (or=3.82, ir=2.30, length=12.3)
+object cylinder 0 0 6371234      0 1.57 0   3.82 2.30 12.3  tilecal      TILECAL constant    7.83
+
+# declare center of the detector for columndepth lepton injector
+detector         0 0 6371234
+

@@ -58,12 +58,12 @@ TEST(ElasticScattering, Generation)
     using ParticleType = Particle::ParticleType;
 
 #ifdef AUSTIN
-    std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/DetectorParams/materials/Minerva.dat";
-    std::string detector_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/DetectorParams/densities/PREM_minerva.dat";
+    std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/Detectors/materials/Minerva.dat";
+    std::string detector_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/Detectors/densities/PREM_minerva.dat";
     std::string flux_file = "/home/austin/nu-dipole/fluxes/LE_FHC_numu.txt";
 #else
-    std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/DetectorParams/materials/Minerva.dat";
-    std::string detector_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/DetectorParams/densities/PREM_minerva.dat";
+    std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/Detectors/materials/Minerva.dat";
+    std::string detector_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/Detectors/densities/PREM_minerva.dat";
     std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/ME_FHC_numu.txt";
 #endif
 

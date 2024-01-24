@@ -1,3 +1,11 @@
+# Material model file
+# Detector: DUNEFD
+# Version: v1
+# Date: 2024-01-23
+# Authors: Austin Schneider
+# Notes:
+#
+
 ICE   2     # H20
 1000080160    0.8881016     # 0, 88.8% in weight  
 1000010010    0.1118984     # 2H, 11% in weight
@@ -20,5 +28,5 @@ AIR 2       # N2 + O2
 1000070140    0.7562326     # N2 78% in volume
 1000080160    0.2437674     # O2 22% in volume
 
-VACUUM 1    # dummy, H
-1000010010    1.0000000     # N2 78% in volume
+LAR 1 # Liquid Argon is just Ar2, isotopic composition is predominantly Ar40
+1000180400    1.0000000     # Ar40 100.0%%

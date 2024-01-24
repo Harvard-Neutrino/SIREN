@@ -1,3 +1,13 @@
+# Detector model file
+# Detector: MINERvA
+# Version: v1
+# Material model file: MINERvA-v1.dat
+# Date: 2023-03-01
+# Authors: Nicholas Kamp
+# Notes:
+#   Includes the veto shield, ECAL, and nuclear targets
+#
+
 # Dirt
 object box       0 0 -100            0 0 0      100 100 300    surr_earth           ROCK         constant    2.900 
 
