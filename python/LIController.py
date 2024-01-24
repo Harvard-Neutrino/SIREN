@@ -40,21 +40,8 @@ class LIController:
         self.events = []
 
         # Find the density and materials files
-        materials_file = os.path.join(
-            self.resources_dir, "DetectorParams", "materials", f"{experiment}.dat"
-        )
-        if experiment in ["ATLAS", "dune", "IceCube"]:
-            detector_model_file = os.path.join(
-                self.resources_dir,
-                "DetectorParams",
-                "densities",
-                f"PREM_{experiment}.dat",
-            )
-        else:
-            detector_model_file = os.path.join(
-                self.resources_dir, "DetectorParams", "densities", f"{experiment}.dat"
-            )
-
+        materials_file = _util.get_material_model_path(experiment)
+        detector_model_file = _util.get_detector_model_path(experiment)
         print(detector_model_file)
 
         self.detector_model = _detector.DetectorModel()
