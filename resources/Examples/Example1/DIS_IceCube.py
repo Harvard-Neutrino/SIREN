@@ -20,13 +20,16 @@ controller = LIController(events_to_inject, experiment)
 # Particle to inject
 primary_type = LI.dataclasses.Particle.ParticleType.NuMu
 
+cross_section_model = "CSMSDISSplines"
+
+xsfiledir = _util.get_cross_section_model_path(cross_section_model)
+
 # Cross Section Model
-xsfiledir = os.path.join(resources_dir, "CrossSectionTables", "DISSplines")
 target_type = LI.dataclasses.Particle.ParticleType.Nucleon
 
 DIS_xs = LI.interactions.DISFromSpline(
-    os.path.join(xsfiledir, "test_xs.fits"),
-    os.path.join(xsfiledir, "test_xs_total.fits"),
+    os.path.join(xsfiledir, "dsdxdy_nu_CC_iso.fits"),
+    os.path.join(xsfiledir, "sigma_nu_CC_iso.fits"),
     [primary_type],
     [target_type],
 )
@@ -64,6 +67,4 @@ controller.Initialize()
 
 events = controller.GenerateEvents()
 
-controller.SaveEvents(
-    "IceCube_DIS.hdf5"
-)
+controller.SaveEvents("IceCube_DIS.hdf5")

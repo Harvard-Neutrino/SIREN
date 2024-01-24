@@ -1,0 +1,54 @@
+# Material model file
+# Detector: CCM
+# Version: v1
+# Date: 2023-03-18
+# Authors: Nicholas Kamp
+# Notes:
+#   Uses PREM model of the Earth, assumes a single far detector with the liquid argon embedded directly in the roc
+
+ARGON 1 # CCM Argon
+1000180400    1.0000000     # Ar40 100.0%%
+
+STEEL 4 # Mostly Fe
+1000060120    0.0013000     # C12 0.13%
+1000140280    0.0020000     # Si28 0.2%
+1000250550    0.0100000     # Mn55 1.0%
+1000260560    0.9870000     # Fe56 98.7%
+
+LEAD 2 # Mostly Pb
+1000822080    0.9995000     # Pb208 99.95%
+1000290630    0.0005000     # Cu63 0.05%
+
+GRAPHITE 1 # Essentially Carbon
+1000060120    1.0000000     # C12 100%
+
+WATER 2 # H20
+1000010010    0.1150000     # H1 11.5%
+1000080160    0.8850000     # 016 88.5%
+
+AIR 2       # N2 + O2
+1000070140    0.7562326     # N2 78% in volume
+1000080160    0.2437674     # O2 22% in volume
+
+# Guess based on https://mcnp.lanl.gov/pdf_files/la-ur-07-5898.pdf
+CONCRETE 7  # mostly SiO2
+1000010010    0.0045300     # H1 0.453%
+1000080160    0.5126000     # 016 51.26%
+1000110230    0.0152700     # Na23 1.527%
+1000130270    0.0355500     # Al27 3.555%
+1000140280    0.3603600     # Si28 36.036%
+1000200400    0.0579100     # Ca40 5.791%
+1000260560    0.0137800     # Fe56 1.378%
+
+ALUMINUM 1 # pure Al
+1000130270    1.0000000     # Al27 100%
+
+BERYLLIUM 1 # pure Be
+1000040090    1.0000000     # Be9 100%
+
+TUNGSTEN 1 # pure W
+1000741830    1.0000000     # W183 100%
+
+POLY 2 # C2H4
+1000060120    0.8571400     # C12 85.714%
+1000010010    0.1428600     # H1 14.286%

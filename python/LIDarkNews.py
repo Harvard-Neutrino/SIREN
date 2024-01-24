@@ -45,7 +45,7 @@ class PyDarkNewsInteractionCollection:
         if self.table_dir is None:
             self.table_dir = os.path.join(
                 resources_dir,
-                "CrossSectionTables",
+                "CrossSections",
                 "DarkNewsTables",
                 datetime.datetime.now().strftime("%Y_%m_%d__%H:%M"),
             )
@@ -110,7 +110,9 @@ class PyDarkNewsInteractionCollection:
                 table_subdirs += "%s_" % str(x)
             table_subdirs += "/"
             self.decays.append(
-                PyDarkNewsDecay(dec_case, table_dir=os.path.join(self.table_dir, table_subdirs))
+                PyDarkNewsDecay(
+                    dec_case, table_dir=os.path.join(self.table_dir, table_subdirs)
+                )
             )
 
     def SaveCrossSectionTables(self, fill_tables_at_exit=True):
@@ -176,7 +178,9 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             total_xsec_file = os.path.join(self.table_dir, "total_cross_sections.npy")
             if os.path.exists(total_xsec_file):
                 self.total_cross_section_table = np.load(total_xsec_file)
-            diff_xsec_file = os.path.join(self.table_dir, "differential_cross_sections.npy")
+            diff_xsec_file = os.path.join(
+                self.table_dir, "differential_cross_sections.npy"
+            )
             if os.path.exists(diff_xsec_file):
                 self.differential_cross_section_table = np.load(diff_xsec_file)
 
@@ -185,29 +189,31 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     # Sorts and redefines scipy interpolation objects
     def _redefine_interpolation_objects(self, total=False, diff=False):
         if total:
-            self.total_cross_section_table = np.sort(
-                self.total_cross_section_table, axis=0
+            if len(self.total_cross_section_table) <= 1: return
+            idxs = np.argsort(
+                self.total_cross_section_table[:,0]
             )
-            if len(self.total_cross_section_table) > 1:
-                self.total_cross_section_interpolator = CubicSpline(
-                    self.total_cross_section_table[:, 0],
-                    self.total_cross_section_table[:, 1],
-                )
+            self.total_cross_section_table = self.total_cross_section_table[idxs]
+            self.total_cross_section_interpolator = CubicSpline(
+                self.total_cross_section_table[:, 0],
+                self.total_cross_section_table[:, 1],
+            )
         if diff:
-            self.differential_cross_section_table = np.sort(
-                self.differential_cross_section_table, axis=0
+            if len(self.differential_cross_section_table) <= 1: return
+            idxs = np.lexsort(
+                (self.differential_cross_section_table[:,1],
+                 self.differential_cross_section_table[:,0])
             )
-            if len(self.differential_cross_section_table) > 1:
-                # If we only have two energy points, don't try to construct interpolator
-                if len(np.unique(self.differential_cross_section_table[:, 0])) <= 2:
-                    return
-                self.differential_cross_section_interpolator = (
-                    CloughTocher2DInterpolator(
-                        self.differential_cross_section_table[:, :2],
-                        self.differential_cross_section_table[:, 2],
-                        rescale=True,
-                    )
+            self.differential_cross_section_table = self.differential_cross_section_table[idxs]
+            # If we only have two energy points, don't try to construct interpolator
+            if len(np.unique(self.differential_cross_section_table[:, 0])) <= 2: return
+            self.differential_cross_section_interpolator = (
+                CloughTocher2DInterpolator(
+                    self.differential_cross_section_table[:, :2],
+                    self.differential_cross_section_table[:, 2],
+                    rescale=True,
                 )
+            )
 
     # Check whether we have close-enough entries in the intrepolation tables
     def _interpolation_flags(self, inputs, mode):
@@ -231,10 +237,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             return False, False, -1
 
         # bools to keep track of whether to use a single point or interpolate
-        UseSinglePoint = True
+        UseSinglePoint = False
         Interpolate = True
         # First check whether we have a close-enough single point
-        closest_idx = np.argmin(np.sum(np.abs(interp_table[:, :-1] - inputs)))
+        closest_idx = np.argmin(np.sum(np.abs(interp_table[:, :-1] - inputs),axis=-1))
         diff = (interp_table[closest_idx, :-1] - inputs) / inputs
         if np.all(np.abs(diff) < self.tolerance):
             UseSinglePoint = True
@@ -316,7 +322,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                         self.total_cross_section_table, [[E, xsec]], axis=0
                     )
                     num_added_points += 1
-                E *= 1 + self.interp_tolerance
+                E *= (1 + self.interp_tolerance)
         if diff:
             # interaction record to calculate Q2 bounds
             interaction = LI.dataclasses.InteractionRecord()
@@ -348,8 +354,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                             axis=0,
                         )
                         num_added_points += 1
-                    z *= 1 + self.interp_tolerance
-                E *= 1 + self.interp_tolerance
+                    z *= (1 + self.interp_tolerance)
+                E *= (1 + self.interp_tolerance)
         self._redefine_interpolation_objects(total=total, diff=diff)
         return num_added_points
 
@@ -357,11 +363,15 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     def SaveInterpolationTables(self, total=True, diff=True):
         if total:
             self._redefine_interpolation_objects(total=True)
-            with open(os.path.join(self.table_dir, "total_cross_sections.npy"), "wb") as f:
+            with open(
+                os.path.join(self.table_dir, "total_cross_sections.npy"), "wb"
+            ) as f:
                 np.save(f, self.total_cross_section_table)
         if diff:
             self._redefine_interpolation_objects(diff=True)
-            with open(os.path.join(self.table_dir, "differential_cross_sections.npy"), "wb") as f:
+            with open(
+                os.path.join(self.table_dir, "differential_cross_sections.npy"), "wb"
+            ) as f:
                 np.save(f, self.differential_cross_section_table)
 
     ##### START METHODS FOR SERIALIZATION #########
