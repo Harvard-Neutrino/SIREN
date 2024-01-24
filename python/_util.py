@@ -410,8 +410,8 @@ def _get_model_path(model_name, prefix=None):
 
 
 def get_detector_model_path(model_name):
-    return _get_model_path(model_name, prefix="DetectorParams/densities")
+    return _get_model_path(model_name, prefix="Detectors/densities")
 
 
 def get_material_model_path(model_name):
-    return _get_model_path(model_name, prefix="DetectorParams/materials")
+    return _get_model_path(model_name, prefix="Detectors/materials")
