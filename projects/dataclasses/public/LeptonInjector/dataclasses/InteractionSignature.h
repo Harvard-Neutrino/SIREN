@@ -14,9 +14,10 @@ namespace LI {
 namespace dataclasses {
 
 struct InteractionSignature {
-    LI::dataclasses::Particle::ParticleType primary_type;
-    LI::dataclasses::Particle::ParticleType target_type;
+    LI::dataclasses::Particle::ParticleType primary_type = LI::dataclasses::Particle::ParticleType::unknown;
+    LI::dataclasses::Particle::ParticleType target_type = LI::dataclasses::Particle::ParticleType::unknown;
     std::vector<LI::dataclasses::Particle::ParticleType> secondary_types;
+
     bool operator==(InteractionSignature const & other) const;
     bool operator<(InteractionSignature const & other) const;
     friend std::ostream& operator<<(std::ostream& os, InteractionSignature const& signature);
