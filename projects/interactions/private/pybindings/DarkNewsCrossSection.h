@@ -397,8 +397,37 @@ public:
         )
     }
 
-    pybind11::object get_self() override {
-        return self;
+    pybind11::object get_representation() override {
+        const DarkNewsCrossSection * ref;
+        if(self) {
+            ref = self.cast<DarkNewsCrossSection *>();
+        } else {
+            ref = this;
+        }
+        auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsCrossSection));
+        pybind11::function override_func =
+            tinfo ? pybind11::detail::get_type_override(static_cast<const DarkNewsCrossSection *>(ref), tinfo, "get_representation") : pybind11::function();
+        if (override_func) {
+            pybind11::object o = override_func();
+            if(not pybind11::isinstance<pybind11::dict>(o)) {
+                throw std::runtime_error("get_representation must return a dict");
+            }
+            return o;
+        }
+
+        pybind11::object _self;
+        if(this->self) {
+            self = pybind11::reinterpret_borrow<pybind11::object>(this->self);
+        } else {
+            auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsCrossSection));
+            pybind11::handle self_handle = get_object_handle(static_cast<const DarkNewsCrossSection *>(this), tinfo);
+            _self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
+        }
+        pybind11::dict d;
+        if (pybind11::hasattr(self, "__dict__")) {
+            d = _self.attr("__dict__");
+        }
+        return d;
     }
 };
 } // end interactions namespace
@@ -435,22 +464,10 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
-        .def("get_self", &pyDarkNewsCrossSection::get_self)
+        .def("get_representation", &pyDarkNewsCrossSection::get_representation)
         .def(pybind11::pickle(
             [](const LI::interactions::pyDarkNewsCrossSection & cpp_obj) {
-                pybind11::object self;
-                if(cpp_obj.self) {
-                    self = pybind11::reinterpret_borrow<pybind11::object>(cpp_obj.self);
-                } else {
-                    auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsCrossSection));
-                    pybind11::handle self_handle = get_object_handle(static_cast<const DarkNewsCrossSection *>(&cpp_obj), tinfo);
-                    self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
-                }
-                pybind11::dict d;
-                if (pybind11::hasattr(self, "__dict__")) {
-                    d = self.attr("__dict__");
-                }
-                return pybind11::make_tuple(d);
+                return pybind11::make_tuple(cpp_obj.get_representation());
             },
             [](const pybind11::tuple &t) {
                 if (t.size() != 1) {

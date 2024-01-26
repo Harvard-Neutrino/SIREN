@@ -42,7 +42,7 @@ public:
 
     DarkNewsCrossSection();
 
-    virtual pybind11::object get_self();
+    virtual pybind11::object get_representation();
 
     virtual bool equal(CrossSection const & other) const override;
 
