@@ -517,10 +517,10 @@ void DISFromSpline::SampleFinalState(dataclasses::InteractionRecord& interaction
     double final_x = pow(10., kin_vars[1]);
     double final_y = pow(10., kin_vars[2]);
 
-    interaction.interaction_parameters.resize(3);
-    interaction.interaction_parameters[0] = E1_lab;
-    interaction.interaction_parameters[1] = final_x;
-    interaction.interaction_parameters[2] = final_y;
+    interaction.interaction_parameters.clear();
+    interaction.interaction_parameters["energy"] = E1_lab;
+    interaction.interaction_parameters["bjorken_x"] = final_x;
+    interaction.interaction_parameters["bjorken_y"] = final_y;
 
     double Q2 = 2 * E1_lab * E2_lab * pow(10.0, kin_vars[1] + kin_vars[2]);
     double p1x_lab = std::sqrt(p1_lab.px() * p1_lab.px() + p1_lab.py() * p1_lab.py() + p1_lab.pz() * p1_lab.pz());

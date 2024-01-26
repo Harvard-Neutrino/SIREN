@@ -203,8 +203,9 @@ void ElasticScattering::SampleFinalState(dataclasses::InteractionRecord& interac
     }
     double final_y = y + 1e-16; // to account for machine epsilon when adding to O(1) numbers
 
-    interaction.interaction_parameters.resize(1);
-    interaction.interaction_parameters[0] = final_y;
+    interaction.interaction_parameters.clear();
+    interaction.interaction_parameters["energy"] = primary_energy;
+    interaction.interaction_parameters["bjorken_y"] = final_y;
 
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
     geom3::Vector3 p1_mom = p1_lab.momentum();

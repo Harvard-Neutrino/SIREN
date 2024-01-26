@@ -312,12 +312,12 @@ void Injector::SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const &
     decay.secondary_momenta[1][3] = pGamma_HNLrest.pz();
     decay.secondary_helicity[0] = std::copysign(1.0, decay.primary_helicity);
 
-    decay.decay_parameters.resize(5);
-    decay.decay_parameters[0] = decay_length;
-    decay.decay_parameters[1] = decay_weight;
-    decay.decay_parameters[2] = (1+alpha_phys*costh)/(1+alpha_gen*costh);
-    decay.decay_parameters[3] = a;
-    decay.decay_parameters[4] = b;
+    decay.decay_parameters.clear();
+    decay.decay_parameters["decay_length"] = decay_length;
+    decay.decay_parameters["decay_weight"] = decay_weight;
+    decay.decay_parameters["angular_weight"] = (1+alpha_phys*costh)/(1+alpha_gen*costh);
+    decay.decay_parameters["min_distance"] = a;
+    decay.decay_parameters["max_distance"] = b;
 }
 
 // Function to sample secondary processes

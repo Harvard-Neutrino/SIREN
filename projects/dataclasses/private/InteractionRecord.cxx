@@ -62,9 +62,9 @@ std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord co
     for(auto const & secondary: record.secondary_masses) {
         os << "\t" << secondary << "\n";
     }
-    os << "InteractionParameters:";
-    for(auto param: record.interaction_parameters) {
-        os << " " << param;
+    os << "InteractionParameters:\n";
+    for(std::pair<std::string const, double> const & param : record.interaction_parameters) {
+        os << "\t\"" << param.first << "\": " << param.second << "\n";
     }
     os << std::endl;
 

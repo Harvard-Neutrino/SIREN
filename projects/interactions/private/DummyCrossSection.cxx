@@ -111,10 +111,10 @@ void DummyCrossSection::SampleFinalState(dataclasses::InteractionRecord& interac
     double final_x = random->Uniform(0, 1);
     double final_y = random->Uniform(0, 1);
 
-    interaction.interaction_parameters.resize(3);
-    interaction.interaction_parameters[0] = primary_energy;
-    interaction.interaction_parameters[1] = final_x;
-    interaction.interaction_parameters[2] = final_y;
+    interaction.interaction_parameters.clear();
+    interaction.interaction_parameters["energy"] = primary_energy;
+    interaction.interaction_parameters["bjorken_x"] = final_x;
+    interaction.interaction_parameters["bjorken_y"] = final_y;
 
     double m1 = interaction.primary_mass;
     double m3 = 0;

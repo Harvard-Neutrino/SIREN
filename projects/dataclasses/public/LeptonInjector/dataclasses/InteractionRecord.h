@@ -40,7 +40,8 @@ struct InteractionRecord {
     std::vector<double> secondary_masses;
     std::vector<std::array<double, 4>> secondary_momenta;
     std::vector<double> secondary_helicity;
-    std::vector<double> interaction_parameters;
+    std::map<std::string, double> interaction_parameters;
+
     bool operator==(InteractionRecord const & other) const;
     friend std::ostream& ::operator<<(std::ostream& os, InteractionRecord const& record);
     template<class Archive>

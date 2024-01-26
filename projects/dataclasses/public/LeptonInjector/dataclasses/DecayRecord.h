@@ -10,6 +10,7 @@
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
+#include <cereal/types/map.hpp>
 #include <cereal/types/vector.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
@@ -29,7 +30,8 @@ struct DecayRecord {
     std::vector<double> secondary_masses;
     std::vector<std::array<double, 4>> secondary_momenta;
     std::vector<double> secondary_helicity;
-    std::vector<double> decay_parameters;
+    std::map<std::string, double> decay_parameters;
+
     bool operator==(DecayRecord const & other) const;
     friend std::ostream& operator<<(std::ostream& os, DecayRecord const& record);
     template<class Archive>
