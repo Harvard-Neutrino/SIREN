@@ -43,6 +43,7 @@ struct InteractionRecord {
     std::map<std::string, double> interaction_parameters;
 
     bool operator==(InteractionRecord const & other) const;
+    bool operator<(InteractionRecord const & other) const;
     friend std::ostream& ::operator<<(std::ostream& os, InteractionRecord const& record);
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
