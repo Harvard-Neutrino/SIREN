@@ -36,7 +36,8 @@ jobs:
     strategy:
       matrix:
         os: [macos-11]
-        arch: [x86_64, arm64]
+        # arch: [x86_64, arm64]
+        arch: [x86_64]
 
     steps:
       - name: Checkout LeptonInjector
