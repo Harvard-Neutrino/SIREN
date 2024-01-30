@@ -21,7 +21,7 @@ namespace interactions {
 
 DarkNewsCrossSection::DarkNewsCrossSection() {}
 
-pybind11::object DarkNewsCrossSection::get_self() {
+pybind11::object DarkNewsCrossSection::get_representation() {
     return pybind11::cast<pybind11::none>(Py_None);
 }
 

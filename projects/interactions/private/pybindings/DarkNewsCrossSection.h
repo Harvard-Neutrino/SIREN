@@ -195,7 +195,7 @@ public:
         )
     }
 
-    pybind11::object get_self() {
+    pybind11::object get_representation() {
         return self;
     }
 };
@@ -466,7 +466,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
         .def("get_representation", &pyDarkNewsCrossSection::get_representation)
         .def(pybind11::pickle(
-            [](const LI::interactions::pyDarkNewsCrossSection & cpp_obj) {
+            [](LI::interactions::pyDarkNewsCrossSection & cpp_obj) {
                 return pybind11::make_tuple(cpp_obj.get_representation());
             },
             [](const pybind11::tuple &t) {
@@ -507,7 +507,7 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
-        .def("get_self", &DarkNewsCrossSection::get_self)
+        .def("get_representation", &DarkNewsCrossSection::get_representation)
         .def(pybind11::pickle(
             [](const LI::interactions::DarkNewsCrossSection & cpp_obj) {
                 pybind11::object self;
