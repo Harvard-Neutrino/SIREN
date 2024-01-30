@@ -169,7 +169,7 @@ class LIController:
         # Initialize secondary processes and define secondary InteractionCollection objects
         secondary_decays = {}
         # Also keep track of the minimum decay width for defining the position distribution later
-        self.DN_min_decay_width = 0
+        self.DN_min_decay_width = np.inf
         # Loop over available decays, group by parent type
         for decay in self.DN_processes.decays:
             secondary_type = _dataclasses.Particle.ParticleType(
@@ -314,7 +314,7 @@ class LIController:
             self.secondary_physical_processes,
         )
 
-    def GenerateEvents(self, N=None):
+    def GenerateEvents(self, N=None, fill_tables_at_exit=True):
         if N is None:
             N = self.events_to_inject
         count = 0
@@ -324,10 +324,10 @@ class LIController:
             self.events.append(tree)
             count += 1
         if hasattr(self, "DN_processes"):
-            self.DN_processes.SaveCrossSectionTables()
+            self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)
         return self.events
 
-    def SaveEvents(self, filename):
+    def SaveEvents(self, filename, fill_tables_at_exit=True):
         fout = h5py.File(filename, "w")
         fout.attrs["num_events"] = len(self.events)
         for ie, event in enumerate(self.events):
@@ -371,4 +371,4 @@ class LIController:
 
         fout.close()
         if hasattr(self, "DN_processes"):
-            self.DN_processes.SaveCrossSectionTables()
+            self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)
