@@ -15,7 +15,7 @@ resources_dir = _util.resource_package_dir()
 # Define a DarkNews model
 model_kwargs = {
     "m4": 0.47,  # 0.140,
-    "mu_tr_mu4": 2.5e-6,  # 1e-6, # GeV^-1
+    "mu_tr_mu4": 1.25e-6,  # 1e-6, # GeV^-1
     "UD4": 0,
     "Umu4": 0,
     "epsilon": 0.0,
@@ -26,7 +26,7 @@ model_kwargs = {
 }
 
 # Number of events to inject
-events_to_inject = 1000
+events_to_inject = 10000
 
 # Expeirment to run
 experiment = "MiniBooNE"
@@ -94,9 +94,10 @@ def stop(datum, i):
 
 controller.injector.SetStoppingCondition(stop)
 
-events = controller.GenerateEvents()
+events = controller.GenerateEvents(fill_tables_at_exit=False)
 
 controller.SaveEvents(
     "output/MiniBooNE_Dipole_M%2.2f_mu%2.2e_example.hdf5"
-    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
+    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
+    fill_tables_at_exit=False
 )
