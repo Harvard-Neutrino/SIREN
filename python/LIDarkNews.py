@@ -155,6 +155,12 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         self.table_dir = table_dir
         self.interpolate_differential = interpolate_differential
 
+        # Define the target particle
+        # make sure protons are stored as H nuclei
+        self.target_type = Particle.ParticleType(self.ups_case.nuclear_target.pdgid)
+        if self.target_type==Particle.ParticleType.PPlus:
+            self.target_type = Particle.ParticleType.HNucleus
+
         # 2D table in E, sigma
         self.total_cross_section_table = np.empty((0, 2), dtype=float)
         self.total_cross_section_interpolator = None
@@ -399,26 +405,24 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     def GetPossibleTargetsFromPrimary(self, primary_type):
         if Particle.ParticleType(self.ups_case.nu_projectile.pdgid) == primary_type:
-            return [Particle.Particle.ParticleType(self.ups_case.nuclear_target.pdgid)]
+            return [self.target_type]
         return []
 
     def GetPossibleTargets(self):
-        return [Particle.ParticleType(self.ups_case.nuclear_target.pdgid)]
+        return [self.target_type]
 
     def GetPossibleSignatures(self):
         signature = LI.dataclasses.InteractionSignature()
         signature.primary_type = Particle.ParticleType(
             self.ups_case.nu_projectile.pdgid
         )
-        signature.target_type = Particle.ParticleType(
-            self.ups_case.nuclear_target.pdgid
-        )
+        signature.target_type = self.target_type
         signature.secondary_types = []
         signature.secondary_types.append(
             Particle.ParticleType(self.ups_case.nu_upscattered.pdgid)
         )
         signature.secondary_types.append(
-            Particle.ParticleType(self.ups_case.nuclear_target.pdgid)
+            self.target_type
         )
         return [signature]
 
@@ -520,7 +524,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     def TotalCrossSection(self, arg1, energy=None, target=None):
         # Handle overloaded arguments
-        if type(arg1 == LI.dataclasses.InteractionRecord):
+        if type(arg1) == LI.dataclasses.InteractionRecord:
             primary = arg1.signature.primary_type
             energy = arg1.primary_momentum[0]
             target = arg1.signature.target_type
