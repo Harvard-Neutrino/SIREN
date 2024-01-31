@@ -41,7 +41,7 @@ xs_path = _util.get_cross_section_model_path(f"DarkNewsTables-v{darknews_version
 # Define DarkNews Model
 table_dir = os.path.join(
     xs_path,
-    "Dipole_M%2.2f_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
+    "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
 )
 controller.InputDarkNewsModel(primary_type, table_dir, model_kwargs)
 
@@ -97,7 +97,7 @@ controller.injector.SetStoppingCondition(stop)
 events = controller.GenerateEvents(fill_tables_at_exit=False)
 
 controller.SaveEvents(
-    "output/MiniBooNE_Dipole_M%2.2f_mu%2.2e_example.hdf5"
+    "output/MiniBooNE_Dipole_M%2.2e_mu%2.2e_example.hdf5"
     % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
     fill_tables_at_exit=False
 )
