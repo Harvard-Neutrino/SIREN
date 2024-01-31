@@ -36,6 +36,7 @@ struct InteractionRecord {
     double target_mass = 0;
     std::array<double, 4> target_momentum = {0, 0, 0, 0};
     double target_helicity = 0;
+    std::array<double, 3> initial_primary_position = {0, 0, 0};
     std::array<double, 3> interaction_vertex = {0, 0, 0};
     std::vector<double> secondary_masses;
     std::vector<std::array<double, 4>> secondary_momenta;
@@ -55,6 +56,7 @@ struct InteractionRecord {
             archive(::cereal::make_nvp("TargetMass", target_mass));
             archive(::cereal::make_nvp("TargetMomentum", target_momentum));
             archive(::cereal::make_nvp("TargetHelicity", target_helicity));
+            archive(::cereal::make_nvp("InitialPrimaryPosition", initial_primary_position));
             archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
             archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
             archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
