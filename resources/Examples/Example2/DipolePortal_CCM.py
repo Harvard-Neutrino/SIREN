@@ -14,8 +14,8 @@ resources_dir = _util.resource_package_dir()
 
 # Define a DarkNews model
 model_kwargs = {
-    "m4": 0.02,
-    "mu_tr_mu4": 2.5e-6,  # 1e-6, # GeV^-1
+    "m4": 0.0235,
+    "mu_tr_mu4": 3e-7,  # 1e-6, # GeV^-1
     "UD4": 0,
     "Umu4": 0,
     "epsilon": 0.0,
@@ -26,7 +26,7 @@ model_kwargs = {
 }
 
 # Number of events to inject
-events_to_inject = 1000
+events_to_inject = 10000
 
 # Expeirment to run
 experiment = "CCM"
@@ -41,7 +41,7 @@ xs_path = _util.get_cross_section_model_path(f"DarkNewsTables-v{darknews_version
 # Define DarkNews Model
 table_dir = os.path.join(
     xs_path,
-    "Dipole_M%2.2f_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
+    "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
 )
 controller.InputDarkNewsModel(primary_type, table_dir, model_kwargs)
 
@@ -94,9 +94,10 @@ def stop(datum, i):
 
 controller.injector.SetStoppingCondition(stop)
 
-events = controller.GenerateEvents()
+events = controller.GenerateEvents(fill_tables_at_exit=False)
 
 controller.SaveEvents(
-    "output/CCM_Dipole_M%2.2f_mu%2.2e_example.hdf5"
-    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
+    "output/CCM_Dipole_M%2.2e_mu%2.2e_example"
+    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
+    fill_tables_at_exit=False
 )

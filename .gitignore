@@ -35,6 +35,9 @@
 *.h5
 *.hdf5
 
+# parquet datafiles
+*.parquet
+
 # LIC files
 *.lic
 
