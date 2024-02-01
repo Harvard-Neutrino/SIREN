@@ -1,6 +1,7 @@
 #include "LeptonInjector/dataclasses/ParticleID.h"
 
 #include <tuple>
+#include <mutex>
 #include <atomic>
 #include <unistd.h>
 
