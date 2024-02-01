@@ -9,14 +9,17 @@ namespace dataclasses {
 bool InteractionRecord::operator==(InteractionRecord const & other) const {
     return std::tie(
         signature,
+        primary_id,
         primary_initial_position,
         primary_mass,
         primary_momentum,
         primary_helicity,
+        target_id,
         target_mass,
         target_momentum,
         target_helicity,
         interaction_vertex,
+        secondary_ids,
         secondary_masses,
         secondary_momenta,
         secondary_helicity,
@@ -24,14 +27,17 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         ==
         std::tie(
         other.signature,
+        other.primary_id,
         other.primary_initial_position,
         other.primary_mass,
         other.primary_momentum,
         other.primary_helicity,
+        other.target_id,
         other.target_mass,
         other.target_momentum,
         other.target_helicity,
         other.interaction_vertex,
+        other.secondary_ids,
         other.secondary_masses,
         other.secondary_momenta,
         other.secondary_helicity,
@@ -41,14 +47,17 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
 bool InteractionRecord::operator<(InteractionRecord const & other) const {
     return std::tie(
         signature,
+        primary_id,
         primary_initial_position,
         primary_mass,
         primary_momentum,
         primary_helicity,
+        target_id,
         target_mass,
         target_momentum,
         target_helicity,
         interaction_vertex,
+        secondary_ids,
         secondary_masses,
         secondary_momenta,
         secondary_helicity,
@@ -56,14 +65,17 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         <
         std::tie(
         other.signature,
+        other.primary_id,
         other.primary_initial_position,
         other.primary_mass,
         other.primary_momentum,
         other.primary_helicity,
+        other.target_id,
         other.target_mass,
         other.target_momentum,
         other.target_helicity,
         other.interaction_vertex,
+        other.secondary_ids,
         other.secondary_masses,
         other.secondary_momenta,
         other.secondary_helicity,
@@ -83,12 +95,18 @@ std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord co
     }
     os << "\n";
 
+    os << "PrimaryID: " << record.primary_id << "\n";
     os << "PrimaryInitialPosition: " << record.primary_initial_position[0] << " " << record.primary_initial_position[1] << " " << record.primary_initial_position[2] << "\n";
     os << "InteractionVertex: " << record.interaction_vertex[0] << " " << record.interaction_vertex[1] << " " << record.interaction_vertex[2] << "\n";
     os << "PrimaryMass: " << record.primary_mass << "\n";
     os << "PrimaryMomentum: " << record.primary_momentum[0] << " " << record.primary_momentum[1] << " " << record.primary_momentum[2] << " " << record.primary_momentum[3] << "\n";
+    os << "TargetID: " << record.target_id << "\n";
     os << "TargetMass: " << record.target_mass << "\n";
     os << "TargetMomentum: " << record.target_momentum[0] << " " << record.target_momentum[1] << " " << record.target_momentum[2] << " " << record.target_momentum[3] << "\n";
+    os << "SecondaryIDs:\n";
+    for(auto const & secondary: record.secondary_ids) {
+        os << "\t" << secondary << "\n";
+    }
     os << "SecondaryMomenta:\n";
     for(auto const & secondary: record.secondary_momenta) {
         os << "\t" << secondary[0] << " " << secondary[1] << " " << secondary[2] << " " << secondary[3] << "\n";
