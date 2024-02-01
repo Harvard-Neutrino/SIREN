@@ -46,6 +46,11 @@ TEST(Comparison, Comparison_equal)
     B.signature.secondary_types.push_back(Particle::ParticleType::EMinus);
     EXPECT_TRUE(A == B);
 
+    A.primary_initial_position = {1.0, 2.0, 3.0};
+    EXPECT_FALSE(A == B);
+    B.primary_initial_position = {1.0, 2.0, 3.0};
+    EXPECT_TRUE(A == B);
+
     A.primary_mass = 1.0;
     EXPECT_FALSE(A == B);
     B.primary_mass = 1.0;
@@ -136,6 +141,14 @@ TEST(Comparison, LessThan)
     EXPECT_TRUE(B < A);
 
     B.signature.secondary_types.push_back(Particle::ParticleType::EMinus);
+    EXPECT_FALSE(A < B);
+    EXPECT_FALSE(B < A);
+
+    A.primary_initial_position = {1.0, 2.0, 3.0};
+    EXPECT_FALSE(A < B);
+    EXPECT_TRUE(B < A);
+
+    B.primary_initial_position = {1.0, 2.0, 3.0};
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
@@ -261,7 +274,7 @@ TEST(Serialization, Save)
         oarchive(record);
     }
 
-    std::string expected = "{\n    \"cereal_class_version\": 0,\n    \"InteractionSignature\": {\n        \"cereal_class_version\": 0,\n        \"PrimaryType\": -11,\n        \"TargetType\": 2212,\n        \"SecondaryTypes\": [\n            -11\n        ]\n    },\n    \"PrimaryMass\": 1,\n    \"PrimaryMomentum\": [\n        1,\n        2,\n        3,\n        4\n    ],\n    \"PrimaryHelicity\": 1,\n    \"TargetMass\": 1,\n    \"TargetMomentum\": [\n        1,\n        2,\n        3,\n        4\n    ],\n    \"TargetHelicity\": 1,\n    \"InteractionVertex\": [\n        1,\n        2,\n        3\n    ],\n    \"SecondaryMasses\": [\n        1\n    ],\n    \"SecondaryMomenta\": [\n        [\n            1,\n            2,\n            3,\n            4\n        ]\n    ],\n    \"SecondaryHelicity\": [\n        1\n    ],\n    \"InteractionParameters\": {\n        \"test\": 1\n    }\n}";
+    std::string expected = "{\n    \"cereal_class_version\": 0,\n    \"InteractionSignature\": {\n        \"cereal_class_version\": 0,\n        \"PrimaryType\": -11,\n        \"TargetType\": 2212,\n        \"SecondaryTypes\": [\n            -11\n        ]\n    },\n    \"PrimaryInitialPosition\": [\n        1,\n        2,\n        3\n    ],\n    \"PrimaryMass\": 1,\n    \"PrimaryMomentum\": [\n        1,\n        2,\n        3,\n        4\n    ],\n    \"PrimaryHelicity\": 1,\n    \"TargetMass\": 1,\n    \"TargetMomentum\": [\n        1,\n        2,\n        3,\n        4\n    ],\n    \"TargetHelicity\": 1,\n    \"InteractionVertex\": [\n        1,\n        2,\n        3\n    ],\n    \"SecondaryMasses\": [\n        1\n    ],\n    \"SecondaryMomenta\": [\n        [\n            1,\n            2,\n            3,\n            4\n        ]\n    ],\n    \"SecondaryHelicity\": [\n        1\n    ],\n    \"InteractionParameters\": {\n        \"test\": 1\n    }\n}";
 }
 
 int main(int argc, char** argv)

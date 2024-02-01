@@ -9,6 +9,7 @@ namespace dataclasses {
 bool InteractionRecord::operator==(InteractionRecord const & other) const {
     return std::tie(
         signature,
+        primary_initial_position,
         primary_mass,
         primary_momentum,
         primary_helicity,
@@ -23,6 +24,7 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         ==
         std::tie(
         other.signature,
+        other.primary_initial_position,
         other.primary_mass,
         other.primary_momentum,
         other.primary_helicity,
@@ -39,6 +41,7 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
 bool InteractionRecord::operator<(InteractionRecord const & other) const {
     return std::tie(
         signature,
+        primary_initial_position,
         primary_mass,
         primary_momentum,
         primary_helicity,
@@ -53,6 +56,7 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         <
         std::tie(
         other.signature,
+        other.primary_initial_position,
         other.primary_mass,
         other.primary_momentum,
         other.primary_helicity,
@@ -79,6 +83,7 @@ std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord co
     }
     os << "\n";
 
+    os << "PrimaryInitialPosition: " << record.primary_initial_position[0] << " " << record.primary_initial_position[1] << " " << record.primary_initial_position[2] << "\n";
     os << "InteractionVertex: " << record.interaction_vertex[0] << " " << record.interaction_vertex[1] << " " << record.interaction_vertex[2] << "\n";
     os << "PrimaryMass: " << record.primary_mass << "\n";
     os << "PrimaryMomentum: " << record.primary_momentum[0] << " " << record.primary_momentum[1] << " " << record.primary_momentum[2] << " " << record.primary_momentum[3] << "\n";

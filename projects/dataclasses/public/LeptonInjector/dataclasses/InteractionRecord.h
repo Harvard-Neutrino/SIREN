@@ -30,13 +30,13 @@ namespace dataclasses {
 
 struct InteractionRecord {
     dataclasses::InteractionSignature signature;
+    std::array<double, 3> primary_initial_position = {0, 0, 0};
     double primary_mass = 0;
     std::array<double, 4> primary_momentum = {0, 0, 0, 0};
     double primary_helicity = 0;
     double target_mass = 0;
     std::array<double, 4> target_momentum = {0, 0, 0, 0};
     double target_helicity = 0;
-    std::array<double, 3> initial_primary_position = {0, 0, 0};
     std::array<double, 3> interaction_vertex = {0, 0, 0};
     std::vector<double> secondary_masses;
     std::vector<std::array<double, 4>> secondary_momenta;
@@ -50,13 +50,13 @@ struct InteractionRecord {
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(::cereal::make_nvp("InteractionSignature", signature));
+            archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
             archive(::cereal::make_nvp("PrimaryMass", primary_mass));
             archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
             archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));
             archive(::cereal::make_nvp("TargetMass", target_mass));
             archive(::cereal::make_nvp("TargetMomentum", target_momentum));
             archive(::cereal::make_nvp("TargetHelicity", target_helicity));
-            archive(::cereal::make_nvp("InitialPrimaryPosition", initial_primary_position));
             archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
             archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
             archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
