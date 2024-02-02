@@ -1,28 +1,8 @@
 import os
-import sys
-import numpy as np
-import functools
 
 import leptoninjector as LI
 from leptoninjector import _util
 from leptoninjector.LIController import LIController
-
-@functools.wraps(LIController.GenerateEvents)
-def GenerateEvents(self, N=None):
-    if N is None:
-        N = self.events_to_inject
-    count = 0
-    while (self.injector.InjectedEvents() < self.events_to_inject) and (count < N):
-        print("Injecting Event", count, end="\r")
-        tree = self.injector.GenerateEvent()
-        self.weighter.EventWeight(tree)
-        self.events.append(tree)
-        count += 1
-    #if hasattr(self, "DN_processes"):
-    #    self.DN_processes.SaveCrossSectionTables()
-    return self.events
-
-LIController.GenerateEvents = GenerateEvents
 
 resources_dir = _util.resource_package_dir()
 
@@ -30,7 +10,7 @@ resources_dir = _util.resource_package_dir()
 events_to_inject = 10000
 
 # Expeirment to run
-experiment = "IceCube"
+experiment = "ATLAS"
 
 # Define the controller
 controller = LIController(events_to_inject, experiment)
@@ -59,17 +39,29 @@ controller.SetInteractions(primary_xs)
 primary_injection_distributions = {}
 primary_physical_distributions = {}
 
-mass_dist = LI.distributions.PrimaryMass(0)
-primary_injection_distributions["mass"] = mass_dist
-primary_physical_distributions["mass"] = mass_dist
-
 # energy distribution
-edist = LI.distributions.PowerLaw(2, 1e3, 1e6)
+# HE SN flux from ATLAS paper
+flux_file = os.path.join(
+    resources_dir,
+    "Fluxes",
+    "HE_SN_Flux_Tables",
+    "dN_dE_SNe_2n_D1_0_s20_t100d_NuMu_d10kpc.txt",
+)
+print(flux_file)
+edist = LI.distributions.TabulatedFluxDistribution(100, 1e6, flux_file, True) #bool is whether flux is physical
+#edist_inj = LI.distributions.PowerLaw(2, 100, int(1e6))
 primary_injection_distributions["energy"] = edist
 primary_physical_distributions["energy"] = edist
 
+# we need this conversion to make sure the flux is in units of 1/m2
+flux_unit_conv = LI.distributions.NormalizationConstant((100 / 1)**2)
+primary_physical_distributions["flux_norm"] = flux_unit_conv
+
 # direction distribution
-direction_distribution = LI.distributions.IsotropicDirection()
+# let's just inject upwards
+injection_dir = LI.math.Vector3D(0, 0, 1)
+injection_dir.normalize()
+direction_distribution = LI.distributions.FixedDirection(injection_dir)
 primary_injection_distributions["direction"] = direction_distribution
 primary_physical_distributions["direction"] = direction_distribution
 
@@ -89,4 +81,4 @@ controller.Initialize()
 
 events = controller.GenerateEvents()
 
-controller.SaveEvents("output/IceCube_DIS")
+controller.SaveEvents("output/ATLAS_DIS")
