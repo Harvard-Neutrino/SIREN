@@ -1,5 +1,4 @@
 import os
-import sys
 import numpy as np
 
 import leptoninjector as LI
@@ -61,7 +60,7 @@ flux_units = LI.distributions.NormalizationConstant(3.76e-2)
 primary_physical_distributions["flux_units"] = flux_units
 
 # direction distribution: cone from lower W target
-opening_angle = np.arctan(12 / 23.0)
+opening_angle = np.arctan(5 / 23.0)
 # slightly larger than CCM
 lower_target_origin = LI.math.Vector3D(0, 0, -0.241)
 detector_origin = LI.math.Vector3D(23, 0, -0.65)
