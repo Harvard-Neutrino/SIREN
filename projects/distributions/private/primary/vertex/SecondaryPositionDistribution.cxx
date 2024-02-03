@@ -28,21 +28,21 @@ using detector::DetectorPosition;
 using detector::DetectorDirection;
 
 namespace {
-    double log_one_minus_exp_of_negative(double x) {
-        if(x < 1e-1) {
-            return std::log(x) - x/2.0 + x*x/24.0 - x*x*x*x/2880.0;
-        } else if(x > 3) {
-            double ex = std::exp(-x);
-            double ex2 = ex * ex;
-            double ex3 = ex2 * ex;
-            double ex4 = ex3 * ex;
-            double ex5 = ex4 * ex;
-            double ex6 = ex5 * ex;
-            return -(ex + ex2 / 2.0 + ex3 / 3.0 + ex4 / 4.0 + ex5 / 5.0 + ex6 / 6.0);
-        } else {
-            return std::log(1.0 - std::exp(-x));
-        }
+double log_one_minus_exp_of_negative(double x) {
+    if(x < 1e-1) {
+        return std::log(x) - x/2.0 + x*x/24.0 - x*x*x*x/2880.0;
+    } else if(x > 3) {
+        double ex = std::exp(-x);
+        double ex2 = ex * ex;
+        double ex3 = ex2 * ex;
+        double ex4 = ex3 * ex;
+        double ex5 = ex4 * ex;
+        double ex6 = ex5 * ex;
+        return -(ex + ex2 / 2.0 + ex3 / 3.0 + ex4 / 4.0 + ex5 / 5.0 + ex6 / 6.0);
+    } else {
+        return std::log(1.0 - std::exp(-x));
     }
+}
 }
 
 //---------------
@@ -50,8 +50,8 @@ namespace {
 //---------------
 
 LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-  throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::SamplePosition without a datum to access the parent"));
-  return LI::math::Vector3D(0,0,0);
+    throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::SamplePosition without a datum to access the parent"));
+    return LI::math::Vector3D(0,0,0);
 }
 
 void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
@@ -69,8 +69,6 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
     dir.normalize();
 
-
-
     LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
@@ -79,20 +77,20 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
 
     // Check if fiducial volume is provided
     if(fiducial) {
-      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(DetectorPosition(endcap_0),
-                                                                                                    DetectorDirection(dir));
-      // If the path intersects the fiducial volume, restrict position to that volume
-      if(!fid_intersections.empty()) {
-        // make sure the first intersection happens before the maximum generation length
-        // and the last intersection happens in front of the generation point
-        bool update_path = (fid_intersections.front().distance < max_length
-                         && fid_intersections.back().distance > 0);
-        if(update_path) {
-          LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
-          LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
-          path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
+        std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(DetectorPosition(endcap_0),
+                DetectorDirection(dir));
+        // If the path intersects the fiducial volume, restrict position to that volume
+        if(!fid_intersections.empty()) {
+            // make sure the first intersection happens before the maximum generation length
+            // and the last intersection happens in front of the generation point
+            bool update_path = (fid_intersections.front().distance < max_length
+                    && fid_intersections.back().distance > 0);
+            if(update_path) {
+                LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
+                LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
+                path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
+            }
         }
-      }
     }
 
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
@@ -131,8 +129,8 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
 }
 
 double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-  throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::GenerationProbability without a datum to access the parent"));
-  return 0;
+    throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::GenerationProbability without a datum to access the parent"));
+    return 0;
 }
 
 double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
@@ -151,20 +149,20 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
 
     // Check if fiducial volume is provided
     if(fiducial) {
-      std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(DetectorPosition(endcap_0),
-                                                                                                    DetectorDirection(dir));
-      // If the path intersects the fiducial volume, restrict position to that volume
-      if(!fid_intersections.empty()) {
-        // make sure the first intersection happens before the maximum generation length
-        // and the last intersection happens in front of the generation point
-        bool update_path = (fid_intersections.front().distance < max_length
-                         && fid_intersections.back().distance > 0);
-        if(update_path) {
-          LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
-          LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
-          path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
+        std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(DetectorPosition(endcap_0),
+                DetectorDirection(dir));
+        // If the path intersects the fiducial volume, restrict position to that volume
+        if(!fid_intersections.empty()) {
+            // make sure the first intersection happens before the maximum generation length
+            // and the last intersection happens in front of the generation point
+            bool update_path = (fid_intersections.front().distance < max_length
+                    && fid_intersections.back().distance > 0);
+            if(update_path) {
+                LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
+                LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
+                path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
+            }
         }
-      }
     }
 
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
@@ -205,8 +203,8 @@ SecondaryPositionDistribution::SecondaryPositionDistribution() {}
 SecondaryPositionDistribution::SecondaryPositionDistribution(double max_length) : max_length(max_length) {}
 
 SecondaryPositionDistribution::SecondaryPositionDistribution(double max_length, std::shared_ptr<LI::geometry::Geometry> fiducial) :
-  max_length(max_length),
-  fiducial(fiducial) {}
+    max_length(max_length),
+    fiducial(fiducial) {}
 
 SecondaryPositionDistribution::SecondaryPositionDistribution(std::shared_ptr<const LI::geometry::Geometry> fiducial) : fiducial(fiducial) {}
 
@@ -219,8 +217,8 @@ std::shared_ptr<InjectionDistribution> SecondaryPositionDistribution::clone() co
 }
 
 std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-  throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::InjectionBounds without a datum to access the parent"));
-  return std::make_pair(LI::math::Vector3D(0,0,0),LI::math::Vector3D(0,0,0));
+    throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::InjectionBounds without a datum to access the parent"));
+    return std::make_pair(LI::math::Vector3D(0,0,0),LI::math::Vector3D(0,0,0));
 }
 
 std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
