@@ -19,7 +19,7 @@ struct ParticleID {
     uint64_t major_id;
     int64_t minor_id;
 
-    ParticleID() : major_id(0), minor_id(0){};
+    ParticleID() : major_id(0), minor_id(0) {};
     ParticleID(uint64_t major, int32_t minor) : 
         major_id(major), minor_id(minor) {};
 
