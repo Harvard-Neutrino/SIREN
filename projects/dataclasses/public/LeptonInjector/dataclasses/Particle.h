@@ -10,6 +10,7 @@
 #include <utility>
 #include <stdint.h>
 
+#include "LeptonInjector/dataclasses/ParticleID.h"
 #include "LeptonInjector/dataclasses/ParticleType.h"
 
 #include <cereal/cereal.hpp>
@@ -30,6 +31,8 @@ public:
     typedef LI::dataclasses::ParticleType ParticleType;
 
     Particle() = default;
+    Particle(ParticleID id, ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double helicity);
+    Particle(ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double helicity);
 
     ParticleID id;
     ParticleType type = ParticleType::unknown;
@@ -38,6 +41,7 @@ public:
     std::array<double, 3> position = {0, 0, 0};
     double helicity = 0;
 
+    ParticleID & GenerateID();
 };
 
 // prototype some of the particle helper functions
@@ -52,7 +56,7 @@ double particleSpeed( Particle::ParticleType type, double kineticEnergy);
 Particle::ParticleShape decideShape(Particle::ParticleType t);
 Particle::ParticleType deduceInitialType( Particle::ParticleType pType1, Particle::ParticleType pType2);
 
-} // namespace utilities
+} // namespace dataclasses
 } // namespace LI
 
 #endif // LI_Particle_H
