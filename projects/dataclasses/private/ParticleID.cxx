@@ -15,12 +15,39 @@ namespace {
 	std::atomic<uint64_t> global_major_id_(0);
 }
 
+ParticleID::ParticleID() : id_set(false), major_id(0), minor_id(0) {};
+
+ParticleID::ParticleID(uint64_t major, int32_t minor) :
+    id_set(true), major_id(major), minor_id(minor) {};
+
+bool ParticleID::IsSet() const {
+    return id_set;
+}
+
+ParticleID::operator bool() const {
+    return id_set;
+}
+
+uint64_t GetMajorID() const {
+    return major_id;
+}
+
+int32_t GetMinorID() const {
+    return minor_id;
+}
+
+void SetID(uint64_t major, int32_t minor) {
+    id_set = true;
+    major_id = major;
+    minor_id = minor;
+}
+
 bool ParticleID::operator<(ParticleID const & other) const {
-    return std::tie(major_id, minor_id) < std::tie(other.major_id, other.minor_id);
+    return std::tie(id_set, major_id, minor_id) < std::tie(id_set, other.major_id, other.minor_id);
 }
 
 bool ParticleID::operator==(ParticleID const & other) const {
-    return std::tie(major_id, minor_id) == std::tie(other.major_id, other.minor_id);
+    return std::tie(id_set, major_id, minor_id) == std::tie(id_set, other.major_id, other.minor_id);
 }
 
 // Adapted from https://github.com/icecube/icetray-public/blob/4436c3e10c23f95a8965c98fecccb7775a361fab/dataclasses/private/dataclasses/physics/I3Particle.cxx#L42-L93
@@ -47,7 +74,7 @@ ParticleID ParticleID::GenerateID() {
         std::lock_guard<std::mutex> lg(global_id_lock); //acquire the lock
         //check whether another thread already updated this
         old_major_id = global_major_id_.load(std::memory_order_relaxed);
-        if(old_major_id == 0){
+        if(old_major_id == 0) {
             std::hash<std::string> string_hash;
             std::stringstream s;
             s << time(0) << this_pid<<gethostid();
@@ -57,6 +84,7 @@ ParticleID ParticleID::GenerateID() {
     }
     ParticleID ID;
 
+    ID.id_set = true;
     ID.major_id = global_major_id_.load();
     ID.minor_id = global_minor_id_.fetch_add(1);
 

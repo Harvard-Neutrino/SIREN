@@ -15,15 +15,27 @@
 namespace LI {
 namespace dataclasses {
 
-struct ParticleID {
-    uint64_t major_id;
-    int64_t minor_id;
-
-    ParticleID() : major_id(0), minor_id(0) {};
-    ParticleID(uint64_t major, int32_t minor) : 
-        major_id(major), minor_id(minor) {};
-
+class ParticleID {
+    bool id_set = false;
+    uint64_t major_id = 0;
+    int64_t minor_id = 0;
+public:
     static ParticleID GenerateID();
+
+    ParticleID();
+    ParticleID(uint64_t major, int32_t minor);
+    ParticleID & operator=(ParticleID const & other) = default;
+    ParticleID(ParticleID const & other) = default;
+    ParticleID & operator=(ParticleID && other) = default;
+    ParticleID(ParticleID && other) = default;
+
+    bool IsSet() const;
+    operator bool() const;
+
+    uint64_t GetMajorID() const;
+    int32_t GetMinorID() const;
+
+    void SetID(uint64_t major, int32_t minor);
 
     bool operator<(ParticleID const & other) const;
 
@@ -32,6 +44,7 @@ struct ParticleID {
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
+            archive(::cereal::make_nvp("IDSet", id_set));
             archive(::cereal::make_nvp("MajorID", major_id));
             archive(::cereal::make_nvp("MinorID", minor_id));
         } else {
