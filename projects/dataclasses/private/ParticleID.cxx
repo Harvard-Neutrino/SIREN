@@ -28,15 +28,15 @@ ParticleID::operator bool() const {
     return id_set;
 }
 
-uint64_t GetMajorID() const {
+uint64_t ParticleID::GetMajorID() const {
     return major_id;
 }
 
-int32_t GetMinorID() const {
+int32_t ParticleID::GetMinorID() const {
     return minor_id;
 }
 
-void SetID(uint64_t major, int32_t minor) {
+void ParticleID::SetID(uint64_t major, int32_t minor) {
     id_set = true;
     major_id = major;
     minor_id = minor;
