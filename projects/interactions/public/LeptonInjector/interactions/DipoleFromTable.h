@@ -23,7 +23,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"        // for Particle
 #include "LeptonInjector/utilities/Interpolator.h"      // for Interpolator1D
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace dataclasses { struct InteractionSignature; } }
 namespace LI { namespace utilities { class LI_random; } }
 

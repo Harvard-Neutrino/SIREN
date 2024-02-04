@@ -65,6 +65,7 @@ public:
 
     Particle GetPrimary() const;
     ParticleID const & GetPrimaryID() const;
+    ParticleType const & GetPrimaryType() const;
     std::array<double, 3> const & GetPrimaryInitialPosition() const;
     double const & GetPrimaryMass() const;
     std::array<double, 4> const & GetPrimaryMomentum() const;

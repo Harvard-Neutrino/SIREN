@@ -95,7 +95,7 @@ double InteractionCollection::TotalDecayLength(dataclasses::InteractionRecord co
 }
 
 bool InteractionCollection::MatchesPrimary(dataclasses::InteractionRecord const & record) const {
-    return primary_type == record.signature.primary_type;
+    return primary_type == record.GetPrimaryType();
 }
 
 } // namespace interactions

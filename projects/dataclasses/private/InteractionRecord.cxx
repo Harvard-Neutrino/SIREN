@@ -21,6 +21,10 @@ ParticleID const & InteractionRecord::GetPrimaryID() const {
     return primary_id;
 }
 
+ParticleType const & InteractionRecord::GetPrimaryType() const {
+    return signature.primary_type;
+}
+
 std::array<double, 3> const & InteractionRecord::GetPrimaryInitialPosition() const {
     return primary_initial_position;
 }

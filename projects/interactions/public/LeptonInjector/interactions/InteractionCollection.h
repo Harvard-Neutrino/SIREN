@@ -27,7 +27,7 @@
 
 namespace LI { namespace interactions { class CrossSection; } }
 namespace LI { namespace interactions { class Decay; } }
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 
 namespace LI {
 namespace interactions {
