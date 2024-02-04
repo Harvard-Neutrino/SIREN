@@ -209,39 +209,6 @@ namespace dataclasses {
 		}
 	}
 
-	uint8_t getInteraction( Particle::ParticleType final_1 , Particle::ParticleType final_2){
-		// check for GR
-		if ((final_1==Particle::ParticleType::EMinus && final_2 == Particle::ParticleType::NuEBar)||
-		(final_1==Particle::ParticleType::MuMinus && final_2 == Particle::ParticleType::NuMuBar)||
-		(final_1==Particle::ParticleType::TauMinus && final_2 == Particle::ParticleType::NuTauBar)||
-		(final_2==Particle::ParticleType::EMinus && final_1 == Particle::ParticleType::NuEBar)||
-		(final_2==Particle::ParticleType::MuMinus && final_1 == Particle::ParticleType::NuMuBar)||
-		(final_2==Particle::ParticleType::TauMinus && final_1 == Particle::ParticleType::NuTauBar)||
-		(final_1==Particle::ParticleType::Hadrons && final_2 == Particle::ParticleType::Hadrons)){
-			return( 2 ); // glashow resonance
-		}else if( ((final_2==Particle::ParticleType::Hadrons) and (
-			final_1==Particle::Particle::EPlus || final_1==Particle::Particle::EMinus ||
-			final_1==Particle::Particle::MuPlus || final_1==Particle::Particle::MuMinus ||
-			final_1==Particle::Particle::TauPlus || final_1==Particle::Particle::TauMinus)) or
-		    ((final_1==Particle::ParticleType::Hadrons) and (
-			final_2==Particle::Particle::EPlus || final_2==Particle::Particle::EMinus ||
-			final_2==Particle::Particle::MuPlus || final_2==Particle::Particle::MuMinus ||
-			final_2==Particle::Particle::TauPlus || final_2==Particle::Particle::TauMinus ))){
-			return( 0 ); // charged current
-		}else if( ((final_2==Particle::ParticleType::Hadrons) and (
-			final_1==Particle::Particle::NuEBar || final_1==Particle::Particle::NuE ||
-			final_1==Particle::Particle::NuMuBar || final_1==Particle::Particle::NuMu ||
-			final_1==Particle::Particle::NuTauBar || final_1==Particle::Particle::NuTau )) or
-		    ((final_1==Particle::ParticleType::Hadrons) and (
-			final_2==Particle::Particle::NuEBar || final_2==Particle::Particle::NuE ||
-			final_2==Particle::Particle::NuMuBar || final_2==Particle::Particle::NuMu ||
-			final_2==Particle::Particle::NuTauBar || final_2==Particle::Particle::NuTau ))){
-			return( 1 ); // neutral current
-		}
-
-		throw std::runtime_error("Interaction type not recognized");
-	}
-
     // This function returns the primary particle type given the final state particles
     // returns a particle type object
 	Particle::ParticleType deduceInitialType(Particle::ParticleType pType1, Particle::ParticleType pType2){
