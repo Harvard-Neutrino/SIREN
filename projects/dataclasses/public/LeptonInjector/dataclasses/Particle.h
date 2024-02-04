@@ -49,12 +49,6 @@ public:
 bool isLepton(Particle::ParticleType p);
 bool isCharged(Particle::ParticleType p);
 bool isNeutrino(Particle::ParticleType p);
-std::string particleName( Particle::ParticleType p);
-double particleMass( Particle::ParticleType type);
-double kineticEnergy( Particle::ParticleType type, double totalEnergy);
-double particleSpeed( Particle::ParticleType type, double kineticEnergy);
-Particle::ParticleShape decideShape(Particle::ParticleType t);
-Particle::ParticleType deduceInitialType( Particle::ParticleType pType1, Particle::ParticleType pType2);
 
 } // namespace dataclasses
 } // namespace LI
