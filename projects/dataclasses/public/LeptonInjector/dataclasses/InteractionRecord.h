@@ -73,6 +73,7 @@ public:
 
     Particle GetTarget() const;
     ParticleID const & GetTargetID() const;
+    ParticleType const & GetTargetType() const;
     double const & GetTargetMass() const;
     std::array<double, 4> const & GetTargetMomentum() const;
     double const & GetTargetHelicity() const;
@@ -80,10 +81,19 @@ public:
 
     std::vector<Particle> GetSecondaries() const;
     std::vector<ParticleID> const & GetSecondaryIDs() const;
+    std::vector<ParticleType> const & GetSecondaryTypes() const;
     std::vector<double> const & GetSecondaryMasses() const;
     std::vector<std::array<double, 4>> const & GetSecondaryMomenta() const;
     std::vector<double> const & GetSecondaryHelicity() const;
     std::map<std::string, double> const & GetInteractionParameters() const;
+
+    Particle GetSecondary(size_t const & index) const;
+    ParticleID const & GetSecondaryID(size_t const & index) const;
+    ParticleType const & GetSecondaryType(size_t const & index) const;
+    double const & GetSecondaryMass(size_t const & index) const;
+    std::array<double, 4> const & GetSecondaryMomentum(size_t const & index) const;
+    double const & GetSecondaryHelicity(size_t const & index) const;
+    double const & GetInteractionParameter(std::string const & key) const;
 
     // Setters
     void SetSignature(InteractionSignature const & signature);

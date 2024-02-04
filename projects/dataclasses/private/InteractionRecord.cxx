@@ -50,6 +50,10 @@ ParticleID const & InteractionRecord::GetTargetID() const {
     return target_id;
 }
 
+ParticleType const & InteractionRecord::GetTargetType() const {
+    return signature.target_type;
+}
+
 double const & InteractionRecord::GetTargetMass() const {
     return target_mass;
 }
@@ -78,6 +82,10 @@ std::vector<ParticleID> const & InteractionRecord::GetSecondaryIDs() const {
     return secondary_ids;
 }
 
+std::vector<Particle::ParticleType> const & InteractionRecord::GetSecondaryTypes() const {
+    return signature.secondary_types;
+}
+
 std::vector<double> const & InteractionRecord::GetSecondaryMasses() const {
     return secondary_masses;
 }
@@ -92,6 +100,53 @@ std::vector<double> const & InteractionRecord::GetSecondaryHelicity() const {
 
 std::map<std::string, double> const & InteractionRecord::GetInteractionParameters() const {
     return interaction_parameters;
+}
+
+Particle InteractionRecord::GetSecondary(size_t const & index) const {
+    if(index >= secondary_ids.size()) {
+        throw std::runtime_error("Secondary index out of range!");
+    }
+    Particle secondary(secondary_ids.at(index), signature.secondary_types.at(index), secondary_masses.at(index), secondary_momenta.at(index), std::array<double, 3>{0, 0, 0}, secondary_helicity.at(index));
+    return secondary;
+}
+
+ParticleID const & InteractionRecord::GetSecondaryID(size_t const & index) const {
+    if(index >= secondary_ids.size()) {
+        throw std::runtime_error("Secondary index out of range!");
+    }
+    return secondary_ids.at(index);
+}
+
+ParticleType const & InteractionRecord::GetSecondaryType(size_t const & index) const {
+    if(index >= signature.secondary_types.size()) {
+        throw std::runtime_error("Secondary index out of range!");
+    }
+    return signature.secondary_types.at(index);
+}
+
+double const & InteractionRecord::GetSecondaryMass(size_t const & index) const {
+    if(index >= secondary_masses.size()) {
+        throw std::runtime_error("Secondary index out of range!");
+    }
+    return secondary_masses.at(index);
+}
+
+std::array<double, 4> const & InteractionRecord::GetSecondaryMomentum(size_t const & index) const {
+    if(index >= secondary_momenta.size()) {
+        throw std::runtime_error("Secondary index out of range!");
+    }
+    return secondary_momenta.at(index);
+}
+
+double const & InteractionRecord::GetSecondaryHelicity(size_t const & index) const {
+    if(index >= secondary_helicity.size()) {
+        throw std::runtime_error("Secondary index out of range!");
+    }
+    return secondary_helicity.at(index);
+}
+
+double const & InteractionRecord::GetInteractionParameter(std::string const & key) const {
+    return interaction_parameters.at(key);
 }
 
 void InteractionRecord::SetSignature(InteractionSignature const & signature) {
