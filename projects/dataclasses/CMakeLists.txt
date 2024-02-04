@@ -8,6 +8,7 @@ LIST (APPEND dataclasses_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/DecaySignature.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/DecayRecord.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/ParticleID.cxx
+    ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/ParticleType.cxx
 )
 add_library(LI_dataclasses OBJECT ${dataclasses_SOURCES})
 set_property(TARGET LI_dataclasses PROPERTY POSITION_INDEPENDENT_CODE ON)
