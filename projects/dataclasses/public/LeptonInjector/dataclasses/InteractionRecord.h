@@ -24,7 +24,7 @@
 #include "LeptonInjector/dataclasses/ParticleType.h"
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 
 std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord const& record);
 
@@ -98,7 +98,7 @@ public:
 
     ParticleID SetTarget(Particle & target);
     ParticleID SetTarget(Particle const & target);
-    ParticleID SetTargetID(ParticleID & target_id);
+    ParticleID SetTargetID(ParticleID const & target_id);
     void SetTargetType(Particle::ParticleType const & target_type);
     void SetTargetMass(double const & target_mass);
     void SetTargetMomentum(std::array<double, 4> const & target_momentum);
@@ -107,7 +107,7 @@ public:
 
     std::vector<ParticleID> SetSecondaries(std::vector<Particle> & secondaries);
     std::vector<ParticleID> SetSecondaries(std::vector<Particle> const & secondaries);
-    void SetSecondaryIDs(std::vector<ParticleID> const & secondary_ids);
+    std::vector<ParticleID> SetSecondaryIDs(std::vector<ParticleID> const & secondary_ids);
     void SetSecondaryTypes(std::vector<Particle::ParticleType> const & secondary_types);
     void SetSecondaryMasses(std::vector<double> const & secondary_masses);
     void SetSecondaryMomenta(std::vector<std::array<double, 4>> const & secondary_momenta);
@@ -116,7 +116,7 @@ public:
 
     ParticleID SetSecondary(size_t const & index, Particle & secondary);
     ParticleID SetSecondary(size_t const & index, Particle const & secondary);
-    void SetSecondaryID(size_t const & index, ParticleID const & secondary_id);
+    ParticleID SetSecondaryID(size_t const & index, ParticleID const & secondary_id);
     void SetSecondaryType(size_t const & index, Particle::ParticleType const & secondary_type);
     void SetSecondaryMass(size_t const & index, double const & secondary_mass);
     void SetSecondaryMomentum(size_t const & index, std::array<double, 4> const & secondary_momentum);

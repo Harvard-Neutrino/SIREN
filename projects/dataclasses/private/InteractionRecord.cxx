@@ -65,7 +65,7 @@ std::array<double, 3> const & InteractionRecord::GetInteractionVertex() const {
 std::vector<Particle> InteractionRecord::GetSecondaries() const {
     std::vector<Particle> secondaries;
     for(size_t i=0; i<secondary_ids.size(); ++i) {
-        secondaries.emplace_back(secondary_ids.at(i), signature.secondary_types.at(i), secondary_masses.at(i), secondary_momenta.at(i), {0, 0, 0}, secondary_helicity.at(i));
+        secondaries.emplace_back(secondary_ids.at(i), signature.secondary_types.at(i), secondary_masses.at(i), secondary_momenta.at(i), std::array<double, 3>{0, 0, 0}, secondary_helicity.at(i));
     }
     return secondaries;
 }
@@ -133,7 +133,7 @@ void InteractionRecord::SetPrimaryType(Particle::ParticleType const & primary_ty
         if(primary_type != ParticleType::unknown and primary_type != signature.primary_type) {
             throw std::runtime_error("Primary particle type does not match signature!");
         }
-        reference_signature.primary_type = sigmature.primary_type;
+        reference_signature.primary_type = signature.primary_type;
     } else {
         signature.primary_type = primary_type;
     }
@@ -189,7 +189,7 @@ ParticleID InteractionRecord::SetTargetID(ParticleID const & target_id) {
 
 void InteractionRecord::SetTargetType(Particle::ParticleType const & target_type) {
     if(signature_set) {
-        if(target_type != ParticleType::unknwon and target_type != signature.target_type) {
+        if(target_type != ParticleType::unknown and target_type != signature.target_type) {
             throw std::runtime_error("Target particle type does not match signature!");
         }
         reference_signature.target_type = signature.target_type;
@@ -236,8 +236,9 @@ std::vector<ParticleID> InteractionRecord::SetSecondaries(std::vector<Particle> 
     return secondary_ids;
 }
 
-void InteractionRecord::SetSecondaryIDs(std::vector<ParticleID> const & secondary_ids) {
+std::vector<ParticleID> InteractionRecord::SetSecondaryIDs(std::vector<ParticleID> const & secondary_ids) {
     this->secondary_ids = secondary_ids;
+    return this->secondary_ids;
 }
 
 void InteractionRecord::SetSecondaryTypes(std::vector<Particle::ParticleType> const & secondary_types) {
@@ -332,12 +333,12 @@ void InteractionRecord::SetSecondaryMomentum(size_t const & index, std::array<do
 }
 
 void InteractionRecord::SetSecondaryHelicity(size_t const & index, double const & secondary_helicity) {
-    if(secondary_helicity.size() < index) {
+    if(this->secondary_helicity.size() < index) {
         throw std::runtime_error("Secondary index out of range!");
-    } else if(secondary_helicity.size() == index) {
-        secondary_helicity.resize(index+1);
+    } else if(this->secondary_helicity.size() == index) {
+        this->secondary_helicity.resize(index+1);
     }
-    secondary_helicity.at(index) = secondary_helicity;
+    this->secondary_helicity.at(index) = secondary_helicity;
 }
 
 void InteractionRecord::SetInteractionParameter(std::string const & key, double const & value) {
@@ -422,7 +423,7 @@ ParticleID InteractionRecord::AddSecondary(ParticleID const & secondary_id, doub
     return AddSecondary(secondary);
 }
 
-bool CheckSignature() const {
+bool InteractionRecord::CheckSignature() const {
     if(signature.primary_type == ParticleType::unknown) {
         return false;
     }
