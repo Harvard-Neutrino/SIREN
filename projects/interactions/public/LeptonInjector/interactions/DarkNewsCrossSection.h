@@ -23,7 +23,7 @@
 #include "LeptonInjector/interactions/CrossSection.h"  // for CrossSection
 #include "LeptonInjector/dataclasses/Particle.h"        // for Particlev
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace dataclasses { struct InteractionSignature; } }
 namespace LI { namespace utilities { class LI_random; } }
 
