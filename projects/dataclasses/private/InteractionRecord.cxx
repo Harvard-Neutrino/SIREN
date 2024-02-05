@@ -6,7 +6,7 @@
 namespace LI {
 namespace dataclasses {
 
-PrimaryRecord::PrimaryRecord(ParticleType type) : type(type) {}
+PrimaryRecord::PrimaryRecord(ParticleType const & type) : type(type) {}
 
 PrimaryRecord & PrimaryRecord::operator=(PrimaryRecord const & record) {
     type = record.type;
@@ -16,7 +16,7 @@ PrimaryRecord & PrimaryRecord::operator=(PrimaryRecord const & record) {
     direction_set = record.direction_set;
     momentum_set = record.momentum_set;
     length_set = record.length_set;
-    intitial_position_set = record.intitial_position_set;
+    initial_position_set = record.initial_position_set;
     interaction_vertex_set = record.interaction_vertex_set;
     mass = record.mass;
     energy = record.energy;
@@ -29,8 +29,18 @@ PrimaryRecord & PrimaryRecord::operator=(PrimaryRecord const & record) {
     return *this;
 }
 
-ParticleType const & PrimaryRecord::GetType() {
+ParticleType const & PrimaryRecord::GetType() const {
     return type;
+}
+
+double PrimaryRecord::GetMass() const {
+    if(mass_set) {
+        return mass;
+    } else {
+        PrimaryRecord non_const_this = *this;
+        non_const_this.UpdateMass();
+        return non_const_this.mass;
+    }
 }
 
 double const & PrimaryRecord::GetMass() {
@@ -40,11 +50,31 @@ double const & PrimaryRecord::GetMass() {
     return mass;
 }
 
+double PrimaryRecord::GetEnergy() const {
+    if(energy_set) {
+        return energy;
+    } else {
+        PrimaryRecord non_const_this = *this;
+        non_const_this.UpdateEnergy();
+        return non_const_this.energy;
+    }
+}
+
 double const & PrimaryRecord::GetEnergy() {
     if(not energy_set) {
         UpdateEnergy();
     }
     return energy;
+}
+
+double PrimaryRecord::GetKineticEnergy() const {
+    if(kinetic_energy_set) {
+        return kinetic_energy;
+    } else {
+        PrimaryRecord non_const_this = *this;
+        non_const_this.UpdateKineticEnergy();
+        return non_const_this.kinetic_energy;
+    }
 }
 
 double const & PrimaryRecord::GetKineticEnergy() {
@@ -54,11 +84,32 @@ double const & PrimaryRecord::GetKineticEnergy() {
     return kinetic_energy;
 }
 
+
+std::array<double, 3> PrimaryRecord::GetDirection() const {
+    if(direction_set) {
+        return direction;
+    } else {
+        PrimaryRecord non_const_this = *this;
+        non_const_this.UpdateDirection();
+        return non_const_this.direction;
+    }
+}
+
 std::array<double, 3> const & PrimaryRecord::GetDirection() {
     if(not direction_set) {
         UpdateDirection();
     }
     return direction;
+}
+
+std::array<double, 3> PrimaryRecord::GetThreeMomentum() const {
+    if(momentum_set) {
+        return momentum;
+    } else {
+        PrimaryRecord non_const_this = *this;
+        non_const_this.UpdateMomentum();
+        return non_const_this.momentum;
+    }
 }
 
 std::array<double, 3> const & PrimaryRecord::GetThreeMomentum() {
@@ -68,11 +119,31 @@ std::array<double, 3> const & PrimaryRecord::GetThreeMomentum() {
     return momentum;
 }
 
-std::array<double, 4> const & PrimaryRecord::GetFourMomentum() {
+std::array<double, 4> PrimaryRecord::GetFourMomentum() const {
+    if(momentum_set) {
+        return {energy, momentum.at(0), momentum.at(1), momentum.at(2)};
+    } else {
+        PrimaryRecord non_const_this = *this;
+        non_const_this.UpdateMomentum();
+        return {non_const_this.energy, non_const_this.momentum.at(0), non_const_this.momentum.at(1), non_const_this.momentum.at(2)};
+    }
+}
+
+std::array<double, 4> PrimaryRecord::GetFourMomentum() {
     if(not momentum_set) {
         UpdateMomentum();
     }
     return {momentum.at(0), momentum.at(1), momentum.at(2), GetEnergy()};
+}
+
+double PrimaryRecord::GetLength() const {
+    if(length_set) {
+        return length;
+    } else {
+        PrimaryRecord non_const_this = *this;
+        non_const_this.UpdateLength();
+        return non_const_this.length;
+    }
 }
 
 double const & PrimaryRecord::GetLength() {
@@ -82,11 +153,31 @@ double const & PrimaryRecord::GetLength() {
     return length;
 }
 
+std::array<double, 3> PrimaryRecord::GetIntialPosition() const {
+    if(initial_position_set) {
+        return initial_position;
+    } else {
+        PrimaryRecord non_const_this = *this;
+        non_const_this.UpdateIntialPosition();
+        return non_const_this.initial_position;
+    }
+}
+
 std::array<double, 3> const & PrimaryRecord::GetIntialPosition() {
-    if(not intitial_position_set) {
+    if(not initial_position_set) {
         UpdateIntialPosition();
     }
     return initial_position;
+}
+
+std::array<double, 3> PrimaryRecord::GetInteractionVertex() const {
+    if(interaction_vertex_set) {
+        return interaction_vertex;
+    } else {
+        PrimaryRecord non_const_this = *this;
+        non_const_this.UpdateInteractionVertex();
+        return non_const_this.interaction_vertex;
+    }
 }
 
 std::array<double, 3> const & PrimaryRecord::GetInteractionVertex() {
@@ -138,7 +229,7 @@ void PrimaryRecord::SetLength(double length) {
 }
 
 void PrimaryRecord::SetIntialPosition(std::array<double, 3> initial_position) {
-    intitial_position_set = true;
+    initial_position_set = true;
     this->initial_position = initial_position;
 }
 
@@ -227,7 +318,7 @@ void PrimaryRecord::UpdateLength() {
 }
 
 void PrimaryRecord::UpdateIntialPosition() {
-    if(intitial_position_set)
+    if(initial_position_set)
         return;
     if(interaction_vertex_set and direction_set and length_set) {
         initial_position = {interaction_vertex.at(0) - length*direction.at(0), interaction_vertex.at(1) - length*direction.at(1), interaction_vertex.at(2) - length*direction.at(2)};
@@ -248,27 +339,6 @@ void PrimaryRecord::UpdateInteractionVertex() {
 
 /////////////////////////////////////////
 
-
-class SecondaryRecord : protected PrimaryRecord {
-public:
-    SecondaryRecord(ParticleType const & type, std::array<double, 3> initial_position, double mass, std::array<double, 4> momentum);
-
-    SecondaryRecord & operator=(SecondaryRecord const & record);
-
-    ParticleType const & GetType();
-    double const & GetMass();
-    double const & GetEnergy();
-    double const & GetKineticEnergy();
-    std::array<double, 3> const & GetDirection();
-    std::array<double, 3> const & GetMomentum();
-    std::array<double, 4> const & GetMomentum();
-    double const & GetLength();
-    std::array<double, 3> const & GetIntialPosition();
-    std::array<double, 3> const & GetInteractionVertex();
-
-    void SetLength(double length);
-};
-
 SecondaryRecord::SecondaryRecord(ParticleType const & type, std::array<double, 3> initial_position, double mass, std::array<double, 4> momentum) : PrimaryRecord(type) {
     SetIntialPosition(initial_position);
     SetMass(mass);
@@ -276,27 +346,11 @@ SecondaryRecord::SecondaryRecord(ParticleType const & type, std::array<double, 3
 }
 
 SecondaryRecord & SecondaryRecord::operator=(SecondaryRecord const & record) {
-    type = record.type;
-    mass_set = record.mass_set;
-    energy_set = record.energy_set;
-    kinetic_energy_set = record.kinetic_energy_set;
-    direction_set = record.direction_set;
-    momentum_set = record.momentum_set;
-    length_set = record.length_set;
-    intitial_position_set = record.intitial_position_set;
-    interaction_vertex_set = record.interaction_vertex_set;
-    mass = record.mass;
-    energy = record.energy;
-    kinetic_energy = record.kinetic_energy;
-    direction = record.direction;
-    momentum = record.momentum;
-    length = record.length;
-    initial_position = record.initial_position;
-    interaction_vertex = record.interaction_vertex;
+    PrimaryRecord::operator=(record);
     return *this;
 }
 
-ParticleType const & SecondaryRecord::GetType() {
+ParticleType const & SecondaryRecord::GetType() const {
     return PrimaryRecord::GetType();
 }
 
@@ -320,7 +374,7 @@ std::array<double, 3> const & SecondaryRecord::GetThreeMomentum() {
     return PrimaryRecord::GetThreeMomentum();
 }
 
-std::array<double, 4> const & SecondaryRecord::GetFourMomentum() {
+std::array<double, 4> SecondaryRecord::GetFourMomentum() {
     return PrimaryRecord::GetFourMomentum();
 }
 
@@ -337,8 +391,7 @@ std::array<double, 3> const & SecondaryRecord::GetInteractionVertex() {
 }
 
 void SecondaryRecord::SetLength(double length) {
-    length_set = true;
-    this->length = length;
+    PrimaryRecord::SetLength(length);
 }
 
 /////////////////////////////////////////
@@ -374,7 +427,12 @@ InteractionSignature const & InteractionRecord::GetSignature() const {
 }
 
 Particle InteractionRecord::GetPrimary() const {
-    Particle primary(primary_id, signature.primary_type, primary_mass, primary_momentum, primary_initial_position, primary_helicity);
+    double primary_length = std::sqrt(
+        (interaction_vertex.at(0) - primary_initial_position.at(0))*(interaction_vertex.at(0) - primary_initial_position.at(0)) +
+        (interaction_vertex.at(1) - primary_initial_position.at(1))*(interaction_vertex.at(1) - primary_initial_position.at(1)) +
+        (interaction_vertex.at(2) - primary_initial_position.at(2))*(interaction_vertex.at(2) - primary_initial_position.at(2))
+    );
+    Particle primary(primary_id, signature.primary_type, primary_mass, primary_momentum, primary_initial_position, primary_length, primary_helicity);
     return primary;
 }
 
@@ -403,7 +461,7 @@ double const & InteractionRecord::GetPrimaryHelicity() const {
 }
 
 Particle InteractionRecord::GetTarget() const {
-    Particle target(target_id, signature.target_type, target_mass, {0, 0, 0}, {0, 0, 0}, target_helicity);
+    Particle target(target_id, signature.target_type, target_mass, {0, 0, 0}, {0, 0, 0}, 0, target_helicity);
     return target;
 }
 
@@ -430,7 +488,7 @@ std::array<double, 3> const & InteractionRecord::GetInteractionVertex() const {
 std::vector<Particle> InteractionRecord::GetSecondaries() const {
     std::vector<Particle> secondaries;
     for(size_t i=0; i<secondary_ids.size(); ++i) {
-        secondaries.emplace_back(secondary_ids.at(i), signature.secondary_types.at(i), secondary_masses.at(i), secondary_momenta.at(i), std::array<double, 3>{0, 0, 0}, secondary_helicity.at(i));
+        secondaries.emplace_back(secondary_ids.at(i), signature.secondary_types.at(i), secondary_masses.at(i), secondary_momenta.at(i), std::array<double, 3>{0, 0, 0}, 0, secondary_helicity.at(i));
     }
     return secondaries;
 }
@@ -463,7 +521,7 @@ Particle InteractionRecord::GetSecondary(size_t const & index) const {
     if(index >= secondary_ids.size()) {
         throw std::runtime_error("Secondary index out of range!");
     }
-    Particle secondary(secondary_ids.at(index), signature.secondary_types.at(index), secondary_masses.at(index), secondary_momenta.at(index), std::array<double, 3>{0, 0, 0}, secondary_helicity.at(index));
+    Particle secondary(secondary_ids.at(index), signature.secondary_types.at(index), secondary_masses.at(index), secondary_momenta.at(index), std::array<double, 3>{0, 0, 0}, 0, secondary_helicity.at(index));
     return secondary;
 }
 
@@ -769,7 +827,7 @@ ParticleID InteractionRecord::AddSecondary() {
     if(signature_set) {
         secondary_type = signature.secondary_types.at(secondary_ids.size());
     }
-    Particle secondary(secondary_type, 0, {0, 0, 0, 0}, {0, 0, 0}, 0);
+    Particle secondary(secondary_type, 0, {0, 0, 0, 0}, {0, 0, 0}, 0, 0);
     return AddSecondary(secondary);
 }
 
@@ -821,23 +879,23 @@ ParticleID InteractionRecord::AddSecondary(Particle const & secondary) {
 }
 
 ParticleID InteractionRecord::AddSecondary(Particle::ParticleType const & secondary_type, double const & secondary_mass, std::array<double, 4> const & secondary_momentum, double const & secondary_helicity) {
-    Particle secondary(secondary_type, secondary_mass, secondary_momentum, {0, 0, 0}, secondary_helicity);
+    Particle secondary(secondary_type, secondary_mass, secondary_momentum, {0, 0, 0}, 0, secondary_helicity);
     return AddSecondary(secondary);
 }
 
 ParticleID InteractionRecord::AddSecondary(ParticleID const & secondary_id, Particle::ParticleType const & secondary_type, double const & secondary_mass, std::array<double, 4> const & secondary_momentum, double const & secondary_helicity) {
-    Particle secondary(secondary_type, secondary_mass, secondary_momentum, {0, 0, 0}, secondary_helicity);
+    Particle secondary(secondary_type, secondary_mass, secondary_momentum, {0, 0, 0}, 0, secondary_helicity);
     secondary.id = secondary_id;
     return AddSecondary(secondary);
 }
 
 ParticleID InteractionRecord::AddSecondary(double const & secondary_mass, std::array<double, 4> const & secondary_momentum, double const & secondary_helicity) {
-    Particle secondary(Particle::ParticleType::unknown, secondary_mass, secondary_momentum, {0, 0, 0}, secondary_helicity);
+    Particle secondary(Particle::ParticleType::unknown, secondary_mass, secondary_momentum, {0, 0, 0}, 0, secondary_helicity);
     return AddSecondary(secondary);
 }
 
 ParticleID InteractionRecord::AddSecondary(ParticleID const & secondary_id, double const & secondary_mass, std::array<double, 4> const & secondary_momentum, double const & secondary_helicity) {
-    Particle secondary(Particle::ParticleType::unknown, secondary_mass, secondary_momentum, {0, 0, 0}, secondary_helicity);
+    Particle secondary(Particle::ParticleType::unknown, secondary_mass, secondary_momentum, {0, 0, 0}, 0, secondary_helicity);
     secondary.id = secondary_id;
     return AddSecondary(secondary);
 }

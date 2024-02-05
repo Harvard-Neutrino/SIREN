@@ -41,13 +41,13 @@ private:
     bool direction_set = false;
     bool momentum_set = false;
     bool length_set = false;
-    bool intitial_position_set = false;
+    bool initial_position_set = false;
     bool interaction_vertex_set = false;
 
     double mass;
     double energy;
     double kinetic_energy;
-    DetectorDirection direction;
+    std::array<double, 3> direction;
     std::array<double, 3> momentum;
     double length;
     std::array<double, 3> initial_position;
@@ -58,13 +58,23 @@ public:
 
     PrimaryRecord & operator=(PrimaryRecord const & record);
 
-    ParticleType const & GetType();
+    ParticleType const & GetType() const;
+    double GetMass() const;
+    double GetEnergy() const;
+    double GetKineticEnergy() const;
+    std::array<double, 3> GetDirection() const;
+    std::array<double, 3> GetThreeMomentum() const;
+    std::array<double, 4> GetFourMomentum() const;
+    double GetLength() const;
+    std::array<double, 3> GetIntialPosition() const;
+    std::array<double, 3> GetInteractionVertex() const;
+
     double const & GetMass();
     double const & GetEnergy();
     double const & GetKineticEnergy();
     std::array<double, 3> const & GetDirection();
     std::array<double, 3> const & GetThreeMomentum();
-    std::array<double, 4> const & GetFourMomentum();
+    std::array<double, 4> GetFourMomentum();
     double const & GetLength();
     std::array<double, 3> const & GetIntialPosition();
     std::array<double, 3> const & GetInteractionVertex();
@@ -96,13 +106,13 @@ public:
 
     SecondaryRecord & operator=(SecondaryRecord const & record);
 
-    ParticleType const & GetType();
+    ParticleType const & GetType() const;
     double const & GetMass();
     double const & GetEnergy();
     double const & GetKineticEnergy();
     std::array<double, 3> const & GetDirection();
     std::array<double, 3> const & GetThreeMomentum();
-    std::array<double, 4> const & GetFourMomentum();
+    std::array<double, 4> GetFourMomentum();
     double const & GetLength();
     std::array<double, 3> const & GetIntialPosition();
     std::array<double, 3> const & GetInteractionVertex();
