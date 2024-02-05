@@ -116,7 +116,6 @@ double DipoleFromTable::TotalCrossSection(dataclasses::InteractionRecord const &
     LI::dataclasses::Particle::ParticleType target_type = interaction.GetTargetType();
     std::array<double, 4> const & primary_momentum = interaction.GetPrimaryMomentum();
     double primary_mass = interaction.GetPrimaryMass();
-    double target_mass = interaction.GetTargetMass();
     rk::P4 p1(geom3::Vector3(primary_momentum[1], primary_momentum[2], primary_momentum[3]), primary_mass);
     double primary_energy;
     primary_energy = primary_momentum[0];

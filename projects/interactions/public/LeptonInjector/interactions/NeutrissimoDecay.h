@@ -21,7 +21,7 @@
 #include "LeptonInjector/interactions/Decay.h"   // for Decay
 #include "LeptonInjector/dataclasses/Particle.h"  // for Particle
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace dataclasses { struct InteractionSignature; } }
 namespace LI { namespace utilities { class LI_random; } }
 

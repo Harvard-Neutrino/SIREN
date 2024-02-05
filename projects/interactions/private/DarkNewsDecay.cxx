@@ -36,7 +36,7 @@ bool DarkNewsDecay::equal(Decay const & other) const {
 }
 
 double DarkNewsDecay::TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const {
-    return TotalDecayWidth(interaction.signature.primary_type);
+    return TotalDecayWidth(interaction.GetPrimaryType());
 }
 
 double DarkNewsDecay::TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const {
