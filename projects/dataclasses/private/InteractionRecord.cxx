@@ -488,7 +488,7 @@ std::array<double, 3> const & InteractionRecord::GetInteractionVertex() const {
 std::vector<Particle> InteractionRecord::GetSecondaries() const {
     std::vector<Particle> secondaries;
     for(size_t i=0; i<secondary_ids.size(); ++i) {
-        secondaries.emplace_back(secondary_ids.at(i), signature.secondary_types.at(i), secondary_masses.at(i), secondary_momenta.at(i), std::array<double, 3>{0, 0, 0}, 0, secondary_helicity.at(i));
+        secondaries.emplace_back(secondary_ids.at(i), signature.secondary_types.at(i), secondary_masses.at(i), secondary_momenta.at(i), std::array<double, 3>{0, 0, 0}, 0, secondary_helicities.at(i));
     }
     return secondaries;
 }
@@ -509,8 +509,8 @@ std::vector<std::array<double, 4>> const & InteractionRecord::GetSecondaryMoment
     return secondary_momenta;
 }
 
-std::vector<double> const & InteractionRecord::GetSecondaryHelicity() const {
-    return secondary_helicity;
+std::vector<double> const & InteractionRecord::GetSecondaryHelicities() const {
+    return secondary_helicities;
 }
 
 std::map<std::string, double> const & InteractionRecord::GetInteractionParameters() const {
@@ -521,7 +521,7 @@ Particle InteractionRecord::GetSecondary(size_t const & index) const {
     if(index >= secondary_ids.size()) {
         throw std::runtime_error("Secondary index out of range!");
     }
-    Particle secondary(secondary_ids.at(index), signature.secondary_types.at(index), secondary_masses.at(index), secondary_momenta.at(index), std::array<double, 3>{0, 0, 0}, 0, secondary_helicity.at(index));
+    Particle secondary(secondary_ids.at(index), signature.secondary_types.at(index), secondary_masses.at(index), secondary_momenta.at(index), std::array<double, 3>{0, 0, 0}, 0, secondary_helicities.at(index));
     return secondary;
 }
 
@@ -554,10 +554,10 @@ std::array<double, 4> const & InteractionRecord::GetSecondaryMomentum(size_t con
 }
 
 double const & InteractionRecord::GetSecondaryHelicity(size_t const & index) const {
-    if(index >= secondary_helicity.size()) {
+    if(index >= secondary_helicities.size()) {
         throw std::runtime_error("Secondary index out of range!");
     }
-    return secondary_helicity.at(index);
+    return secondary_helicities.at(index);
 }
 
 double const & InteractionRecord::GetInteractionParameter(std::string const & key) const {
@@ -695,7 +695,7 @@ std::vector<ParticleID> InteractionRecord::SetSecondaries(std::vector<Particle> 
     secondary_ids.clear();
     secondary_masses.clear();
     secondary_momenta.clear();
-    secondary_helicity.clear();
+    secondary_helicities.clear();
     for(Particle & secondary: secondaries) {
         AddSecondary(secondary);
     }
@@ -706,7 +706,7 @@ std::vector<ParticleID> InteractionRecord::SetSecondaries(std::vector<Particle> 
     secondary_ids.clear();
     secondary_masses.clear();
     secondary_momenta.clear();
-    secondary_helicity.clear();
+    secondary_helicities.clear();
     for(Particle const & secondary: secondaries) {
         AddSecondary(secondary);
     }
@@ -742,8 +742,8 @@ void InteractionRecord::SetSecondaryMomenta(std::vector<std::array<double, 4>> c
     this->secondary_momenta = secondary_momenta;
 }
 
-void InteractionRecord::SetSecondaryHelicity(std::vector<double> const & secondary_helicity) {
-    this->secondary_helicity = secondary_helicity;
+void InteractionRecord::SetSecondaryHelicities(std::vector<double> const & secondary_helicities) {
+    this->secondary_helicities = secondary_helicities;
 }
 
 void InteractionRecord::SetInteractionParameters(std::map<std::string, double> const & interaction_parameters) {
@@ -810,12 +810,12 @@ void InteractionRecord::SetSecondaryMomentum(size_t const & index, std::array<do
 }
 
 void InteractionRecord::SetSecondaryHelicity(size_t const & index, double const & secondary_helicity) {
-    if(this->secondary_helicity.size() < index) {
+    if(this->secondary_helicities.size() < index) {
         throw std::runtime_error("Secondary index out of range!");
-    } else if(this->secondary_helicity.size() == index) {
-        this->secondary_helicity.resize(index+1);
+    } else if(this->secondary_helicities.size() == index) {
+        this->secondary_helicities.resize(index+1);
     }
-    this->secondary_helicity.at(index) = secondary_helicity;
+    this->secondary_helicities.at(index) = secondary_helicity;
 }
 
 void InteractionRecord::SetInteractionParameter(std::string const & key, double const & value) {
@@ -844,7 +844,7 @@ ParticleID InteractionRecord::AddSecondary(ParticleID const & secondary_id) {
     secondary_ids.push_back(secondary_id);
     secondary_masses.push_back(0);
     secondary_momenta.push_back({0, 0, 0, 0});
-    secondary_helicity.push_back(0);
+    secondary_helicities.push_back(0);
     return secondary_ids.back();
 }
 
@@ -869,7 +869,7 @@ ParticleID InteractionRecord::AddSecondary(Particle & secondary) {
 
     secondary_masses.push_back(secondary.mass);
     secondary_momenta.push_back(secondary.momentum);
-    secondary_helicity.push_back(secondary.helicity);
+    secondary_helicities.push_back(secondary.helicity);
     return secondary_ids.back();
 }
 
@@ -946,7 +946,7 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         secondary_ids,
         secondary_masses,
         secondary_momenta,
-        secondary_helicity,
+        secondary_helicities,
         interaction_parameters)
         ==
         std::tie(
@@ -963,7 +963,7 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         other.secondary_ids,
         other.secondary_masses,
         other.secondary_momenta,
-        other.secondary_helicity,
+        other.secondary_helicities,
         other.interaction_parameters);
 }
 
@@ -982,7 +982,7 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         secondary_ids,
         secondary_masses,
         secondary_momenta,
-        secondary_helicity,
+        secondary_helicities,
         interaction_parameters)
         <
         std::tie(
@@ -999,7 +999,7 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         other.secondary_ids,
         other.secondary_masses,
         other.secondary_momenta,
-        other.secondary_helicity,
+        other.secondary_helicities,
         other.interaction_parameters);
 }
 

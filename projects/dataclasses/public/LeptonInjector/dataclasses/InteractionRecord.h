@@ -140,7 +140,7 @@ private:
     std::vector<ParticleID> secondary_ids;
     std::vector<double> secondary_masses;
     std::vector<std::array<double, 4>> secondary_momenta;
-    std::vector<double> secondary_helicity;
+    std::vector<double> secondary_helicities;
     std::map<std::string, double> interaction_parameters;
 public:
     // Constructors
@@ -178,7 +178,7 @@ public:
     std::vector<ParticleType> const & GetSecondaryTypes() const;
     std::vector<double> const & GetSecondaryMasses() const;
     std::vector<std::array<double, 4>> const & GetSecondaryMomenta() const;
-    std::vector<double> const & GetSecondaryHelicity() const;
+    std::vector<double> const & GetSecondaryHelicities() const;
     std::map<std::string, double> const & GetInteractionParameters() const;
 
     Particle GetSecondary(size_t const & index) const;
@@ -215,7 +215,7 @@ public:
     void SetSecondaryTypes(std::vector<Particle::ParticleType> const & secondary_types);
     void SetSecondaryMasses(std::vector<double> const & secondary_masses);
     void SetSecondaryMomenta(std::vector<std::array<double, 4>> const & secondary_momenta);
-    void SetSecondaryHelicity(std::vector<double> const & secondary_helicity);
+    void SetSecondaryHelicities(std::vector<double> const & secondary_helicities);
     void SetInteractionParameters(std::map<std::string, double> const & interaction_parameters);
 
     ParticleID SetSecondary(size_t const & index, Particle & secondary);
@@ -260,7 +260,7 @@ public:
             archive(::cereal::make_nvp("SecondaryIDs", secondary_ids));
             archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
             archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
-            archive(::cereal::make_nvp("SecondaryHelicity", secondary_helicity));
+            archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
         } else {
             throw std::runtime_error("InteractionRecord only supports version <= 0!");
@@ -282,7 +282,7 @@ public:
             archive(::cereal::make_nvp("SecondaryIDs", secondary_ids));
             archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
             archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
-            archive(::cereal::make_nvp("SecondaryHelicity", secondary_helicity));
+            archive(::cereal::make_nvp("SecondaryHelicities", secondary_helicities));
             archive(::cereal::make_nvp("InteractionParameters", interaction_parameters));
             signature_set = true;
             reference_signature = signature;
