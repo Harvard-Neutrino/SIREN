@@ -18,9 +18,12 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-#include <cereal/types/set.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/array.hpp>
 #include <cereal/types/utility.hpp>
 #include <cereal/details/helpers.hpp>
+
+#include "LeptonInjector/serialization/array.h"
 
 namespace LI {
 namespace dataclasses {
@@ -31,17 +34,33 @@ public:
     typedef LI::dataclasses::ParticleType ParticleType;
 
     Particle() = default;
-    Particle(ParticleID id, ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double helicity);
-    Particle(ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double helicity);
+    Particle(ParticleID id, ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double length, double helicity);
+    Particle(ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double length, double helicity);
 
     ParticleID id;
     ParticleType type = ParticleType::unknown;
     double mass = 0;
     std::array<double, 4> momentum = {0, 0, 0, 0};
     std::array<double, 3> position = {0, 0, 0};
+    double length = 0;
     double helicity = 0;
 
     ParticleID & GenerateID();
+
+    template<typename Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("ID", id));
+            archive(::cereal::make_nvp("Type", type));
+            archive(::cereal::make_nvp("Mass", mass));
+            archive(::cereal::make_nvp("Momentum", momentum));
+            archive(::cereal::make_nvp("Position", position));
+            archive(::cereal::make_nvp("Length", length));
+            archive(::cereal::make_nvp("helicity", helicity));
+        } else {
+            throw std::runtime_error("Particle only supports version <= 0!");
+        }
+    }
 };
 
 // prototype some of the particle helper functions
@@ -52,5 +71,7 @@ bool isNeutrino(Particle::ParticleType p);
 
 } // namespace dataclasses
 } // namespace LI
+
+CEREAL_CLASS_VERSION(LI::dataclasses::Particle, 0);
 
 #endif // LI_Particle_H

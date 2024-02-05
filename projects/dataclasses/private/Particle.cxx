@@ -15,9 +15,9 @@
 namespace LI {
 namespace dataclasses {
 
-Particle::Particle(ParticleID id, ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double helicity) : id(id), type(type), mass(mass), momentum(momentum), position(position), helicity(helicity) {}
+Particle::Particle(ParticleID id, ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double length, double helicity) : id(id), type(type), mass(mass), momentum(momentum), position(position), length(length), helicity(helicity) {}
 
-Particle::Particle(ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double helicity) : type(type), mass(mass), momentum(momentum), position(position), helicity(helicity) {}
+Particle::Particle(ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double length, double helicity) : type(type), mass(mass), momentum(momentum), position(position), length(length), helicity(helicity) {}
 
 ParticleID & Particle::GenerateID() {
     id = ParticleID::GenerateID();
