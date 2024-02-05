@@ -34,6 +34,7 @@ public:
     typedef LI::dataclasses::ParticleType ParticleType;
 
     Particle() = default;
+    Particle(Particle const & other) = default;
     Particle(ParticleID id, ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double length, double helicity);
     Particle(ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double length, double helicity);
 
