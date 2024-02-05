@@ -6,7 +6,368 @@
 namespace LI {
 namespace dataclasses {
 
+PrimaryRecord::PrimaryRecord(ParticleType type) : type(type) {}
+
+PrimaryRecord & PrimaryRecord::operator=(PrimaryRecord const & record) {
+    type = record.type;
+    mass_set = record.mass_set;
+    energy_set = record.energy_set;
+    kinetic_energy_set = record.kinetic_energy_set;
+    direction_set = record.direction_set;
+    momentum_set = record.momentum_set;
+    length_set = record.length_set;
+    intitial_position_set = record.intitial_position_set;
+    interaction_vertex_set = record.interaction_vertex_set;
+    mass = record.mass;
+    energy = record.energy;
+    kinetic_energy = record.kinetic_energy;
+    direction = record.direction;
+    momentum = record.momentum;
+    length = record.length;
+    initial_position = record.initial_position;
+    interaction_vertex = record.interaction_vertex;
+    return *this;
+}
+
+ParticleType const & PrimaryRecord::GetType() {
+    return type;
+}
+
+double const & PrimaryRecord::GetMass() {
+    if(not mass_set) {
+        UpdateMass();
+    }
+    return mass;
+}
+
+double const & PrimaryRecord::GetEnergy() {
+    if(not energy_set) {
+        UpdateEnergy();
+    }
+    return energy;
+}
+
+double const & PrimaryRecord::GetKineticEnergy() {
+    if(not kinetic_energy_set) {
+        UpdateKineticEnergy();
+    }
+    return kinetic_energy;
+}
+
+std::array<double, 3> const & PrimaryRecord::GetDirection() {
+    if(not direction_set) {
+        UpdateDirection();
+    }
+    return direction;
+}
+
+std::array<double, 3> const & PrimaryRecord::GetThreeMomentum() {
+    if(not momentum_set) {
+        UpdateMomentum();
+    }
+    return momentum;
+}
+
+std::array<double, 4> const & PrimaryRecord::GetFourMomentum() {
+    if(not momentum_set) {
+        UpdateMomentum();
+    }
+    return {momentum.at(0), momentum.at(1), momentum.at(2), GetEnergy()};
+}
+
+double const & PrimaryRecord::GetLength() {
+    if(not length_set) {
+        UpdateLength();
+    }
+    return length;
+}
+
+std::array<double, 3> const & PrimaryRecord::GetIntialPosition() {
+    if(not intitial_position_set) {
+        UpdateIntialPosition();
+    }
+    return initial_position;
+}
+
+std::array<double, 3> const & PrimaryRecord::GetInteractionVertex() {
+    if(not interaction_vertex_set) {
+        UpdateInteractionVertex();
+    }
+    return interaction_vertex;
+}
+
+// void PrimaryRecord::SetType(ParticleType type) {
+//     this->type = type;
+// }
+
+void PrimaryRecord::SetMass(double mass) {
+    mass_set = true;
+    this->mass = mass;
+}
+
+void PrimaryRecord::SetEnergy(double energy) {
+    energy_set = true;
+    this->energy = energy;
+}
+
+void PrimaryRecord::SetKineticEnergy(double kinetic_energy) {
+    kinetic_energy_set = true;
+    this->kinetic_energy = kinetic_energy;
+}
+
+void PrimaryRecord::SetDirection(std::array<double, 3> direction) {
+    direction_set = true;
+    this->direction = direction;
+}
+
+void PrimaryRecord::SetThreeMomentum(std::array<double, 3> momentum) {
+    momentum_set = true;
+    this->momentum = momentum;
+}
+
+void PrimaryRecord::SetFourMomentum(std::array<double, 4> momentum) {
+    momentum_set = true;
+    this->momentum = {momentum.at(1), momentum.at(2), momentum.at(3)};
+    energy_set = true;
+    this->energy = momentum.at(0);
+}
+
+void PrimaryRecord::SetLength(double length) {
+    length_set = true;
+    this->length = length;
+}
+
+void PrimaryRecord::SetIntialPosition(std::array<double, 3> initial_position) {
+    intitial_position_set = true;
+    this->initial_position = initial_position;
+}
+
+void PrimaryRecord::SetInteractionVertex(std::array<double, 3> interaction_vertex) {
+    interaction_vertex_set = true;
+    this->interaction_vertex = interaction_vertex;
+}
+
+void PrimaryRecord::UpdateMass() {
+    if(mass_set)
+        return;
+    if(energy_set and momentum_set) {
+        mass = std::sqrt(energy*energy - momentum.at(0)*momentum.at(0) - momentum.at(1)*momentum.at(1) - momentum.at(2)*momentum.at(2));
+    } else if(energy_set and kinetic_energy_set) {
+        mass = std::sqrt(energy*energy - kinetic_energy*kinetic_energy);
+    } else {
+        throw std::runtime_error("Cannot calculate mass without energy and momentum or energy and kinetic energy!");
+    }
+}
+
+void PrimaryRecord::UpdateEnergy() {
+    if(energy_set)
+        return;
+    if(mass_set and momentum_set) {
+        energy = std::sqrt(mass*mass + momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2));
+    } else if(mass_set and kinetic_energy_set) {
+        energy = std::sqrt(mass*mass + kinetic_energy*kinetic_energy);
+    } else {
+        throw std::runtime_error("Cannot calculate energy without mass and momentum or mass and kinetic energy!");
+    }
+}
+
+void PrimaryRecord::UpdateKineticEnergy() {
+    if(kinetic_energy_set)
+        return;
+    if(mass_set and energy_set) {
+        kinetic_energy = std::sqrt(energy*energy - mass*mass);
+    } else if(momentum_set) {
+        kinetic_energy = std::sqrt(momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2));
+    } else {
+        throw std::runtime_error("Cannot calculate kinetic energy without mass and energy or momentum!");
+    }
+}
+
+void PrimaryRecord::UpdateDirection() {
+    if(direction_set)
+        return;
+    if(momentum_set) {
+        double magnitude = std::sqrt(momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2));
+        direction = {momentum.at(0)/magnitude, momentum.at(1)/magnitude, momentum.at(2)/magnitude};
+    } else if(initial_position_set and interaction_vertex_set) {
+        direction = {interaction_vertex.at(0) - initial_position.at(0), interaction_vertex.at(1) - initial_position.at(1), interaction_vertex.at(2) - initial_position.at(2)};
+        double magnitude = std::sqrt(direction.at(0)*direction.at(0) + direction.at(1)*direction.at(1) + direction.at(2)*direction.at(2));
+        direction = {direction.at(0)/magnitude, direction.at(1)/magnitude, direction.at(2)/magnitude};
+    } else {
+        throw std::runtime_error("Cannot calculate direction without momentum or initial position and interaction vertex!");
+    }
+}
+
+void PrimaryRecord::UpdateMomentum() {
+    if(momentum_set)
+        return;
+    if(energy_set and mass_set and direction_set) {
+        double magnitude = std::sqrt(energy*energy - mass*mass);
+        momentum = {magnitude*direction.at(0), magnitude*direction.at(1), magnitude*direction.at(2)};
+    } else if(kinetic_energy_set and direction_set) {
+        double magnitude = kinetic_energy;
+        momentum = {magnitude*direction.at(0), magnitude*direction.at(1), magnitude*direction.at(2)};
+    } else {
+        throw std::runtime_error("Cannot calculate momentum without energy and mass and direction or kinetic energy and direction!");
+    }
+}
+
+void PrimaryRecord::UpdateLength() {
+    if(length_set)
+        return;
+    if(initial_position_set and interaction_vertex_set) {
+        length = std::sqrt(
+            (interaction_vertex.at(0) - initial_position.at(0))*(interaction_vertex.at(0) - initial_position.at(0)) +
+            (interaction_vertex.at(1) - initial_position.at(1))*(interaction_vertex.at(1) - initial_position.at(1)) +
+            (interaction_vertex.at(2) - initial_position.at(2))*(interaction_vertex.at(2) - initial_position.at(2))
+        );
+    } else {
+        throw std::runtime_error("Cannot calculate length without initial position and interaction vertex!");
+    }
+}
+
+void PrimaryRecord::UpdateIntialPosition() {
+    if(intitial_position_set)
+        return;
+    if(interaction_vertex_set and direction_set and length_set) {
+        initial_position = {interaction_vertex.at(0) - length*direction.at(0), interaction_vertex.at(1) - length*direction.at(1), interaction_vertex.at(2) - length*direction.at(2)};
+    } else {
+        throw std::runtime_error("Cannot calculate initial position without interaction vertex and direction and length!");
+    }
+}
+
+void PrimaryRecord::UpdateInteractionVertex() {
+    if(interaction_vertex_set)
+        return;
+    if(initial_position_set and direction_set and length_set) {
+        interaction_vertex = {initial_position.at(0) + length*direction.at(0), initial_position.at(1) + length*direction.at(1), initial_position.at(2) + length*direction.at(2)};
+    } else {
+        throw std::runtime_error("Cannot calculate interaction vertex without initial position and direction and length!");
+    }
+}
+
+/////////////////////////////////////////
+
+
+class SecondaryRecord : protected PrimaryRecord {
+public:
+    SecondaryRecord(ParticleType const & type, std::array<double, 3> initial_position, double mass, std::array<double, 4> momentum);
+
+    SecondaryRecord & operator=(SecondaryRecord const & record);
+
+    ParticleType const & GetType();
+    double const & GetMass();
+    double const & GetEnergy();
+    double const & GetKineticEnergy();
+    std::array<double, 3> const & GetDirection();
+    std::array<double, 3> const & GetMomentum();
+    std::array<double, 4> const & GetMomentum();
+    double const & GetLength();
+    std::array<double, 3> const & GetIntialPosition();
+    std::array<double, 3> const & GetInteractionVertex();
+
+    void SetLength(double length);
+};
+
+SecondaryRecord::SecondaryRecord(ParticleType const & type, std::array<double, 3> initial_position, double mass, std::array<double, 4> momentum) : PrimaryRecord(type) {
+    SetIntialPosition(initial_position);
+    SetMass(mass);
+    SetFourMomentum(momentum);
+}
+
+SecondaryRecord & SecondaryRecord::operator=(SecondaryRecord const & record) {
+    type = record.type;
+    mass_set = record.mass_set;
+    energy_set = record.energy_set;
+    kinetic_energy_set = record.kinetic_energy_set;
+    direction_set = record.direction_set;
+    momentum_set = record.momentum_set;
+    length_set = record.length_set;
+    intitial_position_set = record.intitial_position_set;
+    interaction_vertex_set = record.interaction_vertex_set;
+    mass = record.mass;
+    energy = record.energy;
+    kinetic_energy = record.kinetic_energy;
+    direction = record.direction;
+    momentum = record.momentum;
+    length = record.length;
+    initial_position = record.initial_position;
+    interaction_vertex = record.interaction_vertex;
+    return *this;
+}
+
+ParticleType const & SecondaryRecord::GetType() {
+    return PrimaryRecord::GetType();
+}
+
+double const & SecondaryRecord::GetMass() {
+    return PrimaryRecord::GetMass();
+}
+
+double const & SecondaryRecord::GetEnergy() {
+    return PrimaryRecord::GetEnergy();
+}
+
+double const & SecondaryRecord::GetKineticEnergy() {
+    return PrimaryRecord::GetKineticEnergy();
+}
+
+std::array<double, 3> const & SecondaryRecord::GetDirection() {
+    return PrimaryRecord::GetDirection();
+}
+
+std::array<double, 3> const & SecondaryRecord::GetThreeMomentum() {
+    return PrimaryRecord::GetThreeMomentum();
+}
+
+std::array<double, 4> const & SecondaryRecord::GetFourMomentum() {
+    return PrimaryRecord::GetFourMomentum();
+}
+
+double const & SecondaryRecord::GetLength() {
+    return PrimaryRecord::GetLength();
+}
+
+std::array<double, 3> const & SecondaryRecord::GetIntialPosition() {
+    return PrimaryRecord::GetIntialPosition();
+}
+
+std::array<double, 3> const & SecondaryRecord::GetInteractionVertex() {
+    return PrimaryRecord::GetInteractionVertex();
+}
+
+void SecondaryRecord::SetLength(double length) {
+    length_set = true;
+    this->length = length;
+}
+
+/////////////////////////////////////////
+
 InteractionRecord::InteractionRecord(InteractionSignature const & signature) : signature_set(true), signature(signature) {}
+
+PrimaryRecord InteractionRecord::GetPrimaryRecord() const {
+    PrimaryRecord record(signature.primary_type);
+    record.SetMass(primary_mass);
+    record.SetEnergy(primary_momentum.at(0));
+    record.SetThreeMomentum({primary_momentum.at(1), primary_momentum.at(2), primary_momentum.at(3)});
+    record.SetIntialPosition(primary_initial_position);
+    record.SetInteractionVertex(interaction_vertex);
+    return record;
+}
+
+void InteractionRecord::SetPrimaryRecord(PrimaryRecord const & record) {
+    if(signature_set) {
+        if(record.GetType() != signature.primary_type) {
+            throw std::runtime_error("Primary particle type does not match signature!");
+        }
+    } else {
+        signature.primary_type = record.GetType();
+    }
+    primary_mass = record.GetMass();
+    primary_momentum = record.GetFourMomentum();
+    primary_initial_position = record.GetIntialPosition();
+    interaction_vertex = record.GetInteractionVertex();
+}
 
 InteractionSignature const & InteractionRecord::GetSignature() const {
     return signature;
@@ -42,7 +403,7 @@ double const & InteractionRecord::GetPrimaryHelicity() const {
 }
 
 Particle InteractionRecord::GetTarget() const {
-    Particle target(target_id, signature.target_type, target_mass, target_momentum, {0, 0, 0}, target_helicity);
+    Particle target(target_id, signature.target_type, target_mass, {0, 0, 0}, {0, 0, 0}, target_helicity);
     return target;
 }
 
@@ -56,10 +417,6 @@ ParticleType const & InteractionRecord::GetTargetType() const {
 
 double const & InteractionRecord::GetTargetMass() const {
     return target_mass;
-}
-
-std::array<double, 4> const & InteractionRecord::GetTargetMomentum() const {
-    return target_momentum;
 }
 
 double const & InteractionRecord::GetTargetHelicity() const {
@@ -170,7 +527,15 @@ ParticleID InteractionRecord::SetPrimary(Particle & primary) {
         primary_id = primary.GenerateID();
     }
 
+    std::array<double, 3> direction = {primary.momentum.at(1), primary.momentum.at(2), primary.momentum.at(3)};
+    double magnitude = std::sqrt(direction.at(0)*direction.at(0) + direction.at(1)*direction.at(1) + direction.at(2)*direction.at(2));
+    direction = {direction.at(0)/magnitude, direction.at(1)/magnitude, direction.at(2)/magnitude};
+
     primary_initial_position = primary.position;
+    interaction_vertex = primary.position;
+    interaction_vertex.at(0) += primary.length * direction.at(0);
+    interaction_vertex.at(1) += primary.length * direction.at(1);
+    interaction_vertex.at(2) += primary.length * direction.at(2);
     primary_mass = primary.mass;
     primary_momentum = primary.momentum;
     primary_helicity = primary.helicity;
@@ -231,7 +596,6 @@ ParticleID InteractionRecord::SetTarget(Particle & target) {
     }
 
     target_mass = target.mass;
-    target_momentum = target.momentum;
     target_helicity = target.helicity;
     return target_id;
 }
@@ -259,10 +623,6 @@ void InteractionRecord::SetTargetType(Particle::ParticleType const & target_type
 
 void InteractionRecord::SetTargetMass(double const & target_mass) {
     this->target_mass = target_mass;
-}
-
-void InteractionRecord::SetTargetMomentum(std::array<double, 4> const & target_momentum) {
-    this->target_momentum = target_momentum;
 }
 
 void InteractionRecord::SetTargetHelicity(double const & target_helicity) {
@@ -523,7 +883,6 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         primary_helicity,
         target_id,
         target_mass,
-        target_momentum,
         target_helicity,
         interaction_vertex,
         secondary_ids,
@@ -541,7 +900,6 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         other.primary_helicity,
         other.target_id,
         other.target_mass,
-        other.target_momentum,
         other.target_helicity,
         other.interaction_vertex,
         other.secondary_ids,
@@ -561,7 +919,6 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         primary_helicity,
         target_id,
         target_mass,
-        target_momentum,
         target_helicity,
         interaction_vertex,
         secondary_ids,
@@ -579,7 +936,6 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         other.primary_helicity,
         other.target_id,
         other.target_mass,
-        other.target_momentum,
         other.target_helicity,
         other.interaction_vertex,
         other.secondary_ids,
@@ -609,7 +965,6 @@ std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord co
     os << "PrimaryMomentum: " << record.primary_momentum.at(0) << " " << record.primary_momentum.at(1) << " " << record.primary_momentum.at(2) << " " << record.primary_momentum.at(3) << "\n";
     os << "TargetID: " << record.target_id << "\n";
     os << "TargetMass: " << record.target_mass << "\n";
-    os << "TargetMomentum: " << record.target_momentum.at(0) << " " << record.target_momentum.at(1) << " " << record.target_momentum.at(2) << " " << record.target_momentum.at(3) << "\n";
     os << "SecondaryIDs:\n";
     for(auto const & secondary: record.secondary_ids) {
         os << "\t" << secondary << "\n";

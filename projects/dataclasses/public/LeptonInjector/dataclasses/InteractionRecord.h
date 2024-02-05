@@ -31,6 +31,85 @@ std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord co
 namespace LI {
 namespace dataclasses {
 
+class PrimaryRecord {
+private:
+    ParticleType type;
+
+    bool mass_set = false;
+    bool energy_set = false;
+    bool kinetic_energy_set = false;
+    bool direction_set = false;
+    bool momentum_set = false;
+    bool length_set = false;
+    bool intitial_position_set = false;
+    bool interaction_vertex_set = false;
+
+    double mass;
+    double energy;
+    double kinetic_energy;
+    DetectorDirection direction;
+    std::array<double, 3> momentum;
+    double length;
+    std::array<double, 3> initial_position;
+    std::array<double, 3> interaction_vertex;
+
+public:
+    PrimaryRecord(ParticleType const & type);
+
+    PrimaryRecord & operator=(PrimaryRecord const & record);
+
+    ParticleType const & GetType();
+    double const & GetMass();
+    double const & GetEnergy();
+    double const & GetKineticEnergy();
+    std::array<double, 3> const & GetDirection();
+    std::array<double, 3> const & GetThreeMomentum();
+    std::array<double, 4> const & GetFourMomentum();
+    double const & GetLength();
+    std::array<double, 3> const & GetIntialPosition();
+    std::array<double, 3> const & GetInteractionVertex();
+
+    //void SetType(ParticleType type);
+    void SetMass(double mass);
+    void SetEnergy(double energy);
+    void SetKineticEnergy(double kinetic_energy);
+    void SetDirection(std::array<double, 3> direction);
+    void SetThreeMomentum(std::array<double, 3> momentum);
+    void SetFourMomentum(std::array<double, 4> momentum);
+    void SetLength(double length);
+    void SetIntialPosition(std::array<double, 3> initial_position);
+    void SetInteractionVertex(std::array<double, 3> initial_position);
+
+    void UpdateMass();
+    void UpdateEnergy();
+    void UpdateKineticEnergy();
+    void UpdateDirection();
+    void UpdateMomentum();
+    void UpdateLength();
+    void UpdateIntialPosition();
+    void UpdateInteractionVertex();
+};
+
+class SecondaryRecord : protected PrimaryRecord {
+public:
+    SecondaryRecord(ParticleType const & type, std::array<double, 3> initial_position, double mass, std::array<double, 4> momentum);
+
+    SecondaryRecord & operator=(SecondaryRecord const & record);
+
+    ParticleType const & GetType();
+    double const & GetMass();
+    double const & GetEnergy();
+    double const & GetKineticEnergy();
+    std::array<double, 3> const & GetDirection();
+    std::array<double, 3> const & GetThreeMomentum();
+    std::array<double, 4> const & GetFourMomentum();
+    double const & GetLength();
+    std::array<double, 3> const & GetIntialPosition();
+    std::array<double, 3> const & GetInteractionVertex();
+
+    void SetLength(double length);
+};
+
 class InteractionRecord {
 private:
     // Stateful information
@@ -46,7 +125,6 @@ private:
     double primary_helicity = 0;
     ParticleID target_id;
     double target_mass = 0;
-    std::array<double, 4> target_momentum = {0, 0, 0, 0};
     double target_helicity = 0;
     std::array<double, 3> interaction_vertex = {0, 0, 0};
     std::vector<ParticleID> secondary_ids;
@@ -58,7 +136,14 @@ public:
     // Constructors
     InteractionRecord() = default;
     InteractionRecord(InteractionSignature const & signature);
+    InteractionRecord(InteractionSignature const & signature, PrimaryRecord const & primary);
     InteractionRecord & operator=(InteractionRecord const & record) = default;
+
+    // Special getters
+    PrimaryRecord GetPrimaryRecord() const;
+
+    // Special setters
+    void SetPrimaryRecord(PrimaryRecord const & primary);
 
     // Getters
     InteractionSignature const & GetSignature() const;
@@ -75,7 +160,6 @@ public:
     ParticleID const & GetTargetID() const;
     ParticleType const & GetTargetType() const;
     double const & GetTargetMass() const;
-    std::array<double, 4> const & GetTargetMomentum() const;
     double const & GetTargetHelicity() const;
     std::array<double, 3> const & GetInteractionVertex() const;
 
@@ -112,7 +196,6 @@ public:
     ParticleID SetTargetID(ParticleID const & target_id);
     void SetTargetType(Particle::ParticleType const & target_type);
     void SetTargetMass(double const & target_mass);
-    void SetTargetMomentum(std::array<double, 4> const & target_momentum);
     void SetTargetHelicity(double const & target_helicity);
     void SetInteractionVertex(std::array<double, 3> const & interaction_vertex);
 
@@ -162,7 +245,6 @@ public:
             archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));
             archive(::cereal::make_nvp("TargetID", target_id));
             archive(::cereal::make_nvp("TargetMass", target_mass));
-            archive(::cereal::make_nvp("TargetMomentum", target_momentum));
             archive(::cereal::make_nvp("TargetHelicity", target_helicity));
             archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
             archive(::cereal::make_nvp("SecondaryIDs", secondary_ids));
@@ -185,7 +267,6 @@ public:
             archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));
             archive(::cereal::make_nvp("TargetID", target_id));
             archive(::cereal::make_nvp("TargetMass", target_mass));
-            archive(::cereal::make_nvp("TargetMomentum", target_momentum));
             archive(::cereal::make_nvp("TargetHelicity", target_helicity));
             archive(::cereal::make_nvp("InteractionVertex", interaction_vertex));
             archive(::cereal::make_nvp("SecondaryIDs", secondary_ids));
