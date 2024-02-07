@@ -8,13 +8,13 @@ from . import injection as _injection
 from . import distributions as _distributions
 from . import dataclasses as _dataclasses
 from . import interactions as _interactions
+from . import geometry as _geometry
+from . import math as _math
 
 from . import _util
 
 from .LIDarkNews import PyDarkNewsInteractionCollection
 
-# For determining fiducial volume of different experiments
-fid_vol_dict = {"MiniBooNE": "fid_vol", "CCM": "ccm_inner_argon", "MINERvA": "fid_vol"}
 
 
 # Parent python class for handling event generation
@@ -54,6 +54,9 @@ class LIController:
         # Define lists for the secondary injection and physical processes
         self.secondary_injection_processes = []
         self.secondary_physical_processes = []
+
+        # Set the fiducial volume
+        self.fid_vol = self.GetFiducialVolume()
 
     def SetProcesses(
         self,
@@ -96,7 +99,7 @@ class LIController:
                 _distributions.PrimaryNeutrinoHelicityDistribution()
             )
 
-        # Default injection distributions
+        # Default physical distributions
         if "helicity" not in primary_physical_distributions.keys():
             self.primary_physical_process.AddPhysicalDistribution(
                 _distributions.PrimaryNeutrinoHelicityDistribution()
@@ -124,10 +127,9 @@ class LIController:
                 secondary_physical_process.AddPhysicalDistribution(pdist)
 
             # Add the position distribution
-            fid_vol = self.GetFiducialVolume()
-            if fid_vol is not None:
+            if self.fid_vol is not None:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryBoundedVertexDistribution(fid_vol)
+                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
                 )
             else:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
@@ -137,6 +139,9 @@ class LIController:
             self.secondary_injection_processes.append(secondary_injection_process)
             self.secondary_physical_processes.append(secondary_physical_process)
 
+    
+
+    
     def InputDarkNewsModel(self, primary_type, table_dir, model_kwargs):
         """
         Sets up the relevant processes and cross section/decay objects related to a provided DarkNews model dictionary.
@@ -182,9 +187,6 @@ class LIController:
                 self.DN_min_decay_width = total_decay_width
         # Now make the list of secondary cross section collections
         # Add new secondary injection and physical processes at the same time
-        fid_vol = (
-            self.GetFiducialVolume()
-        )  # find fiducial volume for secondary position distirbutions
         secondary_interaction_collections = []
         for secondary_type, decay_list in secondary_decays.items():
             # Define a sedcondary injection distribution
@@ -194,9 +196,9 @@ class LIController:
             secondary_physical_process.primary_type = secondary_type
 
             # Add the secondary position distribution
-            if fid_vol is not None:
+            if self.fid_vol is not None:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryBoundedVertexDistribution(fid_vol)
+                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
                 )
             else:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
@@ -218,12 +220,25 @@ class LIController:
         """
         :return: identified fiducial volume for the experiment, None if not found
         """
-        fid_vol = None
-        for sector in self.detector_model.Sectors:
-            if self.experiment in fid_vol_dict.keys():
-                if sector.name == fid_vol_dict[self.experiment]:
-                    fid_vol = sector.geo
-        return fid_vol
+        if self.experiment=="MiniBooNE":
+            return _geometry.Sphere(_geometry.Placement(_math.Vector3D([0,0,0])),
+                                    5.0, 0)
+        elif self.experiment=="CCM":
+            return _geometry.Cylinder(_geometry.Placement(_math.Vector3D([23,0,-0.65])),
+                                      0.96, 0, 1.232)
+        elif self.experiment=="MINERvA":
+            edges = [[0.000, 0.93675],
+                    [0.81125, 0.46838],
+                    [0.81125, -0.46838],
+                    [0.000, -0.93675],
+                    [-0.81125, -0.46838],
+                    [-0.81125, 0.46838]]
+            zsecs = [_geometry.ZSection(1.45,[0,0],1),
+                    _geometry.ZSection(4.0,[0,0],1)]
+            return _geometry.ExtrPoly(_math.Vector3D(_geometry.Placement([0,0,0])),
+                                      edges,zsecs)
+        else:
+            return None
 
     def GetDetectorModelTargets(self):
         """
@@ -333,6 +348,7 @@ class LIController:
             "event_weight":[], # weight of entire event
             "num_interactions":[], # number of interactions per event
             "vertex":[], # vertex of each interaction in an event
+            "in_fiducial":[], # whether or not each vertex is in the fiducial volume
             "primary_type":[], # primary type of each interaction
             "target_type":[], # target type of each interaction
             "num_secondaries":[], # number of secondary particles of each interaction
@@ -346,6 +362,7 @@ class LIController:
             datasets["event_weight"].append(self.weighter.EventWeight(event))
             # add empty lists for each per interaction dataset
             for k in ["vertex",
+                      "in_fiducial",
                       "primary_type",
                       "target_type",
                       "num_secondaries",
@@ -358,6 +375,11 @@ class LIController:
             for id, datum in enumerate(event.tree):
                 
                 datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
+
+                if self.fid_vol is not None:
+                    datasets["in_fiducial"][-1].append(self.fid_vol.IsInside(_math.Vector3D(datasets["vertex"][-1][-1])))
+                else:
+                    datasets["in_fiducial"][-1].append(False)
 
                 # primary particle stuff
                 datasets["primary_type"][-1].append(str(datum.record.signature.primary_type))
