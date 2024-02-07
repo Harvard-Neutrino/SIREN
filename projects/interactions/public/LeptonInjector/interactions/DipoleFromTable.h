@@ -24,6 +24,7 @@
 #include "LeptonInjector/utilities/Interpolator.h"      // for Interpolator1D
 
 namespace LI { namespace dataclasses { class InteractionRecord; } }
+namespace LI { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace LI { namespace dataclasses { struct InteractionSignature; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -63,7 +64,7 @@ public:
     double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type, double target_mass, double y) const;
     double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type, double target_mass, double y, double thresh) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
 
     std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
     std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override;
@@ -126,7 +127,6 @@ public:
             throw std::runtime_error("DipoleFromTable only supports version <= 0!");
         }
     }
-
 };
 
 } // namespace interactions
