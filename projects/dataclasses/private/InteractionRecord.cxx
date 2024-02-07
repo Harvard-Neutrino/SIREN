@@ -8,15 +8,15 @@ namespace dataclasses {
 
 PrimaryDistributionRecord::PrimaryDistributionRecord(InteractionRecord const & record) :
     signature(record.signature),
-    type(record.signature.primary_type),
-    id((record.primary_id) ? (record.primary_id) : (ParticleID::GenerateID()))
+    id((record.primary_id) ? (record.primary_id) : (ParticleID::GenerateID())),
+    type(record.signature.primary_type)
 {}
 
 InteractionSignature const & PrimaryDistributionRecord::GetSignature() const {
     return signature;
 }
 
-Particle PrimaryDistributionRecord::GetParticle() const {
+Particle PrimaryDistributionRecord::GetParticle() {
     Particle p;
     p.id = id;
     p.type = signature.primary_type;
@@ -206,6 +206,10 @@ std::array<double, 3> const & PrimaryDistributionRecord::GetInteractionVertex() 
     return interaction_vertex;
 }
 
+double const & PrimaryDistributionRecord::GetHelicity() const {
+    return helicity;
+}
+
 void PrimaryDistributionRecord::SetMass(double mass) {
     mass_set = true;
     this->mass = mass;
@@ -251,6 +255,11 @@ void PrimaryDistributionRecord::SetInitialPosition(std::array<double, 3> initial
 void PrimaryDistributionRecord::SetInteractionVertex(std::array<double, 3> interaction_vertex) {
     interaction_vertex_set = true;
     this->interaction_vertex = interaction_vertex;
+}
+
+void PrimaryDistributionRecord::SetHelicity(double helicity) {
+    helicity_set = true;
+    this->helicity = helicity;
 }
 
 void PrimaryDistributionRecord::UpdateMass() {
@@ -354,20 +363,22 @@ void PrimaryDistributionRecord::UpdateInteractionVertex() {
 
 void PrimaryDistributionRecord::Finalize(InteractionRecord & record) {
     record.signature.primary_type = signature.primary_type;
-    record.primary_id = id;
-    record.primary_initial_position = initial_position;
-    record.primary_mass = mass;
-    record.primary_momentum = momentum;
-    record.primary_helicity = helicity;
+    record.primary_id = GetID();
+    record.primary_initial_position = GetInitialPosition();
+    record.primary_mass = GetMass();
+    record.primary_momentum = GetFourMomentum();
+    record.primary_helicity = GetHelicity();
 }
 
 /////////////////////////////////////////
 
 SecondaryParticleRecord::SecondaryParticleRecord(InteractionRecord const & record, size_t secondary_index) :
-    type(record.signature.secondary_types.at(secondary_index)), initial_position(record.interaction_vertex), id((record.secondary_ids.at(secondary_index)) ? (record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID()))
+    id((record.secondary_ids.at(secondary_index)) ? (record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
+    type(record.signature.secondary_types.at(secondary_index)),
+    initial_position(record.interaction_vertex)
 {}
 
-Particle SecondaryDistributionRecord::GetParticle() const {
+Particle SecondaryParticleRecord::GetParticle() {
     Particle p;
     p.id = id;
     p.type = type;
@@ -410,9 +421,6 @@ void SecondaryParticleRecord::SetParticle(Particle const & particle) {
 
     energy_set = true;
     energy = particle.momentum.at(0);
-
-    initial_position_set = true;
-    initial_position = {particle.position.at(0), particle.position.at(1), particle.position.at(2)};
 
     helicity_set = true;
     helicity = particle.helicity;
@@ -532,6 +540,10 @@ std::array<double, 3> SecondaryParticleRecord::GetInitialPosition() const {
     return initial_position;
 }
 
+double const & SecondaryParticleRecord::GetHelicity() const {
+    return helicity;
+}
+
 void SecondaryParticleRecord::SetMass(double mass) {
     mass_set = true;
     this->mass = mass;
@@ -562,6 +574,11 @@ void SecondaryParticleRecord::SetFourMomentum(std::array<double, 4> momentum) {
     this->momentum = {momentum.at(1), momentum.at(2), momentum.at(3)};
     energy_set = true;
     this->energy = momentum.at(0);
+}
+
+void SecondaryParticleRecord::SetHelicity(double helicity) {
+    helicity_set = true;
+    this->helicity = helicity;
 }
 
 void SecondaryParticleRecord::UpdateMass() {
@@ -606,10 +623,6 @@ void SecondaryParticleRecord::UpdateDirection() {
     if(momentum_set) {
         double magnitude = std::sqrt(momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2));
         direction = {momentum.at(0)/magnitude, momentum.at(1)/magnitude, momentum.at(2)/magnitude};
-    } else if(initial_position_set and interaction_vertex_set) {
-        direction = {interaction_vertex.at(0) - initial_position.at(0), interaction_vertex.at(1) - initial_position.at(1), interaction_vertex.at(2) - initial_position.at(2)};
-        double magnitude = std::sqrt(direction.at(0)*direction.at(0) + direction.at(1)*direction.at(1) + direction.at(2)*direction.at(2));
-        direction = {direction.at(0)/magnitude, direction.at(1)/magnitude, direction.at(2)/magnitude};
     } else {
         throw std::runtime_error("Cannot calculate direction without momentum or initial position and interaction vertex!");
     }
@@ -630,17 +643,17 @@ void SecondaryParticleRecord::UpdateMomentum() {
 }
 
 void SecondaryParticleRecord::Finalize(InteractionRecord & record) {
-    record.signature.primary_type = type;
     record.primary_id = id;
+    record.signature.primary_type = type;
     record.primary_initial_position = initial_position;
-    record.primary_mass = mass;
-    record.primary_momentum = momentum;
-    record.primary_helicity = helicity;
+    record.primary_mass = GetMass();
+    record.primary_momentum = GetFourMomentum();
+    record.primary_helicity = GetHelicity();
 }
 
 /////////////////////////////////////////
 
-CrossSectionDistributionRecord(InteractionRecord const & record) :
+CrossSectionDistributionRecord::CrossSectionDistributionRecord(InteractionRecord const & record) :
     signature(record.signature),
     primary_id(record.primary_id),
     primary_initial_position(record.primary_initial_position),
@@ -648,7 +661,7 @@ CrossSectionDistributionRecord(InteractionRecord const & record) :
     primary_momentum(record.primary_momentum),
     primary_helicity(record.primary_helicity),
     interaction_vertex(record.interaction_vertex),
-    target_id((record.target_id) ? (record.target_id), : (ParticleID::GenerateID())),
+    target_id((record.target_id) ? (record.target_id) : (ParticleID::GenerateID())),
     target_type(record.signature.target_type),
     target_mass(record.target_mass),
     target_helicity(record.target_helicity) {
@@ -687,16 +700,24 @@ std::array<double, 3> const & CrossSectionDistributionRecord::GetInteractionVert
     return interaction_vertex;
 }
 
-ParticleID & CrossSectionDistributionRecord::GetTargetID() const {
+ParticleID const & CrossSectionDistributionRecord::GetTargetID() const {
     return target_id;
 }
 
-double & CrossSectionDistributionRecord::GetTargetMass() const {
+ParticleType const & CrossSectionDistributionRecord::GetTargetType() const {
+    return target_type;
+}
+
+double & CrossSectionDistributionRecord::GetTargetMass() {
     return target_mass;
 }
 
-double & CrossSectionDistributionRecord::GetTargetHelicity() const {
+double & CrossSectionDistributionRecord::GetTargetHelicity() {
     return target_helicity;
+}
+
+std::map<std::string, double> & CrossSectionDistributionRecord::GetInteractionParameters() {
+    return interaction_parameters;
 }
 
 void CrossSectionDistributionRecord::SetTargetMass(double mass) {
@@ -707,10 +728,18 @@ void CrossSectionDistributionRecord::SetTargetHelicity(double helicity) {
     target_helicity = helicity;
 }
 
+void CrossSectionDistributionRecord::SetInteractionParameters(std::map<std::string, double> const & parameters) {
+    interaction_parameters = parameters;
+}
+
+void CrossSectionDistributionRecord::SetInteractionParameter(std::string const & name, double value) {
+    interaction_parameters[name] = value;
+}
+
 Particle CrossSectionDistributionRecord::GetTargetParticle() const {
     Particle p;
     p.id = target_id;
-    p.type = starget_type;
+    p.type = target_type;
     p.mass = target_mass;
     p.helicity = target_helicity;
     return p;
@@ -762,9 +791,11 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) {
 
 /////////////////////////////////////////
 
-SecondaryDistributionRecord(InteractionRecord const & record, size_t secondary_index) :
-    parent_record(record), secondary_index(secondary_index),
-    id(record.signature.secondary_types.at(secondary_index)),
+SecondaryDistributionRecord::SecondaryDistributionRecord(InteractionRecord const & record, size_t secondary_index) :
+    parent_record(record),
+    secondary_index(secondary_index),
+    id((record.secondary_ids.at(secondary_index)) ? (record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
+    type(record.signature.secondary_types.at(secondary_index)),
     mass(record.secondary_masses.at(secondary_index)),
     direction(),
     momentum(record.secondary_momenta.at(secondary_index)),
@@ -774,7 +805,7 @@ SecondaryDistributionRecord(InteractionRecord const & record, size_t secondary_i
     direction = {momentum.at(1)/magnitude, momentum.at(2)/magnitude, momentum.at(3)/magnitude};
 }
 
-double const & SecondaryDistributionRecord::GetLength() {
+double & SecondaryDistributionRecord::GetLength() {
     return length;
 }
 

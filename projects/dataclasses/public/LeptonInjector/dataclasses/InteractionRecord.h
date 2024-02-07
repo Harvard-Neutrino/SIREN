@@ -48,6 +48,7 @@ private:
     bool length_set = false;
     bool initial_position_set = false;
     bool interaction_vertex_set = false;
+    bool helicity_set = false;
 
     double mass;
     double energy;
@@ -57,6 +58,7 @@ private:
     double length;
     std::array<double, 3> initial_position;
     std::array<double, 3> interaction_vertex;
+    double helicity = 0;
 public:
 
     PrimaryDistributionRecord(InteractionRecord const & record);
@@ -86,6 +88,7 @@ public:
     double const & GetLength();
     std::array<double, 3> const & GetInitialPosition();
     std::array<double, 3> const & GetInteractionVertex();
+    double const & GetHelicity() const;
 
     void SetMass(double mass);
     void SetEnergy(double energy);
@@ -96,6 +99,7 @@ public:
     void SetLength(double length);
     void SetInitialPosition(std::array<double, 3> initial_position);
     void SetInteractionVertex(std::array<double, 3> initial_position);
+    void SetHelicity(double helicity);
 
     void UpdateMass();
     void UpdateEnergy();
@@ -109,11 +113,11 @@ public:
     void Finalize(InteractionRecord & record);
 };
 
-class SecondaryParticleRecord : {
+class SecondaryParticleRecord {
 public:
+    ParticleID const id;
     ParticleType const & type;
     std::array<double, 3> const & initial_position;
-    ParticleID const id;
 private:
     // The rest of the primary particle properties can be changed
     bool mass_set = false;
@@ -121,12 +125,14 @@ private:
     bool kinetic_energy_set = false;
     bool direction_set = false;
     bool momentum_set = false;
+    bool helicity_set = false;
 
     double mass = 0;
     double energy = 0;
     double kinetic_energy = 0;
     std::array<double, 3> direction = {0, 0, 0};
     std::array<double, 3> momentum = {0, 0, 0};
+    double helicity = 0;
 public:
 
     SecondaryParticleRecord(InteractionRecord const & record, size_t secondary_index);
@@ -146,6 +152,7 @@ public:
     std::array<double, 3> GetThreeMomentum() const;
     std::array<double, 4> GetFourMomentum() const;
     std::array<double, 3> GetInitialPosition() const;
+    double const & GetHelicity() const;
 
     double const & GetMass();
     double const & GetEnergy();
@@ -161,6 +168,7 @@ public:
     void SetDirection(std::array<double, 3> direction);
     void SetThreeMomentum(std::array<double, 3> momentum);
     void SetFourMomentum(std::array<double, 4> momentum);
+    void SetHelicity(double helicity);
 
     void UpdateMass();
     void UpdateEnergy();
@@ -183,12 +191,14 @@ public:
 
     ParticleID const target_id;
     ParticleType const & target_type;
+
     double target_mass = 0;
     double target_helicity = 0;
+    std::map<std::string, double> interaction_parameters;
 private:
     std::vector<SecondaryParticleRecord> secondary_particles;
 public:
-    CrossSectionDistibutionRecord(InteractionRecord const & record);
+    CrossSectionDistributionRecord(InteractionRecord const & record);
 
     InteractionSignature const & GetSignature() const;
     ParticleID const & GetPrimaryID() const;
@@ -197,13 +207,17 @@ public:
     std::array<double, 4> const & GetPrimaryMomentum() const;
     double const & GetPrimaryHelicity() const;
     std::array<double, 3> const & GetInteractionVertex() const;
+    ParticleID const & GetTargetID() const;
+    ParticleType const & GetTargetType() const;
 
-    ParticleID & GetTargetID() const;
-    double & GetTargetMass() const;
-    double & GetTargetHelicity() const;
+    double & GetTargetMass();
+    double & GetTargetHelicity();
+    std::map<std::string, double> & GetInteractionParameters();
 
     void SetTargetMass(double mass);
     void SetTargetHelicity(double helicity);
+    void SetInteractionParameters(std::map<std::string, double> const & parameters);
+    void SetInteractionParameter(std::string const & name, double value);
 
     Particle GetTargetParticle() const;
     void SetTargetParticle(Particle const & particle);
@@ -211,6 +225,8 @@ public:
     SecondaryParticleRecord & GetSecondaryParticleRecord(size_t index);
     Particle GetSecondaryParticle(size_t index);
     void SetSecondaryParticle(size_t index, Particle const & particle);
+
+    void Finalize(InteractionRecord & record);
 };
 
 class SecondaryDistributionRecord {
@@ -218,6 +234,8 @@ public:
     InteractionRecord const & parent_record;
     size_t const secondary_index;
 
+    ParticleID const id;
+    ParticleType const & type;
     double const & mass;
     std::array<double, 3> direction;
     std::array<double, 4> const & momentum;
@@ -229,12 +247,12 @@ public:
     SecondaryDistributionRecord(InteractionRecord const & record, size_t secondary_index);
 
     void SetLength(double const & length);
-    double GetLength();
+    double & GetLength();
 
     void Finalize(InteractionRecord & record);
 };
 
-struct InteractionRecord {
+class InteractionRecord {
 public:
     InteractionSignature signature;
     ParticleID primary_id;
