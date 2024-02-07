@@ -52,6 +52,10 @@ ParticleID const & PrimaryDistributionRecord::GetID() const {
     return id;
 }
 
+ParticleType const & PrimaryDistributionRecord::GetType() const {
+    return type;
+}
+
 double PrimaryDistributionRecord::GetMass() const {
     if(mass_set) {
         return mass;
@@ -654,8 +658,10 @@ void SecondaryParticleRecord::Finalize(InteractionRecord & record) {
 /////////////////////////////////////////
 
 CrossSectionDistributionRecord::CrossSectionDistributionRecord(InteractionRecord const & record) :
+    record(record),
     signature(record.signature),
     primary_id(record.primary_id),
+    primary_type(record.signature.primary_type),
     primary_initial_position(record.primary_initial_position),
     primary_mass(record.primary_mass),
     primary_momentum(record.primary_momentum),
@@ -678,6 +684,10 @@ InteractionSignature const & CrossSectionDistributionRecord::GetSignature() cons
 
 ParticleID const & CrossSectionDistributionRecord::GetPrimaryID() const {
     return primary_id;
+}
+
+ParticleType const & CrossSectionDistributionRecord::GetPrimaryType() const {
+    return primary_type;
 }
 
 std::array<double, 3> const & CrossSectionDistributionRecord::GetPrimaryInitialPosition() const {
@@ -706,6 +716,14 @@ ParticleID const & CrossSectionDistributionRecord::GetTargetID() const {
 
 ParticleType const & CrossSectionDistributionRecord::GetTargetType() const {
     return target_type;
+}
+
+double const & CrossSectionDistributionRecord::GetTargetMass() const {
+    return target_mass;
+}
+
+double const & CrossSectionDistributionRecord::GetTargetHelicity() const {
+    return target_helicity;
 }
 
 double & CrossSectionDistributionRecord::GetTargetMass() {
@@ -765,8 +783,25 @@ Particle CrossSectionDistributionRecord::GetSecondaryParticle(size_t index) {
     return secondary_particles.at(index).GetParticle();
 }
 
+std::vector<Particle> CrossSectionDistributionRecord::GetSecondaryParticles() {
+    std::vector<Particle> particles;
+    for(SecondaryParticleRecord & secondary: secondary_particles) {
+        particles.push_back(secondary.GetParticle());
+    }
+    return particles;
+}
+
 void CrossSectionDistributionRecord::SetSecondaryParticle(size_t index, Particle const & particle) {
     secondary_particles.at(index).SetParticle(particle);
+}
+
+void CrossSectionDistributionRecord::SetSecondaryParticles(std::vector<Particle> const & particles) {
+    if(particles.size() != secondary_particles.size()) {
+        throw std::runtime_error("Cannot set particles with different size!");
+    }
+    for(size_t i = 0; i < particles.size(); ++i) {
+        secondary_particles.at(i).SetParticle(particles.at(i));
+    }
 }
 
 void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) {

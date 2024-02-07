@@ -68,6 +68,7 @@ public:
     Particle GetParticle();
 
     ParticleID const & GetID() const;
+    ParticleType const & GetType() const;
 
     double GetMass() const;
     double GetEnergy() const;
@@ -181,8 +182,10 @@ public:
 
 class CrossSectionDistributionRecord {
 public:
+    InteractionRecord const & record;
     InteractionSignature const & signature;
     ParticleID const & primary_id;
+    ParticleType const & primary_type;
     std::array<double, 3> const & primary_initial_position;
     double const & primary_mass;
     std::array<double, 4> const & primary_momentum;
@@ -202,6 +205,7 @@ public:
 
     InteractionSignature const & GetSignature() const;
     ParticleID const & GetPrimaryID() const;
+    ParticleType const & GetPrimaryType() const;
     std::array<double, 3> const & GetPrimaryInitialPosition() const;
     double const & GetPrimaryMass() const;
     std::array<double, 4> const & GetPrimaryMomentum() const;
@@ -210,6 +214,8 @@ public:
     ParticleID const & GetTargetID() const;
     ParticleType const & GetTargetType() const;
 
+    double const & GetTargetMass() const;
+    double const & GetTargetHelicity() const;
     double & GetTargetMass();
     double & GetTargetHelicity();
     std::map<std::string, double> & GetInteractionParameters();
@@ -223,8 +229,12 @@ public:
     void SetTargetParticle(Particle const & particle);
 
     SecondaryParticleRecord & GetSecondaryParticleRecord(size_t index);
+
     Particle GetSecondaryParticle(size_t index);
+    std::vector<Particle> GetSecondaryParticles();
+
     void SetSecondaryParticle(size_t index, Particle const & particle);
+    void SetSecondaryParticles(std::vector<Particle> const & particles);
 
     void Finalize(InteractionRecord & record);
 };
