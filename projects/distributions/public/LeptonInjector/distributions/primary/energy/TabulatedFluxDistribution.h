@@ -48,6 +48,7 @@ private:
     double unnormed_pdf(double energy) const;
     double pdf(double energy) const;
     void LoadFluxTable();
+    void LoadFluxTable(std::vector<double> & energies, std::vector<double> & flux);
 public:
     double SamplePDF(double energy) const; 
     double SampleUnnormedPDF(double energy) const; 
@@ -61,6 +62,8 @@ public:
     void SetEnergyBounds(double energyMin, double energyMax);
     TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
     TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false);
+    TabulatedFluxDistribution(std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization=false);
+    TabulatedFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization=false);
     std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     template<typename Archive>
