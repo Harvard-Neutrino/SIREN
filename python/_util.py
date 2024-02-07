@@ -534,3 +534,16 @@ def get_material_model_path(model_name, must_exist=True):
 
 def get_cross_section_model_path(model_name, must_exist=True):
     return _get_model_path(model_name, prefix="CrossSections", is_file=False, must_exist=must_exist)
+
+def get_tabulated_flux_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name,prefis="Fluxes", is_file=False, msut_exist=must_exist)
+ 
+def get_tabulated_flux_file(model_name, tag, must_exist=True):
+        abs_flux_dir = get_tabulated_flux_model_path(model_name,must_exist=must_exist)
+        sys.path.append(abs_flux_dir) # add flux directory to path
+        # require existence of FluxCalculator.py
+        assert(os.path.isfile(abs_flux_dir+"FluxCalculator.py"))
+        from FluxCalculator import MakeFluxFile
+        flux_file = MakeFluxFile(tag,abs_flux_dir)
+        sys.path.remove(abs_flux_dir) # remove flux directory from path
+        return flux_file
