@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import importlib
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -540,10 +541,13 @@ def get_tabulated_flux_model_path(model_name, must_exist=True):
  
 def get_tabulated_flux_file(model_name, tag, must_exist=True):
         abs_flux_dir = get_tabulated_flux_model_path(model_name,must_exist=must_exist)
-        sys.path.append(abs_flux_dir) # add flux directory to path
         # require existence of FluxCalculator.py
-        assert(os.path.isfile(os.path.join(abs_flux_dir,"FluxCalculator.py")))
-        from FluxCalculator import MakeFluxFile
-        flux_file = MakeFluxFile(tag,abs_flux_dir)
-        sys.path.remove(abs_flux_dir) # remove flux directory from path
+        FluxCalculatorFile = os.path.join(abs_flux_dir,"FluxCalculator.py")
+        assert(os.path.isfile(FluxCalculatorFile))
+        spec = importlib.util.spec_from_file_location("FluxCalculator", FluxCalculatorFile)
+        FluxCalculator = importlib.util.module_from_spec(spec)
+        sys.modules["FluxCalculator"] = FluxCalculator
+        spec.loader.exec_module(FluxCalculator)
+        flux_file = FluxCalculator.MakeFluxFile(tag,abs_flux_dir)
+        del sys.modules["FluxCalculator"] # remove flux directory from the system
         return flux_file

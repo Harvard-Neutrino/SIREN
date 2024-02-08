@@ -376,15 +376,17 @@ class LIController:
                 
                 datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
 
-                if self.fid_vol is not None:
-                    datasets["in_fiducial"][-1].append(self.fid_vol.IsInside(_math.Vector3D(datasets["vertex"][-1][-1])))
-                else:
-                    datasets["in_fiducial"][-1].append(False)
-
-                # primary particle stuff
+                 # primary particle stuff
                 datasets["primary_type"][-1].append(str(datum.record.signature.primary_type))
                 datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
                 
+                if self.fid_vol is not None:
+                    dir = _math.Vector3D(datasets["primary_momentum"][-1][-1][1:])
+                    dir.normalize()
+                    datasets["in_fiducial"][-1].append(self.fid_vol.IsInside(_math.Vector3D(datasets["vertex"][-1][-1]),dir))
+                else:
+                    datasets["in_fiducial"][-1].append(False)
+
                 # target particle stuff
                 datasets["target_type"][-1].append(str(datum.record.signature.target_type))
                 datasets["target_momentum"][-1].append(np.array(datum.record.target_momentum, dtype=float))

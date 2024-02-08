@@ -4,8 +4,6 @@ import leptoninjector as LI
 from leptoninjector import _util
 from leptoninjector.LIController import LIController
 
-resources_dir = _util.resource_package_dir()
-
 import DarkNews
 
 darknews_version = _util.normalize_version(DarkNews.__version__)
