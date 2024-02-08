@@ -1,3 +1,4 @@
+import os
 def MakeFluxFile(tag, abs_flux_dir):
     '''
     Accepts the following tags:
@@ -10,8 +11,10 @@ def MakeFluxFile(tag, abs_flux_dir):
     if particle not in ["nue","numu","nuebar","numubar"]:
         print("%s particle specified in tag %s is not valid"%(particle,tag))
         exit(0)
-    input_flux_file = abs_flux_dir+"BNB_%s.dat"%mode
-    output_flux_file = abs_flux_dir+"BNB_%s_%s_flux.txt"%(mode,particle)
+    input_flux_file = os.path.join(abs_flux_dir,
+                                   "BNB_%s.dat"%mode)
+    output_flux_file = os.path.join(abs_flux_dir,
+                                    "BNB_%s_%s_flux.txt"%(mode,particle))
     with open(input_flux_file,"r") as fin:
         all_lines = fin.readlines()
         headers = all_lines[0].strip().split()

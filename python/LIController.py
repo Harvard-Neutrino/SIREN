@@ -233,9 +233,9 @@ class LIController:
                     [0.000, -0.93675],
                     [-0.81125, -0.46838],
                     [-0.81125, 0.46838]]
-            zsecs = [_geometry.ZSection(1.45,[0,0],1),
-                    _geometry.ZSection(4.0,[0,0],1)]
-            return _geometry.ExtrPoly(_math.Vector3D(_geometry.Placement([0,0,0])),
+            zsecs = [_geometry.ZSection(1.45,0,1),
+                     _geometry.ZSection(4.0,0,1)]
+            return _geometry.ExtrPoly(_geometry.Placement(_math.Vector3D([0,0,0])),
                                       edges,zsecs)
         else:
             return None
