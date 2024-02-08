@@ -1,6 +1,4 @@
 import os
-import sys
-import numpy as np
 
 import leptoninjector as LI
 from leptoninjector import _util
@@ -53,7 +51,7 @@ primary_physical_distributions = {}
 flux_file = _util.get_tabulated_flux_file("NUMI","FHC_ME_numu")
 edist = LI.distributions.TabulatedFluxDistribution(flux_file, True)
 edist_gen = LI.distributions.TabulatedFluxDistribution(
-    1.05 * model_kwargs["m4"], 10, flux_file, False
+    1.05 * model_kwargs["m4"], 20, flux_file, False
 )
 primary_injection_distributions["energy"] = edist_gen
 primary_physical_distributions["energy"] = edist
