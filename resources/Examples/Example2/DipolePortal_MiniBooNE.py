@@ -50,22 +50,13 @@ primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-flux_file = os.path.join(
-    resources_dir,
-    "Fluxes",
-    "BNB_Flux_Tables",
-    "BNB_numu_flux.txt",
-)
+flux_file = _util.get_tabulated_flux_file("BNB","FHC_numu")
 edist = LI.distributions.TabulatedFluxDistribution(flux_file, True)
 edist_gen = LI.distributions.TabulatedFluxDistribution(
     1.05 * model_kwargs["m4"], 10, flux_file, False
 )
 primary_injection_distributions["energy"] = edist_gen
 primary_physical_distributions["energy"] = edist
-
-# Flux normalization: go from cm^-2 to m^-2
-flux_units = LI.distributions.NormalizationConstant(1e4)
-primary_physical_distributions["flux_units"] = flux_units
 
 # direction distribution
 direction_distribution = LI.distributions.FixedDirection(LI.math.Vector3D(0, 0, 1.0))
@@ -97,7 +88,7 @@ controller.injector.SetStoppingCondition(stop)
 events = controller.GenerateEvents(fill_tables_at_exit=False)
 
 controller.SaveEvents(
-    "output/MiniBooNE_Dipole_M%2.2e_mu%2.2e_example.hdf5"
+    "output/MiniBooNE_Dipole_M%2.2e_mu%2.2e_example"
     % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
     fill_tables_at_exit=False
 )

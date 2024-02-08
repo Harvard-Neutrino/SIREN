@@ -1,3 +1,4 @@
+import os
 def MakeFluxFile(tag, abs_flux_dir):
     '''
     Accepts the following tags:
@@ -13,8 +14,10 @@ def MakeFluxFile(tag, abs_flux_dir):
     if particle not in ["nue","numu","nuebar","numubar"]:
         print("%s particle specified in tag %s is not valid"%(particle,tag))
         exit(0)
-    input_flux_file = abs_flux_dir+"NUMI_%s_%s.dat"%(mode,energy)
-    output_flux_file = abs_flux_dir+"NUMI_%s_%s_%s_flux.txt"%(mode,energy,particle)
+    input_flux_file = os.path.join(abs_flux_dir,
+                                   "NUMI_%s_%s.dat"%(mode,energy))
+    output_flux_file = os.path.join(abs_flux_dir,
+                                    "NUMI_%s_%s_%s_flux.txt"%(mode,energy,particle))
     with open(input_flux_file,"r") as fin:
         all_lines = fin.readlines()
         headers = all_lines[0].strip().split()
@@ -23,6 +26,6 @@ def MakeFluxFile(tag, abs_flux_dir):
         with open(output_flux_file,"w") as fout:
             for row in data:
                 E,flux = float(row[0]),float(row[pid])
-                flux *=1e4 # put flux in units of nu/m^2/GeV/POT
+                flux*=1e4 # put flux in units of nu/m^2/GeV/POT
                 print(E,flux,file=fout)
     return output_flux_file 
