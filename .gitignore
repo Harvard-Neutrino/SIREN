@@ -59,5 +59,12 @@ vendor/rk/
 # build
 *build
 
+# images
+*.png
+*/*.png
+*/*/*.png
+*/*/*/*.png
+*/*/*/*/*.png
+
 # pycache
 *pycache*
