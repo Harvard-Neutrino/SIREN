@@ -406,7 +406,7 @@ void PrimaryDistributionRecord::Finalize(InteractionRecord & record) {
 /////////////////////////////////////////
 
 SecondaryParticleRecord::SecondaryParticleRecord(InteractionRecord const & record, size_t secondary_index) :
-    id((record.secondary_ids.at(secondary_index)) ? (record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
+    id((record.secondary_ids.size() > secondary_index and record.secondary_ids.at(secondary_index)) ? (record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
     type(record.signature.secondary_types.at(secondary_index)),
     initial_position(record.interaction_vertex)
 {}
