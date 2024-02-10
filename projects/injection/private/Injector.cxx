@@ -147,7 +147,6 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-
     LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
     std::set<LI::dataclasses::Particle::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, DetectorPosition(record.interaction_vertex));
 
