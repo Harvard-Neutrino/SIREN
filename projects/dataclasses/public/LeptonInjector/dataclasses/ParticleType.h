@@ -25,19 +25,19 @@ enum class ParticleType : int32_t {
 #undef X
 };
 
-std::map<ParticleType, std::string> ParticleTypeNames = {
+static const std::map<ParticleType, std::string> ParticleTypeNames = {
 #define X(a, b) {ParticleType:: a , #a },
 #include "LeptonInjector/dataclasses/ParticleTypes.def"
 #undef X
 };
 
-std::map<std::string, ParticleType> ParticleTypeMap = {
+static const std::map<std::string, ParticleType> ParticleTypeMap = {
 #define X(a, b) { #a , ParticleType:: a },
 #include "LeptonInjector/dataclasses/ParticleTypes.def"
 #undef X
 };
 
-std::map<int32_t, std::string> ParticleTypeIntNames = {
+static const std::map<int32_t, std::string> ParticleTypeIntNames = {
 #define X(a, b) { b , #a },
 #include "LeptonInjector/dataclasses/ParticleTypes.def"
 #undef X

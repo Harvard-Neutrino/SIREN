@@ -76,11 +76,6 @@ TEST(Comparison, Comparison_equal)
     B.target_mass = 1.0;
     EXPECT_TRUE(A == B);
 
-    A.target_momentum = {1.0, 2.0, 3.0, 4.0};
-    EXPECT_FALSE(A == B);
-    B.target_momentum = {1.0, 2.0, 3.0, 4.0};
-    EXPECT_TRUE(A == B);
-
     A.target_helicity = 1.0;
     EXPECT_FALSE(A == B);
     B.target_helicity = 1.0;
@@ -101,9 +96,9 @@ TEST(Comparison, Comparison_equal)
     B.secondary_momenta.push_back({1.0, 2.0, 3.0, 4.0});
     EXPECT_TRUE(A == B);
 
-    A.secondary_helicity.push_back(1.0);
+    A.secondary_helicities.push_back(1.0);
     EXPECT_FALSE(A == B);
-    B.secondary_helicity.push_back(1.0);
+    B.secondary_helicities.push_back(1.0);
     EXPECT_TRUE(A == B);
 
     A.interaction_parameters["test"] = 1.0;
@@ -197,14 +192,6 @@ TEST(Comparison, LessThan)
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
-    A.target_momentum = {1.0, 2.0, 3.0, 4.0};
-    EXPECT_FALSE(A < B);
-    EXPECT_TRUE(B < A);
-
-    B.target_momentum = {1.0, 2.0, 3.0, 4.0};
-    EXPECT_FALSE(A < B);
-    EXPECT_FALSE(B < A);
-
     A.target_helicity = 1.0;
     EXPECT_FALSE(A < B);
     EXPECT_TRUE(B < A);
@@ -237,11 +224,11 @@ TEST(Comparison, LessThan)
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
-    A.secondary_helicity.push_back(1.0);
+    A.secondary_helicities.push_back(1.0);
     EXPECT_FALSE(A < B);
     EXPECT_TRUE(B < A);
 
-    B.secondary_helicity.push_back(1.0);
+    B.secondary_helicities.push_back(1.0);
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
@@ -274,13 +261,12 @@ TEST(Serialization, Save)
     record.primary_momentum = {1.0, 2.0, 3.0, 4.0};
     record.primary_helicity = 1.0;
     record.target_mass = 1.0;
-    record.target_momentum = {1.0, 2.0, 3.0, 4.0};
     record.target_helicity = 1.0;
 
     record.interaction_vertex = {1.0, 2.0, 3.0};
     record.secondary_masses.push_back(1.0);
     record.secondary_momenta.push_back({1.0, 2.0, 3.0, 4.0});
-    record.secondary_helicity.push_back(1.0);
+    record.secondary_helicities.push_back(1.0);
     record.interaction_parameters["test"] = 1.0;
 
     std::stringstream ss;

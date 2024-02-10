@@ -251,13 +251,6 @@ TEST(Injector, Generation)
     primary_physical_process_upper_injector->AddPhysicalDistribution(phys_ddist);
     primary_physical_process_lower_injector->AddPhysicalDistribution(phys_ddist);
 
-    // Target momentum distribution: assume stationary for simplicity
-    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution = std::make_shared<TargetAtRest>();
-    primary_injection_process_upper_injector->AddInjectionDistribution(target_momentum_distribution);
-    primary_injection_process_lower_injector->AddInjectionDistribution(target_momentum_distribution);
-    primary_physical_process_upper_injector->AddPhysicalDistribution(target_momentum_distribution);
-    primary_physical_process_lower_injector->AddPhysicalDistribution(target_momentum_distribution);
-
     // Helicity distribution: this is a neutrino
     std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
     primary_injection_process_upper_injector->AddInjectionDistribution(helicity_distribution);

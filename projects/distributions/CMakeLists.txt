@@ -30,9 +30,6 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/OrientedCylinderPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/CylinderVolumePositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/ColumnDepthPositionDistribution.cxx
-
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/target/momentum/TargetMomentumDistribution.cxx
-
 )
 add_library(LI_distributions OBJECT ${distributions_SOURCES})
 set_property(TARGET LI_distributions PROPERTY POSITION_INDEPENDENT_CODE ON)

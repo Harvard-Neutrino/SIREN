@@ -113,7 +113,6 @@ double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
@@ -166,7 +165,6 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::math::Vecto
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
@@ -218,7 +216,6 @@ double LeptonWeighter::NormalizedPositionProbability(std::pair<LI::math::Vector3
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {

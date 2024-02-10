@@ -40,7 +40,6 @@ TEST(DISFromSpline, Constructor)
     event.primary_momentum[0] = energy; // 10TeV
     double target_mass = dis_xs->GetTargetMass();
     event.target_mass = target_mass;
-    event.target_momentum[0] = target_mass;
 
     std::shared_ptr<LI_random> rand = std::make_shared<LI_random>();
 

@@ -29,7 +29,7 @@ struct DecayRecord {
     std::array<double, 3> decay_vertex = {0, 0, 0};
     std::vector<double> secondary_masses;
     std::vector<std::array<double, 4>> secondary_momenta;
-    std::vector<double> secondary_helicity;
+    std::vector<double> secondary_helicities;
     std::map<std::string, double> decay_parameters;
 
     bool operator==(DecayRecord const & other) const;
@@ -44,7 +44,7 @@ struct DecayRecord {
             archive(::cereal::make_nvp("DecayVertex", decay_vertex));
             archive(::cereal::make_nvp("SecondaryMasses", secondary_masses));
             archive(::cereal::make_nvp("SecondaryMomenta", secondary_momenta));
-            archive(::cereal::make_nvp("SecondaryHelicity", secondary_helicity));
+            archive(::cereal::make_nvp("SecondaryHelicity", secondary_helicities));
             archive(::cereal::make_nvp("DecayParameters", decay_parameters));
         } else {
             throw std::runtime_error("DecayRecord only supports version <= 0!");

@@ -173,7 +173,6 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
                     for(auto const & signature : signatures) {
                         fake_record.signature = signature;
                         fake_record.target_mass = detector_model->GetTargetMass(target);
-                        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
                         // Add total cross section times density to the total prob
                         fake_prob = target_density * cross_section->TotalCrossSection(fake_record);
                         total_prob += fake_prob;
@@ -221,11 +220,12 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     if(total_prob == 0 or selected_prob == 0)
         throw(LI::utilities::InjectionFailure("No valid interactions for this event!"));
     record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
-    record.target_momentum = {record.target_mass,0,0,0};
+    LI::dataclasses::CrossSectionDistributionRecord xsec_record(record);
     if(r <= xsec_prob)
-        matching_cross_sections[index]->SampleFinalState(record, random);
+        matching_cross_sections[index]->SampleFinalState(xsec_record, random);
     else
-        matching_decays[index - matching_cross_sections.size()]->SampleFinalState(record, random);
+        matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
+    xsec_record.Finalize(record);
 }
 
 void Injector::SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial = nullptr, double buffer = 0) const {
@@ -238,7 +238,7 @@ void Injector::SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const &
     LI::dataclasses::Particle::ParticleType hnl_type = interaction.signature.secondary_types[lepton_index];
     double hnl_mass = interaction.secondary_masses[lepton_index];
     std::array<double, 4> hnl_momentum = interaction.secondary_momenta[lepton_index];
-    double hnl_helicity = interaction.secondary_helicity[lepton_index];
+    double hnl_helicity = interaction.secondary_helicities[lepton_index];
 
     // Store the HNL as the primary for the decay
     decay.signature.primary_type = hnl_type;
@@ -298,7 +298,7 @@ void Injector::SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const &
     decay.signature.secondary_types.resize(1);
     decay.secondary_masses.resize(1);
     decay.secondary_momenta.resize(2);
-    decay.secondary_helicity.resize(1);
+    decay.secondary_helicities.resize(1);
 
     decay.signature.secondary_types[0] = LI::dataclasses::Particle::ParticleType::Gamma;
     decay.secondary_masses[0] = 0;
@@ -310,7 +310,7 @@ void Injector::SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const &
     decay.secondary_momenta[1][1] = pGamma_HNLrest.px();
     decay.secondary_momenta[1][2] = pGamma_HNLrest.py();
     decay.secondary_momenta[1][3] = pGamma_HNLrest.pz();
-    decay.secondary_helicity[0] = std::copysign(1.0, decay.primary_helicity);
+    decay.secondary_helicities[0] = std::copysign(1.0, decay.primary_helicity);
 
     decay.decay_parameters.clear();
     decay.decay_parameters["decay_length"] = decay_length;
@@ -346,7 +346,7 @@ bool Injector::SampleSecondaryProcess(unsigned int idx,
     datum.record.signature.primary_type = parent->record.signature.secondary_types[idx];
     datum.record.primary_mass = parent->record.secondary_masses[idx];
     datum.record.primary_momentum = parent->record.secondary_momenta[idx];
-    datum.record.primary_helicity = parent->record.secondary_helicity[idx];
+    datum.record.primary_helicity = parent->record.secondary_helicities[idx];
     datum.parent = parent;
     for(auto & distribution : sec_distributions) {
         distribution->Sample(random, detector_model, sec_interactions, datum);

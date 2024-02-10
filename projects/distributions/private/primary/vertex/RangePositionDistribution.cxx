@@ -80,7 +80,6 @@ LI::math::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<LI:
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
-        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }
@@ -136,7 +135,6 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<LI::dete
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
-        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
             total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
         }

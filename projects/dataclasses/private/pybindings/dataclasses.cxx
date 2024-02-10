@@ -23,14 +23,19 @@ PYBIND11_MODULE(dataclasses,m) {
 
   particle.def(init<>())
           .def(init<ParticleType>())
+          .def(init<ParticleID, ParticleType, double, std::array<double, 4>, std::array<double, 3>, double, double>())
+          .def(init<ParticleType, double, std::array<double, 4>, std::array<double, 3>, double, double>())
+          .def_readwrite("id",&Particle::id)
           .def_readwrite("type",&Particle::type)
-          .def_readwrite("energy",&Particle::energy)
-          .def("GetMass",&Particle::GetMass)
-          .def("HasMass",&Particle::HasMass)
-          .def("GetTypeString",&Particle::GetTypeString);
+          .def_readwrite("mass",&Particle::mass)
+          .def_readwrite("momentum",&Particle::momentum)
+          .def_readwrite("position",&Particle::position)
+          .def_readwrite("length",&Particle::length)
+          .def_readwrite("helicity",&Particle::helicity)
+          .def("GenerateID",&Particle::GenerateID);
 
   enum_<ParticleType>(particle, "ParticleType")
-#define X(a) .value( #a , ParticleType:: a )
+#define X(a, b) .value( #a , ParticleType:: a )
 #include "../../public/LeptonInjector/dataclasses/ParticleTypes.def"
 #undef X
           .export_values();
@@ -48,12 +53,11 @@ PYBIND11_MODULE(dataclasses,m) {
           .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
           .def_readwrite("primary_helicity",&InteractionRecord::primary_helicity)
           .def_readwrite("target_mass",&InteractionRecord::target_mass)
-          .def_readwrite("target_momentum",&InteractionRecord::target_momentum)
           .def_readwrite("target_helicity",&InteractionRecord::target_helicity)
           .def_readwrite("interaction_vertex",&InteractionRecord::interaction_vertex)
           .def_readwrite("secondary_masses",&InteractionRecord::secondary_masses)
           .def_readwrite("secondary_momenta",&InteractionRecord::secondary_momenta)
-          .def_readwrite("secondary_helicity",&InteractionRecord::secondary_helicity)
+          .def_readwrite("secondary_helicities",&InteractionRecord::secondary_helicities)
           .def_readwrite("interaction_parameters",&InteractionRecord::interaction_parameters);
 
   class_<InteractionTreeDatum, std::shared_ptr<InteractionTreeDatum>>(m, "InteractionTreeDatum")

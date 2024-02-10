@@ -14,7 +14,7 @@ bool DecayRecord::operator==(DecayRecord const & other) const {
         decay_vertex,
         secondary_masses,
         secondary_momenta,
-        secondary_helicity,
+        secondary_helicities,
         decay_parameters)
         ==
         std::tie(
@@ -25,7 +25,7 @@ bool DecayRecord::operator==(DecayRecord const & other) const {
         other.decay_vertex,
         other.secondary_masses,
         other.secondary_momenta,
-        other.secondary_helicity,
+        other.secondary_helicities,
         other.decay_parameters);
 }
 

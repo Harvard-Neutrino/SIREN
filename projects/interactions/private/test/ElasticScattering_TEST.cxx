@@ -107,9 +107,6 @@ TEST(ElasticScattering, Generation)
     // Choose injection direction
     std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<FixedDirection>(Vector3D{0.0, 0.0, 1.0});
 
-    // Targets should be stationary
-    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution = std::make_shared<TargetAtRest>();
-
     // Let us inject according to column depth
     std::shared_ptr<DepthFunction> depth_func = std::make_shared<LeptonDepthFunction>();
 
@@ -117,13 +114,12 @@ TEST(ElasticScattering, Generation)
     std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
 
     // Put it all together!
-    std::shared_ptr<Injector> injector = std::make_shared<ColumnDepthLeptonInjector>(events_to_inject, primary_injector, cross_sections, detector_model, random, edist, ddist, target_momentum_distribution, depth_func, disk_radius, endcap_length, helicity_distribution);
+    std::shared_ptr<Injector> injector = std::make_shared<ColumnDepthLeptonInjector>(events_to_inject, primary_injector, cross_sections, detector_model, random, edist, ddist, depth_func, disk_radius, endcap_length, helicity_distribution);
 
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
         std::shared_ptr<WeightableDistribution>(tab_pdf),
         std::shared_ptr<WeightableDistribution>(flux_units),
         std::shared_ptr<WeightableDistribution>(ddist),
-        std::shared_ptr<WeightableDistribution>(target_momentum_distribution),
         std::shared_ptr<WeightableDistribution>(helicity_distribution)
     };
 
@@ -181,11 +177,6 @@ TEST(ElasticScattering, Generation)
 
             myFile << event.primary_helicity << " ";
 
-            myFile << event.target_momentum[0] << " ";
-            myFile << event.target_momentum[1] << " ";
-            myFile << event.target_momentum[2] << " ";
-            myFile << event.target_momentum[3] << " ";
-
             myFile << event.target_helicity << " ";
 
             myFile << event.secondary_momenta[0][0] << " ";
@@ -193,14 +184,14 @@ TEST(ElasticScattering, Generation)
             myFile << event.secondary_momenta[0][2] << " ";
             myFile << event.secondary_momenta[0][3] << " ";
 
-            myFile << event.secondary_helicity[0] << " ";
+            myFile << event.secondary_helicities[0] << " ";
 
             myFile << event.secondary_momenta[1][0] << " ";
             myFile << event.secondary_momenta[1][1] << " ";
             myFile << event.secondary_momenta[1][2] << " ";
             myFile << event.secondary_momenta[1][3] << " ";
 
-            myFile << event.secondary_helicity[1] << " ";
+            myFile << event.secondary_helicities[1] << " ";
 
             myFile << simplified_weight << " ";
             myFile << interaction_prob << " ";
