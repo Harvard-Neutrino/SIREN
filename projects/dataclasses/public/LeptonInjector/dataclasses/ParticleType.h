@@ -20,7 +20,7 @@ namespace LI {
 namespace dataclasses {
 
 enum class ParticleType : int32_t {
-#define X(a, b) a,
+#define X(a, b) a = b,
 #include "LeptonInjector/dataclasses/ParticleTypes.def"
 #undef X
 };
