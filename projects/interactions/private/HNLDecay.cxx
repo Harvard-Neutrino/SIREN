@@ -1,5 +1,7 @@
 #include "LeptonInjector/interactions/HNLDecay.h"
 
+#include <cmath>
+
 #include <rk/rk.hh>
 #include <rk/geom3.hh>
 

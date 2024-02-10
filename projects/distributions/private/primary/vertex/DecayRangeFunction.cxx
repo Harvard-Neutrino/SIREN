@@ -1,5 +1,6 @@
 #include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
 
+#include <cmath>
 #include <tuple>              // for tie, operator<, operator==, tuple
 #include <math.h>             // for sqrt
 #include <algorithm>          // for min
