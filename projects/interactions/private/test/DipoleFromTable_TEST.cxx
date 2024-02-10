@@ -77,7 +77,9 @@ TEST(DipoleFromTable, Constructor)
     unsigned int total_events = 10000;
     output(cereal::make_size_tag(static_cast<size_t>(total_events)));
     for(unsigned int i=0; i<total_events; ++i) {
-        xs->SampleFinalState(event, rand);
+        LI::dataclasses::CrossSectionDistributionRecord xsec_record(event);
+        xs->SampleFinalState(xsec_record, rand);
+        xsec_record.Finalize(event);
         //std::cerr << event << std::endl;
         output(event);
     }
