@@ -141,7 +141,17 @@ TEST(Serialization, Save)
         oarchive(cereal::make_nvp("InteractionSignature", A));
     }
 
-    std::string expected = "{\n    \"InteractionSignature\": {\n        \"cereal_class_version\": 0,\n        \"PrimaryType\": -11,\n        \"TargetType\": -11,\n        \"SecondaryTypes\": [\n            -11,\n            11\n        ]\n    }\n}";
+    std::string expected = "{\n\
+    \"InteractionSignature\": {\n\
+        \"cereal_class_version\": 0,\n\
+        \"PrimaryType\": -11,\n\
+        \"TargetType\": -11,\n\
+        \"SecondaryTypes\": [\n\
+            -11,\n\
+            11\n\
+        ]\n\
+    }\n\
+}";
     EXPECT_EQ(ss.str(), expected);
 }
 

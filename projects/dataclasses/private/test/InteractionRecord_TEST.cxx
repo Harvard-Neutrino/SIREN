@@ -288,6 +288,7 @@ TEST(Serialization, Save)
         },\n\
         \"PrimaryID\": {\n\
             \"cereal_class_version\": 0,\n\
+            \"IDSet\": true,\n\
             \"MajorID\": 1,\n\
             \"MinorID\": 1\n\
         },\n\
@@ -305,16 +306,11 @@ TEST(Serialization, Save)
         ],\n\
         \"PrimaryHelicity\": 1.0,\n\
         \"TargetID\": {\n\
+            \"IDSet\": false,\n\
             \"MajorID\": 0,\n\
             \"MinorID\": 0\n\
         },\n\
         \"TargetMass\": 1.0,\n\
-        \"TargetMomentum\": [\n\
-            1.0,\n\
-            2.0,\n\
-            3.0,\n\
-            4.0\n\
-        ],\n\
         \"TargetHelicity\": 1.0,\n\
         \"InteractionVertex\": [\n\
             1.0,\n\
@@ -333,7 +329,7 @@ TEST(Serialization, Save)
                 4.0\n\
             ]\n\
         ],\n\
-        \"SecondaryHelicity\": [\n\
+        \"SecondaryHelicities\": [\n\
             1.0\n\
         ],\n\
         \"InteractionParameters\": [\n\
