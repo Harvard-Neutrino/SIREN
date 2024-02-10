@@ -35,6 +35,7 @@ namespace dataclasses {
 class PrimaryDistributionRecord {
 public:
     // The signature should be constant
+    InteractionRecord const & record;
     InteractionSignature const & signature;
     ParticleID const id;
     ParticleType const & type;
@@ -66,6 +67,7 @@ public:
     InteractionSignature const & GetSignature() const;
 
     Particle GetParticle();
+    void SetParticle(Particle const & particle);
 
     ParticleID const & GetID() const;
     ParticleType const & GetType() const;
@@ -210,6 +212,8 @@ public:
     double const & GetPrimaryMass() const;
     std::array<double, 4> const & GetPrimaryMomentum() const;
     double const & GetPrimaryHelicity() const;
+    Particle GetPrimaryParticle() const;
+
     std::array<double, 3> const & GetInteractionVertex() const;
     ParticleID const & GetTargetID() const;
     ParticleType const & GetTargetType() const;
@@ -254,7 +258,7 @@ public:
 private:
     double length;
 public:
-    SecondaryDistributionRecord(InteractionRecord const & record, size_t secondary_index);
+    SecondaryDistributionRecord(InteractionRecord const & parent_record, size_t secondary_index);
 
     void SetLength(double const & length);
     double & GetLength();

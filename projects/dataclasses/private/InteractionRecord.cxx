@@ -7,6 +7,7 @@ namespace LI {
 namespace dataclasses {
 
 PrimaryDistributionRecord::PrimaryDistributionRecord(InteractionRecord const & record) :
+    record(record),
     signature(record.signature),
     id((record.primary_id) ? (record.primary_id) : (ParticleID::GenerateID())),
     type(record.signature.primary_type)
@@ -704,6 +705,20 @@ std::array<double, 4> const & CrossSectionDistributionRecord::GetPrimaryMomentum
 
 double const & CrossSectionDistributionRecord::GetPrimaryHelicity() const {
     return primary_helicity;
+}
+
+Particle CrossSectionDistributionRecord::GetPrimaryParticle() const {
+    Particle p;
+    p.id = primary_id;
+    p.type = primary_type;
+    p.mass = primary_mass;
+    p.momentum = primary_momentum;
+    p.position = primary_initial_position;
+    p.length = std::sqrt((interaction_vertex.at(0) - primary_initial_position.at(0))*(interaction_vertex.at(0) - primary_initial_position.at(0)) +
+                         (interaction_vertex.at(1) - primary_initial_position.at(1))*(interaction_vertex.at(1) - primary_initial_position.at(1)) +
+                         (interaction_vertex.at(2) - primary_initial_position.at(2))*(interaction_vertex.at(2) - primary_initial_position.at(2)));
+    p.helicity = primary_helicity;
+    return p;
 }
 
 std::array<double, 3> const & CrossSectionDistributionRecord::GetInteractionVertex() const {
