@@ -103,21 +103,21 @@ double DarkNewsCrossSection::Q2Max(dataclasses::InteractionRecord const & intera
     return 0;
 }
 
-double DarkNewsCrossSection::TargetMass() const {
+double DarkNewsCrossSection::TargetMass(dataclasses::ParticleType const &) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
     throw(LI::utilities::PythonImplementationError("DarkNewsCrossSection::TargetMass should be implemented in Python!"));
     return 0;
 }
 
-std::vector<double> DarkNewsCrossSection::SecondaryMasses() const {
+std::vector<double> DarkNewsCrossSection::SecondaryMasses(std::vector<dataclasses::ParticleType> const & secondary_types) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
     throw(LI::utilities::PythonImplementationError("DarkNewsCrossSection::SecondaryMasses should be implemented in Python!"));
     return std::vector<double>();
 }
 
-std::vector<double> DarkNewsCrossSection::SecondaryHelicities(double primary_helicity, double target_helicity) const {
+std::vector<double> DarkNewsCrossSection::SecondaryHelicities(dataclasses::InteractionRecord const & record) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
     throw(LI::utilities::PythonImplementationError("DarkNewsCrossSection::SecondaryHelicities should be implemented in Python!"));
@@ -126,9 +126,9 @@ std::vector<double> DarkNewsCrossSection::SecondaryHelicities(double primary_hel
 
 void DarkNewsCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
     // Set our upscattering masses and helicities using values from DarkNews
-    record.SetTargetMass(TargetMass());
-    std::vector<double> secondary_masses = SecondaryMasses();
-    std::vector<double> secondary_helicities = SecondaryHelicities(record.GetPrimaryHelicity(), record.GetTargetHelicity());
+    record.SetTargetMass(TargetMass(record.target_type));
+    std::vector<double> secondary_masses = SecondaryMasses(record.signature.secondary_types);
+    std::vector<double> secondary_helicities = SecondaryHelicities(record.record);
 
     std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaryParticles();
     for(size_t i = 0; i < secondaries.size(); i++) {

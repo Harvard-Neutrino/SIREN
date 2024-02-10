@@ -23,7 +23,6 @@
 #include "../../public/LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/RangePositionDistribution.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/SecondaryPositionDistribution.h"
-#include "../../public/LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
 
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
 #include "../../../detector/public/LeptonInjector/detector/DetectorModel.h"
@@ -226,17 +225,6 @@ PYBIND11_MODULE(distributions,m) {
     .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
     .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionTreeDatum const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
     .def("Name",&SecondaryPositionDistribution::Name);
-
-  // Target momentum distributions
-
-  class_<TargetMomentumDistribution, std::shared_ptr<TargetMomentumDistribution>, InjectionDistribution>(m, "TargetMomentumDistribution")
-    .def("Sample",&TargetMomentumDistribution::Sample);
-
-  class_<TargetAtRest, std::shared_ptr<TargetAtRest>, TargetMomentumDistribution>(m, "TargetAtRest")
-    .def(init<>())
-    .def("GenerationProbability",&TargetAtRest::GenerationProbability)
-    .def("DensityVariables",&TargetAtRest::DensityVariables)
-    .def("Name",&TargetAtRest::Name);
 }
 
 
