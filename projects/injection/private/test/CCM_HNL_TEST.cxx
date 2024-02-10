@@ -31,7 +31,6 @@
 #include "LeptonInjector/distributions/primary/vertex/PointSourcePositionDistribution.h"
 #include "LeptonInjector/distributions/primary/vertex/SecondaryPositionDistribution.h"
 #include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
-#include "LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
 
 #include "LeptonInjector/interactions/InteractionCollection.h"
 #include "LeptonInjector/interactions/CrossSection.h"
