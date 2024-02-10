@@ -12,6 +12,31 @@
 
 #include "LeptonInjector/utilities/Constants.h"
 
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::Particle const& p) {
+    os << "Particle (" << &p << ")\n";
+
+    std::stringstream ss;
+    ss << p.id;
+    std::string id_str = ss.str();
+    std::string from = "\n";
+    std::string to = "\n    ";
+    size_t start_pos = 0;
+    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
+        id_str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+    }
+
+    os << "ID: " << id_str << "\n";
+    os << "Type: " << p.type << "\n";
+    os << "Mass: " << p.mass << "\n";
+    os << "Momentum: " << p.momentum.at(0) << " " << p.momentum.at(1) << " " << p.momentum.at(2) << " " << p.momentum.at(3) << "\n";
+    os << "Position: " << p.position.at(0) << " " << p.position.at(1) << " " << p.position.at(2) << "\n";
+    os << "Length: " << p.length << "\n";
+    os << "Helicity: " << p.helicity;
+
+    return os;
+}
+
 namespace LI {
 namespace dataclasses {
 

@@ -12,6 +12,10 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
+namespace LI { namespace dataclasses { class ParticleID; } }
+
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::ParticleID const& record);
+
 namespace LI {
 namespace dataclasses {
 
@@ -40,7 +44,7 @@ public:
     bool operator<(ParticleID const & other) const;
 
     bool operator==(ParticleID const & other) const;
-    friend std::ostream& operator<<(std::ostream& os, ParticleID const& record);
+    friend std::ostream& ::operator<<(std::ostream& os, ParticleID const& record);
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {

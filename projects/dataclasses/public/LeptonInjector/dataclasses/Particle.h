@@ -25,6 +25,10 @@
 
 #include "LeptonInjector/serialization/array.h"
 
+namespace LI { namespace dataclasses { class Particle; } }
+
+std::ostream & operator<<(std::ostream & os, LI::dataclasses::Particle const & p);
+
 namespace LI {
 namespace dataclasses {
 
@@ -47,6 +51,8 @@ public:
     double helicity = 0;
 
     ParticleID & GenerateID();
+
+    friend std::ostream & ::operator<<(std::ostream & os, LI::dataclasses::Particle const & p);
 
     template<typename Archive>
     void serialize(Archive & archive, std::uint32_t const version) {

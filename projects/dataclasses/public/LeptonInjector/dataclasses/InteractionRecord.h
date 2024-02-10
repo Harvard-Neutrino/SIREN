@@ -154,7 +154,7 @@ public:
     std::array<double, 3> GetDirection() const;
     std::array<double, 3> GetThreeMomentum() const;
     std::array<double, 4> GetFourMomentum() const;
-    std::array<double, 3> GetInitialPosition() const;
+    std::array<double, 3> const & GetInitialPosition() const;
     double const & GetHelicity() const;
 
     double const & GetMass();
@@ -163,7 +163,6 @@ public:
     std::array<double, 3> const & GetDirection();
     std::array<double, 3> const & GetThreeMomentum();
     std::array<double, 4> GetFourMomentum();
-    std::array<double, 3> const & GetInitialPosition();
 
     void SetMass(double mass);
     void SetEnergy(double energy);

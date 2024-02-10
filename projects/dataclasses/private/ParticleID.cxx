@@ -3,7 +3,17 @@
 #include <tuple>
 #include <mutex>
 #include <atomic>
+#include <ostream>
 #include <unistd.h>
+
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::ParticleID const& record) {
+    os << "ParticleID (" << &record << ")\n";
+    os << "IDSet: " << record.id_set << "\n";
+    os << "MajorID: " << record.major_id << "\n";
+    os << "MinorID: " << record.minor_id;
+
+    return os;
+}
 
 namespace LI {
 namespace dataclasses {

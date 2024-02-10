@@ -215,6 +215,33 @@ double const & PrimaryDistributionRecord::GetHelicity() const {
     return helicity;
 }
 
+void PrimaryDistributionRecord::SetParticle(Particle const & particle) {
+    if(particle.id != id) {
+        throw std::runtime_error("Cannot set particle with different ID!");
+    }
+    if(particle.type != type) {
+        throw std::runtime_error("Cannot set particle with different type!");
+    }
+
+    mass_set = true;
+    mass = particle.mass;
+
+    momentum_set = true;
+    momentum = {particle.momentum.at(1), particle.momentum.at(2), particle.momentum.at(3)};
+
+    energy_set = true;
+    energy = particle.momentum.at(0);
+
+    initial_position_set = true;
+    initial_position = particle.position;
+
+    length_set = true;
+    length = particle.length;
+
+    helicity_set = true;
+    helicity = particle.helicity;
+}
+
 void PrimaryDistributionRecord::SetMass(double mass) {
     mass_set = true;
     this->mass = mass;
@@ -541,7 +568,7 @@ std::array<double, 4> SecondaryParticleRecord::GetFourMomentum() {
     return {momentum.at(0), momentum.at(1), momentum.at(2), GetEnergy()};
 }
 
-std::array<double, 3> SecondaryParticleRecord::GetInitialPosition() const {
+std::array<double, 3> const & SecondaryParticleRecord::GetInitialPosition() const {
     return initial_position;
 }
 

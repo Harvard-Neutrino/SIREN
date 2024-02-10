@@ -23,6 +23,7 @@ PYBIND11_MODULE(dataclasses,m) {
           .def(init<Particle const &>())
           .def(init<ParticleID, ParticleType, double, std::array<double, 4>, std::array<double, 3>, double, double>())
           .def(init<ParticleType, double, std::array<double, 4>, std::array<double, 3>, double, double>())
+          .def("__str__", [](Particle const & p) { std::stringstream ss; ss << p; return ss.str(); })
           .def_readwrite("id",&Particle::id)
           .def_readwrite("type",&Particle::type)
           .def_readwrite("mass",&Particle::mass)
@@ -86,6 +87,43 @@ PYBIND11_MODULE(dataclasses,m) {
         .def_property("four_momentum", ((std::array<double, 4> (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetFourMomentum)), &SecondaryParticleRecord::SetFourMomentum)
         .def_property("helicity", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetHelicity)), &SecondaryParticleRecord::SetHelicity)
         .def("Finalize", &SecondaryParticleRecord::Finalize);
+
+    class_<CrossSectionDistributionRecord, std::shared_ptr<CrossSectionDistributionRecord>>(m, "CrossSectionDistributionRecord")
+        .def(init<InteractionRecord const &>())
+        .def_property_readonly("record",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::InteractionRecord ir = cdr.record; return ir;})
+        .def_property_readonly("signature",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::InteractionSignature is = cdr.signature; return is;})
+        .def_property_readonly("primary_id",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::ParticleID id = cdr.primary_id; return id;})
+        .def_property_readonly("primary_type",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::ParticleType pt = cdr.primary_type; return pt;})
+        .def_property_readonly("primary_initial_position",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 3> ip = cdr.primary_initial_position; return ip;})
+        .def_property_readonly("primary_mass",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {double m = cdr.primary_mass; return m;})
+        .def_property_readonly("primary_momentum",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 4> p = cdr.primary_momentum; return p;})
+        .def_property_readonly("primary_helicity",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {double h = cdr.primary_helicity; return h;})
+        .def_property_readonly("interaction_vertex",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 3> iv = cdr.interaction_vertex; return iv;})
+        .def_property_readonly("target_id",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::ParticleID id = cdr.target_id; return id;})
+        .def_property_readonly("target_type",
+            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::ParticleType pt = cdr.target_type; return pt;})
+        .def_property("target_mass", ((double const & (LI::dataclasses::CrossSectionDistributionRecord::*)() const)(&LI::dataclasses::CrossSectionDistributionRecord::GetTargetMass)), &LI::dataclasses::CrossSectionDistributionRecord::SetTargetMass)
+        .def_property("target_helicity", ((double const & (LI::dataclasses::CrossSectionDistributionRecord::*)() const)(&LI::dataclasses::CrossSectionDistributionRecord::GetTargetHelicity)), &LI::dataclasses::CrossSectionDistributionRecord::SetTargetHelicity)
+        .def_property("interaction_parameters", ((std::map<std::string, double> const & (LI::dataclasses::CrossSectionDistributionRecord::*)())(&LI::dataclasses::CrossSectionDistributionRecord::GetInteractionParameters)), &LI::dataclasses::CrossSectionDistributionRecord::SetInteractionParameters)
+        .def("GetPrimaryParticle", &CrossSectionDistributionRecord::GetPrimaryParticle)
+        .def("GetTargetParticle", &CrossSectionDistributionRecord::GetTargetParticle)
+        .def("GetSecondaryParticleRecord", &CrossSectionDistributionRecord::GetSecondaryParticleRecord)
+        .def("GetSecondaryParticle", &CrossSectionDistributionRecord::GetSecondaryParticle)
+        .def("GetSecondaryParticles", &CrossSectionDistributionRecord::GetSecondaryParticles)
+        .def("SetSecondaryParticle", &CrossSectionDistributionRecord::SetSecondaryParticle)
+        .def("SetSecondaryParticles", &CrossSectionDistributionRecord::SetSecondaryParticles)
+        .def("Finalize", &CrossSectionDistributionRecord::Finalize);
+
 
   class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
           .def(init<>())
