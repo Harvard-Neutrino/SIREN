@@ -33,16 +33,7 @@ bool DummyCrossSection::equal(CrossSection const & other) const {
 double DummyCrossSection::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
     LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
     LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
-    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
-    double primary_energy;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        primary_energy = interaction.primary_momentum[0];
-    } else {
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        rk::P4 p1_lab = boost_start_to_lab * p1;
-        primary_energy = p1_lab.e();
-    }
+    double primary_energy = interaction.primary_momentum[0];
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
@@ -60,22 +51,7 @@ double DummyCrossSection::TotalCrossSection(LI::dataclasses::Particle::ParticleT
 double DummyCrossSection::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
     LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
     LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
-    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
-    double primary_energy;
-    rk::P4 p1_lab;
-    rk::P4 p2_lab;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        primary_energy = interaction.primary_momentum[0];
-        p1_lab = p1;
-        p2_lab = p2;
-    } else {
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        p1_lab = boost_start_to_lab * p1;
-        p2_lab = boost_start_to_lab * p2;
-        primary_energy = p1_lab.e();
-    }
-
+    double primary_energy = interaction.primary_momentum[0];
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
@@ -83,40 +59,32 @@ double DummyCrossSection::InteractionThreshold(dataclasses::InteractionRecord co
     return 0;
 }
 
-void DummyCrossSection::SampleFinalState(dataclasses::InteractionRecord& interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
-    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+void DummyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
+    rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+    rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
 
     // we assume that:
     // the target is stationary so its energy is just its mass
     // the incoming neutrino is massless, so its kinetic energy is its total energy
-    // double s = target_mass_ * tinteraction.secondary_momentarget_mass_ + 2 * target_mass_ * primary_energy;
+    // double s = target_mass_ * trecord.secondary_momentarget_mass_ + 2 * target_mass_ * primary_energy;
     // double s = std::pow(rk::invMass(p1, p2), 2);
 
     double primary_energy;
     rk::P4 p1_lab;
     rk::P4 p2_lab;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        p1_lab = p1;
-        p2_lab = p2;
-        primary_energy = p1_lab.e();
-    } else {
-        // Rest frame of p2 will be our "lab" frame
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        p1_lab = boost_start_to_lab * p1;
-        p2_lab = boost_start_to_lab * p2;
-        primary_energy = p1_lab.e();
-    }
+    p1_lab = p1;
+    p2_lab = p2;
+    primary_energy = p1_lab.e();
 
     double final_x = random->Uniform(0, 1);
     double final_y = random->Uniform(0, 1);
 
-    interaction.interaction_parameters.clear();
-    interaction.interaction_parameters["energy"] = primary_energy;
-    interaction.interaction_parameters["bjorken_x"] = final_x;
-    interaction.interaction_parameters["bjorken_y"] = final_y;
+    record.interaction_parameters.clear();
+    record.interaction_parameters["energy"] = primary_energy;
+    record.interaction_parameters["bjorken_x"] = final_x;
+    record.interaction_parameters["bjorken_y"] = final_y;
 
-    double m1 = interaction.primary_mass;
+    double m1 = record.primary_mass;
     double m3 = 0;
     double E1_lab = p1_lab.e();
     double E2_lab = p2_lab.e();
@@ -144,37 +112,31 @@ void DummyCrossSection::SampleFinalState(dataclasses::InteractionRecord& interac
 
     rk::P4 p3;
     rk::P4 p4;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        p3 = p3_lab;
-        p4 = p4_lab;
-    } else {
-        rk::Boost boost_lab_to_start = p2.labBoost();
-        p3 = boost_lab_to_start * p3_lab;
-        p4 = boost_lab_to_start * p4_lab;
-    }
-
-    interaction.secondary_momenta.resize(2);
-    interaction.secondary_masses.resize(2);
-    interaction.secondary_helicity.resize(2);
+    p3 = p3_lab;
+    p4 = p4_lab;
 
     size_t lepton_index = 0;
-    size_t other_index = 0;
+    size_t other_index = 1;
 
-    interaction.secondary_momenta[lepton_index][0] = p3.e(); // p3_energy
-    interaction.secondary_momenta[lepton_index][1] = p3.px(); // p3_x
-    interaction.secondary_momenta[lepton_index][2] = p3.py(); // p3_y
-    interaction.secondary_momenta[lepton_index][3] = p3.pz(); // p3_z
-    interaction.secondary_masses[lepton_index] = p3.m();
+    std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaryParticles();
+    LI::dataclasses::Particle & lepton = secondaries[lepton_index];
+    LI::dataclasses::Particle & other = secondaries[other_index];
 
-    interaction.secondary_helicity[lepton_index] = interaction.primary_helicity;
+    lepton.momentum[0] = p3.e(); // p3_energy
+    lepton.momentum[1] = p3.px(); // p3_x
+    lepton.momentum[2] = p3.py(); // p3_y
+    lepton.momentum[3] = p3.pz(); // p3_z
+    lepton.mass = p3.m();
+    lepton.helicity = record.primary_helicity;
 
-    interaction.secondary_momenta[other_index][0] = p4.e(); // p4_energy
-    interaction.secondary_momenta[other_index][1] = p4.px(); // p4_x
-    interaction.secondary_momenta[other_index][2] = p4.py(); // p4_y
-    interaction.secondary_momenta[other_index][3] = p4.pz(); // p4_z
-    interaction.secondary_masses[other_index] = p4.m();
+    other.momentum[0] = p4.e(); // p4_energy
+    other.momentum[1] = p4.px(); // p4_x
+    other.momentum[2] = p4.py(); // p4_y
+    other.momentum[3] = p4.pz(); // p4_z
+    other.mass = p4.m();
+    other.helicity = record.target_helicity;
 
-    interaction.secondary_helicity[other_index] = interaction.target_helicity;
+    record.SetSecondaryParticles(secondaries);
 }
 
 double DummyCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
