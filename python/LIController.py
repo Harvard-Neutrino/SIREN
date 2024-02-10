@@ -87,20 +87,12 @@ class LIController:
             self.primary_physical_process.AddPhysicalDistribution(pdist)
 
         # Default injection distributions
-        if "target" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddInjectionDistribution(
-                _distributions.TargetAtRest()
-            )
         if "helicity" not in primary_injection_distributions.keys():
             self.primary_injection_process.AddInjectionDistribution(
                 _distributions.PrimaryNeutrinoHelicityDistribution()
             )
 
         # Default injection distributions
-        if "target" not in primary_physical_distributions.keys():
-            self.primary_physical_process.AddPhysicalDistribution(
-                _distributions.TargetAtRest()
-            )
         if "helicity" not in primary_physical_distributions.keys():
             self.primary_physical_process.AddPhysicalDistribution(
                 _distributions.PrimaryNeutrinoHelicityDistribution()
@@ -355,10 +347,6 @@ class LIController:
                 # Save each four-momenta as a dataset
                 interaction_group.create_dataset(
                     "primary_momentum",
-                    data=np.array(datum.record.primary_momentum, dtype=float),
-                )
-                interaction_group.create_dataset(
-                    "target_momentum",
                     data=np.array(datum.record.primary_momentum, dtype=float),
                 )
                 for isec_momenta, sec_momenta in enumerate(
