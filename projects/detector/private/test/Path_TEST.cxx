@@ -31,6 +31,14 @@
 using namespace LI::detector;
 using namespace LI::geometry;
 
+#define EXPECT_NEAR_REL(A, B, C) \
+    EXPECT_NEAR(A, B, C * std::max(std::abs(A), std::abs(B)));
+
+#define EXPECT_VECTOR3D_NEAR_REL(A, B, C) \
+    EXPECT_NEAR(A.GetX(), B.GetX(), C * std::max(std::abs(A.GetX()), std::abs(B.GetX()))); \
+    EXPECT_NEAR(A.GetY(), B.GetY(), C * std::max(std::abs(A.GetY()), std::abs(B.GetY()))); \
+    EXPECT_NEAR(A.GetZ(), B.GetZ(), C * std::max(std::abs(A.GetZ()), std::abs(B.GetZ())));
+
 TEST(DefaultConstructor, NoThrow)
 {
     EXPECT_NO_THROW(Path());
@@ -524,61 +532,65 @@ TEST_F(FakeLegacyDetectorModelTest, ExtendFromStartByColumnDepth) {
         double min_radius = sphere->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
-        Vector3D direction = p1 - p0;
+        Vector3D p0_det = A->ToDet(GeometryPosition(p0));
+        Vector3D p1_det = A->ToDet(GeometryPosition(p1));
+        Vector3D direction = p1_det - p0_det;
         double distance = direction.magnitude();
         direction.normalize();
         Vector3D inner_p0 = p0 + direction * distance / 4.0;
         Vector3D inner_p1 = p1 - direction * distance / 4.0;
+        Vector3D inner_p0_det = A->ToDet(GeometryPosition(inner_p0));
+        Vector3D inner_p1_det = A->ToDet(GeometryPosition(inner_p1));
         ASSERT_TRUE(p0.magnitude() < max_radius);
         ASSERT_TRUE(p1.magnitude() < max_radius);
         ASSERT_TRUE(inner_p0.magnitude() < max_radius);
         ASSERT_TRUE(inner_p1.magnitude() < max_radius);
-        direction = inner_p1 - inner_p0;
+        direction = inner_p1_det - inner_p0_det;
         distance = direction.magnitude();
         direction.normalize();
-        Path P(A, DetectorPosition(inner_p0), DetectorPosition(inner_p1));
+        Path P(A, DetectorPosition(inner_p0_det), DetectorPosition(inner_p1_det));
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude() * rho * 100, sum);
-        P = Path(A, DetectorPosition(p0), DetectorPosition(p1));
+        EXPECT_NEAR_REL((inner_p1 - inner_p0).magnitude() * rho * 100, sum, 1e-8);
+        P = Path(A, DetectorPosition(p0_det), DetectorPosition(p1_det));
         sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((p1 - p0).magnitude() * rho * 100, sum);
+        EXPECT_NEAR_REL((p1 - p0).magnitude() * rho * 100, sum, 1e-8);
 
-        P = Path(A, DetectorPosition(inner_p0), DetectorPosition(inner_p1));
+        P = Path(A, DetectorPosition(inner_p0_det), DetectorPosition(inner_p1_det));
         P.EnsureIntersections();
         double extra_distance = distance/3.0;
         double extra_column_depth = extra_distance * rho * 100;
-        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p0), DetectorDirection(-direction), extra_column_depth);
+        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p0_det), DetectorDirection(-direction), extra_column_depth);
         ASSERT_DOUBLE_EQ(distance/3.0, extra_distance);
         ASSERT_DOUBLE_EQ(A->DistanceForColumnDepthFromPoint(P.GetFirstPoint(), DetectorDirection(-direction), extra_column_depth), A->DistanceForColumnDepthFromPoint(P.GetIntersections(), P.GetFirstPoint(), DetectorDirection(-direction), extra_column_depth));
         ASSERT_DOUBLE_EQ(extra_distance, P.GetDistanceFromStartInReverse(extra_column_depth));
         P.ExtendFromStartByColumnDepth(extra_column_depth);
-        Vector3D end = inner_p0 - direction * extra_distance;
-        ASSERT_EQ(end, P.GetFirstPoint());
+        Vector3D end = inner_p0_det - direction * extra_distance;
+        EXPECT_VECTOR3D_NEAR_REL(end, Vector3D(P.GetFirstPoint()), 1e-8);
         ASSERT_EQ(distance + extra_distance, P.GetDistance());
 
-        P = Path(A, DetectorPosition(inner_p0), DetectorPosition(inner_p1));
+        P = Path(A, DetectorPosition(inner_p0_det), DetectorPosition(inner_p1_det));
         P.EnsureIntersections();
         extra_distance = -distance/3.0;
         extra_column_depth = extra_distance * rho * 100;
         P.ExtendFromStartByColumnDepth(extra_column_depth);
-        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p0), DetectorDirection(-direction), extra_column_depth);
+        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p0_det), DetectorDirection(-direction), extra_column_depth);
         EXPECT_DOUBLE_EQ(-distance/3.0, extra_distance);
-        end = inner_p0 - direction * extra_distance;
-        EXPECT_EQ(end, P.GetFirstPoint());
+        end = inner_p0_det - direction * extra_distance;
+        EXPECT_VECTOR3D_NEAR_REL(end, Vector3D(P.GetFirstPoint()), 1e-8);
         EXPECT_EQ(distance + extra_distance, P.GetDistance());
 
-        P = Path(A, DetectorPosition(inner_p0), DetectorPosition(inner_p1));
+        P = Path(A, DetectorPosition(inner_p0_det), DetectorPosition(inner_p1_det));
         P.EnsureIntersections();
         extra_distance = -distance*1.5;
         extra_column_depth = extra_distance * rho * 100;
         P.ExtendFromStartByColumnDepth(extra_column_depth);
-        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p0), DetectorDirection(-direction), extra_column_depth);
+        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p0_det), DetectorDirection(-direction), extra_column_depth);
         EXPECT_DOUBLE_EQ(-distance*1.5, extra_distance);
-        end = inner_p0 - direction * extra_distance;
-        EXPECT_EQ(inner_p1, P.GetFirstPoint());
+        end = inner_p0_det - direction * extra_distance;
+        EXPECT_EQ(inner_p1_det, P.GetFirstPoint());
         EXPECT_EQ(0, P.GetDistance());
     }
 }
@@ -635,11 +647,15 @@ TEST_F(FakeLegacyDetectorModelTest, ShrinkFromEndByColumnDepth) {
         double min_radius = sphere->GetInnerRadius();
         Vector3D p0 = RandomVector(max_radius, min_radius);
         Vector3D p1 = RandomVector(max_radius, min_radius);
+        Vector3D p0_det = A->ToDet(GeometryPosition(p0));
+        Vector3D p1_det = A->ToDet(GeometryPosition(p1));
         Vector3D direction = p1 - p0;
         double distance = direction.magnitude();
         direction.normalize();
         Vector3D inner_p0 = p0 + direction * distance / 4.0;
         Vector3D inner_p1 = p1 - direction * distance / 4.0;
+        Vector3D inner_p0_det = A->ToDet(GeometryPosition(inner_p0));
+        Vector3D inner_p1_det = A->ToDet(GeometryPosition(inner_p1));
         ASSERT_TRUE(p0.magnitude() < max_radius);
         ASSERT_TRUE(p1.magnitude() < max_radius);
         ASSERT_TRUE(inner_p0.magnitude() < max_radius);
@@ -647,48 +663,48 @@ TEST_F(FakeLegacyDetectorModelTest, ShrinkFromEndByColumnDepth) {
         direction = inner_p1 - inner_p0;
         distance = direction.magnitude();
         direction.normalize();
-        Path P(A, DetectorPosition(inner_p0), DetectorPosition(inner_p1));
+        Path P(A, DetectorPosition(inner_p0_det), DetectorPosition(inner_p1_det));
         DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const * density = dynamic_cast<DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D> const *>(sector.density.get());
         ASSERT_TRUE(density);
         double rho = density->Evaluate(Vector3D());
         double sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((inner_p1 - inner_p0).magnitude() * rho * 100, sum);
-        P = Path(A, DetectorPosition(p0), DetectorPosition(p1));
+        EXPECT_NEAR_REL((inner_p1 - inner_p0).magnitude() * rho * 100, sum, 1e-8);
+        P = Path(A, DetectorPosition(p0_det), DetectorPosition(p1_det));
         sum = P.GetColumnDepthInBounds();
-        ASSERT_DOUBLE_EQ((p1 - p0).magnitude() * rho * 100, sum);
+        EXPECT_NEAR_REL((p1 - p0).magnitude() * rho * 100, sum, 1e-8);
 
-        P = Path(A, DetectorPosition(inner_p0), DetectorPosition(inner_p1));
+        P = Path(A, DetectorPosition(inner_p0_det), DetectorPosition(inner_p1_det));
         P.EnsureIntersections();
         double extra_distance = distance/3.0;
         double extra_column_depth = extra_distance * rho * 100;
         P.ShrinkFromEndByColumnDepth(extra_column_depth);
-        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p1), DetectorDirection(-direction), extra_column_depth);
+        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p1_det), DetectorDirection(-direction), extra_column_depth);
         EXPECT_DOUBLE_EQ(distance/3.0, extra_distance);
-        Vector3D end = inner_p1 - direction * extra_distance;
-        EXPECT_EQ(end, P.GetLastPoint());
-        EXPECT_EQ(distance - extra_distance, P.GetDistance());
+        Vector3D end = inner_p1_det - direction * extra_distance;
+        EXPECT_VECTOR3D_NEAR_REL(end, Vector3D(P.GetLastPoint()), 1e-8);
+        EXPECT_NEAR_REL(distance - extra_distance, P.GetDistance(), 1e-8);
 
-        P = Path(A, DetectorPosition(inner_p0), DetectorPosition(inner_p1));
+        P = Path(A, DetectorPosition(inner_p0_det), DetectorPosition(inner_p1_det));
         P.EnsureIntersections();
         extra_distance = -distance/3.0;
         extra_column_depth = extra_distance * rho * 100;
         P.ShrinkFromEndByColumnDepth(extra_column_depth);
-        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p1), DetectorDirection(-direction), extra_column_depth);
+        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p1_det), DetectorDirection(-direction), extra_column_depth);
         EXPECT_DOUBLE_EQ(-distance/3.0, extra_distance);
-        end = inner_p1 - direction * extra_distance;
-        EXPECT_EQ(end, P.GetLastPoint());
-        EXPECT_EQ(distance - extra_distance, P.GetDistance());
+        end = inner_p1_det - direction * extra_distance;
+        EXPECT_VECTOR3D_NEAR_REL(end, Vector3D(P.GetLastPoint()), 1e-8);
+        EXPECT_NEAR_REL(distance - extra_distance, P.GetDistance(), 1e-8);
 
-        P = Path(A, DetectorPosition(inner_p0), DetectorPosition(inner_p1));
+        P = Path(A, DetectorPosition(inner_p0_det), DetectorPosition(inner_p1_det));
         P.EnsureIntersections();
         extra_distance = distance*1.5;
         extra_column_depth = extra_distance * rho * 100;
         P.ShrinkFromEndByColumnDepth(extra_column_depth);
-        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p1), DetectorDirection(-direction), extra_column_depth);
+        extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p1_det), DetectorDirection(-direction), extra_column_depth);
         EXPECT_DOUBLE_EQ(distance*1.5, extra_distance);
-        end = inner_p1 - direction * extra_distance;
-        EXPECT_EQ(inner_p0, P.GetLastPoint());
-        EXPECT_EQ(0, P.GetDistance());
+        end = inner_p1_det - direction * extra_distance;
+        EXPECT_VECTOR3D_NEAR_REL(inner_p0_det, Vector3D(P.GetLastPoint()), 1e-8);
+        EXPECT_NEAR_REL(0.0, P.GetDistance(), 1e-8);
     }
 }
 
@@ -776,7 +792,7 @@ TEST_F(FakeLegacyDetectorModelTest, ShrinkFromStartByColumnDepth) {
         ASSERT_DOUBLE_EQ(extra_distance, P.GetDistanceFromStartInReverse(extra_column_depth));
         P.ShrinkFromStartByColumnDepth(extra_column_depth);
         Vector3D end = inner_p0 + direction * extra_distance;
-        ASSERT_EQ(end, P.GetFirstPoint());
+        EXPECT_VECTOR3D_NEAR_REL(end, Vector3D(P.GetFirstPoint()), 1e-8);
         ASSERT_EQ(distance - extra_distance, P.GetDistance());
 
         P = Path(A, DetectorPosition(inner_p0), DetectorPosition(inner_p1));
@@ -787,8 +803,8 @@ TEST_F(FakeLegacyDetectorModelTest, ShrinkFromStartByColumnDepth) {
         extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p0), DetectorDirection(direction), extra_column_depth);
         EXPECT_DOUBLE_EQ(-distance/3.0, extra_distance);
         end = inner_p0 + direction * extra_distance;
-        EXPECT_EQ(end, P.GetFirstPoint());
-        EXPECT_EQ(distance - extra_distance, P.GetDistance());
+        EXPECT_VECTOR3D_NEAR_REL(end, Vector3D(P.GetFirstPoint()), 1e-8);
+        EXPECT_NEAR_REL(distance - extra_distance, P.GetDistance(), 1e-8);
 
         P = Path(A, DetectorPosition(inner_p0), DetectorPosition(inner_p1));
         P.EnsureIntersections();
@@ -796,10 +812,10 @@ TEST_F(FakeLegacyDetectorModelTest, ShrinkFromStartByColumnDepth) {
         extra_column_depth = extra_distance * rho * 100;
         P.ShrinkFromStartByColumnDepth(extra_column_depth);
         extra_distance = A->DistanceForColumnDepthFromPoint(DetectorPosition(inner_p0), DetectorDirection(direction), extra_column_depth);
-        EXPECT_DOUBLE_EQ(distance*1.5, extra_distance);
+        EXPECT_NEAR_REL(distance*1.5, extra_distance, 1e-8);
         end = inner_p0 + direction * extra_distance;
-        EXPECT_EQ(inner_p1, P.GetFirstPoint());
-        EXPECT_EQ(0, P.GetDistance());
+        EXPECT_VECTOR3D_NEAR_REL(inner_p1, Vector3D(P.GetFirstPoint()), 1e-8);
+        EXPECT_NEAR_REL(0.0, P.GetDistance(), 1e-8);
     }
 }
 
