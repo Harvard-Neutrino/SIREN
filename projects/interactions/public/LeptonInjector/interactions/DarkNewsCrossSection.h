@@ -53,11 +53,10 @@ public:
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     virtual double Q2Min(dataclasses::InteractionRecord const &) const;
     virtual double Q2Max(dataclasses::InteractionRecord const &) const;
-    virtual double PrimaryMass() const;
     virtual double TargetMass() const;
     virtual std::vector<double> SecondaryMasses() const;
     virtual std::vector<double> SecondaryHelicities(double primary_helicity, double target_helicity) const;
-    virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
     virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override = 0; // Requires Python-side implementation
     virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override = 0; // Requires Python-side implementation

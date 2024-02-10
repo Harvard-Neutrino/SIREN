@@ -35,10 +35,10 @@ bool DarkNewsCrossSection::equal(CrossSection const & other) const {
 }
 
 double DarkNewsCrossSection::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::Particle::ParticleType primary_type = interaction.GetPrimaryType();
-    LI::dataclasses::Particle::ParticleType target_type = interaction.GetTargetType();
-    std::array<double, 4> const & primary_momentum = interaction.GetPrimaryMomentum();
-    double const & primary_mass = interaction.GetPrimaryMass();
+    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::Particle::ParticleType target_type = interaction.signature.primary_type;
+    std::array<double, 4> const & primary_momentum = interaction.primary_momentum;
+    double const & primary_mass = interaction.primary_mass;
     rk::P4 p1(geom3::Vector3(primary_momentum[1], primary_momentum[2], primary_momentum[3]), primary_mass);
     double primary_energy = primary_momentum[0];
     return TotalCrossSection(primary_type, primary_energy, target_type);
@@ -46,12 +46,12 @@ double DarkNewsCrossSection::TotalCrossSection(dataclasses::InteractionRecord co
 
 double DarkNewsCrossSection::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
 
-    std::array<double, 4> const & primary_momentum = interaction.GetPrimaryMomentum();
-    double const & primary_mass = interaction.GetPrimaryMass();
-    std::array<double, 4> const & secondary_momentum = interaction.GetSecondaryMomentum(0);
-    double const & secondary_mass = interaction.GetSecondaryMass(0);
+    std::array<double, 4> const & primary_momentum = interaction.primary_momentum;
+    double const & primary_mass = interaction.primary_mass;
+    std::array<double, 4> const & secondary_momentum = interaction.secondary_momenta[0];
+    double const & secondary_mass = interaction.secondary_masses[0];
     rk::P4 p1(geom3::Vector3(primary_momentum[1], primary_momentum[2], primary_momentum[3]), primary_mass);
-    rk::P4 p2(geom3::Vector3(0, 0, 0), interaction.GetTargetMass());
+    rk::P4 p2(geom3::Vector3(0, 0, 0), interaction.target_mass);
     rk::P4 p3(geom3::Vector3(secondary_momentum[1], secondary_momentum[2], secondary_momentum[3]), secondary_mass);
 
     double primary_energy;
@@ -62,7 +62,7 @@ double DarkNewsCrossSection::DifferentialCrossSection(dataclasses::InteractionRe
     primary_energy = p1_lab.e();
     double Q2 = -1*(std::pow(p1_lab.m(),2) + std::pow(p3_lab.m(),2) - 2.0*p1_lab.dot(p3_lab));
 
-    return DifferentialCrossSection(interaction.GetPrimaryType(), interaction.GetTargetType(), primary_energy, Q2);
+    return DifferentialCrossSection(interaction.signature.primary_type, interaction.signature.target_type, primary_energy, Q2);
 }
 
 double DarkNewsCrossSection::TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target
@@ -103,13 +103,6 @@ double DarkNewsCrossSection::Q2Max(dataclasses::InteractionRecord const & intera
     return 0;
 }
 
-double DarkNewsCrossSection::PrimaryMass() const {
-    // Should be implemented on the python side
-    // Not pure virtual in order to allow SampleFinalState to call
-    throw(LI::utilities::PythonImplementationError("DarkNewsCrossSection::PrimaryMass should be implemented in Python!"));
-    return 0;
-}
-
 double DarkNewsCrossSection::TargetMass() const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
@@ -131,17 +124,20 @@ std::vector<double> DarkNewsCrossSection::SecondaryHelicities(double primary_hel
     return std::vector<double>();
 }
 
-void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
+void DarkNewsCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
     // Set our upscattering masses and helicities using values from DarkNews
-    interaction.SetPrimaryMass(PrimaryMass());
-    interaction.SetTargetMass(TargetMass());
-    interaction.SetSecondaryMasses(SecondaryMasses());
-    interaction.SetSecondaryHelicities(SecondaryHelicities(interaction.GetPrimaryHelicity(), interaction.GetTargetHelicity()));
+    record.SetTargetMass(TargetMass());
+    std::vector<double> secondary_masses = SecondaryMasses();
+    std::vector<double> secondary_helicities = SecondaryHelicities(record.GetPrimaryHelicity(), record.GetTargetHelicity());
 
-    LI::dataclasses::Particle primary = interaction.GetPrimary();
-    LI::dataclasses::Particle target = interaction.GetTarget();
-    std::vector<LI::dataclasses::Particle> secondaries = interaction.GetSecondaries();
-    secondaries.resize(2);
+    std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaryParticles();
+    for(size_t i = 0; i < secondaries.size(); i++) {
+        secondaries[i].mass = secondary_masses[i];
+        secondaries[i].helicity = secondary_helicities[i];
+    }
+
+    LI::dataclasses::Particle primary = record.GetPrimaryParticle();
+    LI::dataclasses::Particle target = record.GetTargetParticle();
 
     // Uses Metropolis-Hastings Algorithm
     // Assumes we have the differential xsec v.s. Q^2
@@ -166,8 +162,8 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & int
     p1_lab = p1;
     p2_lab = p2;
     primary_energy = p1_lab.e();
-    double minQ2 = Q2Min(interaction);
-    double maxQ2 = Q2Max(interaction);
+    double minQ2 = Q2Min(record.record);
+    double maxQ2 = Q2Max(record.record);
     double log_minQ2 = log10(minQ2);
     double log_maxQ2 = log10(maxQ2);
 
@@ -199,7 +195,7 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & int
         kin_vars[1] = std::pow(10,random->Uniform(log_minQ2,log_maxQ2));
     }
 
-    test_cross_section = DifferentialCrossSection(interaction.GetPrimaryType(), interaction.GetTargetType(), primary_energy, kin_vars[1]);
+    test_cross_section = DifferentialCrossSection(record.GetPrimaryType(), record.GetTargetType(), primary_energy, kin_vars[1]);
     cross_section = test_cross_section;
 
     // this is the magic part. Metropolis Hastings Algorithm.
@@ -209,7 +205,7 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & int
     for(size_t j = 0; j <= burnin; j++) {
         // repeat the sampling from above to get a new valid point
         test_kin_vars[1] = std::pow(10,random->Uniform(log_minQ2,log_maxQ2));
-        test_cross_section = DifferentialCrossSection(interaction.GetPrimaryType(), interaction.GetTargetType(), primary_energy, test_kin_vars[1]);
+        test_cross_section = DifferentialCrossSection(record.GetPrimaryType(), record.GetTargetType(), primary_energy, test_kin_vars[1]);
         double odds = (test_cross_section / cross_section);
         accept = (cross_section == 0 || (odds > 1.) || random->Uniform(0, 1) < odds);
 
@@ -277,7 +273,7 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::InteractionRecord & int
     secondaries[1].momentum[2] = p4.py(); // p4_y
     secondaries[1].momentum[3] = p4.pz(); // p4_z
 
-    interaction.SetSecondaries(secondaries);
+    record.SetSecondaryParticles(secondaries);
 }
 
 double DarkNewsCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
