@@ -40,7 +40,7 @@ bool NeutrissimoDecay::equal(Decay const & other) const {
 }
 
 double NeutrissimoDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
-    return TotalDecayWidth(record.GetPrimaryType());
+    return TotalDecayWidth(record.signature.primary_type);
 }
 
 double NeutrissimoDecay::TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const {
@@ -50,7 +50,7 @@ double NeutrissimoDecay::TotalDecayWidth(LI::dataclasses::Particle::ParticleType
 }
 
 double NeutrissimoDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
-    LI::dataclasses::InteractionSignature const & signature = record.GetSignature();
+    LI::dataclasses::InteractionSignature const & signature = record.signature;
     unsigned int gamma_index = (signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;
     double dipole_coupling_sq = 0;
@@ -109,21 +109,16 @@ double NeutrissimoDecay::DifferentialDecayWidth(dataclasses::InteractionRecord c
       return DecayWidth/2.;
     }
 
-    LI::dataclasses::Particle primary = record.GetPrimary();
-    LI::dataclasses::InteractionSignature const & signature = record.GetSignature();
-    std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaries();
-    secondaries.resize(2);
-    secondaries[0].type = signature.secondary_types[0];
-    secondaries[1].type = signature.secondary_types[1];
+    LI::dataclasses::InteractionSignature const & signature = record.signature;
 
-    LI::math::Vector3D hnl_dir = LI::math::Vector3D(primary.momentum[0],
-                                                    primary.momentum[1],
-                                                    primary.momentum[2]);
+    LI::math::Vector3D hnl_dir = LI::math::Vector3D(record.primary_momentum[0],
+                                                    record.primary_momentum[1],
+                                                    record.primary_momentum[2]);
     hnl_dir.normalize();
     unsigned int gamma_index = (signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::Gamma) ? 0 : 1;
-    LI::dataclasses::Particle gamma = secondaries[gamma_index];
-    rk::P4 pHNL(geom3::Vector3(primary.momentum[1], primary.momentum[2], primary.momentum[3]), primary.mass);
-    rk::P4 pGamma(geom3::Vector3(gamma.momentum[1], gamma.momentum[2], gamma.momentum[3]), gamma.mass);
+    std::array<double, 4> const & gamma_momentum = record.secondary_momenta[gamma_index];
+    rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+    rk::P4 pGamma(geom3::Vector3(gamma_momentum[1], gamma_momentum[2], gamma_momentum[3]), record.secondary_masses[gamma_index]);
     rk::Boost boost_to_HNL_rest = pHNL.restBoost();
     rk::P4 pGamma_HNLrest = pGamma.boost(boost_to_HNL_rest);
 
@@ -132,19 +127,15 @@ double NeutrissimoDecay::DifferentialDecayWidth(dataclasses::InteractionRecord c
                                                       pGamma_HNLrest.pz());
     gamma_dir.normalize();
     double CosThetaGamma = gamma_dir*hnl_dir; // scalar product
-    double alpha = std::copysign(1.0,record.GetPrimaryHelicity()); // 1 for RH, -1 for LH
+    double alpha = std::copysign(1.0, record.primary_helicity); // 1 for RH, -1 for LH
     alpha = (signature.primary_type == LI::dataclasses::Particle::ParticleType::NuF4) ? -1*alpha : alpha;
     return DecayWidth/2. * (1 + alpha*CosThetaGamma);
 }
 
-void NeutrissimoDecay::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
+void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
 
     LI::dataclasses::InteractionSignature const & signature = record.GetSignature();
-    LI::dataclasses::Particle primary = record.GetPrimary();
-    std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaries();
-    secondaries.resize(2);
-    secondaries[0].type = signature.secondary_types[0];
-    secondaries[1].type = signature.secondary_types[1];
+    std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaryParticles();
 
     unsigned int gamma_index = (signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;
@@ -161,7 +152,7 @@ void NeutrissimoDecay::SampleFinalState(dataclasses::InteractionRecord & record,
     }
     double SinTheta = std::sin(std::acos(CosTheta));
 
-    rk::P4 pHNL(geom3::Vector3(primary.momentum[1], primary.momentum[2], primary.momentum[3]), primary.mass);
+    rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     rk::Boost boost_to_lab = pHNL.labBoost();
 
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
@@ -190,9 +181,9 @@ void NeutrissimoDecay::SampleFinalState(dataclasses::InteractionRecord & record,
     secondaries[nu_index].momentum[2] = pNu.py(); // pNu_y
     secondaries[nu_index].momentum[3] = pNu.pz(); // pNu_z
     secondaries[nu_index].mass = pNu.m();
-    secondaries[nu_index].helicity = -1*record.GetPrimaryHelicity();
+    secondaries[nu_index].helicity = -1*record.primary_helicity;
 
-    record.SetSecondaries(secondaries);
+    record.SetSecondaryParticles(secondaries);
 }
 
 double NeutrissimoDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
