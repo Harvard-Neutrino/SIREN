@@ -54,11 +54,13 @@ PYBIND11_MODULE(dataclasses,m) {
             [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::ParticleID id = pdr.id; return id;})
         .def_property_readonly("type",
             [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::ParticleType pt = pdr.type; return pt;})
+        .def("GetParticle", &PrimaryDistributionRecord::GetParticle)
+        .def("SetParticle", &PrimaryDistributionRecord::SetParticle)
         .def_property("mass", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetMass)), &PrimaryDistributionRecord::SetMass)
         .def_property("energy", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetEnergy)), &PrimaryDistributionRecord::SetEnergy)
         .def_property("kinetic_energy", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetKineticEnergy)), &PrimaryDistributionRecord::SetKineticEnergy)
         .def_property("direction", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetDirection)), &PrimaryDistributionRecord::SetDirection)
-        .def_property("momentum", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetThreeMomentum)), &PrimaryDistributionRecord::SetThreeMomentum)
+        .def_property("three_momentum", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetThreeMomentum)), &PrimaryDistributionRecord::SetThreeMomentum)
         .def_property("four_momentum", ((std::array<double, 4> (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetFourMomentum)), &PrimaryDistributionRecord::SetFourMomentum)
         .def_property("length", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetLength)), &PrimaryDistributionRecord::SetLength)
         .def_property("initial_position", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInitialPosition)), &PrimaryDistributionRecord::SetInitialPosition)
@@ -66,6 +68,24 @@ PYBIND11_MODULE(dataclasses,m) {
         .def_property("helicity", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetHelicity)), &PrimaryDistributionRecord::SetHelicity)
         .def("Finalize", &PrimaryDistributionRecord::Finalize);
 
+    class_<SecondaryParticleRecord, std::shared_ptr<SecondaryParticleRecord>>(m, "SecondaryParticleRecord")
+        .def(init<InteractionRecord const &, size_t>())
+        .def_property_readonly("id",
+            [](LI::dataclasses::SecondaryParticleRecord const & spr) {LI::dataclasses::ParticleID id = spr.id; return id;})
+        .def_property_readonly("type",
+            [](LI::dataclasses::SecondaryParticleRecord const & spr) {LI::dataclasses::ParticleType pt = spr.type; return pt;})
+        .def_property_readonly("initial_position",
+            [](LI::dataclasses::SecondaryParticleRecord const & spr) {std::array<double, 3> ip = spr.initial_position; return ip;})
+        .def("GetParticle", &SecondaryParticleRecord::GetParticle)
+        .def("SetParticle", &SecondaryParticleRecord::SetParticle)
+        .def_property("mass", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetMass)), &SecondaryParticleRecord::SetMass)
+        .def_property("energy", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetEnergy)), &SecondaryParticleRecord::SetEnergy)
+        .def_property("kinetic_energy", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetKineticEnergy)), &SecondaryParticleRecord::SetKineticEnergy)
+        .def_property("direction", ((std::array<double, 3> const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetDirection)), &SecondaryParticleRecord::SetDirection)
+        .def_property("three_momentum", ((std::array<double, 3> const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetThreeMomentum)), &SecondaryParticleRecord::SetThreeMomentum)
+        .def_property("four_momentum", ((std::array<double, 4> (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetFourMomentum)), &SecondaryParticleRecord::SetFourMomentum)
+        .def_property("helicity", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetHelicity)), &SecondaryParticleRecord::SetHelicity)
+        .def("Finalize", &SecondaryParticleRecord::Finalize);
 
   class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
           .def(init<>())
