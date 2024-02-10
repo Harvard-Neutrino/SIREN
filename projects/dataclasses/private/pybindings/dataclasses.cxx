@@ -44,6 +44,29 @@ PYBIND11_MODULE(dataclasses,m) {
           .def_readwrite("target_type",&InteractionSignature::target_type)
           .def_readwrite("secondary_types",&InteractionSignature::secondary_types);
 
+    class_<PrimaryDistributionRecord, std::shared_ptr<PrimaryDistributionRecord>>(m, "PrimaryDistributionRecord")
+        .def(init<InteractionRecord const &>())
+        .def_property_readonly("record",
+            [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::InteractionRecord ir = pdr.record; return ir;})
+        .def_property_readonly("signature",
+            [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::InteractionSignature is = pdr.signature; return is;})
+        .def_property_readonly("id",
+            [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::ParticleID id = pdr.id; return id;})
+        .def_property_readonly("type",
+            [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::ParticleType pt = pdr.type; return pt;})
+        .def_property("mass", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetMass)), &PrimaryDistributionRecord::SetMass)
+        .def_property("energy", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetEnergy)), &PrimaryDistributionRecord::SetEnergy)
+        .def_property("kinetic_energy", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetKineticEnergy)), &PrimaryDistributionRecord::SetKineticEnergy)
+        .def_property("direction", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetDirection)), &PrimaryDistributionRecord::SetDirection)
+        .def_property("momentum", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetThreeMomentum)), &PrimaryDistributionRecord::SetThreeMomentum)
+        .def_property("four_momentum", ((std::array<double, 4> (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetFourMomentum)), &PrimaryDistributionRecord::SetFourMomentum)
+        .def_property("length", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetLength)), &PrimaryDistributionRecord::SetLength)
+        .def_property("initial_position", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInitialPosition)), &PrimaryDistributionRecord::SetInitialPosition)
+        .def_property("interaction_vertex", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInteractionVertex)), &PrimaryDistributionRecord::SetInteractionVertex)
+        .def_property("helicity", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetHelicity)), &PrimaryDistributionRecord::SetHelicity)
+        .def("Finalize", &PrimaryDistributionRecord::Finalize);
+
+
   class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
           .def(init<>())
           .def_readwrite("signature",&InteractionRecord::signature)
