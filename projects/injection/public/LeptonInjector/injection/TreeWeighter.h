@@ -18,7 +18,7 @@
 #include "LeptonInjector/dataclasses/InteractionTree.h"  // for InteractionT...
 #include "LeptonInjector/dataclasses/Particle.h"         // for Particle
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace distributions { class InjectionDistribution; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }

@@ -16,7 +16,7 @@
 #include <cereal/types/utility.hpp>
 
 namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }
 namespace LI { namespace injection { class Injector; } }

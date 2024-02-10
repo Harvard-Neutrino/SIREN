@@ -12,7 +12,7 @@
 #include "LeptonInjector/injection/Process.h"
 #include "LeptonInjector/math/Vector3D.h"
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
 
 namespace LI {

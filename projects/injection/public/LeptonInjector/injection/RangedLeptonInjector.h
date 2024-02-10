@@ -26,7 +26,7 @@
 #include "LeptonInjector/distributions/primary/vertex/RangePositionDistribution.h"
 #include "LeptonInjector/injection/Injector.h"  // for Injector
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace injection { class InjectionProcess; } }
 namespace LI { namespace math { class Vector3D; } }
 namespace LI { namespace utilities { class LI_random; } }

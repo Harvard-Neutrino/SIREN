@@ -19,7 +19,7 @@
 #include "LeptonInjector/math/Vector3D.h"                // for Vector3D
 
 namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace utilities { class LI_random; } }
 
