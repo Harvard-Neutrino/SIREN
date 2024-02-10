@@ -12,8 +12,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-
-
 using namespace pybind11;
 
 PYBIND11_MODULE(dataclasses,m) {
@@ -22,7 +20,7 @@ PYBIND11_MODULE(dataclasses,m) {
   class_<Particle, std::shared_ptr<Particle>> particle(m, "Particle");
 
   particle.def(init<>())
-          .def(init<ParticleType>())
+          .def(init<Particle const &>())
           .def(init<ParticleID, ParticleType, double, std::array<double, 4>, std::array<double, 3>, double, double>())
           .def(init<ParticleType, double, std::array<double, 4>, std::array<double, 3>, double, double>())
           .def_readwrite("id",&Particle::id)

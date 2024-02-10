@@ -67,7 +67,7 @@ public:
         );
     }
 
-    void SampleFinalState(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::utilities::LI_random> rand) const override {
+    void SampleFinalState(LI::dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> rand) const override {
         PYBIND11_OVERRIDE_PURE(
             void,
             CrossSection,
@@ -150,7 +150,7 @@ void register_CrossSection(pybind11::module_ & m) {
         .def("TotalCrossSection", (double (CrossSection::*)(LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType) const)(&CrossSection::TotalCrossSection))
         .def("DifferentialCrossSection", &CrossSection::DifferentialCrossSection)
         .def("InteractionThreshold", &CrossSection::InteractionThreshold)
-        .def("SampleFinalState", &CrossSection::SampleFinalState)
+        .def("SampleFinalState", (void (CrossSection::*)(LI::dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const)(&CrossSection::SampleFinalState))
         .def("GetPossibleTargets", &CrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary", &CrossSection::GetPossibleTargetsFromPrimary)
         .def("GetPossiblePrimaries", &CrossSection::GetPossiblePrimaries)
