@@ -490,25 +490,25 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             self._redefine_interpolation_objects(diff=True)
         return dxsec
 
-    def SetUpscatteringMasses(self, interaction):
-        interaction.primary_mass = 0
-        interaction.target_mass = self.ups_case.MA
+    def TargetMass(self, target_type):
+        target_mass = self.ups_case.MA
+        return target_mass
+
+    def SecondaryMasses(self, secondary_types):
         secondary_masses = []
         secondary_masses.append(self.ups_case.m_ups)
         secondary_masses.append(self.ups_case.MA)
-        interaction.secondary_masses = secondary_masses
-        self.m_ups = self.ups_case.m_ups
-        self.m_target = self.ups_case.MA
+        return secondary_masses
 
-    def SetUpscatteringHelicities(self, interaction):
+    def SecondaryHelicities(self, record):
         secondary_helicities = []
         secondary_helicities.append(
             self.ups_case.h_upscattered * interaction.primary_helicity
         )
         secondary_helicities.append(interaction.target_helicity)
-        interaction.secondary_helicity = secondary_helicities
         self.h_ups = self.ups_case.m_ups
         self.h_target = self.ups_case.MA
+        return secondary_helicities
 
     def TotalCrossSection(self, arg1, energy=None, target=None):
         # Handle overloaded arguments
