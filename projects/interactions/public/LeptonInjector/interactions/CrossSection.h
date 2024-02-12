@@ -34,7 +34,7 @@ public:
     bool operator==(CrossSection const & other) const;
     virtual bool equal(CrossSection const & other) const = 0;
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const = 0;
-    virtual double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const = 0;
+    virtual double TotalCrossSectionAllFinalStates(dataclasses::InteractionRecord const &) const;
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const = 0;
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const = 0;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const = 0;
