@@ -35,8 +35,10 @@ namespace LI { namespace dataclasses { struct DecayRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace distributions { class InjectionDistribution; } }
 namespace LI { namespace distributions { class VertexPositionDistribution; } }
+namespace LI { namespace distributions { class SecondaryVertexPositionDistribution; } }
 namespace LI { namespace geometry { class Geometry; } }
 namespace LI { namespace injection { class InjectionProcess; } }
+namespace LI { namespace injection { class SecondaryInjectionProcess; } }
 namespace LI { namespace math { class Vector3D; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -53,46 +55,46 @@ protected:
     std::shared_ptr<LI::utilities::LI_random> random;
     std::shared_ptr<LI::detector::DetectorModel> detector_model;
     // This funciton returns true if the given datum is the last entry to be saved in a tree
-    std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition;
+    std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition;
     Injector();
 private:
     std::shared_ptr<injection::InjectionProcess> primary_process;
     std::shared_ptr<distributions::VertexPositionDistribution> primary_position_distribution;
-    std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes;
-    std::vector<std::shared_ptr<distributions::VertexPositionDistribution>> secondary_position_distributions;
-    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::injection::InjectionProcess>> secondary_process_map;
-    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<distributions::VertexPositionDistribution>> secondary_position_distribution_map;
+    std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes;
+    std::vector<std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distributions;
+    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::injection::SecondaryInjectionProcess>> secondary_process_map;
+    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distribution_map;
 public:
     // Constructors
     Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<LI::utilities::LI_random> random);
     Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::shared_ptr<LI::utilities::LI_random> random);
-    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random);
 
-    void SetStoppingCondition(std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> f_in) {stopping_condition = f_in;}
-    std::shared_ptr<distributions::VertexPositionDistribution> FindPositionDistribution(std::shared_ptr<LI::injection::InjectionProcess> process);
+    void SetStoppingCondition(std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>, size_t)> f_in) {stopping_condition = f_in;}
+    std::shared_ptr<distributions::VertexPositionDistribution> FindPrimaryVertexDistribution(std::shared_ptr<LI::injection::InjectionProcess> process);
+    std::shared_ptr<distributions::SecondaryVertexPositionDistribution> FindSecondaryVertexDistribution(std::shared_ptr<LI::injection::SecondaryInjectionProcess> process);
     void SetPrimaryProcess(std::shared_ptr<LI::injection::InjectionProcess> primary);
     std::shared_ptr<LI::injection::InjectionProcess> GetPrimaryProcess() {return primary_process;}
-    std::vector<std::shared_ptr<LI::injection::InjectionProcess>> GetSecondaryProcesses() {return secondary_processes;}
-    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::injection::InjectionProcess>> GetSecondaryProcessMap() {return secondary_process_map;}
-    void AddSecondaryProcess(std::shared_ptr<LI::injection::InjectionProcess> secondary);
+    std::vector<std::shared_ptr<LI::injection::SecondaryInjectionProcess>> GetSecondaryProcesses() {return secondary_processes;}
+    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::injection::SecondaryInjectionProcess>> GetSecondaryProcessMap() {return secondary_process_map;}
+    void AddSecondaryProcess(std::shared_ptr<LI::injection::SecondaryInjectionProcess> secondary);
     virtual LI::dataclasses::InteractionRecord NewRecord() const; // set primary type from primary process;
     void SetRandom(std::shared_ptr<LI::utilities::LI_random> random);
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record) const;
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record,
                                     std::shared_ptr<LI::interactions::InteractionCollection> interactions) const;
     virtual void SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
-    bool SampleSecondaryProcess(unsigned int idx,
-                                std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent,
-                                LI::dataclasses::InteractionTreeDatum & datum);
+    LI::dataclasses::InteractionRecord SampleSecondaryProcess(LI::dataclasses::SecondaryDistributionRecord & secondary_record) const;
     LI::dataclasses::InteractionTree GenerateEvent();
     virtual std::string Name() const;
     virtual double SecondaryGenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum) const;
+    virtual double SecondaryGenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum, std::shared_ptr<LI::injection::SecondaryInjectionProcess> process) const;
     virtual double GenerationProbability(LI::dataclasses::InteractionTree const & tree) const;
     virtual double GenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum, std::shared_ptr<LI::injection::InjectionProcess> process = NULL) const;
     virtual double GenerationProbability(LI::dataclasses::InteractionRecord const & record, std::shared_ptr<LI::injection::InjectionProcess> process = NULL) const;
     virtual std::set<std::vector<std::string>> DensityVariables() const;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionTreeDatum const & datum, LI::dataclasses::Particle::ParticleType const & primary_type) const;
+    virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> PrimaryInjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const;
+    virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> SecondaryInjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const;
     virtual std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> GetInjectionDistributions() const;
     virtual std::shared_ptr<LI::detector::DetectorModel> GetDetectorModel() const;
     virtual std::shared_ptr<LI::interactions::InteractionCollection> GetInteractions() const;
