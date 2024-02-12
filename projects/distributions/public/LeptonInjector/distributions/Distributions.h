@@ -142,8 +142,6 @@ private:
 public:
     virtual ~InjectionDistribution() {};
     virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const;
-    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const;
-    virtual bool IsPositionDistribution() const {return false;}
     virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {

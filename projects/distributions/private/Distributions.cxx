@@ -57,10 +57,6 @@ bool WeightableDistribution::AreEquivalent(std::shared_ptr<LI::detector::Detecto
     return this->operator==(*distribution);
 }
 
-double WeightableDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
-    return GenerationProbability(detector_model, interactions, datum.record);
-}
-
 //---------------
 // class NormalizationConstant : WeightableDistribution, PhysicallyNormalizedDistribution
 //---------------
@@ -96,10 +92,6 @@ bool NormalizationConstant::less(WeightableDistribution const & distribution) co
 //---------------
 
 void InjectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-}
-
-void InjectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
-  Sample(rand, detector_model, interactions, datum.record);
 }
 
 } // namespace distributions
