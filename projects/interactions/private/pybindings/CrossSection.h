@@ -38,14 +38,12 @@ public:
         );
     }
 
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override {
-        PYBIND11_OVERRIDE_PURE(
+    double TotalCrossSectionAllFinalStates(LI::dataclasses::InteractionRecord const & record) const override {
+        PYBIND11_OVERRIDE(
             double,
             CrossSection,
-            TotalCrossSection,
-            primary,
-            energy,
-            target
+            TotalCrossSectionAllFinalStates,
+            record
         );
     }
 

@@ -52,7 +52,7 @@ PYBIND11_MODULE(injection,m) {
   class_<Injector, std::shared_ptr<Injector>>(m, "Injector")
     .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::utilities::LI_random>>())
     .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::shared_ptr<LI::utilities::LI_random>>())
-    .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>>())
+    .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>>())
     .def("SetStoppingCondition",&Injector::SetStoppingCondition)
     .def("SetPrimaryProcess",&Injector::SetPrimaryProcess)
     .def("AddSecondaryProcess",&Injector::AddSecondaryProcess)
@@ -71,20 +71,21 @@ PYBIND11_MODULE(injection,m) {
     .def("EventsToInject",&Injector::EventsToInject);
 
   class_<RangedLeptonInjector, std::shared_ptr<RangedLeptonInjector>, Injector>(m, "RangedLeptonInjector")
-    .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::RangeFunction>, double, double>())
+    .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::RangeFunction>, double, double>())
     .def("Name",&RangedLeptonInjector::Name);
 
   class_<DecayRangeLeptonInjector, std::shared_ptr<DecayRangeLeptonInjector>, Injector>(m, "DecayRangeLeptonInjector")
-    .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::DecayRangeFunction>, double, double>())
+    .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::DecayRangeFunction>, double, double>())
     .def("Name",&DecayRangeLeptonInjector::Name);
 
   class_<ColumnDepthLeptonInjector, std::shared_ptr<ColumnDepthLeptonInjector>, Injector>(m, "ColumnDepthLeptonInjector")
-    .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::DepthFunction>, double, double>())
+    .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::distributions::DepthFunction>, double, double>())
     .def("Name",&ColumnDepthLeptonInjector::Name)
-    .def("InjectionBounds",&ColumnDepthLeptonInjector::InjectionBounds);
+    .def("PrimaryInjectionBounds",&ColumnDepthLeptonInjector::PrimaryInjectionBounds)
+    .def("SecondaryInjectionBounds",&ColumnDepthLeptonInjector::SecondaryInjectionBounds);
 
   class_<CylinderVolumeLeptonInjector, std::shared_ptr<CylinderVolumeLeptonInjector>, Injector>(m, "CylinderVolumeLeptonInjector")
-    .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<InjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, LI::geometry::Cylinder>())
+    .def(init<unsigned int, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<InjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<LI::utilities::LI_random>, LI::geometry::Cylinder>())
     .def("Name",&CylinderVolumeLeptonInjector::Name);
 
   // Weighter classes

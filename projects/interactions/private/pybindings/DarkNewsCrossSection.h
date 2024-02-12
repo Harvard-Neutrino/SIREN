@@ -86,16 +86,14 @@ public:
         )
     }
 
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override {
+    double TotalCrossSectionAllFinalStates(LI::dataclasses::InteractionRecord const & record) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
             double,
-            TotalCrossSection,
-            "TotalCrossSection",
-            primary,
-            energy,
-            target
+            TotalCrossSectionAllFinalStates,
+            "TotalCrossSectionAllFinalStates",
+            record
         )
     }
 
