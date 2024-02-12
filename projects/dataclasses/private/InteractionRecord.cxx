@@ -869,19 +869,59 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) {
 
 /////////////////////////////////////////
 
-SecondaryDistributionRecord::SecondaryDistributionRecord(InteractionRecord const & record, size_t secondary_index) :
-    parent_record(record),
-    secondary_index(secondary_index),
-    id((record.secondary_ids.at(secondary_index)) ? (record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
-    type(record.signature.secondary_types.at(secondary_index)),
-    mass(record.secondary_masses.at(secondary_index)),
-    direction(),
-    momentum(record.secondary_momenta.at(secondary_index)),
-    helicity(record.secondary_helicities.at(secondary_index)),
-    initial_position(record.primary_initial_position) {
-    double magnitude = std::sqrt(momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2) + momentum.at(3)*momentum.at(3));
-    direction = {momentum.at(1)/magnitude, momentum.at(2)/magnitude, momentum.at(3)/magnitude};
+InteractionRecord SecondaryDistributionRecord::CreateSecondaryRecord(InteractionRecord const & parent_record, size_t secondary_index) {
+    InteractionRecord record;
+
+    record.primary_id = ((parent_record.secondary_ids.at(secondary_index)) ? (parent_record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
+    record.signature.primary_type = parent_record.signature.secondary_types.at(secondary_index);
+    record.primary_mass = parent_record.secondary_masses.at(secondary_index);
+    record.primary_momentum = parent_record.secondary_momenta.at(secondary_index);
+    record.primary_helicity = parent_record.secondary_helicities.at(secondary_index);
+    record.primary_initial_position = parent_record.primary_initial_position;
+    return record;
 }
+
+SecondaryDistributionRecord::SecondaryDistributionRecord(InteractionRecord & record) :
+    record([](InteractionRecord & record) -> InteractionRecord & {
+        record.primary_id = ((record.primary_id) ? (record.primary_id) : (ParticleID::GenerateID()));
+        return record;
+    }(record)),
+    id(record.primary_id),
+    type(record.signature.primary_type),
+    mass(record.primary_mass),
+    direction([](InteractionRecord const & record) -> std::array<double, 3> {
+        std::array<double, 3> direction;
+        if(record.primary_momentum.at(0) != 0) {
+            double magnitude = std::sqrt(record.primary_momentum.at(1)*record.primary_momentum.at(1) + record.primary_momentum.at(2)*record.primary_momentum.at(2) + record.primary_momentum.at(3)*record.primary_momentum.at(3));
+            direction = {record.primary_momentum.at(1)/magnitude, record.primary_momentum.at(2)/magnitude, record.primary_momentum.at(3)/magnitude};
+        } else {
+            direction = {0, 0, 0};
+        }
+        return direction;
+    }(record)),
+    momentum(record.primary_momentum),
+    helicity(record.primary_helicity),
+    initial_position(record.primary_initial_position) {}
+
+SecondaryDistributionRecord::SecondaryDistributionRecord(InteractionRecord const & parent_record, size_t secondary_index) :
+    secondary_index(secondary_index),
+    record(SecondaryDistributionRecord::CreateSecondaryRecord(parent_record, secondary_index)),
+    id(record.primary_id),
+    type(record.signature.primary_type),
+    mass(record.primary_mass),
+    direction([](InteractionRecord const & record) -> std::array<double, 3> {
+        std::array<double, 3> direction;
+        if(record.primary_momentum.at(0) != 0) {
+            double magnitude = std::sqrt(record.primary_momentum.at(1)*record.primary_momentum.at(1) + record.primary_momentum.at(2)*record.primary_momentum.at(2) + record.primary_momentum.at(3)*record.primary_momentum.at(3));
+            direction = {record.primary_momentum.at(1)/magnitude, record.primary_momentum.at(2)/magnitude, record.primary_momentum.at(3)/magnitude};
+        } else {
+            direction = {0, 0, 0};
+        }
+        return direction;
+    }(record)),
+    momentum(record.primary_momentum),
+    helicity(record.primary_helicity),
+    initial_position(record.primary_initial_position) {}
 
 double & SecondaryDistributionRecord::GetLength() {
     return length;

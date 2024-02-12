@@ -242,29 +242,6 @@ public:
     void Finalize(InteractionRecord & record);
 };
 
-class SecondaryDistributionRecord {
-public:
-    InteractionRecord const & parent_record;
-    size_t const secondary_index;
-
-    ParticleID const id;
-    ParticleType const & type;
-    double const & mass;
-    std::array<double, 3> direction;
-    std::array<double, 4> const & momentum;
-    double const & helicity;
-    std::array<double, 3> const & initial_position;
-private:
-    double length;
-public:
-    SecondaryDistributionRecord(InteractionRecord const & parent_record, size_t secondary_index);
-
-    void SetLength(double const & length);
-    double & GetLength();
-
-    void Finalize(InteractionRecord & record);
-};
-
 class InteractionRecord {
 public:
     InteractionSignature signature;
@@ -332,6 +309,32 @@ public:
         }
     }
 };
+
+class SecondaryDistributionRecord {
+    size_t const secondary_index = 0;
+public:
+    InteractionRecord const record;
+
+    ParticleID const id;
+    ParticleType const & type;
+    double const & mass;
+    std::array<double, 3> const direction;
+    std::array<double, 4> const & momentum;
+    double const & helicity;
+    std::array<double, 3> const & initial_position;
+private:
+    double length;
+public:
+    static InteractionRecord CreateSecondaryRecord(InteractionRecord const & parent_record, size_t secondary_index);
+    SecondaryDistributionRecord(InteractionRecord & record);
+    SecondaryDistributionRecord(InteractionRecord const & parent_record, size_t secondary_index);
+
+    void SetLength(double const & length);
+    double & GetLength();
+
+    void Finalize(InteractionRecord & record);
+};
+
 
 } // namespace dataclasses
 } // namespace LI
