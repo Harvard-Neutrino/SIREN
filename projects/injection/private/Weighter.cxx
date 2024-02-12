@@ -87,7 +87,7 @@ namespace {
 //---------------
 
 double LeptonWeighter::InteractionProbability(std::shared_ptr<Injector const> injector, LI::dataclasses::InteractionRecord const & record) const {
-    std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->InjectionBounds(record);
+    std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
     return InteractionProbability(bounds, record);
 }
 
@@ -137,7 +137,7 @@ double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::
 }
 
 double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<Injector const> injector, LI::dataclasses::InteractionRecord const & record) const {
-    std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->InjectionBounds(record);
+    std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
     return UnnormalizedPositionProbability(bounds, record);
 }
 
@@ -527,7 +527,7 @@ double LeptonWeighter::EventWeight(LI::dataclasses::InteractionRecord const & re
     // From each injector we need the generation probability and the unnormalized position probability (interaction probability * position probability)
     for(auto injector : injectors) {
         double generation_probability = injector->GenerationProbability(record);
-        std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->InjectionBounds(record);
+        std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
         double physical_probability = 1.0;
 
         /*
@@ -619,7 +619,7 @@ double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord 
             double pos_prob = UnnormalizedPositionProbability((std::shared_ptr<Injector const>)injectors[i], record);
             prob /= pos_prob;
         }*/
-        std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injectors[i]->InjectionBounds(record);
+        std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injectors[i]->PrimaryInjectionBounds(record);
         double interaction_probability = InteractionProbability(bounds, record);
         double normalized_position_probability = NormalizedPositionProbability(bounds, record);
         prob /= interaction_probability;

@@ -106,17 +106,21 @@ void LeptonTreeWeighter::Initialize() {
     for(auto const & injector : injectors) {
         assert(primary_physical_process->MatchesHead(injector->GetPrimaryProcess()));
         primary_process_weighters.push_back(std::make_shared<LeptonProcessWeighter>(LeptonProcessWeighter(primary_physical_process, injector->GetPrimaryProcess(), detector_model)));
-        std::map<LI::dataclasses::Particle::ParticleType,
-            std::shared_ptr<LeptonProcessWeighter>
-                > injector_sec_process_weighter_map;
-        std::map<LI::dataclasses::Particle::ParticleType,
-            std::shared_ptr<LI::injection::InjectionProcess>
-                > injector_sec_process_map = injector->GetSecondaryProcessMap();
+        std::map<LI::dataclasses::Particle::ParticleType, std::shared_ptr<LeptonProcessWeighter>>
+            injector_sec_process_weighter_map;
+        std::map<LI::dataclasses::Particle::ParticleType, std::shared_ptr<LI::injection::SecondaryInjectionProcess>>
+            injector_sec_process_map = injector->GetSecondaryProcessMap();
         for(auto const & sec_phys_process : secondary_physical_processes) {
             try{
-                std::shared_ptr<LI::injection::InjectionProcess> sec_inj_process = injector_sec_process_map.at(sec_phys_process->GetPrimaryType());
+                std::shared_ptr<LI::injection::SecondaryInjectionProcess> sec_inj_process = injector_sec_process_map.at(sec_phys_process->GetPrimaryType());
                 assert(sec_phys_process->MatchesHead(sec_inj_process)); // make sure cross section collection matches
-                injector_sec_process_weighter_map[sec_phys_process->GetPrimaryType()] = std::make_shared<LeptonProcessWeighter>(LeptonProcessWeighter(sec_phys_process,sec_inj_process,detector_model));
+                injector_sec_process_weighter_map[sec_phys_process->GetPrimaryType()] =
+                    std::make_shared<LeptonProcessWeighter>(
+                            LeptonProcessWeighter(
+                                sec_phys_process,
+                                sec_inj_process,detector_model
+                            )
+                    );
             } catch(const std::out_of_range& oor) {
                 std::cout << "Out of Range error: " << oor.what() << '\n';
                 std::cout << "Initialization Incomplete: Particle " <<  sec_phys_process->GetPrimaryType() << " does not exist in injector\n";
@@ -146,13 +150,13 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
         for(auto const & datum : tree.tree) {
             std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds;
             if(datum->depth()==0) {
-                bounds = injectors[idx]->InjectionBounds(datum->record);
+                bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
                 physical_probability *= primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
                 generation_probability *= primary_process_weighters[idx]->GenerationProbability(*datum);
             }
             else {
                 try {
-                    bounds = injectors[idx]->InjectionBounds(*datum, datum->record.signature.primary_type);
+                    bounds = injectors[idx]->SecondaryInjectionBounds(datum->record);
                     double phys_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->PhysicalProbability(bounds, datum->record);
                     double gen_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->GenerationProbability(*datum);
                     physical_probability *= phys_prob;
