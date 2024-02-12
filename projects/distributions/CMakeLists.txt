@@ -24,12 +24,15 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/LeptonDepthFunction.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/VertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/PointSourcePositionDistribution.cxx
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/SecondaryPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/RangePositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/DecayRangePositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/OrientedCylinderPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/CylinderVolumePositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/ColumnDepthPositionDistribution.cxx
+
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/SecondaryInjectionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryVertexPositionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryPhysicalVertexDistribution.cxx
 )
 add_library(LI_distributions OBJECT ${distributions_SOURCES})
 set_property(TARGET LI_distributions PROPERTY POSITION_INDEPENDENT_CODE ON)
