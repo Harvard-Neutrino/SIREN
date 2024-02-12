@@ -180,14 +180,14 @@ std::shared_ptr<InjectionDistribution> ColumnDepthPositionDistribution::clone() 
     return std::shared_ptr<InjectionDistribution>(new ColumnDepthPositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
     LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
-        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
     double lepton_depth = (*depth_function)(record.signature, record.primary_momentum[0]);
 
@@ -197,7 +197,7 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistributio
     LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
-    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+    return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool ColumnDepthPositionDistribution::equal(WeightableDistribution const & other) const {

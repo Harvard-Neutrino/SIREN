@@ -98,14 +98,14 @@ std::shared_ptr<InjectionDistribution> DecayRangePositionDistribution::clone() c
     return std::shared_ptr<InjectionDistribution>(new DecayRangePositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
     LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
-        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
     double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
 
@@ -117,9 +117,9 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
-        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
-    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+    return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool DecayRangePositionDistribution::equal(WeightableDistribution const & other) const {

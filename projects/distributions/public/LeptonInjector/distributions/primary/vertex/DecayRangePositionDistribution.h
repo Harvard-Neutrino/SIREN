@@ -3,9 +3,9 @@
 #define LI_DecayRangePositionDistribution_H
 
 #include <set>
+#include <tuple>
 #include <memory>
 #include <string>
-#include <utility>
 #include <cstdint>
 #include <stdexcept>
 
@@ -45,7 +45,7 @@ public:
     DecayRangePositionDistribution(const DecayRangePositionDistribution &) = default;
     DecayRangePositionDistribution(double radius, double endcap_length, std::shared_ptr<DecayRangeFunction> range_function);
     std::string Name() const override;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const override;
+    virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     virtual bool AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const override;
     template<typename Archive>

@@ -56,16 +56,16 @@ std::shared_ptr<InjectionDistribution> CylinderVolumePositionDistribution::clone
     return std::shared_ptr<InjectionDistribution>(new CylinderVolumePositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const {
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const {
     LI::math::Vector3D dir(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D pos(interaction.interaction_vertex);
     std::vector<LI::geometry::Geometry::Intersection> intersections = cylinder.Intersections(pos, dir);
     LI::detector::DetectorModel::SortIntersections(intersections);
     if(intersections.size() == 0) {
-        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
     } else if(intersections.size() >= 2) {
-        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(intersections.front().position, intersections.back().position);
+        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(intersections.front().position, intersections.back().position);
     } else {
         throw std::runtime_error("Only found one cylinder intersection!");
     }

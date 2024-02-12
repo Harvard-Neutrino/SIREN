@@ -31,7 +31,7 @@ LI::math::Vector3D OrientedCylinderPositionDistribution::SamplePosition(std::sha
     LI::math::Vector3D pca = SampleFromDisk(rand, dir);
 
     /*
-    std::pair<LI::math::Vector3D, LI::math::Vector3D> GetBounds(detector_model, interactions, pca);
+    std::tuple<LI::math::Vector3D, LI::math::Vector3D> GetBounds(detector_model, interactions, pca);
 
     LI::math::Vector3D p0;
     LI::math::Vector3D p1;
@@ -47,8 +47,8 @@ double OrientedCylinderPositionDistribution::GenerationProbability(std::shared_p
     return 0.0;
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> OrientedCylinderPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const {
-    return std::make_pair(LI::math::Vector3D(), LI::math::Vector3D());
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> OrientedCylinderPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const {
+    return std::make_tuple(LI::math::Vector3D(), LI::math::Vector3D());
 }
 
 bool OrientedCylinderPositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const {

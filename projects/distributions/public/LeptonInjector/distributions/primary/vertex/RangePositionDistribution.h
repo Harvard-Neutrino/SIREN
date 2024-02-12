@@ -3,10 +3,10 @@
 #define LI_RangePositionDistribution_H
 
 #include <set>
+#include <tuple>
 #include <memory>
 #include <string>
 #include <cstdint>
-#include <utility>
 #include <stdexcept>
 
 #include <cereal/access.hpp>
@@ -47,7 +47,7 @@ public:
     RangePositionDistribution(const RangePositionDistribution &) = default;
     RangePositionDistribution(double radius, double endcap_length, std::shared_ptr<RangeFunction> range_function, std::set<LI::dataclasses::Particle::ParticleType> target_types);
     std::string Name() const override;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const override;
+    virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<InjectionDistribution> clone() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {

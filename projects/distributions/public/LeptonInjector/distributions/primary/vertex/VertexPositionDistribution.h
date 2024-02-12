@@ -2,11 +2,11 @@
 #ifndef LI_VertexPositionDistribution_H
 #define LI_VertexPositionDistribution_H
 
+#include <tuple>                                         // for tuple
 #include <memory>                                        // for shared_ptr
 #include <string>                                        // for string
 #include <vector>                                        // for vector
 #include <cstdint>                                       // for uint32_t
-#include <utility>                                       // for pair
 #include <stdexcept>                                     // for runtime_error
 
 #include <cereal/access.hpp>
@@ -38,8 +38,8 @@ public:
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const override = 0;
     virtual std::shared_ptr<InjectionDistribution> clone() const override = 0;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const = 0;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const;
+    virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const = 0;
+    virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const;
     virtual bool AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {

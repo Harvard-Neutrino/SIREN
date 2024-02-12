@@ -167,7 +167,7 @@ std::shared_ptr<InjectionDistribution> PointSourcePositionDistribution::clone() 
     return std::shared_ptr<InjectionDistribution>(new PointSourcePositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
@@ -179,8 +179,8 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistributio
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
-        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
-    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+    return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool PointSourcePositionDistribution::equal(WeightableDistribution const & other) const {

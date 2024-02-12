@@ -25,7 +25,7 @@ std::vector<std::string> VertexPositionDistribution::DensityVariables() const {
     return std::vector<std::string>{"InteractionVertexPosition"};
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> VertexPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> VertexPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
   return InjectionBounds(detector_model, interactions, datum.record);
 }
 
