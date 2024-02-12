@@ -67,7 +67,6 @@ public:
 
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy) const;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2=std::numeric_limits<double>::quiet_NaN()) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;

@@ -341,7 +341,7 @@ double LeptonProcessWeighter::GenerationProbability(LI::dataclasses::Interaction
     double gen_probability = LI::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), datum.record);
 
     for(auto gen_dist : unique_gen_distributions) {
-        gen_probability *= gen_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), datum);
+        gen_probability *= gen_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), datum.record);
     }
     return gen_probability;
 }

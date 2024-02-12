@@ -79,7 +79,6 @@ friend cereal::access;
 public:
     virtual ~WeightableDistribution() {};
     virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const = 0;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     template<class Archive>
