@@ -304,12 +304,6 @@ double DISFromSpline::TotalCrossSection(LI::dataclasses::Particle::ParticleType 
     return unit * std::pow(10.0, log_xs);
 }
 
-// No implementation for DIS yet, just use non-target function
-double DISFromSpline::TotalCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type) const {
-		return DISFromSpline::TotalCrossSection(primary_type,primary_energy);
-}
-
-
 double DISFromSpline::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(0, 0, 0), interaction.target_mass);
