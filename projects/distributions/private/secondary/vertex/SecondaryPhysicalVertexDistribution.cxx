@@ -1,4 +1,4 @@
-#include "LeptonInjector/distributions/primary/vertex/SecondaryPositionDistribution.h"
+#include "LeptonInjector/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 
 #include <set>                                                    // for set
 #include <array>                                                  // for array
@@ -46,71 +46,39 @@ double log_one_minus_exp_of_negative(double x) {
 }
 
 //---------------
-// class SecondaryPositionDistribution : public VertexPositionDistribution
+// class SecondaryPhysicalVertexDistribution : public VertexPositionDistribution
 //---------------
 
-LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-    throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::SamplePosition without a datum to access the parent"));
-    return LI::math::Vector3D(0,0,0);
-}
 
-void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
-    LI::math::Vector3D pos = SamplePosition(rand, detector_model, interactions, datum);
-    datum.record.interaction_vertex[0] = pos.GetX();
-    datum.record.interaction_vertex[1] = pos.GetY();
-    datum.record.interaction_vertex[2] = pos.GetZ();
-}
+void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::SecondaryDistributionRecord & record) const {
+    LI::math::Vector3D pos = record.initial_position;
+    LI::math::Vector3D dir = record.direction;
 
-void SecondaryPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-    throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::Sample without a datum to access the parent"));
-}
-
-LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
-    LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
-    dir.normalize();
-
-    LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
+    LI::math::Vector3D endcap_0 = pos;
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
     LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
     path.ClipToOuterBounds();
 
-    // Check if fiducial volume is provided
-    if(fiducial) {
-        std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(DetectorPosition(endcap_0),
-                DetectorDirection(dir));
-        // If the path intersects the fiducial volume, restrict position to that volume
-        if(!fid_intersections.empty()) {
-            // make sure the first intersection happens before the maximum generation length
-            // and the last intersection happens in front of the generation point
-            bool update_path = (fid_intersections.front().distance < max_length
-                    && fid_intersections.back().distance > 0);
-            if(update_path) {
-                LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
-                LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
-                path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
-            }
-        }
-    }
+    std::vector<LI::dataclasses::Particle::ParticleType> targets(interactions->TargetTypes().begin(), interactions->TargetTypes().end());
 
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
-
-    std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_length = interactions->TotalDecayLength(datum.record);
-    LI::dataclasses::InteractionRecord fake_record = datum.record;
+    double total_decay_length = interactions->TotalDecayLength(record.record);
+    LI::dataclasses::InteractionRecord fake_record = record.record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
-            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+            total_cross_sections[i] += cross_section->TotalCrossSectionAllFinalStates(fake_record);
         }
     }
+
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
         throw(LI::utilities::InjectionFailure("No available interactions along path!"));
     }
+
     double traversed_interaction_depth;
     if(total_interaction_depth < 1e-6) {
         traversed_interaction_depth = rand->Uniform() * total_interaction_depth;
@@ -124,20 +92,16 @@ LI::math::Vector3D SecondaryPositionDistribution::SamplePosition(std::shared_ptr
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
     LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
-    return vertex;
+    double length = (vertex - pos) * dir;
+    record.SetLength(length);
 }
 
-double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-    throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::GenerationProbability without a datum to access the parent"));
-    return 0;
-}
-
-double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
-    LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
+double SecondaryPhysicalVertexDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::math::Vector3D vertex(datum.record.interaction_vertex);
+    LI::math::Vector3D vertex(record.interaction_vertex);
 
-    LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
+    LI::math::Vector3D endcap_0 = record.primary_initial_position;
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
     LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
@@ -146,36 +110,18 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
 
-    // Check if fiducial volume is provided
-    if(fiducial) {
-        std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial->Intersections(DetectorPosition(endcap_0),
-                DetectorDirection(dir));
-        // If the path intersects the fiducial volume, restrict position to that volume
-        if(!fid_intersections.empty()) {
-            // make sure the first intersection happens before the maximum generation length
-            // and the last intersection happens in front of the generation point
-            bool update_path = (fid_intersections.front().distance < max_length
-                    && fid_intersections.back().distance > 0);
-            if(update_path) {
-                LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
-                LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
-                path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
-            }
-        }
-    }
-
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_length = interactions->TotalDecayLength(datum.record);
-    LI::dataclasses::InteractionRecord fake_record = datum.record;
+    double total_decay_length = interactions->TotalDecayLength(record);
+    LI::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
-            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+            total_cross_sections[i] += cross_section->TotalCrossSectionAllFinalStates(fake_record);
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
@@ -196,35 +142,24 @@ double SecondaryPositionDistribution::GenerationProbability(std::shared_ptr<LI::
     return prob_density;
 }
 
-SecondaryPositionDistribution::SecondaryPositionDistribution() {}
+SecondaryPhysicalVertexDistribution::SecondaryPhysicalVertexDistribution() {}
 
-SecondaryPositionDistribution::SecondaryPositionDistribution(double max_length) : max_length(max_length) {}
+SecondaryPhysicalVertexDistribution::SecondaryPhysicalVertexDistribution(double max_length) : max_length(max_length) {}
 
-SecondaryPositionDistribution::SecondaryPositionDistribution(double max_length, std::shared_ptr<LI::geometry::Geometry> fiducial) :
-    max_length(max_length),
-    fiducial(fiducial) {}
-
-SecondaryPositionDistribution::SecondaryPositionDistribution(std::shared_ptr<const LI::geometry::Geometry> fiducial) : fiducial(fiducial) {}
-
-std::string SecondaryPositionDistribution::Name() const {
-    return "SecondaryPositionDistribution";
+std::string SecondaryPhysicalVertexDistribution::Name() const {
+    return "SecondaryPhysicalVertexDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> SecondaryPositionDistribution::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new SecondaryPositionDistribution(*this));
+std::shared_ptr<InjectionDistribution> SecondaryPhysicalVertexDistribution::clone() const {
+    return std::shared_ptr<InjectionDistribution>(new SecondaryPhysicalVertexDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-    throw(LI::utilities::SecondaryProcessFailure("Cannot call SecondaryPositionDistribution::InjectionBounds without a datum to access the parent"));
-    return std::make_pair(LI::math::Vector3D(0,0,0),LI::math::Vector3D(0,0,0));
-}
-
-std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const {
-    LI::math::Vector3D dir(datum.record.primary_momentum[1], datum.record.primary_momentum[2], datum.record.primary_momentum[3]);
+std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPhysicalVertexDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::math::Vector3D vertex(datum.record.interaction_vertex);
+    LI::math::Vector3D vertex(record.interaction_vertex);
 
-    LI::math::Vector3D endcap_0 = LI::math::Vector3D(datum.parent->record.interaction_vertex);
+    LI::math::Vector3D endcap_0 = record.primary_initial_position;
     LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
     LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
@@ -235,8 +170,8 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPositionDistribution:
     return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
-bool SecondaryPositionDistribution::equal(WeightableDistribution const & other) const {
-    const SecondaryPositionDistribution* x = dynamic_cast<const SecondaryPositionDistribution*>(&other);
+bool SecondaryPhysicalVertexDistribution::equal(WeightableDistribution const & other) const {
+    const SecondaryPhysicalVertexDistribution* x = dynamic_cast<const SecondaryPhysicalVertexDistribution*>(&other);
 
     if(!x)
         return false;
@@ -244,8 +179,8 @@ bool SecondaryPositionDistribution::equal(WeightableDistribution const & other) 
         return (max_length == x->max_length);
 }
 
-bool SecondaryPositionDistribution::less(WeightableDistribution const & other) const {
-    const SecondaryPositionDistribution* x = dynamic_cast<const SecondaryPositionDistribution*>(&other);
+bool SecondaryPhysicalVertexDistribution::less(WeightableDistribution const & other) const {
+    const SecondaryPhysicalVertexDistribution* x = dynamic_cast<const SecondaryPhysicalVertexDistribution*>(&other);
     return
         std::tie(max_length)
         <
