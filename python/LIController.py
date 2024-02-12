@@ -100,14 +100,14 @@ class LIController:
 
         # Loop through possible secondary interactions
         for i_sec, secondary_type in enumerate(secondary_types):
-            secondary_injection_process = _injection.InjectionProcess()
+            secondary_injection_process = _injection.SecondaryInjectionProcess()
             secondary_physical_process = _injection.PhysicalProcess()
             secondary_injection_process.primary_type = secondary_type
             secondary_physical_process.primary_type = secondary_type
 
             # Add all injection distributions
             for idist in secondary_injection_distributions[i_sec]:
-                secondary_injection_process.AddInjectionDistribution(idist)
+                secondary_injection_process.AddSecondaryInjectionDistribution(idist)
             # Add all physical distributions
             for pdist in secondary_physical_distributions[i_sec]:
                 secondary_physical_process.AddPhysicalDistribution(pdist)
@@ -115,12 +115,12 @@ class LIController:
             # Add the position distribution
             fid_vol = self.GetFiducialVolume()
             if fid_vol is not None:
-                secondary_injection_process.AddInjectionDistribution(
-                    _distributions.SecondaryPositionDistribution(fid_vol)
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryPhysicalVertexDistribution(fid_vol)
                 )
             else:
-                secondary_injection_process.AddInjectionDistribution(
-                    _distributions.SecondaryPositionDistribution()
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryPhysicalVertexDistribution()
                 )
 
             self.secondary_injection_processes.append(secondary_injection_process)
@@ -177,19 +177,19 @@ class LIController:
         secondary_interaction_collections = []
         for secondary_type, decay_list in secondary_decays.items():
             # Define a sedcondary injection distribution
-            secondary_injection_process = _injection.InjectionProcess()
+            secondary_injection_process = _injection.SecondaryInjectionProcess()
             secondary_physical_process = _injection.PhysicalProcess()
             secondary_injection_process.primary_type = secondary_type
             secondary_physical_process.primary_type = secondary_type
 
             # Add the secondary position distribution
             if fid_vol is not None:
-                secondary_injection_process.AddInjectionDistribution(
-                    _distributions.SecondaryPositionDistribution(fid_vol)
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryPhysicalVertexDistribution(fid_vol)
                 )
             else:
-                secondary_injection_process.AddInjectionDistribution(
-                    _distributions.SecondaryPositionDistribution()
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryPhysicalVertexDistribution()
                 )
 
             self.secondary_injection_processes.append(secondary_injection_process)
