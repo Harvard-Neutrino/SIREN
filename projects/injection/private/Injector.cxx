@@ -411,24 +411,38 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
     }
     std::cout << "Finished primary sampling! Tries: " << tries << " Failed Tries: " << failed_tries << std::endl;
     LI::dataclasses::InteractionTree tree;
+    std::cout << "Adding parent to tree" << std::endl;
     std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
+    std::cout << "Finished adding parent to tree" << std::endl;
 
+    std::cout << "Defining add_secondaries function" << std::endl;
     // Secondary Processes
     std::deque<std::tuple<std::shared_ptr<LI::dataclasses::InteractionTreeDatum>, std::shared_ptr<LI::dataclasses::SecondaryDistributionRecord>>> secondaries;
     std::function<void(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> add_secondaries = [&](std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent) {
-        for(size_t i=0; parent->record.signature.secondary_types.size(); ++i) {
+        std::cout << "In add_secondaries" << std::endl;
+        std::cout << "Parent (" << parent.get() << ")" << std::endl;
+        std::cout << "Parent has " << parent->record.signature.secondary_types.size() << " secondaries" << std::endl;
+        for(size_t i=0; i<parent->record.signature.secondary_types.size(); ++i) {
             LI::dataclasses::ParticleType const & type = parent->record.signature.secondary_types[i];
+            std::cout << "Secondary type " << type << " : " << static_cast<int32_t>(type) << std::endl;
             std::map<LI::dataclasses::Particle::ParticleType, std::shared_ptr<LI::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
-            if(it == secondary_process_map.end())
+            if(it == secondary_process_map.end()) {
+                std::cout << "No process for secondary; continuing." << std::endl;
                 continue;
-            if(stopping_condition(parent, i))
+            }
+            if(stopping_condition(parent, i)) {
+                std::cout << "Stopping condition has been met; continuing." << std::endl;
                 continue;
+            }
+            std::cout << "Adding secondary to list" << std::endl;
             secondaries.emplace_back(
                 parent,
                 std::make_shared<LI::dataclasses::SecondaryDistributionRecord>(parent->record, i)
             );
+            std::cout << "Done adding secondary to list" << std::endl;
         }
     };
+    std::cout << "Adding the first secondaries from the initial parent" << std::endl;
 
     add_secondaries(parent);
     std::cout << "secondaries.size() = " << secondaries.size() << std::endl;
