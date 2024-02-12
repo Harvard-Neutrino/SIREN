@@ -54,8 +54,14 @@ LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_p
     LI::math::Vector3D endcap_0 = origin;
     LI::math::Vector3D endcap_1 = origin + max_distance * dir;
 
+    std::cout << "Endcap 0: " << endcap_0 << std::endl;
+    std::cout << "Endcap 1: " << endcap_1 << std::endl;
+    std::cout << "Dir: " << dir << std::endl;
     LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
     path.ClipToOuterBounds();
+
+    std::cout << "Endcap 0: " << LI::math::Vector3D(path.GetFirstPoint()) << std::endl;
+    std::cout << "Endcap 1: " << LI::math::Vector3D(path.GetLastPoint()) << std::endl;
 
     std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
 
@@ -63,19 +69,28 @@ LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_p
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = interactions->TotalDecayLength(record);
     LI::dataclasses::InteractionRecord fake_record = record;
+    std::cout << "Total decay length: " << total_decay_length << std::endl;
+    std::cout << "Targets: " << targets.size() << std::endl;
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
+        std::cout << "Target: " << target << std::endl;
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
+        std::cout << "Target mass: " << fake_record.target_mass << std::endl;
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
-            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+            std::cout << "Fake record: " << fake_record << std::endl;
+            double cross_section_value = cross_section->TotalCrossSectionAllFinalStates(fake_record);
+            std::cout << "Cross section: " << cross_section_value << std::endl;
+            total_cross_sections[i] += cross_section_value;
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
+    std::cout << "Total interaction depth: " << total_interaction_depth << std::endl;
     if(total_interaction_depth == 0) {
         throw(LI::utilities::InjectionFailure("No available interactions along path!"));
     }
     double traversed_interaction_depth;
+    std::cout << "Sampling from interaction depth" << std::endl;
     if(total_interaction_depth < 1e-6) {
         traversed_interaction_depth = rand->Uniform() * total_interaction_depth;
     } else {
@@ -84,7 +99,9 @@ LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_p
         double y = rand->Uniform();
         traversed_interaction_depth = -log(y * exp_m_total_interaction_depth + (1.0 - y));
     }
+    std::cout << "Traversed interaction depth: " << traversed_interaction_depth << std::endl;
 
+    std::cout << "Solving for distance" << std::endl;
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
     LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
@@ -117,7 +134,7 @@ double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
-            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+            total_cross_sections[i] += cross_section->TotalCrossSectionAllFinalStates(fake_record);
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);

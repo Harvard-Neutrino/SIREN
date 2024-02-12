@@ -14,10 +14,6 @@ namespace distributions {
 //---------------
 // class VertexPositionDistribution : InjectionDistribution
 //---------------
-LI::math::Vector3D VertexPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const {
-  return SamplePosition(rand, detector_model, interactions, datum.record);
-}
-
 void VertexPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
     LI::math::Vector3D pos = SamplePosition(rand, detector_model, interactions, record);
     record.interaction_vertex[0] = pos.GetX();

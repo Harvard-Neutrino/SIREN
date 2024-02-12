@@ -81,7 +81,7 @@ LI::math::Vector3D ColumnDepthPositionDistribution::SamplePosition(std::shared_p
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
-            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+            total_cross_sections[i] += cross_section->TotalCrossSectionAllFinalStates(fake_record);
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
@@ -147,7 +147,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
-            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+            total_cross_sections[i] += cross_section->TotalCrossSectionAllFinalStates(fake_record);
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
