@@ -32,7 +32,7 @@ namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI {
 namespace interactions {
 
-class InteractionCollection{
+class InteractionCollection {
 private:
     LI::dataclasses::Particle::ParticleType primary_type;
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
