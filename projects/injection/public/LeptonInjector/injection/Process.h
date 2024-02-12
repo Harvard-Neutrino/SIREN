@@ -18,6 +18,7 @@
 
 #include "LeptonInjector/dataclasses/Particle.h"         // for Particle
 #include "LeptonInjector/distributions/Distributions.h"  // for InjectionDis...
+#include "LeptonInjector/distributions/secondary/SecondaryInjectionDistribution.h"  // for InjectionDis...
 
 namespace LI { namespace interactions { class InteractionCollection; } }
 
@@ -100,6 +101,32 @@ public:
             archive(cereal::virtual_base_class<PhysicalProcess>(this));
         } else {
             throw std::runtime_error("InjectionProcess only supports version <= 0!");
+        }
+    };
+};
+
+class SecondaryInjectionProcess : public InjectionProcess {
+protected:
+    std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> secondary_injection_distributions;
+public:
+    SecondaryInjectionProcess() = default;
+    SecondaryInjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
+    SecondaryInjectionProcess(SecondaryInjectionProcess const & other);
+    SecondaryInjectionProcess(SecondaryInjectionProcess && other);
+    SecondaryInjectionProcess & operator=(SecondaryInjectionProcess const & other);
+    SecondaryInjectionProcess & operator=(SecondaryInjectionProcess && other);
+    virtual ~SecondaryInjectionProcess() = default;
+    virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) override;
+    virtual void AddInjectionDistribution(std::shared_ptr<distributions::InjectionDistribution> dist) override;
+    virtual void AddSecondaryInjectionDistribution(std::shared_ptr<distributions::SecondaryInjectionDistribution> dist);
+    std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> const & GetSecondaryInjectionDistributions() const;
+    template<class Archive>
+    void serialize(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(::cereal::make_nvp("SecondaryInjectionDistributions", injection_distributions));
+            archive(cereal::virtual_base_class<InjectionProcess>(this));
+        } else {
+            throw std::runtime_error("SecondaryInjectionProcess only supports version <= 0!");
         }
     };
 };

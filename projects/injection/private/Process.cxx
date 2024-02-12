@@ -123,5 +123,47 @@ std::vector<std::shared_ptr<distributions::InjectionDistribution>> const & Injec
     return injection_distributions;
 }
 
+/////////////////////////////////////////////
+
+SecondaryInjectionProcess::SecondaryInjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : InjectionProcess(_primary_type, _interactions) {};
+
+SecondaryInjectionProcess::SecondaryInjectionProcess(SecondaryInjectionProcess const & other) : InjectionProcess(other), secondary_injection_distributions(other.secondary_injection_distributions) {};
+
+SecondaryInjectionProcess::SecondaryInjectionProcess(SecondaryInjectionProcess && other) : InjectionProcess(other), secondary_injection_distributions(other.secondary_injection_distributions) {};
+
+SecondaryInjectionProcess & SecondaryInjectionProcess::operator=(SecondaryInjectionProcess const & other) {
+    InjectionProcess::operator=(other);
+    secondary_injection_distributions = other.secondary_injection_distributions;
+    return *this;
+};
+
+SecondaryInjectionProcess & SecondaryInjectionProcess::operator=(SecondaryInjectionProcess && other) {
+    InjectionProcess::operator=(other);
+    secondary_injection_distributions = other.secondary_injection_distributions;
+    return *this;
+};
+
+void SecondaryInjectionProcess::AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) {
+    throw std::runtime_error("Cannot add a physical distribution to an SecondaryInjectionProcess");
+}
+
+void SecondaryInjectionProcess::AddInjectionDistribution(std::shared_ptr<distributions::InjectionDistribution> dist) {
+    throw std::runtime_error("Cannot add an injection distribution to an SecondaryInjectionProcess");
+}
+
+void SecondaryInjectionProcess::AddSecondaryInjectionDistribution(std::shared_ptr<distributions::SecondaryInjectionDistribution> dist) {
+    for(auto _dist: injection_distributions) {
+        if((*_dist) == (*dist))
+            throw std::runtime_error("Cannot add duplicate SecondaryInjectionDistributions");
+    }
+    physical_distributions.push_back(std::static_pointer_cast<distributions::WeightableDistribution>(dist));
+    injection_distributions.push_back(std::static_pointer_cast<distributions::InjectionDistribution>(dist));
+    secondary_injection_distributions.push_back(dist);
+}
+
+std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> const & SecondaryInjectionProcess::GetSecondaryInjectionDistributions() const {
+    return secondary_injection_distributions;
+}
+
 } // namespace injection
 } // namespace LI
