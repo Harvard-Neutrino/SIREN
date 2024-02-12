@@ -29,8 +29,8 @@
 #include "LeptonInjector/distributions/primary/direction/Cone.h"
 #include "LeptonInjector/distributions/primary/direction/IsotropicDirection.h"
 #include "LeptonInjector/distributions/primary/vertex/PointSourcePositionDistribution.h"
-#include "LeptonInjector/distributions/primary/vertex/SecondaryPositionDistribution.h"
 #include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
+#include "LeptonInjector/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 
 #include "LeptonInjector/interactions/InteractionCollection.h"
 #include "LeptonInjector/interactions/CrossSection.h"
@@ -179,7 +179,7 @@ TEST(Injector, Generation)
     // Injection processes
     std::shared_ptr<InjectionProcess> primary_injection_process_upper_injector = std::make_shared<InjectionProcess>(); // will inject in upper tungsten target
     std::shared_ptr<InjectionProcess> primary_injection_process_lower_injector = std::make_shared<InjectionProcess>(); // will inject in lower tungsten target
-    std::vector<std::shared_ptr<InjectionProcess>> secondary_injection_processes; // common to both injectors
+    std::vector<std::shared_ptr<SecondaryInjectionProcess>> secondary_injection_processes; // common to both injectors
     // Physical processes
     std::shared_ptr<PhysicalProcess> primary_physical_process_upper_injector = std::make_shared<PhysicalProcess>(); // will inject in upper tungsten target
     std::shared_ptr<PhysicalProcess> primary_physical_process_lower_injector = std::make_shared<PhysicalProcess>(); // will inject in lower tungsten target
@@ -267,7 +267,7 @@ TEST(Injector, Generation)
     //primary_physical_process_lower_injector->AddPhysicalDistribution(lower_pos_dist);
 
     // Secondary process
-    std::shared_ptr<InjectionProcess> secondary_decay_inj_process = std::make_shared<InjectionProcess>();
+    std::shared_ptr<SecondaryInjectionProcess> secondary_decay_inj_process = std::make_shared<SecondaryInjectionProcess>();
     std::shared_ptr<PhysicalProcess> secondary_decay_phys_process = std::make_shared<PhysicalProcess>();
     secondary_decay_inj_process->SetPrimaryType(ParticleType::NuF4);
     secondary_decay_phys_process->SetPrimaryType(ParticleType::NuF4);
@@ -285,7 +285,7 @@ TEST(Injector, Generation)
     for(auto sector : detector_model->GetSectors()) {
       if(sector.name=="ccm_inner_argon") fid_vol = sector.geo;
     }
-    std::shared_ptr<VertexPositionDistribution> secondary_pos_dist = std::make_shared<SecondaryPositionDistribution>(fid_vol);
+    std::shared_ptr<SecondaryVertexPositionDistribution> secondary_pos_dist = std::make_shared<SecondaryPhysicalVertexDistribution>();
     secondary_decay_inj_process->AddInjectionDistribution(secondary_pos_dist);
 
     secondary_injection_processes.push_back(secondary_decay_inj_process);
@@ -296,8 +296,8 @@ TEST(Injector, Generation)
     std::shared_ptr<Injector> lower_injector = std::make_shared<Injector>(events_to_inject, detector_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
 
     // Set stopping condition
-    std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> stopping_condition = 
-      [&] (std::shared_ptr<LI::dataclasses::InteractionTreeDatum> datum) {
+    std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition =
+      [&] (std::shared_ptr<LI::dataclasses::InteractionTreeDatum> datum, size_t i) {
         if(datum->depth() >=1) return true;
         return false;
     };
