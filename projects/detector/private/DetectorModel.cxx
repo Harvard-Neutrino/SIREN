@@ -592,7 +592,7 @@ double DetectorModel::GetInteractionDensity(Geometry::IntersectionList const & i
     // If we have only decays, avoid the sector loop
     // total_decay_length is in m
     if(targets.empty()) {
-      return 1./total_decay_length;
+        return 1.0 / total_decay_length;
     }
 
     double interaction_density = std::numeric_limits<double>::quiet_NaN();
@@ -622,7 +622,7 @@ double DetectorModel::GetInteractionDensity(Geometry::IntersectionList const & i
 
     assert(interaction_density >= 0);
 
-    interaction_density += 1./total_decay_length;
+    interaction_density += 1.0 / total_decay_length;
 
     return interaction_density;
 }
