@@ -77,7 +77,7 @@ primary_physical_distributions["direction"] = phys_ddist
 # Position distribution: consider neutrinos from a point source
 max_dist = 25
 lower_pos_dist = LI.distributions.PointSourcePositionDistribution(
-    lower_target_origin, max_dist, set(controller.GetDetectorModelTargets()[0])
+    lower_target_origin - detector_origin, max_dist, set(controller.GetDetectorModelTargets()[0])
 )
 primary_injection_distributions["position"] = lower_pos_dist
 
