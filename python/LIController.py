@@ -116,7 +116,7 @@ class LIController:
             fid_vol = self.GetFiducialVolume()
             if fid_vol is not None:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryPhysicalVertexDistribution(fid_vol)
+                    _distributions.SecondaryBoundedVertexDistribution(fid_vol)
                 )
             else:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
@@ -185,7 +185,7 @@ class LIController:
             # Add the secondary position distribution
             if fid_vol is not None:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryPhysicalVertexDistribution(fid_vol)
+                    _distributions.SecondaryBoundedVertexDistribution(fid_vol)
                 )
             else:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
@@ -280,7 +280,7 @@ class LIController:
     def Initialize(self):
         # Define stopping condition
         # TODO: make this more general
-        def StoppingCondition(datum):
+        def StoppingCondition(datum, i):
             return True
 
         # Define the injector object
