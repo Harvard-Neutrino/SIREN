@@ -33,6 +33,7 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/SecondaryInjectionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryVertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryPhysicalVertexDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryBoundedVertexDistribution.cxx
 )
 add_library(LI_distributions OBJECT ${distributions_SOURCES})
 set_property(TARGET LI_distributions PROPERTY POSITION_INDEPENDENT_CODE ON)

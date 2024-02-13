@@ -23,6 +23,7 @@
 #include "../../public/LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/RangePositionDistribution.h"
 #include "../../public/LeptonInjector/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
+#include "../../public/LeptonInjector/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
 
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
 #include "../../../detector/public/LeptonInjector/detector/DetectorModel.h"
@@ -229,6 +230,16 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPhysicalVertexDistribution::GenerationProbability, const_))
     .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPhysicalVertexDistribution::InjectionBounds, const_))
     .def("Name",&SecondaryPhysicalVertexDistribution::Name);
+
+  class_<SecondaryBoundedVertexDistribution, std::shared_ptr<SecondaryBoundedVertexDistribution>, SecondaryVertexPositionDistribution>(m, "SecondaryBoundedVertexDistribution")
+    .def(init<>())
+    .def(init<double>())
+    .def(init<std::shared_ptr<LI::geometry::Geometry>>())
+    .def(init<std::shared_ptr<LI::geometry::Geometry>, double>())
+    .def("SampleVertex",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::SecondaryDistributionRecord &>(&SecondaryBoundedVertexDistribution::SampleVertex, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::GenerationProbability, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::InjectionBounds, const_))
+    .def("Name",&SecondaryBoundedVertexDistribution::Name);
 }
 
 
