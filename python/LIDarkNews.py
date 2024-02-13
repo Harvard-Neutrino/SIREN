@@ -503,9 +503,9 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     def SecondaryHelicities(self, record):
         secondary_helicities = []
         secondary_helicities.append(
-            self.ups_case.h_upscattered * interaction.primary_helicity
+            self.ups_case.h_upscattered * record.primary_helicity
         )
-        secondary_helicities.append(interaction.target_helicity)
+        secondary_helicities.append(record.target_helicity)
         self.h_ups = self.ups_case.m_ups
         self.h_target = self.ups_case.MA
         return secondary_helicities
@@ -521,13 +521,17 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         else:
             print("Incorrect function call to TotalCrossSection!")
             exit(0)
-        if primary != self.ups_case.nu_projectile:
+        if int(primary) != self.ups_case.nu_projectile:
+            print("Python: int(primary) != self.ups_case.nu_projectile")
+            print("Python: int(primary) = ", int(primary))
+            print("Python: self.ups_case.nu_projectile = ", self.ups_case.nu_projectile)
             return 0
         interaction = LI.dataclasses.InteractionRecord()
         interaction.signature.primary_type = primary
         interaction.signature.target_type = target
         interaction.primary_momentum[0] = energy
         if energy < self.InteractionThreshold(interaction):
+            print("Python: energy < self.InteractionThreshold(interaction)")
             return 0
 
         # Check if we can interpolate
