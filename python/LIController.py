@@ -79,12 +79,17 @@ class LIController:
         self.primary_injection_process.primary_type = primary_type
         self.primary_physical_process.primary_type = primary_type
 
-        # Add all injection distributions
-        for _, idist in primary_injection_distributions.items():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(idist)
-        # Add all physical distributions
-        for _, pdist in primary_physical_distributions.items():
-            self.primary_physical_process.AddPhysicalDistribution(pdist)
+        # Default injection distributions
+        if "mass" not in primary_injection_distributions.keys():
+            self.primary_injection_process.AddPrimaryInjectionDistribution(
+                _distributions.PrimaryMass(0)
+            )
+
+        # Default injection distributions
+        if "mass" not in primary_physical_distributions.keys():
+            self.primary_physical_process.AddPhysicalDistribution(
+                _distributions.PrimaryMass(0)
+            )
 
         # Default injection distributions
         if "helicity" not in primary_injection_distributions.keys():
@@ -98,17 +103,12 @@ class LIController:
                 _distributions.PrimaryNeutrinoHelicityDistribution()
             )
 
-        # Default injection distributions
-        if "mass" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(
-                _distributions.PrimaryMass(0)
-            )
-
-        # Default injection distributions
-        if "mass" not in primary_physical_distributions.keys():
-            self.primary_physical_process.AddPhysicalDistribution(
-                _distributions.PrimaryMass(0)
-            )
+        # Add all injection distributions
+        for _, idist in primary_injection_distributions.items():
+            self.primary_injection_process.AddPrimaryInjectionDistribution(idist)
+        # Add all physical distributions
+        for _, pdist in primary_physical_distributions.items():
+            self.primary_physical_process.AddPhysicalDistribution(pdist)
 
         # Loop through possible secondary interactions
         for i_sec, secondary_type in enumerate(secondary_types):
@@ -116,6 +116,18 @@ class LIController:
             secondary_physical_process = _injection.PhysicalProcess()
             secondary_injection_process.primary_type = secondary_type
             secondary_physical_process.primary_type = secondary_type
+
+            # Default injection distributions
+            if "mass" not in secondary_injection_distributions[i_sec].keys():
+                self.secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.secondaryMass(0)
+                )
+
+            # Default injection distributions
+            if "mass" not in secondary_physical_distributions[i_sec].keys():
+                self.secondary_physical_process.AddPhysicalDistribution(
+                    _distributions.secondaryMass(0)
+                )
 
             # Add all injection distributions
             for idist in secondary_injection_distributions[i_sec]:
