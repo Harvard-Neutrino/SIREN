@@ -47,9 +47,8 @@ namespace {
 // class PointSourcePositionDistribution : public VertexPositionDistribution
 //---------------
 
-LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
-    dir.normalize();
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+    LI::math::Vector3D dir(record.GetDirection());
 
     LI::math::Vector3D endcap_0 = origin;
     LI::math::Vector3D endcap_1 = origin + max_distance * dir;
@@ -67,8 +66,11 @@ LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_p
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_length = interactions->TotalDecayLength(record);
-    LI::dataclasses::InteractionRecord fake_record = record;
+    LI::dataclasses::InteractionRecord fake_record;
+    fake_record.signature.primary_type = record.type;
+    fake_record.primary_mass = record.GetMass();
+    fake_record.primary_momentum[0] = record.GetEnergy();
+    double total_decay_length = interactions->TotalDecayLength(fake_record);
     std::cout << "Total decay length: " << total_decay_length << std::endl;
     std::cout << "Targets: " << targets.size() << std::endl;
     for(unsigned int i=0; i<targets.size(); ++i) {
@@ -103,9 +105,10 @@ LI::math::Vector3D PointSourcePositionDistribution::SamplePosition(std::shared_p
 
     std::cout << "Solving for distance" << std::endl;
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
+    LI::math::Vector3D init_pos = path.GetFirstPoint();
     LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
-    return vertex;
+    return {init_pos, vertex};
 }
 
 double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
@@ -163,8 +166,8 @@ std::string PointSourcePositionDistribution::Name() const {
     return "PointSourcePositionDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> PointSourcePositionDistribution::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new PointSourcePositionDistribution(*this));
+std::shared_ptr<PrimaryInjectionDistribution> PointSourcePositionDistribution::clone() const {
+    return std::shared_ptr<PrimaryInjectionDistribution>(new PointSourcePositionDistribution(*this));
 }
 
 std::tuple<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {

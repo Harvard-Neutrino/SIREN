@@ -12,13 +12,14 @@ namespace LI {
 namespace distributions {
 
 //---------------
-// class VertexPositionDistribution : InjectionDistribution
+// class VertexPositionDistribution : PrimaryInjectionDistribution
 //---------------
-void VertexPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-    LI::math::Vector3D pos = SamplePosition(rand, detector_model, interactions, record);
-    record.interaction_vertex[0] = pos.GetX();
-    record.interaction_vertex[1] = pos.GetY();
-    record.interaction_vertex[2] = pos.GetZ();
+void VertexPositionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+    std::tuple<LI::math::Vector3D, LI::math::Vector3D> init_and_pos = SamplePosition(rand, detector_model, interactions, record);
+    LI::math::Vector3D const & init = std::get<0>(init_and_pos);
+    LI::math::Vector3D const & pos = std::get<1>(init_and_pos);
+    record.SetInitialPosition((std::array<double, 3>)init);
+    record.SetInteractionVertex((std::array<double, 3>)pos);
 }
 
 std::vector<std::string> VertexPositionDistribution::DensityVariables() const {

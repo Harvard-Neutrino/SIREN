@@ -58,16 +58,16 @@ double LeptonDepthFunction::GetMaxDepth() const {
     return max_depth;
 }
 
-double LeptonDepthFunction::operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const {
+double LeptonDepthFunction::operator()(LI::dataclasses::ParticleType const & primary_type, double energy) const {
     double range = std::log(1.0 + energy * mu_beta / mu_alpha) / mu_beta;
-    if(tau_primaries.count(signature.primary_type) > 0)
+    if(tau_primaries.count(primary_type) > 0)
         range += std::log(1.0 + energy * tau_beta / tau_alpha) / tau_beta;
     return std::min(range, max_depth);
 }
     
-double LeptonDepthFunction::GetLeptonDepthFunctionReturnValue(LI::dataclasses::InteractionSignature const & signature, double energy) const {
+double LeptonDepthFunction::GetLeptonDepthFunctionReturnValue(LI::dataclasses::ParticleType const & primary_type, double energy) const {
     double range = log(1.0 + energy * mu_beta / mu_alpha) / mu_beta;
-    if(tau_primaries.count(signature.primary_type) > 0)
+    if(tau_primaries.count(primary_type) > 0)
         range += log(1.0 + energy * tau_beta / tau_alpha) / tau_beta;
     return std::min(1e7*range, max_depth);
 }

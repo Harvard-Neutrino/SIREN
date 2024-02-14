@@ -5,7 +5,7 @@
 #include <math.h>             // for sqrt
 #include <algorithm>          // for min
 
-namespace LI { namespace dataclasses { struct InteractionSignature; } }
+namespace LI { namespace dataclasses { enum class ParticleType : int32_t; } }
 
 namespace LI {
 namespace distributions {
@@ -24,16 +24,16 @@ double DecayRangeFunction::DecayLength(double particle_mass, double decay_width,
     return length; // meters
 }
 
-double DecayRangeFunction::DecayLength(LI::dataclasses::InteractionSignature const & signature, double energy) const {
+double DecayRangeFunction::DecayLength(LI::dataclasses::ParticleType const & primary_type, double energy) const {
     return DecayRangeFunction::DecayLength(particle_mass, decay_width, energy);
 }
 
-double DecayRangeFunction::Range(LI::dataclasses::InteractionSignature const & signature, double energy) const {
-    return std::min(DecayLength(signature, energy) * multiplier, max_distance);
+double DecayRangeFunction::Range(LI::dataclasses::ParticleType const & primary_type, double energy) const {
+    return std::min(DecayLength(primary_type, energy) * multiplier, max_distance);
 }
 
-double DecayRangeFunction::operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const {
-    return Range(signature, energy);
+double DecayRangeFunction::operator()(LI::dataclasses::ParticleType const & primary_type, double energy) const {
+    return Range(primary_type, energy);
 }
 
 double DecayRangeFunction::Multiplier() const {

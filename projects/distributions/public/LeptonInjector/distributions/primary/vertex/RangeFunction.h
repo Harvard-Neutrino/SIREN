@@ -12,7 +12,7 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-namespace LI { namespace dataclasses { struct InteractionSignature; } }
+namespace LI { namespace dataclasses { enum class ParticleType : int32_t; } }
 
 namespace LI {
 namespace distributions {
@@ -23,7 +23,7 @@ public:
     virtual ~RangeFunction() {};
 public:
     RangeFunction();
-    virtual double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const;
+    virtual double operator()(LI::dataclasses::ParticleType const & primary_type, double energy) const;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

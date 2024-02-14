@@ -15,10 +15,8 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-#include "LeptonInjector/dataclasses/Particle.h"
+#include "LeptonInjector/dataclasses/ParticleType.h"
 #include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
-
-namespace LI { namespace dataclasses { struct InteractionSignature; } }
 
 namespace LI {
 namespace distributions {
@@ -32,10 +30,10 @@ private:
     double tau_beta = 2.6315789473684212e-7;
     double scale = 1.0;
     double max_depth = 3e7;
-    std::set<LI::dataclasses::Particle::ParticleType> tau_primaries = {LI::dataclasses::Particle::ParticleType::NuTau, LI::dataclasses::Particle::ParticleType::NuTauBar};
+    std::set<LI::dataclasses::ParticleType> tau_primaries = {LI::dataclasses::ParticleType::NuTau, LI::dataclasses::ParticleType::NuTauBar};
 public:
     LeptonDepthFunction();
-    double GetLeptonDepthFunctionReturnValue(LI::dataclasses::InteractionSignature const & signature, double energy) const; 
+    double GetLeptonDepthFunctionReturnValue(LI::dataclasses::ParticleType const & primary_type, double energy) const; 
     void SetMuParams(double mu_alpha, double mu_beta);
     void SetTauParams(double tau_alpha, double tau_beta);
     void SetScale(double scale);
@@ -46,7 +44,7 @@ public:
     double GetTauBeta() const;
     double GetScale() const;
     double GetMaxDepth() const;
-    virtual double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const override;
+    virtual double operator()(LI::dataclasses::ParticleType const & primary_type, double energy) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

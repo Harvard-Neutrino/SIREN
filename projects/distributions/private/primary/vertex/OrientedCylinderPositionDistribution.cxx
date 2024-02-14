@@ -25,8 +25,8 @@ LI::math::Vector3D OrientedCylinderPositionDistribution::SampleFromDisk(std::sha
     return q.rotate(pos, false);
 }
 
-LI::math::Vector3D OrientedCylinderPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> OrientedCylinderPositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+    LI::math::Vector3D dir(record.GetDirection());
     dir.normalize();
     LI::math::Vector3D pca = SampleFromDisk(rand, dir);
 
@@ -40,7 +40,7 @@ LI::math::Vector3D OrientedCylinderPositionDistribution::SamplePosition(std::sha
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
     */
-    return LI::math::Vector3D();
+    return {LI::math::Vector3D(), LI::math::Vector3D()};
 }
 
 double OrientedCylinderPositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {

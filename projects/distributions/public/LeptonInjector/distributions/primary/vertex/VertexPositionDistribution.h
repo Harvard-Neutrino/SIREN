@@ -26,25 +26,25 @@ namespace LI { namespace utilities { class LI_random; } }
 namespace LI {
 namespace distributions {
 
-class VertexPositionDistribution : virtual public InjectionDistribution {
+class VertexPositionDistribution : virtual public PrimaryInjectionDistribution {
 friend cereal::access;
 public:
     virtual ~VertexPositionDistribution() {};
 private:
-    virtual LI::math::Vector3D SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const = 0;
+    virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const = 0;
 public:
-    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const override;
+    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override = 0;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::string Name() const override = 0;
-    virtual std::shared_ptr<InjectionDistribution> clone() const override = 0;
+    virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override = 0;
     virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const = 0;
     virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const;
     virtual bool AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
-            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+            archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
         } else {
             throw std::runtime_error("VertexPositionDistribution only supports version <= 0!");
         }
@@ -52,7 +52,7 @@ public:
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
-            archive(cereal::virtual_base_class<InjectionDistribution>(this));
+            archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
         } else {
             throw std::runtime_error("VertexPositionDistribution only supports version <= 0!");
         }
@@ -67,6 +67,6 @@ protected:
 
 CEREAL_CLASS_VERSION(LI::distributions::VertexPositionDistribution, 0);
 CEREAL_REGISTER_TYPE(LI::distributions::VertexPositionDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::distributions::InjectionDistribution, LI::distributions::VertexPositionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::distributions::PrimaryInjectionDistribution, LI::distributions::VertexPositionDistribution);
 
 #endif // LI_VertexPositionDistribution_H
