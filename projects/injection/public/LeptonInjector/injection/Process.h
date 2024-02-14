@@ -18,7 +18,6 @@
 
 #include "LeptonInjector/dataclasses/Particle.h"         // for Particle
 #include "LeptonInjector/distributions/Distributions.h"  // for InjectionDis...
-#include "LeptonInjector/distributions/secondary/SecondaryInjectionDistribution.h"  // for InjectionDis...
 
 namespace LI { namespace interactions { class InteractionCollection; } }
 
@@ -80,35 +79,37 @@ public:
     };
 };
 
-class InjectionProcess : public PhysicalProcess {
+class PrimaryInjectionProcess : public PhysicalProcess {
 protected:
-    std::vector<std::shared_ptr<distributions::InjectionDistribution>> injection_distributions;
+    std::vector<std::shared_ptr<distributions::PrimaryInjectionDistribution>> primary_injection_distributions;
 public:
-    InjectionProcess() = default;
-    InjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
-    InjectionProcess(InjectionProcess const & other);
-    InjectionProcess(InjectionProcess && other);
-    InjectionProcess & operator=(InjectionProcess const & other);
-    InjectionProcess & operator=(InjectionProcess && other);
-    virtual ~InjectionProcess() = default;
+    typedef distributions::PrimaryInjectionDistribution InjectionType;
+    PrimaryInjectionProcess() = default;
+    PrimaryInjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
+    PrimaryInjectionProcess(PrimaryInjectionProcess const & other);
+    PrimaryInjectionProcess(PrimaryInjectionProcess && other);
+    PrimaryInjectionProcess & operator=(PrimaryInjectionProcess const & other);
+    PrimaryInjectionProcess & operator=(PrimaryInjectionProcess && other);
+    virtual ~PrimaryInjectionProcess() = default;
     virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) override;
-    virtual void AddInjectionDistribution(std::shared_ptr<distributions::InjectionDistribution> dist);
-    std::vector<std::shared_ptr<distributions::InjectionDistribution>> const & GetInjectionDistributions() const;
+    virtual void AddPrimaryInjectionDistribution(std::shared_ptr<distributions::PrimaryInjectionDistribution> dist);
+    std::vector<std::shared_ptr<distributions::PrimaryInjectionDistribution>> const & GetPrimaryInjectionDistributions() const;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
-            archive(::cereal::make_nvp("InjectionDistributions", injection_distributions));
+            archive(::cereal::make_nvp("PrimaryInjectionDistributions", primary_injection_distributions));
             archive(cereal::virtual_base_class<PhysicalProcess>(this));
         } else {
-            throw std::runtime_error("InjectionProcess only supports version <= 0!");
+            throw std::runtime_error("PrimaryInjectionProcess only supports version <= 0!");
         }
     };
 };
 
-class SecondaryInjectionProcess : public InjectionProcess {
+class SecondaryInjectionProcess : public PhysicalProcess {
 protected:
     std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> secondary_injection_distributions;
 public:
+    typedef distributions::SecondaryInjectionDistribution InjectionType;
     SecondaryInjectionProcess() = default;
     SecondaryInjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     SecondaryInjectionProcess(SecondaryInjectionProcess const & other);
@@ -117,14 +118,13 @@ public:
     SecondaryInjectionProcess & operator=(SecondaryInjectionProcess && other);
     virtual ~SecondaryInjectionProcess() = default;
     virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) override;
-    virtual void AddInjectionDistribution(std::shared_ptr<distributions::InjectionDistribution> dist) override;
     virtual void AddSecondaryInjectionDistribution(std::shared_ptr<distributions::SecondaryInjectionDistribution> dist);
     std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> const & GetSecondaryInjectionDistributions() const;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
-            archive(::cereal::make_nvp("SecondaryInjectionDistributions", injection_distributions));
-            archive(cereal::virtual_base_class<InjectionProcess>(this));
+            archive(::cereal::make_nvp("SecondaryInjectionDistributions", secondary_injection_distributions));
+            archive(cereal::virtual_base_class<PhysicalProcess>(this));
         } else {
             throw std::runtime_error("SecondaryInjectionProcess only supports version <= 0!");
         }
