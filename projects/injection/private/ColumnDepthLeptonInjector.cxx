@@ -27,7 +27,7 @@ ColumnDepthLeptonInjector::ColumnDepthLeptonInjector() {}
 ColumnDepthLeptonInjector::ColumnDepthLeptonInjector(
         unsigned int events_to_inject,
         std::shared_ptr<LI::detector::DetectorModel> detector_model,
-        std::shared_ptr<injection::InjectionProcess> primary_process,
+        std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes,
         std::shared_ptr<LI::utilities::LI_random> random,
         std::shared_ptr<LI::distributions::DepthFunction> depth_func,
@@ -41,7 +41,7 @@ ColumnDepthLeptonInjector::ColumnDepthLeptonInjector(
     interactions = primary_process->GetInteractions();
     std::set<LI::dataclasses::Particle::ParticleType> target_types = interactions->TargetTypes();
     position_distribution = std::make_shared<LI::distributions::ColumnDepthPositionDistribution>(disk_radius, endcap_length, depth_func, target_types);
-    primary_process->AddInjectionDistribution(position_distribution);
+    primary_process->AddPrimaryInjectionDistribution(position_distribution);
     SetPrimaryProcess(primary_process);
     for(auto & sec_process : secondary_processes) {
       AddSecondaryProcess(sec_process);
@@ -49,7 +49,7 @@ ColumnDepthLeptonInjector::ColumnDepthLeptonInjector(
       // Otherwise uncomment below
       /*
       target_types = sec_process->GetInteractions()->TargetTypes();
-      sec_process->GetInjectionDistributions().push_back(std::make_shared<LI::distributions::ColumnDepthPositionDistribution>(disk_radius, endcap_length, depth_func, target_types));
+      sec_process->GetPrimaryInjectionDistributions().push_back(std::make_shared<LI::distributions::ColumnDepthPositionDistribution>(disk_radius, endcap_length, depth_func, target_types));
       */
     }
 }

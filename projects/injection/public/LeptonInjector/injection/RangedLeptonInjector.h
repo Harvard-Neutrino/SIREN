@@ -27,7 +27,7 @@
 #include "LeptonInjector/injection/Injector.h"  // for Injector
 
 namespace LI { namespace dataclasses { class InteractionRecord; } }
-namespace LI { namespace injection { class InjectionProcess; } }
+namespace LI { namespace injection { class PrimaryInjectionProcess; } }
 namespace LI { namespace math { class Vector3D; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -44,7 +44,7 @@ protected:
     std::shared_ptr<LI::interactions::InteractionCollection> interactions;
     RangedLeptonInjector();
 public:
-    RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::RangeFunction> range_func, double disk_radius, double endcap_length);
+    RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::RangeFunction> range_func, double disk_radius, double endcap_length);
     std::string Name() const override;
     virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> PrimaryInjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const override;
 
