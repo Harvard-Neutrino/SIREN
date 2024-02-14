@@ -396,6 +396,9 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) {
         record.primary_initial_position = GetInitialPosition();
     } catch(std::runtime_error e) {}
     try {
+        record.interaction_vertex = GetInteractionVertex();
+    } catch(std::runtime_error e) {}
+    try {
         record.primary_mass = GetMass();
     } catch(std::runtime_error e) {}
     try {
@@ -409,6 +412,7 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) {
 void PrimaryDistributionRecord::Finalize(InteractionRecord & record) {
     record.signature.primary_type = type;
     record.primary_id = GetID();
+    record.interaction_vertex = GetInteractionVertex();
     record.primary_initial_position = GetInitialPosition();
     record.primary_mass = GetMass();
     record.primary_momentum = GetFourMomentum();
