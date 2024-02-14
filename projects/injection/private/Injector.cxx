@@ -10,7 +10,6 @@
 #include "LeptonInjector/interactions/CrossSection.h"
 #include "LeptonInjector/interactions/InteractionCollection.h"
 #include "LeptonInjector/interactions/Decay.h"
-#include "LeptonInjector/dataclasses/DecayRecord.h"
 #include "LeptonInjector/dataclasses/DecaySignature.h"
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 #include "LeptonInjector/dataclasses/Particle.h"
@@ -238,98 +237,6 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     else
         matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
     xsec_record.Finalize(record);
-}
-
-void Injector::SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double decay_width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial = nullptr, double buffer = 0) const {
-    // This function takes an interaction record containing an HNL and simulates the decay to a photon
-    // Samples according to (1 + alpha * cos(theta))/2 and returns physical weight
-    // Final state photon added to secondary particle vectors in LI::dataclasses::InteractionRecord
-
-    // Find the HNL in the secondary particle vector and save its momentum/cartesian direction
-    unsigned int lepton_index = (interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar) ? 0 : 1;
-    LI::dataclasses::Particle::ParticleType hnl_type = interaction.signature.secondary_types[lepton_index];
-    double hnl_mass = interaction.secondary_masses[lepton_index];
-    std::array<double, 4> hnl_momentum = interaction.secondary_momenta[lepton_index];
-    double hnl_helicity = interaction.secondary_helicities[lepton_index];
-
-    // Store the HNL as the primary for the decay
-    decay.signature.primary_type = hnl_type;
-    decay.primary_mass = hnl_mass;
-    decay.primary_momentum = hnl_momentum;
-    decay.primary_helicity = hnl_helicity;
-
-    rk::P4 pHNL_lab(geom3::Vector3(hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]), hnl_mass);
-    LI::math::Vector3D hnl_dir(hnl_momentum[1], hnl_momentum[2], hnl_momentum[3]);
-    hnl_dir.normalize();
-
-    // Calculate the decay location of the HNL
-    // Require the decay to happen within a fid vol if possible
-    double decay_length = LI::distributions::DecayRangeFunction::DecayLength(hnl_mass, decay_width, hnl_momentum[0]);
-    double decay_weight = 1.0;
-    double a=0,b=0;
-    double C = random->Uniform(0,1);
-    if(fiducial) {
-        std::vector<LI::geometry::Geometry::Intersection> ints = fiducial->Intersections(interaction.interaction_vertex,hnl_dir);
-        if(ints.size()!=0 && ints[ints.size()-1].distance > 0) {
-            a = std::max(0.,ints[0].distance - buffer);
-            b = ints[ints.size()-1].distance;
-            C*=(1-std::exp(-(b-a)/decay_length));
-            decay_weight = std::exp(-a/decay_length) - std::exp(-b/decay_length);
-        }
-
-    }
-
-    double decay_loc = a + -1 * decay_length * std::log(1-C);
-    decay.decay_vertex = LI::math::Vector3D(interaction.interaction_vertex) + decay_loc * hnl_dir;
-
-    // Sample decay angles
-    double X = random->Uniform(0,1);
-    double costh;
-    // Majorana Case
-    if(alpha_gen==0) {
-        costh = 2*X - 1;
-    }
-    // Dirac case (alpha = 1,-1 based for L/R handed HNLs)
-    else {
-        costh = -1./alpha_gen + sqrt(1./std::pow(alpha_gen,2) + (4*X - 2)/alpha_gen + 1);
-    }
-
-    double theta = std::acos(costh);
-    double phi = random->Uniform(0,2*LI::utilities::Constants::pi);
-    rk::P4 pGamma_HNLrest(
-            geom3::Vector3(
-                hnl_mass/2.0*std::cos(phi)*std::sin(theta),
-                hnl_mass/2.0*std::sin(phi)*std::sin(theta),
-                hnl_mass/2.0*costh),
-            0.0);
-
-    // Boost gamma to lab frame
-    rk::Boost boost_to_lab = pHNL_lab.labBoost();
-    rk::P4 pGamma_lab = boost_to_lab * pGamma_HNLrest;
-
-    decay.signature.secondary_types.resize(1);
-    decay.secondary_masses.resize(1);
-    decay.secondary_momenta.resize(2);
-    decay.secondary_helicities.resize(1);
-
-    decay.signature.secondary_types[0] = LI::dataclasses::Particle::ParticleType::Gamma;
-    decay.secondary_masses[0] = 0;
-    decay.secondary_momenta[0][0] = pGamma_lab.e();
-    decay.secondary_momenta[0][1] = pGamma_lab.px();
-    decay.secondary_momenta[0][2] = pGamma_lab.py();
-    decay.secondary_momenta[0][3] = pGamma_lab.pz();
-    decay.secondary_momenta[1][0] = pGamma_HNLrest.e();
-    decay.secondary_momenta[1][1] = pGamma_HNLrest.px();
-    decay.secondary_momenta[1][2] = pGamma_HNLrest.py();
-    decay.secondary_momenta[1][3] = pGamma_HNLrest.pz();
-    decay.secondary_helicities[0] = std::copysign(1.0, decay.primary_helicity);
-
-    decay.decay_parameters.clear();
-    decay.decay_parameters["decay_length"] = decay_length;
-    decay.decay_parameters["decay_weight"] = decay_weight;
-    decay.decay_parameters["angular_weight"] = (1+alpha_phys*costh)/(1+alpha_gen*costh);
-    decay.decay_parameters["min_distance"] = a;
-    decay.decay_parameters["max_distance"] = b;
 }
 
 // Function to sample secondary processes

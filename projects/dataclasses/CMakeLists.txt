@@ -6,7 +6,6 @@ LIST (APPEND dataclasses_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/InteractionRecord.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/InteractionTree.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/DecaySignature.cxx
-    ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/DecayRecord.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/ParticleID.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/ParticleType.cxx
 )

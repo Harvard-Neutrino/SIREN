@@ -31,7 +31,6 @@
 #include "LeptonInjector/dataclasses/Particle.h"           // for Particle
 
 namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace dataclasses { struct DecayRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace distributions { class PrimaryInjectionDistribution; } }
 namespace LI { namespace distributions { class VertexPositionDistribution; } }
@@ -83,7 +82,6 @@ public:
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record) const;
     virtual void SampleCrossSection(LI::dataclasses::InteractionRecord & record,
                                     std::shared_ptr<LI::interactions::InteractionCollection> interactions) const;
-    virtual void SampleNeutrissimoDecay(LI::dataclasses::InteractionRecord const & interaction, LI::dataclasses::DecayRecord & decay, double width, double alpha_gen, double alpha_phys, LI::geometry::Geometry *fiducial, double buffer) const;
     LI::dataclasses::InteractionRecord SampleSecondaryProcess(LI::dataclasses::SecondaryDistributionRecord & secondary_record) const;
     LI::dataclasses::InteractionTree GenerateEvent();
     virtual std::string Name() const;
