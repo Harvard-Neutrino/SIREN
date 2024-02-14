@@ -18,7 +18,7 @@
 namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
-namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class PrimaryInjectionDistribution; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -35,9 +35,9 @@ private:
     double opening_angle;
 public:
     Cone(LI::math::Vector3D dir, double opening_angle);
-    LI::math::Vector3D SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
+    LI::math::Vector3D SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
-    virtual std::shared_ptr<InjectionDistribution> clone() const override;
+    virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     std::string Name() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {

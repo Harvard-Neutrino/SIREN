@@ -17,7 +17,7 @@ namespace distributions {
 //---------------
 // class IsotropicDirection : PrimaryDirectionDistribution
 //---------------
-LI::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+LI::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
     double nz = rand->Uniform(-1, 1);
     double nr = sqrt(1.0 - nz*nz);
     double phi = rand->Uniform(-M_PI, M_PI);
@@ -32,8 +32,8 @@ double IsotropicDirection::GenerationProbability(std::shared_ptr<LI::detector::D
     return 1.0 / (4.0 * M_PI);
 }
 
-std::shared_ptr<InjectionDistribution> IsotropicDirection::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new IsotropicDirection(*this));
+std::shared_ptr<PrimaryInjectionDistribution> IsotropicDirection::clone() const {
+    return std::shared_ptr<PrimaryInjectionDistribution>(new IsotropicDirection(*this));
 }
 
 std::string IsotropicDirection::Name() const {

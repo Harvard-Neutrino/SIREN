@@ -34,7 +34,7 @@ Cone::Cone(LI::math::Vector3D dir, double opening_angle) : dir(dir), opening_ang
     }
 }
 
-LI::math::Vector3D Cone::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const{
+LI::math::Vector3D Cone::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const{
     double theta = acos(rand->Uniform(cos(opening_angle), 1));
     double phi = rand->Uniform(0, 2.0 * M_PI);
     LI::math::Quaternion q;
@@ -57,8 +57,8 @@ double Cone::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel c
         return 0.0;
 }
 
-std::shared_ptr<InjectionDistribution> Cone::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new Cone(*this));
+std::shared_ptr<PrimaryInjectionDistribution> Cone::clone() const {
+    return std::shared_ptr<PrimaryInjectionDistribution>(new Cone(*this));
 }
 
 std::string Cone::Name() const {

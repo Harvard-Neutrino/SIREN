@@ -11,16 +11,11 @@ namespace LI {
 namespace distributions {
 
 //---------------
-// class PrimaryDirectionDistribution : InjectionDistribution
+// class PrimaryDirectionDistribution : PrimaryInjectionDistribution
 //---------------
-void PrimaryDirectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
+void PrimaryDirectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
     LI::math::Vector3D dir = SampleDirection(rand, detector_model, interactions, record);
-    double energy = record.primary_momentum[0];
-    double mass = record.primary_mass;
-    double momentum = std::sqrt(energy*energy - mass*mass);
-    record.primary_momentum[1] = momentum * dir.GetX();
-    record.primary_momentum[2] = momentum * dir.GetY();
-    record.primary_momentum[3] = momentum * dir.GetZ();
+    record.SetDirection(dir);
 }
 
 std::vector<std::string> PrimaryDirectionDistribution::DensityVariables() const {
