@@ -16,7 +16,7 @@ LIST (APPEND distributions_SOURCES
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/helicity/PrimaryNeutrinoHelicityDistribution.cxx
 
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/type/PrimaryInjector.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/mass/PrimaryMass.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/RangeFunction.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/DecayRangeFunction.cxx
@@ -30,7 +30,6 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/CylinderVolumePositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/ColumnDepthPositionDistribution.cxx
 
-    ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/SecondaryInjectionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryVertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryPhysicalVertexDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryBoundedVertexDistribution.cxx
