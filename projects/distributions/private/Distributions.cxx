@@ -87,12 +87,5 @@ bool NormalizationConstant::less(WeightableDistribution const & distribution) co
     return normalization<dist->GetNormalization();
 }
 
-//---------------
-// class InjectionDistribution
-//---------------
-
-void InjectionDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-}
-
 } // namespace distributions
 } // namespace LeptonInjector
