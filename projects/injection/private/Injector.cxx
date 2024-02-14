@@ -54,7 +54,7 @@ Injector::Injector(
 Injector::Injector(
         unsigned int events_to_inject,
         std::shared_ptr<LI::detector::DetectorModel> detector_model,
-        std::shared_ptr<injection::InjectionProcess> primary_process,
+        std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
         std::shared_ptr<LI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
@@ -66,7 +66,7 @@ Injector::Injector(
 Injector::Injector(
         unsigned int events_to_inject,
         std::shared_ptr<LI::detector::DetectorModel> detector_model,
-        std::shared_ptr<injection::InjectionProcess> primary_process,
+        std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes,
         std::shared_ptr<LI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
@@ -80,8 +80,8 @@ Injector::Injector(
 }
 
 
-std::shared_ptr<distributions::VertexPositionDistribution> Injector::FindPrimaryVertexDistribution(std::shared_ptr<LI::injection::InjectionProcess> process) {
-    for(auto distribution : process->GetInjectionDistributions()) {
+std::shared_ptr<distributions::VertexPositionDistribution> Injector::FindPrimaryVertexDistribution(std::shared_ptr<LI::injection::PrimaryInjectionProcess> process) {
+    for(auto distribution : process->GetPrimaryInjectionDistributions()) {
         distributions::VertexPositionDistribution * raw_ptr = dynamic_cast<distributions::VertexPositionDistribution*>(distribution.get());
         if(raw_ptr)
             return std::dynamic_pointer_cast<distributions::VertexPositionDistribution>(distribution);
@@ -98,7 +98,7 @@ std::shared_ptr<distributions::SecondaryVertexPositionDistribution> Injector::Fi
     throw(LI::utilities::AddProcessFailure("No secondary vertex distribution specified!"));
 }
 
-void Injector::SetPrimaryProcess(std::shared_ptr<LI::injection::InjectionProcess> primary) {
+void Injector::SetPrimaryProcess(std::shared_ptr<LI::injection::PrimaryInjectionProcess> primary) {
     std::shared_ptr<distributions::VertexPositionDistribution> vtx_dist;
     try {
         vtx_dist = FindPrimaryVertexDistribution(primary);
@@ -385,10 +385,11 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
         tries += 1;
         try {
             std::cout << "Try: " << tries << std::endl;
-            record = this->NewRecord();
-            for(auto & distribution : primary_process->GetInjectionDistributions()) {
-                distribution->Sample(random, detector_model, primary_process->GetInteractions(), record);
+            LI::dataclasses::PrimaryDistributionRecord primary_record(primary_process->GetPrimaryType());
+            for(auto & distribution : primary_process->GetPrimaryInjectionDistributions()) {
+                distribution->Sample(random, detector_model, primary_process->GetInteractions(), primary_record);
             }
+            primary_record.Finalize(record);
             SampleCrossSection(record);
             break;
         } catch(LI::utilities::InjectionFailure const & e) {
@@ -495,13 +496,13 @@ double Injector::GenerationProbability(LI::dataclasses::InteractionTree const & 
 }
 
 double Injector::GenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum,
-        std::shared_ptr<LI::injection::InjectionProcess> process) const {
+        std::shared_ptr<LI::injection::PrimaryInjectionProcess> process) const {
     double probability = 1.0;
     if(!process) { // assume we are dealing with the primary process
         process = primary_process;
         probability *= events_to_inject; // only do this for the primary process
     }
-    for(auto const & dist : process->GetInjectionDistributions()) {
+    for(auto const & dist : process->GetPrimaryInjectionDistributions()) {
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
         probability *= prob;
     }
@@ -511,13 +512,13 @@ double Injector::GenerationProbability(std::shared_ptr<LI::dataclasses::Interact
 }
 
 double Injector::GenerationProbability(LI::dataclasses::InteractionRecord const & record,
-        std::shared_ptr<LI::injection::InjectionProcess> process) const {
+        std::shared_ptr<LI::injection::PrimaryInjectionProcess> process) const {
     double probability = 1.0;
     if(!process) { // assume we are dealing with the primary process
         process = primary_process;
         probability *= events_to_inject; // only do this for the primary process
     }
-    for(auto const & dist : process->GetInjectionDistributions()) {
+    for(auto const & dist : process->GetPrimaryInjectionDistributions()) {
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), record);
         probability *= prob;
     }
@@ -530,7 +531,7 @@ double Injector::GenerationProbability(LI::dataclasses::InteractionRecord const 
 std::set<std::vector<std::string>> Injector::DensityVariables() const {
     std::set<std::vector<std::string>> variable_sets;
     std::vector<std::string> variables;
-    for(auto const & dist : primary_process->GetInjectionDistributions()) {
+    for(auto const & dist : primary_process->GetPrimaryInjectionDistributions()) {
         std::vector<std::string> new_variables = dist->DensityVariables();
         variables.reserve(variables.size() + new_variables.size());
         variables.insert(variables.end(), new_variables.begin(), new_variables.end());
@@ -563,8 +564,8 @@ std::tuple<LI::math::Vector3D, LI::math::Vector3D> Injector::SecondaryInjectionB
     return secondary_position_distribution_map.at(record.signature.primary_type)->InjectionBounds(detector_model, secondary_process_map.at(record.signature.primary_type)->GetInteractions(), record);
 }
 
-std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> Injector::GetInjectionDistributions() const {
-    return primary_process->GetInjectionDistributions();
+std::vector<std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>> Injector::GetPrimaryInjectionDistributions() const {
+    return primary_process->GetPrimaryInjectionDistributions();
 }
 
 std::shared_ptr<LI::detector::DetectorModel> Injector::GetDetectorModel() const {

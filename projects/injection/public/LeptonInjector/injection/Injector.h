@@ -33,11 +33,11 @@
 namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { struct DecayRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
-namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class PrimaryInjectionDistribution; } }
 namespace LI { namespace distributions { class VertexPositionDistribution; } }
 namespace LI { namespace distributions { class SecondaryVertexPositionDistribution; } }
 namespace LI { namespace geometry { class Geometry; } }
-namespace LI { namespace injection { class InjectionProcess; } }
+namespace LI { namespace injection { class PrimaryInjectionProcess; } }
 namespace LI { namespace injection { class SecondaryInjectionProcess; } }
 namespace LI { namespace math { class Vector3D; } }
 namespace LI { namespace utilities { class LI_random; } }
@@ -58,7 +58,7 @@ protected:
     std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition;
     Injector();
 private:
-    std::shared_ptr<injection::InjectionProcess> primary_process;
+    std::shared_ptr<injection::PrimaryInjectionProcess> primary_process;
     std::shared_ptr<distributions::VertexPositionDistribution> primary_position_distribution;
     std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes;
     std::vector<std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distributions;
@@ -67,14 +67,14 @@ private:
 public:
     // Constructors
     Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<LI::utilities::LI_random> random);
-    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::shared_ptr<LI::utilities::LI_random> random);
-    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::shared_ptr<LI::utilities::LI_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random);
 
     void SetStoppingCondition(std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>, size_t)> f_in) {stopping_condition = f_in;}
-    std::shared_ptr<distributions::VertexPositionDistribution> FindPrimaryVertexDistribution(std::shared_ptr<LI::injection::InjectionProcess> process);
+    std::shared_ptr<distributions::VertexPositionDistribution> FindPrimaryVertexDistribution(std::shared_ptr<LI::injection::PrimaryInjectionProcess> process);
     std::shared_ptr<distributions::SecondaryVertexPositionDistribution> FindSecondaryVertexDistribution(std::shared_ptr<LI::injection::SecondaryInjectionProcess> process);
-    void SetPrimaryProcess(std::shared_ptr<LI::injection::InjectionProcess> primary);
-    std::shared_ptr<LI::injection::InjectionProcess> GetPrimaryProcess() {return primary_process;}
+    void SetPrimaryProcess(std::shared_ptr<LI::injection::PrimaryInjectionProcess> primary);
+    std::shared_ptr<LI::injection::PrimaryInjectionProcess> GetPrimaryProcess() {return primary_process;}
     std::vector<std::shared_ptr<LI::injection::SecondaryInjectionProcess>> GetSecondaryProcesses() {return secondary_processes;}
     std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::injection::SecondaryInjectionProcess>> GetSecondaryProcessMap() {return secondary_process_map;}
     void AddSecondaryProcess(std::shared_ptr<LI::injection::SecondaryInjectionProcess> secondary);
@@ -90,12 +90,12 @@ public:
     virtual double SecondaryGenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum) const;
     virtual double SecondaryGenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum, std::shared_ptr<LI::injection::SecondaryInjectionProcess> process) const;
     virtual double GenerationProbability(LI::dataclasses::InteractionTree const & tree) const;
-    virtual double GenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum, std::shared_ptr<LI::injection::InjectionProcess> process = NULL) const;
-    virtual double GenerationProbability(LI::dataclasses::InteractionRecord const & record, std::shared_ptr<LI::injection::InjectionProcess> process = NULL) const;
+    virtual double GenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum, std::shared_ptr<LI::injection::PrimaryInjectionProcess> process = NULL) const;
+    virtual double GenerationProbability(LI::dataclasses::InteractionRecord const & record, std::shared_ptr<LI::injection::PrimaryInjectionProcess> process = NULL) const;
     virtual std::set<std::vector<std::string>> DensityVariables() const;
     virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> PrimaryInjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const;
     virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> SecondaryInjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const;
-    virtual std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> GetInjectionDistributions() const;
+    virtual std::vector<std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>> GetPrimaryInjectionDistributions() const;
     virtual std::shared_ptr<LI::detector::DetectorModel> GetDetectorModel() const;
     virtual std::shared_ptr<LI::interactions::InteractionCollection> GetInteractions() const;
     unsigned int InjectedEvents() const;
