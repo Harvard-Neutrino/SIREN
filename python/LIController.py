@@ -49,7 +49,7 @@ class LIController:
         self.detector_model.LoadDetectorModel(detector_model_file)
 
         # Define the primary injection and physical process
-        self.primary_injection_process = _injection.InjectionProcess()
+        self.primary_injection_process = _injection.PrimaryInjectionProcess()
         self.primary_physical_process = _injection.PhysicalProcess()
 
         # Define lists for the secondary injection and physical processes
@@ -81,14 +81,14 @@ class LIController:
 
         # Add all injection distributions
         for _, idist in primary_injection_distributions.items():
-            self.primary_injection_process.AddInjectionDistribution(idist)
+            self.primary_injection_process.AddPrimaryInjectionDistribution(idist)
         # Add all physical distributions
         for _, pdist in primary_physical_distributions.items():
             self.primary_physical_process.AddPhysicalDistribution(pdist)
 
         # Default injection distributions
         if "helicity" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddInjectionDistribution(
+            self.primary_injection_process.AddPrimaryInjectionDistribution(
                 _distributions.PrimaryNeutrinoHelicityDistribution()
             )
 
@@ -96,6 +96,18 @@ class LIController:
         if "helicity" not in primary_physical_distributions.keys():
             self.primary_physical_process.AddPhysicalDistribution(
                 _distributions.PrimaryNeutrinoHelicityDistribution()
+            )
+
+        # Default injection distributions
+        if "mass" not in primary_injection_distributions.keys():
+            self.primary_injection_process.AddPrimaryInjectionDistribution(
+                _distributions.PrimaryMass(0)
+            )
+
+        # Default injection distributions
+        if "mass" not in primary_physical_distributions.keys():
+            self.primary_physical_process.AddPhysicalDistribution(
+                _distributions.PrimaryMass(0)
             )
 
         # Loop through possible secondary interactions
