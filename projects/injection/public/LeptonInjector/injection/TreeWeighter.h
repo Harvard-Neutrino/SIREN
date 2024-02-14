@@ -20,10 +20,12 @@
 
 namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
-namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class PrimaryInjectionDistribution; } }
+namespace LI { namespace distributions { class SecondaryInjectionDistribution; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }
 namespace LI { namespace injection { class Injector; } }
-namespace LI { namespace injection { class InjectionProcess; } }
+namespace LI { namespace injection { class PrimaryInjectionProcess; } }
+namespace LI { namespace injection { class SecondaryInjectionProcess; } }
 namespace LI { namespace injection { class PhysicalProcess; } }
 namespace LI { namespace math { class Vector3D; } }
 
@@ -31,13 +33,15 @@ namespace LI {
 namespace injection {
 
 // Class handling weight calculation for a single pair of injection and physical processes
-class LeptonProcessWeighter {
+template<typename ProcessType>
+class ProcessWeighter {
 private:
     std::shared_ptr<LI::injection::PhysicalProcess> phys_process;
-    std::shared_ptr<LI::injection::InjectionProcess> inj_process;
-    std::vector<std::shared_ptr<LI::distributions::InjectionDistribution>> unique_gen_distributions;
+    std::shared_ptr<ProcessType> inj_process;
+    std::vector<std::shared_ptr<typename ProcessType::InjectionType>> unique_gen_distributions;
     std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> unique_phys_distributions;
     std::shared_ptr<LI::detector::DetectorModel> detector_model;
+    std::vector<std::shared_ptr<typename ProcessType::InjectionType>> const & GetInjectionDistributions();
     void Initialize();
     double normalization;
 public:
@@ -46,9 +50,12 @@ public:
     double PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const;
     double GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum) const;
     double EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionTreeDatum const & datum) const;
-    LeptonProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process, std::shared_ptr<LI::injection::InjectionProcess> inj_process, std::shared_ptr<LI::detector::DetectorModel> detector_model);
+    ProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process, std::shared_ptr<ProcessType> inj_process, std::shared_ptr<LI::detector::DetectorModel> detector_model);
 
-}; // LeptonProcessWeighter
+}; // ProcessWeighter
+
+typedef ProcessWeighter<LI::injection::PrimaryInjectionProcess> PrimaryProcessWeighter;
+typedef ProcessWeighter<LI::injection::SecondaryInjectionProcess> SecondaryProcessWeighter;
 
 // Parent class for calculating event weights
 // Assumes there is a unique secondary physical process for each particle type
@@ -61,11 +68,11 @@ private:
     std::vector<std::shared_ptr<LI::injection::PhysicalProcess>> secondary_physical_processes;
 
     // Calculated upon initialization
-    std::vector<std::shared_ptr<LeptonProcessWeighter>> primary_process_weighters;
+    std::vector<std::shared_ptr<PrimaryProcessWeighter>> primary_process_weighters;
     std::vector<
       std::map<
         LI::dataclasses::Particle::ParticleType,
-        std::shared_ptr<LeptonProcessWeighter>
+        std::shared_ptr<SecondaryProcessWeighter>
       >
     > secondary_process_weighter_maps;
 
@@ -80,6 +87,8 @@ public:
 
 } //namespace injection
 } //namespace LI
+
+#include "TreeWeighter.tcc"
 
 CEREAL_CLASS_VERSION(LI::injection::LeptonTreeWeighter, 0);
 
