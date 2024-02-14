@@ -41,6 +41,10 @@ controller.SetInteractions(primary_xs)
 primary_injection_distributions = {}
 primary_physical_distributions = {}
 
+mass_dist = LI.distributions.PrimaryMass(0)
+primary_injection_distributions["mass"] = mass_dist
+primary_physical_distributions["mass"] = mass_dist
+
 # energy distribution
 edist = LI.distributions.PowerLaw(2, 1e3, 1e6)
 primary_injection_distributions["energy"] = edist
