@@ -5,6 +5,8 @@ import datetime
 import json
 import ntpath
 import pickle
+import functools
+import logging
 from scipy.interpolate import CloughTocher2DInterpolator, CubicSpline
 
 # LeptonInjector methods
@@ -14,8 +16,14 @@ from leptoninjector.dataclasses import Particle
 from leptoninjector import _util
 
 # DarkNews methods
+import DarkNews
 from DarkNews import phase_space
 from DarkNews.ModelContainer import ModelContainer
+ModelContainer_configure_logger = ModelContainer.configure_logger
+@functools.wraps(ModelContainer.configure_logger)
+def suppress_info(self, logger, loglevel="INFO", prettyprinter=None, logfile=None, verbose=False):
+    return ModelContainer_configure_logger(self, logger, loglevel="WARNING", prettyprinter=prettyprinter, logfile=logfile, verbose=verbose)
+ModelContainer.configure_logger = suppress_info
 from DarkNews.processes import *
 from DarkNews.nuclear_tools import NuclearTarget
 from DarkNews.integrands import get_decay_momenta_from_vegas_samples
