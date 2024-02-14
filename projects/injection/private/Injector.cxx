@@ -250,7 +250,6 @@ LI::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(LI::dataclas
     size_t max_tries = 1000;
     size_t tries = 0;
     size_t failed_tries = 0;
-    std::cout << "Trying to generate secondary process!" << std::endl;
     while(true) {
         try {
             for(auto & distribution : secondary_distributions) {
@@ -262,18 +261,13 @@ LI::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(LI::dataclas
             return record;
         } catch(LI::utilities::InjectionFailure const & e) {
             failed_tries += 1;
-            std::cerr << e.what() << std::endl;
             if(tries > max_tries) {
-                std::cerr << "Failed to generate secondary process!" << std::endl;
-                std::cout << "Tries: " << tries << " Failed Tries: " << failed_tries << std::endl;
                 throw(LI::utilities::InjectionFailure("Failed to generate secondary process!"));
                 break;
             }
             continue;
         }
         if(tries > max_tries) {
-            std::cerr << "Failed to generate secondary process!" << std::endl;
-            std::cout << "Tries: " << tries << " Failed Tries: " << failed_tries << std::endl;
             throw(LI::utilities::InjectionFailure("Failed to generate secondary process!"));
             break;
         }
@@ -287,11 +281,9 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
     size_t tries = 0;
     size_t failed_tries = 0;
     // Initial Process
-    std::cout << "Trying to generate primary process!" << std::endl;
     while(true) {
         tries += 1;
         try {
-            std::cout << "Try: " << tries << std::endl;
             LI::dataclasses::PrimaryDistributionRecord primary_record(primary_process->GetPrimaryType());
             for(auto & distribution : primary_process->GetPrimaryInjectionDistributions()) {
                 distribution->Sample(random, detector_model, primary_process->GetInteractions(), primary_record);
@@ -301,77 +293,52 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
             break;
         } catch(LI::utilities::InjectionFailure const & e) {
             failed_tries += 1;
-            std::cerr << e.what() << std::endl;
             if(tries > max_tries) {
-                std::cerr << "Failed to generate primary process!" << std::endl;
-                std::cout << "Tries: " << tries << " Failed Tries: " << failed_tries << std::endl;
                 throw(LI::utilities::InjectionFailure("Failed to generate primary process!"));
                 break;
             }
             continue;
         }
         if(tries > max_tries) {
-            std::cerr << "Failed to generate primary process!" << std::endl;
-            std::cout << "Tries: " << tries << " Failed Tries: " << failed_tries << std::endl;
             throw(LI::utilities::InjectionFailure("Failed to generate primary process!"));
             break;
         }
     }
-    std::cout << "Finished primary sampling! Tries: " << tries << " Failed Tries: " << failed_tries << std::endl;
     LI::dataclasses::InteractionTree tree;
-    std::cout << "Adding parent to tree" << std::endl;
     std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
-    std::cout << "Finished adding parent to tree" << std::endl;
 
-    std::cout << "Defining add_secondaries function" << std::endl;
     // Secondary Processes
     std::deque<std::tuple<std::shared_ptr<LI::dataclasses::InteractionTreeDatum>, std::shared_ptr<LI::dataclasses::SecondaryDistributionRecord>>> secondaries;
     std::function<void(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> add_secondaries = [&](std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent) {
-        std::cout << "In add_secondaries" << std::endl;
-        std::cout << "Parent (" << parent.get() << ")" << std::endl;
-        std::cout << "Parent has " << parent->record.signature.secondary_types.size() << " secondaries" << std::endl;
         for(size_t i=0; i<parent->record.signature.secondary_types.size(); ++i) {
             LI::dataclasses::ParticleType const & type = parent->record.signature.secondary_types[i];
-            std::cout << "Secondary type " << type << " : " << static_cast<int32_t>(type) << std::endl;
             std::map<LI::dataclasses::Particle::ParticleType, std::shared_ptr<LI::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
             if(it == secondary_process_map.end()) {
-                std::cout << "No process for secondary; continuing." << std::endl;
                 continue;
             }
             if(stopping_condition(parent, i)) {
-                std::cout << "Stopping condition has been met; continuing." << std::endl;
                 continue;
             }
-            std::cout << "Adding secondary to list" << std::endl;
             secondaries.emplace_back(
                 parent,
                 std::make_shared<LI::dataclasses::SecondaryDistributionRecord>(parent->record, i)
             );
-            std::cout << "Done adding secondary to list" << std::endl;
         }
     };
-    std::cout << "Adding the first secondaries from the initial parent" << std::endl;
 
     add_secondaries(parent);
-    std::cout << "secondaries.size() = " << secondaries.size() << std::endl;
     while(secondaries.size() > 0) {
-        std::cout << "In while loop" << std::endl;
-        std::cout << "Iterating over secondaries" << std::endl;
         for(int i = secondaries.size() - 1; i >= 0; --i) {
             std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent = std::get<0>(secondaries[i]);
             std::shared_ptr<LI::dataclasses::SecondaryDistributionRecord> secondary_dist = std::get<1>(secondaries[i]);
             secondaries.erase(secondaries.begin() + i);
 
-            std::cout << "Sampling secondary process" << std::endl;
             LI::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
-            std::cout << "Adding new parent" << std::endl;
             std::shared_ptr<LI::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record);
             add_secondaries(secondary_datum);
-            std::cout << "Appending new parent to list" << std::endl;
         }
     }
     injected_events += 1;
-    std::cout << "Returning tree!" << std::endl;
     return tree;
 }
 
