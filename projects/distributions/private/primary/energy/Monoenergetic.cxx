@@ -23,7 +23,7 @@ Monoenergetic::Monoenergetic(double gen_energy)
     : gen_energy(gen_energy)
 {}
 
-double Monoenergetic::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double Monoenergetic::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
     return gen_energy;
 }
 
@@ -41,8 +41,8 @@ std::string Monoenergetic::Name() const {
     return "Monoenergetic";
 }
 
-std::shared_ptr<InjectionDistribution> Monoenergetic::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new Monoenergetic(*this));
+std::shared_ptr<PrimaryInjectionDistribution> Monoenergetic::clone() const {
+    return std::shared_ptr<PrimaryInjectionDistribution>(new Monoenergetic(*this));
 }
 
 bool Monoenergetic::equal(WeightableDistribution const & other) const {

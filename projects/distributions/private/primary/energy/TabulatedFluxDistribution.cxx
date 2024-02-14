@@ -213,7 +213,7 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     ComputeCDF();
 }
 
-double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
     // inverse CDF algorithm to sample from PDF.
     double randomValue = rand->Uniform(0,1);
 
@@ -233,8 +233,8 @@ std::string TabulatedFluxDistribution::Name() const {
     return "TabulatedFluxDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> TabulatedFluxDistribution::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new TabulatedFluxDistribution(*this));
+std::shared_ptr<PrimaryInjectionDistribution> TabulatedFluxDistribution::clone() const {
+    return std::shared_ptr<PrimaryInjectionDistribution>(new TabulatedFluxDistribution(*this));
 }
 
 bool TabulatedFluxDistribution::equal(WeightableDistribution const & other) const {

@@ -9,14 +9,16 @@ namespace LI {
 namespace distributions {
 
 //---------------
-// class PrimaryEnergyDistribution : InjectionDistribution
+// class PrimaryEnergyDistribution : PrimaryInjectionDistribution
 //---------------
 void PrimaryEnergyDistribution::Sample(
         std::shared_ptr<LI::utilities::LI_random> rand,
         std::shared_ptr<LI::detector::DetectorModel const> detector_model,
         std::shared_ptr<LI::interactions::InteractionCollection const> interactions,
-        LI::dataclasses::InteractionRecord & record) const {
-    record.primary_momentum[0] = SampleEnergy(rand, detector_model, interactions, record);
+        LI::dataclasses::PrimaryDistributionRecord & record) const {
+
+    double energy = SampleEnergy(rand, detector_model, interactions, record);
+    record.SetEnergy(energy);
 }
 
 std::vector<std::string> PrimaryEnergyDistribution::DensityVariables() const {

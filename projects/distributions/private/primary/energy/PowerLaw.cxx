@@ -24,7 +24,7 @@ PowerLaw::PowerLaw(double powerLawIndex, double energyMin, double energyMax)
     , energyMax(energyMax)
 {}
 
-double PowerLaw::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double PowerLaw::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
     if(energyMin == energyMax)
         return energyMin; //return the only allowed energy
 
@@ -56,8 +56,8 @@ std::string PowerLaw::Name() const {
     return "PowerLaw";
 }
 
-std::shared_ptr<InjectionDistribution> PowerLaw::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new PowerLaw(*this));
+std::shared_ptr<PrimaryInjectionDistribution> PowerLaw::clone() const {
+    return std::shared_ptr<PrimaryInjectionDistribution>(new PowerLaw(*this));
 }
 
 bool PowerLaw::equal(WeightableDistribution const & other) const {

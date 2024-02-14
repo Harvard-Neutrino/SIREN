@@ -20,7 +20,7 @@
 namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
-namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class PrimaryInjectionDistribution; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -56,13 +56,13 @@ public:
     std::vector<double> GetCDF() const;
     std::vector<double> GetEnergyNodes() const;
     std::vector<double> GetCDFEnergyNodes() const;
-    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
+    double SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);
     TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
     TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false);
     std::string Name() const override;
-    virtual std::shared_ptr<InjectionDistribution> clone() const override;
+    virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
