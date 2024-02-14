@@ -41,7 +41,7 @@ primary_physical_distributions = {}
 
 # energy distribution
 # HE SN flux from ATLAS paper
-flux_file = _util.get_tabulated_flux_file("HE_SN","")
+flux_file = _util.get_tabulated_flux_file("HE_SN","numu")
 edist = LI.distributions.TabulatedFluxDistribution(100, 1e6, flux_file, True) #bool is whether flux is physical
 primary_injection_distributions["energy"] = edist
 primary_physical_distributions["energy"] = edist
