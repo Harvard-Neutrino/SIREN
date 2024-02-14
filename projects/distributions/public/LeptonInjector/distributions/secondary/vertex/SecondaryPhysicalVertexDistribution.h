@@ -45,7 +45,7 @@ public:
     virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
 
     std::string Name() const override;
-    virtual std::shared_ptr<InjectionDistribution> clone() const override;
+    virtual std::shared_ptr<SecondaryInjectionDistribution> clone() const override;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const override;
 
     template<typename Archive>

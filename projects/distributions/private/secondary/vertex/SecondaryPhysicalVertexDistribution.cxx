@@ -150,8 +150,8 @@ std::string SecondaryPhysicalVertexDistribution::Name() const {
     return "SecondaryPhysicalVertexDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> SecondaryPhysicalVertexDistribution::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new SecondaryPhysicalVertexDistribution(*this));
+std::shared_ptr<SecondaryInjectionDistribution> SecondaryPhysicalVertexDistribution::clone() const {
+    return std::shared_ptr<SecondaryInjectionDistribution>(new SecondaryPhysicalVertexDistribution(*this));
 }
 
 std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryPhysicalVertexDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {

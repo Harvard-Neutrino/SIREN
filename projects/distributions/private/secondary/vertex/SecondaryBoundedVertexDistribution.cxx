@@ -190,8 +190,8 @@ std::string SecondaryBoundedVertexDistribution::Name() const {
     return "SecondaryBoundedVertexDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> SecondaryBoundedVertexDistribution::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new SecondaryBoundedVertexDistribution(*this));
+std::shared_ptr<SecondaryInjectionDistribution> SecondaryBoundedVertexDistribution::clone() const {
+    return std::shared_ptr<SecondaryInjectionDistribution>(new SecondaryBoundedVertexDistribution(*this));
 }
 
 std::pair<LI::math::Vector3D, LI::math::Vector3D> SecondaryBoundedVertexDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {

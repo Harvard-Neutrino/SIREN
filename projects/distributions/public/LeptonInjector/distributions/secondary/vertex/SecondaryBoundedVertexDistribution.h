@@ -23,7 +23,7 @@
 namespace LI { namespace interactions { class InteractionCollection; } }
 namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
-namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class SecondaryInjectionDistribution; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }
 namespace LI { namespace geometry { class Geometry; } }
 namespace LI { namespace utilities { class LI_random; } }
@@ -34,8 +34,8 @@ namespace distributions {
 class SecondaryBoundedVertexDistribution : virtual public SecondaryVertexPositionDistribution {
 friend cereal::access;
 private:
-    double max_length = std::numeric_limits<double>::infinity();
     std::shared_ptr<LI::geometry::Geometry> fiducial_volume = nullptr;
+    double max_length = std::numeric_limits<double>::infinity();
 public:
 
     SecondaryBoundedVertexDistribution();
@@ -48,7 +48,7 @@ public:
     virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
 
     std::string Name() const override;
-    virtual std::shared_ptr<InjectionDistribution> clone() const override;
+    virtual std::shared_ptr<SecondaryInjectionDistribution> clone() const override;
     virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const override;
 
     template<typename Archive>
