@@ -123,6 +123,7 @@ PYBIND11_MODULE(dataclasses,m) {
 
   class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
           .def(init<>())
+          .def("__str__", [](InteractionRecord const & r) { std::stringstream ss; ss << r; return ss.str(); })
           .def_readwrite("signature",&InteractionRecord::signature)
           .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
           .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
