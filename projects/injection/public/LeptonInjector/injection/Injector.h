@@ -4,6 +4,7 @@
 
 #include <map>                                             // for map
 #include <set>                                             // for set
+#include <tuple>
 #include <string>
 #include <memory>
 #include <vector>                                          // for vector

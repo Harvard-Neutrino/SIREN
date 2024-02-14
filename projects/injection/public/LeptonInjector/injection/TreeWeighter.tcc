@@ -91,7 +91,7 @@ void ProcessWeighter<ProcessType>::Initialize() {
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const {
+double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const {
     using LI::detector::DetectorPosition;
     using LI::detector::DetectorDirection;
     LI::math::Vector3D interaction_vertex(
@@ -129,7 +129,7 @@ double ProcessWeighter<ProcessType>::InteractionProbability(std::pair<LI::math::
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(bounds.second), targets, total_cross_sections, total_decay_length);
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length);
 
     double interaction_probability;
     if(total_interaction_depth < 1e-6) {
@@ -141,7 +141,7 @@ double ProcessWeighter<ProcessType>::InteractionProbability(std::pair<LI::math::
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const {
+double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const {
     using LI::detector::DetectorPosition;
     using LI::detector::DetectorDirection;
     LI::math::Vector3D interaction_vertex(
@@ -180,8 +180,8 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::pair<LI:
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(bounds.second), targets, total_cross_sections, total_decay_length); // unitless
-    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length); // unitless
+    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
     double interaction_density = detector_model->GetInteractionDensity(intersections, DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length); //units of m^-1
 
     double prob_density;
@@ -195,7 +195,7 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::pair<LI:
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds,
+double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> const & bounds,
         LI::dataclasses::InteractionRecord const & record ) const {
 
     double physical_probability = 1.0;
@@ -226,7 +226,7 @@ double ProcessWeighter<ProcessType>::GenerationProbability(LI::dataclasses::Inte
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds,
+double ProcessWeighter<ProcessType>::EventWeight(std::tuple<LI::math::Vector3D, LI::math::Vector3D> const & bounds,
         LI::dataclasses::InteractionTreeDatum const & datum) const {
     return PhysicalProbability(bounds,datum.record)/GenerationProbability(datum);
 }

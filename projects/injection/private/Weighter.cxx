@@ -87,11 +87,11 @@ namespace {
 //---------------
 
 double LeptonWeighter::InteractionProbability(std::shared_ptr<Injector const> injector, LI::dataclasses::InteractionRecord const & record) const {
-    std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
+    std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
     return InteractionProbability(bounds, record);
 }
 
-double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const {
+double LeptonWeighter::InteractionProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
@@ -126,7 +126,7 @@ double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(bounds.second), targets, total_cross_sections, total_decay_length);
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length);
     double interaction_probability;
     if(total_interaction_depth < 1e-6) {
         interaction_probability = total_interaction_depth;
@@ -137,11 +137,11 @@ double LeptonWeighter::InteractionProbability(std::pair<LI::math::Vector3D, LI::
 }
 
 double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<Injector const> injector, LI::dataclasses::InteractionRecord const & record) const {
-    std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
+    std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
     return UnnormalizedPositionProbability(bounds, record);
 }
 
-double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const {
+double LeptonWeighter::UnnormalizedPositionProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
@@ -178,8 +178,8 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::math::Vecto
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(bounds.second), targets, total_cross_sections, total_decay_length);
-    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length);
+    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
     double interaction_density = detector_model->GetInteractionDensity(intersections, DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
 
     double prob_density;
@@ -192,7 +192,7 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::pair<LI::math::Vecto
     return prob_density;
 }
 
-double LeptonWeighter::NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const {
+double LeptonWeighter::NormalizedPositionProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
@@ -229,8 +229,8 @@ double LeptonWeighter::NormalizedPositionProbability(std::pair<LI::math::Vector3
         total_cross_sections.push_back(total_xs);
     }
 
-    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(bounds.second), targets, total_cross_sections, total_decay_length);
-    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(bounds.first), DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
+    double total_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(std::get<1>(bounds)), targets, total_cross_sections, total_decay_length);
+    double traversed_interaction_depth = detector_model->GetInteractionDepthInCGS(intersections, DetectorPosition(std::get<0>(bounds)), DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
     double interaction_density = detector_model->GetInteractionDensity(intersections, DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length);
 
     double prob_density;
@@ -526,7 +526,7 @@ double LeptonWeighter::EventWeight(LI::dataclasses::InteractionRecord const & re
     // From each injector we need the generation probability and the unnormalized position probability (interaction probability * position probability)
     for(auto injector : injectors) {
         double generation_probability = injector->GenerationProbability(record);
-        std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
+        std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
         double physical_probability = 1.0;
 
         /*
@@ -618,7 +618,7 @@ double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord 
             double pos_prob = UnnormalizedPositionProbability((std::shared_ptr<Injector const>)injectors[i], record);
             prob /= pos_prob;
         }*/
-        std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds = injectors[i]->PrimaryInjectionBounds(record);
+        std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds = injectors[i]->PrimaryInjectionBounds(record);
         double interaction_probability = InteractionProbability(bounds, record);
         double normalized_position_probability = NormalizedPositionProbability(bounds, record);
         prob /= interaction_probability;

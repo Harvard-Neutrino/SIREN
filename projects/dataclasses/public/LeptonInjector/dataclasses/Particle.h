@@ -7,7 +7,6 @@
 
 #include <set>
 #include <string>
-#include <utility>
 #include <stdint.h>
 
 #include "LeptonInjector/dataclasses/ParticleID.h"

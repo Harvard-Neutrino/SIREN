@@ -156,7 +156,7 @@ bool inFiducial(std::array<double,3> & int_vtx, Sphere & fidVol) {
     return fidVol.IsInside(pos,dir);
 }
 
-double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> detector_model, std::shared_ptr<InteractionCollection const> interactions, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
+double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> detector_model, std::shared_ptr<InteractionCollection const> interactions, std::tuple<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
     Vector3D interaction_vertex = record.interaction_vertex;
     Vector3D direction(
             record.primary_momentum[1],
@@ -184,7 +184,7 @@ double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> detector_m
 		}
 		total_cross_sections.push_back(total_xs);
 	}
-    std::vector<double> particle_depths = detector_model->GetParticleColumnDepth(intersections, bounds.first, bounds.second, targets);
+    std::vector<double> particle_depths = detector_model->GetParticleColumnDepth(intersections, std::get<0>(bounds), std::get<1>(bounds), targets);
 
     double interaction_depth = 0.0;
     for(unsigned int i=0; i<targets.size(); ++i) {

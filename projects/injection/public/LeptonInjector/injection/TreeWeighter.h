@@ -3,9 +3,9 @@
 #define LI_TreeWeighter_H
 
 #include <map>                                           // for map
+#include <tuple>
 #include <memory>                                        // for shared_ptr
 #include <vector>                                        // for vector
-#include <utility>                                       // for pair
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -45,11 +45,11 @@ private:
     void Initialize();
     double normalization;
 public:
-    double InteractionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const;
-    double NormalizedPositionProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const;
-    double PhysicalProbability(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const;
+    double InteractionProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const;
+    double NormalizedPositionProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const;
+    double PhysicalProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionRecord const & record) const;
     double GenerationProbability(LI::dataclasses::InteractionTreeDatum const & datum) const;
-    double EventWeight(std::pair<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionTreeDatum const & datum) const;
+    double EventWeight(std::tuple<LI::math::Vector3D, LI::math::Vector3D> const & bounds, LI::dataclasses::InteractionTreeDatum const & datum) const;
     ProcessWeighter(std::shared_ptr<LI::injection::PhysicalProcess> phys_process, std::shared_ptr<ProcessType> inj_process, std::shared_ptr<LI::detector::DetectorModel> detector_model);
 
 }; // ProcessWeighter

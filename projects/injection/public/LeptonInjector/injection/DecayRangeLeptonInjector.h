@@ -2,11 +2,11 @@
 #ifndef LI_DecayRangeLeptonInjector_H
 #define LI_DecayRangeLeptonInjector_H
 
+#include <tuple>
 #include <memory>
 #include <string>
 #include <vector>
 #include <cstdint>                                  // for uint32_t
-#include <utility>
 #include <stdexcept>                                // for runtime_error
 
 #include <cereal/cereal.hpp>

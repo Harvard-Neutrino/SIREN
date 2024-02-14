@@ -96,7 +96,7 @@ double LeptonTreeWeighter::EventWeight(LI::dataclasses::InteractionTree const & 
         double physical_probability = 1.0;
         double generation_probability = injectors[idx]->EventsToInject();//GenerationProbability(tree);
         for(auto const & datum : tree.tree) {
-            std::pair<LI::math::Vector3D, LI::math::Vector3D> bounds;
+            std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds;
             if(datum->depth()==0) {
                 bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
                 physical_probability *= primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
