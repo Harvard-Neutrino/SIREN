@@ -44,12 +44,11 @@ TEST(Cone, SampleBounds) {
         double opening_angle = M_PI * RandomDouble();
         Cone A(direction, opening_angle);
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::InteractionRecord record;
-            record.primary_momentum[0] = 1;
-            record.primary_mass = 0;
+            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            record.SetEnergy(1);
+            record.SetMass(0);
             A.Sample(rand, nullptr, nullptr, record);
-            Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
-            vec.normalize();
+            Vector3D vec(record.GetDirection());
             double angle = acos(scalar_product(vec, direction));
             EXPECT_TRUE(angle <= opening_angle);
             EXPECT_TRUE(angle >= 0);
@@ -76,12 +75,11 @@ TEST(Cone, SampleDistributionTheta) {
         double bin_min = cos(opening_angle);
         DistributionTest test(bin_min, bin_max, n_bins);
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::InteractionRecord record;
-            record.primary_momentum[0] = 1;
-            record.primary_mass = 0;
+            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            record.SetEnergy(1);
+            record.SetMass(0);
             A.Sample(rand, nullptr, nullptr, record);
-            Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
-            vec.normalize();
+            Vector3D vec(record.GetDirection());
             double c = scalar_product(vec, direction);
             test.AddValue(c);
             double angle = acos(scalar_product(vec, direction));
@@ -143,12 +141,11 @@ TEST(Cone, SampleDistributionPhi) {
         double bin_min = -M_PI;
         DistributionTest test(bin_min, bin_max, n_bins);
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::InteractionRecord record;
-            record.primary_momentum[0] = 1;
-            record.primary_mass = 0;
+            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            record.SetEnergy(1);
+            record.SetMass(0);
             A.Sample(rand, nullptr, nullptr, record);
-            Vector3D sample_vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
-            sample_vec.normalize();
+            Vector3D sample_vec(record.GetDirection());
             double phi = std::atan2(scalar_product(sample_vec, ortho_2), scalar_product(sample_vec, ortho_1));
             test.AddValue(phi);
         }
@@ -268,12 +265,11 @@ TEST(FixedDirection, Sample) {
         }
         FixedDirection A(direction);
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::InteractionRecord record;
-            record.primary_momentum[0] = 1;
-            record.primary_mass = 0;
+            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            record.SetEnergy(1);
+            record.SetMass(0);
             A.Sample(rand, nullptr, nullptr, record);
-            Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
-            vec.normalize();
+            Vector3D vec(record.GetDirection());
             double dot = scalar_product(direction, vec);
             EXPECT_TRUE(std::abs(dot - 1.0) < 1e-9);
         }
@@ -294,12 +290,11 @@ TEST(IsotropicDirection, SampleDistributionTheta) {
     size_t n_bins = (N / 5000) + 1;
     DistributionTest test(bin_min, bin_max, n_bins);
     for(size_t i=0; i<N; ++i) {
-        LI::dataclasses::InteractionRecord record;
-        record.primary_momentum[0] = 1;
-        record.primary_mass = 0;
+        LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+        record.SetEnergy(1);
+        record.SetMass(0);
         A.Sample(rand, nullptr, nullptr, record);
-        Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
-        vec.normalize();
+        Vector3D vec(record.GetDirection());
         double c = scalar_product(vec, direction);
         test.AddValue(c);
         double angle = acos(c);
@@ -323,12 +318,11 @@ TEST(IsotropicDirection, SampleDistributionPhi) {
     size_t n_bins = (N / 5000) + 1;
     DistributionTest test(bin_min, bin_max, n_bins);
     for(size_t i=0; i<N; ++i) {
-        LI::dataclasses::InteractionRecord record;
-        record.primary_momentum[0] = 1;
-        record.primary_mass = 0;
+        LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+        record.SetEnergy(1);
+        record.SetMass(0);
         A.Sample(rand, nullptr, nullptr, record);
-        Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
-        vec.normalize();
+        Vector3D vec(record.GetDirection());
         double phi = atan2(scalar_product(ortho_2, vec), scalar_product(ortho_1, vec));
         test.AddValue(phi);
         EXPECT_TRUE(phi <= M_PI);
@@ -345,13 +339,14 @@ TEST(IsotropicDirection, GenerationProbability) {
     IsotropicDirection A;
     double expected_density = 1.0 / (4.0 * M_PI);
     for(size_t i=0; i<N; ++i) {
-        LI::dataclasses::InteractionRecord record;
-        record.primary_momentum[0] = 1;
-        record.primary_mass = 0;
+        LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+        record.SetEnergy(1);
+        record.SetMass(0);
         A.Sample(rand, nullptr, nullptr, record);
-        Vector3D vec(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
-        vec.normalize();
-        double density = A.GenerationProbability(nullptr, nullptr, record);
+        Vector3D vec(record.GetDirection());
+        LI::dataclasses::InteractionRecord interaction_record;
+        record.FinalizeAvailable(interaction_record);
+        double density = A.GenerationProbability(nullptr, nullptr, interaction_record);
         EXPECT_NEAR(density, expected_density, expected_density * 1e-8);
     }
 }
