@@ -34,11 +34,9 @@ namespace dataclasses {
 // Record intended to be passed to the primary particle injection distributions
 class PrimaryDistributionRecord {
 public:
-    // The signature should be constant
-    InteractionRecord const & record;
-    InteractionSignature const & signature;
+    // The id and type should be constant
     ParticleID const id;
-    ParticleType const & type;
+    ParticleType const type;
 private:
     // The rest of the primary particle properties can be changed
     bool mass_set = false;
@@ -62,9 +60,7 @@ private:
     double helicity = 0;
 public:
 
-    PrimaryDistributionRecord(InteractionRecord const & record);
-
-    InteractionSignature const & GetSignature() const;
+    PrimaryDistributionRecord(ParticleType type);
 
     Particle GetParticle();
     void SetParticle(Particle const & particle);
@@ -101,7 +97,7 @@ public:
     void SetFourMomentum(std::array<double, 4> momentum);
     void SetLength(double length);
     void SetInitialPosition(std::array<double, 3> initial_position);
-    void SetInteractionVertex(std::array<double, 3> initial_position);
+    void SetInteractionVertex(std::array<double, 3> interaction_vertex);
     void SetHelicity(double helicity);
 
     void UpdateMass();
@@ -113,6 +109,7 @@ public:
     void UpdateInitialPosition();
     void UpdateInteractionVertex();
 
+    void FinalizeAvailable(InteractionRecord & record);
     void Finalize(InteractionRecord & record);
 };
 

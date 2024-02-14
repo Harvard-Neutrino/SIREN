@@ -7,21 +7,15 @@
 namespace LI {
 namespace dataclasses {
 
-PrimaryDistributionRecord::PrimaryDistributionRecord(InteractionRecord const & record) :
-    record(record),
-    signature(record.signature),
-    id((record.primary_id) ? (record.primary_id) : (ParticleID::GenerateID())),
-    type(record.signature.primary_type)
+PrimaryDistributionRecord::PrimaryDistributionRecord(ParticleType type) :
+    id(ParticleID::GenerateID()),
+    type(type)
 {}
-
-InteractionSignature const & PrimaryDistributionRecord::GetSignature() const {
-    return signature;
-}
 
 Particle PrimaryDistributionRecord::GetParticle() {
     Particle p;
     p.id = id;
-    p.type = signature.primary_type;
+    p.type = type;
     try {
         p.mass = GetMass();
     } catch(...) {
@@ -145,7 +139,7 @@ std::array<double, 3> const & PrimaryDistributionRecord::GetThreeMomentum() {
 }
 
 std::array<double, 4> PrimaryDistributionRecord::GetFourMomentum() const {
-    if(momentum_set) {
+    if(momentum_set and energy_set) {
         return {energy, momentum.at(0), momentum.at(1), momentum.at(2)};
     } else {
         PrimaryDistributionRecord non_const_this = *this;
@@ -155,10 +149,11 @@ std::array<double, 4> PrimaryDistributionRecord::GetFourMomentum() const {
 }
 
 std::array<double, 4> PrimaryDistributionRecord::GetFourMomentum() {
-    if(not momentum_set) {
+    if(not (momentum_set and energy_set)) {
         UpdateMomentum();
+        UpdateEnergy();
     }
-    return {momentum.at(0), momentum.at(1), momentum.at(2), GetEnergy()};
+    return {energy, momentum.at(0), momentum.at(1), momentum.at(2)};
 }
 
 double PrimaryDistributionRecord::GetLength() const {
@@ -394,8 +389,25 @@ void PrimaryDistributionRecord::UpdateInteractionVertex() {
     }
 }
 
+void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) {
+    record.signature.primary_type = type;
+    record.primary_id = GetID();
+    try {
+        record.primary_initial_position = GetInitialPosition();
+    } catch(std::runtime_error e) {}
+    try {
+        record.primary_mass = GetMass();
+    } catch(std::runtime_error e) {}
+    try {
+        record.primary_momentum = GetFourMomentum();
+    } catch(std::runtime_error e) {}
+    try {
+        record.primary_helicity = GetHelicity();
+    } catch(std::runtime_error e) {}
+}
+
 void PrimaryDistributionRecord::Finalize(InteractionRecord & record) {
-    record.signature.primary_type = signature.primary_type;
+    record.signature.primary_type = type;
     record.primary_id = GetID();
     record.primary_initial_position = GetInitialPosition();
     record.primary_mass = GetMass();

@@ -46,11 +46,7 @@ PYBIND11_MODULE(dataclasses,m) {
           .def_readwrite("secondary_types",&InteractionSignature::secondary_types);
 
     class_<PrimaryDistributionRecord, std::shared_ptr<PrimaryDistributionRecord>>(m, "PrimaryDistributionRecord")
-        .def(init<InteractionRecord const &>())
-        .def_property_readonly("record",
-            [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::InteractionRecord ir = pdr.record; return ir;})
-        .def_property_readonly("signature",
-            [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::InteractionSignature is = pdr.signature; return is;})
+        .def(init<ParticleType>())
         .def_property_readonly("id",
             [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::ParticleID id = pdr.id; return id;})
         .def_property_readonly("type",
