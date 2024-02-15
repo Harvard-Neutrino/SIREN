@@ -22,7 +22,7 @@ namespace interactions {
 
 DarkNewsDecay::DarkNewsDecay() {}
 
-pybind11::object DarkNewsDecay::get_self() {
+pybind11::object DarkNewsDecay::get_representation() {
     return pybind11::cast<pybind11::none>(Py_None);
 }
 

@@ -623,6 +623,18 @@ class PyDarkNewsDecay(DarkNewsDecay):
         if table_dir_exists:
             self.SetIntegratorAndNorm()
 
+    # serialization method
+    def get_representation(self):
+        return {"decay_integrator":self.decay_integrator,
+                "decay_norm":self.decay_norm,
+                "dec_case":self.dec_case,
+                "PS_samples":self.PS_samples,
+                "PS_weights":self.PS_weights,
+                "PS_weights_CDF":self.PS_weights_CDF,
+                "total_width":self.total_width,
+                "table_dir":self.table_dir
+               }
+    
     def SetIntegratorAndNorm(self):
         # Try to find the decay integrator
         int_file = os.path.join(self.table_dir, "decay_integrator.pkl")
