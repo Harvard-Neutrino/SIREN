@@ -509,20 +509,8 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
         .def("get_representation", &DarkNewsCrossSection::get_representation)
         .def(pybind11::pickle(
-            [](const LI::interactions::DarkNewsCrossSection & cpp_obj) {
-                pybind11::object self;
-                if(dynamic_cast<LI::interactions::pyDarkNewsCrossSection const *>(&cpp_obj) != nullptr and dynamic_cast<LI::interactions::pyDarkNewsCrossSection const *>(&cpp_obj)->self) {
-                    self = pybind11::reinterpret_borrow<pybind11::object>(dynamic_cast<LI::interactions::pyDarkNewsCrossSection const *>(&cpp_obj)->self);
-                } else {
-                    auto *tinfo = pybind11::detail::get_type_info(typeid(LI::interactions::DarkNewsCrossSection));
-                    pybind11::handle self_handle = get_object_handle(static_cast<const LI::interactions::DarkNewsCrossSection *>(&cpp_obj), tinfo);
-                    self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
-                }
-                pybind11::dict d;
-                if (pybind11::hasattr(self, "__dict__")) {
-                    d = self.attr("__dict__");
-                }
-                return pybind11::make_tuple(d);
+            [](LI::interactions::DarkNewsCrossSection & cpp_obj) {
+                return pybind11::make_tuple(cpp_obj.get_representation());
             },
             [](const pybind11::tuple &t) {
                 if (t.size() != 1) {
