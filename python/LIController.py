@@ -117,18 +117,6 @@ class LIController:
             secondary_injection_process.primary_type = secondary_type
             secondary_physical_process.primary_type = secondary_type
 
-            # Default injection distributions
-            if "mass" not in secondary_injection_distributions[i_sec].keys():
-                self.secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.secondaryMass(0)
-                )
-
-            # Default injection distributions
-            if "mass" not in secondary_physical_distributions[i_sec].keys():
-                self.secondary_physical_process.AddPhysicalDistribution(
-                    _distributions.secondaryMass(0)
-                )
-
             # Add all injection distributions
             for idist in secondary_injection_distributions[i_sec]:
                 secondary_injection_process.AddSecondaryInjectionDistribution(idist)
