@@ -213,7 +213,7 @@ public:
             double,
             TotalDecayWidth,
             "TotalDecayWidth",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -224,7 +224,7 @@ public:
             double,
             TotalDecayWidthForFinalState,
             "TotalDecayWidthForFinalState",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -246,7 +246,7 @@ public:
             double,
             DifferentialDecayWidth,
             "DifferentialDecayWidth",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -257,19 +257,19 @@ public:
             void,
             SampleRecordFromDarkNews,
             "SampleRecordFromDarkNews",
-            record,
+            std::ref(record),
             random
         )
     }
 
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsDecay,
             void,
             SampleFinalState,
             "SampleFinalState",
-            interaction,
+            std::ref(record),
             random
         )
     }
@@ -312,7 +312,7 @@ public:
             double,
             FinalStateProbability,
             "FinalStateProbability",
-            record
+            std::cref(record)
         )
     }
 

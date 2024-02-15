@@ -213,7 +213,7 @@ public:
             double,
             TotalCrossSection,
             "TotalCrossSection",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -237,7 +237,7 @@ public:
             double,
             DifferentialCrossSection,
             "DifferentialCrossSection",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -262,7 +262,7 @@ public:
             double,
             InteractionThreshold,
             "InteractionThreshold",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -273,7 +273,7 @@ public:
             double,
             Q2Min,
             "Q2Min",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -284,7 +284,7 @@ public:
             double,
             Q2Max,
             "Q2Max",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -295,7 +295,7 @@ public:
             double,
             TargetMass,
             "TargetMass",
-            target_type
+            std::cref(target_type)
         )
     }
 
@@ -306,7 +306,7 @@ public:
             std::vector<double>,
             SecondaryMasses,
             "SecondaryMasses",
-            secondary_types
+            std::cref(secondary_types)
         )
     }
 
@@ -317,7 +317,7 @@ public:
             std::vector<double>,
             SecondaryHelicities,
             "SecondaryHelicities",
-            record
+            std::cref(record)
         )
     }
 
@@ -328,7 +328,7 @@ public:
             void,
             SampleFinalState,
             "SampleFinalState",
-            record,
+            std::ref(record),
             random
         )
     }
@@ -393,7 +393,7 @@ public:
             double,
             FinalStateProbability,
             "FinalStateProbability",
-            record
+            std::cref(record)
         )
     }
 
