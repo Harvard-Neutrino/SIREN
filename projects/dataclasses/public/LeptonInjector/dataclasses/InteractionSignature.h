@@ -9,6 +9,11 @@
 #include <cereal/cereal.hpp>                      // for make_nvp, CEREAL_CL...
 
 #include "LeptonInjector/dataclasses/Particle.h"  // for Particle
+                                                  //
+
+namespace LI { namespace dataclasses { struct InteractionSignature; } }
+
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionSignature const& signature);
 
 namespace LI {
 namespace dataclasses {
@@ -20,7 +25,7 @@ struct InteractionSignature {
 
     bool operator==(InteractionSignature const & other) const;
     bool operator<(InteractionSignature const & other) const;
-    friend std::ostream& operator<<(std::ostream& os, InteractionSignature const& signature);
+    friend std::ostream& ::operator<<(std::ostream& os, InteractionSignature const& signature);
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
