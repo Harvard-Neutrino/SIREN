@@ -138,6 +138,8 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record) c
 }
 
 void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::interactions::InteractionCollection> interactions) const {
+    std::cout << "Sampling cross section" << std::endl;
+    std::cout << "Record: " << record << std::endl;
 
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
@@ -172,6 +174,7 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     LI::dataclasses::InteractionRecord fake_record = record;
     double fake_prob;
     if (interactions->HasCrossSections()) {
+        std::cout << "Has cross sections" << std::endl;
         for(auto const target : available_targets) {
             if(possible_targets.find(target) != possible_targets.end()) {
                 // Get target density
@@ -200,11 +203,15 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
         }
     }
     if (interactions->HasDecays()) {
+        std::cout << "Has decays" << std::endl;
         for(auto const & decay : interactions->GetDecays() ) {
+            std::cout << "Decay" << std::endl;
             for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
+                std::cout << "Signature: " << signature << std::endl;
                 fake_record.signature = signature;
                 // fake_prob has units of 1/cm to match cross section probabilities
                 fake_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/LI::utilities::Constants::cm);
+                std::cout << "Fake prob: " << fake_prob << std::endl;
                 total_prob += fake_prob;
                 // Add total prob to probs
                 probs.push_back(total_prob);
@@ -215,11 +222,14 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
             }
         }
     }
+
+    if(total_prob == 0)
+        throw(LI::utilities::InjectionFailure("No valid interactions for this event!"));
     // Throw a random number
     double r = random->Uniform(0, total_prob);
     // Choose the target and cross section
     unsigned int index = 0;
-    for(; (index < probs.size()-1) and (r > probs[index]); ++index) {}
+    for(; (index+1 < probs.size()) and (r > probs[index]); ++index) {}
     record.signature.target_type = matching_targets[index];
     record.signature = matching_signatures[index];
     double selected_prob = 0.0;
@@ -228,14 +238,26 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
             selected_prob += (i > 0 ? probs[i] - probs[i - 1] : probs[i]);
         }
     }
-    if(total_prob == 0 or selected_prob == 0)
+    if(selected_prob == 0)
         throw(LI::utilities::InjectionFailure("No valid interactions for this event!"));
     record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
     LI::dataclasses::CrossSectionDistributionRecord xsec_record(record);
-    if(r <= xsec_prob)
+    if(r <= xsec_prob) {
+        std::cout << "Attempting to sample final state from cross section" << std::endl;
+        std::cout << "Index: " << index << std::endl;
+        std::cout << "Record before: " << xsec_record << std::endl;
         matching_cross_sections[index]->SampleFinalState(xsec_record, random);
-    else
+        std::cout << "Record after: " << xsec_record << std::endl;
+        std::cout << "Done sampling final state from cross section" << std::endl;
+    } else {
+        std::cout << "Attempting to sample final state from decay" << std::endl;
+        std::cout << "Index: " << index << std::endl;
+        std::cout << "Record before: " << xsec_record << std::endl;
         matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
+        std::cout << "Record after: " << xsec_record << std::endl;
+        std::cout << "Done sampling final state from decay" << std::endl;
+    }
+    std::cout << "Finalizing" << std::endl;
     xsec_record.Finalize(record);
 }
 
@@ -247,12 +269,13 @@ LI::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(LI::dataclas
     std::shared_ptr<LI::interactions::InteractionCollection> secondary_interactions = secondary_process->GetInteractions();
     std::vector<std::shared_ptr<LI::distributions::SecondaryInjectionDistribution>> secondary_distributions = secondary_process->GetSecondaryInjectionDistributions();
 
-    size_t max_tries = 1000;
+    size_t max_tries = 100;
     size_t tries = 0;
     size_t failed_tries = 0;
     while(true) {
         try {
             for(auto & distribution : secondary_distributions) {
+                std::cout << distribution->Name() << std::endl;
                 distribution->Sample(random, detector_model, secondary_process->GetInteractions(), secondary_record);
             }
             LI::dataclasses::InteractionRecord record;
@@ -261,6 +284,8 @@ LI::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(LI::dataclas
             return record;
         } catch(LI::utilities::InjectionFailure const & e) {
             failed_tries += 1;
+            std::cout << e.what() << std::endl;
+            std::cout << "Failed to generate secondary process" << std::endl;
             if(tries > max_tries) {
                 throw(LI::utilities::InjectionFailure("Failed to generate secondary process!"));
                 break;
@@ -277,7 +302,7 @@ LI::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(LI::dataclas
 
 LI::dataclasses::InteractionTree Injector::GenerateEvent() {
     LI::dataclasses::InteractionRecord record;
-    size_t max_tries = 1000;
+    size_t max_tries = 100;
     size_t tries = 0;
     size_t failed_tries = 0;
     // Initial Process
