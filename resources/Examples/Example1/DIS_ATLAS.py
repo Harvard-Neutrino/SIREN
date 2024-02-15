@@ -46,10 +46,6 @@ edist = LI.distributions.TabulatedFluxDistribution(100, 1e6, flux_file, True) #b
 primary_injection_distributions["energy"] = edist
 primary_physical_distributions["energy"] = edist
 
-# we need this conversion to make sure the flux is in units of 1/m2
-flux_unit_conv = LI.distributions.NormalizationConstant((100 / 1)**2)
-primary_physical_distributions["flux_norm"] = flux_unit_conv
-
 # direction distribution
 # let's just inject upwards
 injection_dir = LI.math.Vector3D(0, 0, 1)

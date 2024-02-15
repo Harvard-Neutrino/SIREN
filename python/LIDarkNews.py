@@ -155,18 +155,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         self.table_dir = table_dir
         self.interpolate_differential = interpolate_differential
 
-        # Define the target particle
-        # make sure protons are stored as H nuclei
-        self.target_type = Particle.ParticleType(self.ups_case.nuclear_target.pdgid)
-        if self.target_type==Particle.ParticleType.PPlus:
-            self.target_type = Particle.ParticleType.HNucleus
-
         # 2D table in E, sigma
         self.total_cross_section_table = np.empty((0, 2), dtype=float)
-        self.total_cross_section_interpolator = None
         # 3D table in E, z, dsigma/dQ2 where z = (Q2 - Q2min) / (Q2max - Q2min)
         self.differential_cross_section_table = np.empty((0, 3), dtype=float)
-        self.differential_cross_section_interpolator = None
 
         if table_dir is None:
             print(
@@ -174,7 +166,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             )
             return
 
-        # Make the table directory where will we store cross section integrators
+        # Make the table directory where will we store cross section tables
         table_dir_exists = False
         if os.path.exists(self.table_dir):
             # print("Directory '%s' already exists"%self.table_dir)
@@ -198,7 +190,35 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             if os.path.exists(diff_xsec_file):
                 self.differential_cross_section_table = np.load(diff_xsec_file)
 
-            self._redefine_interpolation_objects(total=True, diff=True)
+        self.configure()
+    
+    # serialization method
+    def get_representation(self):
+        return {"total_cross_section_table":self.total_cross_section_table,
+                "differential_cross_section_table":self.differential_cross_section_table,
+                "ups_case":self.ups_case,
+                "tolerance":self.tolerance,
+                "interp_tolerance":self.interp_tolerance,
+                "table_dir":self.table_dir,
+                "interpolate_differential":self.interpolate_differential
+               }
+    
+    # Configure function to set up member variables
+    # assumes we have defined the following:
+    #   ups_case, total_cross_section_table, differential_cross_section_table,
+    #   tolerance, interp_tolerance, table_dir, interpolate_differential
+    def configure(self):
+
+        # Define the target particle
+        # make sure protons are stored as H nuclei
+        self.target_type = Particle.ParticleType(self.ups_case.nuclear_target.pdgid)
+        if self.target_type==Particle.ParticleType.PPlus:
+            self.target_type = Particle.ParticleType.HNucleus
+        
+        # Initialize interpolation objects
+        self.total_cross_section_interpolator = None
+        self.differential_cross_section_interpolator = None
+        self._redefine_interpolation_objects(total=True, diff=True)
 
     # Sorts and redefines scipy interpolation objects
     def _redefine_interpolation_objects(self, total=False, diff=False):
@@ -387,18 +407,6 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 os.path.join(self.table_dir, "differential_cross_sections.npy"), "wb"
             ) as f:
                 np.save(f, self.differential_cross_section_table)
-
-    ##### START METHODS FOR SERIALIZATION #########
-    # def get_initialized_dict(config):
-    #     # do the intitialization step
-    #     pddn = PyDerivedDarkNews(config)
-    #     return pddn.__dict__
-    #     # return the conent of __dict__ for PyDerivedDarkNews
-
-    # @staticmethod
-    # def get_config(self):
-    #     return self.config
-    ##### END METHODS FOR SERIALIZATION #########
 
     def GetPossiblePrimaries(self):
         return [Particle.ParticleType(self.ups_case.nu_projectile.pdgid)]
