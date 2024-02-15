@@ -138,9 +138,6 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record) c
 }
 
 void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::interactions::InteractionCollection> interactions) const {
-    std::cout << "Sampling cross section" << std::endl;
-    std::cout << "Record: " << record << std::endl;
-
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
             std::isnan(record.interaction_vertex[1]) ||
@@ -174,7 +171,6 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     LI::dataclasses::InteractionRecord fake_record = record;
     double fake_prob;
     if (interactions->HasCrossSections()) {
-        std::cout << "Has cross sections" << std::endl;
         for(auto const target : available_targets) {
             if(possible_targets.find(target) != possible_targets.end()) {
                 // Get target density
@@ -203,15 +199,11 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
         }
     }
     if (interactions->HasDecays()) {
-        std::cout << "Has decays" << std::endl;
         for(auto const & decay : interactions->GetDecays() ) {
-            std::cout << "Decay" << std::endl;
             for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
-                std::cout << "Signature: " << signature << std::endl;
                 fake_record.signature = signature;
                 // fake_prob has units of 1/cm to match cross section probabilities
                 fake_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/LI::utilities::Constants::cm);
-                std::cout << "Fake prob: " << fake_prob << std::endl;
                 total_prob += fake_prob;
                 // Add total prob to probs
                 probs.push_back(total_prob);
@@ -243,21 +235,10 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
     LI::dataclasses::CrossSectionDistributionRecord xsec_record(record);
     if(r <= xsec_prob) {
-        std::cout << "Attempting to sample final state from cross section" << std::endl;
-        std::cout << "Index: " << index << std::endl;
-        std::cout << "Record before: " << xsec_record << std::endl;
         matching_cross_sections[index]->SampleFinalState(xsec_record, random);
-        std::cout << "Record after: " << xsec_record << std::endl;
-        std::cout << "Done sampling final state from cross section" << std::endl;
     } else {
-        std::cout << "Attempting to sample final state from decay" << std::endl;
-        std::cout << "Index: " << index << std::endl;
-        std::cout << "Record before: " << xsec_record << std::endl;
         matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
-        std::cout << "Record after: " << xsec_record << std::endl;
-        std::cout << "Done sampling final state from decay" << std::endl;
     }
-    std::cout << "Finalizing" << std::endl;
     xsec_record.Finalize(record);
 }
 
@@ -275,7 +256,6 @@ LI::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(LI::dataclas
     while(true) {
         try {
             for(auto & distribution : secondary_distributions) {
-                std::cout << distribution->Name() << std::endl;
                 distribution->Sample(random, detector_model, secondary_process->GetInteractions(), secondary_record);
             }
             LI::dataclasses::InteractionRecord record;
@@ -284,8 +264,6 @@ LI::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(LI::dataclas
             return record;
         } catch(LI::utilities::InjectionFailure const & e) {
             failed_tries += 1;
-            std::cout << e.what() << std::endl;
-            std::cout << "Failed to generate secondary process" << std::endl;
             if(tries > max_tries) {
                 throw(LI::utilities::InjectionFailure("Failed to generate secondary process!"));
                 break;
