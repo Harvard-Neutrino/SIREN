@@ -4,6 +4,12 @@
 #include <tuple>    // for tie, operator==, tuple
 #include <ostream>  // for operator<<, basic_ostream, char_traits, endl, ost...
 
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord const& record);
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::PrimaryDistributionRecord const& record);
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::SecondaryParticleRecord const& record);
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::CrossSectionDistributionRecord const& record);
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::SecondaryDistributionRecord const& record);
+
 namespace LI {
 namespace dataclasses {
 
@@ -12,7 +18,7 @@ PrimaryDistributionRecord::PrimaryDistributionRecord(ParticleType type) :
     type(type)
 {}
 
-Particle PrimaryDistributionRecord::GetParticle() {
+Particle PrimaryDistributionRecord::GetParticle() const {
     Particle p;
     p.id = id;
     p.type = type;
@@ -52,51 +58,21 @@ ParticleType const & PrimaryDistributionRecord::GetType() const {
     return type;
 }
 
-double PrimaryDistributionRecord::GetMass() const {
-    if(mass_set) {
-        return mass;
-    } else {
-        PrimaryDistributionRecord non_const_this = *this;
-        non_const_this.UpdateMass();
-        return non_const_this.mass;
-    }
-}
-
-double const & PrimaryDistributionRecord::GetMass() {
+double const & PrimaryDistributionRecord::GetMass() const {
     if(not mass_set) {
         UpdateMass();
     }
     return mass;
 }
 
-double PrimaryDistributionRecord::GetEnergy() const {
-    if(energy_set) {
-        return energy;
-    } else {
-        PrimaryDistributionRecord non_const_this = *this;
-        non_const_this.UpdateEnergy();
-        return non_const_this.energy;
-    }
-}
-
-double const & PrimaryDistributionRecord::GetEnergy() {
+double const & PrimaryDistributionRecord::GetEnergy() const {
     if(not energy_set) {
         UpdateEnergy();
     }
     return energy;
 }
 
-double PrimaryDistributionRecord::GetKineticEnergy() const {
-    if(kinetic_energy_set) {
-        return kinetic_energy;
-    } else {
-        PrimaryDistributionRecord non_const_this = *this;
-        non_const_this.UpdateKineticEnergy();
-        return non_const_this.kinetic_energy;
-    }
-}
-
-double const & PrimaryDistributionRecord::GetKineticEnergy() {
+double const & PrimaryDistributionRecord::GetKineticEnergy() const {
     if(not kinetic_energy_set) {
         UpdateKineticEnergy();
     }
@@ -104,34 +80,14 @@ double const & PrimaryDistributionRecord::GetKineticEnergy() {
 }
 
 
-std::array<double, 3> PrimaryDistributionRecord::GetDirection() const {
-    if(direction_set) {
-        return direction;
-    } else {
-        PrimaryDistributionRecord non_const_this = *this;
-        non_const_this.UpdateDirection();
-        return non_const_this.direction;
-    }
-}
-
-std::array<double, 3> const & PrimaryDistributionRecord::GetDirection() {
+std::array<double, 3> const & PrimaryDistributionRecord::GetDirection() const {
     if(not direction_set) {
         UpdateDirection();
     }
     return direction;
 }
 
-std::array<double, 3> PrimaryDistributionRecord::GetThreeMomentum() const {
-    if(momentum_set) {
-        return momentum;
-    } else {
-        PrimaryDistributionRecord non_const_this = *this;
-        non_const_this.UpdateMomentum();
-        return non_const_this.momentum;
-    }
-}
-
-std::array<double, 3> const & PrimaryDistributionRecord::GetThreeMomentum() {
+std::array<double, 3> const & PrimaryDistributionRecord::GetThreeMomentum() const {
     if(not momentum_set) {
         UpdateMomentum();
     }
@@ -139,16 +95,6 @@ std::array<double, 3> const & PrimaryDistributionRecord::GetThreeMomentum() {
 }
 
 std::array<double, 4> PrimaryDistributionRecord::GetFourMomentum() const {
-    if(momentum_set and energy_set) {
-        return {energy, momentum.at(0), momentum.at(1), momentum.at(2)};
-    } else {
-        PrimaryDistributionRecord non_const_this = *this;
-        non_const_this.UpdateMomentum();
-        return {non_const_this.energy, non_const_this.momentum.at(0), non_const_this.momentum.at(1), non_const_this.momentum.at(2)};
-    }
-}
-
-std::array<double, 4> PrimaryDistributionRecord::GetFourMomentum() {
     if(not (momentum_set and energy_set)) {
         UpdateMomentum();
         UpdateEnergy();
@@ -156,51 +102,21 @@ std::array<double, 4> PrimaryDistributionRecord::GetFourMomentum() {
     return {energy, momentum.at(0), momentum.at(1), momentum.at(2)};
 }
 
-double PrimaryDistributionRecord::GetLength() const {
-    if(length_set) {
-        return length;
-    } else {
-        PrimaryDistributionRecord non_const_this = *this;
-        non_const_this.UpdateLength();
-        return non_const_this.length;
-    }
-}
-
-double const & PrimaryDistributionRecord::GetLength() {
+double const & PrimaryDistributionRecord::GetLength() const {
     if(not length_set) {
         UpdateLength();
     }
     return length;
 }
 
-std::array<double, 3> PrimaryDistributionRecord::GetInitialPosition() const {
-    if(initial_position_set) {
-        return initial_position;
-    } else {
-        PrimaryDistributionRecord non_const_this = *this;
-        non_const_this.UpdateInitialPosition();
-        return non_const_this.initial_position;
-    }
-}
-
-std::array<double, 3> const & PrimaryDistributionRecord::GetInitialPosition() {
+std::array<double, 3> const & PrimaryDistributionRecord::GetInitialPosition() const {
     if(not initial_position_set) {
         UpdateInitialPosition();
     }
     return initial_position;
 }
 
-std::array<double, 3> PrimaryDistributionRecord::GetInteractionVertex() const {
-    if(interaction_vertex_set) {
-        return interaction_vertex;
-    } else {
-        PrimaryDistributionRecord non_const_this = *this;
-        non_const_this.UpdateInteractionVertex();
-        return non_const_this.interaction_vertex;
-    }
-}
-
-std::array<double, 3> const & PrimaryDistributionRecord::GetInteractionVertex() {
+std::array<double, 3> const & PrimaryDistributionRecord::GetInteractionVertex() const {
     if(not interaction_vertex_set) {
         UpdateInteractionVertex();
     }
@@ -290,7 +206,7 @@ void PrimaryDistributionRecord::SetHelicity(double helicity) {
     this->helicity = helicity;
 }
 
-void PrimaryDistributionRecord::UpdateMass() {
+void PrimaryDistributionRecord::UpdateMass() const {
     if(mass_set)
         return;
     if(energy_set and momentum_set) {
@@ -302,7 +218,7 @@ void PrimaryDistributionRecord::UpdateMass() {
     }
 }
 
-void PrimaryDistributionRecord::UpdateEnergy() {
+void PrimaryDistributionRecord::UpdateEnergy() const {
     if(energy_set)
         return;
     if(mass_set and momentum_set) {
@@ -314,7 +230,7 @@ void PrimaryDistributionRecord::UpdateEnergy() {
     }
 }
 
-void PrimaryDistributionRecord::UpdateKineticEnergy() {
+void PrimaryDistributionRecord::UpdateKineticEnergy() const {
     if(kinetic_energy_set)
         return;
     if(mass_set and energy_set) {
@@ -326,7 +242,7 @@ void PrimaryDistributionRecord::UpdateKineticEnergy() {
     }
 }
 
-void PrimaryDistributionRecord::UpdateDirection() {
+void PrimaryDistributionRecord::UpdateDirection() const {
     if(direction_set)
         return;
     if(momentum_set) {
@@ -341,7 +257,7 @@ void PrimaryDistributionRecord::UpdateDirection() {
     }
 }
 
-void PrimaryDistributionRecord::UpdateMomentum() {
+void PrimaryDistributionRecord::UpdateMomentum() const {
     if(momentum_set)
         return;
     if(energy_set and mass_set and direction_set) {
@@ -355,7 +271,7 @@ void PrimaryDistributionRecord::UpdateMomentum() {
     }
 }
 
-void PrimaryDistributionRecord::UpdateLength() {
+void PrimaryDistributionRecord::UpdateLength() const {
     if(length_set)
         return;
     if(initial_position_set and interaction_vertex_set) {
@@ -369,7 +285,7 @@ void PrimaryDistributionRecord::UpdateLength() {
     }
 }
 
-void PrimaryDistributionRecord::UpdateInitialPosition() {
+void PrimaryDistributionRecord::UpdateInitialPosition() const {
     if(initial_position_set)
         return;
     if(interaction_vertex_set and direction_set and length_set) {
@@ -379,7 +295,7 @@ void PrimaryDistributionRecord::UpdateInitialPosition() {
     }
 }
 
-void PrimaryDistributionRecord::UpdateInteractionVertex() {
+void PrimaryDistributionRecord::UpdateInteractionVertex() const {
     if(interaction_vertex_set)
         return;
     if(initial_position_set and direction_set and length_set) {
@@ -389,7 +305,7 @@ void PrimaryDistributionRecord::UpdateInteractionVertex() {
     }
 }
 
-void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) {
+void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) const {
     record.signature.primary_type = type;
     record.primary_id = GetID();
     try {
@@ -409,7 +325,7 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) {
     } catch(std::runtime_error e) {}
 }
 
-void PrimaryDistributionRecord::Finalize(InteractionRecord & record) {
+void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
     record.signature.primary_type = type;
     record.primary_id = GetID();
     record.interaction_vertex = GetInteractionVertex();
@@ -427,7 +343,7 @@ SecondaryParticleRecord::SecondaryParticleRecord(InteractionRecord const & recor
     initial_position(record.interaction_vertex)
 {}
 
-Particle SecondaryParticleRecord::GetParticle() {
+Particle SecondaryParticleRecord::GetParticle() const {
     Particle p;
     p.id = id;
     p.type = type;
@@ -483,85 +399,35 @@ ParticleType const & SecondaryParticleRecord::GetType() const {
     return type;
 }
 
-double SecondaryParticleRecord::GetMass() const {
-    if(mass_set) {
-        return mass;
-    } else {
-        SecondaryParticleRecord non_const_this = *this;
-        non_const_this.UpdateMass();
-        return non_const_this.mass;
-    }
-}
-
-double const & SecondaryParticleRecord::GetMass() {
+double const & SecondaryParticleRecord::GetMass() const {
     if(not mass_set) {
         UpdateMass();
     }
     return mass;
 }
 
-double SecondaryParticleRecord::GetEnergy() const {
-    if(energy_set) {
-        return energy;
-    } else {
-        SecondaryParticleRecord non_const_this = *this;
-        non_const_this.UpdateEnergy();
-        return non_const_this.energy;
-    }
-}
-
-double const & SecondaryParticleRecord::GetEnergy() {
+double const & SecondaryParticleRecord::GetEnergy() const {
     if(not energy_set) {
         UpdateEnergy();
     }
     return energy;
 }
 
-double SecondaryParticleRecord::GetKineticEnergy() const {
-    if(kinetic_energy_set) {
-        return kinetic_energy;
-    } else {
-        SecondaryParticleRecord non_const_this = *this;
-        non_const_this.UpdateKineticEnergy();
-        return non_const_this.kinetic_energy;
-    }
-}
-
-double const & SecondaryParticleRecord::GetKineticEnergy() {
+double const & SecondaryParticleRecord::GetKineticEnergy() const {
     if(not kinetic_energy_set) {
         UpdateKineticEnergy();
     }
     return kinetic_energy;
 }
 
-std::array<double, 3> SecondaryParticleRecord::GetDirection() const {
-    if(direction_set) {
-        return direction;
-    } else {
-        SecondaryParticleRecord non_const_this = *this;
-        non_const_this.UpdateDirection();
-        return non_const_this.direction;
-    }
-}
-
-std::array<double, 3> const & SecondaryParticleRecord::GetDirection() {
+std::array<double, 3> const & SecondaryParticleRecord::GetDirection() const {
     if(not direction_set) {
         UpdateDirection();
     }
     return direction;
 }
 
-std::array<double, 3> SecondaryParticleRecord::GetThreeMomentum() const {
-    if(momentum_set) {
-        return momentum;
-    } else {
-        SecondaryParticleRecord non_const_this = *this;
-        non_const_this.UpdateMomentum();
-        return non_const_this.momentum;
-    }
-}
-
-std::array<double, 3> const & SecondaryParticleRecord::GetThreeMomentum() {
+std::array<double, 3> const & SecondaryParticleRecord::GetThreeMomentum() const {
     if(not momentum_set) {
         UpdateMomentum();
     }
@@ -569,16 +435,6 @@ std::array<double, 3> const & SecondaryParticleRecord::GetThreeMomentum() {
 }
 
 std::array<double, 4> SecondaryParticleRecord::GetFourMomentum() const {
-    if(momentum_set) {
-        return {energy, momentum.at(0), momentum.at(1), momentum.at(2)};
-    } else {
-        SecondaryParticleRecord non_const_this = *this;
-        non_const_this.UpdateMomentum();
-        return {non_const_this.energy, non_const_this.momentum.at(0), non_const_this.momentum.at(1), non_const_this.momentum.at(2)};
-    }
-}
-
-std::array<double, 4> SecondaryParticleRecord::GetFourMomentum() {
     if(not momentum_set) {
         UpdateMomentum();
     }
@@ -630,7 +486,7 @@ void SecondaryParticleRecord::SetHelicity(double helicity) {
     this->helicity = helicity;
 }
 
-void SecondaryParticleRecord::UpdateMass() {
+void SecondaryParticleRecord::UpdateMass() const {
     if(mass_set)
         return;
     if(energy_set and momentum_set) {
@@ -642,7 +498,7 @@ void SecondaryParticleRecord::UpdateMass() {
     }
 }
 
-void SecondaryParticleRecord::UpdateEnergy() {
+void SecondaryParticleRecord::UpdateEnergy() const {
     if(energy_set)
         return;
     if(mass_set and momentum_set) {
@@ -654,7 +510,7 @@ void SecondaryParticleRecord::UpdateEnergy() {
     }
 }
 
-void SecondaryParticleRecord::UpdateKineticEnergy() {
+void SecondaryParticleRecord::UpdateKineticEnergy() const {
     if(kinetic_energy_set)
         return;
     if(mass_set and energy_set) {
@@ -666,7 +522,7 @@ void SecondaryParticleRecord::UpdateKineticEnergy() {
     }
 }
 
-void SecondaryParticleRecord::UpdateDirection() {
+void SecondaryParticleRecord::UpdateDirection() const {
     if(direction_set)
         return;
     if(momentum_set) {
@@ -677,7 +533,7 @@ void SecondaryParticleRecord::UpdateDirection() {
     }
 }
 
-void SecondaryParticleRecord::UpdateMomentum() {
+void SecondaryParticleRecord::UpdateMomentum() const {
     if(momentum_set)
         return;
     if(energy_set and mass_set and direction_set) {
@@ -691,7 +547,7 @@ void SecondaryParticleRecord::UpdateMomentum() {
     }
 }
 
-void SecondaryParticleRecord::Finalize(InteractionRecord & record) {
+void SecondaryParticleRecord::Finalize(InteractionRecord & record) const {
     record.primary_id = id;
     record.signature.primary_type = type;
     record.primary_initial_position = initial_position;
@@ -838,13 +694,17 @@ SecondaryParticleRecord & CrossSectionDistributionRecord::GetSecondaryParticleRe
     return secondary_particles.at(index);
 }
 
-Particle CrossSectionDistributionRecord::GetSecondaryParticle(size_t index) {
+SecondaryParticleRecord const & CrossSectionDistributionRecord::GetSecondaryParticleRecord(size_t index) const {
+    return secondary_particles.at(index);
+}
+
+Particle CrossSectionDistributionRecord::GetSecondaryParticle(size_t index) const {
     return secondary_particles.at(index).GetParticle();
 }
 
-std::vector<Particle> CrossSectionDistributionRecord::GetSecondaryParticles() {
+std::vector<Particle> CrossSectionDistributionRecord::GetSecondaryParticles() const {
     std::vector<Particle> particles;
-    for(SecondaryParticleRecord & secondary: secondary_particles) {
+    for(SecondaryParticleRecord const & secondary : secondary_particles) {
         particles.push_back(secondary.GetParticle());
     }
     return particles;
@@ -863,7 +723,7 @@ void CrossSectionDistributionRecord::SetSecondaryParticles(std::vector<Particle>
     }
 }
 
-void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) {
+void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const {
     record.target_id = target_id;
     record.target_mass = target_mass;
     record.target_helicity = target_helicity;
@@ -939,15 +799,20 @@ SecondaryDistributionRecord::SecondaryDistributionRecord(InteractionRecord const
     helicity(record.primary_helicity),
     initial_position(record.primary_initial_position) {}
 
-double & SecondaryDistributionRecord::GetLength() {
+double const & SecondaryDistributionRecord::GetLength() const {
+    if(not length_set) {
+        throw std::runtime_error("Length not set!");
+    }
     return length;
 }
 
 void SecondaryDistributionRecord::SetLength(double const & length) {
+    length_set = true;
     this->length = length;
 }
 
-void SecondaryDistributionRecord::Finalize(InteractionRecord & record) {
+void SecondaryDistributionRecord::Finalize(InteractionRecord & record) const {
+    record.signature.primary_type = type;
     record.primary_id = id;
     record.primary_initial_position = initial_position;
     record.primary_mass = mass;
@@ -1036,6 +901,255 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
 } // namespace dataclasses
 } // namespace LI
 
+std::ostream & operator<<(std::ostream & os, LI::dataclasses::PrimaryDistributionRecord const & record) {
+    std::stringstream ss;
+    ss << "PrimaryDistributionRecord (" << &record << ") ";
+    os << ss.str() << '\n';
+
+    ss.str(std::string());
+    std::string id_str;
+    ss << record.GetID();
+    id_str = ss.str();
+    std::string from = "\n";
+    std::string to = "\n    ";
+    size_t start_pos = 0;
+    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
+        id_str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+    }
+    os << "ID: " << id_str << "\n";
+
+    os << "Type: " << record.GetType() << "\n";
+
+    if(record.mass_set) {
+        os << "Mass: " << record.GetMass() << "\n";
+    } else {
+        os << "Mass: " << "None" << "\n";
+    }
+
+    if(record.energy_set) {
+        os << "Energy: " << record.GetEnergy() << "\n";
+    } else {
+        os << "Energy: " << "None" << "\n";
+    }
+
+    if(record.kinetic_energy_set) {
+        os << "KineticEnergy: " << record.GetKineticEnergy() << "\n";
+    } else {
+        os << "KineticEnergy: " << "None" << "\n";
+    }
+
+    if(record.direction_set) {
+        os << "Direction: " << record.GetDirection().at(0) << " " << record.GetDirection().at(1) << " " << record.GetDirection().at(2) << "\n";
+    } else {
+        os << "Direction: " << "None" << "\n";
+    }
+
+    if(record.momentum_set) {
+        os << "Momentum: " << record.GetThreeMomentum().at(0) << " " << record.GetThreeMomentum().at(1) << " " << record.GetThreeMomentum().at(2) << "\n";
+    } else {
+        os << "Momentum: " << "None" << "\n";
+    }
+
+    if(record.length_set) {
+        os << "Length: " << record.GetLength() << "\n";
+    } else {
+        os << "Length: " << "None" << "\n";
+    }
+
+    if(record.initial_position_set) {
+        os << "InitialPosition: " << record.GetInitialPosition().at(0) << " " << record.GetInitialPosition().at(1) << " " << record.GetInitialPosition().at(2) << "\n";
+    } else {
+        os << "InitialPosition: " << "None" << "\n";
+    }
+
+    if(record.interaction_vertex_set) {
+        os << "InteractionVertex: " << record.GetInteractionVertex().at(0) << " " << record.GetInteractionVertex().at(1) << " " << record.GetInteractionVertex().at(2) << "\n";
+    } else {
+        os << "InteractionVertex: " << "None" << "\n";
+    }
+
+    if(record.helicity_set) {
+        os << "Helicity: " << record.GetHelicity() << "\n";
+    } else {
+        os << "Helicity: " << "None" << "\n";
+    }
+
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, LI::dataclasses::CrossSectionDistributionRecord const & record) {
+    std::stringstream ss;
+    ss << "CrossSectionDistributionRecord (" << &record << ") ";
+    os << ss.str() << '\n';
+
+    ss.str(std::string());
+    std::string id_str;
+    ss << record.GetPrimaryID();
+    id_str = ss.str();
+    std::string from = "\n";
+    std::string to = "\n    ";
+    size_t start_pos = 0;
+    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
+        id_str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+    }
+    os << "PrimaryID: " << id_str << "\n";
+
+    os << "PrimaryType: " << record.primary_type << "\n";
+
+    os << "PrimaryInitialPosition: " << record.primary_initial_position.at(0) << " " << record.primary_initial_position.at(1) << " " << record.primary_initial_position.at(2) << "\n";
+
+    os << "PrimaryMass: " << record.primary_mass << "\n";
+
+    os << "PrimaryMomentum: " << record.primary_momentum.at(0) << " " << record.primary_momentum.at(1) << " " << record.primary_momentum.at(2) << " " << record.primary_momentum.at(3) << "\n";
+
+    os << "PrimaryHelicity: " << record.primary_helicity << "\n";
+
+    os << "InteractionVertex: " << record.interaction_vertex.at(0) << " " << record.interaction_vertex.at(1) << " " << record.interaction_vertex.at(2) << "\n";
+
+    ss.str(std::string());
+    ss << record.GetTargetID();
+    id_str = ss.str();
+    start_pos = 0;
+    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
+        id_str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+    }
+    os << "TargetID: " << id_str << "\n";
+
+    os << "TargetType: " << record.target_type << "\n";
+
+    os << "TargetMass: " << record.target_mass << "\n";
+
+    os << "TargetHelicity: " << record.target_helicity << "\n";
+
+    if(record.interaction_parameters.size() > 0) {
+        os << "InteractionParameters:\n";
+        for(auto const & parameter: record.interaction_parameters) {
+            os << "\t" << parameter.first << ": " << parameter.second << "\n";
+        }
+    } else {
+        os << "InteractionParameters: " << "None" << "\n";
+    }
+
+    os << "SecondaryParticles:\n";
+    std::string secondary_str;
+    for(size_t i = 0; i < record.signature.secondary_types.size(); ++i) {
+        ss.str(std::string());
+        ss << record.GetSecondaryParticleRecord(i);
+        secondary_str = ss.str();
+        start_pos = 0;
+        while((start_pos = secondary_str.find(from, start_pos)) != std::string::npos) {
+            secondary_str.replace(start_pos, from.length(), to);
+            start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+        }
+        os << secondary_str << "\n";
+    }
+
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, LI::dataclasses::SecondaryParticleRecord const & record) {
+    std::stringstream ss;
+    ss << "SecondaryParticleRecord (" << &record << ") ";
+    os << ss.str() << '\n';
+
+    ss.str(std::string());
+    std::string id_str;
+    ss << record.GetID();
+    id_str = ss.str();
+    std::string from = "\n";
+    std::string to = "\n    ";
+    size_t start_pos = 0;
+    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
+        id_str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+    }
+    os << "ID: " << id_str << "\n";
+
+    os << "Type: " << record.GetType() << "\n";
+
+    if(record.mass_set) {
+        os << "Mass: " << record.mass << "\n";
+    } else {
+        os << "Mass: " << "None" << "\n";
+    }
+
+    if(record.energy_set) {
+        os << "Energy: " << record.energy << "\n";
+    } else {
+        os << "Energy: " << "None" << "\n";
+    }
+
+    if(record.kinetic_energy_set) {
+        os << "KineticEnergy: " << record.kinetic_energy << "\n";
+    } else {
+        os << "KineticEnergy: " << "None" << "\n";
+    }
+
+    if(record.direction_set) {
+        os << "Direction: " << record.direction.at(0) << " " << record.direction.at(1) << " " << record.direction.at(2) << "\n";
+    } else {
+        os << "Direction: " << "None" << "\n";
+    }
+
+    if(record.momentum_set) {
+        os << "Momentum: " << record.momentum.at(0) << " " << record.momentum.at(1) << " " << record.momentum.at(2) << "\n";
+    } else {
+        os << "Momentum: " << "None" << "\n";
+    }
+
+    os << "InitialPosition: " << record.initial_position.at(0) << " " << record.initial_position.at(1) << " " << record.initial_position.at(2) << "\n";
+
+    if(record.helicity_set) {
+        os << "Helicity: " << record.helicity << "\n";
+    } else {
+        os << "Helicity: " << "None" << "\n";
+    }
+
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::SecondaryDistributionRecord const& record) {
+    std::stringstream ss;
+    ss << "SecondaryDistributionRecord (" << &record << ") ";
+    os << ss.str() << '\n';
+
+    ss.str(std::string());
+    std::string id_str;
+    ss << record.id;
+    id_str = ss.str();
+    std::string from = "\n";
+    std::string to = "\n    ";
+    size_t start_pos = 0;
+    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
+        id_str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+    }
+    os << "ID: " << id_str << "\n";
+
+    os << "Type: " << record.type << "\n";
+
+    os << "Mass: " << record.mass << "\n";
+
+    os << "Direction: " << record.direction.at(0) << " " << record.direction.at(1) << " " << record.direction.at(2) << "\n";
+
+    os << "Momentum: " << record.momentum.at(0) << " " << record.momentum.at(1) << " " << record.momentum.at(2) << " " << record.momentum.at(3) << "\n";
+
+    os << "Helicity: " << record.helicity << "\n";
+
+    os << "InitialPosition: " << record.initial_position.at(0) << " " << record.initial_position.at(1) << " " << record.initial_position.at(2) << "\n";
+
+    if(record.length_set) {
+        os << "Length: " << record.GetLength() << "\n";
+    } else {
+        os << "Length: " << "None" << "\n";
+    }
+
+    return os;
+}
+
 std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord const& record) {
     std::stringstream ss;
     ss << "InteractionRecord (" << &record << ") ";
@@ -1046,7 +1160,18 @@ std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord co
     }
     os << "\n";
 
-    os << "PrimaryID: " << record.primary_id << "\n";
+    ss.str(std::string());
+    std::string id_str;
+    ss << record.primary_id;
+    id_str = ss.str();
+    std::string from = "\n";
+    std::string to = "\n    ";
+    size_t start_pos = 0;
+    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
+        id_str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+    }
+    ss << "PrimaryID: " << id_str << "\n";
     os << "PrimaryInitialPosition: " << record.primary_initial_position.at(0) << " " << record.primary_initial_position.at(1) << " " << record.primary_initial_position.at(2) << "\n";
     os << "InteractionVertex: " << record.interaction_vertex.at(0) << " " << record.interaction_vertex.at(1) << " " << record.interaction_vertex.at(2) << "\n";
     os << "PrimaryMass: " << record.primary_mass << "\n";
@@ -1055,7 +1180,16 @@ std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord co
     os << "TargetMass: " << record.target_mass << "\n";
     os << "SecondaryIDs:\n";
     for(auto const & secondary: record.secondary_ids) {
-        os << "\t" << secondary << "\n";
+        ss.str(std::string());
+        id_str.clear();
+        ss << secondary;
+        id_str = ss.str();
+        start_pos = 0;
+        while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
+            id_str.replace(start_pos, from.length(), to);
+            start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+        }
+        os << "\t" << id_str << "\n";
     }
     os << "SecondaryMomenta:\n";
     for(auto const & secondary: record.secondary_momenta) {

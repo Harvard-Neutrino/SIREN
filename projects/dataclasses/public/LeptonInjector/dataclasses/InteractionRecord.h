@@ -25,8 +25,16 @@
 #include "LeptonInjector/dataclasses/InteractionSignature.h"
 
 namespace LI { namespace dataclasses { class InteractionRecord; } }
+namespace LI { namespace dataclasses { class PrimaryDistributionRecord; } }
+namespace LI { namespace dataclasses { class SecondaryParticleRecord; } }
+namespace LI { namespace dataclasses { class CrossSectionDistributionRecord; } }
+namespace LI { namespace dataclasses { class SecondaryDistributionRecord; } }
 
-std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord const& record);
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord const & record);
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::PrimaryDistributionRecord const & record);
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::SecondaryParticleRecord const & record);
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::CrossSectionDistributionRecord const & record);
+std::ostream& operator<<(std::ostream& os, LI::dataclasses::SecondaryDistributionRecord const & record);
 
 namespace LI {
 namespace dataclasses {
@@ -49,44 +57,39 @@ private:
     bool interaction_vertex_set = false;
     bool helicity_set = false;
 
-    double mass;
-    double energy;
-    double kinetic_energy;
-    std::array<double, 3> direction;
-    std::array<double, 3> momentum;
-    double length;
-    std::array<double, 3> initial_position;
-    std::array<double, 3> interaction_vertex;
-    double helicity = 0;
+    mutable double mass;
+    mutable double energy;
+    mutable double kinetic_energy;
+    mutable std::array<double, 3> direction;
+    mutable std::array<double, 3> momentum;
+    mutable double length;
+    mutable std::array<double, 3> initial_position;
+    mutable std::array<double, 3> interaction_vertex;
+    mutable double helicity = 0;
 public:
+    friend std::ostream& ::operator<<(std::ostream& os, PrimaryDistributionRecord const& record);
+
+    PrimaryDistributionRecord(PrimaryDistributionRecord const & other) = default;
+    PrimaryDistributionRecord & operator=(PrimaryDistributionRecord const & other) = delete;
+    PrimaryDistributionRecord & operator=(PrimaryDistributionRecord && other) = delete;
 
     PrimaryDistributionRecord(ParticleType type);
 
-    Particle GetParticle();
+    Particle GetParticle() const;
     void SetParticle(Particle const & particle);
 
     ParticleID const & GetID() const;
     ParticleType const & GetType() const;
 
-    double GetMass() const;
-    double GetEnergy() const;
-    double GetKineticEnergy() const;
-    std::array<double, 3> GetDirection() const;
-    std::array<double, 3> GetThreeMomentum() const;
+    double const & GetMass() const;
+    double const & GetEnergy() const;
+    double const & GetKineticEnergy() const;
+    std::array<double, 3> const & GetDirection() const;
+    std::array<double, 3> const & GetThreeMomentum() const;
     std::array<double, 4> GetFourMomentum() const;
-    double GetLength() const;
-    std::array<double, 3> GetInitialPosition() const;
-    std::array<double, 3> GetInteractionVertex() const;
-
-    double const & GetMass();
-    double const & GetEnergy();
-    double const & GetKineticEnergy();
-    std::array<double, 3> const & GetDirection();
-    std::array<double, 3> const & GetThreeMomentum();
-    std::array<double, 4> GetFourMomentum();
-    double const & GetLength();
-    std::array<double, 3> const & GetInitialPosition();
-    std::array<double, 3> const & GetInteractionVertex();
+    double const & GetLength() const;
+    std::array<double, 3> const & GetInitialPosition() const;
+    std::array<double, 3> const & GetInteractionVertex() const;
     double const & GetHelicity() const;
 
     void SetMass(double mass);
@@ -100,17 +103,17 @@ public:
     void SetInteractionVertex(std::array<double, 3> interaction_vertex);
     void SetHelicity(double helicity);
 
-    void UpdateMass();
-    void UpdateEnergy();
-    void UpdateKineticEnergy();
-    void UpdateDirection();
-    void UpdateMomentum();
-    void UpdateLength();
-    void UpdateInitialPosition();
-    void UpdateInteractionVertex();
+    void UpdateMass() const;
+    void UpdateEnergy() const;
+    void UpdateKineticEnergy() const;
+    void UpdateDirection() const;
+    void UpdateMomentum() const;
+    void UpdateLength() const;
+    void UpdateInitialPosition() const;
+    void UpdateInteractionVertex() const;
 
-    void FinalizeAvailable(InteractionRecord & record);
-    void Finalize(InteractionRecord & record);
+    void FinalizeAvailable(InteractionRecord & record) const;
+    void Finalize(InteractionRecord & record) const;
 };
 
 class SecondaryParticleRecord {
@@ -127,39 +130,37 @@ private:
     bool momentum_set = false;
     bool helicity_set = false;
 
-    double mass = 0;
-    double energy = 0;
-    double kinetic_energy = 0;
-    std::array<double, 3> direction = {0, 0, 0};
-    std::array<double, 3> momentum = {0, 0, 0};
-    double helicity = 0;
+    mutable double mass = 0;
+    mutable double energy = 0;
+    mutable double kinetic_energy = 0;
+    mutable std::array<double, 3> direction = {0, 0, 0};
+    mutable std::array<double, 3> momentum = {0, 0, 0};
+    mutable double helicity = 0;
 public:
+    friend std::ostream& ::operator<<(std::ostream& os, SecondaryParticleRecord const& record);
+
+    SecondaryParticleRecord(SecondaryParticleRecord const & other) = default;
+    SecondaryParticleRecord & operator=(SecondaryParticleRecord const & other) = delete;
+    SecondaryParticleRecord & operator=(SecondaryParticleRecord && other) = delete;
 
     SecondaryParticleRecord(InteractionRecord const & record, size_t secondary_index);
 
     InteractionSignature const & GetSignature() const;
 
-    Particle GetParticle();
+    Particle GetParticle() const;
     void SetParticle(Particle const & particle);
 
     ParticleID const & GetID() const;
 
     ParticleType const & GetType() const;
-    double GetMass() const;
-    double GetEnergy() const;
-    double GetKineticEnergy() const;
-    std::array<double, 3> GetDirection() const;
-    std::array<double, 3> GetThreeMomentum() const;
+    double const & GetMass() const;
+    double const & GetEnergy() const;
+    double const & GetKineticEnergy() const;
+    std::array<double, 3> const & GetDirection() const;
+    std::array<double, 3> const & GetThreeMomentum() const;
     std::array<double, 4> GetFourMomentum() const;
     std::array<double, 3> const & GetInitialPosition() const;
     double const & GetHelicity() const;
-
-    double const & GetMass();
-    double const & GetEnergy();
-    double const & GetKineticEnergy();
-    std::array<double, 3> const & GetDirection();
-    std::array<double, 3> const & GetThreeMomentum();
-    std::array<double, 4> GetFourMomentum();
 
     void SetMass(double mass);
     void SetEnergy(double energy);
@@ -169,13 +170,13 @@ public:
     void SetFourMomentum(std::array<double, 4> momentum);
     void SetHelicity(double helicity);
 
-    void UpdateMass();
-    void UpdateEnergy();
-    void UpdateKineticEnergy();
-    void UpdateDirection();
-    void UpdateMomentum();
+    void UpdateMass() const;
+    void UpdateEnergy() const;
+    void UpdateKineticEnergy() const;
+    void UpdateDirection() const;
+    void UpdateMomentum() const;
 
-    void Finalize(InteractionRecord & record);
+    void Finalize(InteractionRecord & record) const;
 };
 
 class CrossSectionDistributionRecord {
@@ -199,6 +200,12 @@ public:
 private:
     std::vector<SecondaryParticleRecord> secondary_particles;
 public:
+    friend std::ostream& ::operator<<(std::ostream& os, CrossSectionDistributionRecord const& record);
+
+    CrossSectionDistributionRecord(CrossSectionDistributionRecord const & other) = default;
+    CrossSectionDistributionRecord & operator=(CrossSectionDistributionRecord const & other) = delete;
+    CrossSectionDistributionRecord & operator=(CrossSectionDistributionRecord && other) = delete;
+
     CrossSectionDistributionRecord(InteractionRecord const & record);
 
     InteractionSignature const & GetSignature() const;
@@ -229,14 +236,15 @@ public:
     void SetTargetParticle(Particle const & particle);
 
     SecondaryParticleRecord & GetSecondaryParticleRecord(size_t index);
+    SecondaryParticleRecord const & GetSecondaryParticleRecord(size_t index) const;
 
-    Particle GetSecondaryParticle(size_t index);
-    std::vector<Particle> GetSecondaryParticles();
+    Particle GetSecondaryParticle(size_t index) const;
+    std::vector<Particle> GetSecondaryParticles() const;
 
     void SetSecondaryParticle(size_t index, Particle const & particle);
     void SetSecondaryParticles(std::vector<Particle> const & particles);
 
-    void Finalize(InteractionRecord & record);
+    void Finalize(InteractionRecord & record) const;
 };
 
 class InteractionRecord {
@@ -320,16 +328,23 @@ public:
     double const & helicity;
     std::array<double, 3> const & initial_position;
 private:
-    double length;
+    bool length_set = false;
+    mutable double length;
 public:
+    friend std::ostream& ::operator<<(std::ostream& os, SecondaryDistributionRecord const& record);
+
+    SecondaryDistributionRecord(SecondaryDistributionRecord const & other) = default;
+    SecondaryDistributionRecord & operator=(SecondaryDistributionRecord const & other) = delete;
+    SecondaryDistributionRecord & operator=(SecondaryDistributionRecord && other) = delete;
+
     static InteractionRecord CreateSecondaryRecord(InteractionRecord const & parent_record, size_t secondary_index);
     SecondaryDistributionRecord(InteractionRecord & record);
     SecondaryDistributionRecord(InteractionRecord const & parent_record, size_t secondary_index);
 
     void SetLength(double const & length);
-    double & GetLength();
+    double const & GetLength() const;
 
-    void Finalize(InteractionRecord & record);
+    void Finalize(InteractionRecord & record) const;
 };
 
 
