@@ -530,9 +530,6 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             print("Incorrect function call to TotalCrossSection!")
             exit(0)
         if int(primary) != self.ups_case.nu_projectile:
-            print("Python: int(primary) != self.ups_case.nu_projectile")
-            print("Python: int(primary) = ", int(primary))
-            print("Python: self.ups_case.nu_projectile = ", self.ups_case.nu_projectile)
             return 0
         interaction = LI.dataclasses.InteractionRecord()
         interaction.signature.primary_type = primary
@@ -729,7 +726,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         else:
             print("Incorrect function call to TotalDecayWidth!")
             exit(0)
-        if primary != self.dec_case.nu_parent:
+        if int(primary) != self.dec_case.nu_parent:
             return 0
         if self.total_width is None:
             # Need to set the total width
@@ -770,7 +767,8 @@ class PyDarkNewsDecay(DarkNewsDecay):
             )
         ):
             return 0
-        return self.dec_case.total_width()
+        ret = self.dec_case.total_width()
+        return ret
 
     def DensityVariables(self):
         if type(self.dec_case) == FermionSinglePhotonDecay:
@@ -833,6 +831,8 @@ class PyDarkNewsDecay(DarkNewsDecay):
             np.expand_dims(np.array(record.primary_momentum), 0),
         )
 
+        secondaries = record.GetSecondaryParticles()
+
         if type(self.dec_case) == FermionSinglePhotonDecay:
             gamma_idx = 0
             for secondary in record.signature.secondary_types:
@@ -843,14 +843,14 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 print("No gamma found in the list of secondaries!")
                 exit(0)
             nu_idx = 1 - gamma_idx
-            secondary_momenta = []
-            secondary_momenta.insert(
-                gamma_idx, list(np.squeeze(four_momenta["P_decay_photon"]))
+            secondaries[gamma_idx].momentum = list(
+                np.squeeze(four_momenta["P_decay_photon"])
             )
-            secondary_momenta.insert(
-                nu_idx, list(np.squeeze(four_momenta["P_decay_N_daughter"]))
+            secondaries[gamma_idx].mass = 0
+            secondaries[nu_idx].momentum = list(
+                    np.squeeze(four_momenta["P_decay_N_daughter"])
             )
-            record.secondary_momenta = secondary_momenta
+
         elif type(self.dec_case) == FermionDileptonDecay:
             lepminus_idx = -1
             lepplus_idx = -1
@@ -876,14 +876,14 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 print("Couldn't find two leptons and a neutrino in the final state!")
                 exit(0)
             secondary_momenta = []
-            secondary_momenta.insert(
-                lepminus_idx, list(np.squeeze(four_momenta["P_decay_ell_minus"]))
+            seconaries[lepminus_idx].momentum = list(
+                np.squeeze(four_momenta["P_decay_ell_minus"])
             )
-            secondary_momenta.insert(
-                lepplus_idx, list(np.squeeze(four_momenta["P_decay_ell_plus"]))
+            secondaries[lepplus_idx].momentum = list(
+                np.squeeze(four_momenta["P_decay_ell_plus"])
             )
-            secondary_momenta.insert(
-                nu_idx, list(np.squeeze(four_momenta["P_decay_N_daughter"]))
+            secondaries[nu_idx].momentum = list(
+                np.squeeze(four_momenta["P_decay_N_daughter"])
             )
-            record.secondary_momenta = secondary_momenta
+        record.SetSecondaryParticles(secondaries)
         return record
