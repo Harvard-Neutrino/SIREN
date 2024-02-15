@@ -55,10 +55,12 @@ primary_injection_distributions["direction"] = direction_distribution
 primary_physical_distributions["direction"] = direction_distribution
 
 # position distribution
-muon_range_func = LI.distributions.LeptonDepthFunction()
-position_distribution = LI.distributions.ColumnDepthPositionDistribution(
-    600, 600.0, muon_range_func, set(controller.GetDetectorModelTargets()[0])
-)
+tilecal_location = LI.math.Vector3D([0,0,6371234])
+tilecal_rotaiton = LI.math.Quaternion(LI.math.Vector3D([0,1.57,0]))
+tilecal_placement = LI.geometry.Placement(tilecal_location,
+                                          tilecal_rotaiton)
+tilecal = LI.geometry.Cylinder(tilecal_placement,3.82,2.30,12.3)
+position_distribution = LI.distributions.CylinderVolumePositionDistribution(tilecal)
 primary_injection_distributions["position"] = position_distribution
 
 # SetProcesses
