@@ -33,7 +33,7 @@ PYBIND11_MODULE(dataclasses,m) {
           .def_readwrite("helicity",&Particle::helicity)
           .def("GenerateID",&Particle::GenerateID);
 
-  enum_<ParticleType>(particle, "ParticleType")
+  enum_<ParticleType>(particle, "ParticleType", arithmetic())
 #define X(a, b) .value( #a , ParticleType:: a )
 #include "../../public/LeptonInjector/dataclasses/ParticleTypes.def"
 #undef X
@@ -113,7 +113,8 @@ PYBIND11_MODULE(dataclasses,m) {
         .def_property("interaction_parameters", ((std::map<std::string, double> const & (LI::dataclasses::CrossSectionDistributionRecord::*)())(&LI::dataclasses::CrossSectionDistributionRecord::GetInteractionParameters)), &LI::dataclasses::CrossSectionDistributionRecord::SetInteractionParameters)
         .def("GetPrimaryParticle", &CrossSectionDistributionRecord::GetPrimaryParticle)
         .def("GetTargetParticle", &CrossSectionDistributionRecord::GetTargetParticle)
-        .def("GetSecondaryParticleRecord", &CrossSectionDistributionRecord::GetSecondaryParticleRecord)
+        .def("GetSecondaryParticleRecord",
+                [](LI::dataclasses::CrossSectionDistributionRecord const & cdr, size_t i) {return cdr.GetSecondaryParticleRecord(i);})
         .def("GetSecondaryParticle", &CrossSectionDistributionRecord::GetSecondaryParticle)
         .def("GetSecondaryParticles", &CrossSectionDistributionRecord::GetSecondaryParticles)
         .def("SetSecondaryParticle", &CrossSectionDistributionRecord::SetSecondaryParticle)
