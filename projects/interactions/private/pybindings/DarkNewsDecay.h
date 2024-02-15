@@ -7,7 +7,6 @@
 #include <pybind11/stl.h>
 #include <pybind11/embed.h>
 
-#include "../../public/LeptonInjector/interactions/CrossSection.h"
 #include "../../public/LeptonInjector/interactions/DarkNewsDecay.h"
 #include "../../../dataclasses/public/LeptonInjector/dataclasses/Particle.h"
 #include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionRecord.h"
@@ -68,7 +67,7 @@
 
 namespace LI {
 namespace interactions {
-// Trampoline class for CrossSection
+// Trampoline class for Decay
 class pyDecay : public Decay {
 public:
     using Decay::Decay;
@@ -195,7 +194,7 @@ public:
         )
     }
 
-    pybind11::object get_self() {
+    pybind11::object get_representation() {
         return self;
     }
 };
@@ -316,8 +315,37 @@ public:
         )
     }
 
-    pybind11::object get_self() override {
-        return self;
+    pybind11::object get_representation() override {
+        const DarkNewsDecay * ref;
+        if(self) {
+            ref = self.cast<DarkNewsDecay *>();
+        } else {
+            ref = this;
+        }
+        auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsDecay));
+        pybind11::function override_func =
+            tinfo ? pybind11::detail::get_type_override(static_cast<const DarkNewsDecay *>(ref), tinfo, "get_representation") : pybind11::function();
+        if (override_func) {
+            pybind11::object o = override_func();
+            if(not pybind11::isinstance<pybind11::dict>(o)) {
+                throw std::runtime_error("get_representation must return a dict");
+            }
+            return o;
+        }
+
+        pybind11::object _self;
+        if(this->self) {
+            self = pybind11::reinterpret_borrow<pybind11::object>(this->self);
+        } else {
+            auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsDecay));
+            pybind11::handle self_handle = get_object_handle(static_cast<const DarkNewsDecay *>(this), tinfo);
+            _self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
+        }
+        pybind11::dict d;
+        if (pybind11::hasattr(self, "__dict__")) {
+            d = _self.attr("__dict__");
+        }
+        return d;
     }
 };
 } // end interactions namespace
@@ -344,22 +372,10 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("FinalStateProbability",&DarkNewsDecay::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsDecay::SampleFinalState)
         .def("SampleRecordFromDarkNews",&DarkNewsDecay::SampleRecordFromDarkNews)
-        .def("get_self", &pyDarkNewsDecay::get_self)
+        .def("get_representation", &pyDarkNewsDecay::get_representation)
         .def(pybind11::pickle(
-            [](const LI::interactions::pyDarkNewsDecay & cpp_obj) {
-                pybind11::object self;
-                if(cpp_obj.self) {
-                    self = pybind11::reinterpret_borrow<pybind11::object>(cpp_obj.self);
-                } else {
-                    auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsDecay));
-                    pybind11::handle self_handle = get_object_handle(static_cast<const DarkNewsDecay *>(&cpp_obj), tinfo);
-                    self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
-                }
-                pybind11::dict d;
-                if (pybind11::hasattr(self, "__dict__")) {
-                    d = self.attr("__dict__");
-                }
-                return pybind11::make_tuple(d);
+            [](LI::interactions::pyDarkNewsDecay & cpp_obj) {
+                return pybind11::make_tuple(cpp_obj.get_representation());
             },
             [](const pybind11::tuple &t) {
                 if (t.size() != 1) {
@@ -389,22 +405,10 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("FinalStateProbability",&DarkNewsDecay::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsDecay::SampleFinalState)
         .def("SampleRecordFromDarkNews",&DarkNewsDecay::SampleRecordFromDarkNews)
-        .def("get_self", &DarkNewsDecay::get_self)
+        .def("get_representation", &DarkNewsDecay::get_representation)
         .def(pybind11::pickle(
-            [](const LI::interactions::DarkNewsDecay & cpp_obj) {
-                pybind11::object self;
-                if(dynamic_cast<LI::interactions::pyDarkNewsDecay const *>(&cpp_obj) != nullptr and dynamic_cast<LI::interactions::pyDarkNewsDecay const *>(&cpp_obj)->self) {
-                    self = pybind11::reinterpret_borrow<pybind11::object>(dynamic_cast<LI::interactions::pyDarkNewsDecay const *>(&cpp_obj)->self);
-                } else {
-                    auto *tinfo = pybind11::detail::get_type_info(typeid(LI::interactions::DarkNewsDecay));
-                    pybind11::handle self_handle = get_object_handle(static_cast<const LI::interactions::DarkNewsDecay *>(&cpp_obj), tinfo);
-                    self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
-                }
-                pybind11::dict d;
-                if (pybind11::hasattr(self, "__dict__")) {
-                    d = self.attr("__dict__");
-                }
-                return pybind11::make_tuple(d);
+            [](LI::interactions::DarkNewsDecay & cpp_obj) {
+                return pybind11::make_tuple(cpp_obj.get_representation());
             },
             [](const pybind11::tuple &t) {
                 if (t.size() != 1) {
