@@ -337,7 +337,7 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
             secondaries.erase(secondaries.begin() + i);
 
             LI::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
-            std::shared_ptr<LI::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record);
+            std::shared_ptr<LI::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
             add_secondaries(secondary_datum);
         }
     }
