@@ -58,6 +58,12 @@ class LIController:
         # Set the fiducial volume
         self.fid_vol = self.GetFiducialVolume()
 
+    def GetDetectorSectorGeometry(self, sector_name):
+        for sector in self.detector_model.Sectors:
+            if sector.name==sector_name:
+                return sector.geo
+        return None
+
     def SetProcesses(
         self,
         primary_type,
@@ -327,6 +333,20 @@ class LIController:
             self.primary_physical_process,
             self.secondary_physical_processes,
         )
+    
+    def GetCylinderVolumePositionDistributionFromSector(self, sector_name):
+        geo = self.GetDetectorSectorGeometry(sector_name)
+        if geo is None:
+            print("Sector %s not found. Exiting"%sector_name)
+            exit(0)
+        # the position of this cylinder is in geometry coordinates
+        # must update to detector coordintes
+        det_position = self.detector_model.GeoPositionToDetPosition(_detector.GeometryPosition(geo.placement.Position))
+        det_rotation = geo.placement.Quaternion
+        det_placement = _geometry.Placement(det_position.get(), det_rotation)
+        cylinder = _geometry.Cylinder(det_placement,geo.Radius,geo.InnerRadius,geo.Z)
+        return _distributions.CylinderVolumePositionDistribution(cylinder)
+        self.primary_injection_process.AddInjectionDistribution(position_distribution)
 
     def GenerateEvents(self, N=None, fill_tables_at_exit=True):
         if N is None:

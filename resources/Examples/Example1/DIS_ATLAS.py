@@ -13,7 +13,7 @@ events_to_inject = 10000
 experiment = "ATLAS"
 
 # Define the controller
-controller = LIController(events_to_inject, experiment)
+controller = LIController(events_to_inject, experiment, seed=99)
 
 # Particle to inject
 primary_type = LI.dataclasses.Particle.ParticleType.NuMu
@@ -29,7 +29,7 @@ DIS_xs = LI.interactions.DISFromSpline(
     os.path.join(xsfiledir, "dsdxdy_nu_CC_iso.fits"),
     os.path.join(xsfiledir, "sigma_nu_CC_iso.fits"),
     [primary_type],
-    [target_type],
+    [target_type], "m"
 )
 
 primary_xs = LI.interactions.InteractionCollection(primary_type, [DIS_xs])
@@ -55,12 +55,7 @@ primary_injection_distributions["direction"] = direction_distribution
 primary_physical_distributions["direction"] = direction_distribution
 
 # position distribution
-tilecal_location = LI.math.Vector3D([0,0,6371234])
-tilecal_rotaiton = LI.math.Quaternion(LI.math.Vector3D([0,1.57,0]))
-tilecal_placement = LI.geometry.Placement(tilecal_location,
-                                          tilecal_rotaiton)
-tilecal = LI.geometry.Cylinder(tilecal_placement,3.82,2.30,12.3)
-position_distribution = LI.distributions.CylinderVolumePositionDistribution(tilecal)
+position_distribution = controller.GetCylinderVolumePositionDistributionFromSector("tilecal")
 primary_injection_distributions["position"] = position_distribution
 
 # SetProcesses
