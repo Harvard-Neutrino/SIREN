@@ -6,3 +6,22 @@ from . import detector
 from . import interactions
 from . import distributions
 from . import injection
+
+from . import _util
+
+# set up some public-facing utilities functions
+utilities.get_resource_package_dir = _util.resource_package_dir
+utilities.get_detector_model_path = _util.get_detector_model_path
+utilities.get_material_model_path = _util.get_material_model_path
+utilities.get_cross_section_model_path = _util.get_cross_section_model_path
+utilities.get_tabulated_flux_model_path = _util.get_tabulated_flux_model_path
+utilities.get_tabulated_flux_file = _util.get_tabulated_flux_file
+
+def darknews_version():
+    try:
+        import DarkNews
+        return _util.normalize_version(DarkNews.__version__)
+    except:
+        print("WARNING: DarkNews is not installed in the local environment")
+        return None
+utilities.darknews_version = darknews_version

@@ -1,10 +1,7 @@
 import os
 
 import leptoninjector as LI
-from leptoninjector import _util
 from leptoninjector.LIController import LIController
-
-resources_dir = _util.resource_package_dir()
 
 # Number of events to inject
 events_to_inject = 10000
@@ -20,7 +17,7 @@ primary_type = LI.dataclasses.Particle.ParticleType.NuMu
 
 cross_section_model = "CSMSDISSplines"
 
-xsfiledir = _util.get_cross_section_model_path(cross_section_model)
+xsfiledir = LI.utilities.get_cross_section_model_path(cross_section_model)
 
 # Cross Section Model
 target_type = LI.dataclasses.Particle.ParticleType.Nucleon
@@ -41,7 +38,7 @@ primary_physical_distributions = {}
 
 # energy distribution
 # HE SN flux from ATLAS paper
-flux_file = _util.get_tabulated_flux_file("HE_SN","numu")
+flux_file = LI.utilities.get_tabulated_flux_file("HE_SN","numu")
 edist = LI.distributions.TabulatedFluxDistribution(100, 1e6, flux_file, True) #bool is whether flux is physical
 primary_injection_distributions["energy"] = edist
 primary_physical_distributions["energy"] = edist
