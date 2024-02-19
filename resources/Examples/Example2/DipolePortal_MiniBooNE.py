@@ -1,14 +1,7 @@
 import os
 
 import leptoninjector as LI
-from leptoninjector import _util
 from leptoninjector.LIController import LIController
-
-import DarkNews
-
-darknews_version = _util.normalize_version(DarkNews.__version__)
-
-resources_dir = _util.resource_package_dir()
 
 # Define a DarkNews model
 model_kwargs = {
@@ -35,7 +28,7 @@ controller = LIController(events_to_inject, experiment)
 # Particle to inject
 primary_type = LI.dataclasses.Particle.ParticleType.NuMu
 
-xs_path = _util.get_cross_section_model_path(f"DarkNewsTables-v{darknews_version}", must_exist=False)
+xs_path = LI.utilities.get_cross_section_model_path(f"DarkNewsTables-v{LI.utilities.darknews_version()}", must_exist=False)
 # Define DarkNews Model
 table_dir = os.path.join(
     xs_path,
@@ -48,7 +41,7 @@ primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-flux_file = _util.get_tabulated_flux_file("BNB","FHC_numu")
+flux_file = LI.utilities.get_tabulated_flux_file("BNB","FHC_numu")
 edist = LI.distributions.TabulatedFluxDistribution(flux_file, True)
 edist_gen = LI.distributions.TabulatedFluxDistribution(
     1.05 * model_kwargs["m4"], 10, flux_file, False

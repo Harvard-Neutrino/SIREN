@@ -536,8 +536,10 @@ def get_material_model_path(model_name, must_exist=True):
 def get_cross_section_model_path(model_name, must_exist=True):
     return _get_model_path(model_name, prefix="CrossSections", is_file=False, must_exist=must_exist)
 
+
 def get_tabulated_flux_model_path(model_name, must_exist=True):
     return _get_model_path(model_name,prefix="Fluxes", is_file=False, must_exist=must_exist)
+ 
  
 def get_tabulated_flux_file(model_name, tag, must_exist=True):
         abs_flux_dir = get_tabulated_flux_model_path(model_name,must_exist=must_exist)

@@ -1,10 +1,7 @@
 import os
 
 import leptoninjector as LI
-from leptoninjector import _util
 from leptoninjector.LIController import LIController
-
-resources_dir = _util.resource_package_dir()
 
 # Number of events to inject
 events_to_inject = 10000
@@ -20,7 +17,7 @@ primary_type = LI.dataclasses.Particle.ParticleType.NuMu
 
 cross_section_model = "CSMSDISSplines"
 
-xsfiledir = _util.get_cross_section_model_path(cross_section_model)
+xsfiledir = LI.utilities.get_cross_section_model_path(cross_section_model)
 
 # Cross Section Model
 target_type = LI.dataclasses.Particle.ParticleType.Nucleon
@@ -29,7 +26,7 @@ DIS_xs = LI.interactions.DISFromSpline(
     os.path.join(xsfiledir, "dsdxdy_nu_CC_iso.fits"),
     os.path.join(xsfiledir, "sigma_nu_CC_iso.fits"),
     [primary_type],
-    [target_type],
+    [target_type], "m"
 )
 
 primary_xs = LI.interactions.InteractionCollection(primary_type, [DIS_xs])
