@@ -346,7 +346,6 @@ class LIController:
         det_placement = _geometry.Placement(det_position.get(), det_rotation)
         cylinder = _geometry.Cylinder(det_placement,geo.Radius,geo.InnerRadius,geo.Z)
         return _distributions.CylinderVolumePositionDistribution(cylinder)
-        self.primary_injection_process.AddInjectionDistribution(position_distribution)
 
     def GenerateEvents(self, N=None, fill_tables_at_exit=True):
         if N is None:

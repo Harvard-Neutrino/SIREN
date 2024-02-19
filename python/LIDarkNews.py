@@ -40,6 +40,7 @@ class PyDarkNewsInteractionCollection:
         param_file=None,
         tolerance=1e-6,
         interp_tolerance=5e-2,
+        use_pickles=True,
         **kwargs,
     ):
         # Defines a series of upscattering and decay objects
@@ -92,7 +93,14 @@ class PyDarkNewsInteractionCollection:
             # Dump the model arguments
             with open(os.path.join(self.table_dir, "model_parameters.json"), "w") as f:
                 json.dump(self.models.model_args_dict, f)
+    
+        self.GenerateCrossSections(tolerance,interp_tolerance,use_pickles=use_pickles)
+        self.GenerateDecays(use_pickles=use_pickles)
+        
+        
 
+        
+    def GenerateCrossSections(self, tolerance, interp_tolerance, use_pickles):    
         # Save all unique scattering processes
         self.cross_sections = []
         for ups_key, ups_case in self.models.ups_cases.items():
@@ -102,14 +110,22 @@ class PyDarkNewsInteractionCollection:
                     x = x.name
                 table_subdirs += "%s_" % str(x)
             table_subdirs += "/"
-            self.cross_sections.append(
-                PyDarkNewsCrossSection(
-                    ups_case,
-                    table_dir=os.path.join(self.table_dir, table_subdirs),
-                    tolerance=tolerance,
-                    interp_tolerance=interp_tolerance,
+            table_dir=os.path.join(self.table_dir, table_subdirs)
+            fname = os.path.join(table_dir,"xs_object.pkl")
+            if use_pickles and os.path.isfile(fname):
+                with open(fname,"rb") as f:
+                    self.cross_sections.append(pickle.load(f))
+            else:
+                self.cross_sections.append(
+                    PyDarkNewsCrossSection(
+                        ups_case,
+                        table_dir=table_dir,
+                        tolerance=tolerance,
+                        interp_tolerance=interp_tolerance,
+                    )
                 )
-            )
+    
+    def GenerateDecays(self, use_pickles):
         # Save all unique decay processes
         self.decays = []
         for dec_key, dec_case in self.models.dec_cases.items():
@@ -117,12 +133,21 @@ class PyDarkNewsInteractionCollection:
             for x in dec_key:
                 table_subdirs += "%s_" % str(x)
             table_subdirs += "/"
-            self.decays.append(
-                PyDarkNewsDecay(
-                    dec_case, table_dir=os.path.join(self.table_dir, table_subdirs)
+            table_dir=os.path.join(self.table_dir, table_subdirs)
+            fname = os.path.join(table_dir,"dec_object.pkl")
+            if use_pickles and os.path.isfile(fname):
+                with open(fname,"rb") as f:
+                    self.decays.append(pickle.load(f))
+            else:
+                self.decays.append(
+                    PyDarkNewsDecay(
+                        dec_case, 
+                        table_dir=table_dir
+                    )
                 )
-            )
 
+    # Save numpy arrays for total and differential cross sections
+    # also pickles cross section/decay objects
     def SaveCrossSectionTables(self, fill_tables_at_exit=True):
         if not fill_tables_at_exit:
             print(
@@ -134,6 +159,11 @@ class PyDarkNewsInteractionCollection:
                 num = cross_section.FillInterpolationTables()
                 print("Added %d points" % num)
             cross_section.SaveInterpolationTables()
+            with open(os.path.join(cross_section.table_dir, "xs_object.pkl"),"wb") as f:
+                pickle.dump(cross_section,f)
+        for decay in self.decays:
+            with open(os.path.join(decay.table_dir,"dec_object.pkl"),"wb") as f:
+                pickle.dump(decay,f)
 
 
 # A class representing a single ups_case DarkNews class
@@ -200,7 +230,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 "tolerance":self.tolerance,
                 "interp_tolerance":self.interp_tolerance,
                 "table_dir":self.table_dir,
-                "interpolate_differential":self.interpolate_differential
+                "interpolate_differential":self.interpolate_differential,
+                "is_configured":False
                }
     
     # Configure function to set up member variables
@@ -219,6 +250,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         self.total_cross_section_interpolator = None
         self.differential_cross_section_interpolator = None
         self._redefine_interpolation_objects(total=True, diff=True)
+        self.is_configured = True
 
     # Sorts and redefines scipy interpolation objects
     def _redefine_interpolation_objects(self, total=False, diff=False):
@@ -319,6 +351,9 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         # 0 if we are not close enough to any points in the interpolation table
         # otherwise, returns the desired interpolated value
 
+        # First make sure we are configured
+        if not self.is_configured: self.configure()
+
         # Determine which table we are using
         if mode == "total":
             interp_table = self.total_cross_section_table
@@ -412,14 +447,17 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         return [Particle.ParticleType(self.ups_case.nu_projectile.pdgid)]
 
     def GetPossibleTargetsFromPrimary(self, primary_type):
+        if not self.is_configured: self.configure()
         if Particle.ParticleType(self.ups_case.nu_projectile.pdgid) == primary_type:
             return [self.target_type]
         return []
 
     def GetPossibleTargets(self):
+        if not self.is_configured: self.configure()
         return [self.target_type]
 
     def GetPossibleSignatures(self):
+        if not self.is_configured: self.configure()
         signature = LI.dataclasses.InteractionSignature()
         signature.primary_type = Particle.ParticleType(
             self.ups_case.nu_projectile.pdgid
@@ -648,18 +686,6 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 norm_file,
             ) as nfile:
                 self.decay_norm = json.load(nfile)
-
-    ##### START METHODS FOR SERIALIZATION #########
-    # def get_initialized_dict(config):
-    #     # do the intitialization step
-    #     pddn = PyDerivedDarkNews(config)
-    #     return pddn.__dict__
-    #     # return the conent of __dict__ for PyDerivedDarkNews
-
-    # @staticmethod
-    # def get_config(self):
-    #     return self.config
-    ##### END METHODS FOR SERIALIZATION #########
 
     def GetPossibleSignatures(self):
         signature = LI.dataclasses.InteractionSignature()
