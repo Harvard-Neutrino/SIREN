@@ -753,7 +753,7 @@ InteractionRecord SecondaryDistributionRecord::CreateSecondaryRecord(Interaction
     record.primary_mass = parent_record.secondary_masses.at(secondary_index);
     record.primary_momentum = parent_record.secondary_momenta.at(secondary_index);
     record.primary_helicity = parent_record.secondary_helicities.at(secondary_index);
-    record.primary_initial_position = parent_record.primary_initial_position;
+    record.primary_initial_position = parent_record.interaction_vertex;
     return record;
 }
 
