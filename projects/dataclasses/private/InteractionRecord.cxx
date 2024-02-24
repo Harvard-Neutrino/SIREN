@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <tuple>    // for tie, operator==, tuple
+#include <cassert>
 #include <ostream>  // for operator<<, basic_ostream, char_traits, endl, ost...
 
 std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionRecord const& record);

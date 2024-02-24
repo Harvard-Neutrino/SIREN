@@ -33,13 +33,10 @@ namespace distributions {
 
 class SecondaryPhysicalVertexDistribution : virtual public SecondaryVertexPositionDistribution {
 friend cereal::access;
-private:
-    double max_length = std::numeric_limits<double>::infinity();
 public:
 
     SecondaryPhysicalVertexDistribution();
     SecondaryPhysicalVertexDistribution(const SecondaryPhysicalVertexDistribution &) = default;
-    SecondaryPhysicalVertexDistribution(double max_length);
 
     virtual void SampleVertex(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::SecondaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
@@ -51,7 +48,6 @@ public:
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
-            archive(::cereal::make_nvp("MaxLength", max_length));
             archive(cereal::virtual_base_class<SecondaryVertexPositionDistribution>(this));
         } else {
             throw std::runtime_error("SecondaryPhysicalVertexDistribution only supports version <= 0!");
@@ -60,9 +56,7 @@ public:
     template<typename Archive>
     static void load_and_construct(Archive & archive, cereal::construct<SecondaryPhysicalVertexDistribution> & construct, std::uint32_t const version) {
         if(version == 0) {
-            double max_length;
-            archive(::cereal::make_nvp("MaxLength", max_length));
-            construct(max_length);
+            construct();
             archive(cereal::virtual_base_class<SecondaryVertexPositionDistribution>(construct.ptr()));
         } else {
             throw std::runtime_error("SecondaryPhysicalVertexDistribution only supports version <= 0!");

@@ -55,9 +55,8 @@ void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<LI::utili
     LI::math::Vector3D dir = record.direction;
 
     LI::math::Vector3D endcap_0 = pos;
-    LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
-    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
     path.ClipToOuterBounds();
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets(interactions->TargetTypes().begin(), interactions->TargetTypes().end());
@@ -102,9 +101,8 @@ double SecondaryPhysicalVertexDistribution::GenerationProbability(std::shared_pt
     LI::math::Vector3D vertex(record.interaction_vertex);
 
     LI::math::Vector3D endcap_0 = record.primary_initial_position;
-    LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
-    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
@@ -144,8 +142,6 @@ double SecondaryPhysicalVertexDistribution::GenerationProbability(std::shared_pt
 
 SecondaryPhysicalVertexDistribution::SecondaryPhysicalVertexDistribution() {}
 
-SecondaryPhysicalVertexDistribution::SecondaryPhysicalVertexDistribution(double max_length) : max_length(max_length) {}
-
 std::string SecondaryPhysicalVertexDistribution::Name() const {
     return "SecondaryPhysicalVertexDistribution";
 }
@@ -160,9 +156,8 @@ std::tuple<LI::math::Vector3D, LI::math::Vector3D> SecondaryPhysicalVertexDistri
     LI::math::Vector3D vertex(record.interaction_vertex);
 
     LI::math::Vector3D endcap_0 = record.primary_initial_position;
-    LI::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
 
-    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_length);
+    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
@@ -176,15 +171,12 @@ bool SecondaryPhysicalVertexDistribution::equal(WeightableDistribution const & o
     if(!x)
         return false;
     else
-        return (max_length == x->max_length);
+        return true;
 }
 
 bool SecondaryPhysicalVertexDistribution::less(WeightableDistribution const & other) const {
     const SecondaryPhysicalVertexDistribution* x = dynamic_cast<const SecondaryPhysicalVertexDistribution*>(&other);
-    return
-        std::tie(max_length)
-        <
-        std::tie(x->max_length);
+    return false;
 }
 
 } // namespace distributions
