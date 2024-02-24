@@ -831,7 +831,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
             np.expand_dims(np.array(record.primary_momentum), 0),
         )
 
-        secondaries = record.GetSecondaryParticles()
+        secondaries = record.GetSecondaryParticleRecords()
 
         if type(self.dec_case) == FermionSinglePhotonDecay:
             gamma_idx = 0
@@ -843,13 +843,13 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 print("No gamma found in the list of secondaries!")
                 exit(0)
             nu_idx = 1 - gamma_idx
-            secondaries[gamma_idx].momentum = list(
-                np.squeeze(four_momenta["P_decay_photon"])
-            )
+            secondaries[gamma_idx].four_momentum = np.squeeze(four_momenta["P_decay_photon"])
             secondaries[gamma_idx].mass = 0
-            secondaries[nu_idx].momentum = list(
-                    np.squeeze(four_momenta["P_decay_N_daughter"])
-            )
+            secondaries[nu_idx].four_momentum = np.squeeze(four_momenta["P_decay_N_daughter"])
+            secondaries[nu_idx].mass = 0
+
+            print("P_gamma", secondaries[gamma_idx].four_momentum)
+            print("P_nu", secondaries[nu_idx].four_momentum)
 
         elif type(self.dec_case) == FermionDileptonDecay:
             lepminus_idx = -1
@@ -876,14 +876,13 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 print("Couldn't find two leptons and a neutrino in the final state!")
                 exit(0)
             secondary_momenta = []
-            seconaries[lepminus_idx].momentum = list(
+            seconaries[lepminus_idx].four_momentum = (
                 np.squeeze(four_momenta["P_decay_ell_minus"])
             )
-            secondaries[lepplus_idx].momentum = list(
+            secondaries[lepplus_idx].four_momentum = (
                 np.squeeze(four_momenta["P_decay_ell_plus"])
             )
-            secondaries[nu_idx].momentum = list(
+            secondaries[nu_idx].four_momentum = (
                 np.squeeze(four_momenta["P_decay_N_daughter"])
             )
-        record.SetSecondaryParticles(secondaries)
         return record
