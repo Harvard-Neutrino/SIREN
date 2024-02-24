@@ -338,6 +338,7 @@ void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
 /////////////////////////////////////////
 
 SecondaryParticleRecord::SecondaryParticleRecord(InteractionRecord const & record, size_t secondary_index) :
+    secondary_index(secondary_index),
     id((record.secondary_ids.size() > secondary_index and record.secondary_ids.at(secondary_index)) ? (record.secondary_ids.at(secondary_index)) : (ParticleID::GenerateID())),
     type(record.signature.secondary_types.at(secondary_index)),
     initial_position(record.interaction_vertex)
@@ -548,12 +549,11 @@ void SecondaryParticleRecord::UpdateMomentum() const {
 }
 
 void SecondaryParticleRecord::Finalize(InteractionRecord & record) const {
-    record.primary_id = id;
-    record.signature.primary_type = type;
-    record.primary_initial_position = initial_position;
-    record.primary_mass = GetMass();
-    record.primary_momentum = GetFourMomentum();
-    record.primary_helicity = GetHelicity();
+    assert(record.signature.secondary_types.at(secondary_index) == type);
+    record.secondary_ids.at(secondary_index) = GetID();
+    record.secondary_masses.at(secondary_index) = GetMass();
+    record.secondary_momenta.at(secondary_index) = GetFourMomentum();
+    record.secondary_helicities.at(secondary_index) = GetHelicity();
 }
 
 /////////////////////////////////////////
@@ -678,16 +678,13 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const 
 
     record.interaction_parameters = interaction_parameters;
 
-    record.secondary_ids.clear();
-    record.secondary_masses.clear();
-    record.secondary_momenta.clear();
-    record.secondary_helicities.clear();
+    record.secondary_ids.resize(secondary_particles.size());
+    record.secondary_masses.resize(secondary_particles.size());
+    record.secondary_momenta.resize(secondary_particles.size());
+    record.secondary_helicities.resize(secondary_particles.size());
 
-    for(SecondaryParticleRecord const & secondary: secondary_particles) {
-        record.secondary_ids.push_back(secondary.GetID());
-        record.secondary_masses.push_back(secondary.GetMass());
-        record.secondary_momenta.push_back(secondary.GetFourMomentum());
-        record.secondary_helicities.push_back(secondary.GetHelicity());
+    for(SecondaryParticleRecord const & secondary : secondary_particles) {
+        secondary.Finalize(record);
     }
 }
 

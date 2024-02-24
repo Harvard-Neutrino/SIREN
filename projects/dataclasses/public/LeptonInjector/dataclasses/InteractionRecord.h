@@ -119,6 +119,7 @@ public:
 
 class SecondaryParticleRecord {
 public:
+    size_t const secondary_index;
     ParticleID const id;
     ParticleType const & type;
     std::array<double, 3> const & initial_position;
