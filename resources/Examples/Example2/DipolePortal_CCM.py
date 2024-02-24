@@ -88,6 +88,12 @@ controller.SetProcesses(
 
 controller.Initialize()
 
+def stop(datum, i):
+    secondary_type = datum.record.signature.secondary_types[i]
+    return secondary_type != LI.dataclasses.Particle.ParticleType.N4
+
+controller.injector.SetStoppingCondition(stop)
+
 events = controller.GenerateEvents()
 
 controller.SaveEvents(
