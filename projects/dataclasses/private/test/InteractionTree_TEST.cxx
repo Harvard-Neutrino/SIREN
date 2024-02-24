@@ -24,42 +24,6 @@ double RandomDouble() {
     return uniform_distribution(rng_);
 }
 
-struct InteractionTreeDatum {
-  InteractionTreeDatum(dataclasses::InteractionRecord& record) : record(record) {}
-  dataclasses::InteractionRecord record;
-  std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL;
-  std::vector<std::shared_ptr<dataclasses::InteractionTreeDatum>> daughters;
-  int depth() const;
-  template<class Archive>
-  void serialize(Archive & archive, std::uint32_t const version) {
-      if(version == 0) {
-          archive(::cereal::make_nvp("Record", record));
-          archive(::cereal::make_nvp("Parent", parent));
-          archive(::cereal::make_nvp("Daughters", daughters));
-      } else {
-          throw std::runtime_error("InteractionTreeDatum only supports version <= 0!");
-      }
-  };
-};
-
-struct InteractionTree {
-  std::set<std::shared_ptr<dataclasses::InteractionTreeDatum>> tree;
-  std::shared_ptr<InteractionTreeDatum> add_entry(std::shared_prt<dataclasses::InteractionTreeDatum> datum,
-                                                  std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL);
-  std::shared_ptr<InteractionTreeDatum> add_entry(dataclasses::InteractionTreeDatum& datum,
-                                                  std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL);
-  std::shared_ptr<InteractionTreeDatum> add_entry(dataclasses::InteractionRecord& record,
-                                                  std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL);
-  template<class Archive>
-  void serialize(Archive & archive, std::uint32_t const version) {
-      if(version == 0) {
-          archive(::cereal::make_nvp("Tree", tree));
-      } else {
-          throw std::runtime_error("InteractionTree only supports version <= 0!");
-      }
-  };
-};
-
 int InteractionTreeDatum::depth() const {
     int depth = 0;
     if(parent==NULL) return depth;
@@ -107,16 +71,16 @@ std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(InteractionReco
 TEST(DatumConstructor, InteractionRecord)
 {
     InteractionRecord record;
-    record.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    record.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    record.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
-    record.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+    record.signature.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    record.signature.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    record.signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
+    record.signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
 
     InteractionTreeDatum datum(record);
-    EXPECT_EQ(datum.record.primary_type, LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum.record.target_type, LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum.record.secondary_types[0], LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum.record.secondary_types[1], LI::dataclasses::Particle::ParticleType::EMinus);
+    EXPECT_EQ(datum.record.signature.primary_type, LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum.record.signature.target_type, LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum.record.signature.secondary_types[0], LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum.record.signature.secondary_types[1], LI::dataclasses::Particle::ParticleType::EMinus);
 }
 
 TEST(TreeConstructor, Default)
@@ -129,91 +93,72 @@ TEST(TreeAddEntry, Record)
 {
     InteractionTree tree;
     InteractionRecord record;
-    record.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    record.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    record.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
-    record.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+    record.signature.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    record.signature.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    record.signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
+    record.signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
 
     std::shared_ptr<InteractionTreeDatum> datum = tree.add_entry(record);
     EXPECT_EQ(tree.tree.size(), 1);
-    EXPECT_EQ(datum->record.primary_type, LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum->record.target_type, LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum->record.secondary_types[0], LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum->record.secondary_types[1], LI::dataclasses::Particle::ParticleType::EMinus);
+    EXPECT_EQ(datum->record.signature.primary_type, LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum->record.signature.target_type, LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum->record.signature.secondary_types[0], LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum->record.signature.secondary_types[1], LI::dataclasses::Particle::ParticleType::EMinus);
 }
 
 TEST(TreeAddEntry, DatumReference)
 {
     InteractionTree tree;
     InteractionRecord record;
-    record.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    record.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    record.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
-    record.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+    record.signature.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    record.signature.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    record.signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
+    record.signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
 
     InteractionTreeDatum datum = InteractionTreeDatum(record);
     std::shared_ptr<InteractionTreeDatum> datum2 = tree.add_entry(datum);
     EXPECT_EQ(tree.tree.size(), 1);
-    EXPECT_EQ(datum2->record.primary_type, LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.target_type, LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.secondary_types[0], LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.secondary_types[1], LI::dataclasses::Particle::ParticleType::EMinus);
+    EXPECT_EQ(datum2->record.signature.primary_type, LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.target_type, LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[0], LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[1], LI::dataclasses::Particle::ParticleType::EMinus);
 }
 
 TEST(TreeAddEntry, DatumPointer)
 {
     InteractionTree tree;
     InteractionRecord record;
-    record.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    record.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    record.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
-    record.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+    record.signature.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    record.signature.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    record.signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
+    record.signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
 
     std::shared_ptr<InteractionTreeDatum> datum = std::make_shared<InteractionTreeDatum>(record);
     std::shared_ptr<InteractionTreeDatum> datum2 = tree.add_entry(datum);
     EXPECT_EQ(tree.tree.size(), 1);
-    EXPECT_EQ(datum2->record.primary_type, LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.target_type, LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.secondary_types[0], LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.secondary_types[1], LI::dataclasses::Particle::ParticleType::EMinus);
+    EXPECT_EQ(datum2->record.signature.primary_type, LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.target_type, LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[0], LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[1], LI::dataclasses::Particle::ParticleType::EMinus);
 }
 
 TEST(TreeAddEntry, Parent)
 {
     InteractionTree tree;
     InteractionRecord record;
-    record.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    record.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    record.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
-    record.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+    record.signature.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    record.signature.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    record.signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
+    record.signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
 
     auto datum = tree.add_entry(record);
     auto datum2 = tree.add_entry(record, datum);
-    EXPECT_EQ(tree.tree.size(), 1);
-    EXPECT_EQ(datum2->record.primary_type, LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.target_type, LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.secondary_types[0], LI::dataclasses::Particle::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.secondary_types[1], LI::dataclasses::Particle::ParticleType::EMinus);
+    EXPECT_EQ(tree.tree.size(), 2);
+    EXPECT_EQ(datum2->record.signature.primary_type, LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.target_type, LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[0], LI::dataclasses::Particle::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[1], LI::dataclasses::Particle::ParticleType::EMinus);
     EXPECT_EQ(datum2->parent, datum);
-}
-
-
-TEST(Serialization, Save)
-{
-    InteractionTree A;
-    A.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    A.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    A.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
-    A.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
-
-    std::stringstream ss;
-    {
-        cereal::JSONOutputArchive oarchive(ss);
-        oarchive(cereal::make_nvp("InteractionTree", A));
-    }
-
-    std::string expected = "{\n    \"InteractionTree\": {\n        \"cereal_class_version\": 0,\n        \"PrimaryType\": -11,\n        \"TargetType\": -11,\n        \"SecondaryTypes\": [\n            -11,\n            11\n        ]\n    }\n}";
-    EXPECT_EQ(ss.str(), expected);
 }
 
 int main(int argc, char** argv)
