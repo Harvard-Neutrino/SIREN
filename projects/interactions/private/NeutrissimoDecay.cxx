@@ -135,7 +135,6 @@ double NeutrissimoDecay::DifferentialDecayWidth(dataclasses::InteractionRecord c
 void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
 
     LI::dataclasses::InteractionSignature const & signature = record.GetSignature();
-    std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaryParticles();
 
     unsigned int gamma_index = (signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;
@@ -143,12 +142,13 @@ void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRec
     double CosTheta;
     double alpha = std::copysign(1.0,record.GetPrimaryHelicity()); // 1 for RH, -1 for LH
     alpha = (signature.primary_type == LI::dataclasses::Particle::ParticleType::NuF4) ? -1*alpha : alpha;
-    if(nature==ChiralNature::Majorana) {
-      CosTheta = random->Uniform(-1,1);
+
+    if(nature == ChiralNature::Majorana) {
+        CosTheta = random->Uniform(-1,1);
     }
     else {
-      double X = random->Uniform(0,1);
-      CosTheta = (std::sqrt(1  - 2*alpha*(1 - alpha/2. - 2*X)) - 1)/alpha;
+        double X = random->Uniform(0,1);
+        CosTheta = (std::sqrt(1  - 2*alpha*(1 - alpha/2. - 2*X)) - 1)/alpha;
     }
     double SinTheta = std::sin(std::acos(CosTheta));
 
@@ -170,20 +170,25 @@ void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRec
     rk::P4 pGamma = pGamma_HNLrest.boost(boost_to_lab);
     rk::P4 pNu(pHNL.momentum() - pGamma.momentum(),0); // ensures the neutrino has zero mass, avoids rounding errors
 
-    secondaries[gamma_index].momentum[0] = pGamma.e(); // pGamma_energy
-    secondaries[gamma_index].momentum[1] = pGamma.px(); // pGamma_x
-    secondaries[gamma_index].momentum[2] = pGamma.py(); // pGamma_y
-    secondaries[gamma_index].momentum[3] = pGamma.pz(); // pGamma_z
-    secondaries[gamma_index].mass = pGamma.m();
 
-    secondaries[nu_index].momentum[0] = pNu.e(); // pNu_energy
-    secondaries[nu_index].momentum[1] = pNu.px(); // pNu_x
-    secondaries[nu_index].momentum[2] = pNu.py(); // pNu_y
-    secondaries[nu_index].momentum[3] = pNu.pz(); // pNu_z
-    secondaries[nu_index].mass = pNu.m();
-    secondaries[nu_index].helicity = -1*record.primary_helicity;
+    LI::dataclasses::SecondaryParticleRecord & gamma = record.GetSecondaryParticleRecord(gamma_index);
+    LI::dataclasses::SecondaryParticleRecord & nu = record.GetSecondaryParticleRecord(nu_index);
 
-    record.SetSecondaryParticles(secondaries);
+    assert(gamma.type == LI::dataclasses::Particle::ParticleType::Gamma);
+    assert(nu.type == LI::dataclasses::Particle::ParticleType::NuE ||
+           nu.type == LI::dataclasses::Particle::ParticleType::NuMu ||
+           nu.type == LI::dataclasses::Particle::ParticleType::NuTau ||
+           nu.type == LI::dataclasses::Particle::ParticleType::NuEBar ||
+           nu.type == LI::dataclasses::Particle::ParticleType::NuMuBar ||
+           nu.type == LI::dataclasses::Particle::ParticleType::NuTauBar);
+
+    gamma.SetFourMomentum({pGamma.e(), pGamma.px(), pGamma.py(), pGamma.pz()});
+    gamma.SetMass(pGamma.m());
+    gamma.SetHelicity(std::copysign(1.0, record.primary_helicity));
+
+    nu.SetFourMomentum({pNu.e(), pNu.px(), pNu.py(), pNu.pz()});
+    nu.SetMass(pNu.m());
+    nu.SetHelicity(-1*record.primary_helicity);
 }
 
 double NeutrissimoDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {

@@ -442,20 +442,21 @@ void DipoleFromTable::SampleFinalState(dataclasses::CrossSectionDistributionReco
     else if(channel == Flipping)
         helicity_mul = -1.0;
 
-    std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaryParticles();
-    secondaries[lepton_index].type = secondary_types[lepton_index];
-    secondaries[lepton_index].mass = p3.m();
-    secondaries[lepton_index].momentum = {p3.e(), p3.px(), p3.py(), p3.pz()};
-    secondaries[lepton_index].length = 0;
-    secondaries[lepton_index].helicity = std::copysign(0.5, record.GetPrimaryHelicity() * helicity_mul);
+    std::vector<LI::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
 
-    secondaries[other_index].type = secondary_types[other_index];
-    secondaries[other_index].mass = p4.m();
-    secondaries[other_index].momentum = {p4.e(), p4.px(), p4.py(), p4.pz()};
-    secondaries[other_index].length = 0;
-    secondaries[other_index].helicity = std::copysign(0.5, record.GetPrimaryHelicity() * helicity_mul);
+    LI::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
+    LI::dataclasses::SecondaryParticleRecord & other = secondaries[other_index];
 
-    record.SetSecondaryParticles(secondaries);
+    assert(lepton.type == secondary_types[lepton_index]);
+    assert(other.type == secondary_types[other_index]);
+
+    lepton.SetMass(p3.m());
+    lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
+    lepton.SetHelicity(std::copysign(0.5, record.GetPrimaryHelicity() * helicity_mul));
+
+    other.SetMass(p4.m());
+    other.SetFourMomentum({p4.e(), p4.px(), p4.py(), p4.pz()});
+    other.SetHelicity(std::copysign(0.5, record.GetPrimaryHelicity() * helicity_mul));
 }
 
 double DipoleFromTable::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {

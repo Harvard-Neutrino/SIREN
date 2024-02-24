@@ -111,14 +111,12 @@ PYBIND11_MODULE(dataclasses,m) {
         .def_property("target_mass", ((double const & (LI::dataclasses::CrossSectionDistributionRecord::*)() const)(&LI::dataclasses::CrossSectionDistributionRecord::GetTargetMass)), &LI::dataclasses::CrossSectionDistributionRecord::SetTargetMass)
         .def_property("target_helicity", ((double const & (LI::dataclasses::CrossSectionDistributionRecord::*)() const)(&LI::dataclasses::CrossSectionDistributionRecord::GetTargetHelicity)), &LI::dataclasses::CrossSectionDistributionRecord::SetTargetHelicity)
         .def_property("interaction_parameters", ((std::map<std::string, double> const & (LI::dataclasses::CrossSectionDistributionRecord::*)())(&LI::dataclasses::CrossSectionDistributionRecord::GetInteractionParameters)), &LI::dataclasses::CrossSectionDistributionRecord::SetInteractionParameters)
-        .def("GetPrimaryParticle", &CrossSectionDistributionRecord::GetPrimaryParticle)
-        .def("GetTargetParticle", &CrossSectionDistributionRecord::GetTargetParticle)
         .def("GetSecondaryParticleRecord",
-                [](LI::dataclasses::CrossSectionDistributionRecord const & cdr, size_t i) {return cdr.GetSecondaryParticleRecord(i);})
-        .def("GetSecondaryParticle", &CrossSectionDistributionRecord::GetSecondaryParticle)
-        .def("GetSecondaryParticles", &CrossSectionDistributionRecord::GetSecondaryParticles)
-        .def("SetSecondaryParticle", &CrossSectionDistributionRecord::SetSecondaryParticle)
-        .def("SetSecondaryParticles", &CrossSectionDistributionRecord::SetSecondaryParticles)
+                [](LI::dataclasses::CrossSectionDistributionRecord & cdr, size_t i) -> LI::dataclasses::SecondaryParticleRecord & {return cdr.GetSecondaryParticleRecord(i);},
+                return_value_policy::reference_internal)
+        .def("GetSecondaryParticleRecords",
+                [](LI::dataclasses::CrossSectionDistributionRecord & cdr) -> std::vector<LI::dataclasses::SecondaryParticleRecord> & {return cdr.GetSecondaryParticleRecords();},
+                return_value_policy::reference_internal)
         .def("Finalize", &CrossSectionDistributionRecord::Finalize);
 
 

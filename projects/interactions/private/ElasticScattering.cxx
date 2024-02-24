@@ -203,25 +203,16 @@ void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRe
     // doing something dumb, ignore outgoing neutrino
     rk::P4 p4_lab = p1_lab;//p2_lab + (p1_lab - p3_lab);
 
-    std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaryParticles();
-    LI::dataclasses::Particle & electron = secondaries[electron_index];
-    LI::dataclasses::Particle & neutrino = secondaries[nu_index];
+    LI::dataclasses::SecondaryParticleRecord & electron = record.GetSecondaryParticleRecord(electron_index);
+    LI::dataclasses::SecondaryParticleRecord & neutrino = record.GetSecondaryParticleRecord(nu_index);
 
-    electron.momentum[0] = p3_lab.e(); // p3_energy
-    electron.momentum[1] = p3_lab.px(); // p3_x
-    electron.momentum[2] = p3_lab.py(); // p3_y
-    electron.momentum[3] = p3_lab.pz(); // p3_z
-    electron.mass = p3_lab.m();
-    electron.helicity = record.target_helicity;
+    electron.SetFourMomentum({p3_lab.e(), p3_lab.px(), p3_lab.py(), p3_lab.pz()});
+    electron.SetMass(p3_lab.m());
+    electron.SetHelicity(record.target_helicity);
 
-    neutrino.momentum[0] = p4_lab.e(); // p4_energy
-    neutrino.momentum[1] = p4_lab.px(); // p4_x
-    neutrino.momentum[2] = p4_lab.py(); // p4_y
-    neutrino.momentum[3] = p4_lab.pz(); // p4_z
-    neutrino.mass = p4_lab.m();
-    neutrino.helicity = record.primary_helicity;
-
-    record.SetSecondaryParticles(secondaries);
+    neutrino.SetFourMomentum({p4_lab.e(), p4_lab.px(), p4_lab.py(), p4_lab.pz()});
+    neutrino.SetMass(p4_lab.m());
+    neutrino.SetHelicity(record.primary_helicity);
 }
 
 std::vector<LI::dataclasses::Particle::ParticleType> ElasticScattering::GetPossibleTargets() const {

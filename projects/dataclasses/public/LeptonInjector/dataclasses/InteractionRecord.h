@@ -69,7 +69,8 @@ private:
 public:
     friend std::ostream& ::operator<<(std::ostream& os, PrimaryDistributionRecord const& record);
 
-    PrimaryDistributionRecord(PrimaryDistributionRecord const & other) = default;
+    PrimaryDistributionRecord(PrimaryDistributionRecord const & other) = delete;
+    PrimaryDistributionRecord(PrimaryDistributionRecord && other) = default;
     PrimaryDistributionRecord & operator=(PrimaryDistributionRecord const & other) = delete;
     PrimaryDistributionRecord & operator=(PrimaryDistributionRecord && other) = delete;
 
@@ -139,7 +140,8 @@ private:
 public:
     friend std::ostream& ::operator<<(std::ostream& os, SecondaryParticleRecord const& record);
 
-    SecondaryParticleRecord(SecondaryParticleRecord const & other) = default;
+    SecondaryParticleRecord(SecondaryParticleRecord const & other) = delete;
+    SecondaryParticleRecord(SecondaryParticleRecord && other) = default;
     SecondaryParticleRecord & operator=(SecondaryParticleRecord const & other) = delete;
     SecondaryParticleRecord & operator=(SecondaryParticleRecord && other) = delete;
 
@@ -202,7 +204,8 @@ private:
 public:
     friend std::ostream& ::operator<<(std::ostream& os, CrossSectionDistributionRecord const& record);
 
-    CrossSectionDistributionRecord(CrossSectionDistributionRecord const & other) = default;
+    CrossSectionDistributionRecord(CrossSectionDistributionRecord const & other) = delete;
+    CrossSectionDistributionRecord(CrossSectionDistributionRecord && other) = default;
     CrossSectionDistributionRecord & operator=(CrossSectionDistributionRecord const & other) = delete;
     CrossSectionDistributionRecord & operator=(CrossSectionDistributionRecord && other) = delete;
 
@@ -215,7 +218,6 @@ public:
     double const & GetPrimaryMass() const;
     std::array<double, 4> const & GetPrimaryMomentum() const;
     double const & GetPrimaryHelicity() const;
-    Particle GetPrimaryParticle() const;
 
     std::array<double, 3> const & GetInteractionVertex() const;
     ParticleID const & GetTargetID() const;
@@ -232,17 +234,10 @@ public:
     void SetInteractionParameters(std::map<std::string, double> const & parameters);
     void SetInteractionParameter(std::string const & name, double value);
 
-    Particle GetTargetParticle() const;
-    void SetTargetParticle(Particle const & particle);
-
+    std::vector<SecondaryParticleRecord> & GetSecondaryParticleRecords();
+    std::vector<SecondaryParticleRecord> const & GetSecondaryParticleRecords() const;
     SecondaryParticleRecord & GetSecondaryParticleRecord(size_t index);
     SecondaryParticleRecord const & GetSecondaryParticleRecord(size_t index) const;
-
-    Particle GetSecondaryParticle(size_t index) const;
-    std::vector<Particle> GetSecondaryParticles() const;
-
-    void SetSecondaryParticle(size_t index, Particle const & particle);
-    void SetSecondaryParticles(std::vector<Particle> const & particles);
 
     void Finalize(InteractionRecord & record) const;
 };

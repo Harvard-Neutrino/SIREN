@@ -607,20 +607,6 @@ double const & CrossSectionDistributionRecord::GetPrimaryHelicity() const {
     return primary_helicity;
 }
 
-Particle CrossSectionDistributionRecord::GetPrimaryParticle() const {
-    Particle p;
-    p.id = primary_id;
-    p.type = primary_type;
-    p.mass = primary_mass;
-    p.momentum = primary_momentum;
-    p.position = primary_initial_position;
-    p.length = std::sqrt((interaction_vertex.at(0) - primary_initial_position.at(0))*(interaction_vertex.at(0) - primary_initial_position.at(0)) +
-                         (interaction_vertex.at(1) - primary_initial_position.at(1))*(interaction_vertex.at(1) - primary_initial_position.at(1)) +
-                         (interaction_vertex.at(2) - primary_initial_position.at(2))*(interaction_vertex.at(2) - primary_initial_position.at(2)));
-    p.helicity = primary_helicity;
-    return p;
-}
-
 std::array<double, 3> const & CrossSectionDistributionRecord::GetInteractionVertex() const {
     return interaction_vertex;
 }
@@ -669,25 +655,12 @@ void CrossSectionDistributionRecord::SetInteractionParameter(std::string const &
     interaction_parameters[name] = value;
 }
 
-Particle CrossSectionDistributionRecord::GetTargetParticle() const {
-    Particle p;
-    p.id = target_id;
-    p.type = target_type;
-    p.mass = target_mass;
-    p.helicity = target_helicity;
-    return p;
+std::vector<SecondaryParticleRecord> & CrossSectionDistributionRecord::GetSecondaryParticleRecords() {
+    return secondary_particles;
 }
 
-void CrossSectionDistributionRecord::SetTargetParticle(Particle const & particle) {
-    if(particle.id != target_id) {
-        throw std::runtime_error("Cannot set particle with different ID!");
-    }
-    if(particle.type != target_type) {
-        throw std::runtime_error("Cannot set particle with different type!");
-    }
-
-    target_mass = particle.mass;
-    target_helicity = particle.helicity;
+std::vector<SecondaryParticleRecord> const & CrossSectionDistributionRecord::GetSecondaryParticleRecords() const {
+    return secondary_particles;
 }
 
 SecondaryParticleRecord & CrossSectionDistributionRecord::GetSecondaryParticleRecord(size_t index) {
@@ -696,31 +669,6 @@ SecondaryParticleRecord & CrossSectionDistributionRecord::GetSecondaryParticleRe
 
 SecondaryParticleRecord const & CrossSectionDistributionRecord::GetSecondaryParticleRecord(size_t index) const {
     return secondary_particles.at(index);
-}
-
-Particle CrossSectionDistributionRecord::GetSecondaryParticle(size_t index) const {
-    return secondary_particles.at(index).GetParticle();
-}
-
-std::vector<Particle> CrossSectionDistributionRecord::GetSecondaryParticles() const {
-    std::vector<Particle> particles;
-    for(SecondaryParticleRecord const & secondary : secondary_particles) {
-        particles.push_back(secondary.GetParticle());
-    }
-    return particles;
-}
-
-void CrossSectionDistributionRecord::SetSecondaryParticle(size_t index, Particle const & particle) {
-    secondary_particles.at(index).SetParticle(particle);
-}
-
-void CrossSectionDistributionRecord::SetSecondaryParticles(std::vector<Particle> const & particles) {
-    if(particles.size() != secondary_particles.size()) {
-        throw std::runtime_error("Cannot set particles with different size!");
-    }
-    for(size_t i = 0; i < particles.size(); ++i) {
-        secondary_particles.at(i).SetParticle(particles.at(i));
-    }
 }
 
 void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const {

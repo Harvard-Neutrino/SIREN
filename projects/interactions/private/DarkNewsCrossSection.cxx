@@ -130,20 +130,11 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::CrossSectionDistributio
     std::vector<double> secondary_masses = SecondaryMasses(record.signature.secondary_types);
     std::vector<double> secondary_helicities = SecondaryHelicities(record.record);
 
-    std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaryParticles();
-    for(size_t i = 0; i < secondaries.size(); i++) {
-        secondaries[i].mass = secondary_masses[i];
-        secondaries[i].helicity = secondary_helicities[i];
-    }
-
-    LI::dataclasses::Particle primary = record.GetPrimaryParticle();
-    LI::dataclasses::Particle target = record.GetTargetParticle();
-
     // Uses Metropolis-Hastings Algorithm
     // Assumes we have the differential xsec v.s. Q^2
 
-    rk::P4 p1(geom3::Vector3(primary.momentum[1], primary.momentum[2], primary.momentum[3]), primary.mass);
-    rk::P4 p2(geom3::Vector3(0, 0, 0), target.mass);
+    rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+    rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
 
     // we assume that:
     // the target is stationary so its energy is just its mass
@@ -151,10 +142,10 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::CrossSectionDistributio
     // double s = std::pow(rk::invMass(p1, p2), 2);
 
     // define masses that we will use
-    double m1 = primary.mass;
-    double m2 = target.mass;
-    double m3 = secondaries[0].mass;
-    double m4 = secondaries[1].mass;
+    double m1 = record.primary_mass;
+    double m2 = record.target_mass;
+    double m3 = secondary_masses.at(0);
+    double m4 = secondary_masses.at(1);
 
     double primary_energy;
     rk::P4 p1_lab;
@@ -262,18 +253,18 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::CrossSectionDistributio
     p3 = p3_lab;
     p4 = p4_lab;
 
-    // TODO: helicity update for secondary particles
-    secondaries[0].momentum[0] = p3.e(); // p3_energy
-    secondaries[0].momentum[1] = p3.px(); // p3_x
-    secondaries[0].momentum[2] = p3.py(); // p3_y
-    secondaries[0].momentum[3] = p3.pz(); // p3_z
+    std::vector<LI::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
 
-    secondaries[1].momentum[0] = p4.e(); // p4_energy
-    secondaries[1].momentum[1] = p4.px(); // p4_x
-    secondaries[1].momentum[2] = p4.py(); // p4_y
-    secondaries[1].momentum[3] = p4.pz(); // p4_z
+    LI::dataclasses::SecondaryParticleRecord & p3_record = secondaries[0];
+    LI::dataclasses::SecondaryParticleRecord & p4_record = secondaries[1];
 
-    record.SetSecondaryParticles(secondaries);
+    p3_record.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
+    p3_record.SetMass(secondary_masses.at(0));
+    p3_record.SetHelicity(secondary_helicities.at(0));
+
+    p4_record.SetFourMomentum({p4.e(), p4.px(), p4.py(), p4.pz()});
+    p4_record.SetMass(secondary_masses.at(1));
+    p4_record.SetHelicity(secondary_helicities.at(1));
 }
 
 double DarkNewsCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & record) const {

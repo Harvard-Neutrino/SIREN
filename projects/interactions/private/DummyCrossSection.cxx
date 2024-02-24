@@ -118,25 +118,17 @@ void DummyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRe
     size_t lepton_index = 0;
     size_t other_index = 1;
 
-    std::vector<LI::dataclasses::Particle> secondaries = record.GetSecondaryParticles();
-    LI::dataclasses::Particle & lepton = secondaries[lepton_index];
-    LI::dataclasses::Particle & other = secondaries[other_index];
+    std::vector<LI::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
+    LI::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
+    LI::dataclasses::SecondaryParticleRecord & other = secondaries[other_index];
 
-    lepton.momentum[0] = p3.e(); // p3_energy
-    lepton.momentum[1] = p3.px(); // p3_x
-    lepton.momentum[2] = p3.py(); // p3_y
-    lepton.momentum[3] = p3.pz(); // p3_z
-    lepton.mass = p3.m();
-    lepton.helicity = record.primary_helicity;
+    lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
+    lepton.SetMass(p3.m());
+    lepton.SetHelicity(record.primary_helicity);
 
-    other.momentum[0] = p4.e(); // p4_energy
-    other.momentum[1] = p4.px(); // p4_x
-    other.momentum[2] = p4.py(); // p4_y
-    other.momentum[3] = p4.pz(); // p4_z
-    other.mass = p4.m();
-    other.helicity = record.target_helicity;
-
-    record.SetSecondaryParticles(secondaries);
+    other.SetFourMomentum({p4.e(), p4.px(), p4.py(), p4.pz()});
+    other.SetMass(p4.m());
+    other.SetHelicity(record.target_helicity);
 }
 
 double DummyCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
