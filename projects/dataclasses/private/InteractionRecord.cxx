@@ -440,7 +440,10 @@ std::array<double, 4> SecondaryParticleRecord::GetFourMomentum() const {
     if(not momentum_set) {
         UpdateMomentum();
     }
-    return {momentum.at(0), momentum.at(1), momentum.at(2), GetEnergy()};
+    if(not energy_set) {
+        UpdateEnergy();
+    }
+    return {energy, momentum.at(0), momentum.at(1), momentum.at(2)};
 }
 
 std::array<double, 3> const & SecondaryParticleRecord::GetInitialPosition() const {
