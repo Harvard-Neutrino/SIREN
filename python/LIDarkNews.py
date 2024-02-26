@@ -446,18 +446,22 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     def GetPossiblePrimaries(self):
         return [Particle.ParticleType(self.ups_case.nu_projectile.pdgid)]
 
+    def _ensure_configured(self):
+        if not self.is_configured:
+            self.configure()
+
     def GetPossibleTargetsFromPrimary(self, primary_type):
-        if not self.is_configured: self.configure()
+        self._ensure_configured()
         if Particle.ParticleType(self.ups_case.nu_projectile.pdgid) == primary_type:
             return [self.target_type]
         return []
 
     def GetPossibleTargets(self):
-        if not self.is_configured: self.configure()
+        self._ensure_configured()
         return [self.target_type]
 
     def GetPossibleSignatures(self):
-        if not self.is_configured: self.configure()
+        self._ensure_configured()
         signature = LI.dataclasses.InteractionSignature()
         signature.primary_type = Particle.ParticleType(
             self.ups_case.nu_projectile.pdgid
