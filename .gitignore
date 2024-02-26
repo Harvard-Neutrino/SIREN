@@ -61,15 +61,7 @@ vendor/rk/
 
 # images
 *.png
-*/*.png
-*/*/*.png
-*/*/*/*.png
-*/*/*/*/*.png
 *.pdf
-*/*.pdf
-*/*/*.pdf
-*/*/*/*.pdf
-*/*/*/*/*.pdf
 
 # pycache
 *pycache*
