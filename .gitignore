@@ -57,7 +57,7 @@ vendor/rk/
 *ipynb_checkpoint*
 
 # build
-*build
+/build/
 
 # images
 *.png
