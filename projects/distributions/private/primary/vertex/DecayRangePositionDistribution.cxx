@@ -34,12 +34,12 @@ LI::math::Vector3D DecayRangePositionDistribution::SampleFromDisk(std::shared_pt
     return q.rotate(pos, false);
 }
 
-LI::math::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+    LI::math::Vector3D dir(record.GetDirection());
     dir.normalize();
     LI::math::Vector3D pca = SampleFromDisk(rand, dir);
 
-    double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
+    double decay_length = range_function->DecayLength(record.type, record.GetEnergy());
 
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -52,9 +52,10 @@ LI::math::Vector3D DecayRangePositionDistribution::SamplePosition(std::shared_pt
     double total_distance = path.GetDistance();
     double dist = -decay_length * log(y * (exp(-total_distance/decay_length) - 1) + 1);
 
+    LI::math::Vector3D init_pos = path.GetFirstPoint();
     LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
-    return vertex;
+    return {init_pos, vertex};
 }
 
 double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
@@ -66,7 +67,7 @@ double DecayRangePositionDistribution::GenerationProbability(std::shared_ptr<LI:
     if(pca.magnitude() >= radius)
         return 0.0;
 
-    double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
+    double decay_length = range_function->DecayLength(record.signature.primary_type, record.primary_momentum[0]);
 
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -94,20 +95,20 @@ std::string DecayRangePositionDistribution::Name() const {
     return "DecayRangePositionDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> DecayRangePositionDistribution::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new DecayRangePositionDistribution(*this));
+std::shared_ptr<PrimaryInjectionDistribution> DecayRangePositionDistribution::clone() const {
+    return std::shared_ptr<PrimaryInjectionDistribution>(new DecayRangePositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
     LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
-        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
-    double decay_length = range_function->DecayLength(record.signature, record.primary_momentum[0]);
+    double decay_length = range_function->DecayLength(record.signature.primary_type, record.primary_momentum[0]);
 
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -117,9 +118,9 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> DecayRangePositionDistribution
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
-        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
-    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+    return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool DecayRangePositionDistribution::equal(WeightableDistribution const & other) const {

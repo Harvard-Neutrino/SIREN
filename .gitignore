@@ -48,21 +48,13 @@
 *.swp
 
 # rk
-*/*rk*
-*/*/*rk*
+vendor/rk/
 
 # ipynb_checkpoint
 *ipynb_checkpoint*
-*/*ipynb_checkpoint*
-*/*/*ipynb_checkpoint*
-*/*/*/*ipynb_checkpoint*
 
 # build
 *build
 
 # pycache
 *pycache*
-*/*pycache*
-*/*/*pycache*
-*/*/*/*pycache*
-*/*/*/*/*pycache*

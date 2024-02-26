@@ -23,7 +23,7 @@
 #include "LeptonInjector/interactions/CrossSection.h"  // for CrossSection
 #include "LeptonInjector/dataclasses/Particle.h"        // for Particlev
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace dataclasses { struct InteractionSignature; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -47,15 +47,16 @@ public:
     virtual bool equal(CrossSection const & other) const override;
 
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    virtual double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override;
+    virtual double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary, LI::dataclasses::Particle::ParticleType target, double energy, double Q2) const; 
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     virtual double Q2Min(dataclasses::InteractionRecord const &) const;
     virtual double Q2Max(dataclasses::InteractionRecord const &) const;
-    virtual void SetUpscatteringMasses(dataclasses::InteractionRecord &) const;
-    virtual void SetUpscatteringHelicities(dataclasses::InteractionRecord &) const;
-    virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
+    virtual double TargetMass(dataclasses::ParticleType const &) const;
+    virtual std::vector<double> SecondaryMasses(std::vector<dataclasses::ParticleType> const &) const;
+    virtual std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const &) const;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
     virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override = 0; // Requires Python-side implementation
     virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override = 0; // Requires Python-side implementation

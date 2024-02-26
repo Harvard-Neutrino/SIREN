@@ -23,7 +23,8 @@
 #include "LeptonInjector/dataclasses/Particle.h"        // for Particle
 #include "LeptonInjector/utilities/Interpolator.h"      // for Interpolator1D
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
+namespace LI { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace LI { namespace dataclasses { struct InteractionSignature; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -58,12 +59,12 @@ public:
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, std::set<LI::dataclasses::Particle::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic, std::set<LI::dataclasses::Particle::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override;
+    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type, double target_mass, double y) const;
     double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type, double target_mass, double y, double thresh) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
 
     std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
     std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override;
@@ -126,7 +127,6 @@ public:
             throw std::runtime_error("DipoleFromTable only supports version <= 0!");
         }
     }
-
 };
 
 } // namespace interactions

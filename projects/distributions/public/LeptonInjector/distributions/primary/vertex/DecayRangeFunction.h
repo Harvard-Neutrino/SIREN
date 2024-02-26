@@ -14,7 +14,7 @@
 
 #include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 
-namespace LI { namespace dataclasses { struct InteractionSignature; } }
+namespace LI { namespace dataclasses { enum class ParticleType : int32_t; } }
 
 namespace LI {
 namespace distributions {
@@ -31,9 +31,9 @@ private:
 public:
     DecayRangeFunction(double particle_mass, double decay_width, double multiplier, double max_distance);
     static double DecayLength(double mass, double width, double energy);
-    double operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const override;
-    double DecayLength(LI::dataclasses::InteractionSignature const & signature, double energy) const;
-    double Range(LI::dataclasses::InteractionSignature const & signature, double energy) const;
+    double operator()(LI::dataclasses::ParticleType const & primary_type, double energy) const override;
+    double DecayLength(LI::dataclasses::ParticleType const & primary_type, double energy) const;
+    double Range(LI::dataclasses::ParticleType const & primary_type, double energy) const;
     double Multiplier() const;
     double ParticleMass() const;
     double DecayWidth() const;

@@ -5,6 +5,8 @@ import datetime
 import json
 import ntpath
 import pickle
+import functools
+import logging
 from scipy.interpolate import CloughTocher2DInterpolator, CubicSpline
 
 # LeptonInjector methods
@@ -14,8 +16,14 @@ from leptoninjector.dataclasses import Particle
 from leptoninjector import _util
 
 # DarkNews methods
+import DarkNews
 from DarkNews import phase_space
 from DarkNews.ModelContainer import ModelContainer
+ModelContainer_configure_logger = ModelContainer.configure_logger
+@functools.wraps(ModelContainer.configure_logger)
+def suppress_info(self, logger, loglevel="INFO", prettyprinter=None, logfile=None, verbose=False):
+    return ModelContainer_configure_logger(self, logger, loglevel="WARNING", prettyprinter=prettyprinter, logfile=logfile, verbose=verbose)
+ModelContainer.configure_logger = suppress_info
 from DarkNews.processes import *
 from DarkNews.nuclear_tools import NuclearTarget
 from DarkNews.integrands import get_decay_momenta_from_vegas_samples
@@ -490,25 +498,25 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             self._redefine_interpolation_objects(diff=True)
         return dxsec
 
-    def SetUpscatteringMasses(self, interaction):
-        interaction.primary_mass = 0
-        interaction.target_mass = self.ups_case.MA
+    def TargetMass(self, target_type):
+        target_mass = self.ups_case.MA
+        return target_mass
+
+    def SecondaryMasses(self, secondary_types):
         secondary_masses = []
         secondary_masses.append(self.ups_case.m_ups)
         secondary_masses.append(self.ups_case.MA)
-        interaction.secondary_masses = secondary_masses
-        self.m_ups = self.ups_case.m_ups
-        self.m_target = self.ups_case.MA
+        return secondary_masses
 
-    def SetUpscatteringHelicities(self, interaction):
+    def SecondaryHelicities(self, record):
         secondary_helicities = []
         secondary_helicities.append(
-            self.ups_case.h_upscattered * interaction.primary_helicity
+            self.ups_case.h_upscattered * record.primary_helicity
         )
-        secondary_helicities.append(interaction.target_helicity)
-        interaction.secondary_helicity = secondary_helicities
+        secondary_helicities.append(record.target_helicity)
         self.h_ups = self.ups_case.m_ups
         self.h_target = self.ups_case.MA
+        return secondary_helicities
 
     def TotalCrossSection(self, arg1, energy=None, target=None):
         # Handle overloaded arguments
@@ -521,13 +529,14 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         else:
             print("Incorrect function call to TotalCrossSection!")
             exit(0)
-        if primary != self.ups_case.nu_projectile:
+        if int(primary) != self.ups_case.nu_projectile:
             return 0
         interaction = LI.dataclasses.InteractionRecord()
         interaction.signature.primary_type = primary
         interaction.signature.target_type = target
         interaction.primary_momentum[0] = energy
         if energy < self.InteractionThreshold(interaction):
+            print("Python: energy < self.InteractionThreshold(interaction)")
             return 0
 
         # Check if we can interpolate
@@ -717,7 +726,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         else:
             print("Incorrect function call to TotalDecayWidth!")
             exit(0)
-        if primary != self.dec_case.nu_parent:
+        if int(primary) != self.dec_case.nu_parent:
             return 0
         if self.total_width is None:
             # Need to set the total width
@@ -758,7 +767,8 @@ class PyDarkNewsDecay(DarkNewsDecay):
             )
         ):
             return 0
-        return self.dec_case.total_width()
+        ret = self.dec_case.total_width()
+        return ret
 
     def DensityVariables(self):
         if type(self.dec_case) == FermionSinglePhotonDecay:
@@ -821,6 +831,8 @@ class PyDarkNewsDecay(DarkNewsDecay):
             np.expand_dims(np.array(record.primary_momentum), 0),
         )
 
+        secondaries = record.GetSecondaryParticleRecords()
+
         if type(self.dec_case) == FermionSinglePhotonDecay:
             gamma_idx = 0
             for secondary in record.signature.secondary_types:
@@ -831,14 +843,14 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 print("No gamma found in the list of secondaries!")
                 exit(0)
             nu_idx = 1 - gamma_idx
-            secondary_momenta = []
-            secondary_momenta.insert(
-                gamma_idx, list(np.squeeze(four_momenta["P_decay_photon"]))
-            )
-            secondary_momenta.insert(
-                nu_idx, list(np.squeeze(four_momenta["P_decay_N_daughter"]))
-            )
-            record.secondary_momenta = secondary_momenta
+            secondaries[gamma_idx].four_momentum = np.squeeze(four_momenta["P_decay_photon"])
+            secondaries[gamma_idx].mass = 0
+            secondaries[nu_idx].four_momentum = np.squeeze(four_momenta["P_decay_N_daughter"])
+            secondaries[nu_idx].mass = 0
+
+            print("P_gamma", secondaries[gamma_idx].four_momentum)
+            print("P_nu", secondaries[nu_idx].four_momentum)
+
         elif type(self.dec_case) == FermionDileptonDecay:
             lepminus_idx = -1
             lepplus_idx = -1
@@ -864,14 +876,13 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 print("Couldn't find two leptons and a neutrino in the final state!")
                 exit(0)
             secondary_momenta = []
-            secondary_momenta.insert(
-                lepminus_idx, list(np.squeeze(four_momenta["P_decay_ell_minus"]))
+            seconaries[lepminus_idx].four_momentum = (
+                np.squeeze(four_momenta["P_decay_ell_minus"])
             )
-            secondary_momenta.insert(
-                lepplus_idx, list(np.squeeze(four_momenta["P_decay_ell_plus"]))
+            secondaries[lepplus_idx].four_momentum = (
+                np.squeeze(four_momenta["P_decay_ell_plus"])
             )
-            secondary_momenta.insert(
-                nu_idx, list(np.squeeze(four_momenta["P_decay_N_daughter"]))
+            secondaries[nu_idx].four_momentum = (
+                np.squeeze(four_momenta["P_decay_N_daughter"])
             )
-            record.secondary_momenta = secondary_momenta
         return record

@@ -11,7 +11,7 @@
 #include "../../public/LeptonInjector/distributions/primary/energy/PowerLaw.h"
 #include "../../public/LeptonInjector/distributions/primary/energy/TabulatedFluxDistribution.h"
 #include "../../public/LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
-#include "../../public/LeptonInjector/distributions/primary/type/PrimaryInjector.h"
+#include "../../public/LeptonInjector/distributions/primary/mass/PrimaryMass.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
@@ -22,8 +22,8 @@
 #include "../../public/LeptonInjector/distributions/primary/vertex/PointSourcePositionDistribution.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/RangeFunction.h"
 #include "../../public/LeptonInjector/distributions/primary/vertex/RangePositionDistribution.h"
-#include "../../public/LeptonInjector/distributions/primary/vertex/SecondaryPositionDistribution.h"
-#include "../../public/LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
+#include "../../public/LeptonInjector/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
+#include "../../public/LeptonInjector/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
 
 #include "../../../utilities/public/LeptonInjector/utilities/Random.h"
 #include "../../../detector/public/LeptonInjector/detector/DetectorModel.h"
@@ -55,14 +55,13 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",&NormalizationConstant::GenerationProbability)
     .def("Name",&NormalizationConstant::Name);
 
-  class_<InjectionDistribution, std::shared_ptr<InjectionDistribution>, WeightableDistribution>(m, "InjectionDistribution")
-    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord &>(&InjectionDistribution::Sample, const_))
-    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionTreeDatum &>(&InjectionDistribution::Sample, const_))
-    .def("IsPositionDistribution",&InjectionDistribution::IsPositionDistribution);
+  class_<PrimaryInjectionDistribution, std::shared_ptr<PrimaryInjectionDistribution>, WeightableDistribution>(m, "PrimaryInjectionDistribution")
+    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::PrimaryDistributionRecord &>(&PrimaryInjectionDistribution::Sample, const_))
+    ;
 
   // Direciton distributions
 
-  class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, InjectionDistribution>(m, "PrimaryDirectionDistribution")
+  class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, PrimaryInjectionDistribution>(m, "PrimaryDirectionDistribution")
     .def("Sample",&PrimaryDirectionDistribution::Sample)
     .def("DensityVariables",&PrimaryDirectionDistribution::DensityVariables)
     .def("GenerationProbability",&PrimaryDirectionDistribution::GenerationProbability);
@@ -81,7 +80,7 @@ PYBIND11_MODULE(distributions,m) {
 
   // Energy distributions
 
-  class_<PrimaryEnergyDistribution, std::shared_ptr<PrimaryEnergyDistribution>, InjectionDistribution, PhysicallyNormalizedDistribution>(m, "PrimaryEnergyDistribution")
+  class_<PrimaryEnergyDistribution, std::shared_ptr<PrimaryEnergyDistribution>, PrimaryInjectionDistribution, PhysicallyNormalizedDistribution>(m, "PrimaryEnergyDistribution")
     .def("Sample",&PrimaryEnergyDistribution::Sample);
 
   class_<Monoenergetic, std::shared_ptr<Monoenergetic>, PrimaryEnergyDistribution>(m, "Monoenergetic")
@@ -116,7 +115,7 @@ PYBIND11_MODULE(distributions,m) {
     
   // Helicity distributions
 
-  class_<PrimaryNeutrinoHelicityDistribution, std::shared_ptr<PrimaryNeutrinoHelicityDistribution>, InjectionDistribution>(m, "PrimaryNeutrinoHelicityDistribution")
+  class_<PrimaryNeutrinoHelicityDistribution, std::shared_ptr<PrimaryNeutrinoHelicityDistribution>, PrimaryInjectionDistribution>(m, "PrimaryNeutrinoHelicityDistribution")
     .def(init<>())
     .def("Sample",&PrimaryNeutrinoHelicityDistribution::Sample)
     .def("GenerationProbability",&PrimaryNeutrinoHelicityDistribution::GenerationProbability)
@@ -125,18 +124,17 @@ PYBIND11_MODULE(distributions,m) {
 
   // Type distributions
 
-  class_<PrimaryInjector, std::shared_ptr<PrimaryInjector>, InjectionDistribution>(m, "PrimaryInjector")
-    .def(init<LI::dataclasses::Particle::ParticleType, double>())
-    .def("PrimaryMass",&PrimaryInjector::PrimaryMass)
-    .def("Sample",&PrimaryInjector::Sample)
-    .def("GenerationProbability",&PrimaryInjector::GenerationProbability)
-    .def("DensityVariables",&PrimaryInjector::DensityVariables)
-    .def("Name",&PrimaryInjector::Name);
+  class_<PrimaryMass, std::shared_ptr<PrimaryMass>, PrimaryInjectionDistribution>(m, "PrimaryMass")
+    .def(init<double>())
+    .def("GetPrimaryMass",&PrimaryMass::GetPrimaryMass)
+    .def("Sample",&PrimaryMass::Sample)
+    .def("GenerationProbability",&PrimaryMass::GenerationProbability)
+    .def("DensityVariables",&PrimaryMass::DensityVariables)
+    .def("Name",&PrimaryMass::Name);
 
   // Vertex distributions
 
-  class_<VertexPositionDistribution, std::shared_ptr<VertexPositionDistribution>, InjectionDistribution>(m, "VertexPositionDistribution")
-    .def("IsPositionDistribution",&VertexPositionDistribution::IsPositionDistribution)
+  class_<VertexPositionDistribution, std::shared_ptr<VertexPositionDistribution>, PrimaryInjectionDistribution>(m, "VertexPositionDistribution")
     .def("DensityVariables",&VertexPositionDistribution::DensityVariables)
     //.def("InjectionBounds",&VertexPositionDistribution::InjectionBounds)
     .def("AreEquivalent",&VertexPositionDistribution::AreEquivalent);
@@ -150,7 +148,7 @@ PYBIND11_MODULE(distributions,m) {
   class_<DecayRangeFunction, std::shared_ptr<DecayRangeFunction>, RangeFunction>(m, "DecayRangeFunction")
     .def(init<double, double, double, double>())
     //.def((LI::dataclasses::InteractionSignature const &, double))
-    .def("DecayLength",overload_cast<LI::dataclasses::InteractionSignature const &, double>(&DecayRangeFunction::DecayLength, const_))
+    .def("DecayLength",overload_cast<LI::dataclasses::ParticleType const &, double>(&DecayRangeFunction::DecayLength, const_))
     .def("DecayLength",overload_cast<double, double, double>(&DecayRangeFunction::DecayLength))
     .def("Range",&DecayRangeFunction::Range)
     .def("Multiplier",&DecayRangeFunction::Multiplier)
@@ -214,29 +212,31 @@ PYBIND11_MODULE(distributions,m) {
     .def("InjectionBounds",&RangePositionDistribution::InjectionBounds)
     .def("Name",&RangePositionDistribution::Name);
 
-  class_<SecondaryPositionDistribution, std::shared_ptr<SecondaryPositionDistribution>, VertexPositionDistribution>(m, "SecondaryPositionDistribution")
+
+  class_<SecondaryInjectionDistribution, std::shared_ptr<SecondaryInjectionDistribution>, WeightableDistribution>(m, "SecondaryInjectionDistribution")
+    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::SecondaryDistributionRecord &>(&SecondaryInjectionDistribution::Sample, const_));
+
+  class_<SecondaryVertexPositionDistribution, std::shared_ptr<SecondaryVertexPositionDistribution>, SecondaryInjectionDistribution>(m, "SecondaryVertexPositionDistribution")
+    .def("DensityVariables",&SecondaryVertexPositionDistribution::DensityVariables)
+    .def("AreEquivalent",&SecondaryVertexPositionDistribution::AreEquivalent)
+    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::SecondaryDistributionRecord &>(&SecondaryVertexPositionDistribution::Sample, const_));
+
+  class_<SecondaryPhysicalVertexDistribution, std::shared_ptr<SecondaryPhysicalVertexDistribution>, SecondaryVertexPositionDistribution>(m, "SecondaryPhysicalVertexDistribution")
+    .def(init<>())
+    .def("SampleVertex",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::SecondaryDistributionRecord &>(&SecondaryPhysicalVertexDistribution::SampleVertex, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPhysicalVertexDistribution::GenerationProbability, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPhysicalVertexDistribution::InjectionBounds, const_))
+    .def("Name",&SecondaryPhysicalVertexDistribution::Name);
+
+  class_<SecondaryBoundedVertexDistribution, std::shared_ptr<SecondaryBoundedVertexDistribution>, SecondaryVertexPositionDistribution>(m, "SecondaryBoundedVertexDistribution")
     .def(init<>())
     .def(init<double>())
-    .def(init<double, std::shared_ptr<LI::geometry::Geometry>>())
     .def(init<std::shared_ptr<LI::geometry::Geometry>>())
-    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord &>(&SecondaryPositionDistribution::Sample, const_))
-    .def("Sample",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionTreeDatum &>(&SecondaryPositionDistribution::Sample, const_))
-    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPositionDistribution::GenerationProbability, const_))
-    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionTreeDatum const &>(&SecondaryPositionDistribution::GenerationProbability, const_))
-    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
-    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionTreeDatum const &>(&SecondaryPositionDistribution::InjectionBounds, const_))
-    .def("Name",&SecondaryPositionDistribution::Name);
-
-  // Target momentum distributions
-
-  class_<TargetMomentumDistribution, std::shared_ptr<TargetMomentumDistribution>, InjectionDistribution>(m, "TargetMomentumDistribution")
-    .def("Sample",&TargetMomentumDistribution::Sample);
-
-  class_<TargetAtRest, std::shared_ptr<TargetAtRest>, TargetMomentumDistribution>(m, "TargetAtRest")
-    .def(init<>())
-    .def("GenerationProbability",&TargetAtRest::GenerationProbability)
-    .def("DensityVariables",&TargetAtRest::DensityVariables)
-    .def("Name",&TargetAtRest::Name);
+    .def(init<std::shared_ptr<LI::geometry::Geometry>, double>())
+    .def("SampleVertex",overload_cast<std::shared_ptr<LI::utilities::LI_random>, std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::SecondaryDistributionRecord &>(&SecondaryBoundedVertexDistribution::SampleVertex, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::GenerationProbability, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<LI::detector::DetectorModel const>, std::shared_ptr<LI::interactions::InteractionCollection const>, LI::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::InjectionBounds, const_))
+    .def("Name",&SecondaryBoundedVertexDistribution::Name);
 }
 
 

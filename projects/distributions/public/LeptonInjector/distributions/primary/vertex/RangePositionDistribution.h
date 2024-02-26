@@ -3,10 +3,10 @@
 #define LI_RangePositionDistribution_H
 
 #include <set>
+#include <tuple>
 #include <memory>
 #include <string>
 #include <cstdint>
-#include <utility>
 #include <stdexcept>
 
 #include <cereal/access.hpp>
@@ -21,9 +21,9 @@
 #include "LeptonInjector/math/Vector3D.h"
 
 namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
-namespace LI { namespace distributions { class InjectionDistribution; } }
+namespace LI { namespace distributions { class PrimaryInjectionDistribution; } }
 namespace LI { namespace distributions { class WeightableDistribution; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -40,15 +40,15 @@ private:
 
     LI::math::Vector3D SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::math::Vector3D const & dir) const;
 
-    LI::math::Vector3D SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const override;
+    std::tuple<LI::math::Vector3D, LI::math::Vector3D> SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const override;
 public:
     virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
     RangePositionDistribution();
     RangePositionDistribution(const RangePositionDistribution &) = default;
     RangePositionDistribution(double radius, double endcap_length, std::shared_ptr<RangeFunction> range_function, std::set<LI::dataclasses::Particle::ParticleType> target_types);
     std::string Name() const override;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const override;
-    virtual std::shared_ptr<InjectionDistribution> clone() const override;
+    virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const override;
+    virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {

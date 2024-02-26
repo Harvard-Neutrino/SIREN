@@ -16,7 +16,8 @@
 
 #include "LeptonInjector/dataclasses/Particle.h"  // for Particle
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
+namespace LI { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace LI { namespace dataclasses { struct InteractionSignature; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -26,16 +27,17 @@ namespace interactions {
 class CrossSection {
 friend cereal::access;
 private:
+    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const;
 public:
     CrossSection();
     virtual ~CrossSection() {};
     bool operator==(CrossSection const & other) const;
     virtual bool equal(CrossSection const & other) const = 0;
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const = 0;
-    virtual double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const = 0;
+    virtual double TotalCrossSectionAllFinalStates(dataclasses::InteractionRecord const &) const;
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const = 0;
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const = 0;
-    virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const = 0;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const = 0;
 
     virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const = 0;
     virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const = 0;

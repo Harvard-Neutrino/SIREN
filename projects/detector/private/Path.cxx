@@ -810,6 +810,7 @@ bool Path::IsWithinBounds(GeometryPosition point) {
         return d0 <= 0 and d1 >= 0;
     } else {
         EnsurePoints();
+        return false;
     }
 }
 
@@ -821,6 +822,7 @@ double Path::GetDistanceFromStartInBounds(GeometryPosition point) {
         return std::max(0.0, d0);
     } else {
         EnsurePoints();
+        return false;
     }
 }
 

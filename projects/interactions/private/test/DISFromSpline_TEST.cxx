@@ -40,7 +40,6 @@ TEST(DISFromSpline, Constructor)
     event.primary_momentum[0] = energy; // 10TeV
     double target_mass = dis_xs->GetTargetMass();
     event.target_mass = target_mass;
-    event.target_momentum[0] = target_mass;
 
     std::shared_ptr<LI_random> rand = std::make_shared<LI_random>();
 
@@ -54,7 +53,9 @@ TEST(DISFromSpline, Constructor)
     event.primary_momentum[2] = y * energy;
     event.primary_momentum[3] = z * energy;
 
-    xs->SampleFinalState(event, rand);
+    LI::dataclasses::CrossSectionDistributionRecord xsec_record(event);
+    xs->SampleFinalState(xsec_record, rand);
+    xsec_record.Finalize(event);
     cereal::JSONOutputArchive output(std::cout);
     //output(xs);
     output(event);

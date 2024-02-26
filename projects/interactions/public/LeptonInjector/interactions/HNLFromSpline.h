@@ -29,7 +29,7 @@
 #include "LeptonInjector/dataclasses/Particle.h"              // for Particle
 #include "photospline/detail/fitsio.h"                        // for splinet...
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace utilities { class LI_random; } }
 namespace cereal { class access; }
 
@@ -66,11 +66,11 @@ public:
 
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy) const;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override;
+    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
     std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
     std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override;
@@ -87,6 +87,7 @@ public:
     double GetTargetMass() const {return target_mass_;};
     int GetInteractionType() const {return interaction_type_;};
 
+    static double GetLeptonMass(LI::dataclasses::Particle::ParticleType lepton_type);
 public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>

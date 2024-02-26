@@ -112,18 +112,12 @@ double DipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) 
 
 
 double DipoleFromTable::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
-    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
-    double primary_energy;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        primary_energy = interaction.primary_momentum[0];
-    } else {
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        rk::P4 p1_lab = boost_start_to_lab * p1;
-        primary_energy = p1_lab.e();
-    }
+    LI::dataclasses::Particle::ParticleType const & primary_type = interaction.signature.primary_type;
+    LI::dataclasses::Particle::ParticleType const & target_type = interaction.signature.target_type;
+    std::array<double, 4> const & primary_momentum = interaction.primary_momentum;
+    double primary_mass = interaction.primary_mass;
+    rk::P4 p1(geom3::Vector3(primary_momentum[1], primary_momentum[2], primary_momentum[3]), primary_mass);
+    double const & primary_energy = primary_momentum[0];
     // if we are below threshold, return 0
     if(primary_energy < InteractionThreshold(interaction))
         return 0;
@@ -169,36 +163,33 @@ double DipoleFromTable::TotalCrossSection(LI::dataclasses::Particle::ParticleTyp
 double DipoleFromTable::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
     LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
     LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
-    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+    std::array<double, 4> const & primary_momentum = interaction.primary_momentum;
+    double primary_mass = interaction.primary_mass;
+    double target_mass = interaction.primary_mass;
+    rk::P4 p1(geom3::Vector3(primary_momentum[1], primary_momentum[2], primary_momentum[3]), primary_mass);
+    rk::P4 p2(geom3::Vector3(0, 0, 0), target_mass);
     double primary_energy;
     rk::P4 p1_lab;
     rk::P4 p2_lab;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        primary_energy = interaction.primary_momentum[0];
-        p1_lab = p1;
-        p2_lab = p2;
-    } else {
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        p1_lab = boost_start_to_lab * p1;
-        p2_lab = boost_start_to_lab * p2;
-        primary_energy = p1_lab.e();
-    }
-    assert(interaction.signature.secondary_types.size() == 2);
-    assert(interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[1] == LI::dataclasses::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar or interaction.signature.secondary_types[1] == LI::dataclasses::Particle::ParticleType::NuF4Bar);
-    unsigned int lepton_index = (interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar) ? 0 : 1;
+    primary_energy = primary_momentum[0];
+    p1_lab = p1;
+    p2_lab = p2;
+    std::vector<LI::dataclasses::Particle::ParticleType> const & secondary_types = interaction.signature.secondary_types;
+    assert(secondary_types.size() == 2);
+    assert(secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or secondary_types[1] == LI::dataclasses::Particle::ParticleType::NuF4 or secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar or secondary_types[1] == LI::dataclasses::Particle::ParticleType::NuF4Bar);
+    unsigned int lepton_index = (secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
 
-    std::array<double, 4> const & mom3 = interaction.secondary_momenta[lepton_index];
-    std::array<double, 4> const & mom4 = interaction.secondary_momenta[other_index];
-    rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses[lepton_index]);
-    rk::P4 p4(geom3::Vector3(mom4[1], mom4[2], mom4[3]), interaction.secondary_masses[other_index]);
+    std::array<double, 4> const & mom3 = interaction.secondary_momenta.at(lepton_index);
+    std::array<double, 4> const & mom4 = interaction.secondary_momenta.at(other_index);
+    rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses.at(lepton_index));
+    rk::P4 p4(geom3::Vector3(mom4[1], mom4[2], mom4[3]), interaction.secondary_masses.at(other_index));
 
     double y = 1.0 - p2.dot(p3) / p2.dot(p1);
 
     double thresh = InteractionThreshold(interaction);
 
-    return DifferentialCrossSection(primary_type, primary_energy, target_type, interaction.target_mass, y, thresh);
+    return DifferentialCrossSection(primary_type, primary_energy, target_type, target_mass, y, thresh);
 }
 
 double DipoleFromTable::DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type, double target_mass, double y) const {
@@ -252,20 +243,24 @@ double DipoleFromTable::InteractionThreshold(dataclasses::InteractionRecord cons
     return hnl_mass + (hnl_mass*hnl_mass)/(2*interaction.target_mass);
 }
 
-void DipoleFromTable::SampleFinalState(dataclasses::InteractionRecord& interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
-    LI::utilities::Interpolator2D<double> const & diff_table = differential.at(interaction.signature.target_type);
+void DipoleFromTable::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
+    LI::utilities::Interpolator2D<double> const & diff_table = differential.at(record.GetTargetType());
     LI::utilities::Interpolator2D<double> const & diff_table_proton = differential.at(LI::dataclasses::Particle::ParticleType::HNucleus);
-    int nprotons = LI::detector::MaterialModel::GetProtonCount(interaction.signature.target_type);
+    int nprotons = LI::detector::MaterialModel::GetProtonCount(record.GetTargetType());
     // Avoid double counting for true H nuclei
-    if(!inelastic || interaction.signature.target_type==LI::dataclasses::Particle::ParticleType::HNucleus) {
+    if(!inelastic || record.signature.target_type == LI::dataclasses::Particle::ParticleType::HNucleus) {
         nprotons = 0;
     }
 
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
 
-    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+    std::array<double, 4> const & primary_momentum = record.GetPrimaryMomentum();
+    double primary_mass = record.GetPrimaryMass();
+    double target_mass = record.GetTargetMass();
+
+    rk::P4 p1(geom3::Vector3(primary_momentum[1], primary_momentum[2], primary_momentum[3]), primary_mass);
+    rk::P4 p2(geom3::Vector3(0, 0, 0), target_mass);
 
     // we assume that:
     // the target is stationary so its energy is just its mass
@@ -276,33 +271,28 @@ void DipoleFromTable::SampleFinalState(dataclasses::InteractionRecord& interacti
     double primary_energy;
     rk::P4 p1_lab;
     rk::P4 p2_lab;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        p1_lab = p1;
-        p2_lab = p2;
-        primary_energy = p1_lab.e();
-    } else {
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        p1_lab = boost_start_to_lab * p1;
-        p2_lab = boost_start_to_lab * p2;
-        primary_energy = p1_lab.e();
-    }
+    p1_lab = p1;
+    p2_lab = p2;
+    primary_energy = p1_lab.e();
 
-    unsigned int lepton_index = (interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar) ? 0 : 1;
+    std::vector<LI::dataclasses::Particle::ParticleType> const & secondary_types = record.record.signature.secondary_types;
+
+    unsigned int lepton_index = (secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
     double m = hnl_mass;
-    double thresh = InteractionThreshold(interaction);
+    double thresh = InteractionThreshold(record.record);
     if(primary_energy < thresh) {
         throw(LI::utilities::InjectionFailure("Primary is below interaction threshold!"));
     }
 
     // double m2 = p2_lab | p2_lab;
-    double m2 = interaction.target_mass;
+    double m2 = target_mass;
     double m3 = m;
     double E1_lab = p1_lab.e();
     double E2_lab = p2_lab.e();
 
-    double yMin = DipoleyMin(E1_lab, GetHNLMass(), interaction.target_mass);
-    double yMax = DipoleyMax(E1_lab, GetHNLMass(), interaction.target_mass);
+    double yMin = DipoleyMin(E1_lab, GetHNLMass(), target_mass);
+    double yMax = DipoleyMax(E1_lab, GetHNLMass(), target_mass);
     assert(yMin > 0);
     double log_yMax = log10(yMax);
     double log_yMin = log10(yMin);
@@ -415,9 +405,10 @@ void DipoleFromTable::SampleFinalState(dataclasses::InteractionRecord& interacti
     }
     double final_y = kin_vars[1] + 1e-16; // to account for machine epsilon when adding to O(1) numbers
 
-    interaction.interaction_parameters.resize(2);
-    interaction.interaction_parameters[0] = E1_lab;
-    interaction.interaction_parameters[1] = final_y;
+    std::map<std::string, double> params;
+    params["energy"] = E1_lab;
+    params["bjorken_y"] = final_y;
+    record.SetInteractionParameters(params);
 
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
     geom3::Vector3 p1_mom = p1_lab.momentum();
@@ -442,24 +433,8 @@ void DipoleFromTable::SampleFinalState(dataclasses::InteractionRecord& interacti
 
     rk::P4 p3;
     rk::P4 p4;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        p3 = p3_lab;
-        p4 = p4_lab;
-    } else {
-        rk::Boost boost_lab_to_start = p2.labBoost();
-        p3 = boost_lab_to_start * p3_lab;
-        p4 = boost_lab_to_start * p4_lab;
-    }
-
-    interaction.secondary_momenta.resize(2);
-    interaction.secondary_masses.resize(2);
-    interaction.secondary_helicity.resize(2);
-
-    interaction.secondary_momenta[lepton_index][0] = p3.e(); // p3_energy
-    interaction.secondary_momenta[lepton_index][1] = p3.px(); // p3_x
-    interaction.secondary_momenta[lepton_index][2] = p3.py(); // p3_y
-    interaction.secondary_momenta[lepton_index][3] = p3.pz(); // p3_z
-    interaction.secondary_masses[lepton_index] = p3.m();
+    p3 = p3_lab;
+    p4 = p4_lab;
 
     double helicity_mul = 0.0;
     if(channel == Conserving)
@@ -467,15 +442,21 @@ void DipoleFromTable::SampleFinalState(dataclasses::InteractionRecord& interacti
     else if(channel == Flipping)
         helicity_mul = -1.0;
 
-    interaction.secondary_helicity[lepton_index] = std::copysign(0.5, interaction.primary_helicity * helicity_mul);
+    std::vector<LI::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
 
-    interaction.secondary_momenta[other_index][0] = p4.e(); // p4_energy
-    interaction.secondary_momenta[other_index][1] = p4.px(); // p4_x
-    interaction.secondary_momenta[other_index][2] = p4.py(); // p4_y
-    interaction.secondary_momenta[other_index][3] = p4.pz(); // p4_z
-    interaction.secondary_masses[other_index] = p4.m();
+    LI::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
+    LI::dataclasses::SecondaryParticleRecord & other = secondaries[other_index];
 
-    interaction.secondary_helicity[other_index] = std::copysign(interaction.target_helicity, interaction.target_helicity * helicity_mul);
+    assert(lepton.type == secondary_types[lepton_index]);
+    assert(other.type == secondary_types[other_index]);
+
+    lepton.SetMass(p3.m());
+    lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
+    lepton.SetHelicity(std::copysign(0.5, record.GetPrimaryHelicity() * helicity_mul));
+
+    other.SetMass(p4.m());
+    other.SetFourMomentum({p4.e(), p4.px(), p4.py(), p4.pz()});
+    other.SetHelicity(std::copysign(0.5, record.GetPrimaryHelicity() * helicity_mul));
 }
 
 double DipoleFromTable::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {

@@ -16,7 +16,7 @@
 #include "LeptonInjector/dataclasses/InteractionTree.h"  // for InteractionT...
 
 namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace detector { class DetectorModel; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -30,7 +30,7 @@ class DetectorModel;
 } // namespace detector
 
 namespace dataclasses {
-struct InteractionRecord;
+class InteractionRecord;
 struct InteractionSignature;
 }
 namespace interactions {
@@ -79,7 +79,6 @@ friend cereal::access;
 public:
     virtual ~WeightableDistribution() {};
     virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const = 0;
-    virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum const & datum) const;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     template<class Archive>
@@ -136,21 +135,19 @@ protected:
     virtual bool less(WeightableDistribution const & distribution) const override;
 };
 
-class InjectionDistribution : virtual public WeightableDistribution {
+class PrimaryInjectionDistribution : virtual public WeightableDistribution {
 friend cereal::access;
 private:
 public:
-    virtual ~InjectionDistribution() {};
-    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const;
-    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionTreeDatum & datum) const;
-    virtual bool IsPositionDistribution() const {return false;}
-    virtual std::shared_ptr<InjectionDistribution> clone() const = 0;
+    virtual ~PrimaryInjectionDistribution() {};
+    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const = 0;
+    virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(cereal::virtual_base_class<WeightableDistribution>(this));
         } else {
-            throw std::runtime_error("InjectionDistribution only supports version <= 0!");
+            throw std::runtime_error("PrimaryInjectionDistribution only supports version <= 0!");
         }
     }
     template<class Archive>
@@ -158,9 +155,38 @@ public:
         if(version == 0) {
             archive(cereal::virtual_base_class<WeightableDistribution>(this));
         } else {
-            throw std::runtime_error("InjectionDistribution only supports version <= 0!");
+            throw std::runtime_error("PrimaryInjectionDistribution only supports version <= 0!");
         }
     }
+    virtual bool equal(WeightableDistribution const & distribution) const override = 0;
+    virtual bool less(WeightableDistribution const & distribution) const override = 0;
+};
+
+class SecondaryInjectionDistribution : virtual public WeightableDistribution {
+friend cereal::access;
+private:
+public:
+    virtual ~SecondaryInjectionDistribution() {};
+    virtual void Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::SecondaryDistributionRecord & record) const = 0;
+    virtual std::shared_ptr<SecondaryInjectionDistribution> clone() const = 0;
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<WeightableDistribution>(this));
+        } else {
+            throw std::runtime_error("SecondaryInjectionDistribution only supports version <= 0!");
+        }
+    }
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {
+        if(version == 0) {
+            archive(cereal::virtual_base_class<WeightableDistribution>(this));
+        } else {
+            throw std::runtime_error("SecondaryInjectionDistribution only supports version <= 0!");
+        }
+    }
+    virtual bool equal(WeightableDistribution const & distribution) const override = 0;
+    virtual bool less(WeightableDistribution const & distribution) const override = 0;
 };
 
 } // namespace distributions
@@ -175,9 +201,13 @@ CEREAL_REGISTER_TYPE(LI::distributions::NormalizationConstant);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::distributions::WeightableDistribution, LI::distributions::NormalizationConstant);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::distributions::PhysicallyNormalizedDistribution, LI::distributions::NormalizationConstant);
 
-CEREAL_CLASS_VERSION(LI::distributions::InjectionDistribution, 0);
-CEREAL_REGISTER_TYPE(LI::distributions::InjectionDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::distributions::WeightableDistribution, LI::distributions::InjectionDistribution);
+CEREAL_CLASS_VERSION(LI::distributions::PrimaryInjectionDistribution, 0);
+CEREAL_REGISTER_TYPE(LI::distributions::PrimaryInjectionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::distributions::WeightableDistribution, LI::distributions::PrimaryInjectionDistribution);
+
+CEREAL_CLASS_VERSION(LI::distributions::SecondaryInjectionDistribution, 0);
+CEREAL_REGISTER_TYPE(LI::distributions::SecondaryInjectionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(LI::distributions::WeightableDistribution, LI::distributions::SecondaryInjectionDistribution);
 
 #endif // LI_Distributions_H
 

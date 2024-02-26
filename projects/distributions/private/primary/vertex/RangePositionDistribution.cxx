@@ -56,12 +56,12 @@ LI::math::Vector3D RangePositionDistribution::SampleFromDisk(std::shared_ptr<LI:
     return q.rotate(pos, false);
 }
 
-LI::math::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> RangePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+    LI::math::Vector3D dir(record.GetDirection());
     dir.normalize();
     LI::math::Vector3D pca = SampleFromDisk(rand, dir);
 
-    double lepton_range = range_function->operator()(record.signature, record.primary_momentum[0]);
+    double lepton_range = range_function->operator()(record.type, record.GetEnergy());
 
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -74,15 +74,17 @@ LI::math::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<LI:
 
     std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_length = interactions->TotalDecayLength(record);
-    LI::dataclasses::InteractionRecord fake_record = record;
+    LI::dataclasses::InteractionRecord fake_record;
+    fake_record.signature.primary_type = record.type;
+    fake_record.primary_mass = record.GetMass();
+    fake_record.primary_momentum[0] = record.GetEnergy();
+    double total_decay_length = interactions->TotalDecayLength(fake_record);
     for(unsigned int i=0; i<targets.size(); ++i) {
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
-        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
-            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+            total_cross_sections[i] += cross_section->TotalCrossSectionAllFinalStates(fake_record);
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
@@ -100,9 +102,10 @@ LI::math::Vector3D RangePositionDistribution::SamplePosition(std::shared_ptr<LI:
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
+    LI::math::Vector3D init_pos = path.GetFirstPoint();
     LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
-    return vertex;
+    return {init_pos, vertex};
 }
 
 double RangePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
@@ -114,7 +117,7 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<LI::dete
     if(pca.magnitude() >= radius)
         return 0.0;
 
-    double lepton_range = range_function->operator()(record.signature, record.primary_momentum[0]);
+    double lepton_range = range_function->operator()(record.signature.primary_type, record.primary_momentum[0]);
 
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -136,9 +139,8 @@ double RangePositionDistribution::GenerationProbability(std::shared_ptr<LI::dete
         LI::dataclasses::Particle::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
-        fake_record.target_momentum = {fake_record.target_mass,0,0,0};
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
-            total_cross_sections[i] += cross_section->TotalCrossSection(fake_record);
+            total_cross_sections[i] += cross_section->TotalCrossSectionAllFinalStates(fake_record);
         }
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
@@ -168,20 +170,20 @@ std::string RangePositionDistribution::Name() const {
     return "RangePositionDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> RangePositionDistribution::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new RangePositionDistribution(*this));
+std::shared_ptr<PrimaryInjectionDistribution> RangePositionDistribution::clone() const {
+    return std::shared_ptr<PrimaryInjectionDistribution>(new RangePositionDistribution(*this));
 }
 
-std::pair<LI::math::Vector3D, LI::math::Vector3D> RangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+std::tuple<LI::math::Vector3D, LI::math::Vector3D> RangePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
     LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     LI::math::Vector3D vertex(record.interaction_vertex); // m
     LI::math::Vector3D pca = vertex - dir * LI::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
-        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
 
-    double lepton_range = range_function->operator()(record.signature, record.primary_momentum[0]);
+    double lepton_range = range_function->operator()(record.signature.primary_type, record.primary_momentum[0]);
 
     LI::math::Vector3D endcap_0 = pca - endcap_length * dir;
     LI::math::Vector3D endcap_1 = pca + endcap_length * dir;
@@ -191,8 +193,8 @@ std::pair<LI::math::Vector3D, LI::math::Vector3D> RangePositionDistribution::Inj
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
-        return std::pair<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
-    return std::pair<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+    return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool RangePositionDistribution::equal(WeightableDistribution const & other) const {

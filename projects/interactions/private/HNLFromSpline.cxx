@@ -24,6 +24,7 @@
 #include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
 #include "LeptonInjector/dataclasses/Particle.h"           // for Particle
 #include "LeptonInjector/utilities/Random.h"               // for LI_random
+#include "LeptonInjector/utilities/Constants.h"            // for electronMass
 
 namespace LI {
 namespace interactions {
@@ -137,6 +138,32 @@ void HNLFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::v
     total_cross_section_.read_fits_mem(total_data.data(), total_data.size());
 }
 
+double HNLFromSpline::GetLeptonMass(LI::dataclasses::Particle::ParticleType lepton_type) {
+    int32_t lepton_number = std::abs(static_cast<int32_t>(lepton_type));
+    double lepton_mass;
+    switch(lepton_number) {
+        case 11:
+            lepton_mass = LI::utilities::Constants::electronMass;
+            break;
+        case 13:
+            lepton_mass = LI::utilities::Constants::muonMass;
+            break;
+        case 15:
+            lepton_mass = LI::utilities::Constants::tauMass;
+            break;
+        case 12:
+            lepton_mass = 0;
+        case 14:
+            lepton_mass = 0;
+        case 16:
+            lepton_mass = 0;
+            break;
+        default:
+            throw std::runtime_error("Unknown lepton type!");
+    }
+    return lepton_mass;
+}
+
 void HNLFromSpline::ReadParamsFromSplineTable() {
     // returns true if successfully read target mass
     bool mass_good = differential_cross_section_.read_key("TARGETMASS", target_mass_);
@@ -239,15 +266,8 @@ void HNLFromSpline::InitializeSignatures() {
 double HNLFromSpline::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
     LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
-    double primary_energy;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        primary_energy = interaction.primary_momentum[0];
-    } else {
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        rk::P4 p1_lab = boost_start_to_lab * p1;
-        primary_energy = p1_lab.e();
-    }
+    rk::P4 p2(geom3::Vector3(0, 0, 0), interaction.target_mass);
+    double primary_energy = interaction.primary_momentum[0];
     // if we are below threshold, return 0
     if(primary_energy < InteractionThreshold(interaction))
         return 0;
@@ -283,20 +303,13 @@ double HNLFromSpline::TotalCrossSection(LI::dataclasses::Particle::ParticleType 
 
 double HNLFromSpline::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+    rk::P4 p2(geom3::Vector3(0, 0, 0), interaction.target_mass);
     double primary_energy;
     rk::P4 p1_lab;
     rk::P4 p2_lab;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        primary_energy = interaction.primary_momentum[0];
-        p1_lab = p1;
-        p2_lab = p2;
-    } else {
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        p1_lab = boost_start_to_lab * p1;
-        p2_lab = boost_start_to_lab * p2;
-        primary_energy = p1_lab.e();
-    }
+    primary_energy = interaction.primary_momentum[0];
+    p1_lab = p1;
+    p2_lab = p2;
     assert(interaction.signature.secondary_types.size() == 2);
     unsigned int lepton_index = (isLepton(interaction.signature.secondary_types[0])) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
@@ -311,7 +324,7 @@ double HNLFromSpline::DifferentialCrossSection(dataclasses::InteractionRecord co
     double Q2 = -q.dot(q);
     double y = 1.0 - p2.dot(p3) / p2.dot(p1);
     double x = Q2 / (2.0 * p2.dot(q));
-    double lepton_mass = particleMass(interaction.signature.secondary_types[lepton_index]);
+    double lepton_mass = GetLeptonMass(interaction.signature.secondary_types[lepton_index]);
 
     return DifferentialCrossSection(primary_energy, x, y, lepton_mass);
 }
@@ -353,42 +366,34 @@ double HNLFromSpline::InteractionThreshold(dataclasses::InteractionRecord const 
     return 0;
 }
 
-void HNLFromSpline::SampleFinalState(dataclasses::InteractionRecord& interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
+void HNLFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
     if (differential_cross_section_.get_ndim() != 3) {
         throw std::runtime_error("I expected 3 dimensions in the cross section spline, but got " + std::to_string(differential_cross_section_.get_ndim()) +". Maybe your fits file doesn't have the right 'INTERACTION' key?");
     }
 
-    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+    rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+    rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
 
     // we assume that:
     // the target is stationary so its energy is just its mass
     // the incoming neutrino is massless, so its kinetic energy is its total energy
-    // double s = target_mass_ * tinteraction.secondary_momentarget_mass_ + 2 * target_mass_ * primary_energy;
+    // double s = target_mass_ * trecord.secondary_momentarget_mass_ + 2 * target_mass_ * primary_energy;
     // double s = std::pow(rk::invMass(p1, p2), 2);
 
     double primary_energy;
     rk::P4 p1_lab;
     rk::P4 p2_lab;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        p1_lab = p1;
-        p2_lab = p2;
-        primary_energy = p1_lab.e();
-    } else {
-        // Rest frame of p2 will be our "lab" frame
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        p1_lab = boost_start_to_lab * p1;
-        p2_lab = boost_start_to_lab * p2;
-        primary_energy = p1_lab.e();
-    }
+    p1_lab = p1;
+    p2_lab = p2;
+    primary_energy = p1_lab.e();
 
-    unsigned int lepton_index = (isLepton(interaction.signature.secondary_types[0])) ? 0 : 1;
+    unsigned int lepton_index = (isLepton(record.signature.secondary_types[0])) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
-    double m = particleMass(interaction.signature.secondary_types[lepton_index]);
+    double m = GetLeptonMass(record.signature.secondary_types[lepton_index]);
 
-    double m1 = interaction.primary_mass;
+    double m1 = record.primary_mass;
     double m3 = m;
     double E1_lab = p1_lab.e();
     double E2_lab = p2_lab.e();
@@ -505,10 +510,10 @@ void HNLFromSpline::SampleFinalState(dataclasses::InteractionRecord& interaction
     double final_x = pow(10., kin_vars[1]);
     double final_y = pow(10., kin_vars[2]);
 
-    interaction.interaction_parameters.resize(3);
-    interaction.interaction_parameters[0] = E1_lab;
-    interaction.interaction_parameters[1] = final_x;
-    interaction.interaction_parameters[2] = final_y;
+    record.interaction_parameters.clear();
+    record.interaction_parameters["energy"] = E1_lab;
+    record.interaction_parameters["bjorken_x"] = final_x;
+    record.interaction_parameters["bjorken_y"] = final_y;
 
     double Q2 = 2 * E1_lab * E2_lab * pow(10.0, kin_vars[1] + kin_vars[2]);
     double p1x_lab = std::sqrt(p1_lab.px() * p1_lab.px() + p1_lab.py() * p1_lab.py() + p1_lab.pz() * p1_lab.pz());
@@ -534,34 +539,21 @@ void HNLFromSpline::SampleFinalState(dataclasses::InteractionRecord& interaction
 
     rk::P4 p3;
     rk::P4 p4;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        p3 = p3_lab;
-        p4 = p4_lab;
-    } else {
-        rk::Boost boost_lab_to_start = p2.labBoost();
-        p3 = boost_lab_to_start * p3_lab;
-        p4 = boost_lab_to_start * p4_lab;
-    }
+    p3 = p3_lab;
+    p4 = p4_lab;
 
-    interaction.secondary_momenta.resize(2);
-    interaction.secondary_masses.resize(2);
-    interaction.secondary_helicity.resize(2);
+    std::vector<LI::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
+    LI::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
+    LI::dataclasses::SecondaryParticleRecord & other = secondaries[other_index];
 
-    interaction.secondary_momenta[lepton_index][0] = p3.e(); // p3_energy
-    interaction.secondary_momenta[lepton_index][1] = p3.px(); // p3_x
-    interaction.secondary_momenta[lepton_index][2] = p3.py(); // p3_y
-    interaction.secondary_momenta[lepton_index][3] = p3.pz(); // p3_z
-    interaction.secondary_masses[lepton_index] = p3.m();
 
-    interaction.secondary_helicity[lepton_index] = interaction.primary_helicity;
+    lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
+    lepton.SetMass(p3.m());
+    lepton.SetHelicity(record.primary_helicity);
 
-    interaction.secondary_momenta[other_index][0] = p4.e(); // p4_energy
-    interaction.secondary_momenta[other_index][1] = p4.px(); // p4_x
-    interaction.secondary_momenta[other_index][2] = p4.py(); // p4_y
-    interaction.secondary_momenta[other_index][3] = p4.pz(); // p4_z
-    interaction.secondary_masses[other_index] = p4.m();
-
-    interaction.secondary_helicity[other_index] = interaction.target_helicity;
+    other.SetFourMomentum({p4.e(), p4.px(), p4.py(), p4.pz()});
+    other.SetMass(p4.m());
+    other.SetHelicity(record.target_helicity);
 }
 
 double HNLFromSpline::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {

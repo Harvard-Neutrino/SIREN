@@ -53,7 +53,6 @@ TEST(DipoleFromTable, Constructor)
     double carbon_mass = 12000000.0;
     double target_mass = carbon_mass * 0.9314941 * 1e-6;
     event.target_mass = target_mass;
-    event.target_momentum[0] = target_mass;
     event.target_mass = target_mass;
 
     std::shared_ptr<LI_random> rand = std::make_shared<LI_random>();
@@ -78,7 +77,9 @@ TEST(DipoleFromTable, Constructor)
     unsigned int total_events = 10000;
     output(cereal::make_size_tag(static_cast<size_t>(total_events)));
     for(unsigned int i=0; i<total_events; ++i) {
-        xs->SampleFinalState(event, rand);
+        LI::dataclasses::CrossSectionDistributionRecord xsec_record(event);
+        xs->SampleFinalState(xsec_record, rand);
+        xsec_record.Finalize(event);
         //std::cerr << event << std::endl;
         output(event);
     }

@@ -74,7 +74,6 @@ void register_DISFromSpline(pybind11::module_ & m) {
         .def(self == self)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DISFromSpline::TotalCrossSection, const_))
         .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double>(&DISFromSpline::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType>(&DISFromSpline::TotalCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DISFromSpline::DifferentialCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<double, double, double, double, double>(&DISFromSpline::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DISFromSpline::InteractionThreshold)

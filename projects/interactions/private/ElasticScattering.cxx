@@ -48,21 +48,9 @@ double ElasticScattering::DifferentialCrossSection(dataclasses::InteractionRecor
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+    rk::P4 p2(geom3::Vector3(0, 0, 0), interaction.target_mass);
     double s = std::pow(rk::invMass(p1, p2), 2);
-    double primary_energy;
-    rk::P4 p1_lab;
-    rk::P4 p2_lab;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        primary_energy = interaction.primary_momentum[0];
-        p1_lab = p1;
-        p2_lab = p2;
-    } else {
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        p1_lab = boost_start_to_lab * p1;
-        p2_lab = boost_start_to_lab * p2;
-        primary_energy = p1_lab.e();
-    }
+    double primary_energy = interaction.primary_momentum[0];
     assert(interaction.signature.secondary_types.size() == 2);
     assert(interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuE or interaction.signature.secondary_types[1] == LI::dataclasses::Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMu or interaction.signature.secondary_types[1] == LI::dataclasses::Particle::ParticleType::NuMu);
     unsigned int nu_index = (interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMu) ? 0 : 1;
@@ -110,15 +98,7 @@ double ElasticScattering::TotalCrossSection(dataclasses::InteractionRecord const
     LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
     LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
-    double primary_energy;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        primary_energy = interaction.primary_momentum[0];
-    } else {
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        rk::P4 p1_lab = boost_start_to_lab * p1;
-        primary_energy = p1_lab.e();
-    }
+    double primary_energy = interaction.primary_momentum[0];
     // if we are below threshold, return 0
     if(primary_energy < InteractionThreshold(interaction))
         return 0;
@@ -133,30 +113,23 @@ double ElasticScattering::TotalCrossSection(LI::dataclasses::Particle::ParticleT
     return LI::utilities::rombergIntegrate(integrand, 0, ymax);
 }
 
-void ElasticScattering::SampleFinalState(dataclasses::InteractionRecord& interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
+void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
 
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
 
-    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::Particle::ParticleType primary_type = record.signature.primary_type;
 
-    unsigned int nu_index = (interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMu) ? 0 : 1;
+    unsigned int nu_index = (record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuE or record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMu) ? 0 : 1;
     unsigned int electron_index = 1 - nu_index;
-    rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    rk::P4 p2(geom3::Vector3(interaction.target_momentum[1], interaction.target_momentum[2], interaction.target_momentum[3]), interaction.target_mass);
+    rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+    rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
     double primary_energy;
     rk::P4 p1_lab;
     rk::P4 p2_lab;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        primary_energy = interaction.primary_momentum[0];
-        p1_lab = p1;
-        p2_lab = p2;
-    } else {
-        rk::Boost boost_start_to_lab = p2.restBoost();
-        p1_lab = boost_start_to_lab * p1;
-        p2_lab = boost_start_to_lab * p2;
-        primary_energy = p1_lab.e();
-    }
+    primary_energy = record.primary_momentum[0];
+    p1_lab = p1;
+    p2_lab = p2;
 
     double yMin = 1e-15;
     double yMax = 2*primary_energy / (2*primary_energy + LI::utilities::Constants::electronMass);
@@ -203,8 +176,9 @@ void ElasticScattering::SampleFinalState(dataclasses::InteractionRecord& interac
     }
     double final_y = y + 1e-16; // to account for machine epsilon when adding to O(1) numbers
 
-    interaction.interaction_parameters.resize(1);
-    interaction.interaction_parameters[0] = final_y;
+    record.interaction_parameters.clear();
+    record.interaction_parameters["energy"] = primary_energy;
+    record.interaction_parameters["bjorken_y"] = final_y;
 
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
     geom3::Vector3 p1_mom = p1_lab.momentum();
@@ -229,37 +203,16 @@ void ElasticScattering::SampleFinalState(dataclasses::InteractionRecord& interac
     // doing something dumb, ignore outgoing neutrino
     rk::P4 p4_lab = p1_lab;//p2_lab + (p1_lab - p3_lab);
 
-    rk::P4 p3;
-    rk::P4 p4;
-    if(interaction.target_momentum[1] == 0 and interaction.target_momentum[2] == 0 and interaction.target_momentum[3] == 0) {
-        p3 = p3_lab;
-        p4 = p4_lab;
-    } else {
-        rk::Boost boost_lab_to_start = p2.labBoost();
-        p3 = boost_lab_to_start * p3_lab;
-        p4 = boost_lab_to_start * p4_lab;
-    }
+    LI::dataclasses::SecondaryParticleRecord & electron = record.GetSecondaryParticleRecord(electron_index);
+    LI::dataclasses::SecondaryParticleRecord & neutrino = record.GetSecondaryParticleRecord(nu_index);
 
-    interaction.secondary_momenta.resize(2);
-    interaction.secondary_masses.resize(2);
-    interaction.secondary_helicity.resize(2);
+    electron.SetFourMomentum({p3_lab.e(), p3_lab.px(), p3_lab.py(), p3_lab.pz()});
+    electron.SetMass(p3_lab.m());
+    electron.SetHelicity(record.target_helicity);
 
-    interaction.secondary_momenta[electron_index][0] = p3.e(); // p3_energy
-    interaction.secondary_momenta[electron_index][1] = p3.px(); // p3_x
-    interaction.secondary_momenta[electron_index][2] = p3.py(); // p3_y
-    interaction.secondary_momenta[electron_index][3] = p3.pz(); // p3_z
-    interaction.secondary_masses[electron_index] = p3.m();
-
-
-    interaction.secondary_helicity[electron_index] = interaction.target_helicity;
-
-    interaction.secondary_momenta[nu_index][0] = p4.e(); // p4_energy
-    interaction.secondary_momenta[nu_index][1] = p4.px(); // p4_x
-    interaction.secondary_momenta[nu_index][2] = p4.py(); // p4_y
-    interaction.secondary_momenta[nu_index][3] = p4.pz(); // p4_z
-    interaction.secondary_masses[nu_index] = p4.m();
-
-    interaction.secondary_helicity[nu_index] = interaction.primary_helicity;
+    neutrino.SetFourMomentum({p4_lab.e(), p4_lab.px(), p4_lab.py(), p4_lab.pz()});
+    neutrino.SetMass(p4_lab.m());
+    neutrino.SetHelicity(record.primary_helicity);
 }
 
 std::vector<LI::dataclasses::Particle::ParticleType> ElasticScattering::GetPossibleTargets() const {

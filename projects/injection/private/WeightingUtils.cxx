@@ -71,7 +71,6 @@ double CrossSectionProbability(std::shared_ptr<LI::detector::DetectorModel const
                 for(auto const & signature : signatures) {
                     fake_record.signature = signature;
                     fake_record.target_mass = detector_model->GetTargetMass(target);
-                    fake_record.target_momentum = {fake_record.target_mass,0,0,0};
                     // Add total cross section times density to the total prob
                     double target_prob = target_density * cross_section->TotalCrossSection(fake_record);
                     total_prob += target_prob;

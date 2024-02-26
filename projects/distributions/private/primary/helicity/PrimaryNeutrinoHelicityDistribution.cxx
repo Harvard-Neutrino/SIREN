@@ -14,14 +14,14 @@ namespace LI {
 namespace distributions {
 
 //---------------
-// class PrimaryNeutrinoHelicityDistribution : InjectionDistribution
+// class PrimaryNeutrinoHelicityDistribution : PrimaryInjectionDistribution
 //---------------
-void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord & record) const {
-    LI::dataclasses::Particle::ParticleType & t = record.signature.primary_type;
-    if(t > 0) // Particles are left handed, anti-particles are right handed
-        record.primary_helicity = -0.5;
+void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+    LI::dataclasses::Particle::ParticleType const & t = record.type;
+    if(static_cast<int32_t>(t) > 0) // Particles are left handed, anti-particles are right handed
+        record.SetHelicity(-0.5);
     else
-        record.primary_helicity = 0.5;
+        record.SetHelicity(0.5);
 }
 
 double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
@@ -34,7 +34,7 @@ double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_pt
 
     LI::dataclasses::Particle::ParticleType const & t = record.signature.primary_type;
     // Particles are left handed, anti-particles are right handed
-    if(t > 0) {
+    if(static_cast<int32_t>(t) > 0) {
         if(record.primary_helicity < 0) // expect opposite direction
             return 1.0;
         else
@@ -57,7 +57,7 @@ std::string PrimaryNeutrinoHelicityDistribution::Name() const {
     return "PrimaryNeutrinoHelicityDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> PrimaryNeutrinoHelicityDistribution::clone() const {
+std::shared_ptr<PrimaryInjectionDistribution> PrimaryNeutrinoHelicityDistribution::clone() const {
     return std::shared_ptr<PrimaryNeutrinoHelicityDistribution>(new PrimaryNeutrinoHelicityDistribution(*this));
 }
 

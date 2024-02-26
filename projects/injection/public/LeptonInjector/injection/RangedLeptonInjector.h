@@ -2,11 +2,11 @@
 #ifndef LI_RangedLeptonInjector_H
 #define LI_RangedLeptonInjector_H
 
+#include <tuple>
 #include <memory>
 #include <string>
 #include <vector>
 #include <cstdint>                                  // for uint32_t
-#include <utility>
 #include <stdexcept>                                // for runtime_error
 
 #include <cereal/cereal.hpp>
@@ -26,8 +26,8 @@
 #include "LeptonInjector/distributions/primary/vertex/RangePositionDistribution.h"
 #include "LeptonInjector/injection/Injector.h"  // for Injector
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
-namespace LI { namespace injection { class InjectionProcess; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
+namespace LI { namespace injection { class PrimaryInjectionProcess; } }
 namespace LI { namespace math { class Vector3D; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -44,9 +44,9 @@ protected:
     std::shared_ptr<LI::interactions::InteractionCollection> interactions;
     RangedLeptonInjector();
 public:
-    RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::InjectionProcess> primary_process, std::vector<std::shared_ptr<injection::InjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::RangeFunction> range_func, double disk_radius, double endcap_length);
+    RangedLeptonInjector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<LI::utilities::LI_random> random, std::shared_ptr<LI::distributions::RangeFunction> range_func, double disk_radius, double endcap_length);
     std::string Name() const override;
-    virtual std::pair<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const override;
+    virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> PrimaryInjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const override;
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {

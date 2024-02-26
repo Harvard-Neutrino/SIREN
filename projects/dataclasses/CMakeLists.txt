@@ -6,7 +6,8 @@ LIST (APPEND dataclasses_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/InteractionRecord.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/InteractionTree.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/DecaySignature.cxx
-    ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/DecayRecord.cxx
+    ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/ParticleID.cxx
+    ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/ParticleType.cxx
 )
 add_library(LI_dataclasses OBJECT ${dataclasses_SOURCES})
 set_property(TARGET LI_dataclasses PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -28,6 +29,10 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/dataclasses/public/"
     PATTERN "*.h"
     PATTERN "*.tcc"
 )
+
+package_add_test(UnitTest_InteractionSignature ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionSignature_TEST.cxx)
+package_add_test(UnitTest_InteractionRecord ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionRecord_TEST.cxx)
+package_add_test(UnitTest_InteractionTree ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionTree_TEST.cxx)
 
 pybind11_add_module(dataclasses ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/pybindings/dataclasses.cxx)
 target_link_libraries(dataclasses PRIVATE LeptonInjector)

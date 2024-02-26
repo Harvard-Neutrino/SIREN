@@ -19,7 +19,7 @@ namespace distributions {
 //---------------
 // class FixedDirection : PrimaryDirectionDistribution
 //---------------
-LI::math::Vector3D FixedDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+LI::math::Vector3D FixedDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
     return dir;
 }
 
@@ -36,8 +36,8 @@ std::vector<std::string> FixedDirection::DensityVariables() const {
     return std::vector<std::string>();
 }
 
-std::shared_ptr<InjectionDistribution> FixedDirection::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new FixedDirection(*this));
+std::shared_ptr<PrimaryInjectionDistribution> FixedDirection::clone() const {
+    return std::shared_ptr<PrimaryInjectionDistribution>(new FixedDirection(*this));
 }
 
 std::string FixedDirection::Name() const {

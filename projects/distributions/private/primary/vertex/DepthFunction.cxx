@@ -3,7 +3,7 @@
 #include <typeinfo>   // for type_info
 #include <typeindex>  // for type_index
 
-namespace LI { namespace dataclasses { struct InteractionSignature; } }
+namespace LI { namespace dataclasses { enum class ParticleType : int32_t; } }
 
 namespace LI {
 namespace distributions {
@@ -13,7 +13,7 @@ namespace distributions {
 //---------------
 DepthFunction::DepthFunction() {}
 
-double DepthFunction::operator()(LI::dataclasses::InteractionSignature const & signature, double energy) const {
+double DepthFunction::operator()(LI::dataclasses::ParticleType const & primary_type, double energy) const {
     return 0.0;
 }
 

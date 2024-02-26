@@ -68,17 +68,15 @@ double DarkNewsDecay::FinalStateProbability(dataclasses::InteractionRecord const
   else return dd/td;
 }
 
-dataclasses::InteractionRecord DarkNewsDecay::SampleRecordFromDarkNews(dataclasses::InteractionRecord & interaction,  std::shared_ptr<LI::utilities::LI_random> random) const {
+void DarkNewsDecay::SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
     throw(LI::utilities::PythonImplementationError("DarkNewsDecay::SampleRecordFromDarkNews should be implemented in Python!"));
-    return dataclasses::InteractionRecord();
 }
 
-void DarkNewsDecay::SampleFinalState(dataclasses::InteractionRecord & interaction,  std::shared_ptr<LI::utilities::LI_random> random) const {
-    interaction = SampleRecordFromDarkNews(interaction,random);
+void DarkNewsDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const {
+    SampleRecordFromDarkNews(interaction, random);
 }
-
 
 } // namespace interactions
 } // namespace LI

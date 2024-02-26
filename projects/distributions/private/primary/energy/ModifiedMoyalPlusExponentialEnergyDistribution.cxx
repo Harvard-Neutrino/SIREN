@@ -62,7 +62,7 @@ ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEner
     }
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
     // Metropolis-Hastings algorithm to sample from PDF.
     // Pass in a function pointer for the PDF
 
@@ -100,8 +100,8 @@ std::string ModifiedMoyalPlusExponentialEnergyDistribution::Name() const {
     return "ModifiedMoyalPlusExponentialEnergyDistribution";
 }
 
-std::shared_ptr<InjectionDistribution> ModifiedMoyalPlusExponentialEnergyDistribution::clone() const {
-    return std::shared_ptr<InjectionDistribution>(new ModifiedMoyalPlusExponentialEnergyDistribution(*this));
+std::shared_ptr<PrimaryInjectionDistribution> ModifiedMoyalPlusExponentialEnergyDistribution::clone() const {
+    return std::shared_ptr<PrimaryInjectionDistribution>(new ModifiedMoyalPlusExponentialEnergyDistribution(*this));
 }
 
 bool ModifiedMoyalPlusExponentialEnergyDistribution::equal(WeightableDistribution const & other) const {

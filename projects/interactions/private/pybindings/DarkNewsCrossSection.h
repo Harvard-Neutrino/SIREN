@@ -86,16 +86,14 @@ public:
         )
     }
 
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override {
+    double TotalCrossSectionAllFinalStates(LI::dataclasses::InteractionRecord const & record) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
             double,
-            TotalCrossSection,
-            "TotalCrossSection",
-            primary,
-            energy,
-            target
+            TotalCrossSectionAllFinalStates,
+            "TotalCrossSectionAllFinalStates",
+            record
         )
     }
 
@@ -121,14 +119,14 @@ public:
         )
     }
 
-    void SampleFinalState(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
             void,
             SampleFinalState,
             "SampleFinalState",
-            interaction,
+            record,
             random
         )
     }
@@ -215,7 +213,7 @@ public:
             double,
             TotalCrossSection,
             "TotalCrossSection",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -239,7 +237,7 @@ public:
             double,
             DifferentialCrossSection,
             "DifferentialCrossSection",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -264,7 +262,7 @@ public:
             double,
             InteractionThreshold,
             "InteractionThreshold",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -275,7 +273,7 @@ public:
             double,
             Q2Min,
             "Q2Min",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -286,40 +284,51 @@ public:
             double,
             Q2Max,
             "Q2Max",
-            interaction
+            std::cref(interaction)
         )
     }
 
-    void SetUpscatteringMasses(dataclasses::InteractionRecord & interaction) const override {
+    double TargetMass(dataclasses::ParticleType const & target_type) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsCrossSection,
-            void,
-            SetUpscatteringMasses,
-            "SetUpscatteringMasses",
-            interaction
+            double,
+            TargetMass,
+            "TargetMass",
+            std::cref(target_type)
         )
     }
 
-    void SetUpscatteringHelicities(dataclasses::InteractionRecord & interaction) const override {
+    std::vector<double> SecondaryMasses(std::vector<dataclasses::ParticleType> const & secondary_types) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsCrossSection,
-            void,
-            SetUpscatteringHelicities,
-            "SetUpscatteringHelicities",
-            interaction
+            std::vector<double>,
+            SecondaryMasses,
+            "SecondaryMasses",
+            std::cref(secondary_types)
         )
     }
 
-    void SampleFinalState(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
+    std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const & record) const override{
+        C_PYBIND11_OVERRIDE(
+            self,
+            DarkNewsCrossSection,
+            std::vector<double>,
+            SecondaryHelicities,
+            "SecondaryHelicities",
+            std::cref(record)
+        )
+    }
+
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsCrossSection,
             void,
             SampleFinalState,
             "SampleFinalState",
-            interaction,
+            std::ref(record),
             random
         )
     }
@@ -384,7 +393,7 @@ public:
             double,
             FinalStateProbability,
             "FinalStateProbability",
-            record
+            std::cref(record)
         )
     }
 
@@ -415,8 +424,9 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
-        .def("SetUpscatteringMasses",&DarkNewsCrossSection::SetUpscatteringMasses)
-        .def("SetUpscatteringHelicities",&DarkNewsCrossSection::SetUpscatteringHelicities)
+        .def("TargetMass",&DarkNewsCrossSection::TargetMass)
+        .def("SecondaryMasses",&DarkNewsCrossSection::SecondaryMasses)
+        .def("SecondaryHelicities",&DarkNewsCrossSection::SecondaryHelicities)
         .def("GetPossibleTargets",&DarkNewsCrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary",&DarkNewsCrossSection::GetPossibleTargetsFromPrimary)
         .def("GetPossiblePrimaries",&DarkNewsCrossSection::GetPossiblePrimaries)
@@ -469,8 +479,9 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
-        .def("SetUpscatteringMasses",&DarkNewsCrossSection::SetUpscatteringMasses)
-        .def("SetUpscatteringHelicities",&DarkNewsCrossSection::SetUpscatteringHelicities)
+        .def("TargetMass",&DarkNewsCrossSection::TargetMass)
+        .def("SecondaryMasses",&DarkNewsCrossSection::SecondaryMasses)
+        .def("SecondaryHelicities",&DarkNewsCrossSection::SecondaryHelicities)
         .def("GetPossibleTargets",&DarkNewsCrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary",&DarkNewsCrossSection::GetPossibleTargetsFromPrimary)
         .def("GetPossiblePrimaries",&DarkNewsCrossSection::GetPossiblePrimaries)

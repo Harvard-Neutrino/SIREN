@@ -1,5 +1,7 @@
 #include "LeptonInjector/interactions/HNLDecay.h"
 
+#include <cmath>
+
 #include <rk/rk.hh>
 #include <rk/geom3.hh>
 
@@ -336,21 +338,21 @@ void HNLDecay::SampleFinalState(dataclasses::InteractionRecord & record, std::sh
 
     record.secondary_momenta.resize(2);
     record.secondary_masses.resize(2);
-    record.secondary_helicity.resize(2);
+    record.secondary_helicities.resize(2);
     
     record.secondary_momenta[gamma_index][0] = pGamma.e(); // pGamma_energy
     record.secondary_momenta[gamma_index][1] = pGamma.px(); // pGamma_x
     record.secondary_momenta[gamma_index][2] = pGamma.py(); // pGamma_y
     record.secondary_momenta[gamma_index][3] = pGamma.pz(); // pGamma_z
     record.secondary_masses[gamma_index] = pGamma.m();
-    record.secondary_helicity[gamma_index] = 0;
+    record.secondary_helicities[gamma_index] = 0;
 
     record.secondary_momenta[nu_index][0] = pNu.e(); // pNu_energy
     record.secondary_momenta[nu_index][1] = pNu.px(); // pNu_x
     record.secondary_momenta[nu_index][2] = pNu.py(); // pNu_y
     record.secondary_momenta[nu_index][3] = pNu.pz(); // pNu_z
     record.secondary_masses[nu_index] = pNu.m();
-    record.secondary_helicity[nu_index] = -1*record.primary_helicity;
+    record.secondary_helicities[nu_index] = -1*record.primary_helicity;
 
 }
 

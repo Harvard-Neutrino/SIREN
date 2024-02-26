@@ -141,14 +141,14 @@ public:
         )
     }
 
-    void SampleFinalState(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             Decay,
             void,
             SampleFinalState,
             "SampleFinalState",
-            interaction,
+            record,
             random
         )
     }
@@ -213,7 +213,7 @@ public:
             double,
             TotalDecayWidth,
             "TotalDecayWidth",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -224,7 +224,7 @@ public:
             double,
             TotalDecayWidthForFinalState,
             "TotalDecayWidthForFinalState",
-            interaction
+            std::cref(interaction)
         )
     }
 
@@ -246,30 +246,30 @@ public:
             double,
             DifferentialDecayWidth,
             "DifferentialDecayWidth",
-            interaction
+            std::cref(interaction)
         )
     }
 
-    dataclasses::InteractionRecord SampleRecordFromDarkNews(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
+    void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsDecay,
-            dataclasses::InteractionRecord,
+            void,
             SampleRecordFromDarkNews,
             "SampleRecordFromDarkNews",
-            interaction,
+            std::ref(record),
             random
         )
     }
 
-    void SampleFinalState(dataclasses::InteractionRecord & interaction, std::shared_ptr<LI::utilities::LI_random> random) const override {
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsDecay,
             void,
             SampleFinalState,
             "SampleFinalState",
-            interaction,
+            std::ref(record),
             random
         )
     }
@@ -312,7 +312,7 @@ public:
             double,
             FinalStateProbability,
             "FinalStateProbability",
-            record
+            std::cref(record)
         )
     }
 

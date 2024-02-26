@@ -40,9 +40,9 @@ TEST(Monoenergetic, Sample) {
         double energy = RandomDouble();
         Monoenergetic A(energy);
         for(size_t j=0; j<M; ++j) {
-            InteractionRecord record;
+            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
             A.Sample(nullptr, nullptr, nullptr, record);
-            double test_energy = record.primary_momentum[0];
+            double test_energy = record.GetEnergy();
             EXPECT_NEAR(energy, test_energy, energy * 1e-6);
         }
     }
@@ -104,9 +104,9 @@ TEST(PowerLaw, SampleBounds) {
         double energyMax = energyMin + energyRange;
         PowerLaw A(gamma, energyMin, energyMax);
         for(size_t j=0; j<M; ++j) {
-            InteractionRecord record;
+            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
             A.Sample(rand, nullptr, nullptr, record);
-            double test_energy = record.primary_momentum[0];
+            double test_energy = record.GetEnergy();
             EXPECT_TRUE(test_energy >= energyMin);
             EXPECT_TRUE(test_energy <= energyMax);
         }
@@ -151,9 +151,9 @@ TEST(PowerLaw, SampleDistribution) {
         }
 
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::InteractionRecord record;
+            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
             A.Sample(rand, nullptr, nullptr, record);
-            double test_energy = record.primary_momentum[0];
+            double test_energy = record.GetEnergy();
             test.AddValue(log(test_energy));
         }
 
@@ -198,10 +198,12 @@ TEST(PowerLaw, GenerationProbability) {
         double total_integral = LI::utilities::rombergIntegrate(f, log(energyMin), log(energyMax), 1e-8);
 
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::InteractionRecord record;
+            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
             A.Sample(rand, nullptr, nullptr, record);
-            double test_energy = record.primary_momentum[0];
-            double density = A.GenerationProbability(nullptr, nullptr, record);
+            double test_energy = record.GetEnergy();
+            LI::dataclasses::InteractionRecord interaction_record;
+            record.FinalizeAvailable(interaction_record);
+            double density = A.GenerationProbability(nullptr, nullptr, interaction_record);
             double expected_density = std::pow(test_energy, -gamma) / total_integral;
             EXPECT_NEAR(density, expected_density, expected_density * 1e-8);
         }

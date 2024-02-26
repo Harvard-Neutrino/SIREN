@@ -28,7 +28,7 @@
 #include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
 #include "LeptonInjector/dataclasses/Particle.h"              // for Particle
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
 namespace LI { namespace utilities { class LI_random; } }
 
 namespace LI {
@@ -67,11 +67,10 @@ public:
 
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy) const;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2=std::numeric_limits<double>::quiet_NaN()) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
     std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
     std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override;
@@ -87,6 +86,8 @@ public:
     double GetMinimumQ2() const {return minimum_Q2_;};
     double GetTargetMass() const {return target_mass_;};
     int GetInteractionType() const {return interaction_type_;};
+
+    static double GetLeptonMass(LI::dataclasses::Particle::ParticleType lepton_type);
 
 public:
     virtual std::vector<std::string> DensityVariables() const override;

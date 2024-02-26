@@ -16,7 +16,8 @@
 
 #include "LeptonInjector/dataclasses/Particle.h"  // for Particle
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
+namespace LI { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace LI { namespace dataclasses { struct InteractionSignature; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -37,7 +38,7 @@ public:
     virtual double TotalDecayLength(LI::dataclasses::InteractionRecord const & record) const;
     virtual double TotalDecayLengthForFinalState(LI::dataclasses::InteractionRecord const & record) const;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const = 0;
-    virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const = 0;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const = 0;
     virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;
     virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::Particle::ParticleType primary) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;

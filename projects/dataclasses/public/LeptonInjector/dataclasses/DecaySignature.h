@@ -22,6 +22,7 @@ namespace dataclasses {
 struct DecaySignature {
     LI::dataclasses::Particle::ParticleType primary_type;
     std::vector<LI::dataclasses::Particle::ParticleType> secondary_types;
+
     bool operator==(DecaySignature const & other) const;
     friend std::ostream& operator<<(std::ostream& os, DecaySignature const& signature);
     template<class Archive>

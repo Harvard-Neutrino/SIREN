@@ -156,7 +156,7 @@ bool inFiducial(std::array<double,3> & int_vtx, Sphere & fidVol) {
     return fidVol.IsInside(pos,dir);
 }
 
-double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> detector_model, std::shared_ptr<InteractionCollection const> interactions, std::pair<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
+double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> detector_model, std::shared_ptr<InteractionCollection const> interactions, std::tuple<Vector3D, Vector3D> const & bounds, InteractionRecord const & record) {
     Vector3D interaction_vertex = record.interaction_vertex;
     Vector3D direction(
             record.primary_momentum[1],
@@ -172,7 +172,6 @@ double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> detector_m
 	for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
 		fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-		fake_record.target_momentum = {fake_record.target_mass,0,0,0};
 		std::vector<std::shared_ptr<CrossSection>> const & xs_list = target_xs.second;
 		double total_xs = 0.0;
 		for(auto const & xs : xs_list) {
@@ -185,7 +184,7 @@ double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> detector_m
 		}
 		total_cross_sections.push_back(total_xs);
 	}
-    std::vector<double> particle_depths = detector_model->GetParticleColumnDepth(intersections, bounds.first, bounds.second, targets);
+    std::vector<double> particle_depths = detector_model->GetParticleColumnDepth(intersections, std::get<0>(bounds), std::get<1>(bounds), targets);
 
     double interaction_depth = 0.0;
     for(unsigned int i=0; i<targets.size(); ++i) {
@@ -304,9 +303,6 @@ TEST(Injector, Generation)
     // Choose injection direction
     std::shared_ptr<PrimaryDirectionDistribution> ddist = std::make_shared<FixedDirection>(Vector3D{0.0, 0.0, 1.0});
 
-    // Targets should be stationary
-    std::shared_ptr<TargetMomentumDistribution> target_momentum_distribution = std::make_shared<TargetAtRest>();
-
     // Let us inject according to the decay distribution
     std::shared_ptr<RangeFunction> range_func = std::make_shared<DecayRangeFunction>(hnl_mass, HNL_decay_width, n_decay_lengths, max_distance);
 
@@ -314,14 +310,12 @@ TEST(Injector, Generation)
     std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
 
     // Put it all together!
-    //RangedLeptonInjector injector(events_to_inject, primary_type, cross_sections, detector_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length);
-    std::shared_ptr<Injector> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, detector_model, random, edist, ddist, target_momentum_distribution, range_func, disk_radius, endcap_length, helicity_distribution);
+    std::shared_ptr<Injector> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, detector_model, random, edist, ddist, range_func, disk_radius, endcap_length, helicity_distribution);
 
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
         std::shared_ptr<WeightableDistribution>(tab_pdf),
         std::shared_ptr<WeightableDistribution>(flux_units),
         std::shared_ptr<WeightableDistribution>(ddist),
-        std::shared_ptr<WeightableDistribution>(target_momentum_distribution),
         std::shared_ptr<WeightableDistribution>(helicity_distribution)
     };
 
@@ -412,11 +406,6 @@ TEST(Injector, Generation)
 
             myFile << event.primary_helicity << " ";
 
-            myFile << event.target_momentum[0] << " ";
-            myFile << event.target_momentum[1] << " ";
-            myFile << event.target_momentum[2] << " ";
-            myFile << event.target_momentum[3] << " ";
-
             myFile << event.target_helicity << " ";
 
             myFile << event.secondary_momenta[0][0] << " ";
@@ -424,14 +413,14 @@ TEST(Injector, Generation)
             myFile << event.secondary_momenta[0][2] << " ";
             myFile << event.secondary_momenta[0][3] << " ";
 
-            myFile << event.secondary_helicity[0] << " ";
+            myFile << event.secondary_helicities[0] << " ";
 
             myFile << event.secondary_momenta[1][0] << " ";
             myFile << event.secondary_momenta[1][1] << " ";
             myFile << event.secondary_momenta[1][2] << " ";
             myFile << event.secondary_momenta[1][3] << " ";
 
-            myFile << event.secondary_helicity[1] << " ";
+            myFile << event.secondary_helicities[1] << " ";
 
             myFile << decay.secondary_momenta[0][0] << " ";
             myFile << decay.secondary_momenta[0][1] << " ";
@@ -443,7 +432,7 @@ TEST(Injector, Generation)
             myFile << decay.secondary_momenta[1][2] << " ";
             myFile << decay.secondary_momenta[1][3] << " ";
 
-            myFile << decay.secondary_helicity[0] << " ";
+            myFile << decay.secondary_helicities[0] << " ";
 
             myFile << decay.decay_parameters[3] << " "; // decay enter
             myFile << decay.decay_parameters[4] << " "; // decay exit

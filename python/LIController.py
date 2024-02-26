@@ -49,7 +49,7 @@ class LIController:
         self.detector_model.LoadDetectorModel(detector_model_file)
 
         # Define the primary injection and physical process
-        self.primary_injection_process = _injection.InjectionProcess()
+        self.primary_injection_process = _injection.PrimaryInjectionProcess()
         self.primary_physical_process = _injection.PhysicalProcess()
 
         # Define lists for the secondary injection and physical processes
@@ -79,43 +79,47 @@ class LIController:
         self.primary_injection_process.primary_type = primary_type
         self.primary_physical_process.primary_type = primary_type
 
-        # Add all injection distributions
-        for _, idist in primary_injection_distributions.items():
-            self.primary_injection_process.AddInjectionDistribution(idist)
-        # Add all physical distributions
-        for _, pdist in primary_physical_distributions.items():
-            self.primary_physical_process.AddPhysicalDistribution(pdist)
+        # Default injection distributions
+        if "mass" not in primary_injection_distributions.keys():
+            self.primary_injection_process.AddPrimaryInjectionDistribution(
+                _distributions.PrimaryMass(0)
+            )
 
         # Default injection distributions
-        if "target" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddInjectionDistribution(
-                _distributions.TargetAtRest()
+        if "mass" not in primary_physical_distributions.keys():
+            self.primary_physical_process.AddPhysicalDistribution(
+                _distributions.PrimaryMass(0)
             )
+
+        # Default injection distributions
         if "helicity" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddInjectionDistribution(
+            self.primary_injection_process.AddPrimaryInjectionDistribution(
                 _distributions.PrimaryNeutrinoHelicityDistribution()
             )
 
         # Default injection distributions
-        if "target" not in primary_physical_distributions.keys():
-            self.primary_physical_process.AddPhysicalDistribution(
-                _distributions.TargetAtRest()
-            )
         if "helicity" not in primary_physical_distributions.keys():
             self.primary_physical_process.AddPhysicalDistribution(
                 _distributions.PrimaryNeutrinoHelicityDistribution()
             )
 
+        # Add all injection distributions
+        for _, idist in primary_injection_distributions.items():
+            self.primary_injection_process.AddPrimaryInjectionDistribution(idist)
+        # Add all physical distributions
+        for _, pdist in primary_physical_distributions.items():
+            self.primary_physical_process.AddPhysicalDistribution(pdist)
+
         # Loop through possible secondary interactions
         for i_sec, secondary_type in enumerate(secondary_types):
-            secondary_injection_process = _injection.InjectionProcess()
+            secondary_injection_process = _injection.SecondaryInjectionProcess()
             secondary_physical_process = _injection.PhysicalProcess()
             secondary_injection_process.primary_type = secondary_type
             secondary_physical_process.primary_type = secondary_type
 
             # Add all injection distributions
             for idist in secondary_injection_distributions[i_sec]:
-                secondary_injection_process.AddInjectionDistribution(idist)
+                secondary_injection_process.AddSecondaryInjectionDistribution(idist)
             # Add all physical distributions
             for pdist in secondary_physical_distributions[i_sec]:
                 secondary_physical_process.AddPhysicalDistribution(pdist)
@@ -123,12 +127,12 @@ class LIController:
             # Add the position distribution
             fid_vol = self.GetFiducialVolume()
             if fid_vol is not None:
-                secondary_injection_process.AddInjectionDistribution(
-                    _distributions.SecondaryPositionDistribution(fid_vol)
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryBoundedVertexDistribution(fid_vol)
                 )
             else:
-                secondary_injection_process.AddInjectionDistribution(
-                    _distributions.SecondaryPositionDistribution()
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryPhysicalVertexDistribution()
                 )
 
             self.secondary_injection_processes.append(secondary_injection_process)
@@ -185,19 +189,19 @@ class LIController:
         secondary_interaction_collections = []
         for secondary_type, decay_list in secondary_decays.items():
             # Define a sedcondary injection distribution
-            secondary_injection_process = _injection.InjectionProcess()
+            secondary_injection_process = _injection.SecondaryInjectionProcess()
             secondary_physical_process = _injection.PhysicalProcess()
             secondary_injection_process.primary_type = secondary_type
             secondary_physical_process.primary_type = secondary_type
 
             # Add the secondary position distribution
             if fid_vol is not None:
-                secondary_injection_process.AddInjectionDistribution(
-                    _distributions.SecondaryPositionDistribution(fid_vol)
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryBoundedVertexDistribution(fid_vol)
                 )
             else:
-                secondary_injection_process.AddInjectionDistribution(
-                    _distributions.SecondaryPositionDistribution()
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryPhysicalVertexDistribution()
                 )
 
             self.secondary_injection_processes.append(secondary_injection_process)
@@ -288,7 +292,7 @@ class LIController:
     def Initialize(self):
         # Define stopping condition
         # TODO: make this more general
-        def StoppingCondition(datum):
+        def StoppingCondition(datum, i):
             return True
 
         # Define the injector object
@@ -355,10 +359,6 @@ class LIController:
                 # Save each four-momenta as a dataset
                 interaction_group.create_dataset(
                     "primary_momentum",
-                    data=np.array(datum.record.primary_momentum, dtype=float),
-                )
-                interaction_group.create_dataset(
-                    "target_momentum",
                     data=np.array(datum.record.primary_momentum, dtype=float),
                 )
                 for isec_momenta, sec_momenta in enumerate(

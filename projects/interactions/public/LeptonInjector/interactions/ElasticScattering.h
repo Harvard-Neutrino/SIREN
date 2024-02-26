@@ -20,7 +20,8 @@
 #include "LeptonInjector/interactions/CrossSection.h"  // for CrossSection
 #include "LeptonInjector/dataclasses/Particle.h"        // for Particle
 
-namespace LI { namespace dataclasses { struct InteractionRecord; } }
+namespace LI { namespace dataclasses { class InteractionRecord; } }
+namespace LI { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace LI { namespace dataclasses { struct InteractionSignature; } }
 namespace LI { namespace utilities { class LI_random; } }
 
@@ -41,9 +42,9 @@ public:
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, double y) const;
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override;
+    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
 
     std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
     std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override;
