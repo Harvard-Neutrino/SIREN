@@ -88,4 +88,6 @@ controller.Initialize()
 
 events = controller.GenerateEvents()
 
+os.makedirs("output", exist_ok=True)
+
 controller.SaveEvents("output/IceCube_DIS")

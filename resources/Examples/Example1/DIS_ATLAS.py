@@ -64,4 +64,6 @@ controller.Initialize()
 
 events = controller.GenerateEvents()
 
+os.makedirs("output", exist_ok=True)
+
 controller.SaveEvents("output/ATLAS_DIS")

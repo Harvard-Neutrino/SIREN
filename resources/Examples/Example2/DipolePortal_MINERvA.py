@@ -78,6 +78,8 @@ controller.injector.SetStoppingCondition(stop)
 
 events = controller.GenerateEvents(fill_tables_at_exit=False)
 
+os.makedirs("output", exist_ok=True)
+
 controller.SaveEvents(
     "output/MINERvA_Dipole_M%2.2e_mu%2.2e_example"
     % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
