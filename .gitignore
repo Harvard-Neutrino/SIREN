@@ -64,4 +64,7 @@ vendor/rk/
 *.pdf
 
 # pycache
-*pycache*
+__pycache__/
+*/*/*pycache*
+*/*/*/*pycache*
+*/*/*/*/*pycache*
