@@ -367,8 +367,16 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
         if self.always_interpolate:
             # check if energy is within table range
-            if inputs[0] < interp_table[0,0] or inputs[0] > interp_table[-1,0]:
-                # return 0 if outside table bounds: require calculation
+            
+            if len(interp_table)==0 or inputs[0] > interp_table[-1,0]:
+                print("Requested interpolation at %2.2f GeV above table boundary. Filling %s table"%(inputs[0],mode))
+                n = self.FillInterpolationTables(Emax = (1+self.interp_tolerance)*inputs[0])
+                print("Added %d points"%n)
+                self._redefine_interpolation_objects(total=(mode=="total"),diff=(mode=="differential"))
+                if mode == "total": interpolator = self.total_cross_section_interpolator
+                elif mode== "differential": interpolator = self.differential_cross_section_interpolator
+            elif inputs[0] < interp_table[0,0]:
+                print("Requested interpolation at %2.2f GeV below table boundary. Requring calculation"%inputs[0])
                 return 0
             val = interpolator(inputs)
             if val<0:
@@ -391,6 +399,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     # Fills the total and differential cross section tables within interp_tolerance
     def FillInterpolationTables(self, total=True, diff=True, factor=0.8, Emax=None):
+        increment_factor = 0.5*factor * self.interp_tolerance
         Emin = (1.0 + self.tolerance) * self.ups_case.Ethreshold
         if Emax is None:
             Emax = np.max(self.total_cross_section_table[:, 0])
@@ -399,15 +408,18 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             E = Emin
             E_existing = np.unique(self.total_cross_section_table[:, 0])
             while E < Emax:
+                # sample more coarsely past 1.5*threshold
+                if E > 1.5*self.ups_case.Ethreshold:
+                    increment_factor = factor * self.interp_tolerance
                 if E in E_existing:
-                    E *= (1 + factor*self.interp_tolerance)
+                    E *= (1 + increment_factor)
                     continue
                 xsec = self.ups_case.scalar_total_xsec(E)
                 self.total_cross_section_table = np.append(
                     self.total_cross_section_table, [[E, xsec]], axis=0
                 )
                 num_added_points += 1
-                E *= (1 + factor*self.interp_tolerance)
+                E *= (1 + increment_factor)
         if diff:
             # interaction record to calculate Q2 bounds
             interaction = LI.dataclasses.InteractionRecord()
@@ -419,12 +431,16 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             ]  # only one target
             interaction.target_mass = self.ups_case.MA
             E = Emin
+            increment_factor = 0.5*factor * self.interp_tolerance
             E_existing = np.unique(self.differential_cross_section_table[:, 0])
             zmin, zmax = self.tolerance, 1
             z = zmin
             while E < Emax:
+                # sample more coarsely past 1.5*threshold
+                if E > 1.5*self.ups_case.Ethreshold:
+                    increment_factor = factor * self.interp_tolerance
                 if E in E_existing:
-                    E *= (1 + factor*self.interp_tolerance)
+                    E *= (1 + increment_factor)
                     continue 
                 interaction.primary_momentum = [E, 0, 0, 0]
                 Q2min = self.Q2Min(interaction)
@@ -440,7 +456,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                     )
                     num_added_points += 1
                     z *= (1 + factor*self.interp_tolerance)
-                E *= (1 + factor*self.interp_tolerance)
+                E *= (1 + increment_factor)
         self._redefine_interpolation_objects(total=total, diff=diff)
         return num_added_points
 
