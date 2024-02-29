@@ -148,20 +148,20 @@ class LIController:
     
 
     
-    def InputDarkNewsModel(self, primary_type, table_dir, model_kwargs):
+    def InputDarkNewsModel(self, primary_type, table_dir, **kwargs):
         """
         Sets up the relevant processes and cross section/decay objects related to a provided DarkNews model dictionary.
         Will handle the primary cross section collection as well as the entire list of secondary processes
 
         :param _dataclasses.Particle.ParticleType primary_type: primary particle to be generated
         :param string table_dir: Directory for storing cross section and decay tables
-        :param dict<str,val> model_kwargs: The dict of DarkNews model parameters
+        :param dict<str,val> kwargs: The dict of DarkNews model and cross section parameters
         """
         # Add nuclear targets to the model arguments
-        model_kwargs["nuclear_targets"] = self.GetDetectorModelTargets()[1]
+        kwargs["nuclear_targets"] = self.GetDetectorModelTargets()[1]
         # Initialize DarkNews cross sections and decays
         self.DN_processes = PyDarkNewsInteractionCollection(
-            table_dir=table_dir, **model_kwargs
+            table_dir=table_dir, **kwargs
         )
 
         # Initialize primary InteractionCollection

@@ -11,3 +11,4 @@ ytick.labelsize : 14
 
 legend.fontsize: 13
 legend.frameon: False
+legend.title_fontsize: 14
