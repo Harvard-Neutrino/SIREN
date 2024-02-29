@@ -461,3 +461,5 @@ class LIController:
             fout.close()
         if parquet:
             ak.to_parquet(ak_array,filename+".parquet")
+        if hasattr(self, "DN_processes"):
+            self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)

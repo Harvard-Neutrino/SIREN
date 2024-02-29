@@ -182,6 +182,13 @@ class PyDarkNewsInteractionCollection:
             print("Filling cross section table at %s" % cross_section.table_dir)
             num = cross_section.FillInterpolationTables(Emax=Emax)
             print("Added %d points" % num)
+    
+    # Fill every cross section table
+    def FillCrossSectionTablesAtEnergy(self, E):
+        for cross_section in self.cross_sections:
+            print("Filling E = %2.2f GeV for cross section table at %s" %(E,cross_section.table_dir))
+            num = cross_section.FillTableAtEnergy(E)
+            print("Added %d points" % num)
 
 
 # A class representing a single ups_case DarkNews class
@@ -370,9 +377,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             
             if len(interp_table)==0 or inputs[0] > interp_table[-1,0]:
                 print("Requested interpolation at %2.2f GeV above table boundary. Filling %s table"%(inputs[0],mode))
-                n = self.FillInterpolationTables(Emax = (1+self.interp_tolerance)*inputs[0])
+                n = self.FillInterpolationTables(total=(mode=="total"),
+                                                 diff=(mode=="differential"),
+                                                 Emax = (1+self.interp_tolerance)*inputs[0])
                 print("Added %d points"%n)
-                self._redefine_interpolation_objects(total=(mode=="total"),diff=(mode=="differential"))
                 if mode == "total": interpolator = self.total_cross_section_interpolator
                 elif mode== "differential": interpolator = self.differential_cross_section_interpolator
             elif inputs[0] < interp_table[0,0]:
@@ -397,31 +405,15 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         else:
             return 0
 
-    # Fills the total and differential cross section tables within interp_tolerance
-    def FillInterpolationTables(self, total=True, diff=True, factor=0.8, Emax=None):
-        increment_factor = 0.5*factor * self.interp_tolerance
-        Emin = (1.0 + self.tolerance) * self.ups_case.Ethreshold
-        if Emax is None:
-            Emax = np.max(self.total_cross_section_table[:, 0])
+    def FillTableAtEnergy(self, E, total=True, diff=True, factor=0.8):
         num_added_points = 0
         if total:
-            E = Emin
-            E_existing = np.unique(self.total_cross_section_table[:, 0])
-            while E < Emax:
-                # sample more coarsely past 1.5*threshold
-                if E > 1.5*self.ups_case.Ethreshold:
-                    increment_factor = factor * self.interp_tolerance
-                if E in E_existing:
-                    E *= (1 + increment_factor)
-                    continue
-                xsec = self.ups_case.scalar_total_xsec(E)
-                self.total_cross_section_table = np.append(
-                    self.total_cross_section_table, [[E, xsec]], axis=0
-                )
-                num_added_points += 1
-                E *= (1 + increment_factor)
+            xsec = self.ups_case.scalar_total_xsec(E)
+            self.total_cross_section_table = np.append(
+                self.total_cross_section_table, [[E, xsec]], axis=0
+            )
+            num_added_points+=1
         if diff:
-            # interaction record to calculate Q2 bounds
             interaction = LI.dataclasses.InteractionRecord()
             interaction.signature.primary_type = self.GetPossiblePrimaries()[
                 0
@@ -430,33 +422,44 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 0
             ]  # only one target
             interaction.target_mass = self.ups_case.MA
-            E = Emin
-            increment_factor = 0.5*factor * self.interp_tolerance
-            E_existing = np.unique(self.differential_cross_section_table[:, 0])
+            interaction.primary_momentum = [E, 0, 0, 0]
             zmin, zmax = self.tolerance, 1
+            Q2min = self.Q2Min(interaction)
+            Q2max = self.Q2Max(interaction)
             z = zmin
-            while E < Emax:
-                # sample more coarsely past 1.5*threshold
-                if E > 1.5*self.ups_case.Ethreshold:
-                    increment_factor = factor * self.interp_tolerance
-                if E in E_existing:
-                    E *= (1 + increment_factor)
-                    continue 
-                interaction.primary_momentum = [E, 0, 0, 0]
-                Q2min = self.Q2Min(interaction)
-                Q2max = self.Q2Max(interaction)
-                z = zmin
-                while z < zmax:
-                    Q2 = Q2min + z * (Q2max - Q2min)
-                    dxsec = self.ups_case.diff_xsec_Q2(E, Q2).item()
-                    self.differential_cross_section_table = np.append(
-                        self.differential_cross_section_table,
-                        [[E, z, dxsec]],
-                        axis=0,
-                    )
-                    num_added_points += 1
-                    z *= (1 + factor*self.interp_tolerance)
-                E *= (1 + increment_factor)
+            while z < zmax:
+                Q2 = Q2min + z * (Q2max - Q2min)
+                dxsec = self.ups_case.diff_xsec_Q2(E, Q2).item()
+                self.differential_cross_section_table = np.append(
+                    self.differential_cross_section_table,
+                    [[E, z, dxsec]],
+                    axis=0,
+                )
+                num_added_points += 1
+                z *= (1 + factor*self.interp_tolerance)
+        return num_added_points
+
+    
+    # Fills the total and differential cross section tables within interp_tolerance
+    def FillInterpolationTables(self, total=True, diff=True, factor=0.8, Emax=None):
+        increment_factor = 0.5*factor * self.interp_tolerance
+        Emin = (1.0 + self.tolerance) * self.ups_case.Ethreshold
+        if Emax is None:
+            Emax = np.max(self.total_cross_section_table[:, 0])
+        num_added_points = 0
+        E = Emin
+        E_existing_total = np.unique(self.total_cross_section_table[:, 0])
+        E_existing_diff = np.unique(self.differential_cross_section_table[:, 0])
+        while E < Emax:
+            # sample more coarsely past 1.5*threshold
+            if E > 1.5*self.ups_case.Ethreshold:
+                increment_factor = factor * self.interp_tolerance
+            n = self.FillTableAtEnergy(E,
+                                       total=(total and (E not in E_existing_total)),
+                                       diff=(diff and (E not in E_existing_diff)),
+                                       factor=factor)
+            num_added_points += n
+            E *= (1 + increment_factor)
         self._redefine_interpolation_objects(total=total, diff=diff)
         return num_added_points
 
