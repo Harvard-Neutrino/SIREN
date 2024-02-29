@@ -18,11 +18,11 @@ model_kwargs = {
 
 # cross section class arguments
 xs_kwargs = {
-    "always_interpolate": False
+    "always_interpolate": True
 }
 
 # Number of events to inject
-events_to_inject = 1000
+events_to_inject = 100000
 
 # Expeirment to run
 experiment = "MINERvA"
@@ -39,7 +39,9 @@ table_dir = os.path.join(
     xs_path,
     "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
 )
-controller.InputDarkNewsModel(primary_type, table_dir, **model_kwargs, **xs_kwargs)
+controller.InputDarkNewsModel(primary_type, table_dir,
+                              fill_tables_at_start=True, Emax=20,
+                              **model_kwargs, **xs_kwargs)
 
 # Primary distributions
 primary_injection_distributions = {}

@@ -175,6 +175,13 @@ class PyDarkNewsInteractionCollection:
         for decay in self.decays:
             with open(os.path.join(decay.table_dir,"dec_object.pkl"),"wb") as f:
                 pickle.dump(decay,f)
+    
+    # Fill every cross section table
+    def FillCrossSectionTables(self, Emax=None):
+        for cross_section in self.cross_sections:
+            print("Filling cross section table at %s" % cross_section.table_dir)
+            num = cross_section.FillInterpolationTables(Emax=Emax)
+            print("Added %d points" % num)
 
 
 # A class representing a single ups_case DarkNews class
@@ -383,9 +390,10 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             return 0
 
     # Fills the total and differential cross section tables within interp_tolerance
-    def FillInterpolationTables(self, total=True, diff=True, factor=0.8):
+    def FillInterpolationTables(self, total=True, diff=True, factor=0.8, Emax=None):
         Emin = (1.0 + self.tolerance) * self.ups_case.Ethreshold
-        Emax = np.max(self.total_cross_section_table[:, 0])
+        if Emax is None:
+            Emax = np.max(self.total_cross_section_table[:, 0])
         num_added_points = 0
         if total:
             E = Emin

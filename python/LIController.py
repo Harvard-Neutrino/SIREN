@@ -148,13 +148,15 @@ class LIController:
     
 
     
-    def InputDarkNewsModel(self, primary_type, table_dir, **kwargs):
+    def InputDarkNewsModel(self, primary_type, table_dir, fill_tables_at_start=False, Emax=None, **kwargs):
         """
         Sets up the relevant processes and cross section/decay objects related to a provided DarkNews model dictionary.
         Will handle the primary cross section collection as well as the entire list of secondary processes
 
         :param _dataclasses.Particle.ParticleType primary_type: primary particle to be generated
         :param string table_dir: Directory for storing cross section and decay tables
+        :param string fill_tables_at_start: Flag to fill total/differential cross section tables upon initialization
+        :param float Emax: maximum energy for cross section tables
         :param dict<str,val> kwargs: The dict of DarkNews model and cross section parameters
         """
         # Add nuclear targets to the model arguments
@@ -163,6 +165,12 @@ class LIController:
         self.DN_processes = PyDarkNewsInteractionCollection(
             table_dir=table_dir, **kwargs
         )
+
+        if fill_tables_at_start:
+            if Emax is None:
+                print("WARNING: Cannot fill cross section tables without specifying a maximum energy")
+            else:
+                self.DN_processes.FillCrossSectionTables(Emax=Emax)
 
         # Initialize primary InteractionCollection
         # Loop over available cross sections and save those which match primary type
@@ -453,5 +461,3 @@ class LIController:
             fout.close()
         if parquet:
             ak.to_parquet(ak_array,filename+".parquet")
-        if hasattr(self, "DN_processes"):
-            self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)

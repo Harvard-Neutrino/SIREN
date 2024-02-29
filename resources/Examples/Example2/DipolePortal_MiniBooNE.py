@@ -39,7 +39,9 @@ table_dir = os.path.join(
     xs_path,
     "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
 )
-controller.InputDarkNewsModel(primary_type, table_dir, **model_kwargs, **xs_kwargs)
+controller.InputDarkNewsModel(primary_type, table_dir,
+                              fill_tables_at_start=True, Emax=10,
+                              **model_kwargs, **xs_kwargs)
 
 # Primary distributions
 primary_injection_distributions = {}
@@ -49,7 +51,7 @@ primary_physical_distributions = {}
 flux_file = LI.utilities.get_tabulated_flux_file("BNB","FHC_numu")
 edist = LI.distributions.TabulatedFluxDistribution(flux_file, True)
 edist_gen = LI.distributions.TabulatedFluxDistribution(
-    1.05 * model_kwargs["m4"], 10, flux_file, False
+    model_kwargs["m4"], 10, flux_file, False
 )
 primary_injection_distributions["energy"] = edist_gen
 primary_physical_distributions["energy"] = edist
@@ -75,14 +77,13 @@ controller.SetProcesses(
 
 controller.Initialize()
 
-
 def stop(datum, i):
     secondary_type = datum.record.signature.secondary_types[i]
     return secondary_type != LI.dataclasses.Particle.ParticleType.N4
 
 controller.injector.SetStoppingCondition(stop)
 
-events = controller.GenerateEvents(fill_tables_at_exit=True)
+events = controller.GenerateEvents(fill_tables_at_exit=False)
 
 os.makedirs("output", exist_ok=True)
 
