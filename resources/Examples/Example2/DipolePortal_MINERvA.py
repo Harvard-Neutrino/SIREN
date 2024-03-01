@@ -18,7 +18,7 @@ model_kwargs = {
 
 # cross section class arguments
 xs_kwargs = {
-    "always_interpolate": True
+    "always_interpolate": True,
 }
 
 # Number of events to inject

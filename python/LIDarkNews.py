@@ -204,7 +204,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         table_dir=None,  # table to store
         tolerance=1e-6,  # supposed to represent machine epsilon
         interp_tolerance=5e-2,  # relative interpolation tolerance
-        always_interpolate=False, # bool whether to always interpolate the total/differential cross section
+        always_interpolate=True, # bool whether to always interpolate the total/differential cross section
     ):
         DarkNewsCrossSection.__init__(self)  # C++ constructor
 
@@ -380,7 +380,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             # check if energy is within table range
             
             if interpolator is None or inputs[0] > interp_table[-1,0]:
-                print("Requested interpolation at %2.2f GeV. Either this above the table boundary or the interpolator doesn't yet exist. Filling %s table"%(inputs[0],mode))
+                print("Requested interpolation at %2.2f GeV. Either this is above the table boundary or the interpolator doesn't yet exist. Filling %s table"%(inputs[0],mode))
                 n = self.FillInterpolationTables(total=(mode=="total"),
                                                  diff=(mode=="differential"),
                                                  Emax = (1+self.interp_tolerance)*inputs[0])
@@ -390,9 +390,11 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             elif inputs[0] < interp_table[0,0]:
                 print("Requested interpolation at %2.2f GeV below table boundary. Requring calculation"%inputs[0])
                 return 0
-            val = interpolator(inputs)
+            val = max(0,interpolator(inputs))
             if val<0:
-                print("WARNING: negative interpolated value for %s cross section at,"%mode,inputs) 
+                print("WARNING: negative interpolated value for %s-%s %s cross section at,"%(self.ups_case.nuclear_target.name,
+                                                                                             self.ups_case.scattering_regime,
+                                                                                             mode),inputs) 
             return val
         
         UseSinglePoint, Interpolate, closest_idx = self._interpolation_flags(
@@ -407,7 +409,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         elif Interpolate:
             return interpolator(inputs)
         else:
-            return 0
+            return -1
 
     def FillTableAtEnergy(self, E, total=True, diff=True, factor=0.8):
         num_added_points = 0
@@ -581,7 +583,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         if self.always_interpolate:
             # Check if we can interpolate
             val = self._query_interpolation_table([energy, z], mode="differential")
-            if val > 0:
+            if val >= 0:
                 # we have recovered the differential cross section from the interpolation table
                 return val
 
@@ -632,7 +634,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
         # Check if we can interpolate
         val = self._query_interpolation_table([energy], mode="total")
-        if val > 0:
+        if val >= 0:
             # we have recovered the cross section from the interpolation table
             return val
 

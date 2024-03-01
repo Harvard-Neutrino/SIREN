@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import awkward as ak
+import time
 
 from . import utilities as _utilities
 from . import detector as _detector
@@ -26,6 +27,8 @@ class LIController:
         :param str experiment: experiment name in string
         :param int seed: Optional random number generator seed
         """
+
+        self.global_start = time.time()
 
         self.resources_dir = _util.resource_package_dir()
 
@@ -382,10 +385,16 @@ class LIController:
         if N is None:
             N = self.events_to_inject
         count = 0
+        self.gen_times,self.global_times = [],[]
+        prev_time = time.time()
         while (self.injector.InjectedEvents() < self.events_to_inject) and (count < N):
             print("Injecting Event %d/%d  " % (count, N), end="\r")
             tree = self.injector.GenerateEvent()
             self.events.append(tree)
+            t = time.time()
+            self.gen_times.append(t-prev_time)
+            self.global_times.append(t-self.global_start)
+            prev_time = t
             count += 1
         if hasattr(self, "DN_processes"):
             self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)
@@ -396,6 +405,8 @@ class LIController:
         # A dictionary containing each dataset we'd like to save
         datasets = {
             "event_weight":[], # weight of entire event
+            "event_gen_time":[], # generation time of each event
+            "event_global_time":[], # global time of each event
             "num_interactions":[], # number of interactions per event
             "vertex":[], # vertex of each interaction in an event
             "in_fiducial":[], # whether or not each vertex is in the fiducial volume
@@ -410,6 +421,8 @@ class LIController:
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             datasets["event_weight"].append(self.weighter.EventWeight(event))
+            datasets["event_gen_time"].append(self.gen_times[ie])
+            datasets["event_global_time"].append(self.global_times[ie])
             # add empty lists for each per interaction dataset
             for k in ["vertex",
                       "in_fiducial",
