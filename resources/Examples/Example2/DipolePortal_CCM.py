@@ -19,11 +19,11 @@ model_kwargs = {
 
 # cross section class arguments
 xs_kwargs = {
-    "always_interpolate": False
+    "always_interpolate": True
 }
 
 # Number of events to inject
-events_to_inject = 1000
+events_to_inject = 10000
 
 # Expeirment to run
 experiment = "CCM"
@@ -51,6 +51,8 @@ nu_energy = 0.02965  # from pi+ DAR
 edist = LI.distributions.Monoenergetic(nu_energy)
 primary_injection_distributions["energy"] = edist
 primary_physical_distributions["energy"] = edist
+# fill cross section tables at this energy
+controller.DN_processes.FillCrossSectionTablesAtEnergy(nu_energy)
 
 # Flux normalization:
 # using the number quoted in 2105.14020, 4.74e9 nu/m^2/s / (6.2e14 POT/s) * 4*pi*20m^2 to get nu/POT
@@ -91,12 +93,11 @@ def stop(datum, i):
 
 controller.injector.SetStoppingCondition(stop)
 
-events = controller.GenerateEvents(fill_tables_at_exit=False)
+events = controller.GenerateEvents()
 
 os.makedirs("output", exist_ok=True)
 
 controller.SaveEvents(
     "output/CCM_Dipole_M%2.2e_mu%2.2e_example"
-    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
-    fill_tables_at_exit=False
+    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
 )

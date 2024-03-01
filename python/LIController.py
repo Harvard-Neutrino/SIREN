@@ -247,9 +247,9 @@ class LIController:
                     if(data[1]=="sphere"):
                         return _geometry.Sphere(placement, float(data[8]), 0)
                     elif(data[1]=="box"):
-                        return _geometry.Box(placement, [float(d) for d in data[8:11]])
+                        return _geometry.Box(placement, *[float(d) for d in data[8:11]])
                     elif(data[1]=="cylinder"):
-                        return _geometry.Cylinder(placement, [float(d) for d in data[8:11]])
+                        return _geometry.Cylinder(placement, *[float(d) for d in data[8:11]])
                     elif(data[1]=="extr"):
                         index = 8
                         num_edges = int(data[index])

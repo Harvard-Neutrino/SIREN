@@ -7,7 +7,7 @@ import ntpath
 import pickle
 import functools
 import logging
-from scipy.interpolate import LinearNDInterpolator, CubicSpline
+from scipy.interpolate import LinearNDInterpolator,PchipInterpolator
 
 # LeptonInjector methods
 import leptoninjector as LI
@@ -186,8 +186,12 @@ class PyDarkNewsInteractionCollection:
     # Fill every cross section table
     def FillCrossSectionTablesAtEnergy(self, E):
         for cross_section in self.cross_sections:
-            print("Filling E = %2.2f GeV for cross section table at %s" %(E,cross_section.table_dir))
-            num = cross_section.FillTableAtEnergy(E)
+            E_existing_total = np.unique(cross_section.total_cross_section_table[:, 0])
+            E_existing_diff = np.unique(cross_section.differential_cross_section_table[:, 0])
+            total = (E not in E_existing_total)
+            diff = (E not in E_existing_diff)
+            print("Filling E = %2.2f GeV for cross section table(s) at %s" %(E,cross_section.table_dir))
+            num = cross_section.FillTableAtEnergy(E,total=total,diff=diff)
             print("Added %d points" % num)
 
 
@@ -289,9 +293,9 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 self.total_cross_section_table[:,0]
             )
             self.total_cross_section_table = self.total_cross_section_table[idxs]
-            self.total_cross_section_interpolator = CubicSpline(
+            self.total_cross_section_interpolator = PchipInterpolator(
                 self.total_cross_section_table[:, 0],
-                self.total_cross_section_table[:, 1],
+                self.total_cross_section_table[:, 1]
             )
         if diff:
             if len(self.differential_cross_section_table) <= 1: return
@@ -359,7 +363,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         # otherwise, returns the desired interpolated value
 
         # First make sure we are configured
-        if not self.is_configured: self.configure()
+        self._ensure_configured()
 
         # Determine which table we are using
         if mode == "total":
@@ -375,8 +379,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         if self.always_interpolate:
             # check if energy is within table range
             
-            if len(interp_table)==0 or inputs[0] > interp_table[-1,0]:
-                print("Requested interpolation at %2.2f GeV above table boundary. Filling %s table"%(inputs[0],mode))
+            if interpolator is None or inputs[0] > interp_table[-1,0]:
+                print("Requested interpolation at %2.2f GeV. Either this above the table boundary or the interpolator doesn't yet exist. Filling %s table"%(inputs[0],mode))
                 n = self.FillInterpolationTables(total=(mode=="total"),
                                                  diff=(mode=="differential"),
                                                  Emax = (1+self.interp_tolerance)*inputs[0])
@@ -408,7 +412,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     def FillTableAtEnergy(self, E, total=True, diff=True, factor=0.8):
         num_added_points = 0
         if total:
-            xsec = self.ups_case.scalar_total_xsec(E)
+            xsec = self.ups_case.total_xsec(E)
             self.total_cross_section_table = np.append(
                 self.total_cross_section_table, [[E, xsec]], axis=0
             )
@@ -437,6 +441,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 )
                 num_added_points += 1
                 z *= (1 + factor*self.interp_tolerance)
+        self._redefine_interpolation_objects(total=total, diff=diff)
         return num_added_points
 
     
@@ -632,7 +637,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             return val
 
         # If we have reached this block, we must compute the cross section using DarkNews
-        xsec = self.ups_case.scalar_total_xsec(energy)
+        xsec = self.ups_case.total_xsec(energy)
         self.total_cross_section_table = np.append(
             self.total_cross_section_table, [[energy, xsec]], axis=0
         )

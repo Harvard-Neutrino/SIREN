@@ -39,8 +39,7 @@ table_dir = os.path.join(
     xs_path,
     "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
 )
-controller.InputDarkNewsModel(primary_type, table_dir,
-                              **model_kwargs, **xs_kwargs)
+controller.InputDarkNewsModel(primary_type, table_dir, **model_kwargs, **xs_kwargs)
 
 # Primary distributions
 primary_injection_distributions = {}
@@ -82,7 +81,7 @@ def stop(datum, i):
 
 controller.injector.SetStoppingCondition(stop)
 
-events = controller.GenerateEvents(fill_tables_at_exit=False)
+events = controller.GenerateEvents()
 
 os.makedirs("output", exist_ok=True)
 
