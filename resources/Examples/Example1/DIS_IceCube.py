@@ -6,27 +6,8 @@ import functools
 import leptoninjector as LI
 from leptoninjector.LIController import LIController
 
-@functools.wraps(LIController.GenerateEvents)
-def GenerateEvents(self, N=None):
-    if N is None:
-        N = self.events_to_inject
-    count = 0
-    while (self.injector.InjectedEvents() < self.events_to_inject) and (count < N):
-        print("Injecting Event", count, end="\r")
-        tree = self.injector.GenerateEvent()
-        self.weighter.EventWeight(tree)
-        self.events.append(tree)
-        count += 1
-    #if hasattr(self, "DN_processes"):
-    #    self.DN_processes.SaveCrossSectionTables()
-    return self.events
-
-LIController.GenerateEvents = GenerateEvents
-
-resources_dir = _util.resource_package_dir()
-
 # Number of events to inject
-events_to_inject = int(1e6)
+events_to_inject = int(1e3)
 
 # Expeirment to run
 experiment = "IceCube"

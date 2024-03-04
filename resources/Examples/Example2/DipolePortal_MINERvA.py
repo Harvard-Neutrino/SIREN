@@ -22,7 +22,7 @@ xs_kwargs = {
 }
 
 # Number of events to inject
-events_to_inject = 10000
+events_to_inject = 1000
 
 # Expeirment to run
 experiment = "MINERvA"
@@ -49,7 +49,7 @@ primary_physical_distributions = {}
 flux_file = LI.utilities.get_tabulated_flux_file("NUMI","FHC_ME_numu")
 edist = LI.distributions.TabulatedFluxDistribution(flux_file, True)
 edist_gen = LI.distributions.TabulatedFluxDistribution(
-    1.05 * model_kwargs["m4"], 20, flux_file, False
+    model_kwargs["m4"], 20, flux_file, False
 )
 primary_injection_distributions["energy"] = edist_gen
 primary_physical_distributions["energy"] = edist
@@ -81,7 +81,7 @@ def stop(datum, i):
 
 controller.injector.SetStoppingCondition(stop)
 
-events = controller.GenerateEvents()
+events = controller.GenerateEvents(fill_tables)
 
 os.makedirs("output", exist_ok=True)
 

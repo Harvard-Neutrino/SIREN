@@ -16,7 +16,6 @@ from leptoninjector.dataclasses import Particle
 from leptoninjector import _util
 
 # DarkNews methods
-import DarkNews
 from DarkNews import phase_space
 from DarkNews.ModelContainer import ModelContainer
 ModelContainer_configure_logger = ModelContainer.configure_logger
@@ -570,7 +569,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             interaction.signature.target_type = target
             interaction.primary_momentum = [energy, 0, 0, 0]
             interaction.target_mass = self.ups_case.MA
-        if interaction.signature.primary_type != self.ups_case.nu_projectile:
+        if interaction.signature.primary_type != Particle.ParticleType(self.ups_case.nu_projectile.pdgid):
             return 0
         if interaction.primary_momentum[0] < self.InteractionThreshold(interaction):
             return 0
@@ -629,7 +628,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         interaction.signature.target_type = target
         interaction.primary_momentum[0] = energy
         if energy < self.InteractionThreshold(interaction):
-            print("Python: energy < self.InteractionThreshold(interaction)")
+            #print("Python: energy %2.2f < self.InteractionThreshold(interaction) %2.2f"%(energy,self.InteractionThreshold(interaction)))
             return 0
 
         # Check if we can interpolate
@@ -941,9 +940,6 @@ class PyDarkNewsDecay(DarkNewsDecay):
             secondaries[nu_idx].four_momentum = np.squeeze(four_momenta["P_decay_N_daughter"])
             secondaries[nu_idx].mass = 0
 
-            print("P_gamma", secondaries[gamma_idx].four_momentum)
-            print("P_nu", secondaries[nu_idx].four_momentum)
-
         elif type(self.dec_case) == FermionDileptonDecay:
             lepminus_idx = -1
             lepplus_idx = -1
@@ -968,8 +964,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 print(record.signature.secondary_types)
                 print("Couldn't find two leptons and a neutrino in the final state!")
                 exit(0)
-            secondary_momenta = []
-            seconaries[lepminus_idx].four_momentum = (
+            secondaries[lepminus_idx].four_momentum = (
                 np.squeeze(four_momenta["P_decay_ell_minus"])
             )
             secondaries[lepplus_idx].four_momentum = (

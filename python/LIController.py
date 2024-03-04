@@ -416,11 +416,11 @@ class LIController:
             "secondary_types":[], # secondary type of each interaction
             "primary_momentum":[], # primary momentum of each interaction
             "secondary_momenta":[], # secondary momentum of each interaction
-            "target_momentum":[], # target momentum of each interaction
         }
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             datasets["event_weight"].append(self.weighter.EventWeight(event))
+            print("weight:",datasets["event_weight"][-1])
             datasets["event_gen_time"].append(self.gen_times[ie])
             datasets["event_global_time"].append(self.global_times[ie])
             # add empty lists for each per interaction dataset
@@ -431,8 +431,7 @@ class LIController:
                       "num_secondaries",
                       "secondary_types",
                       "primary_momentum",
-                      "secondary_momenta",
-                      "target_momentum"]:
+                      "secondary_momenta"]:
                 datasets[k].append([])
             # loop over interactions
             for id, datum in enumerate(event.tree):
@@ -452,7 +451,6 @@ class LIController:
 
                 # target particle stuff
                 datasets["target_type"][-1].append(str(datum.record.signature.target_type))
-                datasets["target_momentum"][-1].append(np.array(datum.record.target_momentum, dtype=float))
                 
                 # secondary particle stuff
                 datasets["secondary_types"][-1].append([])

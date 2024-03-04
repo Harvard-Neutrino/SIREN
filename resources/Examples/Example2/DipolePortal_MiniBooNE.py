@@ -22,7 +22,7 @@ xs_kwargs = {
 }
 
 # Number of events to inject
-events_to_inject = 10000
+events_to_inject = 1000
 
 # Expeirment to run
 experiment = "MiniBooNE"
@@ -81,11 +81,12 @@ def stop(datum, i):
 
 controller.injector.SetStoppingCondition(stop)
 
-events = controller.GenerateEvents()
+events = controller.GenerateEvents(fill_tables_at_exit=False)
 
 os.makedirs("output", exist_ok=True)
 
 controller.SaveEvents(
     "output/MiniBooNE_Dipole_M%2.2e_mu%2.2e_example"
-    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
+    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
+    fill_tables_at_exit=False
 )
