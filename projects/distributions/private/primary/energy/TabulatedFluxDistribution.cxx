@@ -261,36 +261,6 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     ComputeCDF();
 }
 
-TabulatedFluxDistribution::TabulatedFluxDistribution(std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization)
-    : bounds_set(false)
-{
-    LoadFluxTable(energies,flux);
-    std::function<double(double)> integrand = [&] (double x) -> double {
-        return unnormed_pdf(x);
-    };
-    ComputeIntegral();
-    if(has_physical_normalization)
-        SetNormalization(integral);
-
-    ComputeCDF();
-}
-
-TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization)
-    : energyMin(energyMin)
-    , energyMax(energyMax)
-    , bounds_set(true)
-{
-    LoadFluxTable(energies,flux);
-    std::function<double(double)> integrand = [&] (double x) -> double {
-        return unnormed_pdf(x);
-    };
-    ComputeIntegral();
-    if(has_physical_normalization)
-        SetNormalization(integral);
-
-    ComputeCDF();
-}
-
 double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
     // inverse CDF algorithm to sample from PDF.
     double randomValue = rand->Uniform(0,1);
