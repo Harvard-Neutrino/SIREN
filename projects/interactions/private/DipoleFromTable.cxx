@@ -112,8 +112,8 @@ double DipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) 
 
 
 double DipoleFromTable::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::Particle::ParticleType const & primary_type = interaction.signature.primary_type;
-    LI::dataclasses::Particle::ParticleType const & target_type = interaction.signature.target_type;
+    LI::dataclasses::ParticleType const & primary_type = interaction.signature.primary_type;
+    LI::dataclasses::ParticleType const & target_type = interaction.signature.target_type;
     std::array<double, 4> const & primary_momentum = interaction.primary_momentum;
     double primary_mass = interaction.primary_mass;
     rk::P4 p1(geom3::Vector3(primary_momentum[1], primary_momentum[2], primary_momentum[3]), primary_mass);
@@ -124,7 +124,7 @@ double DipoleFromTable::TotalCrossSection(dataclasses::InteractionRecord const &
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
-double DipoleFromTable::TotalCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type) const {
+double DipoleFromTable::TotalCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, LI::dataclasses::ParticleType target_type) const {
     if(not primary_types.count(primary_type)) {
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
@@ -143,9 +143,9 @@ double DipoleFromTable::TotalCrossSection(LI::dataclasses::Particle::ParticleTyp
                 + std::to_string(interp.MaxX()) + " GeV]");
     }
 
-    LI::utilities::Interpolator1D<double> const & interp_proton = total.at(LI::dataclasses::Particle::ParticleType::HNucleus);
+    LI::utilities::Interpolator1D<double> const & interp_proton = total.at(LI::dataclasses::ParticleType::HNucleus);
     int nprotons = LI::detector::MaterialModel::GetProtonCount(target_type);
-    if(!inelastic || target_type==LI::dataclasses::Particle::ParticleType::HNucleus) {
+    if(!inelastic || target_type==LI::dataclasses::ParticleType::HNucleus) {
         nprotons = 0;
     }
     double proton_inelastic_xsec = 0;
@@ -161,8 +161,8 @@ double DipoleFromTable::TotalCrossSection(LI::dataclasses::Particle::ParticleTyp
 }
 
 double DipoleFromTable::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
+    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::ParticleType target_type = interaction.signature.target_type;
     std::array<double, 4> const & primary_momentum = interaction.primary_momentum;
     double primary_mass = interaction.primary_mass;
     double target_mass = interaction.primary_mass;
@@ -174,10 +174,10 @@ double DipoleFromTable::DifferentialCrossSection(dataclasses::InteractionRecord 
     primary_energy = primary_momentum[0];
     p1_lab = p1;
     p2_lab = p2;
-    std::vector<LI::dataclasses::Particle::ParticleType> const & secondary_types = interaction.signature.secondary_types;
+    std::vector<LI::dataclasses::ParticleType> const & secondary_types = interaction.signature.secondary_types;
     assert(secondary_types.size() == 2);
-    assert(secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or secondary_types[1] == LI::dataclasses::Particle::ParticleType::NuF4 or secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar or secondary_types[1] == LI::dataclasses::Particle::ParticleType::NuF4Bar);
-    unsigned int lepton_index = (secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar) ? 0 : 1;
+    assert(secondary_types[0] == LI::dataclasses::ParticleType::NuF4 or secondary_types[1] == LI::dataclasses::ParticleType::NuF4 or secondary_types[0] == LI::dataclasses::ParticleType::NuF4Bar or secondary_types[1] == LI::dataclasses::ParticleType::NuF4Bar);
+    unsigned int lepton_index = (secondary_types[0] == LI::dataclasses::ParticleType::NuF4 or secondary_types[0] == LI::dataclasses::ParticleType::NuF4Bar) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
 
     std::array<double, 4> const & mom3 = interaction.secondary_momenta.at(lepton_index);
@@ -192,14 +192,14 @@ double DipoleFromTable::DifferentialCrossSection(dataclasses::InteractionRecord 
     return DifferentialCrossSection(primary_type, primary_energy, target_type, target_mass, y, thresh);
 }
 
-double DipoleFromTable::DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type, double target_mass, double y) const {
+double DipoleFromTable::DifferentialCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, LI::dataclasses::ParticleType target_type, double target_mass, double y) const {
     // Assume threshold is first entry of table
     LI::utilities::Interpolator2D<double> const & interp = differential.at(target_type);
     double thresh = interp.MinX();
     return DifferentialCrossSection(primary_type, primary_energy, target_type, target_mass, y, thresh);
 }
 
-double DipoleFromTable::DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type, double target_mass, double y, double thresh) const {
+double DipoleFromTable::DifferentialCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, LI::dataclasses::ParticleType target_type, double target_mass, double y, double thresh) const {
     if(not primary_types.count(primary_type))
         return 0.0;
 
@@ -208,10 +208,10 @@ double DipoleFromTable::DifferentialCrossSection(LI::dataclasses::Particle::Part
 
     LI::utilities::Interpolator2D<double> const & interp = differential.at(target_type);
 
-    LI::utilities::Interpolator2D<double> const & interp_proton = differential.at(LI::dataclasses::Particle::ParticleType::HNucleus);
+    LI::utilities::Interpolator2D<double> const & interp_proton = differential.at(LI::dataclasses::ParticleType::HNucleus);
 
     int nprotons = LI::detector::MaterialModel::GetProtonCount(target_type);
-    if(!inelastic || target_type==LI::dataclasses::Particle::ParticleType::HNucleus) {
+    if(!inelastic || target_type==LI::dataclasses::ParticleType::HNucleus) {
         nprotons = 0;
     }
 
@@ -245,10 +245,10 @@ double DipoleFromTable::InteractionThreshold(dataclasses::InteractionRecord cons
 
 void DipoleFromTable::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
     LI::utilities::Interpolator2D<double> const & diff_table = differential.at(record.GetTargetType());
-    LI::utilities::Interpolator2D<double> const & diff_table_proton = differential.at(LI::dataclasses::Particle::ParticleType::HNucleus);
+    LI::utilities::Interpolator2D<double> const & diff_table_proton = differential.at(LI::dataclasses::ParticleType::HNucleus);
     int nprotons = LI::detector::MaterialModel::GetProtonCount(record.GetTargetType());
     // Avoid double counting for true H nuclei
-    if(!inelastic || record.signature.target_type == LI::dataclasses::Particle::ParticleType::HNucleus) {
+    if(!inelastic || record.signature.target_type == LI::dataclasses::ParticleType::HNucleus) {
         nprotons = 0;
     }
 
@@ -275,9 +275,9 @@ void DipoleFromTable::SampleFinalState(dataclasses::CrossSectionDistributionReco
     p2_lab = p2;
     primary_energy = p1_lab.e();
 
-    std::vector<LI::dataclasses::Particle::ParticleType> const & secondary_types = record.record.signature.secondary_types;
+    std::vector<LI::dataclasses::ParticleType> const & secondary_types = record.record.signature.secondary_types;
 
-    unsigned int lepton_index = (secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4 or secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuF4Bar) ? 0 : 1;
+    unsigned int lepton_index = (secondary_types[0] == LI::dataclasses::ParticleType::NuF4 or secondary_types[0] == LI::dataclasses::ParticleType::NuF4Bar) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
     double m = hnl_mass;
     double thresh = InteractionThreshold(record.record);
@@ -471,41 +471,41 @@ double DipoleFromTable::FinalStateProbability(dataclasses::InteractionRecord con
     }
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> DipoleFromTable::GetPossibleTargets() const {
-    std::set<LI::dataclasses::Particle::ParticleType> diff_targets;
-    std::set<LI::dataclasses::Particle::ParticleType> tot_targets;
+std::vector<LI::dataclasses::ParticleType> DipoleFromTable::GetPossibleTargets() const {
+    std::set<LI::dataclasses::ParticleType> diff_targets;
+    std::set<LI::dataclasses::ParticleType> tot_targets;
     for(auto const & diff : differential)
         diff_targets.insert(diff.first);
     for(auto const & tot : total)
         tot_targets.insert(tot.first);
-    std::vector<LI::dataclasses::Particle::ParticleType> res;
+    std::vector<LI::dataclasses::ParticleType> res;
     std::set_intersection(diff_targets.begin(), diff_targets.end(), tot_targets.begin(), tot_targets.end(), std::back_inserter(res));
     return res;
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> DipoleFromTable::GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const {
+std::vector<LI::dataclasses::ParticleType> DipoleFromTable::GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const {
     if(not primary_types.count(primary_type)) {
-        return std::vector<LI::dataclasses::Particle::ParticleType>();
+        return std::vector<LI::dataclasses::ParticleType>();
     }
     return GetPossibleTargets();
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> DipoleFromTable::GetPossiblePrimaries() const {
-    return std::vector<LI::dataclasses::Particle::ParticleType>(primary_types.begin(), primary_types.end());
+std::vector<LI::dataclasses::ParticleType> DipoleFromTable::GetPossiblePrimaries() const {
+    return std::vector<LI::dataclasses::ParticleType>(primary_types.begin(), primary_types.end());
 }
 
 std::vector<dataclasses::InteractionSignature> DipoleFromTable::GetPossibleSignatures() const {
-    std::vector<LI::dataclasses::Particle::ParticleType> targets = GetPossibleTargets();
+    std::vector<LI::dataclasses::ParticleType> targets = GetPossibleTargets();
     std::vector<dataclasses::InteractionSignature> signatures;
     dataclasses::InteractionSignature signature;
     signature.secondary_types.resize(2);
 
     for(auto primary : primary_types) {
         signature.primary_type = primary;
-        if(std::set<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::NuE, LI::dataclasses::Particle::ParticleType::NuMu, LI::dataclasses::Particle::ParticleType::NuTau}.count(primary))
-            signature.secondary_types[0] = LI::dataclasses::Particle::ParticleType::NuF4;
-        else if(std::set<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::NuEBar, LI::dataclasses::Particle::ParticleType::NuMuBar, LI::dataclasses::Particle::ParticleType::NuTauBar}.count(primary))
-            signature.secondary_types[0] = LI::dataclasses::Particle::ParticleType::NuF4Bar;
+        if(std::set<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::NuE, LI::dataclasses::ParticleType::NuMu, LI::dataclasses::ParticleType::NuTau}.count(primary))
+            signature.secondary_types[0] = LI::dataclasses::ParticleType::NuF4;
+        else if(std::set<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::NuEBar, LI::dataclasses::ParticleType::NuMuBar, LI::dataclasses::ParticleType::NuTauBar}.count(primary))
+            signature.secondary_types[0] = LI::dataclasses::ParticleType::NuF4Bar;
         else
             throw std::runtime_error("Primary type not in primary_types!");
         for(auto target : targets) {
@@ -517,18 +517,18 @@ std::vector<dataclasses::InteractionSignature> DipoleFromTable::GetPossibleSigna
     return signatures;
 }
 
-std::vector<dataclasses::InteractionSignature> DipoleFromTable::GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const {
-    std::vector<LI::dataclasses::Particle::ParticleType> targets = GetPossibleTargets();
+std::vector<dataclasses::InteractionSignature> DipoleFromTable::GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const {
+    std::vector<LI::dataclasses::ParticleType> targets = GetPossibleTargets();
     if(primary_types.count(primary_type) > 0 and std::find(targets.begin(), targets.end(), target_type) != targets.end()) {
         dataclasses::InteractionSignature signature;
         signature.secondary_types.resize(2);
         signature.primary_type = primary_type;
         signature.target_type = target_type;
         signature.secondary_types[1] = target_type;
-        if(std::set<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::NuE, LI::dataclasses::Particle::ParticleType::NuMu, LI::dataclasses::Particle::ParticleType::NuTau}.count(primary_type))
-            signature.secondary_types[0] = LI::dataclasses::Particle::ParticleType::NuF4;
-        else if(std::set<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::NuEBar, LI::dataclasses::Particle::ParticleType::NuMuBar, LI::dataclasses::Particle::ParticleType::NuTauBar}.count(primary_type))
-            signature.secondary_types[0] = LI::dataclasses::Particle::ParticleType::NuF4Bar;
+        if(std::set<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::NuE, LI::dataclasses::ParticleType::NuMu, LI::dataclasses::ParticleType::NuTau}.count(primary_type))
+            signature.secondary_types[0] = LI::dataclasses::ParticleType::NuF4;
+        else if(std::set<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::NuEBar, LI::dataclasses::ParticleType::NuMuBar, LI::dataclasses::ParticleType::NuTauBar}.count(primary_type))
+            signature.secondary_types[0] = LI::dataclasses::ParticleType::NuF4Bar;
         else
             throw std::runtime_error("Primary type not in primary_types!");
         return std::vector<dataclasses::InteractionSignature>{signature};
@@ -541,7 +541,7 @@ std::vector<std::string> DipoleFromTable::DensityVariables() const {
     return std::vector<std::string>{"Bjorken y"};
 }
 
-void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, LI::dataclasses::Particle::ParticleType target) {
+void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, LI::dataclasses::ParticleType target) {
     std::string delimeter = "_";
     std::string end_delimeter = ".";
     std::string::size_type pos = filename.rfind("/") + 1;
@@ -610,7 +610,7 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, LI::
     }
     std::string pid_str(buffer);
     int32_t pid_int = std::stoul(pid_str);
-    LI::dataclasses::Particle::ParticleType pid = (LI::dataclasses::Particle::ParticleType)pid_int;
+    LI::dataclasses::ParticleType pid = (LI::dataclasses::ParticleType)pid_int;
 
     if(pid != target) {
         throw std::runtime_error("File target nucleus does not match supplied target type!");
@@ -646,7 +646,7 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, LI::
     }
 }
 
-void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, LI::dataclasses::Particle::ParticleType target) {
+void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, LI::dataclasses::ParticleType target) {
     std::string delimeter = "_";
     std::string end_delimeter = ".";
     std::string::size_type pos = filename.rfind("/") + 1;
@@ -712,7 +712,7 @@ void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, LI::datacla
     }
     std::string pid_str(buffer);
     int32_t pid_int = std::stoul(pid_str);
-    LI::dataclasses::Particle::ParticleType pid = (LI::dataclasses::Particle::ParticleType)pid_int;
+    LI::dataclasses::ParticleType pid = (LI::dataclasses::ParticleType)pid_int;
 
     if(pid != target) {
         throw std::runtime_error("File target nucleus does not match supplied target type!");
@@ -747,11 +747,11 @@ void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, LI::datacla
     }
 }
 
-void DipoleFromTable::AddDifferentialCrossSection(LI::dataclasses::Particle::ParticleType target, LI::utilities::Interpolator2D<double> interp) {
+void DipoleFromTable::AddDifferentialCrossSection(LI::dataclasses::ParticleType target, LI::utilities::Interpolator2D<double> interp) {
     differential.insert(std::make_pair(target, interp));
 }
 
-void DipoleFromTable::AddTotalCrossSection(LI::dataclasses::Particle::ParticleType target, LI::utilities::Interpolator1D<double> interp) {
+void DipoleFromTable::AddTotalCrossSection(LI::dataclasses::ParticleType target, LI::utilities::Interpolator1D<double> interp) {
     total.insert(std::make_pair(target, interp));
 }
 

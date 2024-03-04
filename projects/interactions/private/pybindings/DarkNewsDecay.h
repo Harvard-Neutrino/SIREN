@@ -118,7 +118,7 @@ public:
         )
     }
 
-    double TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const override {
+    double TotalDecayWidth(LI::dataclasses::ParticleType primary) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             Decay,
@@ -162,7 +162,7 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::Particle::ParticleType primary_type) const override {
+    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::ParticleType primary_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             Decay,
@@ -227,7 +227,7 @@ public:
         )
     }
 
-    double TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const override {
+    double TotalDecayWidth(LI::dataclasses::ParticleType primary) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsDecay,
@@ -283,7 +283,7 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::Particle::ParticleType primary_type) const override {
+    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::ParticleType primary_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsDecay,
@@ -363,7 +363,7 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("__eq__", [](const LI::interactions::DarkNewsDecay &self, const LI::interactions::DarkNewsDecay &other){ return self == other; })
         .def("equal", &LI::interactions::DarkNewsDecay::equal)
         .def("TotalDecayWidth",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsDecay::TotalDecayWidth, const_))
-        .def("TotalDecayWidth",overload_cast<LI::dataclasses::Particle::ParticleType>(&DarkNewsDecay::TotalDecayWidth, const_))
+        .def("TotalDecayWidth",overload_cast<LI::dataclasses::ParticleType>(&DarkNewsDecay::TotalDecayWidth, const_))
         .def("TotalDecayWidthForFinalState",&DarkNewsDecay::TotalDecayWidthForFinalState)
         .def("DifferentialDecayWidth",&DarkNewsDecay::DifferentialDecayWidth)
         .def("GetPossibleSignatures",&DarkNewsDecay::GetPossibleSignatures)
@@ -396,7 +396,7 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("__eq__", [](const LI::interactions::DarkNewsDecay &self, const LI::interactions::DarkNewsDecay &other){ return self == other; })
         .def("equal", &LI::interactions::DarkNewsDecay::equal)
         .def("TotalDecayWidth",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsDecay::TotalDecayWidth, const_))
-        .def("TotalDecayWidth",overload_cast<LI::dataclasses::Particle::ParticleType>(&DarkNewsDecay::TotalDecayWidth, const_))
+        .def("TotalDecayWidth",overload_cast<LI::dataclasses::ParticleType>(&DarkNewsDecay::TotalDecayWidth, const_))
         .def("TotalDecayWidthForFinalState",&DarkNewsDecay::TotalDecayWidthForFinalState)
         .def("DifferentialDecayWidth",&DarkNewsDecay::DifferentialDecayWidth)
         .def("GetPossibleSignatures",&DarkNewsDecay::GetPossibleSignatures)

@@ -50,37 +50,37 @@ ParticleID & Particle::GenerateID() {
 }
 
 // Helper functions for dealing with particle types
-bool isNeutrino(Particle::ParticleType p) {
+bool isNeutrino(ParticleType p) {
     return (
-           p==Particle::ParticleType::NuE      || p==Particle::ParticleType::NuEBar ||
-           p==Particle::ParticleType::NuMu     || p==Particle::ParticleType::NuMuBar ||
-           p==Particle::ParticleType::NuTau    || p==Particle::ParticleType::NuTauBar
+           p==ParticleType::NuE      || p==ParticleType::NuEBar ||
+           p==ParticleType::NuMu     || p==ParticleType::NuMuBar ||
+           p==ParticleType::NuTau    || p==ParticleType::NuTauBar
            );
 }
 
 // returns true if a particle is a Lepton. False if not
-bool isLepton(Particle::ParticleType p){
-    return(p==Particle::ParticleType::EMinus   || p==Particle::ParticleType::EPlus ||
-           p==Particle::ParticleType::MuMinus  || p==Particle::ParticleType::MuPlus ||
-           p==Particle::ParticleType::TauMinus || p==Particle::ParticleType::TauPlus ||
-           p==Particle::ParticleType::NuE      || p==Particle::ParticleType::NuEBar ||
-           p==Particle::ParticleType::NuMu     || p==Particle::ParticleType::NuMuBar ||
-           p==Particle::ParticleType::NuTau    || p==Particle::ParticleType::NuTauBar);
+bool isLepton(ParticleType p){
+    return(p==ParticleType::EMinus   || p==ParticleType::EPlus ||
+           p==ParticleType::MuMinus  || p==ParticleType::MuPlus ||
+           p==ParticleType::TauMinus || p==ParticleType::TauPlus ||
+           p==ParticleType::NuE      || p==ParticleType::NuEBar ||
+           p==ParticleType::NuMu     || p==ParticleType::NuMuBar ||
+           p==ParticleType::NuTau    || p==ParticleType::NuTauBar);
 }
 
 // returns true if the particle is either
 //        a charged lepton
 //   (OR) a "hadrons" particle
-bool isCharged(Particle::ParticleType p){
-    if( !(isLepton(p) || p==Particle::ParticleType::Hadrons) ){
+bool isCharged(ParticleType p){
+    if( !(isLepton(p) || p==ParticleType::Hadrons) ){
         throw std::runtime_error("You should only be using Leptons or Hadrons!");
     }
 
     // keeps this within scope. Shouldn't be getting some other kind of charged particle
-    return(p==Particle::ParticleType::EMinus   || p==Particle::ParticleType::EPlus ||
-           p==Particle::ParticleType::MuMinus  || p==Particle::ParticleType::MuPlus ||
-           p==Particle::ParticleType::TauMinus || p==Particle::ParticleType::TauPlus ||
-           p==Particle::ParticleType::Hadrons);
+    return(p==ParticleType::EMinus   || p==ParticleType::EPlus ||
+           p==ParticleType::MuMinus  || p==ParticleType::MuPlus ||
+           p==ParticleType::TauMinus || p==ParticleType::TauPlus ||
+           p==ParticleType::Hadrons);
 }
 
 } // namespace utilities

@@ -62,8 +62,8 @@ private:
     std::shared_ptr<distributions::VertexPositionDistribution> primary_position_distribution;
     std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes;
     std::vector<std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distributions;
-    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::injection::SecondaryInjectionProcess>> secondary_process_map;
-    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distribution_map;
+    std::map<LI::dataclasses::ParticleType,std::shared_ptr<LI::injection::SecondaryInjectionProcess>> secondary_process_map;
+    std::map<LI::dataclasses::ParticleType,std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distribution_map;
 public:
     // Constructors
     Injector(unsigned int events_to_inject, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<LI::utilities::LI_random> random);
@@ -76,7 +76,7 @@ public:
     void SetPrimaryProcess(std::shared_ptr<LI::injection::PrimaryInjectionProcess> primary);
     std::shared_ptr<LI::injection::PrimaryInjectionProcess> GetPrimaryProcess() {return primary_process;}
     std::vector<std::shared_ptr<LI::injection::SecondaryInjectionProcess>> GetSecondaryProcesses() {return secondary_processes;}
-    std::map<LI::dataclasses::Particle::ParticleType,std::shared_ptr<LI::injection::SecondaryInjectionProcess>> GetSecondaryProcessMap() {return secondary_process_map;}
+    std::map<LI::dataclasses::ParticleType,std::shared_ptr<LI::injection::SecondaryInjectionProcess>> GetSecondaryProcessMap() {return secondary_process_map;}
     void AddSecondaryProcess(std::shared_ptr<LI::injection::SecondaryInjectionProcess> secondary);
     virtual LI::dataclasses::InteractionRecord NewRecord() const; // set primary type from primary process;
     void SetRandom(std::shared_ptr<LI::utilities::LI_random> random);

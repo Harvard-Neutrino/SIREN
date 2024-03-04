@@ -71,9 +71,9 @@ public:
 
 // prototype some of the particle helper functions
 
-bool isLepton(Particle::ParticleType p);
-bool isCharged(Particle::ParticleType p);
-bool isNeutrino(Particle::ParticleType p);
+bool isLepton(ParticleType p);
+bool isCharged(ParticleType p);
+bool isNeutrino(ParticleType p);
 
 } // namespace dataclasses
 } // namespace LI

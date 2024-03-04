@@ -106,8 +106,8 @@ double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<LI::math:
     primary_direction.normalize();
 
     LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
-    std::vector<LI::dataclasses::Particle::ParticleType> targets;
+    std::map<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
+    std::vector<LI::dataclasses::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
     double total_decay_length = phys_process->GetInteractions()->TotalDecayLength(record);
@@ -156,11 +156,11 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<LI
     primary_direction.normalize();
 
     LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
+    std::map<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
 
-    std::vector<LI::dataclasses::Particle::ParticleType> targets; targets.reserve(n_targets);
+    std::vector<LI::dataclasses::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
     double total_decay_length = phys_process->GetInteractions()->TotalDecayLength(record);
     LI::dataclasses::InteractionRecord fake_record = record;

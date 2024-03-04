@@ -28,24 +28,24 @@ TEST(DipoleFromTable, Constructor)
     std::string total_xs = "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/xsec_Z_6_A_12_mHNL_0.001_hf.dat";
     std::string proton_differential_xs = "/home/austin/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/dxsec_Z_1_A_1_mHNL_0.001_hf.dat";
     std::string proton_total_xs = "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/xsec_Z_1_A_1_mHNL_0.001_hf.dat";
-    std::vector<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau};
-    std::vector<Particle::ParticleType> target_types = {Particle::ParticleType::PPlus, Particle::ParticleType::Neutron, Particle::ParticleType::Nucleon};
+    std::vector<ParticleType> primary_types = {ParticleType::NuE, ParticleType::NuMu, ParticleType::NuTau};
+    std::vector<ParticleType> target_types = {ParticleType::PPlus, ParticleType::Neutron, ParticleType::Nucleon};
     std::shared_ptr<DipoleFromTable> dipole_xs = std::make_shared<DipoleFromTable>(hnl_mass, 1e-7, DipoleFromTable::HelicityChannel::Flipping);
-    dipole_xs->AddDifferentialCrossSectionFile(differential_xs, Particle::ParticleType::C12Nucleus);
-    dipole_xs->AddTotalCrossSectionFile(total_xs, Particle::ParticleType::C12Nucleus);
-    dipole_xs->AddDifferentialCrossSectionFile(proton_differential_xs, Particle::ParticleType::HNucleus);
-    dipole_xs->AddTotalCrossSectionFile(proton_total_xs, Particle::ParticleType::HNucleus);
+    dipole_xs->AddDifferentialCrossSectionFile(differential_xs, ParticleType::C12Nucleus);
+    dipole_xs->AddTotalCrossSectionFile(total_xs, ParticleType::C12Nucleus);
+    dipole_xs->AddDifferentialCrossSectionFile(proton_differential_xs, ParticleType::HNucleus);
+    dipole_xs->AddTotalCrossSectionFile(proton_total_xs, ParticleType::HNucleus);
     std::shared_ptr<CrossSection> xs = dipole_xs;
 
     for(unsigned int i=0; i<100; ++i) {
         double y = 1e-8 * std::pow(10, i/100.0);
-        dipole_xs->DifferentialCrossSection(Particle::ParticleType::NuE, 10.0, Particle::ParticleType::C12Nucleus, 12., y);
+        dipole_xs->DifferentialCrossSection(ParticleType::NuE, 10.0, ParticleType::C12Nucleus, 12., y);
     }
 
     InteractionSignature signature;
-    signature.primary_type = Particle::ParticleType::NuE;
-    signature.target_type = Particle::ParticleType::C12Nucleus;
-    signature.secondary_types = {Particle::ParticleType::NuF4, Particle::ParticleType::C12Nucleus};
+    signature.primary_type = ParticleType::NuE;
+    signature.target_type = ParticleType::C12Nucleus;
+    signature.secondary_types = {ParticleType::NuF4, ParticleType::C12Nucleus};
     InteractionRecord event;
     event.signature = signature;
     double energy = 10; // 10GeV

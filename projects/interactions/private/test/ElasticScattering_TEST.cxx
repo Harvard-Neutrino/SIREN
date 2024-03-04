@@ -55,7 +55,7 @@ bool inFiducial(std::array<double,3> & int_vtx, ExtrPoly & fidVol) {
 
 TEST(ElasticScattering, Generation)
 {
-    using ParticleType = Particle::ParticleType;
+    using ParticleType = ParticleType;
 
 #ifdef AUSTIN
     std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/Detectors/materials/Minerva.dat";
@@ -75,7 +75,7 @@ TEST(ElasticScattering, Generation)
 
     // Events to inject
     unsigned int events_to_inject = 5e5;
-    Particle::ParticleType primary_type = ParticleType::NuMu;
+    ParticleType primary_type = ParticleType::NuMu;
 
     // Load cross sections
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
@@ -161,7 +161,7 @@ TEST(ElasticScattering, Generation)
     while(*injector) {
         InteractionRecord event = injector->GenerateEvent();
         double simplified_weight, interaction_lengths, interaction_prob = 0;
-        if(event.signature.target_type != Particle::ParticleType::unknown) {
+        if(event.signature.target_type != ParticleType::unknown) {
             simplified_weight = weighter.SimplifiedEventWeight(event);
             interaction_prob = weighter.InteractionProbability(injector->InjectionBounds(event), event);
         }

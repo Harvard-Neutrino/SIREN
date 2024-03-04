@@ -44,7 +44,7 @@ double HNLDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) 
     return TotalDecayWidth(record.signature.primary_type);
 }
 
-double HNLDecay::TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const {
+double HNLDecay::TotalDecayWidth(LI::dataclasses::ParticleType primary) const {
   std::vector<dataclasses::InteractionSignature> signatures = GetPossibleSignaturesFromParent(primary); 
   double gamma_tot = 0;
   dataclasses::InteractionRecord record;
@@ -60,34 +60,34 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
   
   double mixing_element, width;
 
-  if(record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuE ||
-     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuEBar ||
-     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::EMinus ||
-     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::EPlus) {
+  if(record.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuE ||
+     record.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuEBar ||
+     record.signature.secondary_types[0] == LI::dataclasses::ParticleType::EMinus ||
+     record.signature.secondary_types[0] == LI::dataclasses::ParticleType::EPlus) {
     mixing_element = mixing[0]
   }
-  else if(record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMu ||
-     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMuBar ||
-     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::MuMinus ||
-     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::MuPlus) {
+  else if(record.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuMu ||
+     record.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuMuBar ||
+     record.signature.secondary_types[0] == LI::dataclasses::ParticleType::MuMinus ||
+     record.signature.secondary_types[0] == LI::dataclasses::ParticleType::MuPlus) {
     mixing_element = mixing[1]
   }
-  else if(record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuTau ||
-     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuTauBar ||
-     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::TauMinus ||
-     record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::TauPlus) {
+  else if(record.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuTau ||
+     record.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuTauBar ||
+     record.signature.secondary_types[0] == LI::dataclasses::ParticleType::TauMinus ||
+     record.signature.secondary_types[0] == LI::dataclasses::ParticleType::TauPlus) {
     mixing_element = mixing[2]
   }
   // Let's start with 2 body decays 
   if(record.signature.size() == 2) {
     // N -> P nu (P = pi0, eta, etaprime)
     double f,x;
-    if(record.signature.secondary_types[1]==LI::dataclasses::Particle::ParticleType::Pi0) {
+    if(record.signature.secondary_types[1]==LI::dataclasses::ParticleType::Pi0) {
       f = 0.130; #GeV
       x = LI::utilities::Constants::Pi0Mass / hnl_mass;
     }
-    else if(record.signature.secondary_types[1]==LI::dataclasses::Particle::ParticleType::Eta) f = 0.0816; #GeV
-    else if(record.signature.secondary_types[1]==LI::dataclasses::Particle::ParticleType::EtaPrime) f = -0.0946; #GeV
+    else if(record.signature.secondary_types[1]==LI::dataclasses::ParticleType::Eta) f = 0.0816; #GeV
+    else if(record.signature.secondary_types[1]==LI::dataclasses::ParticleType::EtaPrime) f = -0.0946; #GeV
     width = f * pow(LI::utilities::Constants::FermiConstant,2)*pow(f,2);
 
   }
@@ -107,168 +107,168 @@ std::vector<dataclasses::InteractionSignature> HNLDecay::GetPossibleSignatures()
     return signatures;
 }
 
-std::vector<dataclasses::InteractionSignature> HNLDecay::GetPossibleSignaturesFromParent(LI::dataclasses::Particle::ParticleType primary) const {
+std::vector<dataclasses::InteractionSignature> HNLDecay::GetPossibleSignaturesFromParent(LI::dataclasses::ParticleType primary) const {
     
     std::vector<dataclasses::InteractionSignature> signatures;
     dataclasses::InteractionSignature signature;
     signature.primary_type = primary;
-    signature.target_type = LI::dataclasses::Particle::ParticleType::Decay;
+    signature.target_type = LI::dataclasses::ParticleType::Decay;
     
     // Two body decays (from 2007.03701)
     signature.secondary_types.resize(2);
-    if(primary==LI::dataclasses::Particle::ParticleType::NuF4) {
+    if(primary==LI::dataclasses::ParticleType::NuF4) {
       // N -> nu P (P = pi0, eta, eta prime, rho0, omega, hadrons, phi)
-      for(auto particle : std::vector<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::NuE, LI::dataclasses::Particle::ParticleType::NuMu, LI::dataclasses::Particle::ParticleType::NuTau}) {
+      for(auto particle : std::vector<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::NuE, LI::dataclasses::ParticleType::NuMu, LI::dataclasses::ParticleType::NuTau}) {
         signature.secondary_types[0] = particle;
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Pi0;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Pi0;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Eta;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Eta;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Rho0;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Rho0;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Omega;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Omega;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::EtaPrime;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::EtaPrime;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Hadrons;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Hadrons;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Phi;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Phi;
         signatures.push_back(signature);
       }
       // N -> l- P+ (P+ = pi, K , rho, K*, hadrons, D, Ds)
-      for(auto particle : std::vector<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::EMinus, LI::dataclasses::Particle::ParticleType::MuMinus, LI::dataclasses::Particle::ParticleType::TauMinus}) {
+      for(auto particle : std::vector<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::EMinus, LI::dataclasses::ParticleType::MuMinus, LI::dataclasses::ParticleType::TauMinus}) {
         signature.secondary_types[0] = particle;
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::PiPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::PiPlus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::KPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::KPlus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::RhoPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::RhoPlus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::KStarPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::KStarPlus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Hadrons;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Hadrons;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::DPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::DPlus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::DsPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::DsPlus;
         signatures.push_back(signature);
       }
     }
-    else if(primary==LI::dataclasses::Particle::ParticleType::NuF4Bar) {
+    else if(primary==LI::dataclasses::ParticleType::NuF4Bar) {
       // N -> nu P (P = pi0, eta, eta prime, rho0, omega, hadrons, phi)
-      for(auto particle : std::vector<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::NuEBar, LI::dataclasses::Particle::ParticleType::NuMuBar, LI::dataclasses::Particle::ParticleType::NuTauBar}) {
+      for(auto particle : std::vector<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::NuEBar, LI::dataclasses::ParticleType::NuMuBar, LI::dataclasses::ParticleType::NuTauBar}) {
         signature.secondary_types[0] = particle;
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Pi0;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Pi0;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Eta;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Eta;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Rho0;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Rho0;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Omega;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Omega;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::EtaPrime;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::EtaPrime;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Hadrons;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Hadrons;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Phi;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Phi;
         signatures.push_back(signature);
       }
       // N -> l- P+ (P+ = pi, K , rho, K*, hadrons, D, Ds)
-      for(auto particle : std::vector<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::EPlus, LI::dataclasses::Particle::ParticleType::MuPlus, LI::dataclasses::Particle::ParticleType::TauPlus}) {
+      for(auto particle : std::vector<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::EPlus, LI::dataclasses::ParticleType::MuPlus, LI::dataclasses::ParticleType::TauPlus}) {
         signature.secondary_types[0] = particle;
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::PiMinus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::PiMinus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::KMinus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::KMinus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::RhoMinus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::RhoMinus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::KStarMinus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::KStarMinus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::Hadrons;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::Hadrons;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::DMinus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::DMinus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::DsMinus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::DsMinus;
         signatures.push_back(signature);
       }
     }
     
     // Three body decays (from 2007.03701)
     signature.secondary_types.resize(3);
-    if(primary==LI::dataclasses::Particle::ParticleType::NuF4) {
-      for(auto particle : std::vector<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::NuE, LI::dataclasses::Particle::ParticleType::NuMu, LI::dataclasses::Particle::ParticleType::NuTau}) {
+    if(primary==LI::dataclasses::ParticleType::NuF4) {
+      for(auto particle : std::vector<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::NuE, LI::dataclasses::ParticleType::NuMu, LI::dataclasses::ParticleType::NuTau}) {
         signature.secondary_types[0] = particle;
         // N -> nu nu nu
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuE;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::NuEBar;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuE;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::NuEBar;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuMu;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::NuMuBar;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuMu;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::NuMuBar;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuTau;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::NuTauBar;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuTau;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::NuTauBar;
         signatures.push_back(signature);
         // N -> nu l- l+ (l same flavor)
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::EMinus;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::EPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::EMinus;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::EPlus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::MuMinus;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::MuPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::MuMinus;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::MuPlus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::TauMinus;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::TauPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::TauMinus;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::TauPlus;
         signatures.push_back(signature);
       }
-      for(auto particle : std::vector<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::EMinus, LI::dataclasses::Particle::ParticleType::MuMinus, LI::dataclasses::Particle::ParticleType::TauMinus}) {
+      for(auto particle : std::vector<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::EMinus, LI::dataclasses::ParticleType::MuMinus, LI::dataclasses::ParticleType::TauMinus}) {
         signature.secondary_types[0] = particle;
         // N -> nu l- l+ (l different flavor)
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuE;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::EPlus;
-        if(particle != LI::dataclasses::Particle::ParticleType::EMinus) signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuMu;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::MuPlus;
-        if(particle != LI::dataclasses::Particle::ParticleType::MuMinus) signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuTau;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::TauPlus;
-        if(particle != LI::dataclasses::Particle::ParticleType::TauMinus) signatures.push_back(signature);
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuE;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::EPlus;
+        if(particle != LI::dataclasses::ParticleType::EMinus) signatures.push_back(signature);
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuMu;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::MuPlus;
+        if(particle != LI::dataclasses::ParticleType::MuMinus) signatures.push_back(signature);
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuTau;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::TauPlus;
+        if(particle != LI::dataclasses::ParticleType::TauMinus) signatures.push_back(signature);
       }
     }
-    else if(primary==LI::dataclasses::Particle::ParticleType::NuF4Bar) {
-      for(auto particle : std::vector<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::NuEBar, LI::dataclasses::Particle::ParticleType::NuMuBar, LI::dataclasses::Particle::ParticleType::NuTauBar}) {
+    else if(primary==LI::dataclasses::ParticleType::NuF4Bar) {
+      for(auto particle : std::vector<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::NuEBar, LI::dataclasses::ParticleType::NuMuBar, LI::dataclasses::ParticleType::NuTauBar}) {
         signature.secondary_types[0] = particle;
         // N -> nu nu nu
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuE;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::NuEBar;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuE;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::NuEBar;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuMu;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::NuMuBar;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuMu;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::NuMuBar;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuTau;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::NuTauBar;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuTau;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::NuTauBar;
         signatures.push_back(signature);
         // N -> nu l- l+ (l same flavor)
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::EMinus;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::EPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::EMinus;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::EPlus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::MuMinus;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::MuPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::MuMinus;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::MuPlus;
         signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::TauMinus;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::TauPlus;
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::TauMinus;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::TauPlus;
         signatures.push_back(signature);
       }
-      for(auto particle : std::vector<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::EPlus, LI::dataclasses::Particle::ParticleType::MuPlus, LI::dataclasses::Particle::ParticleType::TauPlus}) {
+      for(auto particle : std::vector<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::EPlus, LI::dataclasses::ParticleType::MuPlus, LI::dataclasses::ParticleType::TauPlus}) {
         signature.secondary_types[0] = particle;
         // N -> nu l- l+ (l different flavor)
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuE;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::EMinus;
-        if(particle != LI::dataclasses::Particle::ParticleType::EMinus) signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuMu;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::MuMinus;
-        if(particle != LI::dataclasses::Particle::ParticleType::MuMinus) signatures.push_back(signature);
-        signature.secondary_types[1] = LI::dataclasses::Particle::ParticleType::NuTauBar;
-        signature.secondary_types[2] = LI::dataclasses::Particle::ParticleType::TauPlus;
-        if(particle != LI::dataclasses::Particle::ParticleType::TauMinus) signatures.push_back(signature);
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuE;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::EMinus;
+        if(particle != LI::dataclasses::ParticleType::EMinus) signatures.push_back(signature);
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuMu;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::MuMinus;
+        if(particle != LI::dataclasses::ParticleType::MuMinus) signatures.push_back(signature);
+        signature.secondary_types[1] = LI::dataclasses::ParticleType::NuTauBar;
+        signature.secondary_types[2] = LI::dataclasses::ParticleType::TauPlus;
+        if(particle != LI::dataclasses::ParticleType::TauMinus) signatures.push_back(signature);
       }
 
     return signatures;
@@ -285,7 +285,7 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
                                                     record.primary_momentum[1],
                                                     record.primary_momentum[2]);
     hnl_dir.normalize();
-    unsigned int gamma_index = (record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::Gamma) ? 0 : 1;
+    unsigned int gamma_index = (record.signature.secondary_types[0] == LI::dataclasses::ParticleType::Gamma) ? 0 : 1;
     rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     rk::P4 pGamma(geom3::Vector3(record.secondary_momenta[gamma_index][1], record.secondary_momenta[gamma_index][2], record.secondary_momenta[gamma_index][3]), record.secondary_masses[gamma_index]);
     rk::Boost boost_to_HNL_rest = pHNL.restBoost();
@@ -297,18 +297,18 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
     gamma_dir.normalize();
     double CosThetaGamma = gamma_dir*hnl_dir; // scalar product
     double alpha = std::copysign(1.0,record.primary_helicity); // 1 for RH, -1 for LH
-    alpha = (record.signature.primary_type == LI::dataclasses::Particle::ParticleType::NuF4) ? -1*alpha : alpha;
+    alpha = (record.signature.primary_type == LI::dataclasses::ParticleType::NuF4) ? -1*alpha : alpha;
     return DecayWidth/2. * (1 + alpha*CosThetaGamma);
 }
 
 void HNLDecay::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
     
-    unsigned int gamma_index = (record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::Gamma) ? 0 : 1;
+    unsigned int gamma_index = (record.signature.secondary_types[0] == LI::dataclasses::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;
 
     double CosTheta;
     double alpha = std::copysign(1.0,record.primary_helicity); // 1 for RH, -1 for LH
-    alpha = (record.signature.primary_type == LI::dataclasses::Particle::ParticleType::NuF4) ? -1*alpha : alpha;
+    alpha = (record.signature.primary_type == LI::dataclasses::ParticleType::NuF4) ? -1*alpha : alpha;
     if(nature==ChiralNature::Majorana) {
       CosTheta = random->Uniform(-1,1);
     }

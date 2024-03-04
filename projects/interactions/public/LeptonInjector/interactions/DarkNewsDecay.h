@@ -42,14 +42,14 @@ public:
     virtual bool equal(Decay const & other) const override;
     
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
-    virtual double TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const override;
+    virtual double TotalDecayWidth(LI::dataclasses::ParticleType primary) const override;
     virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
     
     virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const override = 0; // Requires python-side implementation
-    virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::Particle::ParticleType primary) const override = 0; // Requires python-side implementation
+    virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::ParticleType primary) const override = 0; // Requires python-side implementation
     
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 public:

@@ -34,23 +34,23 @@ friend cereal::access;
 protected:
 private:
     const double CLR = 0.2334; // at one loop
-    const std::set<LI::dataclasses::Particle::ParticleType> primary_types = {LI::dataclasses::Particle::ParticleType::NuE, LI::dataclasses::Particle::ParticleType::NuMu};
+    const std::set<LI::dataclasses::ParticleType> primary_types = {LI::dataclasses::ParticleType::NuE, LI::dataclasses::ParticleType::NuMu};
 public:
     ElasticScattering() {};
-    ElasticScattering(std::set<LI::dataclasses::Particle::ParticleType> const & primary_types) : primary_types(primary_types) {};
+    ElasticScattering(std::set<LI::dataclasses::ParticleType> const & primary_types) : primary_types(primary_types) {};
     virtual bool equal(CrossSection const & other) const override;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
-    double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, double y) const;
+    double DifferentialCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, double y) const;
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
+    double TotalCrossSection(LI::dataclasses::ParticleType primary, double energy, LI::dataclasses::ParticleType target) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override;
     std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
-    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override;
+    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override;
 
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const override;
@@ -66,7 +66,7 @@ public:
     template<typename Archive>
     void load_and_construct(Archive & archive, cereal::construct<ElasticScattering> & construct, std::uint32_t version) {
         if(version == 0) {
-            std::set<LI::dataclasses::Particle::ParticleType> _primary_types;
+            std::set<LI::dataclasses::ParticleType> _primary_types;
             archive(::cereal::make_nvp("PrimaryTypes", _primary_types));
             construct(_primary_types);
             archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));

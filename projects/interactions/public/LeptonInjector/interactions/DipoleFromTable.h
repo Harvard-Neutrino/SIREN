@@ -41,9 +41,9 @@ private:
     bool z_samp = true;
     bool in_invGeV = true;
     bool inelastic = true;
-    std::map<LI::dataclasses::Particle::ParticleType, LI::utilities::Interpolator2D<double>> differential;
-    std::map<LI::dataclasses::Particle::ParticleType, LI::utilities::Interpolator1D<double>> total;
-    const std::set<LI::dataclasses::Particle::ParticleType> primary_types = {LI::dataclasses::Particle::ParticleType::NuE, LI::dataclasses::Particle::ParticleType::NuMu, LI::dataclasses::Particle::ParticleType::NuTau, LI::dataclasses::Particle::ParticleType::NuEBar, LI::dataclasses::Particle::ParticleType::NuMuBar, LI::dataclasses::Particle::ParticleType::NuTauBar};
+    std::map<LI::dataclasses::ParticleType, LI::utilities::Interpolator2D<double>> differential;
+    std::map<LI::dataclasses::ParticleType, LI::utilities::Interpolator1D<double>> total;
+    const std::set<LI::dataclasses::ParticleType> primary_types = {LI::dataclasses::ParticleType::NuE, LI::dataclasses::ParticleType::NuMu, LI::dataclasses::ParticleType::NuTau, LI::dataclasses::ParticleType::NuEBar, LI::dataclasses::ParticleType::NuMuBar, LI::dataclasses::ParticleType::NuTauBar};
     double hnl_mass;
     double dipole_coupling;
     HelicityChannel channel;
@@ -55,29 +55,29 @@ public:
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV) : z_samp(z_samp), in_invGeV(in_invGeV), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, std::set<LI::dataclasses::Particle::ParticleType> const & primary_types) : primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, std::set<LI::dataclasses::Particle::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic, std::set<LI::dataclasses::Particle::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, std::set<LI::dataclasses::ParticleType> const & primary_types) : primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, std::set<LI::dataclasses::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic, std::set<LI::dataclasses::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
+    double TotalCrossSection(LI::dataclasses::ParticleType primary, double energy, LI::dataclasses::ParticleType target) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
-    double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type, double target_mass, double y) const;
-    double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type, double target_mass, double y, double thresh) const;
+    double DifferentialCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, LI::dataclasses::ParticleType target_type, double target_mass, double y) const;
+    double DifferentialCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, LI::dataclasses::ParticleType target_type, double target_mass, double y, double thresh) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const override;
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override;
     std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
-    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override;
+    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override;
 
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
-    void AddDifferentialCrossSectionFile(std::string filename, LI::dataclasses::Particle::ParticleType target);
-    void AddTotalCrossSectionFile(std::string filename, LI::dataclasses::Particle::ParticleType target);
-    void AddDifferentialCrossSection(LI::dataclasses::Particle::ParticleType target, LI::utilities::Interpolator2D<double>);
-    void AddTotalCrossSection(LI::dataclasses::Particle::ParticleType target, LI::utilities::Interpolator1D<double>);
+    void AddDifferentialCrossSectionFile(std::string filename, LI::dataclasses::ParticleType target);
+    void AddTotalCrossSectionFile(std::string filename, LI::dataclasses::ParticleType target);
+    void AddDifferentialCrossSection(LI::dataclasses::ParticleType target, LI::utilities::Interpolator2D<double>);
+    void AddTotalCrossSection(LI::dataclasses::ParticleType target, LI::utilities::Interpolator1D<double>);
 public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
@@ -103,9 +103,9 @@ public:
             bool _z_samp = true;
             bool _in_invGeV = true;
             bool _inelastic = true;
-            std::map<LI::dataclasses::Particle::ParticleType, LI::utilities::Interpolator2D<double>> _differential;
-            std::map<LI::dataclasses::Particle::ParticleType, LI::utilities::Interpolator1D<double>> _total;
-            std::set<LI::dataclasses::Particle::ParticleType> _primary_types;
+            std::map<LI::dataclasses::ParticleType, LI::utilities::Interpolator2D<double>> _differential;
+            std::map<LI::dataclasses::ParticleType, LI::utilities::Interpolator1D<double>> _total;
+            std::set<LI::dataclasses::ParticleType> _primary_types;
             double _hnl_mass;
             double _dipole_coupling;
             HelicityChannel _channel;

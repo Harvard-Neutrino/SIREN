@@ -54,9 +54,9 @@ void LeptonTreeWeighter::Initialize() {
     for(auto const & injector : injectors) {
         assert(primary_physical_process->MatchesHead(injector->GetPrimaryProcess()));
         primary_process_weighters.push_back(std::make_shared<PrimaryProcessWeighter>(PrimaryProcessWeighter(primary_physical_process, injector->GetPrimaryProcess(), detector_model)));
-        std::map<LI::dataclasses::Particle::ParticleType, std::shared_ptr<SecondaryProcessWeighter>>
+        std::map<LI::dataclasses::ParticleType, std::shared_ptr<SecondaryProcessWeighter>>
             injector_sec_process_weighter_map;
-        std::map<LI::dataclasses::Particle::ParticleType, std::shared_ptr<LI::injection::SecondaryInjectionProcess>>
+        std::map<LI::dataclasses::ParticleType, std::shared_ptr<LI::injection::SecondaryInjectionProcess>>
             injector_sec_process_map = injector->GetSecondaryProcessMap();
         for(auto const & sec_phys_process : secondary_physical_processes) {
             try{

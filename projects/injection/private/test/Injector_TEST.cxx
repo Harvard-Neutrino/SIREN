@@ -96,8 +96,8 @@ std::vector<std::array<int, 2>> gen_ZA() {
     };
 }
 
-std::vector<Particle::ParticleType> gen_TargetPIDs() {
-    using ParticleType = Particle::ParticleType;
+std::vector<ParticleType> gen_TargetPIDs() {
+    using ParticleType = ParticleType;
     return std::vector<ParticleType>{
         ParticleType::HNucleus,
             ParticleType::C12Nucleus,
@@ -165,9 +165,9 @@ double ComputeInteractionLengths(std::shared_ptr<DetectorModel const> detector_m
     direction.normalize();
 
     Geometry::IntersectionList intersections = detector_model->GetIntersections(detector_model->GetEarthCoordPosFromDetCoordPos(interaction_vertex), direction);
-	std::map<Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
+	std::map<ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
     std::vector<double> total_cross_sections;
-    std::vector<Particle::ParticleType> targets;
+    std::vector<ParticleType> targets;
 	InteractionRecord fake_record = record;
 	for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
@@ -208,7 +208,7 @@ std::vector<double> p_ME_FHC_numu = {4.65e+00, 1.35e+00, 7.24e-02, 3.07e+00, 4.4
 
 TEST(Injector, Generation)
 {
-    using ParticleType = Particle::ParticleType;
+    using ParticleType = ParticleType;
 
 #ifdef AUSTIN
     std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/Detectors/materials/Minerva.dat";
@@ -248,12 +248,12 @@ TEST(Injector, Generation)
 
     // Events to inject
     unsigned int events_to_inject = 5e5;
-    Particle::ParticleType primary_type = ParticleType::NuMu;
+    ParticleType primary_type = ParticleType::NuMu;
 
     // Load cross sections
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
-    std::vector<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau};
-    std::vector<Particle::ParticleType> target_types = gen_TargetPIDs();
+    std::vector<ParticleType> primary_types = {ParticleType::NuE, ParticleType::NuMu, ParticleType::NuTau};
+    std::vector<ParticleType> target_types = gen_TargetPIDs();
     std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV, inelastic);
     std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV, inelastic);
     std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL);
@@ -377,7 +377,7 @@ TEST(Injector, Generation)
         DecayRecord decay;
         InteractionRecord pair_prod;
         double basic_weight, simplified_weight, interaction_lengths, interaction_prob = 0;
-        if(event.signature.target_type != Particle::ParticleType::unknown) {
+        if(event.signature.target_type != ParticleType::unknown) {
             if(miniboone) injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MiniBooNE_fiducial, 0.1);
             else injector->SampleSecondaryDecay(event, decay, HNL_decay_width, 1, 0, &MINERvA_fiducial, 1.0);
             //injector->SamplePairProduction(decay, pair_prod);

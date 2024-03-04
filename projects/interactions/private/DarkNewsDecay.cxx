@@ -39,7 +39,7 @@ double DarkNewsDecay::TotalDecayWidth(dataclasses::InteractionRecord const & int
     return TotalDecayWidth(interaction.signature.primary_type);
 }
 
-double DarkNewsDecay::TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const {
+double DarkNewsDecay::TotalDecayWidth(LI::dataclasses::ParticleType primary) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow TotalDecayWidth to call
     throw(LI::utilities::PythonImplementationError("DarkNewsDecay::TotalDecayWidth should be implemented in Python!"));

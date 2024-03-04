@@ -187,7 +187,7 @@ PYBIND11_MODULE(distributions,m) {
     .def("Name",&CylinderVolumePositionDistribution::Name);
 
   class_<ColumnDepthPositionDistribution, std::shared_ptr<ColumnDepthPositionDistribution>, VertexPositionDistribution>(m, "ColumnDepthPositionDistribution")
-    .def(init<double, double, std::shared_ptr<DepthFunction>, std::set<LI::dataclasses::Particle::ParticleType>>())
+    .def(init<double, double, std::shared_ptr<DepthFunction>, std::set<LI::dataclasses::ParticleType>>())
     .def("GenerationProbability",&ColumnDepthPositionDistribution::GenerationProbability)
     .def("InjectionBounds",&ColumnDepthPositionDistribution::InjectionBounds)
     .def("Name",&ColumnDepthPositionDistribution::Name)
@@ -202,14 +202,14 @@ PYBIND11_MODULE(distributions,m) {
 
   class_<PointSourcePositionDistribution, std::shared_ptr<PointSourcePositionDistribution>, VertexPositionDistribution>(m, "PointSourcePositionDistribution")
     .def(init<>())
-    .def(init<LI::math::Vector3D, double, std::set<LI::dataclasses::Particle::ParticleType>>())
+    .def(init<LI::math::Vector3D, double, std::set<LI::dataclasses::ParticleType>>())
     .def("GenerationProbability",&PointSourcePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&PointSourcePositionDistribution::InjectionBounds)
     .def("Name",&PointSourcePositionDistribution::Name);
 
   class_<RangePositionDistribution, std::shared_ptr<RangePositionDistribution>, VertexPositionDistribution>(m, "RangePositionDistribution")
     .def(init<>())
-    .def(init<double, double, std::shared_ptr<RangeFunction>, std::set<LI::dataclasses::Particle::ParticleType>>())
+    .def(init<double, double, std::shared_ptr<RangeFunction>, std::set<LI::dataclasses::ParticleType>>())
     .def("GenerationProbability",&RangePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&RangePositionDistribution::InjectionBounds)
     .def("Name",&RangePositionDistribution::Name);

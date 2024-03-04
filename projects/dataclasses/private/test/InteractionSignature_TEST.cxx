@@ -30,24 +30,24 @@ TEST(Comparison, Comparison_equal)
     InteractionSignature B;
     EXPECT_TRUE(A == B);
 
-    A.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    A.primary_type = LI::dataclasses::ParticleType::EPlus;
     EXPECT_FALSE(A == B);
-    B.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    B.primary_type = LI::dataclasses::ParticleType::EPlus;
     EXPECT_TRUE(A == B);
 
-    A.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    A.target_type = LI::dataclasses::ParticleType::EPlus;
     EXPECT_FALSE(A == B);
-    B.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    B.target_type = LI::dataclasses::ParticleType::EPlus;
     EXPECT_TRUE(A == B);
 
-    A.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
+    A.secondary_types.push_back(LI::dataclasses::ParticleType::EPlus);
     EXPECT_FALSE(A == B);
-    B.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
+    B.secondary_types.push_back(LI::dataclasses::ParticleType::EPlus);
     EXPECT_TRUE(A == B);
 
-    A.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+    A.secondary_types.push_back(LI::dataclasses::ParticleType::EMinus);
     EXPECT_FALSE(A == B);
-    B.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+    B.secondary_types.push_back(LI::dataclasses::ParticleType::EMinus);
     EXPECT_TRUE(A == B);
 
     std::swap(A.secondary_types[0], A.secondary_types[1]);
@@ -63,19 +63,19 @@ TEST(Comparison, LessThan)
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
-    A.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    A.primary_type = LI::dataclasses::ParticleType::EPlus;
     EXPECT_TRUE(A < B);
     EXPECT_FALSE(B < A);
 
-    B.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    B.primary_type = LI::dataclasses::ParticleType::EPlus;
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
-    A.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    A.target_type = LI::dataclasses::ParticleType::EPlus;
     EXPECT_TRUE(A < B);
     EXPECT_FALSE(B < A);
 
-    B.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
+    B.target_type = LI::dataclasses::ParticleType::EPlus;
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
@@ -85,36 +85,36 @@ TEST(Comparison, LessThan)
     EXPECT_FALSE(C < D);
     EXPECT_FALSE(D < C);
 
-    C.primary_type = LI::dataclasses::Particle::ParticleType::EMinus;
+    C.primary_type = LI::dataclasses::ParticleType::EMinus;
     EXPECT_FALSE(C < D);
     EXPECT_TRUE(D < C);
 
-    D.primary_type = LI::dataclasses::Particle::ParticleType::EMinus;
+    D.primary_type = LI::dataclasses::ParticleType::EMinus;
     EXPECT_FALSE(C < D);
     EXPECT_FALSE(D < C);
 
-    C.target_type = LI::dataclasses::Particle::ParticleType::EMinus;
+    C.target_type = LI::dataclasses::ParticleType::EMinus;
     EXPECT_FALSE(C < D);
     EXPECT_TRUE(D < C);
 
-    D.target_type = LI::dataclasses::Particle::ParticleType::EMinus;
+    D.target_type = LI::dataclasses::ParticleType::EMinus;
     EXPECT_FALSE(C < D);
     EXPECT_FALSE(D < C);
     //
 
-    A.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
+    A.secondary_types.push_back(LI::dataclasses::ParticleType::EPlus);
     EXPECT_FALSE(A < B);
     EXPECT_TRUE(B < A);
 
-    B.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
+    B.secondary_types.push_back(LI::dataclasses::ParticleType::EPlus);
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
-    A.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+    A.secondary_types.push_back(LI::dataclasses::ParticleType::EMinus);
     EXPECT_FALSE(A < B);
     EXPECT_TRUE(B < A);
 
-    B.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+    B.secondary_types.push_back(LI::dataclasses::ParticleType::EMinus);
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
@@ -130,10 +130,10 @@ TEST(Comparison, LessThan)
 TEST(Serialization, Save)
 {
     InteractionSignature A;
-    A.primary_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    A.target_type = LI::dataclasses::Particle::ParticleType::EPlus;
-    A.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EPlus);
-    A.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+    A.primary_type = LI::dataclasses::ParticleType::EPlus;
+    A.target_type = LI::dataclasses::ParticleType::EPlus;
+    A.secondary_types.push_back(LI::dataclasses::ParticleType::EPlus);
+    A.secondary_types.push_back(LI::dataclasses::ParticleType::EMinus);
 
     std::stringstream ss;
     {

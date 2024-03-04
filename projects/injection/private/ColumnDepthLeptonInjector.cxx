@@ -39,7 +39,7 @@ ColumnDepthLeptonInjector::ColumnDepthLeptonInjector(
     endcap_length(endcap_length)
 {
     interactions = primary_process->GetInteractions();
-    std::set<LI::dataclasses::Particle::ParticleType> target_types = interactions->TargetTypes();
+    std::set<LI::dataclasses::ParticleType> target_types = interactions->TargetTypes();
     position_distribution = std::make_shared<LI::distributions::ColumnDepthPositionDistribution>(disk_radius, endcap_length, depth_func, target_types);
     primary_process->AddPrimaryInjectionDistribution(position_distribution);
     SetPrimaryProcess(primary_process);

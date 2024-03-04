@@ -22,13 +22,13 @@ void register_NeutrissimoDecay(pybind11::module_ & m) {
 
     neutrissimodecay
         .def(init<double, std::vector<double>, NeutrissimoDecay::ChiralNature>())
-        .def(init<double, std::vector<double>, NeutrissimoDecay::ChiralNature, std::set<LI::dataclasses::Particle::ParticleType> const &>())
+        .def(init<double, std::vector<double>, NeutrissimoDecay::ChiralNature, std::set<LI::dataclasses::ParticleType> const &>())
         .def(init<double, double, NeutrissimoDecay::ChiralNature>())
-        .def(init<double, double, NeutrissimoDecay::ChiralNature, std::set<LI::dataclasses::Particle::ParticleType> const &>())
+        .def(init<double, double, NeutrissimoDecay::ChiralNature, std::set<LI::dataclasses::ParticleType> const &>())
         .def(self == self)
         .def("GetHNLMass",&NeutrissimoDecay::GetHNLMass)
         .def("TotalDecayWidth",overload_cast<LI::dataclasses::InteractionRecord const &>(&NeutrissimoDecay::TotalDecayWidth, const_))
-        .def("TotalDecayWidth",overload_cast<LI::dataclasses::Particle::ParticleType>(&NeutrissimoDecay::TotalDecayWidth, const_))
+        .def("TotalDecayWidth",overload_cast<LI::dataclasses::ParticleType>(&NeutrissimoDecay::TotalDecayWidth, const_))
         .def("TotalDecayWidthForFinalState",&NeutrissimoDecay::TotalDecayWidthForFinalState)
         .def("DifferentialDecayWidth",&NeutrissimoDecay::DifferentialDecayWidth)
         .def("GetPossibleSignatures",&NeutrissimoDecay::GetPossibleSignatures)

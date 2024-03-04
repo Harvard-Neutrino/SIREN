@@ -38,16 +38,16 @@ public:
     virtual bool equal(CrossSection const & other) const override;
 
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
+    double TotalCrossSection(LI::dataclasses::ParticleType primary, double energy, LI::dataclasses::ParticleType target) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override;
     std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
-    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override;
+    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override;
 
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 

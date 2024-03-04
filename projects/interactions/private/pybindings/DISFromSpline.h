@@ -23,7 +23,7 @@ void register_DISFromSpline(pybind11::module_ & m) {
     disfromspline
 
         .def(init<>())
-        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::set<LI::dataclasses::Particle::ParticleType>, std::set<LI::dataclasses::Particle::ParticleType>, std::string>(),
+        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::set<LI::dataclasses::ParticleType>, std::set<LI::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_data"),
                 arg("differential_xs_data"),
                 arg("interaction"),
@@ -32,7 +32,7 @@ void register_DISFromSpline(pybind11::module_ & m) {
                 arg("primary_types"),
                 arg("target_types"),
                 arg("units") = std::string("cm"))
-        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::vector<LI::dataclasses::Particle::ParticleType>, std::vector<LI::dataclasses::Particle::ParticleType>, std::string>(),
+        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::vector<LI::dataclasses::ParticleType>, std::vector<LI::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_data"),
                 arg("differential_xs_data"),
                 arg("interaction"),
@@ -41,7 +41,7 @@ void register_DISFromSpline(pybind11::module_ & m) {
                 arg("primary_types"),
                 arg("target_types"),
                 arg("units") = std::string("cm"))
-        .def(init<std::string, std::string, int, double, double, std::set<LI::dataclasses::Particle::ParticleType>, std::set<LI::dataclasses::Particle::ParticleType>, std::string>(),
+        .def(init<std::string, std::string, int, double, double, std::set<LI::dataclasses::ParticleType>, std::set<LI::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_filename"),
                 arg("differential_xs_filename"),
                 arg("interaction"),
@@ -50,13 +50,13 @@ void register_DISFromSpline(pybind11::module_ & m) {
                 arg("primary_types"),
                 arg("target_types"),
                 arg("units") = std::string("cm"))
-        .def(init<std::string, std::string, std::set<LI::dataclasses::Particle::ParticleType>, std::set<LI::dataclasses::Particle::ParticleType>, std::string>(),
+        .def(init<std::string, std::string, std::set<LI::dataclasses::ParticleType>, std::set<LI::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_filename"),
                 arg("differential_xs_filename"),
                 arg("primary_types"),
                 arg("target_types"),
                 arg("units") = std::string("cm"))
-        .def(init<std::string, std::string, int, double, double, std::vector<LI::dataclasses::Particle::ParticleType>, std::vector<LI::dataclasses::Particle::ParticleType>, std::string>(),
+        .def(init<std::string, std::string, int, double, double, std::vector<LI::dataclasses::ParticleType>, std::vector<LI::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_filename"),
                 arg("differential_xs_filename"),
                 arg("interaction"),
@@ -65,7 +65,7 @@ void register_DISFromSpline(pybind11::module_ & m) {
                 arg("primary_types"),
                 arg("target_types"),
                 arg("units") = std::string("cm"))
-        .def(init<std::string, std::string, std::vector<LI::dataclasses::Particle::ParticleType>, std::vector<LI::dataclasses::Particle::ParticleType>, std::string>(),
+        .def(init<std::string, std::string, std::vector<LI::dataclasses::ParticleType>, std::vector<LI::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_filename"),
                 arg("differential_xs_filename"),
                 arg("primary_types"),
@@ -73,7 +73,7 @@ void register_DISFromSpline(pybind11::module_ & m) {
                 arg("units") = std::string("cm"))
         .def(self == self)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DISFromSpline::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double>(&DISFromSpline::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double>(&DISFromSpline::TotalCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DISFromSpline::DifferentialCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<double, double, double, double, double>(&DISFromSpline::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DISFromSpline::InteractionThreshold)

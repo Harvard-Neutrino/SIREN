@@ -75,26 +75,26 @@ public:
         );
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override {
         PYBIND11_OVERRIDE_PURE(
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             CrossSection,
             GetPossibleTargets
         );
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override {
         PYBIND11_OVERRIDE_PURE(
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             CrossSection,
             GetPossibleTargetsFromPrimary,
             primary_type
         );
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override {
         PYBIND11_OVERRIDE_PURE(
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             CrossSection,
             GetPossiblePrimaries
         );
@@ -108,7 +108,7 @@ public:
         );
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override {
+    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override {
         PYBIND11_OVERRIDE_PURE(
             std::vector<LI::dataclasses::InteractionSignature>,
             CrossSection,
@@ -145,7 +145,7 @@ void register_CrossSection(pybind11::module_ & m) {
         .def("__eq__", [](const CrossSection &self, const CrossSection &other){ return self == other; })
         .def("equal", &CrossSection::equal)
         .def("TotalCrossSection", (double (CrossSection::*)(LI::dataclasses::InteractionRecord const &) const)(&CrossSection::TotalCrossSection))
-        .def("TotalCrossSection", (double (CrossSection::*)(LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType) const)(&CrossSection::TotalCrossSection))
+        .def("TotalCrossSection", (double (CrossSection::*)(LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType) const)(&CrossSection::TotalCrossSection))
         .def("DifferentialCrossSection", &CrossSection::DifferentialCrossSection)
         .def("InteractionThreshold", &CrossSection::InteractionThreshold)
         .def("SampleFinalState", (void (CrossSection::*)(LI::dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const)(&CrossSection::SampleFinalState))

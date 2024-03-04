@@ -55,38 +55,38 @@ bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
 
 DISFromSpline::DISFromSpline() {}
 
-DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<LI::dataclasses::Particle::ParticleType> primary_types, std::set<LI::dataclasses::Particle::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<LI::dataclasses::ParticleType> primary_types, std::set<LI::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
     SetUnits(units);
 }
 
-DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<LI::dataclasses::Particle::ParticleType> primary_types, std::vector<LI::dataclasses::Particle::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<LI::dataclasses::ParticleType> primary_types, std::vector<LI::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
     SetUnits(units);
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<LI::dataclasses::Particle::ParticleType> primary_types, std::set<LI::dataclasses::Particle::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<LI::dataclasses::ParticleType> primary_types, std::set<LI::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
     SetUnits(units);
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, std::set<LI::dataclasses::Particle::ParticleType> primary_types, std::set<LI::dataclasses::Particle::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types) {
+DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, std::set<LI::dataclasses::ParticleType> primary_types, std::set<LI::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types) {
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
     SetUnits(units);
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<LI::dataclasses::Particle::ParticleType> primary_types, std::vector<LI::dataclasses::Particle::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<LI::dataclasses::ParticleType> primary_types, std::vector<LI::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
     SetUnits(units);
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, std::vector<LI::dataclasses::Particle::ParticleType> primary_types, std::vector<LI::dataclasses::Particle::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()) {
+DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, std::vector<LI::dataclasses::ParticleType> primary_types, std::vector<LI::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()) {
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
@@ -153,7 +153,7 @@ void DISFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::v
     total_cross_section_.read_fits_mem(total_data.data(), total_data.size());
 }
 
-double DISFromSpline::GetLeptonMass(LI::dataclasses::Particle::ParticleType lepton_type) {
+double DISFromSpline::GetLeptonMass(LI::dataclasses::ParticleType lepton_type) {
     int32_t lepton_number = std::abs(static_cast<int32_t>(lepton_type));
     double lepton_mass;
     switch(lepton_number) {
@@ -200,20 +200,20 @@ void DISFromSpline::ReadParamsFromSplineTable() {
     if(!mass_good) {
         if(int_good) {
             if(interaction_type_ == 1 or interaction_type_ == 2) {
-                target_mass_ = (LI::dataclasses::isLepton(LI::dataclasses::Particle::ParticleType::PPlus)+
-                        LI::dataclasses::isLepton(LI::dataclasses::Particle::ParticleType::Neutron))/2;
+                target_mass_ = (LI::dataclasses::isLepton(LI::dataclasses::ParticleType::PPlus)+
+                        LI::dataclasses::isLepton(LI::dataclasses::ParticleType::Neutron))/2;
             } else if(interaction_type_ == 3) {
-                target_mass_ = LI::dataclasses::isLepton(LI::dataclasses::Particle::ParticleType::EMinus);
+                target_mass_ = LI::dataclasses::isLepton(LI::dataclasses::ParticleType::EMinus);
             } else {
                 throw std::runtime_error("Logic error. Interaction type is not 1, 2, or 3!");
             }
 
         } else {
             if(differential_cross_section_.get_ndim() == 3) {
-                target_mass_ = (LI::dataclasses::isLepton(LI::dataclasses::Particle::ParticleType::PPlus)+
-                        LI::dataclasses::isLepton(LI::dataclasses::Particle::ParticleType::Neutron))/2;
+                target_mass_ = (LI::dataclasses::isLepton(LI::dataclasses::ParticleType::PPlus)+
+                        LI::dataclasses::isLepton(LI::dataclasses::ParticleType::Neutron))/2;
             } else if(differential_cross_section_.get_ndim() == 2) {
-                target_mass_ = LI::dataclasses::isLepton(LI::dataclasses::Particle::ParticleType::EMinus);
+                target_mass_ = LI::dataclasses::isLepton(LI::dataclasses::ParticleType::EMinus);
             } else {
                 throw std::runtime_error("Logic error. Spline dimensionality is not 2, or 3!");
             }
@@ -231,21 +231,21 @@ void DISFromSpline::InitializeSignatures() {
             throw std::runtime_error("This DIS implementation only supports neutrinos as primaries!");
         }
 
-        LI::dataclasses::Particle::ParticleType charged_lepton_product = LI::dataclasses::Particle::ParticleType::unknown;
-        LI::dataclasses::Particle::ParticleType neutral_lepton_product = primary_type;
+        LI::dataclasses::ParticleType charged_lepton_product = LI::dataclasses::ParticleType::unknown;
+        LI::dataclasses::ParticleType neutral_lepton_product = primary_type;
 
-        if(primary_type == LI::dataclasses::Particle::ParticleType::NuE) {
-            charged_lepton_product = LI::dataclasses::Particle::ParticleType::EMinus;
-        } else if(primary_type == LI::dataclasses::Particle::ParticleType::NuEBar) {
-            charged_lepton_product = LI::dataclasses::Particle::ParticleType::EPlus;
-        } else if(primary_type == LI::dataclasses::Particle::ParticleType::NuMu) {
-            charged_lepton_product = LI::dataclasses::Particle::ParticleType::MuMinus;
-        } else if(primary_type == LI::dataclasses::Particle::ParticleType::NuMuBar) {
-            charged_lepton_product = LI::dataclasses::Particle::ParticleType::MuPlus;
-        } else if(primary_type == LI::dataclasses::Particle::ParticleType::NuTau) {
-            charged_lepton_product = LI::dataclasses::Particle::ParticleType::TauMinus;
-        } else if(primary_type == LI::dataclasses::Particle::ParticleType::NuTauBar) {
-            charged_lepton_product = LI::dataclasses::Particle::ParticleType::TauPlus;
+        if(primary_type == LI::dataclasses::ParticleType::NuE) {
+            charged_lepton_product = LI::dataclasses::ParticleType::EMinus;
+        } else if(primary_type == LI::dataclasses::ParticleType::NuEBar) {
+            charged_lepton_product = LI::dataclasses::ParticleType::EPlus;
+        } else if(primary_type == LI::dataclasses::ParticleType::NuMu) {
+            charged_lepton_product = LI::dataclasses::ParticleType::MuMinus;
+        } else if(primary_type == LI::dataclasses::ParticleType::NuMuBar) {
+            charged_lepton_product = LI::dataclasses::ParticleType::MuPlus;
+        } else if(primary_type == LI::dataclasses::ParticleType::NuTau) {
+            charged_lepton_product = LI::dataclasses::ParticleType::TauMinus;
+        } else if(primary_type == LI::dataclasses::ParticleType::NuTauBar) {
+            charged_lepton_product = LI::dataclasses::ParticleType::TauPlus;
         } else {
             throw std::runtime_error("InitializeSignatures: Unkown parent neutrino type!");
         }
@@ -255,25 +255,25 @@ void DISFromSpline::InitializeSignatures() {
         } else if(interaction_type_ == 2) {
             signature.secondary_types.push_back(neutral_lepton_product);
         } else if(interaction_type_ == 3) {
-            signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::Hadrons);
+            signature.secondary_types.push_back(LI::dataclasses::ParticleType::Hadrons);
         } else {
             throw std::runtime_error("InitializeSignatures: Unkown interaction type!");
         }
 
-        signature.secondary_types.push_back(LI::dataclasses::Particle::ParticleType::Hadrons);
+        signature.secondary_types.push_back(LI::dataclasses::ParticleType::Hadrons);
         for(auto target_type : target_types_) {
             signature.target_type = target_type;
 
             signatures_.push_back(signature);
 
-            std::pair<LI::dataclasses::Particle::ParticleType, LI::dataclasses::Particle::ParticleType> key(primary_type, target_type);
+            std::pair<LI::dataclasses::ParticleType, LI::dataclasses::ParticleType> key(primary_type, target_type);
             signatures_by_parent_types_[key].push_back(signature);
         }
     }
 }
 
 double DISFromSpline::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     double primary_energy;
     primary_energy = interaction.primary_momentum[0];
@@ -283,7 +283,7 @@ double DISFromSpline::TotalCrossSection(dataclasses::InteractionRecord const & i
     return TotalCrossSection(primary_type, primary_energy);
 }
 
-double DISFromSpline::TotalCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy) const {
+double DISFromSpline::TotalCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy) const {
     if(not primary_types_.count(primary_type)) {
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
@@ -568,24 +568,24 @@ double DISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const
     }
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
-    return std::vector<LI::dataclasses::Particle::ParticleType>(primary_types_.begin(), primary_types_.end());
+std::vector<LI::dataclasses::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
+    return std::vector<LI::dataclasses::ParticleType>(primary_types_.begin(), primary_types_.end());
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> DISFromSpline::GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const {
-    return std::vector<LI::dataclasses::Particle::ParticleType>(target_types_.begin(), target_types_.end());
+std::vector<LI::dataclasses::ParticleType> DISFromSpline::GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const {
+    return std::vector<LI::dataclasses::ParticleType>(target_types_.begin(), target_types_.end());
 }
 
 std::vector<dataclasses::InteractionSignature> DISFromSpline::GetPossibleSignatures() const {
     return std::vector<dataclasses::InteractionSignature>(signatures_.begin(), signatures_.end());
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> DISFromSpline::GetPossibleTargets() const {
-    return std::vector<LI::dataclasses::Particle::ParticleType>(target_types_.begin(), target_types_.end());
+std::vector<LI::dataclasses::ParticleType> DISFromSpline::GetPossibleTargets() const {
+    return std::vector<LI::dataclasses::ParticleType>(target_types_.begin(), target_types_.end());
 }
 
-std::vector<dataclasses::InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const {
-    std::pair<LI::dataclasses::Particle::ParticleType, LI::dataclasses::Particle::ParticleType> key(primary_type, target_type);
+std::vector<dataclasses::InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const {
+    std::pair<LI::dataclasses::ParticleType, LI::dataclasses::ParticleType> key(primary_type, target_type);
     if(signatures_by_parent_types_.find(key) != signatures_by_parent_types_.end()) {
         return signatures_by_parent_types_.at(key);
     } else {

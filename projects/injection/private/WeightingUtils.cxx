@@ -23,9 +23,9 @@ using detector::DetectorPosition;
 using detector::DetectorDirection;
 
 double CrossSectionProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) {
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
-    std::set<LI::dataclasses::Particle::ParticleType> available_targets_list = detector_model->GetAvailableTargets(DetectorPosition(record.interaction_vertex));
-    std::set<LI::dataclasses::Particle::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
+    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<LI::dataclasses::ParticleType> available_targets_list = detector_model->GetAvailableTargets(DetectorPosition(record.interaction_vertex));
+    std::set<LI::dataclasses::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
     LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],

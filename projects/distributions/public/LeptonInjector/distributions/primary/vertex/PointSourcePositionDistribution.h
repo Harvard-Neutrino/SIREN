@@ -34,7 +34,7 @@ friend cereal::access;
 private:
     LI::math::Vector3D origin;
     double max_distance;
-    std::set<LI::dataclasses::Particle::ParticleType> target_types;
+    std::set<LI::dataclasses::ParticleType> target_types;
 
     LI::math::Vector3D SampleFromDisk(std::shared_ptr<LI::utilities::LI_random> rand, LI::math::Vector3D const & dir) const;
 
@@ -43,7 +43,7 @@ public:
     virtual double GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const override;
     PointSourcePositionDistribution();
     PointSourcePositionDistribution(const PointSourcePositionDistribution &) = default;
-    PointSourcePositionDistribution(LI::math::Vector3D origin, double max_distance, std::set<LI::dataclasses::Particle::ParticleType> target_types);
+    PointSourcePositionDistribution(LI::math::Vector3D origin, double max_distance, std::set<LI::dataclasses::ParticleType> target_types);
     std::string Name() const override;
     virtual std::tuple<LI::math::Vector3D, LI::math::Vector3D> InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
@@ -63,7 +63,7 @@ public:
         if(version == 0) {
             LI::math::Vector3D r;
             double l;
-            std::set<LI::dataclasses::Particle::ParticleType> t;
+            std::set<LI::dataclasses::ParticleType> t;
             archive(::cereal::make_nvp("Origin", r));
             archive(::cereal::make_nvp("MaxDistance", l));
             archive(::cereal::make_nvp("TargetTypes", t));

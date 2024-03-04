@@ -31,13 +31,13 @@ bool DummyCrossSection::equal(CrossSection const & other) const {
 }
 
 double DummyCrossSection::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
+    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::ParticleType target_type = interaction.signature.target_type;
     double primary_energy = interaction.primary_momentum[0];
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
-double DummyCrossSection::TotalCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type) const {
+double DummyCrossSection::TotalCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, LI::dataclasses::ParticleType target_type) const {
     double interaction_length_m = 1e6;
     double interaction_length_cm = interaction_length_m * 100;
     double density = 1.0; // g/cm^3
@@ -49,8 +49,8 @@ double DummyCrossSection::TotalCrossSection(LI::dataclasses::Particle::ParticleT
 
 
 double DummyCrossSection::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
+    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::ParticleType target_type = interaction.signature.target_type;
     double primary_energy = interaction.primary_momentum[0];
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
@@ -141,34 +141,34 @@ double DummyCrossSection::FinalStateProbability(dataclasses::InteractionRecord c
     }
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> DummyCrossSection::GetPossibleTargets() const {
+std::vector<LI::dataclasses::ParticleType> DummyCrossSection::GetPossibleTargets() const {
     return {
-        LI::dataclasses::Particle::ParticleType::Nucleon
+        LI::dataclasses::ParticleType::Nucleon
     };
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> DummyCrossSection::GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const {
+std::vector<LI::dataclasses::ParticleType> DummyCrossSection::GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const {
     return {
-        LI::dataclasses::Particle::ParticleType::Nucleon
+        LI::dataclasses::ParticleType::Nucleon
     };
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> DummyCrossSection::GetPossiblePrimaries() const {
+std::vector<LI::dataclasses::ParticleType> DummyCrossSection::GetPossiblePrimaries() const {
     return {
-        LI::dataclasses::Particle::ParticleType::NuE,
-        LI::dataclasses::Particle::ParticleType::NuEBar,
-        LI::dataclasses::Particle::ParticleType::NuMu,
-        LI::dataclasses::Particle::ParticleType::NuMuBar,
-        LI::dataclasses::Particle::ParticleType::NuTau,
-        LI::dataclasses::Particle::ParticleType::NuTauBar
+        LI::dataclasses::ParticleType::NuE,
+        LI::dataclasses::ParticleType::NuEBar,
+        LI::dataclasses::ParticleType::NuMu,
+        LI::dataclasses::ParticleType::NuMuBar,
+        LI::dataclasses::ParticleType::NuTau,
+        LI::dataclasses::ParticleType::NuTauBar
     };
 }
 
 std::vector<dataclasses::InteractionSignature> DummyCrossSection::GetPossibleSignatures() const {
     std::vector<LI::dataclasses::InteractionSignature> sigs;
     LI::dataclasses::InteractionSignature signature;
-    std::vector<LI::dataclasses::Particle::ParticleType> targets = GetPossibleTargets();
-    std::vector<LI::dataclasses::Particle::ParticleType> primaries = GetPossiblePrimaries();
+    std::vector<LI::dataclasses::ParticleType> targets = GetPossibleTargets();
+    std::vector<LI::dataclasses::ParticleType> primaries = GetPossiblePrimaries();
     for(auto target : targets) {
         signature.target_type = target;
         for(auto primary : primaries) {
@@ -180,7 +180,7 @@ std::vector<dataclasses::InteractionSignature> DummyCrossSection::GetPossibleSig
     return sigs;
 }
 
-std::vector<dataclasses::InteractionSignature> DummyCrossSection::GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const {
+std::vector<dataclasses::InteractionSignature> DummyCrossSection::GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const {
     std::vector<dataclasses::InteractionSignature> sigs = DummyCrossSection::GetPossibleSignatures();
     std::vector<dataclasses::InteractionSignature> these_sigs;
     for(auto sig : sigs) {

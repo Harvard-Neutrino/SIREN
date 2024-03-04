@@ -19,9 +19,9 @@ void register_InteractionCollection(pybind11::module_ & m) {
 
     class_<InteractionCollection, std::shared_ptr<InteractionCollection>>(m, "InteractionCollection")
         .def(init<>())
-        .def(init<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())
-        .def(init<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<Decay>>>())
-        .def(init<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>>())
+        .def(init<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())
+        .def(init<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<Decay>>>())
+        .def(init<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>>())
         .def(self == self)
         .def("GetDecays",&InteractionCollection::GetDecays)
         .def("HasCrossSections",&InteractionCollection::HasCrossSections)

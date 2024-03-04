@@ -131,32 +131,32 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossibleTargets,
             "GetPossibleTargets"
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossibleTargetsFromPrimary,
             "GetPossibleTargetsFromPrimary",
             primary_type
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossiblePrimaries,
             "GetPossiblePrimaries"
         )
@@ -172,7 +172,7 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override {
+    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
@@ -217,7 +217,7 @@ public:
         )
     }
 
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override {
+    double TotalCrossSection(LI::dataclasses::ParticleType primary, double energy, LI::dataclasses::ParticleType target) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
@@ -241,7 +241,7 @@ public:
         )
     }
 
-    double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary, LI::dataclasses::Particle::ParticleType target, double energy, double Q2) const override {
+    double DifferentialCrossSection(LI::dataclasses::ParticleType primary, LI::dataclasses::ParticleType target, double energy, double Q2) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsCrossSection,
@@ -333,32 +333,32 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossibleTargets,
             "GetPossibleTargets"
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossibleTargetsFromPrimary,
             "GetPossibleTargetsFromPrimary",
             primary_type
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossiblePrimaries,
             "GetPossiblePrimaries"
         )
@@ -374,7 +374,7 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override {
+    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
@@ -447,9 +447,9 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def_readwrite("m_target",&DarkNewsCrossSection::m_target)
         .def("equal", &LI::interactions::DarkNewsCrossSection::equal)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, LI::dataclasses::Particle::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::ParticleType, LI::dataclasses::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
@@ -490,9 +490,9 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def_readwrite("m_target",&DarkNewsCrossSection::m_target)
         .def("equal", &LI::interactions::DarkNewsCrossSection::equal)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, LI::dataclasses::Particle::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::ParticleType, LI::dataclasses::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
