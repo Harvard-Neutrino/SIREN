@@ -6,7 +6,7 @@ from leptoninjector.LIController import LIController
 # Define a DarkNews model
 model_kwargs = {
     "m4": 0.47,  # 0.140,
-    "mu_tr_mu4": 1.25e-6,  # 1e-6, # GeV^-1
+    "mu_tr_mu4": 2.5e-6,  # 1e-6, # GeV^-1
     "UD4": 0,
     "Umu4": 0,
     "epsilon": 0.0,
@@ -22,7 +22,7 @@ xs_kwargs = {
 }
 
 # Number of events to inject
-events_to_inject = 1000
+events_to_inject = 10000
 
 # Expeirment to run
 experiment = "MINERvA"
@@ -40,6 +40,9 @@ table_dir = os.path.join(
     "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
 )
 controller.InputDarkNewsModel(primary_type, table_dir, **model_kwargs, **xs_kwargs)
+
+for xs in controller.DN_processes.cross_sections:
+    print(xs.GetPossibleTargets())
 
 # Primary distributions
 primary_injection_distributions = {}
@@ -64,7 +67,8 @@ decay_range_func = LI.distributions.DecayRangeFunction(
     model_kwargs["m4"], controller.DN_min_decay_width, 3, 240
 )
 position_distribution = LI.distributions.RangePositionDistribution(
-    1.24, 5.0, decay_range_func, set(controller.GetDetectorModelTargets()[0])
+    5, 10.0, decay_range_func, set(controller.GetDetectorModelTargets()[0])
+    #1.24, 5.0, decay_range_func, set(controller.GetDetectorModelTargets()[0])
 )
 primary_injection_distributions["position"] = position_distribution
 
@@ -81,11 +85,12 @@ def stop(datum, i):
 
 controller.injector.SetStoppingCondition(stop)
 
-events = controller.GenerateEvents(fill_tables)
+events = controller.GenerateEvents(fill_tables_at_exit=False)
 
 os.makedirs("output", exist_ok=True)
 
 controller.SaveEvents(
-    "output/MINERvA_Dipole_M%2.2e_mu%2.2e_example"
-    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
+    "output/MINERvA_Dipole_M%2.2e_mu%2.2e_example2"
+    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
+    fill_tables_at_exit=True
 )

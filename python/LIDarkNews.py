@@ -451,7 +451,11 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         increment_factor = 0.5*factor * self.interp_tolerance
         Emin = (1.0 + self.tolerance) * self.ups_case.Ethreshold
         if Emax is None:
-            Emax = np.max(self.total_cross_section_table[:, 0])
+            if (len(self.total_cross_section_table) + 
+                len(self.differential_cross_section_table)) <=0:
+                return 0
+            Emax = max(np.max([0] + list(self.total_cross_section_table[:, 0])),
+                       np.max([0] + list(self.differential_cross_section_table[:, 0])))
         num_added_points = 0
         E = Emin
         E_existing_total = np.unique(self.total_cross_section_table[:, 0])
@@ -521,15 +525,13 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         if (
             Particle.ParticleType(self.ups_case.nu_projectile.pdgid) == primary_type
         ) and (
-            Particle.ParticleType(self.ups_case.nuclear_target.pdgid) == target_type
+            (self.target_type == target_type)
         ):
             signature = LI.dataclasses.InteractionSignature()
             signature.primary_type = Particle.ParticleType(
                 self.ups_case.nu_projectile.pdgid
             )
-            signature.target_type = Particle.ParticleType(
-                self.ups_case.nuclear_target.pdgid
-            )
+            signature.target_type = self.target_type
             secondary_types = []
             secondary_types.append(
                 Particle.ParticleType(self.ups_case.nu_upscattered.pdgid)

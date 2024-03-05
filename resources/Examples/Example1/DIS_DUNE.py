@@ -4,7 +4,7 @@ import leptoninjector as LI
 from leptoninjector.LIController import LIController
 
 # Number of events to inject
-events_to_inject = 100000
+events_to_inject = int(1e5)
 
 # Expeirment to run
 experiment = "DUNEFD"

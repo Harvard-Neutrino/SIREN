@@ -420,7 +420,6 @@ class LIController:
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             datasets["event_weight"].append(self.weighter.EventWeight(event))
-            print("weight:",datasets["event_weight"][-1])
             datasets["event_gen_time"].append(self.gen_times[ie])
             datasets["event_global_time"].append(self.global_times[ie])
             # add empty lists for each per interaction dataset
@@ -443,9 +442,12 @@ class LIController:
                 datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
                 
                 if self.fid_vol is not None:
+                    pos = _math.Vector3D(datasets["vertex"][-1][-1])
+                    geo_pos = self.detector_model.DetPositionToGeoPosition(pos)
                     dir = _math.Vector3D(datasets["primary_momentum"][-1][-1][1:])
                     dir.normalize()
-                    datasets["in_fiducial"][-1].append(self.fid_vol.IsInside(_math.Vector3D(datasets["vertex"][-1][-1]),dir))
+                    geo_dir = self.detector_model.DetDirectionToGeoDirection(dir)
+                    datasets["in_fiducial"][-1].append(self.fid_vol.IsInside(geo_pos.get(),geo_dir.get()))
                 else:
                     datasets["in_fiducial"][-1].append(False)
 

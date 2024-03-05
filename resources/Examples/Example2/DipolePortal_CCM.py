@@ -70,7 +70,7 @@ lower_dir.normalize()
 lower_inj_ddist = LI.distributions.Cone(lower_dir, opening_angle)
 phys_ddist = (
     LI.distributions.IsotropicDirection()
-)  # truly we are isotropicprimary_injection_distributions['direction'] = direction_distribution
+)  # truly we are isotropic
 primary_injection_distributions["direction"] = lower_inj_ddist
 primary_physical_distributions["direction"] = phys_ddist
 

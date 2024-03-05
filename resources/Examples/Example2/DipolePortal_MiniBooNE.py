@@ -6,7 +6,7 @@ from leptoninjector.LIController import LIController
 # Define a DarkNews model
 model_kwargs = {
     "m4": 0.47,  # 0.140,
-    "mu_tr_mu4": 1.25e-6,  # 1e-6, # GeV^-1
+    "mu_tr_mu4": 2.50e-6,  # 1e-6, # GeV^-1
     "UD4": 0,
     "Umu4": 0,
     "epsilon": 0.0,
@@ -22,7 +22,7 @@ xs_kwargs = {
 }
 
 # Number of events to inject
-events_to_inject = 1000
+events_to_inject = 10000
 
 # Expeirment to run
 experiment = "MiniBooNE"

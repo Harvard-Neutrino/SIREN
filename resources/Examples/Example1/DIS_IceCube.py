@@ -1,13 +1,10 @@
 import os
-import sys
-import numpy as np
-import functools
 
 import leptoninjector as LI
 from leptoninjector.LIController import LIController
 
 # Number of events to inject
-events_to_inject = int(1e3)
+events_to_inject = int(1e5)
 
 # Expeirment to run
 experiment = "IceCube"
