@@ -54,7 +54,7 @@
 vendor/rk/
 
 # ipynb_checkpoint
-*ipynb_checkpoint*
+.ipynb_checkpoints/
 
 # build
 /*build/
@@ -65,9 +65,6 @@ vendor/rk/
 
 # pycache
 __pycache__/
-*/*/*pycache*
-*/*/*/*pycache*
-*/*/*/*/*pycache*
 
 # output dirs
-*output*
+output/
