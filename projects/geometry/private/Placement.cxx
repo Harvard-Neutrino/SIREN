@@ -121,7 +121,7 @@ namespace geometry {
 } // namespace geometry
 } // namespace LI
 
-std::shared_ptr<const Placement> Placement::create() const { return std::shared_ptr<const Placement>( new Placement(*this) ); }
+std::shared_ptr<Placement> Placement::create() const { return std::shared_ptr<Placement>( new Placement(*this) ); }
 
 //-------------------------------------//
 // getter and setter functions

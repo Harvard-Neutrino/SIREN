@@ -115,7 +115,7 @@ public:
     //Geometry(const nlohmann::json&);
 
     /* virtual Geometry* clone() const = 0; // virtual constructor idiom (used for deep copies) */
-    virtual std::shared_ptr<const Geometry> create() const = 0;
+    virtual std::shared_ptr<Geometry> create() const = 0;
     virtual void swap(Geometry&);
 
     virtual ~Geometry(){};

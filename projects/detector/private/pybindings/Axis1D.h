@@ -34,9 +34,9 @@ public:
             clone
         );
     }
-    std::shared_ptr<const Axis1D> create() const override {
+    std::shared_ptr<Axis1D> create() const override {
         PYBIND11_OVERRIDE_PURE_NAME(
-            std::shared_ptr<const Axis1D>,
+            std::shared_ptr<Axis1D>,
             Axis1D,
             "_create",
             create

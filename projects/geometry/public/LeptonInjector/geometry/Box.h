@@ -43,7 +43,7 @@ public:
         }
     }
 
-    std::shared_ptr<const Geometry> create() const override { return std::shared_ptr<const Geometry>( new Box(*this) ); };
+    std::shared_ptr<Geometry> create() const override { return std::shared_ptr<Geometry>( new Box(*this) ); };
     void swap(Geometry&) override;
 
     virtual ~Box() {}
