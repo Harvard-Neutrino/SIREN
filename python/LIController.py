@@ -1,6 +1,7 @@
-import os
 import h5py
 import numpy as np
+import awkward as ak
+import time
 
 from . import utilities as _utilities
 from . import detector as _detector
@@ -8,13 +9,13 @@ from . import injection as _injection
 from . import distributions as _distributions
 from . import dataclasses as _dataclasses
 from . import interactions as _interactions
+from . import geometry as _geometry
+from . import math as _math
 
 from . import _util
 
 from .LIDarkNews import PyDarkNewsInteractionCollection
 
-# For determining fiducial volume of different experiments
-fid_vol_dict = {"MiniBooNE": "fid_vol", "CCM": "ccm_inner_argon", "MINERvA": "fid_vol"}
 
 
 # Parent python class for handling event generation
@@ -26,6 +27,8 @@ class LIController:
         :param str experiment: experiment name in string
         :param int seed: Optional random number generator seed
         """
+
+        self.global_start = time.time()
 
         self.resources_dir = _util.resource_package_dir()
 
@@ -42,7 +45,6 @@ class LIController:
         # Find the density and materials files
         materials_file = _util.get_material_model_path(experiment)
         detector_model_file = _util.get_detector_model_path(experiment)
-        print(detector_model_file)
 
         self.detector_model = _detector.DetectorModel()
         self.detector_model.LoadMaterialModel(materials_file)
@@ -55,6 +57,15 @@ class LIController:
         # Define lists for the secondary injection and physical processes
         self.secondary_injection_processes = []
         self.secondary_physical_processes = []
+
+        # Set the fiducial volume
+        self.fid_vol = self.GetFiducialVolume()
+
+    def GetDetectorSectorGeometry(self, sector_name):
+        for sector in self.detector_model.Sectors:
+            if sector.name==sector_name:
+                return sector.geo
+        return None
 
     def SetProcesses(
         self,
@@ -97,7 +108,7 @@ class LIController:
                 _distributions.PrimaryNeutrinoHelicityDistribution()
             )
 
-        # Default injection distributions
+        # Default physical distributions
         if "helicity" not in primary_physical_distributions.keys():
             self.primary_physical_process.AddPhysicalDistribution(
                 _distributions.PrimaryNeutrinoHelicityDistribution()
@@ -125,10 +136,9 @@ class LIController:
                 secondary_physical_process.AddPhysicalDistribution(pdist)
 
             # Add the position distribution
-            fid_vol = self.GetFiducialVolume()
-            if fid_vol is not None:
+            if self.fid_vol is not None:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryBoundedVertexDistribution(fid_vol)
+                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
                 )
             else:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
@@ -138,21 +148,32 @@ class LIController:
             self.secondary_injection_processes.append(secondary_injection_process)
             self.secondary_physical_processes.append(secondary_physical_process)
 
-    def InputDarkNewsModel(self, primary_type, table_dir, model_kwargs):
+    
+
+    
+    def InputDarkNewsModel(self, primary_type, table_dir, fill_tables_at_start=False, Emax=None, **kwargs):
         """
         Sets up the relevant processes and cross section/decay objects related to a provided DarkNews model dictionary.
         Will handle the primary cross section collection as well as the entire list of secondary processes
 
         :param _dataclasses.Particle.ParticleType primary_type: primary particle to be generated
         :param string table_dir: Directory for storing cross section and decay tables
-        :param dict<str,val> model_kwargs: The dict of DarkNews model parameters
+        :param string fill_tables_at_start: Flag to fill total/differential cross section tables upon initialization
+        :param float Emax: maximum energy for cross section tables
+        :param dict<str,val> kwargs: The dict of DarkNews model and cross section parameters
         """
         # Add nuclear targets to the model arguments
-        model_kwargs["nuclear_targets"] = self.GetDetectorModelTargets()[1]
+        kwargs["nuclear_targets"] = self.GetDetectorModelTargets()[1]
         # Initialize DarkNews cross sections and decays
         self.DN_processes = PyDarkNewsInteractionCollection(
-            table_dir=table_dir, **model_kwargs
+            table_dir=table_dir, **kwargs
         )
+
+        if fill_tables_at_start:
+            if Emax is None:
+                print("WARNING: Cannot fill cross section tables without specifying a maximum energy")
+            else:
+                self.DN_processes.FillCrossSectionTables(Emax=Emax)
 
         # Initialize primary InteractionCollection
         # Loop over available cross sections and save those which match primary type
@@ -169,7 +190,7 @@ class LIController:
         # Initialize secondary processes and define secondary InteractionCollection objects
         secondary_decays = {}
         # Also keep track of the minimum decay width for defining the position distribution later
-        self.DN_min_decay_width = 0
+        self.DN_min_decay_width = np.inf
         # Loop over available decays, group by parent type
         for decay in self.DN_processes.decays:
             secondary_type = _dataclasses.Particle.ParticleType(
@@ -183,9 +204,6 @@ class LIController:
                 self.DN_min_decay_width = total_decay_width
         # Now make the list of secondary cross section collections
         # Add new secondary injection and physical processes at the same time
-        fid_vol = (
-            self.GetFiducialVolume()
-        )  # find fiducial volume for secondary position distirbutions
         secondary_interaction_collections = []
         for secondary_type, decay_list in secondary_decays.items():
             # Define a sedcondary injection distribution
@@ -195,9 +213,9 @@ class LIController:
             secondary_physical_process.primary_type = secondary_type
 
             # Add the secondary position distribution
-            if fid_vol is not None:
+            if self.fid_vol is not None:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryBoundedVertexDistribution(fid_vol)
+                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
                 )
             else:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
@@ -219,12 +237,22 @@ class LIController:
         """
         :return: identified fiducial volume for the experiment, None if not found
         """
-        fid_vol = None
-        for sector in self.detector_model.Sectors:
-            if self.experiment in fid_vol_dict.keys():
-                if sector.name == fid_vol_dict[self.experiment]:
-                    fid_vol = sector.geo
-        return fid_vol
+        detector_model_file = _util.get_detector_model_path(self.experiment)
+        with open(detector_model_file) as file:
+            fiducial_line = None
+            detector_line = None
+            for line in file:
+                data = line.split()
+                if len(data) <= 0:
+                    continue
+                elif data[0] == "fiducial":
+                    fiducial_line = line
+                elif data[0] == "detector":
+                    detector_line = line
+            if fiducial_line is None or detector_line is None:
+                return None
+            return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
+        return None            
 
     def GetDetectorModelTargets(self):
         """
@@ -313,62 +341,110 @@ class LIController:
             self.primary_physical_process,
             self.secondary_physical_processes,
         )
+    
+    def GetCylinderVolumePositionDistributionFromSector(self, sector_name):
+        geo = self.GetDetectorSectorGeometry(sector_name)
+        if geo is None:
+            print("Sector %s not found. Exiting"%sector_name)
+            exit(0)
+        # the position of this cylinder is in geometry coordinates
+        # must update to detector coordintes
+        det_position = self.detector_model.GeoPositionToDetPosition(_detector.GeometryPosition(geo.placement.Position))
+        det_rotation = geo.placement.Quaternion
+        det_placement = _geometry.Placement(det_position.get(), det_rotation)
+        cylinder = _geometry.Cylinder(det_placement,geo.Radius,geo.InnerRadius,geo.Z)
+        return _distributions.CylinderVolumePositionDistribution(cylinder)
 
-    def GenerateEvents(self, N=None):
+    def GenerateEvents(self, N=None, fill_tables_at_exit=True):
         if N is None:
             N = self.events_to_inject
         count = 0
+        self.gen_times,self.global_times = [],[]
+        prev_time = time.time()
         while (self.injector.InjectedEvents() < self.events_to_inject) and (count < N):
             print("Injecting Event %d/%d  " % (count, N), end="\r")
             tree = self.injector.GenerateEvent()
             self.events.append(tree)
+            t = time.time()
+            self.gen_times.append(t-prev_time)
+            self.global_times.append(t-self.global_start)
+            prev_time = t
             count += 1
         if hasattr(self, "DN_processes"):
-            self.DN_processes.SaveCrossSectionTables()
+            self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)
         return self.events
 
-    def SaveEvents(self, filename):
-        fout = h5py.File(filename, "w")
-        fout.attrs["num_events"] = len(self.events)
+    def SaveEvents(self, filename, fill_tables_at_exit=True, hdf5=True, parquet=True):
+        
+        # A dictionary containing each dataset we'd like to save
+        datasets = {
+            "event_weight":[], # weight of entire event
+            "event_gen_time":[], # generation time of each event
+            "event_global_time":[], # global time of each event
+            "num_interactions":[], # number of interactions per event
+            "vertex":[], # vertex of each interaction in an event
+            "in_fiducial":[], # whether or not each vertex is in the fiducial volume
+            "primary_type":[], # primary type of each interaction
+            "target_type":[], # target type of each interaction
+            "num_secondaries":[], # number of secondary particles of each interaction
+            "secondary_types":[], # secondary type of each interaction
+            "primary_momentum":[], # primary momentum of each interaction
+            "secondary_momenta":[], # secondary momentum of each interaction
+        }
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
-            event_group = fout.require_group("event%d" % ie)
-            event_group.attrs["event_weight"] = self.weighter.EventWeight(event)
-            event_group.attrs["num_interactions"] = len(event.tree)
+            datasets["event_weight"].append(self.weighter.EventWeight(event))
+            datasets["event_gen_time"].append(self.gen_times[ie])
+            datasets["event_global_time"].append(self.global_times[ie])
+            # add empty lists for each per interaction dataset
+            for k in ["vertex",
+                      "in_fiducial",
+                      "primary_type",
+                      "target_type",
+                      "num_secondaries",
+                      "secondary_types",
+                      "primary_momentum",
+                      "secondary_momenta"]:
+                datasets[k].append([])
+            # loop over interactions
             for id, datum in enumerate(event.tree):
-                interaction_group = event_group.require_group("interaction%d" % id)
+                
+                datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
 
-                # Add metadata on interaction signature
-                interaction_group.attrs["primary_type"] = str(
-                    datum.record.signature.primary_type
-                )
-                interaction_group.attrs["target_type"] = str(
-                    datum.record.signature.target_type
-                )
-                for isec, secondary in enumerate(
-                    datum.record.signature.secondary_types
-                ):
-                    interaction_group.attrs["secondary_type%d" % isec] = str(secondary)
+                 # primary particle stuff
+                datasets["primary_type"][-1].append(str(datum.record.signature.primary_type))
+                datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
+                
+                if self.fid_vol is not None:
+                    pos = _math.Vector3D(datasets["vertex"][-1][-1])
+                    dir = _math.Vector3D(datasets["primary_momentum"][-1][-1][1:])
+                    dir.normalize()
+                    datasets["in_fiducial"][-1].append(self.fid_vol.IsInside(pos,dir))
+                else:
+                    datasets["in_fiducial"][-1].append(False)
 
-                # Save vertex as dataset
-                interaction_group.create_dataset(
-                    "vertex",
-                    data=np.array(datum.record.interaction_vertex, dtype=float),
-                )
+                # target particle stuff
+                datasets["target_type"][-1].append(str(datum.record.signature.target_type))
+                
+                # secondary particle stuff
+                datasets["secondary_types"][-1].append([])
+                datasets["secondary_momenta"][-1].append([])
+                for isec, (sec_type, sec_momenta) in enumerate(zip(datum.record.signature.secondary_types,
+                                                                   datum.record.secondary_momenta)):
+                    datasets["secondary_types"][-1][-1].append(str(sec_type))
+                    datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
+                datasets["num_secondaries"][-1].append(isec)
+            datasets["num_interactions"].append(id)
 
-                # Save each four-momenta as a dataset
-                interaction_group.create_dataset(
-                    "primary_momentum",
-                    data=np.array(datum.record.primary_momentum, dtype=float),
-                )
-                for isec_momenta, sec_momenta in enumerate(
-                    datum.record.secondary_momenta
-                ):
-                    interaction_group.create_dataset(
-                        "secondary_momentum%d" % isec_momenta,
-                        data=np.array(sec_momenta, dtype=float),
-                    )
-
-        fout.close()
+        ak_array = ak.Array(datasets)
+        if hdf5:
+            fout = h5py.File(filename+".hdf5", "w")
+            group = fout.create_group("Events")
+            form, length, container = ak.to_buffers(ak.to_packed(ak_array), container=group)
+            group.attrs["form"] = form.to_json()
+            group.attrs["length"] = length
+            fout.close()
+        if parquet:
+            ak.to_parquet(ak_array,filename+".parquet")
         if hasattr(self, "DN_processes"):
-            self.DN_processes.SaveCrossSectionTables()
+            self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)

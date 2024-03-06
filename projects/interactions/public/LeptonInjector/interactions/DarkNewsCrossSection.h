@@ -42,14 +42,14 @@ public:
 
     DarkNewsCrossSection();
 
-    virtual pybind11::object get_self();
+    virtual pybind11::object get_representation();
 
     virtual bool equal(CrossSection const & other) const override;
 
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    virtual double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
+    virtual double TotalCrossSection(LI::dataclasses::ParticleType primary, double energy, LI::dataclasses::ParticleType target) const;
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
-    virtual double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary, LI::dataclasses::Particle::ParticleType target, double energy, double Q2) const; 
+    virtual double DifferentialCrossSection(LI::dataclasses::ParticleType primary, LI::dataclasses::ParticleType target, double energy, double Q2) const; 
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     virtual double Q2Min(dataclasses::InteractionRecord const &) const;
     virtual double Q2Max(dataclasses::InteractionRecord const &) const;
@@ -58,11 +58,11 @@ public:
     virtual std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const &) const;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
-    virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override = 0; // Requires Python-side implementation
-    virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override = 0; // Requires Python-side implementation
-    virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override = 0; // Requires Python-side implementation
+    virtual std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override = 0; // Requires Python-side implementation
+    virtual std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override = 0; // Requires Python-side implementation
+    virtual std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override = 0; // Requires Python-side implementation
     virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override = 0; // Requires Python-side implementation
-    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override = 0; // Requires Python-side implementation
+    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override = 0; // Requires Python-side implementation
 
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 

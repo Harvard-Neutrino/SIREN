@@ -1,33 +1,10 @@
 import os
-import sys
-import numpy as np
-import functools
 
 import leptoninjector as LI
-from leptoninjector import _util
 from leptoninjector.LIController import LIController
 
-@functools.wraps(LIController.GenerateEvents)
-def GenerateEvents(self, N=None):
-    if N is None:
-        N = self.events_to_inject
-    count = 0
-    while (self.injector.InjectedEvents() < self.events_to_inject) and (count < N):
-        print("Injecting Event", count, end="\r")
-        tree = self.injector.GenerateEvent()
-        self.weighter.EventWeight(tree)
-        self.events.append(tree)
-        count += 1
-    #if hasattr(self, "DN_processes"):
-    #    self.DN_processes.SaveCrossSectionTables()
-    return self.events
-
-LIController.GenerateEvents = GenerateEvents
-
-resources_dir = _util.resource_package_dir()
-
 # Number of events to inject
-events_to_inject = int(1e6)
+events_to_inject = int(1e5)
 
 # Expeirment to run
 experiment = "IceCube"
@@ -40,7 +17,7 @@ primary_type = LI.dataclasses.Particle.ParticleType.NuMu
 
 cross_section_model = "CSMSDISSplines"
 
-xsfiledir = _util.get_cross_section_model_path(cross_section_model)
+xsfiledir = LI.utilities.get_cross_section_model_path(cross_section_model)
 
 # Cross Section Model
 target_type = LI.dataclasses.Particle.ParticleType.Nucleon
@@ -49,7 +26,7 @@ DIS_xs = LI.interactions.DISFromSpline(
     os.path.join(xsfiledir, "dsdxdy_nu_CC_iso.fits"),
     os.path.join(xsfiledir, "sigma_nu_CC_iso.fits"),
     [primary_type],
-    [target_type],
+    [target_type], "m"
 )
 
 primary_xs = LI.interactions.InteractionCollection(primary_type, [DIS_xs])
@@ -89,4 +66,6 @@ controller.Initialize()
 
 events = controller.GenerateEvents()
 
-controller.SaveEvents("IceCube_DIS.hdf5")
+os.makedirs("output", exist_ok=True)
+
+controller.SaveEvents("output/IceCube_DIS")

@@ -102,7 +102,7 @@ public:
     }
 
     /* Geometry* clone() const override{ return new ExtrPoly(*this); }; */
-    std::shared_ptr<const Geometry> create() const override{ return std::shared_ptr<const Geometry>( new ExtrPoly(*this) ); }
+    std::shared_ptr<Geometry> create() const override{ return std::shared_ptr<Geometry>( new ExtrPoly(*this) ); }
     void swap(Geometry&) override;
 
     virtual ~ExtrPoly() {}

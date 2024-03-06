@@ -67,7 +67,7 @@ public:
 
 
     virtual DensityDistribution* clone() const = 0;
-    virtual std::shared_ptr<const DensityDistribution> create() const = 0;
+    virtual std::shared_ptr<DensityDistribution> create() const = 0;
 
     virtual double Derivative(const math::Vector3D& xi,
                               const math::Vector3D& direction) const = 0;

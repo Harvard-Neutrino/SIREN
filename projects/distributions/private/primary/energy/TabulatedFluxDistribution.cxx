@@ -74,6 +74,24 @@ void TabulatedFluxDistribution::LoadFluxTable() {
     }
 }
 
+void TabulatedFluxDistribution::LoadFluxTable(std::vector<double> & energies, std::vector<double> & flux) {
+    
+    assert(energies.size()==flux.size());
+
+    LI::utilities::TableData1D<double> table_data;
+
+    table_data.x = energies;
+    table_data.f = flux;
+    energy_nodes = energies;
+
+    // If no physical are manually set, use first/last entry of table
+    if(not bounds_set) {
+        energyMin = table_data.x[0];
+        energyMax = table_data.x[table_data.x.size()-1];
+    }
+    fluxTable = LI::utilities::Interpolator1D<double>(table_data);
+}
+
 double TabulatedFluxDistribution::unnormed_pdf(double energy) const {
     return fluxTable(energy);
 }
@@ -203,6 +221,36 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     , fluxTableFilename(fluxTableFilename)
 {
     LoadFluxTable();
+    std::function<double(double)> integrand = [&] (double x) -> double {
+        return unnormed_pdf(x);
+    };
+    ComputeIntegral();
+    if(has_physical_normalization)
+        SetNormalization(integral);
+
+    ComputeCDF();
+}
+
+TabulatedFluxDistribution::TabulatedFluxDistribution(std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization)
+    : bounds_set(false)
+{
+    LoadFluxTable(energies,flux);
+    std::function<double(double)> integrand = [&] (double x) -> double {
+        return unnormed_pdf(x);
+    };
+    ComputeIntegral();
+    if(has_physical_normalization)
+        SetNormalization(integral);
+
+    ComputeCDF();
+}
+
+TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization)
+    : energyMin(energyMin)
+    , energyMax(energyMax)
+    , bounds_set(true)
+{
+    LoadFluxTable(energies,flux);
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };

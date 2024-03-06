@@ -104,8 +104,8 @@ double LeptonWeighter::InteractionProbability(std::tuple<LI::math::Vector3D, LI:
     primary_direction.normalize();
 
     LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
-    std::vector<LI::dataclasses::Particle::ParticleType> targets;
+    std::map<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
+    std::vector<LI::dataclasses::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
     double total_decay_length = interactions->TotalDecayLength(record);
@@ -154,11 +154,11 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::tuple<LI::math::Vect
     primary_direction.normalize();
 
     LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
+    std::map<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
 
-    std::vector<LI::dataclasses::Particle::ParticleType> targets; targets.reserve(n_targets);
+    std::vector<LI::dataclasses::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
     double total_decay_length = interactions->TotalDecayLength(record);
     LI::dataclasses::InteractionRecord fake_record = record;
@@ -205,11 +205,11 @@ double LeptonWeighter::NormalizedPositionProbability(std::tuple<LI::math::Vector
     primary_direction.normalize();
 
     LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<LI::dataclasses::Particle::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
+    std::map<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
 
-    std::vector<LI::dataclasses::Particle::ParticleType> targets; targets.reserve(n_targets);
+    std::vector<LI::dataclasses::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
     double total_decay_length = interactions->TotalDecayLength(record);
     LI::dataclasses::InteractionRecord fake_record = record;

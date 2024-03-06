@@ -131,32 +131,32 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossibleTargets,
             "GetPossibleTargets"
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossibleTargetsFromPrimary,
             "GetPossibleTargetsFromPrimary",
             primary_type
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossiblePrimaries,
             "GetPossiblePrimaries"
         )
@@ -172,7 +172,7 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override {
+    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             CrossSection,
@@ -195,7 +195,7 @@ public:
         )
     }
 
-    pybind11::object get_self() {
+    pybind11::object get_representation() {
         return self;
     }
 };
@@ -217,7 +217,7 @@ public:
         )
     }
 
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const override {
+    double TotalCrossSection(LI::dataclasses::ParticleType primary, double energy, LI::dataclasses::ParticleType target) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
@@ -241,7 +241,7 @@ public:
         )
     }
 
-    double DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary, LI::dataclasses::Particle::ParticleType target, double energy, double Q2) const override {
+    double DifferentialCrossSection(LI::dataclasses::ParticleType primary, LI::dataclasses::ParticleType target, double energy, double Q2) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsCrossSection,
@@ -333,32 +333,32 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossibleTargets,
             "GetPossibleTargets"
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossibleTargetsFromPrimary,
             "GetPossibleTargetsFromPrimary",
             primary_type
         )
     }
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override {
+    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::Particle::ParticleType>,
+            std::vector<LI::dataclasses::ParticleType>,
             GetPossiblePrimaries,
             "GetPossiblePrimaries"
         )
@@ -374,7 +374,7 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override {
+    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
@@ -397,8 +397,37 @@ public:
         )
     }
 
-    pybind11::object get_self() override {
-        return self;
+    pybind11::object get_representation() override {
+        const DarkNewsCrossSection * ref;
+        if(self) {
+            ref = self.cast<DarkNewsCrossSection *>();
+        } else {
+            ref = this;
+        }
+        auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsCrossSection));
+        pybind11::function override_func =
+            tinfo ? pybind11::detail::get_type_override(static_cast<const DarkNewsCrossSection *>(ref), tinfo, "get_representation") : pybind11::function();
+        if (override_func) {
+            pybind11::object o = override_func();
+            if(not pybind11::isinstance<pybind11::dict>(o)) {
+                throw std::runtime_error("get_representation must return a dict");
+            }
+            return o;
+        }
+
+        pybind11::object _self;
+        if(this->self) {
+            self = pybind11::reinterpret_borrow<pybind11::object>(this->self);
+        } else {
+            auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsCrossSection));
+            pybind11::handle self_handle = get_object_handle(static_cast<const DarkNewsCrossSection *>(this), tinfo);
+            _self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
+        }
+        pybind11::dict d;
+        if (pybind11::hasattr(self, "__dict__")) {
+            d = _self.attr("__dict__");
+        }
+        return d;
     }
 };
 } // end interactions namespace
@@ -418,9 +447,9 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def_readwrite("m_target",&DarkNewsCrossSection::m_target)
         .def("equal", &LI::interactions::DarkNewsCrossSection::equal)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, LI::dataclasses::Particle::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::ParticleType, LI::dataclasses::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
@@ -435,22 +464,10 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
-        .def("get_self", &pyDarkNewsCrossSection::get_self)
+        .def("get_representation", &pyDarkNewsCrossSection::get_representation)
         .def(pybind11::pickle(
-            [](const LI::interactions::pyDarkNewsCrossSection & cpp_obj) {
-                pybind11::object self;
-                if(cpp_obj.self) {
-                    self = pybind11::reinterpret_borrow<pybind11::object>(cpp_obj.self);
-                } else {
-                    auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsCrossSection));
-                    pybind11::handle self_handle = get_object_handle(static_cast<const DarkNewsCrossSection *>(&cpp_obj), tinfo);
-                    self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
-                }
-                pybind11::dict d;
-                if (pybind11::hasattr(self, "__dict__")) {
-                    d = self.attr("__dict__");
-                }
-                return pybind11::make_tuple(d);
+            [](LI::interactions::pyDarkNewsCrossSection & cpp_obj) {
+                return pybind11::make_tuple(cpp_obj.get_representation());
             },
             [](const pybind11::tuple &t) {
                 if (t.size() != 1) {
@@ -473,9 +490,9 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def_readwrite("m_target",&DarkNewsCrossSection::m_target)
         .def("equal", &LI::interactions::DarkNewsCrossSection::equal)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, LI::dataclasses::Particle::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::ParticleType, LI::dataclasses::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
@@ -490,22 +507,10 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
-        .def("get_self", &DarkNewsCrossSection::get_self)
+        .def("get_representation", &DarkNewsCrossSection::get_representation)
         .def(pybind11::pickle(
-            [](const LI::interactions::DarkNewsCrossSection & cpp_obj) {
-                pybind11::object self;
-                if(dynamic_cast<LI::interactions::pyDarkNewsCrossSection const *>(&cpp_obj) != nullptr and dynamic_cast<LI::interactions::pyDarkNewsCrossSection const *>(&cpp_obj)->self) {
-                    self = pybind11::reinterpret_borrow<pybind11::object>(dynamic_cast<LI::interactions::pyDarkNewsCrossSection const *>(&cpp_obj)->self);
-                } else {
-                    auto *tinfo = pybind11::detail::get_type_info(typeid(LI::interactions::DarkNewsCrossSection));
-                    pybind11::handle self_handle = get_object_handle(static_cast<const LI::interactions::DarkNewsCrossSection *>(&cpp_obj), tinfo);
-                    self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
-                }
-                pybind11::dict d;
-                if (pybind11::hasattr(self, "__dict__")) {
-                    d = self.attr("__dict__");
-                }
-                return pybind11::make_tuple(d);
+            [](LI::interactions::DarkNewsCrossSection & cpp_obj) {
+                return pybind11::make_tuple(cpp_obj.get_representation());
             },
             [](const pybind11::tuple &t) {
                 if (t.size() != 1) {

@@ -24,7 +24,7 @@ void register_DummyCrossSection(pybind11::module_ & m) {
         .def(init<>())
         .def("_equal", &DummyCrossSection::equal)
         .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DummyCrossSection::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::Particle::ParticleType, double, LI::dataclasses::Particle::ParticleType>(&DummyCrossSection::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType>(&DummyCrossSection::TotalCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DummyCrossSection::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DummyCrossSection::InteractionThreshold)
         .def("GetPossibleTargets",&DummyCrossSection::GetPossibleTargets)

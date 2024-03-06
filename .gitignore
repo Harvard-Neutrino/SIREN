@@ -35,6 +35,9 @@
 *.h5
 *.hdf5
 
+# parquet datafiles
+*.parquet
+
 # LIC files
 *.lic
 
@@ -51,10 +54,17 @@
 vendor/rk/
 
 # ipynb_checkpoint
-*ipynb_checkpoint*
+.ipynb_checkpoints/
 
 # build
-*build
+/*build/
+
+# images
+*.png
+*.pdf
 
 # pycache
-*pycache*
+__pycache__/
+
+# output dirs
+output/

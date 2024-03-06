@@ -14,28 +14,28 @@
 
 using namespace LI::detector ;
 
-MaterialModel::Component::Component(LI::dataclasses::Particle::ParticleType type)
+MaterialModel::Component::Component(LI::dataclasses::ParticleType type)
     : type(type)
 {
-    if(type == LI::dataclasses::Particle::ParticleType::PPlus) {
+    if(type == LI::dataclasses::ParticleType::PPlus) {
         neutron_count = 0;
         proton_count = 1;
         nucleon_count = 1;
         is_atom = false;
         molar_mass = atomic_masses.at({strange_count, neutron_count, proton_count, nucleon_count});
-    } else if (type == LI::dataclasses::Particle::ParticleType::Neutron) {
+    } else if (type == LI::dataclasses::ParticleType::Neutron) {
         neutron_count = 1;
         proton_count = 0;
         nucleon_count = 1;
         is_atom = false;
         molar_mass = atomic_masses.at({strange_count, neutron_count, proton_count, nucleon_count});
-    } else if (type == LI::dataclasses::Particle::ParticleType::Nucleon) {
+    } else if (type == LI::dataclasses::ParticleType::Nucleon) {
         neutron_count = 0;
         proton_count = 0;
         nucleon_count = 1;
         is_atom = false;
         molar_mass = (atomic_masses.at({0, 1, 0, 1}) + atomic_masses.at({0, 0, 1, 1})) / 2.0;
-    } else if (type == LI::dataclasses::Particle::ParticleType::EMinus) {
+    } else if (type == LI::dataclasses::ParticleType::EMinus) {
         neutron_count = 0;
         proton_count = 0;
         nucleon_count = 0;
@@ -129,7 +129,7 @@ void MaterialModel::AddMaterial(std::string const & material_name, std::map<int,
     for(auto const & mass_frac_it : component_mass_fractions) {
         int component_id = mass_frac_it.first;
         double component_mass_fraction = mass_frac_it.second;
-        Component component(static_cast<LI::dataclasses::Particle::ParticleType>(component_id));
+        Component component(static_cast<LI::dataclasses::ParticleType>(component_id));
         MaterialComponent material_component;
         material_component.component = component;
         material_component.mass_density_over_total_mass_density = component_mass_fraction;
@@ -141,7 +141,7 @@ void MaterialModel::AddMaterial(std::string const & material_name, std::map<int,
     }
 
     if(neutrons_per_amu > 0) {
-        Component component(LI::dataclasses::Particle::ParticleType::Neutron);
+        Component component(LI::dataclasses::ParticleType::Neutron);
         MaterialComponent material_component;
         material_component.component = component;
         material_component.mass_density_over_total_mass_density = neutrons_per_amu * component.molar_mass;
@@ -150,7 +150,7 @@ void MaterialModel::AddMaterial(std::string const & material_name, std::map<int,
     }
 
     if(nucleons_per_amu > 0) {
-        Component component(LI::dataclasses::Particle::ParticleType::Nucleon);
+        Component component(LI::dataclasses::ParticleType::Nucleon);
         MaterialComponent material_component;
         material_component.component = component;
         material_component.mass_density_over_total_mass_density = nucleons_per_amu * component.molar_mass;
@@ -159,13 +159,13 @@ void MaterialModel::AddMaterial(std::string const & material_name, std::map<int,
     }
 
     if(protons_per_amu > 0) {
-        Component component(LI::dataclasses::Particle::ParticleType::PPlus);
+        Component component(LI::dataclasses::ParticleType::PPlus);
         MaterialComponent material_component;
         material_component.component = component;
         material_component.mass_density_over_total_mass_density = protons_per_amu * component.molar_mass;
         material_component.particle_density_over_total_mass_density = protons_per_amu * LI::utilities::Constants::avogadro;
         material_components.push_back(material_component);
-        component = Component(LI::dataclasses::Particle::ParticleType::EMinus);
+        component = Component(LI::dataclasses::ParticleType::EMinus);
         material_component.component = component;
         material_component.mass_density_over_total_mass_density = protons_per_amu * component.molar_mass;
         material_component.particle_density_over_total_mass_density = protons_per_amu * LI::utilities::Constants::avogadro;
@@ -284,8 +284,8 @@ void MaterialModel::AddModelFile(std::string matratio) {
     in.close();
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> MaterialModel::GetMaterialTargets(int material_id) const {
-    std::vector<LI::dataclasses::Particle::ParticleType> targets;
+std::vector<LI::dataclasses::ParticleType> MaterialModel::GetMaterialTargets(int material_id) const {
+    std::vector<LI::dataclasses::ParticleType> targets;
     std::vector<MaterialComponent> const & components = material_components_[material_id];
     targets.reserve(components.size());
     for(auto const & comp : components) {
@@ -318,27 +318,27 @@ bool MaterialModel::HasMaterial(int id) const {
     return material_names_.size() > (unsigned int)(id);
 }
 
-double MaterialModel::GetTargetMassFraction(int material_id, LI::dataclasses::Particle::ParticleType particle_type) const {
-    std::pair<int, LI::dataclasses::Particle::ParticleType> key(material_id, particle_type);
+double MaterialModel::GetTargetMassFraction(int material_id, LI::dataclasses::ParticleType particle_type) const {
+    std::pair<int, LI::dataclasses::ParticleType> key(material_id, particle_type);
     if(material_components_by_id_.find(key) != material_components_by_id_.end())
         return material_components_by_id_.at(key).mass_density_over_total_mass_density;
     else
         return 0.0;
 }
 
-double MaterialModel::GetTargetParticleFraction(int material_id, LI::dataclasses::Particle::ParticleType particle_type) const {
-    std::pair<int, LI::dataclasses::Particle::ParticleType> key(material_id, particle_type);
+double MaterialModel::GetTargetParticleFraction(int material_id, LI::dataclasses::ParticleType particle_type) const {
+    std::pair<int, LI::dataclasses::ParticleType> key(material_id, particle_type);
     if(material_components_by_id_.find(key) != material_components_by_id_.end())
         return material_components_by_id_.at(key).particle_density_over_total_mass_density;
     else
         return 0.0;
 }
 
-std::vector<double> MaterialModel::GetTargetMassFraction(int material_id, std::vector<LI::dataclasses::Particle::ParticleType> const & particle_types) const {
+std::vector<double> MaterialModel::GetTargetMassFraction(int material_id, std::vector<LI::dataclasses::ParticleType> const & particle_types) const {
     std::vector<double> fractions;
     fractions.reserve(particle_types.size());
     for(auto const & particle_type : particle_types) {
-        std::pair<int, LI::dataclasses::Particle::ParticleType> key(material_id, particle_type);
+        std::pair<int, LI::dataclasses::ParticleType> key(material_id, particle_type);
         if(material_components_by_id_.find(key) != material_components_by_id_.end())
             fractions.push_back(material_components_by_id_.at(key).mass_density_over_total_mass_density);
         else
@@ -347,11 +347,11 @@ std::vector<double> MaterialModel::GetTargetMassFraction(int material_id, std::v
     return fractions;
 }
 
-std::vector<double> MaterialModel::GetTargetParticleFraction(int material_id, std::vector<LI::dataclasses::Particle::ParticleType> const & particle_types) const {
+std::vector<double> MaterialModel::GetTargetParticleFraction(int material_id, std::vector<LI::dataclasses::ParticleType> const & particle_types) const {
     std::vector<double> fractions;
     fractions.reserve(particle_types.size());
     for(auto const & particle_type : particle_types) {
-        std::pair<int, LI::dataclasses::Particle::ParticleType> key(material_id, particle_type);
+        std::pair<int, LI::dataclasses::ParticleType> key(material_id, particle_type);
         if(material_components_by_id_.find(key) != material_components_by_id_.end())
             fractions.push_back(material_components_by_id_.at(key).particle_density_over_total_mass_density);
         else
@@ -378,12 +378,12 @@ double MaterialModel::ComputeMaterialRadiationLength(int material_id) const {
     return 1.0 / X0inv;
 }
 
-std::vector<double> MaterialModel::GetTargetRadiationFraction(int material_id, std::vector<LI::dataclasses::Particle::ParticleType> const & particle_types) const {
+std::vector<double> MaterialModel::GetTargetRadiationFraction(int material_id, std::vector<LI::dataclasses::ParticleType> const & particle_types) const {
     double X0inv = 0;
     std::vector<double> fractions;
     fractions.reserve(particle_types.size());
     for(auto const & particle_type : particle_types) {
-        std::pair<int, LI::dataclasses::Particle::ParticleType> key(material_id, particle_type);
+        std::pair<int, LI::dataclasses::ParticleType> key(material_id, particle_type);
         if(material_components_by_id_.find(key) != material_components_by_id_.end()) {
             fractions.push_back(0.0);
             continue;
@@ -422,8 +422,8 @@ int MaterialModel::GetNucleonContent(int code, int & strange_count, int & neutro
     return 0;
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> MaterialModel::GetMaterialConstituents(int material_id) const {
-    std::vector<LI::dataclasses::Particle::ParticleType> particles;;
+std::vector<LI::dataclasses::ParticleType> MaterialModel::GetMaterialConstituents(int material_id) const {
+    std::vector<LI::dataclasses::ParticleType> particles;;
     particles.reserve(material_components_[material_id].size());
     for (auto const & component : material_components_[material_id]) {
         particles.push_back(component.component.type);
@@ -431,23 +431,23 @@ std::vector<LI::dataclasses::Particle::ParticleType> MaterialModel::GetMaterialC
     return particles;
 }
 
-double MaterialModel::GetMolarMass(LI::dataclasses::Particle::ParticleType particle) {
+double MaterialModel::GetMolarMass(LI::dataclasses::ParticleType particle) {
     return Component(particle).molar_mass;
 }
 
-int MaterialModel::GetStrangeCount(LI::dataclasses::Particle::ParticleType particle) {
+int MaterialModel::GetStrangeCount(LI::dataclasses::ParticleType particle) {
     return Component(particle).strange_count;
 }
 
-int MaterialModel::GetNucleonCount(LI::dataclasses::Particle::ParticleType particle) {
+int MaterialModel::GetNucleonCount(LI::dataclasses::ParticleType particle) {
     return Component(particle).nucleon_count;
 }
 
-int MaterialModel::GetNeutronCount(LI::dataclasses::Particle::ParticleType particle) {
+int MaterialModel::GetNeutronCount(LI::dataclasses::ParticleType particle) {
     return Component(particle).neutron_count;
 }
 
-int MaterialModel::GetProtonCount(LI::dataclasses::Particle::ParticleType particle) {
+int MaterialModel::GetProtonCount(LI::dataclasses::ParticleType particle) {
     return Component(particle).proton_count;
 }
 

@@ -39,10 +39,10 @@ double ElasticScattering::InteractionThreshold(dataclasses::InteractionRecord co
 }
 
 double ElasticScattering::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
     double CLL;
-    if(primary_type==LI::dataclasses::Particle::ParticleType::NuE) CLL = 0.7276;
-    else if(primary_type==LI::dataclasses::Particle::ParticleType::NuMu) CLL = -0.2730;
+    if(primary_type==LI::dataclasses::ParticleType::NuE) CLL = 0.7276;
+    else if(primary_type==LI::dataclasses::ParticleType::NuMu) CLL = -0.2730;
     else {
         std::cout << "Faulty primary: " << primary_type << std::endl;
         throw std::runtime_error("Supplied primary not supported by cross section!");
@@ -52,8 +52,8 @@ double ElasticScattering::DifferentialCrossSection(dataclasses::InteractionRecor
     double s = std::pow(rk::invMass(p1, p2), 2);
     double primary_energy = interaction.primary_momentum[0];
     assert(interaction.signature.secondary_types.size() == 2);
-    assert(interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuE or interaction.signature.secondary_types[1] == LI::dataclasses::Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMu or interaction.signature.secondary_types[1] == LI::dataclasses::Particle::ParticleType::NuMu);
-    unsigned int nu_index = (interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMu) ? 0 : 1;
+    assert(interaction.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuE or interaction.signature.secondary_types[1] == LI::dataclasses::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuMu or interaction.signature.secondary_types[1] == LI::dataclasses::ParticleType::NuMu);
+    unsigned int nu_index = (interaction.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuMu) ? 0 : 1;
     unsigned int electron_index = 1 - nu_index;
 
     std::array<double, 4> const & mom3 = interaction.secondary_momenta[nu_index];
@@ -74,10 +74,10 @@ double ElasticScattering::DifferentialCrossSection(dataclasses::InteractionRecor
 }
 
 // Assume initial electron at rest
-double ElasticScattering::DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, double y) const {
+double ElasticScattering::DifferentialCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, double y) const {
     double CLL;
-    if(primary_type==LI::dataclasses::Particle::ParticleType::NuE) CLL = 0.7276;
-    else if(primary_type==LI::dataclasses::Particle::ParticleType::NuMu) CLL = -0.2730;
+    if(primary_type==LI::dataclasses::ParticleType::NuE) CLL = 0.7276;
+    else if(primary_type==LI::dataclasses::ParticleType::NuMu) CLL = -0.2730;
     else {
         std::cout << "Faulty primary: " << primary_type << std::endl;
         throw std::runtime_error("Supplied primary not supported by cross section!");
@@ -95,8 +95,8 @@ double ElasticScattering::DifferentialCrossSection(LI::dataclasses::Particle::Pa
 }
 
 double ElasticScattering::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    LI::dataclasses::Particle::ParticleType target_type = interaction.signature.target_type;
+    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::ParticleType target_type = interaction.signature.target_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     double primary_energy = interaction.primary_momentum[0];
     // if we are below threshold, return 0
@@ -105,7 +105,7 @@ double ElasticScattering::TotalCrossSection(dataclasses::InteractionRecord const
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
-double ElasticScattering::TotalCrossSection(LI::dataclasses::Particle::ParticleType primary_type, double primary_energy, LI::dataclasses::Particle::ParticleType target_type) const {
+double ElasticScattering::TotalCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, LI::dataclasses::ParticleType target_type) const {
     double ymax = 2*primary_energy / (2*primary_energy + LI::utilities::Constants::electronMass);
     std::function<double(double)> integrand = [&] (double y) -> double {
         return DifferentialCrossSection(primary_type, primary_energy, y);
@@ -118,9 +118,9 @@ void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRe
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
 
-    LI::dataclasses::Particle::ParticleType primary_type = record.signature.primary_type;
+    LI::dataclasses::ParticleType primary_type = record.signature.primary_type;
 
-    unsigned int nu_index = (record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuE or record.signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::NuMu) ? 0 : 1;
+    unsigned int nu_index = (record.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuE or record.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuMu) ? 0 : 1;
     unsigned int electron_index = 1 - nu_index;
     rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
@@ -215,25 +215,25 @@ void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRe
     neutrino.SetHelicity(record.primary_helicity);
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> ElasticScattering::GetPossibleTargets() const {
-    std::vector<LI::dataclasses::Particle::ParticleType> res;
-    res.push_back(LI::dataclasses::Particle::ParticleType::EMinus);
+std::vector<LI::dataclasses::ParticleType> ElasticScattering::GetPossibleTargets() const {
+    std::vector<LI::dataclasses::ParticleType> res;
+    res.push_back(LI::dataclasses::ParticleType::EMinus);
     return res;
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> ElasticScattering::GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const {
+std::vector<LI::dataclasses::ParticleType> ElasticScattering::GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const {
     if(not primary_types.count(primary_type)) {
-        return std::vector<LI::dataclasses::Particle::ParticleType>();
+        return std::vector<LI::dataclasses::ParticleType>();
     }
     return GetPossibleTargets();
 }
 
-std::vector<LI::dataclasses::Particle::ParticleType> ElasticScattering::GetPossiblePrimaries() const {
-    return std::vector<LI::dataclasses::Particle::ParticleType>(primary_types.begin(), primary_types.end());
+std::vector<LI::dataclasses::ParticleType> ElasticScattering::GetPossiblePrimaries() const {
+    return std::vector<LI::dataclasses::ParticleType>(primary_types.begin(), primary_types.end());
 }
 
 std::vector<dataclasses::InteractionSignature> ElasticScattering::GetPossibleSignatures() const {
-    std::vector<LI::dataclasses::Particle::ParticleType> targets = GetPossibleTargets();
+    std::vector<LI::dataclasses::ParticleType> targets = GetPossibleTargets();
     std::vector<dataclasses::InteractionSignature> signatures;
     dataclasses::InteractionSignature signature;
     signature.secondary_types.resize(2);
@@ -250,8 +250,8 @@ std::vector<dataclasses::InteractionSignature> ElasticScattering::GetPossibleSig
     return signatures;
 }
 
-std::vector<dataclasses::InteractionSignature> ElasticScattering::GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const {
-    std::vector<LI::dataclasses::Particle::ParticleType> targets = GetPossibleTargets();
+std::vector<dataclasses::InteractionSignature> ElasticScattering::GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const {
+    std::vector<LI::dataclasses::ParticleType> targets = GetPossibleTargets();
     if(primary_types.count(primary_type) > 0 and std::find(targets.begin(), targets.end(), target_type) != targets.end()) {
         dataclasses::InteractionSignature signature;
         signature.secondary_types.resize(2);

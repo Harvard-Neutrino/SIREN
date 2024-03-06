@@ -43,7 +43,7 @@ double NeutrissimoDecay::TotalDecayWidth(dataclasses::InteractionRecord const & 
     return TotalDecayWidth(record.signature.primary_type);
 }
 
-double NeutrissimoDecay::TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const {
+double NeutrissimoDecay::TotalDecayWidth(LI::dataclasses::ParticleType primary) const {
     double total_coupling_sq = 0;
     for(auto dc : dipole_coupling) total_coupling_sq += dc*dc;
     return total_coupling_sq * std::pow(hnl_mass,3) / (4*LI::utilities::Constants::pi) * LI::utilities::Constants::GeV;
@@ -51,17 +51,17 @@ double NeutrissimoDecay::TotalDecayWidth(LI::dataclasses::Particle::ParticleType
 
 double NeutrissimoDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
     LI::dataclasses::InteractionSignature const & signature = record.signature;
-    unsigned int gamma_index = (signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::Gamma) ? 0 : 1;
+    unsigned int gamma_index = (signature.secondary_types[0] == LI::dataclasses::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;
     double dipole_coupling_sq = 0;
-    if(signature.secondary_types[nu_index]==LI::dataclasses::Particle::ParticleType::NuE ||
-       signature.secondary_types[nu_index]==LI::dataclasses::Particle::ParticleType::NuEBar)
+    if(signature.secondary_types[nu_index]==LI::dataclasses::ParticleType::NuE ||
+       signature.secondary_types[nu_index]==LI::dataclasses::ParticleType::NuEBar)
         dipole_coupling_sq = dipole_coupling[0]*dipole_coupling[0];
-    else if(signature.secondary_types[nu_index]==LI::dataclasses::Particle::ParticleType::NuMu ||
-            signature.secondary_types[nu_index]==LI::dataclasses::Particle::ParticleType::NuMuBar)
+    else if(signature.secondary_types[nu_index]==LI::dataclasses::ParticleType::NuMu ||
+            signature.secondary_types[nu_index]==LI::dataclasses::ParticleType::NuMuBar)
         dipole_coupling_sq = dipole_coupling[1]*dipole_coupling[1];
-    else if(signature.secondary_types[nu_index]==LI::dataclasses::Particle::ParticleType::NuTau ||
-            signature.secondary_types[nu_index]==LI::dataclasses::Particle::ParticleType::NuTauBar)
+    else if(signature.secondary_types[nu_index]==LI::dataclasses::ParticleType::NuTau ||
+            signature.secondary_types[nu_index]==LI::dataclasses::ParticleType::NuTauBar)
         dipole_coupling_sq = dipole_coupling[2]*dipole_coupling[2];
     return dipole_coupling_sq * std::pow(hnl_mass,3) / (4*LI::utilities::Constants::pi) * LI::utilities::Constants::GeV;
 }
@@ -80,21 +80,21 @@ std::vector<dataclasses::InteractionSignature> NeutrissimoDecay::GetPossibleSign
     return signatures;
 }
 
-std::vector<dataclasses::InteractionSignature> NeutrissimoDecay::GetPossibleSignaturesFromParent(LI::dataclasses::Particle::ParticleType primary) const {
+std::vector<dataclasses::InteractionSignature> NeutrissimoDecay::GetPossibleSignaturesFromParent(LI::dataclasses::ParticleType primary) const {
     std::vector<dataclasses::InteractionSignature> signatures;
     dataclasses::InteractionSignature signature;
     signature.primary_type = primary;
-    signature.target_type = LI::dataclasses::Particle::ParticleType::Decay;
+    signature.target_type = LI::dataclasses::ParticleType::Decay;
     signature.secondary_types.resize(2);
-    signature.secondary_types[0] = LI::dataclasses::Particle::ParticleType::Gamma;
-    if(primary==LI::dataclasses::Particle::ParticleType::NuF4) {
-      for(auto particle : std::vector<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::NuE, LI::dataclasses::Particle::ParticleType::NuMu, LI::dataclasses::Particle::ParticleType::NuTau}) {
+    signature.secondary_types[0] = LI::dataclasses::ParticleType::Gamma;
+    if(primary==LI::dataclasses::ParticleType::NuF4) {
+      for(auto particle : std::vector<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::NuE, LI::dataclasses::ParticleType::NuMu, LI::dataclasses::ParticleType::NuTau}) {
         signature.secondary_types[1] = particle;
         signatures.push_back(signature);
       }
     }
-    else if(primary==LI::dataclasses::Particle::ParticleType::NuF4Bar) {
-      for(auto particle : std::vector<LI::dataclasses::Particle::ParticleType>{LI::dataclasses::Particle::ParticleType::NuEBar, LI::dataclasses::Particle::ParticleType::NuMuBar, LI::dataclasses::Particle::ParticleType::NuTauBar}) {
+    else if(primary==LI::dataclasses::ParticleType::NuF4Bar) {
+      for(auto particle : std::vector<LI::dataclasses::ParticleType>{LI::dataclasses::ParticleType::NuEBar, LI::dataclasses::ParticleType::NuMuBar, LI::dataclasses::ParticleType::NuTauBar}) {
         signature.secondary_types[1] = particle;
         signatures.push_back(signature);
       }
@@ -115,7 +115,7 @@ double NeutrissimoDecay::DifferentialDecayWidth(dataclasses::InteractionRecord c
                                                     record.primary_momentum[1],
                                                     record.primary_momentum[2]);
     hnl_dir.normalize();
-    unsigned int gamma_index = (signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::Gamma) ? 0 : 1;
+    unsigned int gamma_index = (signature.secondary_types[0] == LI::dataclasses::ParticleType::Gamma) ? 0 : 1;
     std::array<double, 4> const & gamma_momentum = record.secondary_momenta[gamma_index];
     rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     rk::P4 pGamma(geom3::Vector3(gamma_momentum[1], gamma_momentum[2], gamma_momentum[3]), record.secondary_masses[gamma_index]);
@@ -128,7 +128,7 @@ double NeutrissimoDecay::DifferentialDecayWidth(dataclasses::InteractionRecord c
     gamma_dir.normalize();
     double CosThetaGamma = gamma_dir*hnl_dir; // scalar product
     double alpha = std::copysign(1.0, record.primary_helicity); // 1 for RH, -1 for LH
-    alpha = (signature.primary_type == LI::dataclasses::Particle::ParticleType::NuF4) ? -1*alpha : alpha;
+    alpha = (signature.primary_type == LI::dataclasses::ParticleType::NuF4) ? -1*alpha : alpha;
     return DecayWidth/2. * (1 + alpha*CosThetaGamma);
 }
 
@@ -136,12 +136,12 @@ void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRec
 
     LI::dataclasses::InteractionSignature const & signature = record.GetSignature();
 
-    unsigned int gamma_index = (signature.secondary_types[0] == LI::dataclasses::Particle::ParticleType::Gamma) ? 0 : 1;
+    unsigned int gamma_index = (signature.secondary_types[0] == LI::dataclasses::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;
 
     double CosTheta;
     double alpha = std::copysign(1.0,record.GetPrimaryHelicity()); // 1 for RH, -1 for LH
-    alpha = (signature.primary_type == LI::dataclasses::Particle::ParticleType::NuF4) ? -1*alpha : alpha;
+    alpha = (signature.primary_type == LI::dataclasses::ParticleType::NuF4) ? -1*alpha : alpha;
 
     if(nature == ChiralNature::Majorana) {
         CosTheta = random->Uniform(-1,1);
@@ -174,13 +174,13 @@ void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRec
     LI::dataclasses::SecondaryParticleRecord & gamma = record.GetSecondaryParticleRecord(gamma_index);
     LI::dataclasses::SecondaryParticleRecord & nu = record.GetSecondaryParticleRecord(nu_index);
 
-    assert(gamma.type == LI::dataclasses::Particle::ParticleType::Gamma);
-    assert(nu.type == LI::dataclasses::Particle::ParticleType::NuE ||
-           nu.type == LI::dataclasses::Particle::ParticleType::NuMu ||
-           nu.type == LI::dataclasses::Particle::ParticleType::NuTau ||
-           nu.type == LI::dataclasses::Particle::ParticleType::NuEBar ||
-           nu.type == LI::dataclasses::Particle::ParticleType::NuMuBar ||
-           nu.type == LI::dataclasses::Particle::ParticleType::NuTauBar);
+    assert(gamma.type == LI::dataclasses::ParticleType::Gamma);
+    assert(nu.type == LI::dataclasses::ParticleType::NuE ||
+           nu.type == LI::dataclasses::ParticleType::NuMu ||
+           nu.type == LI::dataclasses::ParticleType::NuTau ||
+           nu.type == LI::dataclasses::ParticleType::NuEBar ||
+           nu.type == LI::dataclasses::ParticleType::NuMuBar ||
+           nu.type == LI::dataclasses::ParticleType::NuTauBar);
 
     gamma.SetFourMomentum({pGamma.e(), pGamma.px(), pGamma.py(), pGamma.pz()});
     gamma.SetMass(pGamma.m());

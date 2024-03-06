@@ -7,7 +7,7 @@ import ntpath
 import pickle
 import functools
 import logging
-from scipy.interpolate import CloughTocher2DInterpolator, CubicSpline
+from scipy.interpolate import LinearNDInterpolator,PchipInterpolator
 
 # LeptonInjector methods
 import leptoninjector as LI
@@ -16,7 +16,6 @@ from leptoninjector.dataclasses import Particle
 from leptoninjector import _util
 
 # DarkNews methods
-import DarkNews
 from DarkNews import phase_space
 from DarkNews.ModelContainer import ModelContainer
 ModelContainer_configure_logger = ModelContainer.configure_logger
@@ -31,6 +30,9 @@ from DarkNews.integrands import get_decay_momenta_from_vegas_samples
 
 resources_dir = _util.resource_package_dir()
 
+cross_section_kwarg_keys = ["tolerance",
+                            "interp_tolerance",
+                            "always_interpolate"]
 
 # Class containing all upscattering and decay modes available in DarkNews
 class PyDarkNewsInteractionCollection:
@@ -38,15 +40,22 @@ class PyDarkNewsInteractionCollection:
         self,
         table_dir=None,
         param_file=None,
-        tolerance=1e-6,
-        interp_tolerance=5e-2,
+        use_pickles=True,
         **kwargs,
     ):
         # Defines a series of upscattering and decay objects
         # Each derive from the respective LeptonInjector classes
 
+        # Separate kwargs
+        model_kwargs, xs_kwargs = {}, {}
+        for kw,dat in kwargs.items():
+            if kw in cross_section_kwarg_keys:
+                xs_kwargs[kw] = dat
+            else:
+                model_kwargs[kw] = dat
+
         # Get our model container with all ups_case and dec_case DarkNews objects
-        self.models = ModelContainer(param_file, **kwargs)
+        self.models = ModelContainer(param_file, **model_kwargs)
         self.table_dir = table_dir
 
         # Default table_dir settings
@@ -92,7 +101,14 @@ class PyDarkNewsInteractionCollection:
             # Dump the model arguments
             with open(os.path.join(self.table_dir, "model_parameters.json"), "w") as f:
                 json.dump(self.models.model_args_dict, f)
+    
+        self.GenerateCrossSections(use_pickles=use_pickles,**xs_kwargs)
+        self.GenerateDecays(use_pickles=use_pickles)
+        
+        
 
+        
+    def GenerateCrossSections(self, use_pickles, **kwargs):    
         # Save all unique scattering processes
         self.cross_sections = []
         for ups_key, ups_case in self.models.ups_cases.items():
@@ -102,14 +118,23 @@ class PyDarkNewsInteractionCollection:
                     x = x.name
                 table_subdirs += "%s_" % str(x)
             table_subdirs += "/"
-            self.cross_sections.append(
-                PyDarkNewsCrossSection(
-                    ups_case,
-                    table_dir=os.path.join(self.table_dir, table_subdirs),
-                    tolerance=tolerance,
-                    interp_tolerance=interp_tolerance,
+            table_dir=os.path.join(self.table_dir, table_subdirs)
+            fname = os.path.join(table_dir,"xs_object.pkl")
+            if use_pickles and os.path.isfile(fname):
+                with open(fname,"rb") as f:
+                    xs_obj = pickle.load(f)
+                    xs_obj.configure(**kwargs)
+                    self.cross_sections.append(xs_obj)
+            else:
+                self.cross_sections.append(
+                    PyDarkNewsCrossSection(
+                        ups_case,
+                        table_dir=table_dir,
+                        **kwargs
+                    )
                 )
-            )
+    
+    def GenerateDecays(self, use_pickles, **kwargs):
         # Save all unique decay processes
         self.decays = []
         for dec_key, dec_case in self.models.dec_cases.items():
@@ -117,12 +142,22 @@ class PyDarkNewsInteractionCollection:
             for x in dec_key:
                 table_subdirs += "%s_" % str(x)
             table_subdirs += "/"
-            self.decays.append(
-                PyDarkNewsDecay(
-                    dec_case, table_dir=os.path.join(self.table_dir, table_subdirs)
+            table_dir=os.path.join(self.table_dir, table_subdirs)
+            fname = os.path.join(table_dir,"dec_object.pkl")
+            if use_pickles and os.path.isfile(fname):
+                with open(fname,"rb") as f:
+                    self.decays.append(pickle.load(f))
+            else:
+                self.decays.append(
+                    PyDarkNewsDecay(
+                        dec_case, 
+                        table_dir=table_dir,
+                        **kwargs
+                    )
                 )
-            )
 
+    # Save numpy arrays for total and differential cross sections
+    # also pickles cross section/decay objects
     def SaveCrossSectionTables(self, fill_tables_at_exit=True):
         if not fill_tables_at_exit:
             print(
@@ -134,6 +169,29 @@ class PyDarkNewsInteractionCollection:
                 num = cross_section.FillInterpolationTables()
                 print("Added %d points" % num)
             cross_section.SaveInterpolationTables()
+            with open(os.path.join(cross_section.table_dir, "xs_object.pkl"),"wb") as f:
+                pickle.dump(cross_section,f)
+        for decay in self.decays:
+            with open(os.path.join(decay.table_dir,"dec_object.pkl"),"wb") as f:
+                pickle.dump(decay,f)
+    
+    # Fill every cross section table
+    def FillCrossSectionTables(self, Emax=None):
+        for cross_section in self.cross_sections:
+            print("Filling cross section table at %s" % cross_section.table_dir)
+            num = cross_section.FillInterpolationTables(Emax=Emax)
+            print("Added %d points" % num)
+    
+    # Fill every cross section table
+    def FillCrossSectionTablesAtEnergy(self, E):
+        for cross_section in self.cross_sections:
+            E_existing_total = np.unique(cross_section.total_cross_section_table[:, 0])
+            E_existing_diff = np.unique(cross_section.differential_cross_section_table[:, 0])
+            total = (E not in E_existing_total)
+            diff = (E not in E_existing_diff)
+            print("Filling E = %2.2f GeV for cross section table(s) at %s" %(E,cross_section.table_dir))
+            num = cross_section.FillTableAtEnergy(E,total=total,diff=diff)
+            print("Added %d points" % num)
 
 
 # A class representing a single ups_case DarkNews class
@@ -145,7 +203,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         table_dir=None,  # table to store
         tolerance=1e-6,  # supposed to represent machine epsilon
         interp_tolerance=5e-2,  # relative interpolation tolerance
-        interpolate_differential=False,
+        always_interpolate=True, # bool whether to always interpolate the total/differential cross section
     ):
         DarkNewsCrossSection.__init__(self)  # C++ constructor
 
@@ -153,14 +211,12 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         self.tolerance = tolerance
         self.interp_tolerance = interp_tolerance
         self.table_dir = table_dir
-        self.interpolate_differential = interpolate_differential
+        self.always_interpolate = always_interpolate
 
         # 2D table in E, sigma
         self.total_cross_section_table = np.empty((0, 2), dtype=float)
-        self.total_cross_section_interpolator = None
         # 3D table in E, z, dsigma/dQ2 where z = (Q2 - Q2min) / (Q2max - Q2min)
         self.differential_cross_section_table = np.empty((0, 3), dtype=float)
-        self.differential_cross_section_interpolator = None
 
         if table_dir is None:
             print(
@@ -168,7 +224,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             )
             return
 
-        # Make the table directory where will we store cross section integrators
+        # Make the table directory where will we store cross section tables
         table_dir_exists = False
         if os.path.exists(self.table_dir):
             # print("Directory '%s' already exists"%self.table_dir)
@@ -192,7 +248,41 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             if os.path.exists(diff_xsec_file):
                 self.differential_cross_section_table = np.load(diff_xsec_file)
 
-            self._redefine_interpolation_objects(total=True, diff=True)
+        self.configure()
+    
+    # serialization method
+    def get_representation(self):
+        return {"total_cross_section_table":self.total_cross_section_table,
+                "differential_cross_section_table":self.differential_cross_section_table,
+                "ups_case":self.ups_case,
+                "tolerance":self.tolerance,
+                "interp_tolerance":self.interp_tolerance,
+                "table_dir":self.table_dir,
+                "always_interpolate":self.always_interpolate,
+                "is_configured":False
+               }
+    
+    # Configure function to set up member variables
+    # assumes we have defined the following:
+    #   ups_case, total_cross_section_table, differential_cross_section_table,
+    #   tolerance, interp_tolerance, table_dir, always_interpolate
+    #   kwargs argument can be used to set any of these
+    def configure(self, **kwargs):
+
+        for k,v in kwargs.items():
+            self.__setattr__(k,v)
+
+        # Define the target particle
+        # make sure protons are stored as H nuclei
+        self.target_type = Particle.ParticleType(self.ups_case.nuclear_target.pdgid)
+        if self.target_type==Particle.ParticleType.PPlus:
+            self.target_type = Particle.ParticleType.HNucleus
+        
+        # Initialize interpolation objects
+        self.total_cross_section_interpolator = None
+        self.differential_cross_section_interpolator = None
+        self._redefine_interpolation_objects(total=True, diff=True)
+        self.is_configured = True
 
     # Sorts and redefines scipy interpolation objects
     def _redefine_interpolation_objects(self, total=False, diff=False):
@@ -202,9 +292,9 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 self.total_cross_section_table[:,0]
             )
             self.total_cross_section_table = self.total_cross_section_table[idxs]
-            self.total_cross_section_interpolator = CubicSpline(
+            self.total_cross_section_interpolator = PchipInterpolator(
                 self.total_cross_section_table[:, 0],
-                self.total_cross_section_table[:, 1],
+                self.total_cross_section_table[:, 1]
             )
         if diff:
             if len(self.differential_cross_section_table) <= 1: return
@@ -216,7 +306,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             # If we only have two energy points, don't try to construct interpolator
             if len(np.unique(self.differential_cross_section_table[:, 0])) <= 2: return
             self.differential_cross_section_interpolator = (
-                CloughTocher2DInterpolator(
+                LinearNDInterpolator(
                     self.differential_cross_section_table[:, :2],
                     self.differential_cross_section_table[:, 2],
                     rescale=True,
@@ -247,44 +337,22 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         # bools to keep track of whether to use a single point or interpolate
         UseSinglePoint = False
         Interpolate = True
+        # order events by the relative difference
+        rel_diff = np.abs((interp_table[:, :-1] - inputs) / inputs)
+        rel_diff_length = np.sqrt(np.sum(rel_diff**2,axis=-1))
+        closest_idx_abs = np.argmin(rel_diff_length,axis=-1)
         # First check whether we have a close-enough single point
-        closest_idx = np.argmin(np.sum(np.abs(interp_table[:, :-1] - inputs),axis=-1))
-        diff = (interp_table[closest_idx, :-1] - inputs) / inputs
-        if np.all(np.abs(diff) < self.tolerance):
+        if np.all(np.abs(rel_diff[closest_idx_abs]) < self.tolerance):
             UseSinglePoint = True
-        for i, input in enumerate(inputs):
-            closest_idx = np.argmin(np.abs(interp_table[:, i] - input))
-            diff = (interp_table[closest_idx, i] - input) / input  # relative difference
-            # Check if we are close enough to interpolate
-            if np.abs(diff) >= self.interp_tolerance:
+        # Ensure we have enough points to interpolate
+        if len(interp_table) < len(inputs)+1:
+            Interpolate = False
+        # Require that we have at least len(inputs)+1 close points to interpolate
+        else:
+            close = np.all(rel_diff<self.interp_tolerance,axis=-1)
+            if sum(close) < len(inputs)+1:
                 Interpolate = False
-            else:
-                # closest existing input is within interpolation range
-                if diff >= 0:
-                    # closest existing input is above or equal to requested input
-                    idx_above = closest_idx
-                    # check if we are at the boundary
-                    if closest_idx == 0:
-                        Interpolate = False
-                    else:
-                        idx_below = closest_idx - 1
-                        diff_below = (input - interp_table[idx_below, i]) / input
-                        # check if the node below is also within the interpolation tolerance
-                        if diff_below >= self.interp_tolerance:
-                            Interpolate = False
-                elif diff < 0 and -diff < self.interp_tolerance:
-                    # closest existing input is below requested input
-                    idx_below = closest_idx
-                    # check if we are at boundary
-                    if closest_idx >= len(interp_table) - 1:
-                        Interpolate = False
-                    else:
-                        idx_above = closest_idx + 1
-                        diff_above = (interp_table[idx_above, i] - input) / input
-                        # check if the node above is also within the interpolation tolerance
-                        if diff_above >= self.interp_tolerance:
-                            Interpolate = False
-        return UseSinglePoint, Interpolate, closest_idx
+        return UseSinglePoint, Interpolate, closest_idx_abs
 
     # return entries in interpolation table if we have inputs
     def _query_interpolation_table(self, inputs, mode):
@@ -292,6 +360,9 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         # returns:
         # 0 if we are not close enough to any points in the interpolation table
         # otherwise, returns the desired interpolated value
+
+        # First make sure we are configured
+        self._ensure_configured()
 
         # Determine which table we are using
         if mode == "total":
@@ -304,35 +375,50 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             print("Invalid interpolation table mode %s" % mode)
             exit(0)
 
+        if self.always_interpolate:
+            # check if energy is within table range
+            
+            if interpolator is None or inputs[0] > interp_table[-1,0]:
+                print("Requested interpolation at %2.2f GeV. Either this is above the table boundary or the interpolator doesn't yet exist. Filling %s table"%(inputs[0],mode))
+                n = self.FillInterpolationTables(total=(mode=="total"),
+                                                 diff=(mode=="differential"),
+                                                 Emax = (1+self.interp_tolerance)*inputs[0])
+                print("Added %d points"%n)
+                if mode == "total": interpolator = self.total_cross_section_interpolator
+                elif mode== "differential": interpolator = self.differential_cross_section_interpolator
+            elif inputs[0] < interp_table[0,0]:
+                print("Requested interpolation at %2.2f GeV below table boundary. Requring calculation"%inputs[0])
+                return 0
+            val = max(0,interpolator(inputs))
+            if val<0:
+                print("WARNING: negative interpolated value for %s-%s %s cross section at,"%(self.ups_case.nuclear_target.name,
+                                                                                             self.ups_case.scattering_regime,
+                                                                                             mode),inputs) 
+            return val
+        
         UseSinglePoint, Interpolate, closest_idx = self._interpolation_flags(
             inputs, mode
         )
 
         if UseSinglePoint:
+            if closest_idx<0:
+                print("Trying to use a single table point, but no closest idx found. Exiting...")
+                exit(0)
             return interp_table[closest_idx, -1]
         elif Interpolate:
             return interpolator(inputs)
         else:
-            return 0
+            return -1
 
-    # Fills the total and differential cross section tables within interp_tolerance
-    def FillInterpolationTables(self, total=True, diff=True):
-        Emin = (1.0 + self.tolerance) * self.ups_case.Ethreshold
-        Emax = np.max(self.total_cross_section_table[:, 0])
+    def FillTableAtEnergy(self, E, total=True, diff=True, factor=0.8):
         num_added_points = 0
         if total:
-            E = Emin
-            while E < Emax:
-                UseSinglePoint, Interpolate, _ = self._interpolation_flags([E], "total")
-                if not (UseSinglePoint or Interpolate):
-                    xsec = self.ups_case.scalar_total_xsec(E)
-                    self.total_cross_section_table = np.append(
-                        self.total_cross_section_table, [[E, xsec]], axis=0
-                    )
-                    num_added_points += 1
-                E *= (1 + self.interp_tolerance)
+            xsec = self.ups_case.total_xsec(E)
+            self.total_cross_section_table = np.append(
+                self.total_cross_section_table, [[E, xsec]], axis=0
+            )
+            num_added_points+=1
         if diff:
-            # interaction record to calculate Q2 bounds
             interaction = LI.dataclasses.InteractionRecord()
             interaction.signature.primary_type = self.GetPossiblePrimaries()[
                 0
@@ -341,29 +427,49 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 0
             ]  # only one target
             interaction.target_mass = self.ups_case.MA
-            E = Emin
+            interaction.primary_momentum = [E, 0, 0, 0]
             zmin, zmax = self.tolerance, 1
+            Q2min = self.Q2Min(interaction)
+            Q2max = self.Q2Max(interaction)
             z = zmin
-            while E < Emax:
-                interaction.primary_momentum = [E, 0, 0, 0]
-                Q2min = self.Q2Min(interaction)
-                Q2max = self.Q2Max(interaction)
-                z = zmin
-                while z < zmax:
-                    Q2 = Q2min + z * (Q2max - Q2min)
-                    UseSinglePoint, Interpolate, _ = self._interpolation_flags(
-                        [E, z], "differential"
-                    )
-                    if not (UseSinglePoint or Interpolate):
-                        dxsec = self.ups_case.diff_xsec_Q2(E, Q2).item()
-                        self.differential_cross_section_table = np.append(
-                            self.differential_cross_section_table,
-                            [[E, z, dxsec]],
-                            axis=0,
-                        )
-                        num_added_points += 1
-                    z *= (1 + self.interp_tolerance)
-                E *= (1 + self.interp_tolerance)
+            while z < zmax:
+                Q2 = Q2min + z * (Q2max - Q2min)
+                dxsec = self.ups_case.diff_xsec_Q2(E, Q2).item()
+                self.differential_cross_section_table = np.append(
+                    self.differential_cross_section_table,
+                    [[E, z, dxsec]],
+                    axis=0,
+                )
+                num_added_points += 1
+                z *= (1 + factor*self.interp_tolerance)
+        self._redefine_interpolation_objects(total=total, diff=diff)
+        return num_added_points
+
+    
+    # Fills the total and differential cross section tables within interp_tolerance
+    def FillInterpolationTables(self, total=True, diff=True, factor=0.8, Emax=None):
+        increment_factor = 0.5*factor * self.interp_tolerance
+        Emin = (1.0 + self.tolerance) * self.ups_case.Ethreshold
+        if Emax is None:
+            if (len(self.total_cross_section_table) + 
+                len(self.differential_cross_section_table)) <=0:
+                return 0
+            Emax = max(np.max([0] + list(self.total_cross_section_table[:, 0])),
+                       np.max([0] + list(self.differential_cross_section_table[:, 0])))
+        num_added_points = 0
+        E = Emin
+        E_existing_total = np.unique(self.total_cross_section_table[:, 0])
+        E_existing_diff = np.unique(self.differential_cross_section_table[:, 0])
+        while E < Emax:
+            # sample more coarsely past 1.5*threshold
+            if E > 1.5*self.ups_case.Ethreshold:
+                increment_factor = factor * self.interp_tolerance
+            n = self.FillTableAtEnergy(E,
+                                       total=(total and (E not in E_existing_total)),
+                                       diff=(diff and (E not in E_existing_diff)),
+                                       factor=factor)
+            num_added_points += n
+            E *= (1 + increment_factor)
         self._redefine_interpolation_objects(total=total, diff=diff)
         return num_added_points
 
@@ -382,43 +488,36 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             ) as f:
                 np.save(f, self.differential_cross_section_table)
 
-    ##### START METHODS FOR SERIALIZATION #########
-    # def get_initialized_dict(config):
-    #     # do the intitialization step
-    #     pddn = PyDerivedDarkNews(config)
-    #     return pddn.__dict__
-    #     # return the conent of __dict__ for PyDerivedDarkNews
-
-    # @staticmethod
-    # def get_config(self):
-    #     return self.config
-    ##### END METHODS FOR SERIALIZATION #########
-
     def GetPossiblePrimaries(self):
         return [Particle.ParticleType(self.ups_case.nu_projectile.pdgid)]
 
+    def _ensure_configured(self):
+        if not self.is_configured:
+            self.configure()
+
     def GetPossibleTargetsFromPrimary(self, primary_type):
+        self._ensure_configured()
         if Particle.ParticleType(self.ups_case.nu_projectile.pdgid) == primary_type:
-            return [Particle.Particle.ParticleType(self.ups_case.nuclear_target.pdgid)]
+            return [self.target_type]
         return []
 
     def GetPossibleTargets(self):
-        return [Particle.ParticleType(self.ups_case.nuclear_target.pdgid)]
+        self._ensure_configured()
+        return [self.target_type]
 
     def GetPossibleSignatures(self):
+        self._ensure_configured()
         signature = LI.dataclasses.InteractionSignature()
         signature.primary_type = Particle.ParticleType(
             self.ups_case.nu_projectile.pdgid
         )
-        signature.target_type = Particle.ParticleType(
-            self.ups_case.nuclear_target.pdgid
-        )
+        signature.target_type = self.target_type
         signature.secondary_types = []
         signature.secondary_types.append(
             Particle.ParticleType(self.ups_case.nu_upscattered.pdgid)
         )
         signature.secondary_types.append(
-            Particle.ParticleType(self.ups_case.nuclear_target.pdgid)
+            self.target_type
         )
         return [signature]
 
@@ -426,15 +525,13 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         if (
             Particle.ParticleType(self.ups_case.nu_projectile.pdgid) == primary_type
         ) and (
-            Particle.ParticleType(self.ups_case.nuclear_target.pdgid) == target_type
+            (self.target_type == target_type)
         ):
             signature = LI.dataclasses.InteractionSignature()
             signature.primary_type = Particle.ParticleType(
                 self.ups_case.nu_projectile.pdgid
             )
-            signature.target_type = Particle.ParticleType(
-                self.ups_case.nuclear_target.pdgid
-            )
+            signature.target_type = self.target_type
             secondary_types = []
             secondary_types.append(
                 Particle.ParticleType(self.ups_case.nu_upscattered.pdgid)
@@ -474,28 +571,25 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             interaction.signature.target_type = target
             interaction.primary_momentum = [energy, 0, 0, 0]
             interaction.target_mass = self.ups_case.MA
-        if interaction.signature.primary_type != self.ups_case.nu_projectile:
+        if interaction.signature.primary_type != Particle.ParticleType(self.ups_case.nu_projectile.pdgid):
             return 0
         if interaction.primary_momentum[0] < self.InteractionThreshold(interaction):
             return 0
         Q2min = self.Q2Min(interaction)
         Q2max = self.Q2Max(interaction)
+        if Q2 < Q2min or Q2 > Q2max:
+            return 0
         z = (Q2 - Q2min) / (Q2max - Q2min)
 
-        if self.interpolate_differential:
+        if self.always_interpolate:
             # Check if we can interpolate
             val = self._query_interpolation_table([energy, z], mode="differential")
-            if val > 0:
+            if val >= 0:
                 # we have recovered the differential cross section from the interpolation table
                 return val
 
         # If we have reached this block, we must compute the differential cross section using DarkNews
         dxsec = self.ups_case.diff_xsec_Q2(energy, Q2).item()
-        self.differential_cross_section_table = np.append(
-            self.differential_cross_section_table, [[energy, z, dxsec]], axis=0
-        )
-        if self.interpolate_differential:
-            self._redefine_interpolation_objects(diff=True)
         return dxsec
 
     def TargetMass(self, target_type):
@@ -520,7 +614,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     def TotalCrossSection(self, arg1, energy=None, target=None):
         # Handle overloaded arguments
-        if type(arg1 == LI.dataclasses.InteractionRecord):
+        if type(arg1) == LI.dataclasses.InteractionRecord:
             primary = arg1.signature.primary_type
             energy = arg1.primary_momentum[0]
             target = arg1.signature.target_type
@@ -536,17 +630,17 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         interaction.signature.target_type = target
         interaction.primary_momentum[0] = energy
         if energy < self.InteractionThreshold(interaction):
-            print("Python: energy < self.InteractionThreshold(interaction)")
+            #print("Python: energy %2.2f < self.InteractionThreshold(interaction) %2.2f"%(energy,self.InteractionThreshold(interaction)))
             return 0
 
         # Check if we can interpolate
         val = self._query_interpolation_table([energy], mode="total")
-        if val > 0:
+        if val >= 0:
             # we have recovered the cross section from the interpolation table
             return val
 
         # If we have reached this block, we must compute the cross section using DarkNews
-        xsec = self.ups_case.scalar_total_xsec(energy)
+        xsec = self.ups_case.total_xsec(energy)
         self.total_cross_section_table = np.append(
             self.total_cross_section_table, [[energy, xsec]], axis=0
         )
@@ -560,14 +654,14 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         return phase_space.upscattering_Q2min(
             interaction.primary_momentum[0],
             self.ups_case.m_ups,
-            interaction.target_mass,
+            self.ups_case.MA,
         )
 
     def Q2Max(self, interaction):
         return phase_space.upscattering_Q2max(
             interaction.primary_momentum[0],
             self.ups_case.m_ups,
-            interaction.target_mass,
+            self.ups_case.MA,
         )
 
 
@@ -611,6 +705,18 @@ class PyDarkNewsDecay(DarkNewsDecay):
         if table_dir_exists:
             self.SetIntegratorAndNorm()
 
+    # serialization method
+    def get_representation(self):
+        return {"decay_integrator":self.decay_integrator,
+                "decay_norm":self.decay_norm,
+                "dec_case":self.dec_case,
+                "PS_samples":self.PS_samples,
+                "PS_weights":self.PS_weights,
+                "PS_weights_CDF":self.PS_weights_CDF,
+                "total_width":self.total_width,
+                "table_dir":self.table_dir
+               }
+    
     def SetIntegratorAndNorm(self):
         # Try to find the decay integrator
         int_file = os.path.join(self.table_dir, "decay_integrator.pkl")
@@ -624,18 +730,6 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 norm_file,
             ) as nfile:
                 self.decay_norm = json.load(nfile)
-
-    ##### START METHODS FOR SERIALIZATION #########
-    # def get_initialized_dict(config):
-    #     # do the intitialization step
-    #     pddn = PyDerivedDarkNews(config)
-    #     return pddn.__dict__
-    #     # return the conent of __dict__ for PyDerivedDarkNews
-
-    # @staticmethod
-    # def get_config(self):
-    #     return self.config
-    ##### END METHODS FOR SERIALIZATION #########
 
     def GetPossibleSignatures(self):
         signature = LI.dataclasses.InteractionSignature()
@@ -848,9 +942,6 @@ class PyDarkNewsDecay(DarkNewsDecay):
             secondaries[nu_idx].four_momentum = np.squeeze(four_momenta["P_decay_N_daughter"])
             secondaries[nu_idx].mass = 0
 
-            print("P_gamma", secondaries[gamma_idx].four_momentum)
-            print("P_nu", secondaries[nu_idx].four_momentum)
-
         elif type(self.dec_case) == FermionDileptonDecay:
             lepminus_idx = -1
             lepplus_idx = -1
@@ -875,8 +966,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 print(record.signature.secondary_types)
                 print("Couldn't find two leptons and a neutrino in the final state!")
                 exit(0)
-            secondary_momenta = []
-            seconaries[lepminus_idx].four_momentum = (
+            secondaries[lepminus_idx].four_momentum = (
                 np.squeeze(four_momenta["P_decay_ell_minus"])
             )
             secondaries[lepplus_idx].four_momentum = (

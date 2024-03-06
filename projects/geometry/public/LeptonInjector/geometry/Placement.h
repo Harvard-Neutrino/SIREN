@@ -40,7 +40,7 @@ public:
     void swap(Placement& placement);
     friend std::ostream& operator<<(std::ostream& os, Placement const& placement);
 
-    std::shared_ptr<const Placement> create() const;
+    std::shared_ptr<Placement> create() const;
 
     //-------------------------------------//
     // getter and setter functions

@@ -43,7 +43,7 @@ public:
     }
 
     /* Geometry* clone() const override{ return new Sphere(*this); }; */
-    std::shared_ptr<const Geometry> create() const override{ return std::shared_ptr<const Geometry>( new Sphere(*this) ); }
+    std::shared_ptr<Geometry> create() const override{ return std::shared_ptr<Geometry>( new Sphere(*this) ); }
     void swap(Geometry&) override;
 
     virtual ~Sphere() {}

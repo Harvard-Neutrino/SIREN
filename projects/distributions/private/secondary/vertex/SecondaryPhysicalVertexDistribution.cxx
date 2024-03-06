@@ -59,13 +59,13 @@ void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<LI::utili
     LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
     path.ClipToOuterBounds();
 
-    std::vector<LI::dataclasses::Particle::ParticleType> targets(interactions->TargetTypes().begin(), interactions->TargetTypes().end());
+    std::vector<LI::dataclasses::ParticleType> targets(interactions->TargetTypes().begin(), interactions->TargetTypes().end());
 
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = interactions->TotalDecayLength(record.record);
     LI::dataclasses::InteractionRecord fake_record = record.record;
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::dataclasses::Particle::ParticleType const & target = targets[i];
+        LI::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -108,14 +108,14 @@ double SecondaryPhysicalVertexDistribution::GenerationProbability(std::shared_pt
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
 
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<LI::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = interactions->TotalDecayLength(record);
     LI::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::dataclasses::Particle::ParticleType const & target = targets[i];
+        LI::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {

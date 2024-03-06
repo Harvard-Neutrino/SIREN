@@ -46,6 +46,7 @@ static const std::map<int32_t, std::string> ParticleTypeIntNames = {
 } // namespace LI
 } // namespace dataclasses
 
+std::ostream & operator<<(std::ostream & os, LI::dataclasses::ParticleType && p);
 std::ostream & operator<<(std::ostream & os, LI::dataclasses::ParticleType const & p);
 
 namespace cereal {

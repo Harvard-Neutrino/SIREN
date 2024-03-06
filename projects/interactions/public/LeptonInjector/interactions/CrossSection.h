@@ -39,12 +39,12 @@ public:
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const = 0;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const = 0;
 
-    virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const = 0;
-    virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const = 0;
-    virtual std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const = 0;
+    virtual std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const = 0;
+    virtual std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const = 0;
+    virtual std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const = 0;
     virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;
 
-    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const = 0;
+    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const = 0;
     template<class Archive>

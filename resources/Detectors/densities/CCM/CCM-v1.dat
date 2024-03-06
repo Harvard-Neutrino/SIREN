@@ -77,3 +77,6 @@ object cylinder  23 0 -0.65          0 0 0      1.06 0 1.50    ccm_pmt_frame    
 object cylinder  23 0 -0.65          0 0 0      0.96 0 1.232   ccm_inner_argon     ARGON    constant    1.3954    
 
 detector 23 0 -0.65
+
+# Fiducial volume
+fiducial detector_coords cylinder 0 0 0         0 0 0      0.96 0 1.232

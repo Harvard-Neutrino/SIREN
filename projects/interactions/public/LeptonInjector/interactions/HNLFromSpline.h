@@ -44,10 +44,10 @@ private:
     photospline::splinetable<> total_cross_section_;
 
     std::vector<dataclasses::InteractionSignature> signatures_;
-    std::set<LI::dataclasses::Particle::ParticleType> primary_types_;
-    std::set<LI::dataclasses::Particle::ParticleType> target_types_;
-    std::map<LI::dataclasses::Particle::ParticleType, std::vector<LI::dataclasses::Particle::ParticleType>> targets_by_primary_types_;
-    std::map<std::pair<LI::dataclasses::Particle::ParticleType, LI::dataclasses::Particle::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
+    std::set<LI::dataclasses::ParticleType> primary_types_;
+    std::set<LI::dataclasses::ParticleType> target_types_;
+    std::map<LI::dataclasses::ParticleType, std::vector<LI::dataclasses::ParticleType>> targets_by_primary_types_;
+    std::map<std::pair<LI::dataclasses::ParticleType, LI::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
 
     int interaction_type_;
     double target_mass_;
@@ -55,28 +55,28 @@ private:
 
 public:
     HNLFromSpline();
-    HNLFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::set<LI::dataclasses::Particle::ParticleType> primary_types, std::set<LI::dataclasses::Particle::ParticleType> target_types);
-    HNLFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::vector<LI::dataclasses::Particle::ParticleType> primary_types, std::vector<LI::dataclasses::Particle::ParticleType> target_types);
-    HNLFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::set<LI::dataclasses::Particle::ParticleType> primary_types, std::set<LI::dataclasses::Particle::ParticleType> target_types);
-    HNLFromSpline(std::string differential_filename, std::string total_filename, std::set<LI::dataclasses::Particle::ParticleType> primary_types, std::set<LI::dataclasses::Particle::ParticleType> target_types);
-    HNLFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<LI::dataclasses::Particle::ParticleType> primary_types, std::vector<LI::dataclasses::Particle::ParticleType> target_types);
-    HNLFromSpline(std::string differential_filename, std::string total_filename, std::vector<LI::dataclasses::Particle::ParticleType> primary_types, std::vector<LI::dataclasses::Particle::ParticleType> target_types);
+    HNLFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::set<LI::dataclasses::ParticleType> primary_types, std::set<LI::dataclasses::ParticleType> target_types);
+    HNLFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::vector<LI::dataclasses::ParticleType> primary_types, std::vector<LI::dataclasses::ParticleType> target_types);
+    HNLFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::set<LI::dataclasses::ParticleType> primary_types, std::set<LI::dataclasses::ParticleType> target_types);
+    HNLFromSpline(std::string differential_filename, std::string total_filename, std::set<LI::dataclasses::ParticleType> primary_types, std::set<LI::dataclasses::ParticleType> target_types);
+    HNLFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<LI::dataclasses::ParticleType> primary_types, std::vector<LI::dataclasses::ParticleType> target_types);
+    HNLFromSpline(std::string differential_filename, std::string total_filename, std::vector<LI::dataclasses::ParticleType> primary_types, std::vector<LI::dataclasses::ParticleType> target_types);
 
     virtual bool equal(CrossSection const & other) const override;
 
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy) const;
-    double TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target) const;
+    double TotalCrossSection(LI::dataclasses::ParticleType primary, double energy) const;
+    double TotalCrossSection(LI::dataclasses::ParticleType primary, double energy, LI::dataclasses::ParticleType target) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random> random) const override;
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargets() const override;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::Particle::ParticleType primary_type) const override;
-    std::vector<LI::dataclasses::Particle::ParticleType> GetPossiblePrimaries() const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override;
+    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override;
     std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
-    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::Particle::ParticleType primary_type, LI::dataclasses::Particle::ParticleType target_type) const override;
+    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override;
 
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
@@ -87,7 +87,7 @@ public:
     double GetTargetMass() const {return target_mass_;};
     int GetInteractionType() const {return interaction_type_;};
 
-    static double GetLeptonMass(LI::dataclasses::Particle::ParticleType lepton_type);
+    static double GetLeptonMass(LI::dataclasses::ParticleType lepton_type);
 public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>

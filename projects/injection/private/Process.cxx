@@ -5,7 +5,7 @@
 namespace LI {
 namespace injection {
 
-Process::Process(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : primary_type(_primary_type), interactions(_interactions) {}
+Process::Process(LI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : primary_type(_primary_type), interactions(_interactions) {}
 
 Process::Process(Process const & other) : primary_type(other.primary_type), interactions(other.interactions) {}
 
@@ -31,11 +31,11 @@ std::shared_ptr<interactions::InteractionCollection> Process::GetInteractions() 
     return interactions;
 }
 
-void Process::SetPrimaryType(LI::dataclasses::Particle::ParticleType _primary_type) {
+void Process::SetPrimaryType(LI::dataclasses::ParticleType _primary_type) {
     primary_type = _primary_type;
 }
 
-LI::dataclasses::Particle::ParticleType Process::GetPrimaryType() const {
+LI::dataclasses::ParticleType Process::GetPrimaryType() const {
     return primary_type;
 }
 
@@ -59,7 +59,7 @@ bool Process::MatchesHead(std::shared_ptr<Process> const & other) const {
         other->interactions);
 }
 
-PhysicalProcess::PhysicalProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : Process(_primary_type, _interactions) {};
+PhysicalProcess::PhysicalProcess(LI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : Process(_primary_type, _interactions) {};
 
 PhysicalProcess::PhysicalProcess(PhysicalProcess const & other) : Process(other), physical_distributions(other.physical_distributions) {};
 
@@ -89,7 +89,7 @@ std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & Phys
     return physical_distributions;
 }
 
-PrimaryInjectionProcess::PrimaryInjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : PhysicalProcess(_primary_type, _interactions) {};
+PrimaryInjectionProcess::PrimaryInjectionProcess(LI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : PhysicalProcess(_primary_type, _interactions) {};
 
 PrimaryInjectionProcess::PrimaryInjectionProcess(PrimaryInjectionProcess const & other) : PhysicalProcess(other), primary_injection_distributions(other.primary_injection_distributions) {};
 
@@ -125,7 +125,7 @@ std::vector<std::shared_ptr<distributions::PrimaryInjectionDistribution>> const 
 
 /////////////////////////////////////////////
 
-SecondaryInjectionProcess::SecondaryInjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : PhysicalProcess(_primary_type, _interactions) {};
+SecondaryInjectionProcess::SecondaryInjectionProcess(LI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : PhysicalProcess(_primary_type, _interactions) {};
 
 SecondaryInjectionProcess::SecondaryInjectionProcess(SecondaryInjectionProcess const & other) : PhysicalProcess(other), secondary_injection_distributions(other.secondary_injection_distributions) {};
 

@@ -34,7 +34,7 @@ class MaterialModel {
 public:
     static const std::map<std::tuple<int, int, int, int>, double> atomic_masses;
     struct Component {
-        LI::dataclasses::Particle::ParticleType type = LI::dataclasses::Particle::ParticleType::unknown;
+        LI::dataclasses::ParticleType type = LI::dataclasses::ParticleType::unknown;
         int strange_count = 0;
         int neutron_count = 0;
         int nucleon_count = 0;
@@ -42,7 +42,7 @@ public:
         double molar_mass = 0;
         bool is_atom = true;
         Component() {}
-        Component(LI::dataclasses::Particle::ParticleType type);
+        Component(LI::dataclasses::ParticleType type);
         bool operator==(Component const & component) const;
         template<class Archive>
         void serialize(Archive & archive, std::uint32_t const version) {
@@ -85,9 +85,9 @@ private:
     std::map<std::string, int> material_ids_;
 
     std::vector<std::vector<MaterialComponent>> material_components_;
-    std::map<std::pair<int, LI::dataclasses::Particle::ParticleType>, MaterialComponent> material_components_by_id_;
+    std::map<std::pair<int, LI::dataclasses::ParticleType>, MaterialComponent> material_components_by_id_;
     std::vector<double> material_radiation_length_;
-    std::map<std::pair<int, LI::dataclasses::Particle::ParticleType>, double> component_radiation_length_;
+    std::map<std::pair<int, LI::dataclasses::ParticleType>, double> component_radiation_length_;
 public:
     bool operator==(MaterialModel const & component) const;
     template<class Archive>
@@ -115,37 +115,37 @@ public:
     void AddModelFiles(std::vector<std::string> const & matratios);
     void AddModelFile(std::string matratio);
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetMaterialTargets(int material_id) const;
+    std::vector<LI::dataclasses::ParticleType> GetMaterialTargets(int material_id) const;
     double GetMaterialRadiationLength(int material_id) const;
     std::string GetMaterialName(int material_id) const;
     int GetMaterialId(std::string const & material_name) const;
     bool HasMaterial(std::string const & material_name) const;
     bool HasMaterial(int material_id) const;
 
-    double GetTargetMassFraction(int material_id, LI::dataclasses::Particle::ParticleType) const;
-    double GetTargetParticleFraction(int material_id, LI::dataclasses::Particle::ParticleType) const;
-    std::vector<double> GetTargetMassFraction(int material_id, std::vector<LI::dataclasses::Particle::ParticleType> const &) const;
-    std::vector<double> GetTargetParticleFraction(int material_id, std::vector<LI::dataclasses::Particle::ParticleType> const &) const;
+    double GetTargetMassFraction(int material_id, LI::dataclasses::ParticleType) const;
+    double GetTargetParticleFraction(int material_id, LI::dataclasses::ParticleType) const;
+    std::vector<double> GetTargetMassFraction(int material_id, std::vector<LI::dataclasses::ParticleType> const &) const;
+    std::vector<double> GetTargetParticleFraction(int material_id, std::vector<LI::dataclasses::ParticleType> const &) const;
 
-    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
     std::vector<double> GetTargetMassFraction(int material_id, Iterator begin, Iterator end) const;
-    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
     std::vector<double> GetTargetParticleFraction(int material_id, Iterator begin, Iterator end) const;
 
-    std::vector<double> GetTargetRadiationFraction(int material_id, std::vector<LI::dataclasses::Particle::ParticleType> const &) const;
-    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::Particle::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetTargetRadiationFraction(int material_id, std::vector<LI::dataclasses::ParticleType> const &) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<LI::dataclasses::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
     std::vector<double> GetTargetRadiationFraction(int material_id, Iterator begin, Iterator end) const;
 
-    std::vector<LI::dataclasses::Particle::ParticleType> GetMaterialConstituents(int material_id) const;
+    std::vector<LI::dataclasses::ParticleType> GetMaterialConstituents(int material_id) const;
 private:
     double ComputeMaterialRadiationLength(int id) const;
 public:
     static int GetNucleonContent(int code, int & num_strange, int & num_neutrons, int & num_protons, int & num_nucleons);
-    static double GetMolarMass(LI::dataclasses::Particle::ParticleType particle);
-    static int GetStrangeCount(LI::dataclasses::Particle::ParticleType particle);
-    static int GetNucleonCount(LI::dataclasses::Particle::ParticleType particle);
-    static int GetNeutronCount(LI::dataclasses::Particle::ParticleType particle);
-    static int GetProtonCount(LI::dataclasses::Particle::ParticleType particle);
+    static double GetMolarMass(LI::dataclasses::ParticleType particle);
+    static int GetStrangeCount(LI::dataclasses::ParticleType particle);
+    static int GetNucleonCount(LI::dataclasses::ParticleType particle);
+    static int GetNeutronCount(LI::dataclasses::ParticleType particle);
+    static int GetProtonCount(LI::dataclasses::ParticleType particle);
     static int GetEmpericalNuclearBindingEnergy(int num_strange, int num_neutrons, int num_protons, int num_nucleons);
 };
 

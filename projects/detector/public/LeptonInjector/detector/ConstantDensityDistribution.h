@@ -51,8 +51,8 @@ class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_
     };
 
     DensityDistribution* clone() const override { return new T(*this); };
-    std::shared_ptr<const DensityDistribution> create() const override {
-        return std::shared_ptr<const DensityDistribution>(new T(*this));
+    std::shared_ptr<DensityDistribution> create() const override {
+        return std::shared_ptr<DensityDistribution>(new T(*this));
     };
 
     double Derivative(const math::Vector3D& xi,

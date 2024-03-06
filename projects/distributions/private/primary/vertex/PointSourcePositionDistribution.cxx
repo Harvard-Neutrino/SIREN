@@ -56,9 +56,9 @@ std::tuple<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistributi
     LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
     path.ClipToOuterBounds();
 
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<LI::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     LI::dataclasses::InteractionRecord fake_record;
     fake_record.signature.primary_type = record.type;
@@ -66,7 +66,7 @@ std::tuple<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistributi
     fake_record.primary_momentum[0] = record.GetEnergy();
     double total_decay_length = interactions->TotalDecayLength(fake_record);
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::dataclasses::Particle::ParticleType const & target = targets[i];
+        LI::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -110,14 +110,14 @@ double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI
         return 0.0;
     
 
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<LI::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = interactions->TotalDecayLength(record);
     LI::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::dataclasses::Particle::ParticleType const & target = targets[i];
+        LI::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -144,7 +144,7 @@ double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI
 
 PointSourcePositionDistribution::PointSourcePositionDistribution() {}
 
-PointSourcePositionDistribution::PointSourcePositionDistribution(LI::math::Vector3D origin, double max_distance, std::set<LI::dataclasses::Particle::ParticleType> target_types) : origin(origin), max_distance(max_distance), target_types(target_types) {}
+PointSourcePositionDistribution::PointSourcePositionDistribution(LI::math::Vector3D origin, double max_distance, std::set<LI::dataclasses::ParticleType> target_types) : origin(origin), max_distance(max_distance), target_types(target_types) {}
 
 std::string PointSourcePositionDistribution::Name() const {
     return "PointSourcePositionDistribution";

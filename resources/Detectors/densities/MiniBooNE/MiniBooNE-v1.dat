@@ -17,9 +17,7 @@ object sphere    0 0 0            0 0 0      9.1    surr_air           AIR      
 # Detector
 object sphere    0 0 0            0 0 0      6.1    detector           MINERAL_OIL         constant    0.85
 
-# Fid Vol
-object sphere    0 0 0            0 0 0      5.0    fid_vol           MINERAL_OIL         constant    0.85
-
 detector         0 0 0
 
-
+# Fid Vol
+fiducial sphere  0 0 0            0 0 0      5.0 

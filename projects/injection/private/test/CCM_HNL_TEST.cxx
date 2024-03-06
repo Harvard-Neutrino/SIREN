@@ -47,7 +47,7 @@ using namespace LI::interactions;
 using namespace LI::utilities;
 using namespace LI::distributions;
 
-using ParticleType = Particle::ParticleType;
+using ParticleType = ParticleType;
 
 // Variables which the user will have to specify
 
@@ -68,7 +68,7 @@ std::string mHNL = "0.01375";
     
 // Events to inject
 unsigned int events_to_inject = 1e2;
-Particle::ParticleType primary_type = ParticleType::NuMu;
+ParticleType primary_type = ParticleType::NuMu;
 std::vector<double> dipole_coupling_vec = {(primary_type==ParticleType::NuE) ? dipole_coupling : 0,
                                            (primary_type==ParticleType::NuMu) ? dipole_coupling : 0,
                                            (primary_type==ParticleType::NuTau) ? dipole_coupling : 0};
@@ -111,8 +111,8 @@ std::vector<std::array<int, 2>> gen_ZA() {
     };
 }
 
-std::vector<Particle::ParticleType> gen_TargetPIDs() {
-    using ParticleType = Particle::ParticleType;
+std::vector<ParticleType> gen_TargetPIDs() {
+    using ParticleType = ParticleType;
     return std::vector<ParticleType>{
             ParticleType::HNucleus,
             ParticleType::C12Nucleus,
@@ -162,7 +162,7 @@ std::vector<std::string> gen_tot_xs_hc(std::string mHNL) {
 
 TEST(Injector, Generation)
 {
-    using ParticleType = Particle::ParticleType;
+    using ParticleType = ParticleType;
 
 
     // Load the detector model
@@ -192,7 +192,7 @@ TEST(Injector, Generation)
     std::cout << "LoadingCrossSections...\n";
     // Load cross sections
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
-    std::vector<Particle::ParticleType> target_types = gen_TargetPIDs();
+    std::vector<ParticleType> target_types = gen_TargetPIDs();
     std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV, inelastic);
     std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV, inelastic);
     std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL);

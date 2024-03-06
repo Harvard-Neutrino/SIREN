@@ -31,19 +31,19 @@ TEST(Comparison, Comparison_equal)
     InteractionRecord B;
     EXPECT_TRUE(A == B);
 
-    A.signature.primary_type = Particle::ParticleType::EMinus;
+    A.signature.primary_type = ParticleType::EMinus;
     EXPECT_FALSE(A == B);
-    B.signature.primary_type = Particle::ParticleType::EMinus;
+    B.signature.primary_type = ParticleType::EMinus;
     EXPECT_TRUE(A == B);
 
-    A.signature.target_type = Particle::ParticleType::PPlus;
+    A.signature.target_type = ParticleType::PPlus;
     EXPECT_FALSE(A == B);
-    B.signature.target_type = Particle::ParticleType::PPlus;
+    B.signature.target_type = ParticleType::PPlus;
     EXPECT_TRUE(A == B);
 
-    A.signature.secondary_types.push_back(Particle::ParticleType::EMinus);
+    A.signature.secondary_types.push_back(ParticleType::EMinus);
     EXPECT_FALSE(A == B);
-    B.signature.secondary_types.push_back(Particle::ParticleType::EMinus);
+    B.signature.secondary_types.push_back(ParticleType::EMinus);
     EXPECT_TRUE(A == B);
 
     A.primary_id = ParticleID(1, 1);
@@ -120,27 +120,27 @@ TEST(Comparison, LessThan)
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
-    A.signature.primary_type = Particle::ParticleType::EMinus;
+    A.signature.primary_type = ParticleType::EMinus;
     EXPECT_FALSE(A < B);
     EXPECT_TRUE(B < A);
 
-    B.signature.primary_type = Particle::ParticleType::EMinus;
+    B.signature.primary_type = ParticleType::EMinus;
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
-    A.signature.target_type = Particle::ParticleType::PPlus;
+    A.signature.target_type = ParticleType::PPlus;
     EXPECT_FALSE(A < B);
     EXPECT_TRUE(B < A);
 
-    B.signature.target_type = Particle::ParticleType::PPlus;
+    B.signature.target_type = ParticleType::PPlus;
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
-    A.signature.secondary_types.push_back(Particle::ParticleType::EMinus);
+    A.signature.secondary_types.push_back(ParticleType::EMinus);
     EXPECT_FALSE(A < B);
     EXPECT_TRUE(B < A);
 
-    B.signature.secondary_types.push_back(Particle::ParticleType::EMinus);
+    B.signature.secondary_types.push_back(ParticleType::EMinus);
     EXPECT_FALSE(A < B);
     EXPECT_FALSE(B < A);
 
@@ -252,9 +252,9 @@ TEST(Comparison, LessThan)
 TEST(Serialization, Save)
 {
     InteractionRecord record;
-    record.signature.primary_type = Particle::ParticleType::EMinus;
-    record.signature.target_type = Particle::ParticleType::PPlus;
-    record.signature.secondary_types.push_back(Particle::ParticleType::EMinus);
+    record.signature.primary_type = ParticleType::EMinus;
+    record.signature.target_type = ParticleType::PPlus;
+    record.signature.secondary_types.push_back(ParticleType::EMinus);
     record.primary_id = ParticleID(1, 1);
     record.primary_initial_position = {1.0, 2.0, 3.0};
     record.primary_mass = 1.0;

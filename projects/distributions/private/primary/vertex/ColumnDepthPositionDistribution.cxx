@@ -70,9 +70,9 @@ std::tuple<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistributi
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<LI::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     LI::dataclasses::InteractionRecord fake_record;
     fake_record.signature.primary_type = record.type;
@@ -80,7 +80,7 @@ std::tuple<LI::math::Vector3D, LI::math::Vector3D> ColumnDepthPositionDistributi
     fake_record.primary_momentum[0] = record.GetEnergy();
     double total_decay_length = interactions->TotalDecayLength(fake_record);
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::dataclasses::Particle::ParticleType const & target = targets[i];
+        LI::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -138,15 +138,15 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
 
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    std::vector<LI::dataclasses::Particle::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<LI::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = interactions->TotalDecayLength(record);
     
     LI::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::dataclasses::Particle::ParticleType const & target = targets[i];
+        LI::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -173,7 +173,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<LI
     return prob_density;
 }
 
-ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<LI::dataclasses::Particle::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
+ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<LI::dataclasses::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
 
 std::string ColumnDepthPositionDistribution::Name() const {
     return "ColumnDepthPositionDistribution";

@@ -131,37 +131,37 @@ void register_Path(pybind11::module_ & m) {
 
         .def("GetDistanceFromStartInBounds", overload_cast<
                 double,
-                std::vector<LI::dataclasses::Particle::ParticleType> const &,
+                std::vector<LI::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromStartInBounds))
         .def("GetDistanceFromEndInBounds", overload_cast<
                 double,
-                std::vector<LI::dataclasses::Particle::ParticleType> const &,
+                std::vector<LI::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromEndInBounds))
         .def("GetDistanceFromStartAlongPath", overload_cast<
                 double,
-                std::vector<LI::dataclasses::Particle::ParticleType> const &,
+                std::vector<LI::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromStartAlongPath))
         .def("GetDistanceFromEndAlongPath", overload_cast<
                 double,
-                std::vector<LI::dataclasses::Particle::ParticleType> const &,
+                std::vector<LI::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromEndAlongPath))
         .def("GetDistanceFromStartInReverse", overload_cast<
                 double,
-                std::vector<LI::dataclasses::Particle::ParticleType> const &,
+                std::vector<LI::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromStartInReverse))
         .def("GetDistanceFromEndInReverse", overload_cast<
                 double,
-                std::vector<LI::dataclasses::Particle::ParticleType> const &,
+                std::vector<LI::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromEndInReverse))

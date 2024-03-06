@@ -145,7 +145,7 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
         throw(LI::utilities::InjectionFailure("No particle interaction!"));
     }
 
-    std::set<LI::dataclasses::Particle::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
     LI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
@@ -159,12 +159,12 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     primary_direction.normalize();
 
     LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::set<LI::dataclasses::Particle::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, DetectorPosition(record.interaction_vertex));
+    std::set<LI::dataclasses::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, DetectorPosition(record.interaction_vertex));
 
     double total_prob = 0.0;
     double xsec_prob = 0.0;
     std::vector<double> probs;
-    std::vector<LI::dataclasses::Particle::ParticleType> matching_targets;
+    std::vector<LI::dataclasses::ParticleType> matching_targets;
     std::vector<LI::dataclasses::InteractionSignature> matching_signatures;
     std::vector<std::shared_ptr<LI::interactions::CrossSection>> matching_cross_sections;
     std::vector<std::shared_ptr<LI::interactions::Decay>> matching_decays;
@@ -208,7 +208,7 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
                 // Add total prob to probs
                 probs.push_back(total_prob);
                 // Add target and decay pointer to the lists
-                matching_targets.push_back(LI::dataclasses::Particle::ParticleType::Decay);
+                matching_targets.push_back(LI::dataclasses::ParticleType::Decay);
                 matching_decays.push_back(decay);
                 matching_signatures.push_back(signature);
             }
@@ -315,7 +315,7 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
     std::function<void(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> add_secondaries = [&](std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent) {
         for(size_t i=0; i<parent->record.signature.secondary_types.size(); ++i) {
             LI::dataclasses::ParticleType const & type = parent->record.signature.secondary_types[i];
-            std::map<LI::dataclasses::Particle::ParticleType, std::shared_ptr<LI::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
+            std::map<LI::dataclasses::ParticleType, std::shared_ptr<LI::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
             if(it == secondary_process_map.end()) {
                 continue;
             }

@@ -19,7 +19,7 @@ public:
     bool operator!=(const Distribution1D& dist) const;
     virtual bool compare(const Distribution1D& dist) const = 0;
     virtual Distribution1D* clone() const = 0;
-    virtual std::shared_ptr<const Distribution1D> create() const = 0;
+    virtual std::shared_ptr<Distribution1D> create() const = 0;
     virtual double Derivative(double x) const = 0;
     virtual double AntiDerivative(double x) const = 0;
     virtual double Evaluate(double x) const = 0;

@@ -71,7 +71,7 @@ private:
     std::vector<std::shared_ptr<PrimaryProcessWeighter>> primary_process_weighters;
     std::vector<
       std::map<
-        LI::dataclasses::Particle::ParticleType,
+        LI::dataclasses::ParticleType,
         std::shared_ptr<SecondaryProcessWeighter>
       >
     > secondary_process_weighter_maps;

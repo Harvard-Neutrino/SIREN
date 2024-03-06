@@ -33,14 +33,14 @@ public:
     bool operator==(Decay const & other) const;
     virtual bool equal(Decay const & other) const = 0;
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const = 0;
-    virtual double TotalDecayWidth(LI::dataclasses::Particle::ParticleType primary) const = 0;
+    virtual double TotalDecayWidth(LI::dataclasses::ParticleType primary) const = 0;
     virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const = 0;
     virtual double TotalDecayLength(LI::dataclasses::InteractionRecord const & record) const;
     virtual double TotalDecayLengthForFinalState(LI::dataclasses::InteractionRecord const & record) const;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const = 0;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const = 0;
     virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;
-    virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::Particle::ParticleType primary) const = 0;
+    virtual std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::ParticleType primary) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const = 0;
     template<class Archive>

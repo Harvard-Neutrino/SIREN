@@ -1,21 +1,12 @@
 import os
 
 import leptoninjector as LI
-from leptoninjector import _util
 from leptoninjector.LIController import LIController
-
-resources_dir = _util.resource_package_dir()
-
-import DarkNews
-
-darknews_version = _util.normalize_version(DarkNews.__version__)
-
-resources_dir = _util.resource_package_dir()
 
 # Define a DarkNews model
 model_kwargs = {
     "m4": 0.47,  # 0.140,
-    "mu_tr_mu4": 2.5e-6,  # 1e-6, # GeV^-1
+    "mu_tr_mu4": 2.50e-6,  # 1e-6, # GeV^-1
     "UD4": 0,
     "Umu4": 0,
     "epsilon": 0.0,
@@ -26,7 +17,7 @@ model_kwargs = {
 }
 
 # Number of events to inject
-events_to_inject = 1000
+events_to_inject = 100000
 
 # Expeirment to run
 experiment = "MiniBooNE"
@@ -37,35 +28,26 @@ controller = LIController(events_to_inject, experiment)
 # Particle to inject
 primary_type = LI.dataclasses.Particle.ParticleType.NuMu
 
-xs_path = _util.get_cross_section_model_path(f"DarkNewsTables-v{darknews_version}", must_exist=False)
+xs_path = LI.utilities.get_cross_section_model_path(f"DarkNewsTables-v{LI.utilities.darknews_version()}", must_exist=False)
 # Define DarkNews Model
 table_dir = os.path.join(
     xs_path,
-    "Dipole_M%2.2f_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
+    "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
 )
-controller.InputDarkNewsModel(primary_type, table_dir, model_kwargs)
+controller.InputDarkNewsModel(primary_type, table_dir, **model_kwargs)
 
 # Primary distributions
 primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-flux_file = os.path.join(
-    resources_dir,
-    "Fluxes",
-    "BNB_Flux_Tables",
-    "BNB_numu_flux.txt",
-)
+flux_file = LI.utilities.get_tabulated_flux_file("BNB","FHC_numu")
 edist = LI.distributions.TabulatedFluxDistribution(flux_file, True)
 edist_gen = LI.distributions.TabulatedFluxDistribution(
-    1.05 * model_kwargs["m4"], 10, flux_file, False
+    model_kwargs["m4"], 10, flux_file, False
 )
 primary_injection_distributions["energy"] = edist_gen
 primary_physical_distributions["energy"] = edist
-
-# Flux normalization: go from cm^-2 to m^-2
-flux_units = LI.distributions.NormalizationConstant(1e4)
-primary_physical_distributions["flux_units"] = flux_units
 
 # direction distribution
 direction_distribution = LI.distributions.FixedDirection(LI.math.Vector3D(0, 0, 1.0))
@@ -94,9 +76,12 @@ def stop(datum, i):
 
 controller.injector.SetStoppingCondition(stop)
 
-events = controller.GenerateEvents()
+events = controller.GenerateEvents(fill_tables_at_exit=False)
+
+os.makedirs("output", exist_ok=True)
 
 controller.SaveEvents(
-    "output/MiniBooNE_Dipole_M%2.2f_mu%2.2e_example.hdf5"
-    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"])
+    "output/MiniBooNE_Dipole_M%2.2e_mu%2.2e_example"
+    % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
+    fill_tables_at_exit=False
 )

@@ -21,7 +21,7 @@ namespace interactions {
 
 DarkNewsCrossSection::DarkNewsCrossSection() {}
 
-pybind11::object DarkNewsCrossSection::get_self() {
+pybind11::object DarkNewsCrossSection::get_representation() {
     return pybind11::cast<pybind11::none>(Py_None);
 }
 
@@ -35,8 +35,8 @@ bool DarkNewsCrossSection::equal(CrossSection const & other) const {
 }
 
 double DarkNewsCrossSection::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::Particle::ParticleType primary_type = interaction.signature.primary_type;
-    LI::dataclasses::Particle::ParticleType target_type = interaction.signature.primary_type;
+    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
+    LI::dataclasses::ParticleType target_type = interaction.signature.primary_type;
     std::array<double, 4> const & primary_momentum = interaction.primary_momentum;
     double const & primary_mass = interaction.primary_mass;
     rk::P4 p1(geom3::Vector3(primary_momentum[1], primary_momentum[2], primary_momentum[3]), primary_mass);
@@ -65,7 +65,7 @@ double DarkNewsCrossSection::DifferentialCrossSection(dataclasses::InteractionRe
     return DifferentialCrossSection(interaction.signature.primary_type, interaction.signature.target_type, primary_energy, Q2);
 }
 
-double DarkNewsCrossSection::TotalCrossSection(LI::dataclasses::Particle::ParticleType primary, double energy, LI::dataclasses::Particle::ParticleType target
+double DarkNewsCrossSection::TotalCrossSection(LI::dataclasses::ParticleType primary, double energy, LI::dataclasses::ParticleType target
 ) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow TotalCrossSection to call
@@ -73,7 +73,7 @@ double DarkNewsCrossSection::TotalCrossSection(LI::dataclasses::Particle::Partic
     return 0;
 }
 
-double DarkNewsCrossSection::DifferentialCrossSection(LI::dataclasses::Particle::ParticleType primary, LI::dataclasses::Particle::ParticleType target, double energy, double Q2
+double DarkNewsCrossSection::DifferentialCrossSection(LI::dataclasses::ParticleType primary, LI::dataclasses::ParticleType target, double energy, double Q2
 ) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call

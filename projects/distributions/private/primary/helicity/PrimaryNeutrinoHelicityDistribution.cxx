@@ -17,7 +17,7 @@ namespace distributions {
 // class PrimaryNeutrinoHelicityDistribution : PrimaryInjectionDistribution
 //---------------
 void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
-    LI::dataclasses::Particle::ParticleType const & t = record.type;
+    LI::dataclasses::ParticleType const & t = record.type;
     if(static_cast<int32_t>(t) > 0) // Particles are left handed, anti-particles are right handed
         record.SetHelicity(-0.5);
     else
@@ -32,7 +32,7 @@ double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_pt
     if(abs(0.5 - abs(record.primary_helicity)) > 1e-9) // Helicity magnitude must be 0.5
         return 0.0;
 
-    LI::dataclasses::Particle::ParticleType const & t = record.signature.primary_type;
+    LI::dataclasses::ParticleType const & t = record.signature.primary_type;
     // Particles are left handed, anti-particles are right handed
     if(static_cast<int32_t>(t) > 0) {
         if(record.primary_helicity < 0) // expect opposite direction

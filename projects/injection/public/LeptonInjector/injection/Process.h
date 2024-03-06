@@ -26,11 +26,11 @@ namespace injection {
 
 class Process {
 private:
-    LI::dataclasses::Particle::ParticleType primary_type;
+    LI::dataclasses::ParticleType primary_type;
     std::shared_ptr<interactions::InteractionCollection> interactions;
 public:
     Process() = default;
-    Process(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
+    Process(LI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     Process(Process const & other);
     Process(Process && other);
     Process & operator=(Process const & other);
@@ -39,8 +39,8 @@ public:
 
     void SetInteractions(std::shared_ptr<interactions::InteractionCollection> _interactions);
     std::shared_ptr<interactions::InteractionCollection> GetInteractions() const;
-    void SetPrimaryType(LI::dataclasses::Particle::ParticleType _primary_type);
-    LI::dataclasses::Particle::ParticleType GetPrimaryType() const;
+    void SetPrimaryType(LI::dataclasses::ParticleType _primary_type);
+    LI::dataclasses::ParticleType GetPrimaryType() const;
 
     bool operator==(Process const & other) const;
     bool MatchesHead(std::shared_ptr<Process> const & other) const; // required to compared instances of derived classs
@@ -60,7 +60,7 @@ protected:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
 public:
     PhysicalProcess() = default;
-    PhysicalProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
+    PhysicalProcess(LI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     PhysicalProcess(PhysicalProcess const & other);
     PhysicalProcess(PhysicalProcess && other);
     PhysicalProcess & operator=(PhysicalProcess const & other);
@@ -85,7 +85,7 @@ protected:
 public:
     typedef distributions::PrimaryInjectionDistribution InjectionType;
     PrimaryInjectionProcess() = default;
-    PrimaryInjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
+    PrimaryInjectionProcess(LI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     PrimaryInjectionProcess(PrimaryInjectionProcess const & other);
     PrimaryInjectionProcess(PrimaryInjectionProcess && other);
     PrimaryInjectionProcess & operator=(PrimaryInjectionProcess const & other);
@@ -111,7 +111,7 @@ protected:
 public:
     typedef distributions::SecondaryInjectionDistribution InjectionType;
     SecondaryInjectionProcess() = default;
-    SecondaryInjectionProcess(LI::dataclasses::Particle::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
+    SecondaryInjectionProcess(LI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     SecondaryInjectionProcess(SecondaryInjectionProcess const & other);
     SecondaryInjectionProcess(SecondaryInjectionProcess && other);
     SecondaryInjectionProcess & operator=(SecondaryInjectionProcess const & other);

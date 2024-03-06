@@ -57,10 +57,10 @@ TEST(DefaultMaterials, VacuumOnly)
 
     int id = materials.GetMaterialId(name);
 
-    double material_nucleons_per_gram = materials.GetTargetParticleFraction(id, Particle::ParticleType::Nucleon);
-    double material_neutrons_per_gram = materials.GetTargetParticleFraction(id, Particle::ParticleType::Neutron);
-    double material_protons_per_gram = materials.GetTargetParticleFraction(id, Particle::ParticleType::PPlus);
-    double material_electrons_per_gram = materials.GetTargetParticleFraction(id, Particle::ParticleType::EMinus);
+    double material_nucleons_per_gram = materials.GetTargetParticleFraction(id, ParticleType::Nucleon);
+    double material_neutrons_per_gram = materials.GetTargetParticleFraction(id, ParticleType::Neutron);
+    double material_protons_per_gram = materials.GetTargetParticleFraction(id, ParticleType::PPlus);
+    double material_electrons_per_gram = materials.GetTargetParticleFraction(id, ParticleType::EMinus);
 
     const double nucleons_per_amu = 0.9943511899082073921408545013734389386622278134067745520545013436;
     const double nucleons_per_gram = nucleons_per_amu * Constants::avogadro;

@@ -25,15 +25,15 @@ TEST(DISFromSpline, Constructor)
 {
     std::string differential_xs = "/home/austin/programs/LIDUNE/sources/DUNEAtmo/cross_sections/csms_differential_v1.0/dsdxdy_nu_CC_iso.fits";
     std::string total_xs = "/home/austin/programs/LIDUNE/sources/DUNEAtmo/cross_sections/csms_differential_v1.0/sigma_nu_CC_iso.fits";
-    std::vector<Particle::ParticleType> primary_types = {Particle::ParticleType::NuE, Particle::ParticleType::NuMu, Particle::ParticleType::NuTau};
-    std::vector<Particle::ParticleType> target_types = {Particle::ParticleType::PPlus, Particle::ParticleType::Neutron, Particle::ParticleType::Nucleon};
+    std::vector<ParticleType> primary_types = {ParticleType::NuE, ParticleType::NuMu, ParticleType::NuTau};
+    std::vector<ParticleType> target_types = {ParticleType::PPlus, ParticleType::Neutron, ParticleType::Nucleon};
     std::shared_ptr<DISFromSpline> dis_xs = std::make_shared<DISFromSpline>(differential_xs, total_xs, primary_types, target_types);
     std::shared_ptr<CrossSection> xs = dis_xs;
 
     InteractionSignature signature;
-    signature.primary_type = Particle::ParticleType::NuE;
-    signature.target_type = Particle::ParticleType::Nucleon;
-    signature.secondary_types = {Particle::ParticleType::EMinus, Particle::ParticleType::Hadrons};
+    signature.primary_type = ParticleType::NuE;
+    signature.target_type = ParticleType::Nucleon;
+    signature.secondary_types = {ParticleType::EMinus, ParticleType::Hadrons};
     InteractionRecord event;
     event.signature = signature;
     double energy = 1e4; // 10TeV
