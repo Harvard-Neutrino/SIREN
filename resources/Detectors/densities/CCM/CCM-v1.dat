@@ -79,4 +79,4 @@ object cylinder  23 0 -0.65          0 0 0      0.96 0 1.232   ccm_inner_argon  
 detector 23 0 -0.65
 
 # Fiducial volume
-fiducial cylinder 23 0 -0.65         0 0 0      0.96 0 1.232
+fiducial detector_coords cylinder 0 0 0         0 0 0      0.96 0 1.232

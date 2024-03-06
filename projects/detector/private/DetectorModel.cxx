@@ -119,35 +119,35 @@ std::ostream & DetectorSector::Print(std::ostream& oss) const {
 }
 
 DetectorPosition DetectorModel::ToDet(GeometryPosition const & pos) const {
-    return DetectorPosition(detector_rotation_.rotate(pos - detector_origin_, false));
+    return DetectorPosition(detector_rotation_.rotate(pos - detector_origin_, true));
 }
 
 DetectorDirection DetectorModel::ToDet(GeometryDirection const & dir) const {
-    return DetectorDirection(detector_rotation_.rotate(dir, false));
+    return DetectorDirection(detector_rotation_.rotate(dir, true));
 }
 
 DetectorPosition DetectorModel::ToDet(GeometryPosition && pos) const {
-    return DetectorPosition(detector_rotation_.rotate(pos - detector_origin_, false));
+    return DetectorPosition(detector_rotation_.rotate(pos - detector_origin_, true));
 }
 
 DetectorDirection DetectorModel::ToDet(GeometryDirection && dir) const {
-    return DetectorDirection(detector_rotation_.rotate(dir, false));
+    return DetectorDirection(detector_rotation_.rotate(dir, true));
 }
 
 GeometryPosition DetectorModel::ToGeo(DetectorPosition const & pos) const {
-    return GeometryPosition(detector_rotation_.rotate(pos, true) + detector_origin_);
+    return GeometryPosition(detector_rotation_.rotate(pos, false) + detector_origin_);
 }
 
 GeometryDirection DetectorModel::ToGeo(DetectorDirection const & dir) const {
-    return GeometryDirection(detector_rotation_.rotate(dir, true));
+    return GeometryDirection(detector_rotation_.rotate(dir, false));
 }
 
 GeometryPosition DetectorModel::ToGeo(DetectorPosition && pos) const {
-    return GeometryPosition(detector_rotation_.rotate(pos, true) + detector_origin_);
+    return GeometryPosition(detector_rotation_.rotate(pos, false) + detector_origin_);
 }
 
 GeometryDirection DetectorModel::ToGeo(DetectorDirection && dir) const {
-    return GeometryDirection(detector_rotation_.rotate(dir, true));
+    return GeometryDirection(detector_rotation_.rotate(dir, false));
 }
 
 std::ostream& operator<<(std::ostream& oss, DetectorSector const & bcm) {
@@ -249,6 +249,206 @@ bool fexists(const std::string filename)
 }
 }
 
+std::shared_ptr<LI::geometry::Geometry> DetectorModel::ParseGeometryObject(std::stringstream & ss) {
+    std::string shape;
+    double xc, yc, zc; // Coordinates of the center of the shape
+    double alpha, beta, gamma; // Euler Angles of shape rotation
+
+    ss >> shape;
+    ss >> xc >> yc >> zc;
+    ss >> alpha >> beta >> gamma;
+    Placement placement(Vector3D(xc,yc,zc), QFromZXZr(alpha,beta,gamma));
+
+    std::shared_ptr<geometry::Geometry> geo;
+
+    if(shape.find("sphere")!=std::string::npos) {
+        double radius; // For Sphere shapes
+        ss >> radius;
+        geo = Sphere(placement, radius, 0).create();
+    }
+    else if(shape.find("box")!=std::string::npos) {
+        double dx, dy, dz; // For Box shapes
+        ss >> dx >> dy >> dz;
+        geo = Box(placement, dx, dy, dz).create();
+    }
+    else if(shape.find("cylinder")!=std::string::npos) {
+        double _or, ir, z; // For Cylinder shapes
+        ss >> _or >> ir >> z;
+        geo = Cylinder(placement, _or, ir, z).create();
+    }
+    else if(shape.find("extr")!=std::string::npos) {
+        int nverts;
+        double v1,v2; // For Extr Poly vertices
+        int nzsec;
+        double zpos, off1, off2, scale; // For Extr Poly zsections
+        double offset[2];
+        std::vector<std::vector<double>> poly;
+        std::vector<double> polyVert;
+        std::vector<ExtrPoly::ZSection> zsecs;
+        ss >> nverts;
+        for (int i = 0; i < nverts; ++i){
+            ss >> v1 >> v2;
+            polyVert.push_back(v1);
+            polyVert.push_back(v2);
+            poly.push_back(polyVert);
+            polyVert.clear();
+        }
+        ss >> nzsec;
+        for (int i = 0; i < nzsec; ++i){
+            ss >> zpos >> off1 >> off2 >> scale;
+            offset[0] = off1;
+            offset[1] = off2;
+            zsecs.push_back(ExtrPoly::ZSection(zpos,offset,scale));
+        }
+        geo = ExtrPoly(placement, poly, zsecs).create();
+    }
+    else {
+        std::stringstream ss_err;
+        ss_err
+            << "Shape \""
+            << shape
+            << "\" not recognized on line:\n"
+            << ss.str();
+        throw(std::runtime_error(ss_err.str()));
+    }
+
+    return geo;
+}
+
+int DetectorModel::ParseMaterialID(std::stringstream & ss, MaterialModel const & materials) {
+    std::string medtype;
+    ss >> medtype;
+
+    if(not materials.HasMaterial(medtype)) {
+        std::stringstream ss_err;
+        ss_err
+            << "Detector model uses undefined material \""
+            << medtype
+            << "\" on line:\n"
+            << ss.str();
+        throw(std::runtime_error(ss_err.str()));
+    }
+
+    return materials.GetMaterialId(medtype);
+}
+
+std::shared_ptr<LI::detector::DensityDistribution> DetectorModel::ParseDensityDistribution(std::stringstream & ss) {
+    std::string distribution_type;
+    ss >> distribution_type;
+
+    std::shared_ptr<detector::DensityDistribution> density;
+
+    if(distribution_type.find("constant") != std::string::npos) {
+        double param;
+        ss >> param;
+        density = ConstantDensityDistribution(param).create();
+    } else if (distribution_type.find("radial_polynomial") != std::string::npos) {
+        double xc, yc, zc;
+        ss >> xc >> yc >> zc;
+        Vector3D center(xc, yc, zc);
+        RadialAxis1D radial_ax(center);
+
+        int nparams;
+        ss >> nparams;
+
+        double param;
+        std::vector<double> params;
+        for(int i=0; i<nparams; ++i) {
+            ss >> param;
+            params.push_back(param);
+        }
+        density = RadialAxisPolynomialDensityDistribution(radial_ax, params).create();
+    } else {
+        std::stringstream ss_err;
+        ss_err
+            << "Density distribution \""
+            << distribution_type
+            << "\" not recognized on line:\n"
+            << ss.str();
+        throw(std::runtime_error(ss_err.str()));
+    }
+    return density;
+}
+
+std::tuple<LI::math::Vector3D, LI::math::Quaternion> DetectorModel::ParseDetector(std::stringstream & ss) {
+    std::string type, line;
+    std::getline(ss, line);
+    ss.clear(); ss.str(line);
+
+    ss >> type;
+
+    if(type.find("detector") != std::string::npos) {
+        std::getline(ss, line);
+        ss.clear(); ss.str(line);
+    } else {
+        ss.clear(); ss.str(line);
+    }
+    double x0, y0, z0; // Coordinates of the center of the detector
+    ss >> x0 >> y0 >> z0;
+    // Set the detector origin
+    LI::math::Vector3D detector_origin(x0, y0, z0);
+
+    LI::math::Quaternion detector_rotation;
+    try {
+        double alpha, beta, gamma; // Euler Angles of shape rotation
+        ss >> alpha >> beta >> gamma;
+        detector_rotation = QFromZXZr(alpha, beta, gamma);
+    } catch(std::ios_base::failure e) {
+        detector_rotation = LI::math::Quaternion();
+    }
+    return {detector_origin, detector_rotation};
+}
+
+std::shared_ptr<LI::geometry::Geometry> DetectorModel::ParseFiducialVolume(std::string fiducial_line, std::string origin_line) {
+    std::string line = origin_line;
+    std::stringstream ss(line);
+
+    std::tuple<LI::math::Vector3D, LI::math::Quaternion> detector = ParseDetector(ss);
+
+    return ParseFiducialVolume(fiducial_line, std::get<0>(detector), std::get<1>(detector));
+}
+
+std::shared_ptr<LI::geometry::Geometry> DetectorModel::ParseFiducialVolume(std::string fiducial_line, LI::math::Vector3D detector_origin, LI::math::Quaternion detector_quaternion) {
+    std::string line = fiducial_line;
+    std::stringstream ss(line);
+
+    std::string type;
+    ss >> type;
+
+    bool detector_coords = true;
+
+    if(type.find("fiducial") != std::string::npos) {
+        std::getline(ss, line);
+        ss.clear(); ss.str(line);
+    } else {
+        ss.clear(); ss.str(line);
+    }
+
+    std::string coords_type;
+    ss >> coords_type;
+    if(coords_type.find("detector_coords") != std::string::npos) {
+        detector_coords = true;
+        std::getline(ss, line);
+        ss.clear(); ss.str(line);
+    } else if(coords_type.find("geometry_coords") != std::string::npos) {
+        detector_coords = false;
+        std::getline(ss, line);
+        ss.clear(); ss.str(line);
+    } else {
+        detector_coords = true;
+        ss.clear(); ss.str(line);
+    }
+
+    std::shared_ptr<LI::geometry::Geometry> geo = ParseGeometryObject(ss);
+    if(not detector_coords) {
+        Placement p = geo->GetPlacement();
+        p.SetPosition(detector_quaternion.rotate(p.GetPosition() - detector_origin, true));
+        p.SetQuaternion(detector_quaternion.rotate(p.GetQuaternion(), true));
+        geo->SetPlacement(p);
+    }
+    return geo;
+}
+
 void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
     if(detector_model.empty())
         throw(std::runtime_error("Received empty detector model filename!"));
@@ -322,122 +522,23 @@ void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
             DetectorSector sector;
             sector.level = level;
             level += 1;
-            double xc, yc, zc; // Coordinates of the center of the shape
-            double alpha, beta, gamma; // Euler Angles of shape rotation
 
-            std::string shape;
-            ss >> shape;
-            ss >> xc >> yc >> zc;
-            ss >> alpha >> beta >> gamma;
-            Placement placement(Vector3D(xc,yc,zc), QFromZXZr(alpha,beta,gamma));
+            sector.geo = ParseGeometryObject(ss);
 
-            if(shape.find("sphere")!=std::string::npos) {
-                double radius; // For Sphere shapes
-                ss >> radius;
-                sector.geo = Sphere(placement, radius, 0).create();
-            }
-            else if(shape.find("box")!=std::string::npos) {
-                double dx, dy, dz; // For Box shapes
-                ss >> dx >> dy >> dz;
-                sector.geo = Box(placement, dx, dy, dz).create();
-            }
-            else if(shape.find("cylinder")!=std::string::npos) {
-                double _or, ir, z; // For Cylinder shapes
-                ss >> _or >> ir >> z;
-                sector.geo = Cylinder(placement, _or, ir, z).create();
-            }
-            else if(shape.find("extr")!=std::string::npos) {
-                int nverts;
-                double v1,v2; // For Extr Poly vertices
-                int nzsec;
-                double zpos, off1, off2, scale; // For Extr Poly zsections
-                double offset[2];
-                std::vector<std::vector<double>> poly;
-                std::vector<double> polyVert;
-                std::vector<ExtrPoly::ZSection> zsecs;
-                ss >> nverts;
-                for (int i = 0; i < nverts; ++i){
-                    ss >> v1 >> v2;
-                    polyVert.push_back(v1);
-                    polyVert.push_back(v2);
-                    poly.push_back(polyVert);
-                    polyVert.clear();
-                }
-                ss >> nzsec;
-                for (int i = 0; i < nzsec; ++i){
-                    ss >> zpos >> off1 >> off2 >> scale;
-                    offset[0] = off1;
-                    offset[1] = off2;
-                    zsecs.push_back(ExtrPoly::ZSection(zpos,offset,scale));
-                }
-                sector.geo = ExtrPoly(placement, poly, zsecs).create();
-            }
-            else {
-                std::stringstream ss_err;
-                ss_err
-                    << "Shape \""
-                    << shape
-                    << "\" not recognized on line:\n"
-                    << ss.str();
-                throw(std::runtime_error(ss_err.str()));
-            }
-
-            std::string label, medtype;
-            ss >> label >> medtype;
+            std::string label;
+            ss >> label;
             sector.name = label;
 
-            if(not materials_.HasMaterial(medtype)) {
-                std::stringstream ss_err;
-                ss_err
-                    << "Detector model uses undefined material \""
-                    << medtype
-                    << "\" on line:\n"
-                    << ss.str();
-                throw(std::runtime_error(ss_err.str()));
-            }
+            sector.material_id = ParseMaterialID(ss, materials_);
 
-            sector.material_id = materials_.GetMaterialId(medtype);
-
-            std::string distribution_type;
-            ss >> distribution_type;
-
-            if(distribution_type.find("constant") != std::string::npos) {
-                double param;
-                ss >> param;
-                sector.density = ConstantDensityDistribution(param).create();
-            } else if (distribution_type.find("radial_polynomial") != std::string::npos) {
-                double xc, yc, zc;
-                ss >> xc >> yc >> zc;
-                Vector3D center(xc, yc, zc);
-                RadialAxis1D radial_ax(center);
-
-                int nparams;
-                ss >> nparams;
-
-                double param;
-                std::vector<double> params;
-                for(int i=0; i<nparams; ++i) {
-                    ss >> param;
-                    params.push_back(param);
-                }
-                sector.density = RadialAxisPolynomialDensityDistribution(radial_ax, params).create();
-            } else {
-                std::stringstream ss_err;
-                ss_err
-                    << "Density distribution \""
-                    << distribution_type
-                    << "\" not recognized on line:\n"
-                    << ss.str();
-                throw(std::runtime_error(ss_err.str()));
-            }
+            sector.density = ParseDensityDistribution(ss);
 
             AddSector(sector);
         }
         else if(type.find("detector") != std::string::npos) {
-            double x0, y0, z0; // Coordinates of the center of the detector
-            ss >> x0 >> y0 >> z0;
-            // Set the detector origin
-            detector_origin_ = Vector3D(x0, y0, z0);
+            std::tuple<LI::math::Vector3D, LI::math::Quaternion> detector = ParseDetector(ss);
+            detector_origin_ = std::get<0>(detector);
+            detector_rotation_ = std::get<1>(detector);
         }
     } // end of the while loop
     in.close();
@@ -729,7 +830,7 @@ double DetectorModel::DistanceForColumnDepthFromPoint(Geometry::IntersectionList
             DetectorSector sector = GetSector(current_intersection->hierarchy);
             double target = column_depth - total_column_depth;
             double distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
-            
+
             done = distance >= 0;
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
             total_column_depth += integral;
@@ -906,7 +1007,7 @@ double DetectorModel::GetInteractionDepthInCGS(Geometry::IntersectionList const 
             double segment_length = end_point - start_point;
             DetectorSector sector = GetSector(current_intersection->hierarchy);
             double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length);
-            
+
             std::vector<double> particle_fractions = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end());
             for(unsigned int i=0; i<targets.size(); ++i) {
                 interaction_depths[i] += (integral * 100) * particle_fractions[i]; // cm^-3 * m --> cm^-2

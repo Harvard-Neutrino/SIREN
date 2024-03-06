@@ -64,7 +64,7 @@ void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<LI::utilit
 
     // Check if fiducial volume is provided
     if(fiducial_volume) {
-        std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(detector_model->ToGeo(DetectorPosition(endcap_0)),detector_model->ToGeo(DetectorDirection(dir)));
+        std::vector<LI::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
         // If the path intersects the fiducial volume, restrict position to that volume
         if(!fid_intersections.empty()) {
             // make sure the first intersection happens before the maximum generation length
@@ -72,9 +72,9 @@ void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<LI::utilit
             bool update_path = (fid_intersections.front().distance < max_length
                     && fid_intersections.back().distance > 0);
             if(update_path) {
-                DetectorPosition first_point = (fid_intersections.front().distance > 0) ? detector_model->ToDet(GeometryPosition(fid_intersections.front().position)) : DetectorPosition(endcap_0);
-                DetectorPosition last_point = (fid_intersections.back().distance < max_length) ? detector_model->ToDet(GeometryPosition(fid_intersections.back().position)) : DetectorPosition(endcap_1);
-                path.SetPoints(first_point, last_point);
+                LI::math::Vector3D first_point = (fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0;
+                LI::math::Vector3D last_point = (fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1;
+                path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
             }
         }
     }

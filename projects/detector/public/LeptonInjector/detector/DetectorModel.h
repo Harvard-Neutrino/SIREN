@@ -267,6 +267,13 @@ public:
 
     static geometry::Geometry::IntersectionList GetOuterBounds(geometry::Geometry::IntersectionList const & intersections);
 
+    static std::tuple<LI::math::Vector3D, LI::math::Quaternion> ParseDetector(std::stringstream & ss);
+    static std::shared_ptr<geometry::Geometry> ParseGeometryObject(std::stringstream & line);
+    static int ParseMaterialID(std::stringstream & line, MaterialModel const & materials);
+    static std::shared_ptr<detector::DensityDistribution> ParseDensityDistribution(std::stringstream & line);
+    static std::shared_ptr<geometry::Geometry> ParseFiducialVolume(std::string fiducial_line, std::string origin_line);
+    static std::shared_ptr<geometry::Geometry> ParseFiducialVolume(std::string line, LI::math::Vector3D detector_origin, LI::math::Quaternion detector_quaternion);
+
 private:
     void LoadDefaultMaterials();
     void LoadDefaultSectors();

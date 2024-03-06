@@ -229,5 +229,7 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("DetDirectionToGeoDirection", (
                     GeometryDirection (DetectorModel::*)(DetectorDirection const &) const
                     )(&DetectorModel::ToGeo))
+        .def("ParseFiducialVolume", (std::shared_ptr<LI::geometry::Geometry> (*)(std::string, std::string))(&DetectorModel::ParseFiducialVolume))
+        .def("ParseFiducialVolume", (std::shared_ptr<LI::geometry::Geometry> (*)(std::string, LI::math::Vector3D, LI::math::Quaternion))(&DetectorModel::ParseFiducialVolume))
         ;
 }
