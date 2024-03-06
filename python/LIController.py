@@ -417,11 +417,9 @@ class LIController:
                 
                 if self.fid_vol is not None:
                     pos = _math.Vector3D(datasets["vertex"][-1][-1])
-                    geo_pos = self.detector_model.DetPositionToGeoPosition(pos)
                     dir = _math.Vector3D(datasets["primary_momentum"][-1][-1][1:])
                     dir.normalize()
-                    geo_dir = self.detector_model.DetDirectionToGeoDirection(dir)
-                    datasets["in_fiducial"][-1].append(self.fid_vol.IsInside(geo_pos.get(),geo_dir.get()))
+                    datasets["in_fiducial"][-1].append(self.fid_vol.IsInside(pos,dir))
                 else:
                     datasets["in_fiducial"][-1].append(False)
 
