@@ -239,45 +239,19 @@ class LIController:
         """
         detector_model_file = _util.get_detector_model_path(self.experiment)
         with open(detector_model_file) as file:
+            fiducial_line = None
+            detector_line = None
             for line in file:
                 data = line.split()
-                if len(data)<=0: continue
-                if(data[0]=="fiducial"):
-                    placement_pos = _math.Vector3D([float(d) for d in data[2:5]])
-                    placement_rot = _math.Quaternion()
-                    placement_rot.SetEulerAnglesZXZr(*[float(d) for d in data[5:8]])
-                    placement = _geometry.Placement(placement_pos, placement_rot)
-                    if(data[1]=="sphere"):
-                        return _geometry.Sphere(placement, float(data[8]), 0)
-                    elif(data[1]=="box"):
-                        return _geometry.Box(placement, *[float(d) for d in data[8:11]])
-                    elif(data[1]=="cylinder"):
-                        return _geometry.Cylinder(placement, *[float(d) for d in data[8:11]])
-                    elif(data[1]=="extr"):
-                        index = 8
-                        num_edges = int(data[index])
-                        edges_max_idx = index + 2*num_edges
-                        edges = []
-                        index += 1
-                        while index < edges_max_idx:
-                            edges.append([float(data[index]),
-                                          float(data[index+1])])
-                            index += 2
-                        num_z_sections = int(data[index])
-                        zsecs_max_idx = index + 4*num_z_sections
-                        zsecs = []
-                        index += 1
-                        while index < zsecs_max_idx:
-                            zpos = float(data[index])
-                            offset = [float(data[index+1]),
-                                      float(data[index+2])]
-                            scale = float(data[index+3])
-                            zsecs.append(_geometry.ZSection(zpos,offset[0],scale)) # TODO: fix offset argument to accept array
-                            index += 4
-                        return _geometry.ExtrPoly(placement, edges, zsecs)
-                    else:
-                        print("Shape %s not recognized for the fiducial volume, exiting..."%data[1])
-                        exit(0)
+                if len(data) <= 0:
+                    continue
+                elif data[0] == "fiducial":
+                    fiducial_line = line
+                elif data[0] == "detector":
+                    detector_line = line
+            if fiducial_line is None or detector_line is None:
+                return None
+            return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
         return None            
 
     def GetDetectorModelTargets(self):
