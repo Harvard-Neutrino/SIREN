@@ -56,7 +56,7 @@ public:
         }
     }
 
-    std::shared_ptr<const Geometry> create() const override { return std::shared_ptr<const Geometry>( new TriangularMesh(*this) ); };
+    std::shared_ptr<Geometry> create() const override { return std::shared_ptr<Geometry>( new TriangularMesh(*this) ); };
     void swap(Geometry&) override;
 
     virtual ~TriangularMesh() {}

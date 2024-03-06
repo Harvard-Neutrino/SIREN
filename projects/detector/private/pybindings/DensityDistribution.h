@@ -26,7 +26,7 @@ public:
         );
     }
 
-    DensityDistribution * clone() const override {
+    virtual DensityDistribution * clone() const override {
         PYBIND11_OVERRIDE_PURE_NAME(
             DensityDistribution *,
             DensityDistribution,
@@ -34,9 +34,9 @@ public:
             clone
         );
     }
-    std::shared_ptr<const DensityDistribution> create() const override {
+    virtual std::shared_ptr<DensityDistribution> create() const override {
         PYBIND11_OVERRIDE_PURE_NAME(
-            std::shared_ptr<const DensityDistribution>,
+            std::shared_ptr<DensityDistribution>,
             DensityDistribution,
             "_create",
             create

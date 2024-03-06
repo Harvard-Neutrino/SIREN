@@ -34,9 +34,9 @@ public:
             clone
         );
     }
-    std::shared_ptr<const Distribution1D> create() const override {
+    virtual std::shared_ptr<Distribution1D> create() const override {
         PYBIND11_OVERRIDE_PURE_NAME(
-            std::shared_ptr<const Distribution1D>,
+            std::shared_ptr<Distribution1D>,
             Distribution1D,
             "_create",
             create

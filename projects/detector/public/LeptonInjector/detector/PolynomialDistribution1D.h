@@ -30,8 +30,8 @@ public:
     PolynomialDistribution1D(const std::vector<double>&);
     bool compare(const Distribution1D& dist) const override;
     Distribution1D* clone() const override { return new PolynomialDistribution1D(*this); };
-    std::shared_ptr<const Distribution1D> create() const override {
-        return std::shared_ptr<const Distribution1D>(new PolynomialDistribution1D(*this));
+    std::shared_ptr<Distribution1D> create() const override {
+        return std::shared_ptr<Distribution1D>(new PolynomialDistribution1D(*this));
     };
     double Derivative(double x) const override;
     double AntiDerivative(double x) const override;

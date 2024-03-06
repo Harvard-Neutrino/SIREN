@@ -30,8 +30,8 @@ public:
     bool compare(const Axis1D& dens_distr) const override;
 
     Axis1D* clone() const override { return new RadialAxis1D(*this); };
-    std::shared_ptr<const Axis1D> create() const override {
-        return std::shared_ptr<const Axis1D>(new RadialAxis1D(*this));
+    std::shared_ptr<Axis1D> create() const override {
+        return std::shared_ptr<Axis1D>(new RadialAxis1D(*this));
     };
 
     double GetX(const math::Vector3D& xi) const override;

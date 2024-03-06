@@ -46,7 +46,7 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
     };
 
     DensityDistribution* clone() const override { return new T(*this); };
-    std::shared_ptr<const DensityDistribution> create() const override {
+    std::shared_ptr<DensityDistribution> create() override {
         return std::shared_ptr<const DensityDistribution>(new T(*this));
     };
 

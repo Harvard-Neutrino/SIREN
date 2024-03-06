@@ -31,7 +31,7 @@ public:
     virtual bool compare(const Axis1D& dens_distr) const = 0;
 
     virtual Axis1D* clone() const = 0;
-    virtual std::shared_ptr<const Axis1D> create() const = 0;
+    virtual std::shared_ptr<Axis1D> create() const = 0;
 
     virtual double GetX(const math::Vector3D& xi) const = 0;
     virtual double GetdX(const math::Vector3D& xi, const math::Vector3D& direction) const = 0;
