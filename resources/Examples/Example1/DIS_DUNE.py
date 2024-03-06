@@ -37,7 +37,7 @@ primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-edist = LI.distributions.PowerLaw(2, 1e3, 1e6)
+edist = LI.distributions.PowerLaw(1, 1e3, 1e6)
 primary_injection_distributions["energy"] = edist
 primary_physical_distributions["energy"] = edist
 
@@ -49,7 +49,7 @@ primary_physical_distributions["direction"] = direction_distribution
 # position distribution
 muon_range_func = LI.distributions.LeptonDepthFunction()
 position_distribution = LI.distributions.ColumnDepthPositionDistribution(
-    600, 600.0, muon_range_func, set(controller.GetDetectorModelTargets()[0])
+    60, 60.0, muon_range_func, set(controller.GetDetectorModelTargets()[0])
 )
 primary_injection_distributions["position"] = position_distribution
 

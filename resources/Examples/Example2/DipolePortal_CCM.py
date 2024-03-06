@@ -7,7 +7,7 @@ from leptoninjector.LIController import LIController
 # Define a DarkNews model
 model_kwargs = {
     "m4": 0.0235,
-    "mu_tr_mu4": 3e-7,  # 1e-6, # GeV^-1
+    "mu_tr_mu4": 6e-7, # GeV^-1
     "UD4": 0,
     "Umu4": 0,
     "epsilon": 0.0,
@@ -15,11 +15,6 @@ model_kwargs = {
     "decay_product": "photon",
     "noHC": True,
     "HNLtype": "dirac",
-}
-
-# cross section class arguments
-xs_kwargs = {
-    "always_interpolate": True
 }
 
 # Number of events to inject
@@ -40,8 +35,7 @@ table_dir = os.path.join(
     xs_path,
     "Dipole_M%2.2e_mu%2.2e" % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
 )
-controller.InputDarkNewsModel(primary_type, table_dir,
-                              **model_kwargs, **xs_kwargs)
+controller.InputDarkNewsModel(primary_type, table_dir, **model_kwargs)
 
 # Primary distributions
 primary_injection_distributions = {}

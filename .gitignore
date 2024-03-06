@@ -57,7 +57,7 @@ vendor/rk/
 *ipynb_checkpoint*
 
 # build
-/build/
+/*build/
 
 # images
 *.png
@@ -68,3 +68,6 @@ __pycache__/
 */*/*pycache*
 */*/*/*pycache*
 */*/*/*/*pycache*
+
+# output dirs
+*output*
