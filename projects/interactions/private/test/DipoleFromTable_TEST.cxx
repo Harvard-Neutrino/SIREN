@@ -9,17 +9,17 @@
 #include <cereal/types/vector.hpp>
 #include <cereal/types/array.hpp>
 
-#include "LeptonInjector/interactions/CrossSection.h"
-#include "LeptonInjector/interactions/DipoleFromTable.h"
+#include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/DipoleFromTable.h"
 
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
+#include "SIREN/utilities/Random.h"
+#include "SIREN/dataclasses/Particle.h"
+#include "SIREN/dataclasses/InteractionRecord.h"
+#include "SIREN/dataclasses/InteractionSignature.h"
 
-using namespace LI::interactions;
-using namespace LI::dataclasses;
-using namespace LI::utilities;
+using namespace SI::interactions;
+using namespace SI::dataclasses;
+using namespace SI::utilities;
 
 TEST(DipoleFromTable, Constructor)
 {
@@ -77,7 +77,7 @@ TEST(DipoleFromTable, Constructor)
     unsigned int total_events = 10000;
     output(cereal::make_size_tag(static_cast<size_t>(total_events)));
     for(unsigned int i=0; i<total_events; ++i) {
-        LI::dataclasses::CrossSectionDistributionRecord xsec_record(event);
+        SI::dataclasses::CrossSectionDistributionRecord xsec_record(event);
         xs->SampleFinalState(xsec_record, rand);
         xsec_record.Finalize(event);
         //std::cerr << event << std::endl;

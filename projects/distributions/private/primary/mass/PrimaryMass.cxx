@@ -1,16 +1,16 @@
-#include "LeptonInjector/distributions/primary/mass/PrimaryMass.h"
+#include "SIREN/distributions/primary/mass/PrimaryMass.h"
 
 #include <tuple>                                              // for tie
 #include <string>                                             // for basic_s...
 #include <iostream>                                           // for operator<<
 #include <stdlib.h>                                           // for abs
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"     // for Interac...
-#include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
-#include "LeptonInjector/dataclasses/Particle.h"              // for Particle
-#include "LeptonInjector/distributions/Distributions.h"       // for Injecti...
+#include "SIREN/dataclasses/InteractionRecord.h"     // for Interac...
+#include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
+#include "SIREN/dataclasses/Particle.h"              // for Particle
+#include "SIREN/distributions/Distributions.h"       // for Injecti...
 
-namespace LI {
+namespace SI {
 namespace distributions {
 
 //---------------
@@ -25,11 +25,11 @@ double PrimaryMass::GetPrimaryMass() const {
     return primary_mass;
 }
 
-void PrimaryMass::Sample(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+void PrimaryMass::Sample(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
     record.SetMass(primary_mass);
 }
 
-double PrimaryMass::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double PrimaryMass::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
     if(2.0 * abs(record.primary_mass - primary_mass) / (record.primary_mass + primary_mass) > 1e-9) {
         std::cerr << "Event primary mass does not match injector primary mass!" << std::endl;
         std::cerr << "Event primary_mass: " << record.primary_mass << std::endl;
@@ -68,4 +68,4 @@ bool PrimaryMass::less(WeightableDistribution const & other) const {
 }
 
 } // namespace distributions
-} // namespace LeptonInjector
+} // namespace SIREN

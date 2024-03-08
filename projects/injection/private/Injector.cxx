@@ -1,4 +1,4 @@
-#include "LeptonInjector/injection/Injector.h"
+#include "SIREN/injection/Injector.h"
 
 #include <array>
 #include <cmath>
@@ -7,29 +7,29 @@
 
 #include <rk/rk.hh>
 
-#include "LeptonInjector/interactions/CrossSection.h"
-#include "LeptonInjector/interactions/InteractionCollection.h"
-#include "LeptonInjector/interactions/Decay.h"
-#include "LeptonInjector/dataclasses/DecaySignature.h"
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/detector/DetectorModel.h"
-#include "LeptonInjector/detector/MaterialModel.h"
-#include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/detector/Coordinates.h"
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
-#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
-#include "LeptonInjector/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h"
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/injection/Process.h"
-#include "LeptonInjector/injection/WeightingUtils.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/utilities/Constants.h"
-#include "LeptonInjector/utilities/Errors.h"
-#include "LeptonInjector/utilities/Random.h"
+#include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/InteractionCollection.h"
+#include "SIREN/interactions/Decay.h"
+#include "SIREN/dataclasses/DecaySignature.h"
+#include "SIREN/dataclasses/InteractionSignature.h"
+#include "SIREN/dataclasses/Particle.h"
+#include "SIREN/detector/DetectorModel.h"
+#include "SIREN/detector/MaterialModel.h"
+#include "SIREN/detector/Path.h"
+#include "SIREN/detector/Coordinates.h"
+#include "SIREN/distributions/Distributions.h"
+#include "SIREN/distributions/primary/vertex/DecayRangeFunction.h"
+#include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "SIREN/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/injection/Process.h"
+#include "SIREN/injection/WeightingUtils.h"
+#include "SIREN/math/Vector3D.h"
+#include "SIREN/utilities/Constants.h"
+#include "SIREN/utilities/Errors.h"
+#include "SIREN/utilities/Random.h"
 
-namespace LI {
+namespace SI {
 namespace injection {
 
 using detector::DetectorPosition;
@@ -43,8 +43,8 @@ Injector::Injector() {}
 
 Injector::Injector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::DetectorModel> detector_model,
-        std::shared_ptr<LI::utilities::LI_random> random) :
+        std::shared_ptr<SI::detector::DetectorModel> detector_model,
+        std::shared_ptr<SI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
     detector_model(detector_model)
@@ -52,9 +52,9 @@ Injector::Injector(
 
 Injector::Injector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::DetectorModel> detector_model,
+        std::shared_ptr<SI::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
-        std::shared_ptr<LI::utilities::LI_random> random) :
+        std::shared_ptr<SI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
     detector_model(detector_model)
@@ -64,10 +64,10 @@ Injector::Injector(
 
 Injector::Injector(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::DetectorModel> detector_model,
+        std::shared_ptr<SI::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes,
-        std::shared_ptr<LI::utilities::LI_random> random) :
+        std::shared_ptr<SI::utilities::LI_random> random) :
     events_to_inject(events_to_inject),
     random(random),
     detector_model(detector_model)
@@ -79,29 +79,29 @@ Injector::Injector(
 }
 
 
-std::shared_ptr<distributions::VertexPositionDistribution> Injector::FindPrimaryVertexDistribution(std::shared_ptr<LI::injection::PrimaryInjectionProcess> process) {
+std::shared_ptr<distributions::VertexPositionDistribution> Injector::FindPrimaryVertexDistribution(std::shared_ptr<SI::injection::PrimaryInjectionProcess> process) {
     for(auto distribution : process->GetPrimaryInjectionDistributions()) {
         distributions::VertexPositionDistribution * raw_ptr = dynamic_cast<distributions::VertexPositionDistribution*>(distribution.get());
         if(raw_ptr)
             return std::dynamic_pointer_cast<distributions::VertexPositionDistribution>(distribution);
     }
-    throw(LI::utilities::AddProcessFailure("No primary vertex distribution specified!"));
+    throw(SI::utilities::AddProcessFailure("No primary vertex distribution specified!"));
 }
 
-std::shared_ptr<distributions::SecondaryVertexPositionDistribution> Injector::FindSecondaryVertexDistribution(std::shared_ptr<LI::injection::SecondaryInjectionProcess> process) {
+std::shared_ptr<distributions::SecondaryVertexPositionDistribution> Injector::FindSecondaryVertexDistribution(std::shared_ptr<SI::injection::SecondaryInjectionProcess> process) {
     for(std::shared_ptr<distributions::SecondaryInjectionDistribution> distribution : process->GetSecondaryInjectionDistributions()) {
         distributions::SecondaryVertexPositionDistribution * raw_ptr = dynamic_cast<distributions::SecondaryVertexPositionDistribution*>(distribution.get());
         if(raw_ptr)
             return std::dynamic_pointer_cast<distributions::SecondaryVertexPositionDistribution>(distribution);
     }
-    throw(LI::utilities::AddProcessFailure("No secondary vertex distribution specified!"));
+    throw(SI::utilities::AddProcessFailure("No secondary vertex distribution specified!"));
 }
 
-void Injector::SetPrimaryProcess(std::shared_ptr<LI::injection::PrimaryInjectionProcess> primary) {
+void Injector::SetPrimaryProcess(std::shared_ptr<SI::injection::PrimaryInjectionProcess> primary) {
     std::shared_ptr<distributions::VertexPositionDistribution> vtx_dist;
     try {
         vtx_dist = FindPrimaryVertexDistribution(primary);
-    } catch(LI::utilities::AddProcessFailure const & e) {
+    } catch(SI::utilities::AddProcessFailure const & e) {
         std::cerr << e.what() << std::endl;
         exit(0);
     }
@@ -109,11 +109,11 @@ void Injector::SetPrimaryProcess(std::shared_ptr<LI::injection::PrimaryInjection
     primary_position_distribution = vtx_dist;
 }
 
-void Injector::AddSecondaryProcess(std::shared_ptr<LI::injection::SecondaryInjectionProcess> secondary) {
+void Injector::AddSecondaryProcess(std::shared_ptr<SI::injection::SecondaryInjectionProcess> secondary) {
     std::shared_ptr<distributions::SecondaryVertexPositionDistribution> vtx_dist;
     try {
         vtx_dist = FindSecondaryVertexDistribution(secondary);
-    } catch(LI::utilities::AddProcessFailure const & e) {
+    } catch(SI::utilities::AddProcessFailure const & e) {
         std::cerr << e.what() << std::endl;
         exit(0);
     }
@@ -123,52 +123,52 @@ void Injector::AddSecondaryProcess(std::shared_ptr<LI::injection::SecondaryInjec
     secondary_position_distribution_map.insert({secondary->GetPrimaryType(), vtx_dist});
 }
 
-LI::dataclasses::InteractionRecord Injector::NewRecord() const {
-    LI::dataclasses::InteractionRecord record;
+SI::dataclasses::InteractionRecord Injector::NewRecord() const {
+    SI::dataclasses::InteractionRecord record;
     record.signature.primary_type = primary_process->GetPrimaryType();
     return record;
 }
 
-void Injector::SetRandom(std::shared_ptr<LI::utilities::LI_random> random) {
+void Injector::SetRandom(std::shared_ptr<SI::utilities::LI_random> random) {
     this->random = random;
 }
 
-void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record) const {
+void Injector::SampleCrossSection(SI::dataclasses::InteractionRecord & record) const {
     SampleCrossSection(record, primary_process->GetInteractions());
 }
 
-void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, std::shared_ptr<LI::interactions::InteractionCollection> interactions) const {
+void Injector::SampleCrossSection(SI::dataclasses::InteractionRecord & record, std::shared_ptr<SI::interactions::InteractionCollection> interactions) const {
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
             std::isnan(record.interaction_vertex[1]) ||
             std::isnan(record.interaction_vertex[2])) {
-        throw(LI::utilities::InjectionFailure("No particle interaction!"));
+        throw(SI::utilities::InjectionFailure("No particle interaction!"));
     }
 
-    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<SI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    LI::math::Vector3D interaction_vertex(
+    SI::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    LI::math::Vector3D primary_direction(
+    SI::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::set<LI::dataclasses::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, DetectorPosition(record.interaction_vertex));
+    SI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+    std::set<SI::dataclasses::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, DetectorPosition(record.interaction_vertex));
 
     double total_prob = 0.0;
     double xsec_prob = 0.0;
     std::vector<double> probs;
-    std::vector<LI::dataclasses::ParticleType> matching_targets;
-    std::vector<LI::dataclasses::InteractionSignature> matching_signatures;
-    std::vector<std::shared_ptr<LI::interactions::CrossSection>> matching_cross_sections;
-    std::vector<std::shared_ptr<LI::interactions::Decay>> matching_decays;
-    LI::dataclasses::InteractionRecord fake_record = record;
+    std::vector<SI::dataclasses::ParticleType> matching_targets;
+    std::vector<SI::dataclasses::InteractionSignature> matching_signatures;
+    std::vector<std::shared_ptr<SI::interactions::CrossSection>> matching_cross_sections;
+    std::vector<std::shared_ptr<SI::interactions::Decay>> matching_decays;
+    SI::dataclasses::InteractionRecord fake_record = record;
     double fake_prob;
     if (interactions->HasCrossSections()) {
         for(auto const target : available_targets) {
@@ -176,10 +176,10 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
                 // Get target density
                 double target_density = detector_model->GetParticleDensity(intersections, DetectorPosition(interaction_vertex), target);
                 // Loop over cross sections that have this target
-                std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
+                std::vector<std::shared_ptr<SI::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
                 for(auto const & cross_section : target_cross_sections) {
                     // Loop over cross section signatures with the same target
-                    std::vector<LI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
+                    std::vector<SI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
                     for(auto const & signature : signatures) {
                         fake_record.signature = signature;
                         fake_record.target_mass = detector_model->GetTargetMass(target);
@@ -203,12 +203,12 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
             for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
                 fake_record.signature = signature;
                 // fake_prob has units of 1/cm to match cross section probabilities
-                fake_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/LI::utilities::Constants::cm);
+                fake_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/SI::utilities::Constants::cm);
                 total_prob += fake_prob;
                 // Add total prob to probs
                 probs.push_back(total_prob);
                 // Add target and decay pointer to the lists
-                matching_targets.push_back(LI::dataclasses::ParticleType::Decay);
+                matching_targets.push_back(SI::dataclasses::ParticleType::Decay);
                 matching_decays.push_back(decay);
                 matching_signatures.push_back(signature);
             }
@@ -216,7 +216,7 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
     }
 
     if(total_prob == 0)
-        throw(LI::utilities::InjectionFailure("No valid interactions for this event!"));
+        throw(SI::utilities::InjectionFailure("No valid interactions for this event!"));
     // Throw a random number
     double r = random->Uniform(0, total_prob);
     // Choose the target and cross section
@@ -231,9 +231,9 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
         }
     }
     if(selected_prob == 0)
-        throw(LI::utilities::InjectionFailure("No valid interactions for this event!"));
+        throw(SI::utilities::InjectionFailure("No valid interactions for this event!"));
     record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
-    LI::dataclasses::CrossSectionDistributionRecord xsec_record(record);
+    SI::dataclasses::CrossSectionDistributionRecord xsec_record(record);
     if(r <= xsec_prob) {
         matching_cross_sections[index]->SampleFinalState(xsec_record, random);
     } else {
@@ -245,10 +245,10 @@ void Injector::SampleCrossSection(LI::dataclasses::InteractionRecord & record, s
 // Function to sample secondary processes
 //
 // Modifies an InteractionRecord with the new event
-LI::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(LI::dataclasses::SecondaryDistributionRecord & secondary_record) const {
-    std::shared_ptr<LI::injection::SecondaryInjectionProcess> secondary_process = secondary_process_map.at(secondary_record.type);
-    std::shared_ptr<LI::interactions::InteractionCollection> secondary_interactions = secondary_process->GetInteractions();
-    std::vector<std::shared_ptr<LI::distributions::SecondaryInjectionDistribution>> secondary_distributions = secondary_process->GetSecondaryInjectionDistributions();
+SI::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(SI::dataclasses::SecondaryDistributionRecord & secondary_record) const {
+    std::shared_ptr<SI::injection::SecondaryInjectionProcess> secondary_process = secondary_process_map.at(secondary_record.type);
+    std::shared_ptr<SI::interactions::InteractionCollection> secondary_interactions = secondary_process->GetInteractions();
+    std::vector<std::shared_ptr<SI::distributions::SecondaryInjectionDistribution>> secondary_distributions = secondary_process->GetSecondaryInjectionDistributions();
 
     size_t max_tries = 100;
     size_t tries = 0;
@@ -258,28 +258,28 @@ LI::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(LI::dataclas
             for(auto & distribution : secondary_distributions) {
                 distribution->Sample(random, detector_model, secondary_process->GetInteractions(), secondary_record);
             }
-            LI::dataclasses::InteractionRecord record;
+            SI::dataclasses::InteractionRecord record;
             secondary_record.Finalize(record);
             SampleCrossSection(record, secondary_interactions);
             return record;
-        } catch(LI::utilities::InjectionFailure const & e) {
+        } catch(SI::utilities::InjectionFailure const & e) {
             failed_tries += 1;
             if(tries > max_tries) {
-                throw(LI::utilities::InjectionFailure("Failed to generate secondary process!"));
+                throw(SI::utilities::InjectionFailure("Failed to generate secondary process!"));
                 break;
             }
             continue;
         }
         if(tries > max_tries) {
-            throw(LI::utilities::InjectionFailure("Failed to generate secondary process!"));
+            throw(SI::utilities::InjectionFailure("Failed to generate secondary process!"));
             break;
         }
     }
-    return LI::dataclasses::InteractionRecord();
+    return SI::dataclasses::InteractionRecord();
 }
 
-LI::dataclasses::InteractionTree Injector::GenerateEvent() {
-    LI::dataclasses::InteractionRecord record;
+SI::dataclasses::InteractionTree Injector::GenerateEvent() {
+    SI::dataclasses::InteractionRecord record;
     size_t max_tries = 100;
     size_t tries = 0;
     size_t failed_tries = 0;
@@ -287,35 +287,35 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
     while(true) {
         tries += 1;
         try {
-            LI::dataclasses::PrimaryDistributionRecord primary_record(primary_process->GetPrimaryType());
+            SI::dataclasses::PrimaryDistributionRecord primary_record(primary_process->GetPrimaryType());
             for(auto & distribution : primary_process->GetPrimaryInjectionDistributions()) {
                 distribution->Sample(random, detector_model, primary_process->GetInteractions(), primary_record);
             }
             primary_record.Finalize(record);
             SampleCrossSection(record);
             break;
-        } catch(LI::utilities::InjectionFailure const & e) {
+        } catch(SI::utilities::InjectionFailure const & e) {
             failed_tries += 1;
             if(tries > max_tries) {
-                throw(LI::utilities::InjectionFailure("Failed to generate primary process!"));
+                throw(SI::utilities::InjectionFailure("Failed to generate primary process!"));
                 break;
             }
             continue;
         }
         if(tries > max_tries) {
-            throw(LI::utilities::InjectionFailure("Failed to generate primary process!"));
+            throw(SI::utilities::InjectionFailure("Failed to generate primary process!"));
             break;
         }
     }
-    LI::dataclasses::InteractionTree tree;
-    std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
+    SI::dataclasses::InteractionTree tree;
+    std::shared_ptr<SI::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
 
     // Secondary Processes
-    std::deque<std::tuple<std::shared_ptr<LI::dataclasses::InteractionTreeDatum>, std::shared_ptr<LI::dataclasses::SecondaryDistributionRecord>>> secondaries;
-    std::function<void(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>)> add_secondaries = [&](std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent) {
+    std::deque<std::tuple<std::shared_ptr<SI::dataclasses::InteractionTreeDatum>, std::shared_ptr<SI::dataclasses::SecondaryDistributionRecord>>> secondaries;
+    std::function<void(std::shared_ptr<SI::dataclasses::InteractionTreeDatum>)> add_secondaries = [&](std::shared_ptr<SI::dataclasses::InteractionTreeDatum> parent) {
         for(size_t i=0; i<parent->record.signature.secondary_types.size(); ++i) {
-            LI::dataclasses::ParticleType const & type = parent->record.signature.secondary_types[i];
-            std::map<LI::dataclasses::ParticleType, std::shared_ptr<LI::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
+            SI::dataclasses::ParticleType const & type = parent->record.signature.secondary_types[i];
+            std::map<SI::dataclasses::ParticleType, std::shared_ptr<SI::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
             if(it == secondary_process_map.end()) {
                 continue;
             }
@@ -324,7 +324,7 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
             }
             secondaries.emplace_back(
                 parent,
-                std::make_shared<LI::dataclasses::SecondaryDistributionRecord>(parent->record, i)
+                std::make_shared<SI::dataclasses::SecondaryDistributionRecord>(parent->record, i)
             );
         }
     };
@@ -332,12 +332,12 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
     add_secondaries(parent);
     while(secondaries.size() > 0) {
         for(int i = secondaries.size() - 1; i >= 0; --i) {
-            std::shared_ptr<LI::dataclasses::InteractionTreeDatum> parent = std::get<0>(secondaries[i]);
-            std::shared_ptr<LI::dataclasses::SecondaryDistributionRecord> secondary_dist = std::get<1>(secondaries[i]);
+            std::shared_ptr<SI::dataclasses::InteractionTreeDatum> parent = std::get<0>(secondaries[i]);
+            std::shared_ptr<SI::dataclasses::SecondaryDistributionRecord> secondary_dist = std::get<1>(secondaries[i]);
             secondaries.erase(secondaries.begin() + i);
 
-            LI::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
-            std::shared_ptr<LI::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
+            SI::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
+            std::shared_ptr<SI::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
             add_secondaries(secondary_datum);
         }
     }
@@ -345,25 +345,25 @@ LI::dataclasses::InteractionTree Injector::GenerateEvent() {
     return tree;
 }
 
-double Injector::SecondaryGenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum) const {
+double Injector::SecondaryGenerationProbability(std::shared_ptr<SI::dataclasses::InteractionTreeDatum> const & datum) const {
     return SecondaryGenerationProbability(datum, secondary_process_map.at(datum->record.signature.primary_type));
 }
 
-double Injector::SecondaryGenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum,
-        std::shared_ptr<LI::injection::SecondaryInjectionProcess> process) const {
+double Injector::SecondaryGenerationProbability(std::shared_ptr<SI::dataclasses::InteractionTreeDatum> const & datum,
+        std::shared_ptr<SI::injection::SecondaryInjectionProcess> process) const {
     double probability = 1.0;
     for(auto const & dist : process->GetSecondaryInjectionDistributions()) {
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
         probability *= prob;
     }
-    double prob = LI::injection::CrossSectionProbability(detector_model, process->GetInteractions(), datum->record);
+    double prob = SI::injection::CrossSectionProbability(detector_model, process->GetInteractions(), datum->record);
     probability *= prob;
     return probability;
 }
 
-double Injector::GenerationProbability(LI::dataclasses::InteractionTree const & tree) const {
+double Injector::GenerationProbability(SI::dataclasses::InteractionTree const & tree) const {
     double probability = 1.0;
-    std::set<std::shared_ptr<LI::dataclasses::InteractionTreeDatum>>::const_iterator it = tree.tree.cbegin();
+    std::set<std::shared_ptr<SI::dataclasses::InteractionTreeDatum>>::const_iterator it = tree.tree.cbegin();
     while(it != tree.tree.cend()) {
         if((*it)->depth()==0) probability *= GenerationProbability((*it));
         else probability *= SecondaryGenerationProbability((*it));
@@ -372,8 +372,8 @@ double Injector::GenerationProbability(LI::dataclasses::InteractionTree const & 
     return probability;
 }
 
-double Injector::GenerationProbability(std::shared_ptr<LI::dataclasses::InteractionTreeDatum> const & datum,
-        std::shared_ptr<LI::injection::PrimaryInjectionProcess> process) const {
+double Injector::GenerationProbability(std::shared_ptr<SI::dataclasses::InteractionTreeDatum> const & datum,
+        std::shared_ptr<SI::injection::PrimaryInjectionProcess> process) const {
     double probability = 1.0;
     if(!process) { // assume we are dealing with the primary process
         process = primary_process;
@@ -383,13 +383,13 @@ double Injector::GenerationProbability(std::shared_ptr<LI::dataclasses::Interact
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
         probability *= prob;
     }
-    double prob = LI::injection::CrossSectionProbability(detector_model, process->GetInteractions(), datum->record);
+    double prob = SI::injection::CrossSectionProbability(detector_model, process->GetInteractions(), datum->record);
     probability *= prob;
     return probability;
 }
 
-double Injector::GenerationProbability(LI::dataclasses::InteractionRecord const & record,
-        std::shared_ptr<LI::injection::PrimaryInjectionProcess> process) const {
+double Injector::GenerationProbability(SI::dataclasses::InteractionRecord const & record,
+        std::shared_ptr<SI::injection::PrimaryInjectionProcess> process) const {
     double probability = 1.0;
     if(!process) { // assume we are dealing with the primary process
         process = primary_process;
@@ -399,7 +399,7 @@ double Injector::GenerationProbability(LI::dataclasses::InteractionRecord const 
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), record);
         probability *= prob;
     }
-    double prob = LI::injection::CrossSectionProbability(detector_model, process->GetInteractions(), record);
+    double prob = SI::injection::CrossSectionProbability(detector_model, process->GetInteractions(), record);
     probability *= prob;
     return probability;
 }
@@ -413,7 +413,7 @@ std::set<std::vector<std::string>> Injector::DensityVariables() const {
         variables.reserve(variables.size() + new_variables.size());
         variables.insert(variables.end(), new_variables.begin(), new_variables.end());
     }
-    std::vector<std::shared_ptr<LI::interactions::CrossSection>> xs_vec = primary_process->GetInteractions()->GetCrossSections();
+    std::vector<std::shared_ptr<SI::interactions::CrossSection>> xs_vec = primary_process->GetInteractions()->GetCrossSections();
     for(auto const & xs : xs_vec) {
         std::vector<std::string> new_variables = xs->DensityVariables();
         std::vector<std::string> variable_list;
@@ -429,27 +429,27 @@ std::string Injector::Name() const {
     return("Injector");
 }
 
-std::tuple<LI::math::Vector3D, LI::math::Vector3D> Injector::PrimaryInjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
+std::tuple<SI::math::Vector3D, SI::math::Vector3D> Injector::PrimaryInjectionBounds(SI::dataclasses::InteractionRecord const & interaction) const {
     if(!primary_position_distribution) {
-        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+        return std::tuple<SI::math::Vector3D, SI::math::Vector3D>(SI::math::Vector3D(0, 0, 0), SI::math::Vector3D(0, 0, 0));
     }
     return primary_position_distribution->InjectionBounds(detector_model, primary_process->GetInteractions(), interaction);
 }
 
 // Assumes there is a secondary process and position distribuiton for the provided particle type
-std::tuple<LI::math::Vector3D, LI::math::Vector3D> Injector::SecondaryInjectionBounds(LI::dataclasses::InteractionRecord const & record) const {
+std::tuple<SI::math::Vector3D, SI::math::Vector3D> Injector::SecondaryInjectionBounds(SI::dataclasses::InteractionRecord const & record) const {
     return secondary_position_distribution_map.at(record.signature.primary_type)->InjectionBounds(detector_model, secondary_process_map.at(record.signature.primary_type)->GetInteractions(), record);
 }
 
-std::vector<std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>> Injector::GetPrimaryInjectionDistributions() const {
+std::vector<std::shared_ptr<SI::distributions::PrimaryInjectionDistribution>> Injector::GetPrimaryInjectionDistributions() const {
     return primary_process->GetPrimaryInjectionDistributions();
 }
 
-std::shared_ptr<LI::detector::DetectorModel> Injector::GetDetectorModel() const {
+std::shared_ptr<SI::detector::DetectorModel> Injector::GetDetectorModel() const {
     return detector_model;
 }
 
-std::shared_ptr<LI::interactions::InteractionCollection> Injector::GetInteractions() const {
+std::shared_ptr<SI::interactions::InteractionCollection> Injector::GetInteractions() const {
     return primary_process->GetInteractions();
 }
 
@@ -466,5 +466,5 @@ Injector::operator bool() const {
 }
 
 } // namespace injection
-} // namespace LI
+} // namespace SI
 

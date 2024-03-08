@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/math/Polynomial.h"
+#include "SIREN/math/Polynomial.h"
 
-using namespace LI::math;
+using namespace SI::math;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);

@@ -1,7 +1,7 @@
 import os
 
-import leptoninjector as LI
-from leptoninjector.LIController import LIController
+import siren
+from siren.LIController import LIController
 
 # Define a DarkNews model
 model_kwargs = {
@@ -26,9 +26,9 @@ experiment = "MINERvA"
 controller = LIController(events_to_inject, experiment)
 
 # Particle to inject
-primary_type = LI.dataclasses.Particle.ParticleType.NuMu
+primary_type = siren.dataclasses.Particle.ParticleType.NuMu
 
-xs_path = LI.utilities.get_cross_section_model_path(f"DarkNewsTables-v{LI.utilities.darknews_version()}", must_exist=False)
+xs_path = siren.utilities.get_cross_section_model_path(f"DarkNewsTables-v{siren.utilities.darknews_version()}", must_exist=False)
 # Define DarkNews Model
 table_dir = os.path.join(
     xs_path,
@@ -41,24 +41,24 @@ primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-flux_file = LI.utilities.get_tabulated_flux_file("NUMI","FHC_ME_numu")
-edist = LI.distributions.TabulatedFluxDistribution(flux_file, True)
-edist_gen = LI.distributions.TabulatedFluxDistribution(
+flux_file = siren.utilities.get_tabulated_flux_file("NUMI","FHC_ME_numu")
+edist = siren.distributions.TabulatedFluxDistribution(flux_file, True)
+edist_gen = siren.distributions.TabulatedFluxDistribution(
     model_kwargs["m4"], 20, flux_file, False
 )
 primary_injection_distributions["energy"] = edist_gen
 primary_physical_distributions["energy"] = edist
 
 # direction distribution
-direction_distribution = LI.distributions.FixedDirection(LI.math.Vector3D(0, 0, 1.0))
+direction_distribution = siren.distributions.FixedDirection(siren.math.Vector3D(0, 0, 1.0))
 primary_injection_distributions["direction"] = direction_distribution
 primary_physical_distributions["direction"] = direction_distribution
 
 # position distribution
-decay_range_func = LI.distributions.DecayRangeFunction(
+decay_range_func = siren.distributions.DecayRangeFunction(
     model_kwargs["m4"], controller.DN_min_decay_width, 3, 240
 )
-position_distribution = LI.distributions.RangePositionDistribution(
+position_distribution = siren.distributions.RangePositionDistribution(
     1.24, 5.0, decay_range_func, set(controller.GetDetectorModelTargets()[0])
 )
 primary_injection_distributions["position"] = position_distribution
@@ -72,7 +72,7 @@ controller.Initialize()
 
 def stop(datum, i):
     secondary_type = datum.record.signature.secondary_types[i]
-    return secondary_type != LI.dataclasses.Particle.ParticleType.N4
+    return secondary_type != siren.dataclasses.Particle.ParticleType.N4
 
 controller.injector.SetStoppingCondition(stop)
 

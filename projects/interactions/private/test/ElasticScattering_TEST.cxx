@@ -10,40 +10,40 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/interactions/CrossSection.h"
-#include "LeptonInjector/interactions/ElasticScattering.h"
+#include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/ElasticScattering.h"
 
-#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
-#include "LeptonInjector/distributions/primary/energy/TabulatedFluxDistribution.h"
-#include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
-#include "LeptonInjector/distributions/primary/direction/FixedDirection.h"
-#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
-#include "LeptonInjector/distributions/primary/vertex/LeptonDepthFunction.h"
-#include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
-#include "LeptonInjector/distributions/target/momentum/TargetMomentumDistribution.h"
+#include "SIREN/distributions/primary/energy/PrimaryEnergyDistribution.h"
+#include "SIREN/distributions/primary/energy/TabulatedFluxDistribution.h"
+#include "SIREN/distributions/primary/direction/PrimaryDirectionDistribution.h"
+#include "SIREN/distributions/primary/direction/FixedDirection.h"
+#include "SIREN/distributions/primary/vertex/DepthFunction.h"
+#include "SIREN/distributions/primary/vertex/LeptonDepthFunction.h"
+#include "SIREN/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
+#include "SIREN/distributions/target/momentum/TargetMomentumDistribution.h"
 
-#include "LeptonInjector/utilities/Random.h"
+#include "SIREN/utilities/Random.h"
 
-#include "LeptonInjector/math/EulerQuaternionConversions.h"
+#include "SIREN/math/EulerQuaternionConversions.h"
 
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
+#include "SIREN/dataclasses/Particle.h"
+#include "SIREN/dataclasses/InteractionRecord.h"
+#include "SIREN/dataclasses/InteractionSignature.h"
 
-#include "LeptonInjector/geometry/Placement.h"
-#include "LeptonInjector/geometry/ExtrPoly.h"
+#include "SIREN/geometry/Placement.h"
+#include "SIREN/geometry/ExtrPoly.h"
 
-#include "LeptonInjector/injection/Weighter.h"
-#include "LeptonInjector/injection/ColumnDepthLeptonInjector.h"
+#include "SIREN/injection/Weighter.h"
+#include "SIREN/injection/ColumnDepthSIREN.h"
 
-using namespace LI::interactions;
-using namespace LI::distributions;
-using namespace LI::dataclasses;
-using namespace LI::injection;
-using namespace LI::utilities;
-using namespace LI::detector;
-using namespace LI::geometry;
-using namespace LI::math;
+using namespace SI::interactions;
+using namespace SI::distributions;
+using namespace SI::dataclasses;
+using namespace SI::injection;
+using namespace SI::utilities;
+using namespace SI::detector;
+using namespace SI::geometry;
+using namespace SI::math;
 
 #define AUSTIN
 
@@ -58,12 +58,12 @@ TEST(ElasticScattering, Generation)
     using ParticleType = ParticleType;
 
 #ifdef AUSTIN
-    std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/Detectors/materials/Minerva.dat";
-    std::string detector_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/Detectors/densities/PREM_minerva.dat";
+    std::string material_file = "/home/austin/programs/LIDUNE/sources/SIRENDUNE/resources/Detectors/materials/Minerva.dat";
+    std::string detector_file = "/home/austin/programs/LIDUNE/sources/SIRENDUNE/resources/Detectors/densities/PREM_minerva.dat";
     std::string flux_file = "/home/austin/nu-dipole/fluxes/LE_FHC_numu.txt";
 #else
-    std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/Detectors/materials/Minerva.dat";
-    std::string detector_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/Detectors/densities/PREM_minerva.dat";
+    std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/SIRENDUNE/resources/Detectors/materials/Minerva.dat";
+    std::string detector_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/SIRENDUNE/resources/Detectors/densities/PREM_minerva.dat";
     std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/ME_FHC_numu.txt";
 #endif
 
@@ -114,7 +114,7 @@ TEST(ElasticScattering, Generation)
     std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
 
     // Put it all together!
-    std::shared_ptr<Injector> injector = std::make_shared<ColumnDepthLeptonInjector>(events_to_inject, primary_injector, cross_sections, detector_model, random, edist, ddist, depth_func, disk_radius, endcap_length, helicity_distribution);
+    std::shared_ptr<Injector> injector = std::make_shared<ColumnDepthSIREN>(events_to_inject, primary_injector, cross_sections, detector_model, random, edist, ddist, depth_func, disk_radius, endcap_length, helicity_distribution);
 
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
         std::shared_ptr<WeightableDistribution>(tab_pdf),

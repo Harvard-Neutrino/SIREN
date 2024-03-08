@@ -6,26 +6,26 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/interactions/CrossSection.h"
-#include "../../public/LeptonInjector/interactions/DummyCrossSection.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/Particle.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionRecord.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionSignature.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
-#include "../../../utilities/public/LeptonInjector/utilities/Random.h"
+#include "../../public/SIREN/interactions/CrossSection.h"
+#include "../../public/SIREN/interactions/DummyCrossSection.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
+#include "../../../utilities/public/SIREN/utilities/Random.h"
 
 void register_DummyCrossSection(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::interactions;
+    using namespace SI::interactions;
 
     class_<DummyCrossSection, std::shared_ptr<DummyCrossSection>, CrossSection> dummycrosssection(m, "DummyCrossSection");
 
     dummycrosssection
         .def(init<>())
         .def("_equal", &DummyCrossSection::equal)
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DummyCrossSection::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType>(&DummyCrossSection::TotalCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DummyCrossSection::DifferentialCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<SI::dataclasses::InteractionRecord const &>(&DummyCrossSection::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<SI::dataclasses::ParticleType, double, SI::dataclasses::ParticleType>(&DummyCrossSection::TotalCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<SI::dataclasses::InteractionRecord const &>(&DummyCrossSection::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DummyCrossSection::InteractionThreshold)
         .def("GetPossibleTargets",&DummyCrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary",&DummyCrossSection::GetPossibleTargetsFromPrimary)

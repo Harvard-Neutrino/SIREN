@@ -10,41 +10,41 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/interactions/CrossSection.h"
+#include "SIREN/interactions/CrossSection.h"
 
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Constants.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/injection/Injector.h"
-#include "LeptonInjector/injection/RangedLeptonInjector.h"
-#include "LeptonInjector/injection/Weighter.h"
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/geometry/ExtrPoly.h"
-#include "LeptonInjector/geometry/Sphere.h"
-#include "LeptonInjector/math/EulerQuaternionConversions.h"
-#include "LeptonInjector/geometry/Placement.h"
+#include "SIREN/utilities/Random.h"
+#include "SIREN/utilities/Constants.h"
+#include "SIREN/dataclasses/Particle.h"
+#include "SIREN/injection/Injector.h"
+#include "SIREN/injection/RangedSIREN.h"
+#include "SIREN/injection/Weighter.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/ExtrPoly.h"
+#include "SIREN/geometry/Sphere.h"
+#include "SIREN/math/EulerQuaternionConversions.h"
+#include "SIREN/geometry/Placement.h"
 
-#include "LeptonInjector/distributions/primary/type/PrimaryInjector.h"
-#include "LeptonInjector/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
-#include "LeptonInjector/distributions/primary/energy/TabulatedFluxDistribution.h"
-#include "LeptonInjector/distributions/primary/direction/FixedDirection.h"
-#include "LeptonInjector/distributions/primary/vertex/RangeFunction.h"
-#include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
+#include "SIREN/distributions/primary/type/PrimaryInjector.h"
+#include "SIREN/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
+#include "SIREN/distributions/primary/energy/TabulatedFluxDistribution.h"
+#include "SIREN/distributions/primary/direction/FixedDirection.h"
+#include "SIREN/distributions/primary/vertex/RangeFunction.h"
+#include "SIREN/distributions/primary/vertex/DecayRangeFunction.h"
 
-#include "LeptonInjector/interactions/InteractionCollection.h"
-#include "LeptonInjector/interactions/CrossSection.h"
-#include "LeptonInjector/interactions/DipoleFromTable.h"
+#include "SIREN/interactions/InteractionCollection.h"
+#include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/DipoleFromTable.h"
 
 #define AUSTIN
 
-using namespace LI::math;
-using namespace LI::geometry;
-using namespace LI::detector;
-using namespace LI::injection;
-using namespace LI::dataclasses;
-using namespace LI::interactions;
-using namespace LI::utilities;
-using namespace LI::distributions;
+using namespace SI::math;
+using namespace SI::geometry;
+using namespace SI::detector;
+using namespace SI::injection;
+using namespace SI::dataclasses;
+using namespace SI::interactions;
+using namespace SI::utilities;
+using namespace SI::distributions;
 
 bool z_samp = false;
 bool in_invGeV = true;
@@ -211,18 +211,18 @@ TEST(Injector, Generation)
     using ParticleType = ParticleType;
 
 #ifdef AUSTIN
-    std::string material_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/Detectors/materials/Minerva.dat";
-    std::string detector_file = "/home/austin/programs/LIDUNE/sources/LeptonInjectorDUNE/resources/Detectors/densities/PREM_minerva.dat";
+    std::string material_file = "/home/austin/programs/LIDUNE/sources/SIRENDUNE/resources/Detectors/materials/Minerva.dat";
+    std::string detector_file = "/home/austin/programs/LIDUNE/sources/SIRENDUNE/resources/Detectors/densities/PREM_minerva.dat";
     std::string flux_file = "/home/austin/nu-dipole/fluxes/LE_FHC_numu.txt";
     z_samp = false;
     in_invGeV = false;
 #else
-    std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/Detectors/materials/Minerva.dat";
-    std::string detector_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/Detectors/densities/PREM_minerva.dat";
+    std::string material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/SIRENDUNE/resources/Detectors/materials/Minerva.dat";
+    std::string detector_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/SIRENDUNE/resources/Detectors/densities/PREM_minerva.dat";
     std::string flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/NUMI_Flux_Tables/ME_FHC_numu.txt";
     if(miniboone) {
-			material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/Detectors/materials/MiniBooNE.dat";
-			detector_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/LeptonInjectorDUNE/resources/Detectors/densities/PREM_miniboone.dat";
+			material_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/SIRENDUNE/resources/Detectors/materials/MiniBooNE.dat";
+			detector_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/sources/SIRENDUNE/resources/Detectors/densities/PREM_miniboone.dat";
 			flux_file = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/BNB_Flux_Tables/BNB_numu_flux.txt";
 			inelastic = true;
     }
@@ -310,7 +310,7 @@ TEST(Injector, Generation)
     std::shared_ptr<PrimaryNeutrinoHelicityDistribution> helicity_distribution = std::make_shared<PrimaryNeutrinoHelicityDistribution>();
 
     // Put it all together!
-    std::shared_ptr<Injector> injector = std::make_shared<RangedLeptonInjector>(events_to_inject, primary_injector, cross_sections, detector_model, random, edist, ddist, range_func, disk_radius, endcap_length, helicity_distribution);
+    std::shared_ptr<Injector> injector = std::make_shared<RangedSIREN>(events_to_inject, primary_injector, cross_sections, detector_model, random, edist, ddist, range_func, disk_radius, endcap_length, helicity_distribution);
 
     std::vector<std::shared_ptr<WeightableDistribution>> physical_distributions = {
         std::shared_ptr<WeightableDistribution>(tab_pdf),

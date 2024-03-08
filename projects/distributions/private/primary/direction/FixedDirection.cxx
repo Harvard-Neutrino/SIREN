@@ -1,32 +1,32 @@
-#include "LeptonInjector/distributions/primary/direction/FixedDirection.h"
+#include "SIREN/distributions/primary/direction/FixedDirection.h"
 
 #include <array>                                           // for array
 #include <tuple>                                           // for tie, opera...
 #include <string>                                          // for basic_string
 #include <stdlib.h>                                        // for abs
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
-#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
-#include "LeptonInjector/math/Vector3D.h"                  // for Vector3D
+#include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "SIREN/distributions/Distributions.h"    // for InjectionD...
+#include "SIREN/math/Vector3D.h"                  // for Vector3D
 
-namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace detector { class DetectorModel; } }
-namespace LI { namespace utilities { class LI_random; } }
+namespace SI { namespace interactions { class InteractionCollection; } }
+namespace SI { namespace detector { class DetectorModel; } }
+namespace SI { namespace utilities { class LI_random; } }
 
-namespace LI {
+namespace SI {
 namespace distributions {
 
 //---------------
 // class FixedDirection : PrimaryDirectionDistribution
 //---------------
-LI::math::Vector3D FixedDirection::SampleDirection(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+SI::math::Vector3D FixedDirection::SampleDirection(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
     return dir;
 }
 
-double FixedDirection::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-    LI::math::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+double FixedDirection::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
+    SI::math::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     event_dir.normalize();
-    if(abs(1.0 - LI::math::scalar_product(dir, event_dir)) < 1e-9)
+    if(abs(1.0 - SI::math::scalar_product(dir, event_dir)) < 1e-9)
         return 1.0;
     else
         return 0.0;
@@ -50,12 +50,12 @@ bool FixedDirection::equal(WeightableDistribution const & other) const {
     if(!x)
         return false;
     else
-        return (abs(1.0 - LI::math::scalar_product(dir, x->dir)) < 1e-9);
+        return (abs(1.0 - SI::math::scalar_product(dir, x->dir)) < 1e-9);
 }
 
 bool FixedDirection::less(WeightableDistribution const & other) const {
     const FixedDirection* x = dynamic_cast<const FixedDirection*>(&other);
-    if(abs(1.0 - LI::math::scalar_product(dir, x->dir)) < 1e-9) {
+    if(abs(1.0 - SI::math::scalar_product(dir, x->dir)) < 1e-9) {
         return false;
     } else {
         double X = dir.GetX();
@@ -72,5 +72,5 @@ bool FixedDirection::less(WeightableDistribution const & other) const {
 }
 
 } // namespace distributions
-} // namespace LI
+} // namespace SI
 

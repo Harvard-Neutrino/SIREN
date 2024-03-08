@@ -5,14 +5,14 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/math/Vector3D.h"
 
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/geometry/ExtrPoly.h"
-#include "LeptonInjector/geometry/Box.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/ExtrPoly.h"
+#include "SIREN/geometry/Box.h"
 
-using namespace LI::geometry;
-using namespace LI::math;
+using namespace SI::geometry;
+using namespace SI::math;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);

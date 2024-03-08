@@ -1,8 +1,8 @@
-#include "LeptonInjector/detector/CartesianAxis1D.h"
+#include "SIREN/detector/CartesianAxis1D.h"
 
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/math/Vector3D.h"
 
-namespace LI {
+namespace SI {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -37,5 +37,5 @@ double CartesianAxis1D::GetdX(const math::Vector3D& xi, const math::Vector3D& di
     return fAxis_ * direction;
 }
 
-} // namespace LI
+} // namespace SI
 } // namespace detector

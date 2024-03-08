@@ -13,13 +13,13 @@
 
 #include "FakeMaterialModel.h"
 
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/detector/DetectorModel.h"
-#include "LeptonInjector/math/Quaternion.h"
-#include "LeptonInjector/math/Polynomial.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/detector/DetectorModel.h"
+#include "SIREN/math/Quaternion.h"
+#include "SIREN/math/Polynomial.h"
 
-using namespace LI::detector;
-using namespace LI::math;
+using namespace SI::detector;
+using namespace SI::math;
 
 template <typename T>
 std::string str(std::vector<T> v) {

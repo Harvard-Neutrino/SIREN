@@ -69,10 +69,10 @@ def appdata_dir(appname=None, roaming=False):
 def resource_dirs():
     """resource_dirs()
 
-    Get a list of directories where leptoninjector resources may be located.
+    Get a list of directories where siren resources may be located.
     The first directory in this list is the "resources" directory in
     the package itself. The second directory is the appdata directory
-    (~/.leptoninjector on Linux). The list further contains the application
+    (~/.siren on Linux). The list further contains the application
     directory (for frozen apps), and may include additional directories
     in the future.
     """
@@ -80,7 +80,7 @@ def resource_dirs():
     # Resource dir baked in the package.
     # Appdata directory
     try:
-        dirs.append(appdata_dir("leptoninjector"))
+        dirs.append(appdata_dir("siren"))
     except Exception:  # pragma: no cover
         pass  # The home dir may not be writable
     # Directory where the app is located (mainly for frozen apps)
@@ -96,13 +96,13 @@ def resource_dirs():
 def resource_package_dir():
     """package_dir
 
-    Get the resources directory in the leptoninjector package installation
+    Get the resources directory in the siren package installation
     directory.
 
     Notes
     -----
     This is a convenience method that is used by `resource_dirs` and
-    leptoninjector entry point scripts.
+    siren entry point scripts.
     """
     # Make pkg_resources optional if setuptools is not available
     try:
@@ -115,7 +115,7 @@ def resource_package_dir():
     if pkg_resources:
         # The directory returned by `pkg_resources.resource_filename`
         # also works with eggs.
-        pdir = pkg_resources.resource_filename("leptoninjector", "resources")
+        pdir = pkg_resources.resource_filename("siren", "resources")
     else:
         # If setuptools is not available, use fallback
         pdir = os.path.abspath(os.path.join(THIS_DIR, "resources"))

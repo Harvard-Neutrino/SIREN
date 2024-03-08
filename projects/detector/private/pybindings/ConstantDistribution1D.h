@@ -6,14 +6,14 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/detector/DetectorModel.h"
-#include "../../public/LeptonInjector/detector/Distribution1D.h"
-#include "../../public/LeptonInjector/detector/ConstantDistribution1D.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
+#include "../../public/SIREN/detector/DetectorModel.h"
+#include "../../public/SIREN/detector/Distribution1D.h"
+#include "../../public/SIREN/detector/ConstantDistribution1D.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
 
 void register_ConstantDistribution1D(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::detector;
+    using namespace SI::detector;
 
     class_<ConstantDistribution1D, std::shared_ptr<ConstantDistribution1D>>(m, "ConstantDistribution1D")
         .def(init<>())

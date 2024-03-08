@@ -2,11 +2,11 @@
 # benjamin.smithers@mavs.uta.edu
 
 # this example script ...
-#   + imports the LeptonInjector libraries 
+#   + imports the SIREN libraries 
 #   + creates two injectors, and their operator 
 #   + tells the operator to execute the process 
 
-import LeptonInjector as LI
+import SIREN as LI
 from math import pi
 import os 
 
@@ -22,9 +22,9 @@ n_events    = 55000
 diff_xs     = xs_folder + "/test_xs.fits"
 total_xs    = xs_folder + "/test_xs_total.fits"
 is_ranged   = True
-final_1     = LI.Particle.MuMinus
-final_2     = LI.Particle.Hadrons
-the_injector = LI.Injector( n_events , final_1, final_2, diff_xs, total_xs, is_ranged)
+final_1     = siren.Particle.MuMinus
+final_2     = siren.Particle.Hadrons
+the_injector = siren.Injector( n_events , final_1, final_2, diff_xs, total_xs, is_ranged)
 
 
 
@@ -40,7 +40,7 @@ minAzimuth  = 0.*deg
 maxAzimuth  = 180.*deg
 
 # construct the controller 
-controller  = LI.Controller( the_injector, minE, maxE, gamma, minAzimuth, maxAzimuth, minZenith, maxZenith)  
+controller  = siren.Controller( the_injector, minE, maxE, gamma, minAzimuth, maxAzimuth, minZenith, maxZenith)  
 
 # specify the output
 controller.NameOutfile("./data_output.h5")

@@ -38,7 +38,7 @@ add_library(LI_distributions OBJECT ${distributions_SOURCES})
 set_property(TARGET LI_distributions PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_distributions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/distributions/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/LeptonInjector/distributions/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/distributions/>
 )
 
 target_link_libraries(LI_distributions
@@ -66,9 +66,9 @@ package_add_test(UnitTest_PrimaryDirectionDistribution ${PROJECT_SOURCE_DIR}/pro
 package_add_test(UnitTest_PrimaryEnergyDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/PrimaryEnergyDistribution_TEST.cxx)
 
 pybind11_add_module(distributions ${PROJECT_SOURCE_DIR}/projects/distributions/private/pybindings/distributions.cxx)
-target_link_libraries(distributions PRIVATE LeptonInjector)
+target_link_libraries(distributions PRIVATE SIREN)
 if(DEFINED SKBUILD)
 set_target_properties(distributions PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../leptoninjector.libs/")
+        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../siren.libs/")
 endif()

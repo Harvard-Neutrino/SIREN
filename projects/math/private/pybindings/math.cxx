@@ -1,8 +1,8 @@
 #include <vector>
 
-#include "../../public/LeptonInjector/math/Vector3D.h"
-#include "../../public/LeptonInjector/math/Quaternion.h"
-#include "../../public/LeptonInjector/math/Matrix3D.h"
+#include "../../public/SIREN/math/Vector3D.h"
+#include "../../public/SIREN/math/Quaternion.h"
+#include "../../public/SIREN/math/Matrix3D.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
@@ -11,7 +11,7 @@
 using namespace pybind11;
 
 PYBIND11_MODULE(math,m) {
-    using namespace LI::math;
+    using namespace SI::math;
 
     class_<Vector3D, std::shared_ptr<Vector3D>>(m, "Vector3D")
         .def(init<>())

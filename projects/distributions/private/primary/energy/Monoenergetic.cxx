@@ -1,4 +1,4 @@
-#include "LeptonInjector/distributions/primary/energy/Monoenergetic.h"
+#include "SIREN/distributions/primary/energy/Monoenergetic.h"
 
 #include <array>                                           // for array
 #include <cmath>                                           // for abs
@@ -6,14 +6,14 @@
 #include <string>                                          // for basic_string
 #include <stdlib.h>                                        // for abs
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
-#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
+#include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "SIREN/distributions/Distributions.h"    // for InjectionD...
 
-namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace detector { class DetectorModel; } }
-namespace LI { namespace utilities { class LI_random; } }
+namespace SI { namespace interactions { class InteractionCollection; } }
+namespace SI { namespace detector { class DetectorModel; } }
+namespace SI { namespace utilities { class LI_random; } }
 
-namespace LI {
+namespace SI {
 namespace distributions {
 
 //---------------
@@ -23,7 +23,7 @@ Monoenergetic::Monoenergetic(double gen_energy)
     : gen_energy(gen_energy)
 {}
 
-double Monoenergetic::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+double Monoenergetic::SampleEnergy(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
     return gen_energy;
 }
 
@@ -33,7 +33,7 @@ double Monoenergetic::pdf(double energy) const {
     return 0.0;
 }
 
-double Monoenergetic::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double Monoenergetic::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
     return pdf(record.primary_momentum[0]);
 }
 
@@ -66,5 +66,5 @@ bool Monoenergetic::less(WeightableDistribution const & other) const {
 }
 
 } // namespace distributions
-} // namespace LI
+} // namespace SI
 

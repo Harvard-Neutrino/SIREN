@@ -1,4 +1,4 @@
-#include "LeptonInjector/geometry/MeshBuilder.h"
+#include "SIREN/geometry/MeshBuilder.h"
 
 #include <map>
 #include <set>
@@ -18,7 +18,7 @@
  *                                  OStream                                    *
  ******************************************************************************/
 
-namespace LI {
+namespace SI {
 namespace geometry {
 namespace Mesh {
 
@@ -953,4 +953,4 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangle_data, do
 
 } // namespace Mesh
 } // namespace geometry
-} // namespace LI
+} // namespace SI

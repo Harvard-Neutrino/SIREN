@@ -1,4 +1,4 @@
-#include "LeptonInjector/dataclasses/Particle.h"
+#include "SIREN/dataclasses/Particle.h"
 
 #include <iosfwd>
 #include <math.h>
@@ -10,9 +10,9 @@
 
 #include <cereal/cereal.hpp>
 
-#include "LeptonInjector/utilities/Constants.h"
+#include "SIREN/utilities/Constants.h"
 
-std::ostream& operator<<(std::ostream& os, LI::dataclasses::Particle const& p) {
+std::ostream& operator<<(std::ostream& os, SI::dataclasses::Particle const& p) {
     os << "Particle (" << &p << ")\n";
 
     std::stringstream ss;
@@ -37,7 +37,7 @@ std::ostream& operator<<(std::ostream& os, LI::dataclasses::Particle const& p) {
     return os;
 }
 
-namespace LI {
+namespace SI {
 namespace dataclasses {
 
 Particle::Particle(ParticleID id, ParticleType type, double mass, std::array<double, 4> momentum, std::array<double, 3> position, double length, double helicity) : id(id), type(type), mass(mass), momentum(momentum), position(position), length(length), helicity(helicity) {}
@@ -84,4 +84,4 @@ bool isCharged(ParticleType p){
 }
 
 } // namespace utilities
-} // namespace LI
+} // namespace SI

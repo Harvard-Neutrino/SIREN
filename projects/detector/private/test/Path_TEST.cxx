@@ -7,29 +7,29 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/detector/Path.h"
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/geometry/Sphere.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/detector/DetectorModel.h"
-#include "LeptonInjector/detector/Coordinates.h"
-#include "LeptonInjector/detector/DensityDistribution.h"
-#include "LeptonInjector/detector/DensityDistribution1D.h"
-#include "LeptonInjector/detector/Distribution1D.h"
-#include "LeptonInjector/detector/Axis1D.h"
-#include "LeptonInjector/detector/RadialAxis1D.h"
-#include "LeptonInjector/detector/CartesianAxis1D.h"
-#include "LeptonInjector/detector/ConstantDistribution1D.h"
-#include "LeptonInjector/detector/PolynomialDistribution1D.h"
-#include "LeptonInjector/detector/ExponentialDistribution1D.h"
+#include "SIREN/detector/Path.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/Sphere.h"
+#include "SIREN/math/Vector3D.h"
+#include "SIREN/detector/DetectorModel.h"
+#include "SIREN/detector/Coordinates.h"
+#include "SIREN/detector/DensityDistribution.h"
+#include "SIREN/detector/DensityDistribution1D.h"
+#include "SIREN/detector/Distribution1D.h"
+#include "SIREN/detector/Axis1D.h"
+#include "SIREN/detector/RadialAxis1D.h"
+#include "SIREN/detector/CartesianAxis1D.h"
+#include "SIREN/detector/ConstantDistribution1D.h"
+#include "SIREN/detector/PolynomialDistribution1D.h"
+#include "SIREN/detector/ExponentialDistribution1D.h"
 
-#include "LeptonInjector/dataclasses/Particle.h"
+#include "SIREN/dataclasses/Particle.h"
 
 #include "FakeMaterialModel.h"
 #include "FakeDetectorModel.h"
 
-using namespace LI::detector;
-using namespace LI::geometry;
+using namespace SI::detector;
+using namespace SI::geometry;
 
 #define EXPECT_NEAR_REL(A, B, C) \
     EXPECT_NEAR(A, B, C * std::max(std::abs(A), std::abs(B)));

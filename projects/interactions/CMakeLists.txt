@@ -17,7 +17,7 @@ add_library(LI_interactions OBJECT ${interactions_SOURCES})
 set_property(TARGET LI_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(LI_interactions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/interactions/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/LeptonInjector/interactions/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/interactions/>
 )
 
 target_link_libraries(LI_interactions
@@ -45,11 +45,11 @@ package_add_test(UnitTest_DipoleFromTable ${PROJECT_SOURCE_DIR}/projects/interac
 #package_add_test(UnitTest_ElasticScattering ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/ElasticScattering_TEST.cxx)
 
 pybind11_add_module(interactions ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/interactions.cxx)
-target_link_libraries(interactions PRIVATE LeptonInjector photospline rk_static pybind11::embed)
+target_link_libraries(interactions PRIVATE SIREN photospline rk_static pybind11::embed)
 pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
-target_link_libraries(pyDarkNewsSerializer PRIVATE LeptonInjector photospline rk_static pybind11::embed)
+target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)
 if(DEFINED SKBUILD)
 set_target_properties(interactions PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../leptoninjector.libs/")
+        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../siren.libs/")
 endif()

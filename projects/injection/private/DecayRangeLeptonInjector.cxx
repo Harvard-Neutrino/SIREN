@@ -1,35 +1,35 @@
-#include "LeptonInjector/injection/DecayRangeLeptonInjector.h"
+#include "SIREN/injection/DecayRangeSIREN.h"
 
 #include <set>
 #include <string>
 #include <vector>
 
-#include "LeptonInjector/interactions/InteractionCollection.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/distributions/primary/vertex/DecayRangeFunction.h"
-#include "LeptonInjector/distributions/primary/vertex/DecayRangePositionDistribution.h"
-#include "LeptonInjector/injection/Injector.h"
-#include "LeptonInjector/injection/Process.h"
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/interactions/InteractionCollection.h"
+#include "SIREN/dataclasses/Particle.h"
+#include "SIREN/distributions/primary/vertex/DecayRangeFunction.h"
+#include "SIREN/distributions/primary/vertex/DecayRangePositionDistribution.h"
+#include "SIREN/injection/Injector.h"
+#include "SIREN/injection/Process.h"
+#include "SIREN/math/Vector3D.h"
 
-namespace LI { namespace dataclasses { class InteractionRecord; } }
-namespace LI { namespace detector { class DetectorModel; } }
+namespace SI { namespace dataclasses { class InteractionRecord; } }
+namespace SI { namespace detector { class DetectorModel; } }
 
-namespace LI {
+namespace SI {
 namespace injection {
 
 //---------------
-// class DecayRangeLeptonInjector : Injector
+// class DecayRangeSIREN : Injector
 //---------------
-DecayRangeLeptonInjector::DecayRangeLeptonInjector() {}
+DecayRangeSIREN::DecayRangeSIREN() {}
 
-DecayRangeLeptonInjector::DecayRangeLeptonInjector(
+DecayRangeSIREN::DecayRangeSIREN(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::DetectorModel> detector_model,
+        std::shared_ptr<SI::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes,
-        std::shared_ptr<LI::utilities::LI_random> random,
-        std::shared_ptr<LI::distributions::DecayRangeFunction> range_func,
+        std::shared_ptr<SI::utilities::LI_random> random,
+        std::shared_ptr<SI::distributions::DecayRangeFunction> range_func,
         double disk_radius,
         double endcap_length) :
     Injector(events_to_inject, detector_model, random),
@@ -38,7 +38,7 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
     endcap_length(endcap_length)
 {
     interactions = primary_process->GetInteractions();
-    position_distribution = std::make_shared<LI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func);
+    position_distribution = std::make_shared<SI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func);
     primary_process->AddPrimaryInjectionDistribution(position_distribution);
     SetPrimaryProcess(primary_process);
     for(auto & sec_process : secondary_processes) {
@@ -47,18 +47,18 @@ DecayRangeLeptonInjector::DecayRangeLeptonInjector(
       // Otherwise uncomment below
       /*
       target_types = sec_process->GetInteractions()->TargetTypes();
-      sec_process->GetPrimaryInjectionDistributions().push_back(std::make_shared<LI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func, target_types));
+      sec_process->GetPrimaryInjectionDistributions().push_back(std::make_shared<SI::distributions::DecayRangePositionDistribution>(disk_radius, endcap_length, range_func, target_types));
       */
     }
 }
 
-std::string DecayRangeLeptonInjector::Name() const {
+std::string DecayRangeSIREN::Name() const {
     return("DecayRangeInjector");
 }
 
-std::tuple<LI::math::Vector3D, LI::math::Vector3D> DecayRangeLeptonInjector::PrimaryInjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
+std::tuple<SI::math::Vector3D, SI::math::Vector3D> DecayRangeSIREN::PrimaryInjectionBounds(SI::dataclasses::InteractionRecord const & interaction) const {
     return position_distribution->InjectionBounds(detector_model, interactions, interaction);
 }
 
 } // namespace injection
-} // namespace LI
+} // namespace SI

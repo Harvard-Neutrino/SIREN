@@ -1,6 +1,6 @@
-#include "LeptonInjector/detector/ConstantDistribution1D.h"
+#include "SIREN/detector/ConstantDistribution1D.h"
 
-namespace LI {
+namespace SI {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -39,5 +39,5 @@ double ConstantDistribution1D::Evaluate(double x) const {
     return val_;
 }
 
-} // namespace LI
+} // namespace SI
 } // namespace detector

@@ -11,29 +11,29 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/geometry/Sphere.h"
-#include "LeptonInjector/detector/DetectorModel.h"
-#include "LeptonInjector/utilities/Constants.h"
-#include "LeptonInjector/detector/Coordinates.h"
-#include "LeptonInjector/detector/DensityDistribution.h"
-#include "LeptonInjector/detector/Distribution1D.h"
-#include "LeptonInjector/detector/Axis1D.h"
-#include "LeptonInjector/detector/CartesianAxis1D.h"
-#include "LeptonInjector/detector/ConstantDistribution1D.h"
-#include "LeptonInjector/detector/ConstantDensityDistribution.h"
-#include "LeptonInjector/detector/PolynomialDistribution1D.h"
-#include "LeptonInjector/detector/ExponentialDistribution1D.h"
-#include "LeptonInjector/detector/DensityDistribution1D.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/Sphere.h"
+#include "SIREN/detector/DetectorModel.h"
+#include "SIREN/utilities/Constants.h"
+#include "SIREN/detector/Coordinates.h"
+#include "SIREN/detector/DensityDistribution.h"
+#include "SIREN/detector/Distribution1D.h"
+#include "SIREN/detector/Axis1D.h"
+#include "SIREN/detector/CartesianAxis1D.h"
+#include "SIREN/detector/ConstantDistribution1D.h"
+#include "SIREN/detector/ConstantDensityDistribution.h"
+#include "SIREN/detector/PolynomialDistribution1D.h"
+#include "SIREN/detector/ExponentialDistribution1D.h"
+#include "SIREN/detector/DensityDistribution1D.h"
 
 #include "FakeDetectorModel.h"
 #include "FakeMaterialModel.h"
 
-using namespace LI::math;
-using namespace LI::geometry;
-using namespace LI::detector;
-using namespace LI::utilities;
-using namespace LI::dataclasses;
+using namespace SI::math;
+using namespace SI::geometry;
+using namespace SI::detector;
+using namespace SI::utilities;
+using namespace SI::dataclasses;
 
 TEST(Constructor, Default)
 {

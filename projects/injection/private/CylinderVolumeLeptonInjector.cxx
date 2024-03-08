@@ -1,33 +1,33 @@
-#include "LeptonInjector/injection/CylinderVolumeLeptonInjector.h"
+#include "SIREN/injection/CylinderVolumeSIREN.h"
 
 #include <string>
 #include <vector>
 
-#include "LeptonInjector/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
-#include "LeptonInjector/injection/Injector.h"
-#include "LeptonInjector/injection/Process.h"
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
+#include "SIREN/injection/Injector.h"
+#include "SIREN/injection/Process.h"
+#include "SIREN/math/Vector3D.h"
 
-namespace LI { namespace dataclasses { class InteractionRecord; } }
-namespace LI { namespace detector { class DetectorModel; } }
+namespace SI { namespace dataclasses { class InteractionRecord; } }
+namespace SI { namespace detector { class DetectorModel; } }
 
-namespace LI {
+namespace SI {
 namespace injection {
 
 //---------------
-// class CylinderVolumeLeptonInjector : Injector
+// class CylinderVolumeSIREN : Injector
 //---------------
-CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector() {}
+CylinderVolumeSIREN::CylinderVolumeSIREN() {}
 
-CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector(
+CylinderVolumeSIREN::CylinderVolumeSIREN(
         unsigned int events_to_inject,
-        std::shared_ptr<LI::detector::DetectorModel> detector_model,
+        std::shared_ptr<SI::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes,
-        std::shared_ptr<LI::utilities::LI_random> random,
-        LI::geometry::Cylinder cylinder) :
+        std::shared_ptr<SI::utilities::LI_random> random,
+        SI::geometry::Cylinder cylinder) :
     Injector(events_to_inject, detector_model, random),
-    position_distribution(std::make_shared<LI::distributions::CylinderVolumePositionDistribution>(cylinder)) {
+    position_distribution(std::make_shared<SI::distributions::CylinderVolumePositionDistribution>(cylinder)) {
     interactions = primary_process->GetInteractions();
     primary_process->AddPrimaryInjectionDistribution(position_distribution);
     SetPrimaryProcess(primary_process);
@@ -41,13 +41,13 @@ CylinderVolumeLeptonInjector::CylinderVolumeLeptonInjector(
     }
 }
 
-std::string CylinderVolumeLeptonInjector::Name() const {
+std::string CylinderVolumeSIREN::Name() const {
     return("VolumeInjector");
 }
 
-std::tuple<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumeLeptonInjector::PrimaryInjectionBounds(LI::dataclasses::InteractionRecord const & interaction) const {
+std::tuple<SI::math::Vector3D, SI::math::Vector3D> CylinderVolumeSIREN::PrimaryInjectionBounds(SI::dataclasses::InteractionRecord const & interaction) const {
     return position_distribution->InjectionBounds(detector_model, interactions, interaction);
 }
 
 } // namespace injection
-} // namespace LI
+} // namespace SI

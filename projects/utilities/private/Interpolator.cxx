@@ -1,9 +1,9 @@
-#include "LeptonInjector/utilities/Interpolator.h"
+#include "SIREN/utilities/Interpolator.h"
 
 #include <tuple>
 #include <vector>
 
-using namespace LI::utilities;
+using namespace SI::utilities;
 
 template<>
 template<>

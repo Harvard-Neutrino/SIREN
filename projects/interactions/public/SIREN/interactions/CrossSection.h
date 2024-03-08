@@ -1,0 +1,62 @@
+#pragma once
+#ifndef LI_CrossSection_H
+#define LI_CrossSection_H
+
+#include <memory>                                 // for shared_ptr
+#include <string>                                 // for string
+#include <vector>                                 // for vector
+#include <cstdint>                                // for uint32_t
+
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/utility.hpp>
+
+#include "SIREN/dataclasses/Particle.h"  // for Particle
+
+namespace SI { namespace dataclasses { class InteractionRecord; } }
+namespace SI { namespace dataclasses { class CrossSectionDistributionRecord; } }
+namespace SI { namespace dataclasses { struct InteractionSignature; } }
+namespace SI { namespace utilities { class LI_random; } }
+
+namespace SI {
+namespace interactions {
+
+class CrossSection {
+friend cereal::access;
+private:
+    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<SI::utilities::LI_random>) const;
+public:
+    CrossSection();
+    virtual ~CrossSection() {};
+    bool operator==(CrossSection const & other) const;
+    virtual bool equal(CrossSection const & other) const = 0;
+    virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const = 0;
+    virtual double TotalCrossSectionAllFinalStates(dataclasses::InteractionRecord const &) const;
+    virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const = 0;
+    virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const = 0;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<SI::utilities::LI_random>) const = 0;
+
+    virtual std::vector<SI::dataclasses::ParticleType> GetPossibleTargets() const = 0;
+    virtual std::vector<SI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(SI::dataclasses::ParticleType primary_type) const = 0;
+    virtual std::vector<SI::dataclasses::ParticleType> GetPossiblePrimaries() const = 0;
+    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;
+
+    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(SI::dataclasses::ParticleType primary_type, SI::dataclasses::ParticleType target_type) const = 0;
+    virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
+    virtual std::vector<std::string> DensityVariables() const = 0;
+    template<class Archive>
+    void save(Archive & archive, std::uint32_t const version) const {};
+    template<class Archive>
+    void load(Archive & archive, std::uint32_t const version) {};
+};
+
+} // namespace interactions
+} // namespace SI
+
+CEREAL_CLASS_VERSION(SI::interactions::CrossSection, 0);
+
+#endif // LI_CrossSection_H
+

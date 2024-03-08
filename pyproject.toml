@@ -11,7 +11,7 @@ build-backend = "scikit_build_core.build"
 [tool.scikit-build]
 wheel.packages = []
 cmake.build-type = "Release"
-#wheel.install-dir = "leptoninjector"
+#wheel.install-dir = "siren"
 
 [tool.scikit-build.cmake.define]
 CMAKE_PREFIX_PATH="/tmp/downloads/local"
@@ -29,7 +29,7 @@ environment = { RUNNER_OS="Linux", MAKEFLAGS="-j2", CI_INSTALL_PREFIX="/tmp/down
 repair-wheel-command = "auditwheel repair --exclude photospline -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
-environment = { RUNNER_OS="macOS", MAKEFLAGS="-j2", CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", REPO_PATH="/Users/runner/work/LeptonInjector/LeptonInjector", REPAIR_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64", LD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$LD_LIBRARY_PATH", DYLD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH" }
+environment = { RUNNER_OS="macOS", MAKEFLAGS="-j2", CI_INSTALL_PREFIX="/tmp/downloads/local", CFITSIOROOT="$CI_INSTALL_PREFIX", REPO_PATH="/Users/runner/work/SIREN/SIREN", REPAIR_LIBRARY_PATH="$CI_INSTALL_PREFIX/lib:$CI_INSTALL_PREFIX/lib64", LD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$LD_LIBRARY_PATH", DYLD_LIBRARY_PATH="$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH" }
 repair-wheel-command = """\
 DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH echo "Search path: $DYLD_LIBRARY_PATH" && \
 DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH delocate-listdeps {wheel} && \
@@ -38,7 +38,7 @@ DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH python --version && \
 DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}"""
 
 [project]
-name = "leptoninjector"
+name = "siren"
 version = "0.0.1"
 requires-python = ">=3.8"
 

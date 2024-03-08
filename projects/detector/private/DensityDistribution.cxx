@@ -1,6 +1,6 @@
-#include "LeptonInjector/detector/DensityDistribution.h"
+#include "SIREN/detector/DensityDistribution.h"
 
-namespace LI {
+namespace SI {
 namespace detector {
 
 DensityDistribution::DensityDistribution() {}
@@ -19,5 +19,5 @@ bool DensityDistribution::operator!=(const DensityDistribution& dens_distr) cons
     return !(*this == dens_distr);
 }
 
-} // namespace LI
+} // namespace SI
 } // namespace detector

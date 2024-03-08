@@ -1,8 +1,8 @@
-#include "LeptonInjector/detector/ExponentialDistribution1D.h"
+#include "SIREN/detector/ExponentialDistribution1D.h"
 
 #include <cmath>  // for exp
 
-namespace LI {
+namespace SI {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -39,5 +39,5 @@ double ExponentialDistribution1D::Evaluate(double x) const {
     return exp(sigma_*x);
 }
 
-} // namespace LI
+} // namespace SI
 } // namespace detector

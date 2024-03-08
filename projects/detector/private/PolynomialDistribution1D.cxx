@@ -1,10 +1,10 @@
-#include "LeptonInjector/detector/PolynomialDistribution1D.h"
+#include "SIREN/detector/PolynomialDistribution1D.h"
 
 #include <vector>
 
-#include "LeptonInjector/math/Polynomial.h"
+#include "SIREN/math/Polynomial.h"
 
-namespace LI {
+namespace SI {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -52,5 +52,5 @@ double PolynomialDistribution1D::Evaluate(double x) const {
     return polynom_.evaluate(x);
 }
 
-} // namespace LI
+} // namespace SI
 } // namespace detector

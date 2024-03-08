@@ -5,9 +5,9 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/math/Polynomial.h"
+#include "SIREN/math/Polynomial.h"
 
-using namespace LI::math;
+using namespace SI::math;
 
 double f1(double x){
     return pow(x, 3) - 4;

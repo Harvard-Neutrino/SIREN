@@ -6,33 +6,33 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/interactions/CrossSection.h"
-#include "../../public/LeptonInjector/interactions/HNLFromSpline.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/Particle.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionRecord.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionSignature.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
-#include "../../../utilities/public/LeptonInjector/utilities/Random.h"
+#include "../../public/SIREN/interactions/CrossSection.h"
+#include "../../public/SIREN/interactions/HNLFromSpline.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
+#include "../../../utilities/public/SIREN/utilities/Random.h"
 
 void register_HNLFromSpline(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::interactions;
+    using namespace SI::interactions;
 
     class_<HNLFromSpline, std::shared_ptr<HNLFromSpline>, CrossSection> disfromspline(m, "HNLFromSpline");
 
     disfromspline
         .def(init<>())
-        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::set<LI::dataclasses::ParticleType>, std::set<LI::dataclasses::ParticleType>>())
-        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::vector<LI::dataclasses::ParticleType>, std::vector<LI::dataclasses::ParticleType>>())
-        .def(init<std::string, std::string, int, double, double, std::set<LI::dataclasses::ParticleType>, std::set<LI::dataclasses::ParticleType>>())
-        .def(init<std::string, std::string, std::set<LI::dataclasses::ParticleType>, std::set<LI::dataclasses::ParticleType>>())
-        .def(init<std::string, std::string, int, double, double, std::vector<LI::dataclasses::ParticleType>, std::vector<LI::dataclasses::ParticleType>>())
-        .def(init<std::string, std::string, std::vector<LI::dataclasses::ParticleType>, std::vector<LI::dataclasses::ParticleType>>())
+        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::set<SI::dataclasses::ParticleType>, std::set<SI::dataclasses::ParticleType>>())
+        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::vector<SI::dataclasses::ParticleType>, std::vector<SI::dataclasses::ParticleType>>())
+        .def(init<std::string, std::string, int, double, double, std::set<SI::dataclasses::ParticleType>, std::set<SI::dataclasses::ParticleType>>())
+        .def(init<std::string, std::string, std::set<SI::dataclasses::ParticleType>, std::set<SI::dataclasses::ParticleType>>())
+        .def(init<std::string, std::string, int, double, double, std::vector<SI::dataclasses::ParticleType>, std::vector<SI::dataclasses::ParticleType>>())
+        .def(init<std::string, std::string, std::vector<SI::dataclasses::ParticleType>, std::vector<SI::dataclasses::ParticleType>>())
         .def(self == self)
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&HNLFromSpline::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double>(&HNLFromSpline::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType>(&HNLFromSpline::TotalCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&HNLFromSpline::DifferentialCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<SI::dataclasses::InteractionRecord const &>(&HNLFromSpline::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<SI::dataclasses::ParticleType, double>(&HNLFromSpline::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<SI::dataclasses::ParticleType, double, SI::dataclasses::ParticleType>(&HNLFromSpline::TotalCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<SI::dataclasses::InteractionRecord const &>(&HNLFromSpline::DifferentialCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<double, double, double, double>(&HNLFromSpline::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&HNLFromSpline::InteractionThreshold)
         .def("GetPossibleTargets",&HNLFromSpline::GetPossibleTargets)

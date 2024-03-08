@@ -4,9 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/math/Vector3D.h"
 
-using namespace LI::math;
+using namespace SI::math;
 
 TEST(Comparison, Comparison_equal)
 {

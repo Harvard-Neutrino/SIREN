@@ -1,13 +1,13 @@
-#include "LeptonInjector/distributions/primary/vertex/LeptonDepthFunction.h"
+#include "SIREN/distributions/primary/vertex/LeptonDepthFunction.h"
 
 #include <tuple>
 #include <math.h>
 #include <algorithm>
 
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
-#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
+#include "SIREN/dataclasses/InteractionSignature.h"
+#include "SIREN/distributions/primary/vertex/DepthFunction.h"
 
-namespace LI {
+namespace SI {
 namespace distributions {
 
 //---------------
@@ -58,14 +58,14 @@ double LeptonDepthFunction::GetMaxDepth() const {
     return max_depth;
 }
 
-double LeptonDepthFunction::operator()(LI::dataclasses::ParticleType const & primary_type, double energy) const {
+double LeptonDepthFunction::operator()(SI::dataclasses::ParticleType const & primary_type, double energy) const {
     double range = std::log(1.0 + energy * mu_beta / mu_alpha) / mu_beta;
     if(tau_primaries.count(primary_type) > 0)
         range += std::log(1.0 + energy * tau_beta / tau_alpha) / tau_beta;
     return std::min(range, max_depth);
 }
     
-double LeptonDepthFunction::GetLeptonDepthFunctionReturnValue(LI::dataclasses::ParticleType const & primary_type, double energy) const {
+double LeptonDepthFunction::GetLeptonDepthFunctionReturnValue(SI::dataclasses::ParticleType const & primary_type, double energy) const {
     double range = log(1.0 + energy * mu_beta / mu_alpha) / mu_beta;
     if(tau_primaries.count(primary_type) > 0)
         range += log(1.0 + energy * tau_beta / tau_alpha) / tau_beta;
@@ -97,4 +97,4 @@ bool LeptonDepthFunction::less(DepthFunction const & other) const {
 }
 
 } // namespace distributions
-} // namespace LI
+} // namespace SI

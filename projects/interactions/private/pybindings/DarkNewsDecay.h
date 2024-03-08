@@ -7,12 +7,12 @@
 #include <pybind11/stl.h>
 #include <pybind11/embed.h>
 
-#include "../../public/LeptonInjector/interactions/DarkNewsDecay.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/Particle.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionRecord.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionSignature.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
-#include "../../../utilities/public/LeptonInjector/utilities/Random.h"
+#include "../../public/SIREN/interactions/DarkNewsDecay.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
+#include "../../../utilities/public/SIREN/utilities/Random.h"
 
 // Macro for defining pure virtual methods of PyDarkNewsDecay 
 #define C_PYBIND11_OVERRIDE_PURE(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
@@ -65,7 +65,7 @@
             return BaseType::cfuncname(__VA_ARGS__); \
         } while (false);
 
-namespace LI {
+namespace SI {
 namespace interactions {
 // Trampoline class for Decay
 class pyDecay : public Decay {
@@ -118,7 +118,7 @@ public:
         )
     }
 
-    double TotalDecayWidth(LI::dataclasses::ParticleType primary) const override {
+    double TotalDecayWidth(SI::dataclasses::ParticleType primary) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             Decay,
@@ -140,7 +140,7 @@ public:
         )
     }
 
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<SI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             Decay,
@@ -152,21 +152,21 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
+    std::vector<SI::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             Decay,
-            std::vector<LI::dataclasses::InteractionSignature>,
+            std::vector<SI::dataclasses::InteractionSignature>,
             GetPossibleSignatures,
             "GetPossibleSignatures"
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::ParticleType primary_type) const override {
+    std::vector<SI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(SI::dataclasses::ParticleType primary_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             Decay,
-            std::vector<LI::dataclasses::InteractionSignature>,
+            std::vector<SI::dataclasses::InteractionSignature>,
             GetPossibleSignaturesFromParents,
             "GetPossibleSignaturesFromParents",
             primary_type
@@ -227,7 +227,7 @@ public:
         )
     }
 
-    double TotalDecayWidth(LI::dataclasses::ParticleType primary) const override {
+    double TotalDecayWidth(SI::dataclasses::ParticleType primary) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsDecay,
@@ -249,7 +249,7 @@ public:
         )
     }
 
-    void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
+    void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<SI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsDecay,
@@ -261,7 +261,7 @@ public:
         )
     }
 
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<SI::utilities::LI_random> random) const override {
         C_PYBIND11_OVERRIDE(
             self,
             DarkNewsDecay,
@@ -273,21 +273,21 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
+    std::vector<SI::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsDecay,
-            std::vector<LI::dataclasses::InteractionSignature>,
+            std::vector<SI::dataclasses::InteractionSignature>,
             GetPossibleSignatures,
             "GetPossibleSignatures"
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(LI::dataclasses::ParticleType primary_type) const override {
+    std::vector<SI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(SI::dataclasses::ParticleType primary_type) const override {
         C_PYBIND11_OVERRIDE_PURE(
             self,
             DarkNewsDecay,
-            std::vector<LI::dataclasses::InteractionSignature>,
+            std::vector<SI::dataclasses::InteractionSignature>,
             GetPossibleSignaturesFromParent,
             "GetPossibleSignaturesFromParent",
             primary_type
@@ -353,17 +353,17 @@ public:
 
 void register_DarkNewsDecay(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::interactions;
+    using namespace SI::interactions;
 
     // Bindings for pyDarkNewsDecay
-    class_<LI::interactions::pyDarkNewsDecay> pyDarkNewsDecay(m, "pyDarkNewsDecay");
+    class_<SI::interactions::pyDarkNewsDecay> pyDarkNewsDecay(m, "pyDarkNewsDecay");
 
     pyDarkNewsDecay
         .def(init<>())
-        .def("__eq__", [](const LI::interactions::DarkNewsDecay &self, const LI::interactions::DarkNewsDecay &other){ return self == other; })
-        .def("equal", &LI::interactions::DarkNewsDecay::equal)
-        .def("TotalDecayWidth",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsDecay::TotalDecayWidth, const_))
-        .def("TotalDecayWidth",overload_cast<LI::dataclasses::ParticleType>(&DarkNewsDecay::TotalDecayWidth, const_))
+        .def("__eq__", [](const SI::interactions::DarkNewsDecay &self, const SI::interactions::DarkNewsDecay &other){ return self == other; })
+        .def("equal", &SI::interactions::DarkNewsDecay::equal)
+        .def("TotalDecayWidth",overload_cast<SI::dataclasses::InteractionRecord const &>(&DarkNewsDecay::TotalDecayWidth, const_))
+        .def("TotalDecayWidth",overload_cast<SI::dataclasses::ParticleType>(&DarkNewsDecay::TotalDecayWidth, const_))
         .def("TotalDecayWidthForFinalState",&DarkNewsDecay::TotalDecayWidthForFinalState)
         .def("DifferentialDecayWidth",&DarkNewsDecay::DifferentialDecayWidth)
         .def("GetPossibleSignatures",&DarkNewsDecay::GetPossibleSignatures)
@@ -374,14 +374,14 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("SampleRecordFromDarkNews",&DarkNewsDecay::SampleRecordFromDarkNews)
         .def("get_representation", &pyDarkNewsDecay::get_representation)
         .def(pybind11::pickle(
-            [](LI::interactions::pyDarkNewsDecay & cpp_obj) {
+            [](SI::interactions::pyDarkNewsDecay & cpp_obj) {
                 return pybind11::make_tuple(cpp_obj.get_representation());
             },
             [](const pybind11::tuple &t) {
                 if (t.size() != 1) {
                     throw std::runtime_error("Invalid state!");
                 }
-                auto cpp_state = std::unique_ptr<LI::interactions::pyDarkNewsDecay>(new LI::interactions::pyDarkNewsDecay);
+                auto cpp_state = std::unique_ptr<SI::interactions::pyDarkNewsDecay>(new SI::interactions::pyDarkNewsDecay);
                 auto py_state = t[0].cast<pybind11::dict>();
                 return std::make_pair(std::move(cpp_state), py_state);
             })
@@ -389,14 +389,14 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         ;
 
 
-    class_<DarkNewsDecay, std::shared_ptr<DarkNewsDecay>, Decay, LI::interactions::pyDarkNewsDecay> DarkNewsDecay(m, "DarkNewsDecay");
+    class_<DarkNewsDecay, std::shared_ptr<DarkNewsDecay>, Decay, SI::interactions::pyDarkNewsDecay> DarkNewsDecay(m, "DarkNewsDecay");
 
     DarkNewsDecay
         .def(init<>())
-        .def("__eq__", [](const LI::interactions::DarkNewsDecay &self, const LI::interactions::DarkNewsDecay &other){ return self == other; })
-        .def("equal", &LI::interactions::DarkNewsDecay::equal)
-        .def("TotalDecayWidth",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsDecay::TotalDecayWidth, const_))
-        .def("TotalDecayWidth",overload_cast<LI::dataclasses::ParticleType>(&DarkNewsDecay::TotalDecayWidth, const_))
+        .def("__eq__", [](const SI::interactions::DarkNewsDecay &self, const SI::interactions::DarkNewsDecay &other){ return self == other; })
+        .def("equal", &SI::interactions::DarkNewsDecay::equal)
+        .def("TotalDecayWidth",overload_cast<SI::dataclasses::InteractionRecord const &>(&DarkNewsDecay::TotalDecayWidth, const_))
+        .def("TotalDecayWidth",overload_cast<SI::dataclasses::ParticleType>(&DarkNewsDecay::TotalDecayWidth, const_))
         .def("TotalDecayWidthForFinalState",&DarkNewsDecay::TotalDecayWidthForFinalState)
         .def("DifferentialDecayWidth",&DarkNewsDecay::DifferentialDecayWidth)
         .def("GetPossibleSignatures",&DarkNewsDecay::GetPossibleSignatures)
@@ -407,14 +407,14 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("SampleRecordFromDarkNews",&DarkNewsDecay::SampleRecordFromDarkNews)
         .def("get_representation", &DarkNewsDecay::get_representation)
         .def(pybind11::pickle(
-            [](LI::interactions::DarkNewsDecay & cpp_obj) {
+            [](SI::interactions::DarkNewsDecay & cpp_obj) {
                 return pybind11::make_tuple(cpp_obj.get_representation());
             },
             [](const pybind11::tuple &t) {
                 if (t.size() != 1) {
                     throw std::runtime_error("Invalid state!");
                 }
-                auto cpp_state = std::unique_ptr<LI::interactions::DarkNewsDecay>(new LI::interactions::pyDarkNewsDecay);
+                auto cpp_state = std::unique_ptr<SI::interactions::DarkNewsDecay>(new SI::interactions::pyDarkNewsDecay);
                 auto py_state = t[0].cast<pybind11::dict>();
                 return std::make_pair(std::move(cpp_state), py_state);
             })

@@ -1,0 +1,28 @@
+#pragma once
+#ifndef LI_CartesianAxisDensityDistribution_H
+#define LI_CartesianAxisDensityDistribution_H
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
+
+#include "SIREN/detector/Axis1D.h"
+#include "SIREN/detector/CartesianAxis1D.h"
+#include "SIREN/detector/DensityDistribution.h"
+#include "SIREN/detector/DensityDistribution1D.h"
+#include "SIREN/detector/ExponentialDistribution1D.h"
+
+namespace SI {
+namespace detector {
+
+typedef DensityDistribution1D<CartesianAxis1D,ExponentialDistribution1D> CartesianAxisExponentialDensityDistribution;
+
+} // namespace detector
+} // namespace SI
+
+CEREAL_CLASS_VERSION(SI::detector::CartesianAxisExponentialDensityDistribution, 0);
+CEREAL_REGISTER_TYPE(SI::detector::CartesianAxisExponentialDensityDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::detector::DensityDistribution, SI::detector::CartesianAxisExponentialDensityDistribution);
+
+#endif // LI_CartesianAxisExponentialDensityDistribution.h

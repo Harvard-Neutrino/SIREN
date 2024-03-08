@@ -4,9 +4,9 @@
 
 #include <pybind11/pybind11.h>
 
-#include "../../public/LeptonInjector/detector/DetectorModel.h"
+#include "../../public/SIREN/detector/DetectorModel.h"
 
-std::string to_str(LI::detector::DetectorSector const & sector) {
+std::string to_str(SI::detector::DetectorSector const & sector) {
     std::stringstream ss;
     sector.Print(ss);
     return ss.str();
@@ -14,7 +14,7 @@ std::string to_str(LI::detector::DetectorSector const & sector) {
 
 void register_DetectorSector(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::detector;
+    using namespace SI::detector;
 
     class_<DetectorSector, std::shared_ptr<DetectorSector>>(m, "DetectorSector")
         .def(init<>())

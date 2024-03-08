@@ -6,29 +6,29 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/interactions/CrossSection.h"
-#include "../../public/LeptonInjector/interactions/NeutrissimoDecay.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/Particle.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionRecord.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionSignature.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
-#include "../../../utilities/public/LeptonInjector/utilities/Random.h"
+#include "../../public/SIREN/interactions/CrossSection.h"
+#include "../../public/SIREN/interactions/NeutrissimoDecay.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
+#include "../../../utilities/public/SIREN/utilities/Random.h"
 
 void register_NeutrissimoDecay(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::interactions;
+    using namespace SI::interactions;
 
     class_<NeutrissimoDecay, std::shared_ptr<NeutrissimoDecay>, Decay> neutrissimodecay(m, "NeutrissimoDecay");
 
     neutrissimodecay
         .def(init<double, std::vector<double>, NeutrissimoDecay::ChiralNature>())
-        .def(init<double, std::vector<double>, NeutrissimoDecay::ChiralNature, std::set<LI::dataclasses::ParticleType> const &>())
+        .def(init<double, std::vector<double>, NeutrissimoDecay::ChiralNature, std::set<SI::dataclasses::ParticleType> const &>())
         .def(init<double, double, NeutrissimoDecay::ChiralNature>())
-        .def(init<double, double, NeutrissimoDecay::ChiralNature, std::set<LI::dataclasses::ParticleType> const &>())
+        .def(init<double, double, NeutrissimoDecay::ChiralNature, std::set<SI::dataclasses::ParticleType> const &>())
         .def(self == self)
         .def("GetHNLMass",&NeutrissimoDecay::GetHNLMass)
-        .def("TotalDecayWidth",overload_cast<LI::dataclasses::InteractionRecord const &>(&NeutrissimoDecay::TotalDecayWidth, const_))
-        .def("TotalDecayWidth",overload_cast<LI::dataclasses::ParticleType>(&NeutrissimoDecay::TotalDecayWidth, const_))
+        .def("TotalDecayWidth",overload_cast<SI::dataclasses::InteractionRecord const &>(&NeutrissimoDecay::TotalDecayWidth, const_))
+        .def("TotalDecayWidth",overload_cast<SI::dataclasses::ParticleType>(&NeutrissimoDecay::TotalDecayWidth, const_))
         .def("TotalDecayWidthForFinalState",&NeutrissimoDecay::TotalDecayWidthForFinalState)
         .def("DifferentialDecayWidth",&NeutrissimoDecay::DifferentialDecayWidth)
         .def("GetPossibleSignatures",&NeutrissimoDecay::GetPossibleSignatures)

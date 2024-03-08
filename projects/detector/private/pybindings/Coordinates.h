@@ -4,14 +4,14 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "../../../math/public/LeptonInjector/math/Vector3D.h"
-#include "../../public/LeptonInjector/detector/DetectorModel.h"
-#include "../../public/LeptonInjector/detector/Coordinates.h"
+#include "../../../math/public/SIREN/math/Vector3D.h"
+#include "../../public/SIREN/detector/DetectorModel.h"
+#include "../../public/SIREN/detector/Coordinates.h"
 
 void register_Coordinates(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::math;
-    using namespace LI::detector;
+    using namespace SI::math;
+    using namespace SI::detector;
 
     // Register the NamedTypes
 

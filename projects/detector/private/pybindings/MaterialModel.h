@@ -5,12 +5,12 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/detector/MaterialModel.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
+#include "../../public/SIREN/detector/MaterialModel.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
 
 void register_MaterialModel(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::detector;
+    using namespace SI::detector;
 
     class_<MaterialModel, std::shared_ptr<MaterialModel>> material_model(m, "MaterialModel");
     material_model
@@ -30,11 +30,11 @@ void register_MaterialModel(pybind11::module_ & m) {
         .def("GetMaterialId", &MaterialModel::GetMaterialId)
         .def("HasMaterial", (bool (MaterialModel::*)(std::string const &) const)(&MaterialModel::HasMaterial))
         .def("HasMaterial", (bool (MaterialModel::*)(int) const)(&MaterialModel::HasMaterial))
-        .def("GetTargetMassFraction", (double (MaterialModel::*)(int, LI::dataclasses::ParticleType) const)(&MaterialModel::GetTargetMassFraction))
-        .def("GetTargetMassFraction", (std::vector<double> (MaterialModel::*)(int, std::vector<LI::dataclasses::ParticleType> const &) const)(&MaterialModel::GetTargetMassFraction))
-        .def("GetTargetParticleFraction", (double (MaterialModel::*)(int, LI::dataclasses::ParticleType) const)(&MaterialModel::GetTargetParticleFraction))
-        .def("GetTargetParticleFraction", (std::vector<double> (MaterialModel::*)(int, std::vector<LI::dataclasses::ParticleType> const &) const)(&MaterialModel::GetTargetParticleFraction))
-        .def("GetTargetRadiationFraction", (std::vector<double> (MaterialModel::*)(int, std::vector<LI::dataclasses::ParticleType> const &) const)(&MaterialModel::GetTargetRadiationFraction))
+        .def("GetTargetMassFraction", (double (MaterialModel::*)(int, SI::dataclasses::ParticleType) const)(&MaterialModel::GetTargetMassFraction))
+        .def("GetTargetMassFraction", (std::vector<double> (MaterialModel::*)(int, std::vector<SI::dataclasses::ParticleType> const &) const)(&MaterialModel::GetTargetMassFraction))
+        .def("GetTargetParticleFraction", (double (MaterialModel::*)(int, SI::dataclasses::ParticleType) const)(&MaterialModel::GetTargetParticleFraction))
+        .def("GetTargetParticleFraction", (std::vector<double> (MaterialModel::*)(int, std::vector<SI::dataclasses::ParticleType> const &) const)(&MaterialModel::GetTargetParticleFraction))
+        .def("GetTargetRadiationFraction", (std::vector<double> (MaterialModel::*)(int, std::vector<SI::dataclasses::ParticleType> const &) const)(&MaterialModel::GetTargetRadiationFraction))
         .def("GetMaterialConstituents", &MaterialModel::GetMaterialConstituents)
         .def_static("GetNucleonContent", &MaterialModel::GetNucleonContent)
         .def_static("GetMolarMass", &MaterialModel::GetMolarMass)
@@ -47,7 +47,7 @@ void register_MaterialModel(pybind11::module_ & m) {
 
     class_<MaterialModel::Component>(material_model, "Component")
         .def(init<>())
-        .def(init<LI::dataclasses::ParticleType>())
+        .def(init<SI::dataclasses::ParticleType>())
         .def(self == self)
         .def_readwrite("type", &MaterialModel::Component::type)
         .def_readwrite("strange_count", &MaterialModel::Component::strange_count)

@@ -11,10 +11,10 @@
 
 #include "phys-services/CrossSection.h"
 
-#include "LeptonInjector/Random.h"
-#include "LeptonInjector/Particle.h"
+#include "SIREN/Random.h"
+#include "SIREN/Particle.h"
 
-using namespace LeptonInjector;
+using namespace SIREN;
 
 std::vector<double> logspace(double x_min, double x_max, unsigned int n_edges) {
     double log_x_min = log10(x_min);
@@ -66,7 +66,7 @@ TEST(Table1D, Constructor)
     double x_max = 1.0;
     unsigned int n_divisions = 10;
 
-    LeptonInjector::TableData1D<double> table_data;
+    SIREN::TableData1D<double> table_data;
     table_data.x = logspace(x_min, x_max, n_divisions+1);
     table_data.f = std::vector<double>(n_divisions+1, 1.0);
     std::cerr << table_data.f[0] << std::endl;
@@ -75,7 +75,7 @@ TEST(Table1D, Constructor)
         std::cerr << table_data.f[i] << std::endl;
     }
 
-    LeptonInjector::Interpolator1D<double> interp(table_data);
+    SIREN::Interpolator1D<double> interp(table_data);
 
     std::cerr << "IsLog " << interp.IsLog() << std::endl;
     std::cerr << "MinX " << interp.MinX() << std::endl;

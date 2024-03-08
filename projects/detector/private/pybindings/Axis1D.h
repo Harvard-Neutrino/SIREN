@@ -6,13 +6,13 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/detector/DetectorModel.h"
-#include "../../public/LeptonInjector/detector/Axis1D.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
+#include "../../public/SIREN/detector/DetectorModel.h"
+#include "../../public/SIREN/detector/Axis1D.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
 
 using namespace pybind11;
-using namespace LI::detector;
-class PyAxis1D : public LI::detector::Axis1D {
+using namespace SI::detector;
+class PyAxis1D : public SI::detector::Axis1D {
 public:
     using Axis1D::Axis1D;
 
@@ -43,7 +43,7 @@ public:
         );
     }
 
-    double GetX(const LI::math::Vector3D& xi) const override {
+    double GetX(const SI::math::Vector3D& xi) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             Axis1D,
@@ -52,7 +52,7 @@ public:
         );
     }
 
-    double GetdX(const LI::math::Vector3D& xi, const LI::math::Vector3D& direction) const override {
+    double GetdX(const SI::math::Vector3D& xi, const SI::math::Vector3D& direction) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             Axis1D,
@@ -65,7 +65,7 @@ public:
 
 void register_Axis1D(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::detector;
+    using namespace SI::detector;
 
     class_<Axis1D, std::shared_ptr<Axis1D>, PyAxis1D>(m, "Axis1D")
         .def(init<>())

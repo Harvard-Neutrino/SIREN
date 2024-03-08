@@ -1,9 +1,9 @@
-#include "LeptonInjector/utilities/Random.h"
+#include "SIREN/utilities/Random.h"
 
 #include <random>
 #include <utility>
 
-namespace LI {
+namespace SI {
 namespace utilities {
 
     LI_random::LI_random(void){
@@ -44,4 +44,4 @@ namespace utilities {
     }
 
 } // namespace utilities
-} // namespace LI
+} // namespace SI

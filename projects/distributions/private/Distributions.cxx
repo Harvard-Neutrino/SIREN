@@ -1,11 +1,11 @@
-#include "LeptonInjector/distributions/Distributions.h"
+#include "SIREN/distributions/Distributions.h"
 
 #include <string>     // for basic_string
 #include <vector>     // for vector
 #include <typeinfo>   // for type_info
 #include <typeindex>  // for type_index
 
-namespace LI {
+namespace SI {
 namespace distributions {
 
 //---------------
@@ -53,7 +53,7 @@ bool WeightableDistribution::operator<(WeightableDistribution const & distributi
         return std::type_index(typeid(this)) < std::type_index(typeid(&distribution));
 }
 
-bool WeightableDistribution::AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const {
+bool WeightableDistribution::AreEquivalent(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<SI::detector::DetectorModel const> second_detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> second_interactions) const {
     return this->operator==(*distribution);
 }
 
@@ -67,7 +67,7 @@ NormalizationConstant::NormalizationConstant(double norm) {
     SetNormalization(norm);
 }
 
-double NormalizationConstant::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double NormalizationConstant::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
     return 1.0;
 }
 
@@ -88,4 +88,4 @@ bool NormalizationConstant::less(WeightableDistribution const & distribution) co
 }
 
 } // namespace distributions
-} // namespace LeptonInjector
+} // namespace SIREN

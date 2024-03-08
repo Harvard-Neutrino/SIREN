@@ -1,4 +1,4 @@
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/math/Vector3D.h"
 
 #include <array>
 #include <cmath>
@@ -6,7 +6,7 @@
 #include <utility>
 #include <algorithm>
 
-using namespace LI::math;
+using namespace SI::math;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -118,7 +118,7 @@ void Vector3D::swap(Vector3D& vector_3d)
     swap(spherical_.zenith_, vector_3d.spherical_.zenith_);
 }
 
-namespace LI {
+namespace SI {
 namespace math {
 std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d)
 {
@@ -135,7 +135,7 @@ std::ostream& operator<<(std::ostream& os, Vector3D const& vector_3d)
     return os;
 }
 } // namespace math
-} // namespace LI
+} // namespace SI
 
 //----------------------------------------------------------------------//
 //-----------------------operator basic arithmetic ---------------------//
@@ -150,7 +150,7 @@ Vector3D Vector3D::operator-() const
     return vector_3d;
 }
 
-namespace LI {
+namespace SI {
 namespace math {
 
 Vector3D operator+(const Vector3D& vec1, const Vector3D& vec2)
@@ -254,7 +254,7 @@ Vector3D cross_product(const Vector3D& vec1, const Vector3D& vec2)
     return vector_product(vec1, vec2);
 }
 
-} // namespace LI
+} // namespace SI
 } // namespace math
 
 double Vector3D::magnitude() const

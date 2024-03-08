@@ -13,10 +13,10 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "SIREN/dataclasses/InteractionSignature.h"
+#include "SIREN/dataclasses/InteractionRecord.h"
 
-using namespace LI::dataclasses;
+using namespace SI::dataclasses;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);

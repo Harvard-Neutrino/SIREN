@@ -1,8 +1,8 @@
-#include "LeptonInjector/detector/Axis1D.h"
+#include "SIREN/detector/Axis1D.h"
 
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/math/Vector3D.h"
 
-namespace LI {
+namespace SI {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -25,5 +25,5 @@ bool Axis1D::operator!=(const Axis1D& axis) const {
     return !(*this == axis);
 }
 
-} // namespace LI
+} // namespace SI
 } // namespace detector

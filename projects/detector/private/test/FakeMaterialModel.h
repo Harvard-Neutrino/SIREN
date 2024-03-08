@@ -11,11 +11,11 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/detector/DetectorModel.h"
-#include "LeptonInjector/detector/MaterialModel.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/detector/DetectorModel.h"
+#include "SIREN/detector/MaterialModel.h"
 
-using namespace LI::detector;
+using namespace SI::detector;
 
 class FakeMaterialModelFile {
 public:

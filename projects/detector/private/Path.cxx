@@ -1,4 +1,4 @@
-#include "LeptonInjector/detector/Path.h"
+#include "SIREN/detector/Path.h"
 
 #include <cmath>                                  // for copysign, abs
 #include <vector>                                 // for vector
@@ -7,11 +7,11 @@
 #include <stdlib.h>                               // for abs
 #include <algorithm>                              // for max
 
-#include "LeptonInjector/dataclasses/Particle.h"  // for Particle
-#include "LeptonInjector/detector/DetectorModel.h"   // for DetectorModel
-#include "LeptonInjector/geometry/Geometry.h"     // for Geometry
+#include "SIREN/dataclasses/Particle.h"  // for Particle
+#include "SIREN/detector/DetectorModel.h"   // for DetectorModel
+#include "SIREN/geometry/Geometry.h"     // for Geometry
 
-namespace LI {
+namespace SI {
 namespace detector {
 
 void Path::UpdatePoints() {
@@ -28,7 +28,7 @@ void Path::UpdatePoints() {
     }
 }
 
-bool Path::IsInfinite(LI::math::Vector3D const & vec) {
+bool Path::IsInfinite(SI::math::Vector3D const & vec) {
     return std::isinf(vec.GetX()) or std::isinf(vec.GetY()) or std::isinf(vec.GetZ());
 }
 
@@ -357,7 +357,7 @@ void Path::ShrinkFromStartByColumnDepth(double column_depth) {
 // Extend / Shrink By InteractionDepth
 ////
 void Path::ExtendFromEndByInteractionDepth(double interaction_depth,
-        std::vector<LI::dataclasses::ParticleType> const & targets,
+        std::vector<SI::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) {
     double distance = GetDistanceFromEndAlongPath(interaction_depth, targets, total_cross_sections, total_decay_length);
@@ -365,7 +365,7 @@ void Path::ExtendFromEndByInteractionDepth(double interaction_depth,
 }
 
 void Path::ExtendFromStartByInteractionDepth(double interaction_depth,
-        std::vector<LI::dataclasses::ParticleType> const & targets,
+        std::vector<SI::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) {
     double distance = GetDistanceFromStartInReverse(interaction_depth, targets, total_cross_sections, total_decay_length);
@@ -373,7 +373,7 @@ void Path::ExtendFromStartByInteractionDepth(double interaction_depth,
 }
 
 void Path::ShrinkFromEndByInteractionDepth(double interaction_depth,
-        std::vector<LI::dataclasses::ParticleType> const & targets,
+        std::vector<SI::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) {
     double distance = GetDistanceFromEndInReverse(interaction_depth, targets, total_cross_sections, total_decay_length);
@@ -381,7 +381,7 @@ void Path::ShrinkFromEndByInteractionDepth(double interaction_depth,
 }
 
 void Path::ShrinkFromStartByInteractionDepth(double interaction_depth,
-        std::vector<LI::dataclasses::ParticleType> const & targets,
+        std::vector<SI::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) {
     double distance = GetDistanceFromStartAlongPath(interaction_depth, targets, total_cross_sections, total_decay_length);
@@ -457,7 +457,7 @@ void Path::ShrinkFromStartToColumnDepth(double column_depth) {
 // Extend / Shrink To InteractionDepth
 ////
 void Path::ExtendFromEndToInteractionDepth(double interaction_depth,
-        std::vector<LI::dataclasses::ParticleType> const & targets,
+        std::vector<SI::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) {
     double shift = interaction_depth - GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
@@ -467,7 +467,7 @@ void Path::ExtendFromEndToInteractionDepth(double interaction_depth,
 }
 
 void Path::ExtendFromStartToInteractionDepth(double interaction_depth,
-        std::vector<LI::dataclasses::ParticleType> const & targets,
+        std::vector<SI::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) {
     double shift = interaction_depth - GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
@@ -477,7 +477,7 @@ void Path::ExtendFromStartToInteractionDepth(double interaction_depth,
 }
 
 void Path::ShrinkFromEndToInteractionDepth(double interaction_depth,
-        std::vector<LI::dataclasses::ParticleType> const & targets,
+        std::vector<SI::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) {
     double shift = GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length) - interaction_depth;
@@ -487,7 +487,7 @@ void Path::ShrinkFromEndToInteractionDepth(double interaction_depth,
 }
 
 void Path::ShrinkFromStartToInteractionDepth(double interaction_depth,
-        std::vector<LI::dataclasses::ParticleType> const & targets,
+        std::vector<SI::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) {
     double shift = GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length) - interaction_depth;
@@ -518,7 +518,7 @@ double Path::GetColumnDepthInBounds() {
 // Get InteractionDepth
 ////
 double Path::GetInteractionDepthInBounds(
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -589,7 +589,7 @@ double Path::GetColumnDepthFromEndInReverse(double distance) {
 // Get InteractionDepth From
 ////
 double Path::GetInteractionDepthFromStartInBounds(double distance,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     if(distance > distance_) {
@@ -604,7 +604,7 @@ double Path::GetInteractionDepthFromStartInBounds(double distance,
 }
 
 double Path::GetInteractionDepthFromEndInBounds(double distance,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     if(distance > distance_) {
@@ -619,7 +619,7 @@ double Path::GetInteractionDepthFromEndInBounds(double distance,
 }
 
 double Path::GetInteractionDepthFromStartAlongPath(double distance,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -629,7 +629,7 @@ double Path::GetInteractionDepthFromStartAlongPath(double distance,
 }
 
 double Path::GetInteractionDepthFromEndAlongPath(double distance,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -639,7 +639,7 @@ double Path::GetInteractionDepthFromEndAlongPath(double distance,
 }
 
 double Path::GetInteractionDepthFromStartInReverse(double distance,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -649,7 +649,7 @@ double Path::GetInteractionDepthFromStartInReverse(double distance,
 }
 
 double Path::GetInteractionDepthFromEndInReverse(double distance,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -725,7 +725,7 @@ double Path::GetDistanceFromEndInReverse(double column_depth) {
 // Get Distance From (InteractionDepth)
 ///
 double Path::GetDistanceFromStartInBounds(double interaction_depth,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -741,7 +741,7 @@ double Path::GetDistanceFromStartInBounds(double interaction_depth,
 }
 
 double Path::GetDistanceFromEndInBounds(double interaction_depth,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -757,7 +757,7 @@ double Path::GetDistanceFromEndInBounds(double interaction_depth,
 }
 
 double Path::GetDistanceFromStartAlongPath(double interaction_depth,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -768,7 +768,7 @@ double Path::GetDistanceFromStartAlongPath(double interaction_depth,
 }
 
 double Path::GetDistanceFromEndAlongPath(double interaction_depth,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -779,7 +779,7 @@ double Path::GetDistanceFromEndAlongPath(double interaction_depth,
 }
 
 double Path::GetDistanceFromStartInReverse(double interaction_depth,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -790,7 +790,7 @@ double Path::GetDistanceFromStartInReverse(double interaction_depth,
 }
 
 double Path::GetDistanceFromEndInReverse(double interaction_depth,
-            std::vector<LI::dataclasses::ParticleType> const & targets,
+            std::vector<SI::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) {
     EnsureIntersections();
@@ -805,8 +805,8 @@ bool Path::IsWithinBounds(GeometryPosition point) {
     UpdatePoints();
     RequireBothFinite();
     if(set_points_) {
-        double d0 = LI::math::scalar_product(direction_, first_point_ - point);
-        double d1 = LI::math::scalar_product(direction_, last_point_ - point);
+        double d0 = SI::math::scalar_product(direction_, first_point_ - point);
+        double d1 = SI::math::scalar_product(direction_, last_point_ - point);
         return d0 <= 0 and d1 >= 0;
     } else {
         EnsurePoints();
@@ -818,7 +818,7 @@ double Path::GetDistanceFromStartInBounds(GeometryPosition point) {
     UpdatePoints();
     RequireFirstFinite();
     if(set_points_) {
-        double d0 = LI::math::scalar_product(direction_, point - first_point_);
+        double d0 = SI::math::scalar_product(direction_, point - first_point_);
         return std::max(0.0, d0);
     } else {
         EnsurePoints();
@@ -830,8 +830,8 @@ bool Path::IsWithinBounds(DetectorPosition point) {
     UpdatePoints();
     RequireBothFinite();
     if(set_det_points_) {
-        double d0 = LI::math::scalar_product(direction_det_, first_point_det_ - point);
-        double d1 = LI::math::scalar_product(direction_det_, last_point_det_ - point);
+        double d0 = SI::math::scalar_product(direction_det_, first_point_det_ - point);
+        double d1 = SI::math::scalar_product(direction_det_, last_point_det_ - point);
         return d0 <= 0 and d1 >= 0;
     } else if(set_points_ and set_detector_model_) {
         return IsWithinBounds(detector_model_->ToGeo(point));
@@ -844,7 +844,7 @@ double Path::GetDistanceFromStartInBounds(DetectorPosition point) {
     UpdatePoints();
     RequireFirstFinite();
     if(set_det_points_) {
-        double d0 = LI::math::scalar_product(direction_det_, point - first_point_det_);
+        double d0 = SI::math::scalar_product(direction_det_, point - first_point_det_);
         return std::max(0.0, d0);
     } else if (set_points_ and set_detector_model_) {
         return GetDistanceFromStartInBounds(detector_model_->ToGeo(point));
@@ -854,4 +854,4 @@ double Path::GetDistanceFromStartInBounds(DetectorPosition point) {
 }
 
 } // namespace detector
-} // namespace LI
+} // namespace SI
