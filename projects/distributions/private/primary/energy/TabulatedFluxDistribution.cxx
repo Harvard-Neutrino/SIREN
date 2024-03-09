@@ -11,10 +11,10 @@
 #include "SIREN/utilities/Interpolator.h"         // for TableData1D
 #include "SIREN/utilities/Random.h"               // for LI_random
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace detector { class DetectorModel; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace detector { class DetectorModel; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 namespace {
     bool fexists(const std::string filename)
@@ -33,7 +33,7 @@ void TabulatedFluxDistribution::ComputeIntegral() {
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    integral = SI::utilities::rombergIntegrate(integrand, energyMin, energyMax);
+    integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax);
 }
 
 void TabulatedFluxDistribution::LoadFluxTable() {
@@ -41,7 +41,7 @@ void TabulatedFluxDistribution::LoadFluxTable() {
         std::ifstream in(fluxTableFilename.c_str());
         std::string buf;
         std::string::size_type pos;
-        SI::utilities::TableData1D<double> table_data;
+        siren::utilities::TableData1D<double> table_data;
 
         while(std::getline(in, buf)) {
             // Ignore comments and blank lines
@@ -68,7 +68,7 @@ void TabulatedFluxDistribution::LoadFluxTable() {
             energyMin = table_data.x[0];
             energyMax = table_data.x[table_data.x.size()-1];
         }
-        fluxTable = SI::utilities::Interpolator1D<double>(table_data);
+        fluxTable = siren::utilities::Interpolator1D<double>(table_data);
     } else {
         throw std::runtime_error("Failed to open flux table file!");
     }
@@ -78,7 +78,7 @@ void TabulatedFluxDistribution::LoadFluxTable(std::vector<double> & energies, st
     
     assert(energies.size()==flux.size());
 
-    SI::utilities::TableData1D<double> table_data;
+    siren::utilities::TableData1D<double> table_data;
 
     table_data.x = energies;
     table_data.f = flux;
@@ -89,7 +89,7 @@ void TabulatedFluxDistribution::LoadFluxTable(std::vector<double> & energies, st
         energyMin = table_data.x[0];
         energyMax = table_data.x[table_data.x.size()-1];
     }
-    fluxTable = SI::utilities::Interpolator1D<double>(table_data);
+    fluxTable = siren::utilities::Interpolator1D<double>(table_data);
 }
 
 double TabulatedFluxDistribution::unnormed_pdf(double energy) const {
@@ -174,12 +174,12 @@ void TabulatedFluxDistribution::ComputeCDF() {
     // assign the cdf vector so it's accessible outside of the function
     cdf = cdf_vector;
 
-    SI::utilities::TableData1D<double> inverse_cdf_data;
+    siren::utilities::TableData1D<double> inverse_cdf_data;
     inverse_cdf_data.x = cdf; 
     inverse_cdf_data.f = cdf_energy_nodes;
 
 
-    inverseCdfTable = SI::utilities::Interpolator1D<double>(inverse_cdf_data);
+    inverseCdfTable = siren::utilities::Interpolator1D<double>(inverse_cdf_data);
 
 }
 
@@ -261,7 +261,7 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     ComputeCDF();
 }
 
-double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
+double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     // inverse CDF algorithm to sample from PDF.
     double randomValue = rand->Uniform(0,1);
 
@@ -269,7 +269,7 @@ double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<SI::utilities::LI
 }
 
 
-double TabulatedFluxDistribution::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
+double TabulatedFluxDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
     if(energy < energyMin or energy > energyMax)
         return 0.0;
@@ -307,5 +307,5 @@ bool TabulatedFluxDistribution::less(WeightableDistribution const & other) const
 
 } // namespace distributions
 
-} // namespace SI
+} // namespace siren
 

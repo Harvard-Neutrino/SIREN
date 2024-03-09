@@ -14,7 +14,7 @@
 
 #include "SIREN/math/Vector3D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 class Axis1D {
@@ -54,8 +54,8 @@ protected:
 };
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::Axis1D, 0);
+CEREAL_CLASS_VERSION(siren::detector::Axis1D, 0);
 
 #endif // LI_Axis1D_H

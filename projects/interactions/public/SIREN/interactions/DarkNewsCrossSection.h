@@ -23,11 +23,11 @@
 #include "SIREN/interactions/CrossSection.h"  // for CrossSection
 #include "SIREN/dataclasses/Particle.h"        // for Particlev
 
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace dataclasses { struct InteractionSignature; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace dataclasses { struct InteractionSignature; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 class DarkNewsCrossSection : public CrossSection {
@@ -47,22 +47,22 @@ public:
     virtual bool equal(CrossSection const & other) const override;
 
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    virtual double TotalCrossSection(SI::dataclasses::ParticleType primary, double energy, SI::dataclasses::ParticleType target) const;
+    virtual double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy, siren::dataclasses::ParticleType target) const;
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
-    virtual double DifferentialCrossSection(SI::dataclasses::ParticleType primary, SI::dataclasses::ParticleType target, double energy, double Q2) const; 
+    virtual double DifferentialCrossSection(siren::dataclasses::ParticleType primary, siren::dataclasses::ParticleType target, double energy, double Q2) const; 
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     virtual double Q2Min(dataclasses::InteractionRecord const &) const;
     virtual double Q2Max(dataclasses::InteractionRecord const &) const;
     virtual double TargetMass(dataclasses::ParticleType const &) const;
     virtual std::vector<double> SecondaryMasses(std::vector<dataclasses::ParticleType> const &) const;
     virtual std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const &) const;
-    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<SI::utilities::LI_random> random) const override;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random> random) const override;
 
-    virtual std::vector<SI::dataclasses::ParticleType> GetPossibleTargets() const override = 0; // Requires Python-side implementation
-    virtual std::vector<SI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(SI::dataclasses::ParticleType primary_type) const override = 0; // Requires Python-side implementation
-    virtual std::vector<SI::dataclasses::ParticleType> GetPossiblePrimaries() const override = 0; // Requires Python-side implementation
+    virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override = 0; // Requires Python-side implementation
+    virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override = 0; // Requires Python-side implementation
+    virtual std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const override = 0; // Requires Python-side implementation
     virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override = 0; // Requires Python-side implementation
-    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(SI::dataclasses::ParticleType primary_type, SI::dataclasses::ParticleType target_type) const override = 0; // Requires Python-side implementation
+    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override = 0; // Requires Python-side implementation
 
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
@@ -87,10 +87,10 @@ public:
 };
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::interactions::DarkNewsCrossSection, 0);
-CEREAL_REGISTER_TYPE(SI::interactions::DarkNewsCrossSection);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::interactions::CrossSection, SI::interactions::DarkNewsCrossSection);
+CEREAL_CLASS_VERSION(siren::interactions::DarkNewsCrossSection, 0);
+CEREAL_REGISTER_TYPE(siren::interactions::DarkNewsCrossSection);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::DarkNewsCrossSection);
 
 #endif // LI_DarkNewsCrossSection_H

@@ -23,12 +23,12 @@
 #include "SIREN/dataclasses/Particle.h"        // for Particle
 #include "SIREN/utilities/Interpolator.h"      // for Interpolator1D
 
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace dataclasses { class CrossSectionDistributionRecord; } }
-namespace SI { namespace dataclasses { struct InteractionSignature; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
+namespace siren { namespace dataclasses { struct InteractionSignature; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 class DipoleFromTable : public CrossSection {
@@ -41,9 +41,9 @@ private:
     bool z_samp = true;
     bool in_invGeV = true;
     bool inelastic = true;
-    std::map<SI::dataclasses::ParticleType, SI::utilities::Interpolator2D<double>> differential;
-    std::map<SI::dataclasses::ParticleType, SI::utilities::Interpolator1D<double>> total;
-    const std::set<SI::dataclasses::ParticleType> primary_types = {SI::dataclasses::ParticleType::NuE, SI::dataclasses::ParticleType::NuMu, SI::dataclasses::ParticleType::NuTau, SI::dataclasses::ParticleType::NuEBar, SI::dataclasses::ParticleType::NuMuBar, SI::dataclasses::ParticleType::NuTauBar};
+    std::map<siren::dataclasses::ParticleType, siren::utilities::Interpolator2D<double>> differential;
+    std::map<siren::dataclasses::ParticleType, siren::utilities::Interpolator1D<double>> total;
+    const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::NuE, siren::dataclasses::ParticleType::NuMu, siren::dataclasses::ParticleType::NuTau, siren::dataclasses::ParticleType::NuEBar, siren::dataclasses::ParticleType::NuMuBar, siren::dataclasses::ParticleType::NuTauBar};
     double hnl_mass;
     double dipole_coupling;
     HelicityChannel channel;
@@ -55,29 +55,29 @@ public:
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV) : z_samp(z_samp), in_invGeV(in_invGeV), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, std::set<SI::dataclasses::ParticleType> const & primary_types) : primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, std::set<SI::dataclasses::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic, std::set<SI::dataclasses::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, std::set<siren::dataclasses::ParticleType> const & primary_types) : primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, std::set<siren::dataclasses::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic, std::set<siren::dataclasses::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    double TotalCrossSection(SI::dataclasses::ParticleType primary, double energy, SI::dataclasses::ParticleType target) const;
+    double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy, siren::dataclasses::ParticleType target) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
-    double DifferentialCrossSection(SI::dataclasses::ParticleType primary_type, double primary_energy, SI::dataclasses::ParticleType target_type, double target_mass, double y) const;
-    double DifferentialCrossSection(SI::dataclasses::ParticleType primary_type, double primary_energy, SI::dataclasses::ParticleType target_type, double target_mass, double y, double thresh) const;
+    double DifferentialCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type, double target_mass, double y) const;
+    double DifferentialCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type, double target_mass, double y, double thresh) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<SI::utilities::LI_random>) const override;
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random>) const override;
 
-    std::vector<SI::dataclasses::ParticleType> GetPossibleTargets() const override;
-    std::vector<SI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(SI::dataclasses::ParticleType primary_type) const override;
-    std::vector<SI::dataclasses::ParticleType> GetPossiblePrimaries() const override;
+    std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override;
+    std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override;
+    std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const override;
     std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
-    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(SI::dataclasses::ParticleType primary_type, SI::dataclasses::ParticleType target_type) const override;
+    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override;
 
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
-    void AddDifferentialCrossSectionFile(std::string filename, SI::dataclasses::ParticleType target);
-    void AddTotalCrossSectionFile(std::string filename, SI::dataclasses::ParticleType target);
-    void AddDifferentialCrossSection(SI::dataclasses::ParticleType target, SI::utilities::Interpolator2D<double>);
-    void AddTotalCrossSection(SI::dataclasses::ParticleType target, SI::utilities::Interpolator1D<double>);
+    void AddDifferentialCrossSectionFile(std::string filename, siren::dataclasses::ParticleType target);
+    void AddTotalCrossSectionFile(std::string filename, siren::dataclasses::ParticleType target);
+    void AddDifferentialCrossSection(siren::dataclasses::ParticleType target, siren::utilities::Interpolator2D<double>);
+    void AddTotalCrossSection(siren::dataclasses::ParticleType target, siren::utilities::Interpolator1D<double>);
 public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
@@ -103,9 +103,9 @@ public:
             bool _z_samp = true;
             bool _in_invGeV = true;
             bool _inelastic = true;
-            std::map<SI::dataclasses::ParticleType, SI::utilities::Interpolator2D<double>> _differential;
-            std::map<SI::dataclasses::ParticleType, SI::utilities::Interpolator1D<double>> _total;
-            std::set<SI::dataclasses::ParticleType> _primary_types;
+            std::map<siren::dataclasses::ParticleType, siren::utilities::Interpolator2D<double>> _differential;
+            std::map<siren::dataclasses::ParticleType, siren::utilities::Interpolator1D<double>> _total;
+            std::set<siren::dataclasses::ParticleType> _primary_types;
             double _hnl_mass;
             double _dipole_coupling;
             HelicityChannel _channel;
@@ -130,10 +130,10 @@ public:
 };
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::interactions::DipoleFromTable, 0);
-CEREAL_REGISTER_TYPE(SI::interactions::DipoleFromTable);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::interactions::CrossSection, SI::interactions::DipoleFromTable);
+CEREAL_CLASS_VERSION(siren::interactions::DipoleFromTable, 0);
+CEREAL_REGISTER_TYPE(siren::interactions::DipoleFromTable);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::DipoleFromTable);
 
 #endif // LI_DipoleFromTable_H

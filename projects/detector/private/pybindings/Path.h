@@ -10,8 +10,8 @@
 
 void register_Path(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::detector;
-    using namespace SI::math;
+    using namespace siren::detector;
+    using namespace siren::math;
 
     class_<Path, std::shared_ptr<Path>>(m, "Path")
         .def(init<std::shared_ptr<const DetectorModel>>())
@@ -131,37 +131,37 @@ void register_Path(pybind11::module_ & m) {
 
         .def("GetDistanceFromStartInBounds", overload_cast<
                 double,
-                std::vector<SI::dataclasses::ParticleType> const &,
+                std::vector<siren::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromStartInBounds))
         .def("GetDistanceFromEndInBounds", overload_cast<
                 double,
-                std::vector<SI::dataclasses::ParticleType> const &,
+                std::vector<siren::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromEndInBounds))
         .def("GetDistanceFromStartAlongPath", overload_cast<
                 double,
-                std::vector<SI::dataclasses::ParticleType> const &,
+                std::vector<siren::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromStartAlongPath))
         .def("GetDistanceFromEndAlongPath", overload_cast<
                 double,
-                std::vector<SI::dataclasses::ParticleType> const &,
+                std::vector<siren::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromEndAlongPath))
         .def("GetDistanceFromStartInReverse", overload_cast<
                 double,
-                std::vector<SI::dataclasses::ParticleType> const &,
+                std::vector<siren::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromStartInReverse))
         .def("GetDistanceFromEndInReverse", overload_cast<
                 double,
-                std::vector<SI::dataclasses::ParticleType> const &,
+                std::vector<siren::dataclasses::ParticleType> const &,
                 std::vector<double> const &,
                 double const &
                 >(&Path::GetDistanceFromEndInReverse))

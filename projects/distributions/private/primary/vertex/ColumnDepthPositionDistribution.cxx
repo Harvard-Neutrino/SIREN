@@ -21,7 +21,7 @@
 #include "SIREN/utilities/Errors.h"
 #include "SIREN/utilities/Random.h"
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 using detector::DetectorPosition;
@@ -48,39 +48,39 @@ namespace {
 //---------------
 // class ColumnDepthPositionDistribution : VertexPositionDistribution
 //---------------
-SI::math::Vector3D ColumnDepthPositionDistribution::SampleFromDisk(std::shared_ptr<SI::utilities::LI_random> rand, SI::math::Vector3D const & dir) const {
+siren::math::Vector3D ColumnDepthPositionDistribution::SampleFromDisk(std::shared_ptr<siren::utilities::LI_random> rand, siren::math::Vector3D const & dir) const {
     double t = rand->Uniform(0, 2 * M_PI);
     double r = radius * std::sqrt(rand->Uniform());
-    SI::math::Vector3D pos(r * cos(t), r * sin(t), 0.0);
-    SI::math::Quaternion q = rotation_between(SI::math::Vector3D(0,0,1), dir);
+    siren::math::Vector3D pos(r * cos(t), r * sin(t), 0.0);
+    siren::math::Quaternion q = rotation_between(siren::math::Vector3D(0,0,1), dir);
     return q.rotate(pos, false);
 }
 
-std::tuple<SI::math::Vector3D, SI::math::Vector3D> ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
-    SI::math::Vector3D dir(record.GetDirection());
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+    siren::math::Vector3D dir(record.GetDirection());
     dir.normalize();
-    SI::math::Vector3D pca = SampleFromDisk(rand, dir);
+    siren::math::Vector3D pca = SampleFromDisk(rand, dir);
 
     double lepton_depth = (*depth_function)(record.type, record.GetEnergy());//note: return is in cgs units!!!
 
-    SI::math::Vector3D endcap_0 = pca - endcap_length * dir;
-    SI::math::Vector3D endcap_1 = pca + endcap_length * dir;
+    siren::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    siren::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    SI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
+    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
-    std::set<SI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    std::vector<SI::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<siren::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    SI::dataclasses::InteractionRecord fake_record;
+    siren::dataclasses::InteractionRecord fake_record;
     fake_record.signature.primary_type = record.type;
     fake_record.primary_mass = record.GetMass();
     fake_record.primary_momentum[0] = record.GetEnergy();
     double total_decay_length = interactions->TotalDecayLength(fake_record);
     for(unsigned int i=0; i<targets.size(); ++i) {
-        SI::dataclasses::ParticleType const & target = targets[i];
+        siren::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -89,7 +89,7 @@ std::tuple<SI::math::Vector3D, SI::math::Vector3D> ColumnDepthPositionDistributi
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
-        throw(SI::utilities::InjectionFailure("No available interactions along path!"));
+        throw(siren::utilities::InjectionFailure("No available interactions along path!"));
     }
 
     double traversed_interaction_depth;
@@ -103,50 +103,50 @@ std::tuple<SI::math::Vector3D, SI::math::Vector3D> ColumnDepthPositionDistributi
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
-    SI::math::Vector3D init_pos = path.GetFirstPoint();
-    SI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
+    siren::math::Vector3D init_pos = path.GetFirstPoint();
+    siren::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
     return {init_pos, vertex};
 }
 
 // public getter function for the private SamplePosition function (for debugging)
-std::tuple<SI::math::Vector3D, SI::math::Vector3D> ColumnDepthPositionDistribution::GetSamplePosition(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) {
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> ColumnDepthPositionDistribution::GetSamplePosition(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) {
 
-    std::tuple<SI::math::Vector3D, SI::math::Vector3D> samplepos = ColumnDepthPositionDistribution::SamplePosition(rand, detector_model, interactions, record);
+    std::tuple<siren::math::Vector3D, siren::math::Vector3D> samplepos = ColumnDepthPositionDistribution::SamplePosition(rand, detector_model, interactions, record);
 
     return samplepos;
 }
 
-double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
-    SI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    SI::math::Vector3D vertex(record.interaction_vertex); // m
-    SI::math::Vector3D pca = vertex - dir * SI::math::scalar_product(dir, vertex);
+    siren::math::Vector3D vertex(record.interaction_vertex); // m
+    siren::math::Vector3D pca = vertex - dir * siren::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
         return 0.0;
 
     double lepton_depth = (*depth_function)(record.signature.primary_type, record.primary_momentum[0]);
 
-    SI::math::Vector3D endcap_0 = pca - (endcap_length * dir);
-    SI::math::Vector3D endcap_1 = pca + (endcap_length * dir);
+    siren::math::Vector3D endcap_0 = pca - (endcap_length * dir);
+    siren::math::Vector3D endcap_1 = pca + (endcap_length * dir);
 
-    SI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
+    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
 
-    std::set<SI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    std::vector<SI::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<siren::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = interactions->TotalDecayLength(record);
     
-    SI::dataclasses::InteractionRecord fake_record = record;
+    siren::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
-        SI::dataclasses::ParticleType const & target = targets[i];
+        siren::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -173,7 +173,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<SI
     return prob_density;
 }
 
-ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<SI::dataclasses::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
+ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<siren::dataclasses::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
 
 std::string ColumnDepthPositionDistribution::Name() const {
     return "ColumnDepthPositionDistribution";
@@ -183,24 +183,24 @@ std::shared_ptr<PrimaryInjectionDistribution> ColumnDepthPositionDistribution::c
     return std::shared_ptr<PrimaryInjectionDistribution>(new ColumnDepthPositionDistribution(*this));
 }
 
-std::tuple<SI::math::Vector3D, SI::math::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
-    SI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> ColumnDepthPositionDistribution::InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    SI::math::Vector3D vertex(record.interaction_vertex); // m
-    SI::math::Vector3D pca = vertex - dir * SI::math::scalar_product(dir, vertex);
+    siren::math::Vector3D vertex(record.interaction_vertex); // m
+    siren::math::Vector3D pca = vertex - dir * siren::math::scalar_product(dir, vertex);
 
     if(pca.magnitude() >= radius)
-        return std::tuple<SI::math::Vector3D, SI::math::Vector3D>(SI::math::Vector3D(0, 0, 0), SI::math::Vector3D(0, 0, 0));
+        return std::tuple<siren::math::Vector3D, siren::math::Vector3D>(siren::math::Vector3D(0, 0, 0), siren::math::Vector3D(0, 0, 0));
 
     double lepton_depth = (*depth_function)(record.signature.primary_type, record.primary_momentum[0]);
 
-    SI::math::Vector3D endcap_0 = pca - endcap_length * dir;
-    SI::math::Vector3D endcap_1 = pca + endcap_length * dir;
+    siren::math::Vector3D endcap_0 = pca - endcap_length * dir;
+    siren::math::Vector3D endcap_1 = pca + endcap_length * dir;
 
-    SI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
+    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), endcap_length*2);
     path.ExtendFromStartByColumnDepth(lepton_depth);
     path.ClipToOuterBounds();
-    return std::tuple<SI::math::Vector3D, SI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+    return std::tuple<siren::math::Vector3D, siren::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool ColumnDepthPositionDistribution::equal(WeightableDistribution const & other) const {
@@ -232,4 +232,4 @@ bool ColumnDepthPositionDistribution::less(WeightableDistribution const & other)
 }
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren

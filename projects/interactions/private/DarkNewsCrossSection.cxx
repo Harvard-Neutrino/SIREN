@@ -16,7 +16,7 @@
 #include "SIREN/utilities/Random.h"                  // for LI_random
 #include "SIREN/utilities/Errors.h"                  // for PythonImplementationError
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 DarkNewsCrossSection::DarkNewsCrossSection() {}
@@ -35,8 +35,8 @@ bool DarkNewsCrossSection::equal(CrossSection const & other) const {
 }
 
 double DarkNewsCrossSection::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    SI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
-    SI::dataclasses::ParticleType target_type = interaction.signature.primary_type;
+    siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
+    siren::dataclasses::ParticleType target_type = interaction.signature.primary_type;
     std::array<double, 4> const & primary_momentum = interaction.primary_momentum;
     double const & primary_mass = interaction.primary_mass;
     rk::P4 p1(geom3::Vector3(primary_momentum[1], primary_momentum[2], primary_momentum[3]), primary_mass);
@@ -65,19 +65,19 @@ double DarkNewsCrossSection::DifferentialCrossSection(dataclasses::InteractionRe
     return DifferentialCrossSection(interaction.signature.primary_type, interaction.signature.target_type, primary_energy, Q2);
 }
 
-double DarkNewsCrossSection::TotalCrossSection(SI::dataclasses::ParticleType primary, double energy, SI::dataclasses::ParticleType target
+double DarkNewsCrossSection::TotalCrossSection(siren::dataclasses::ParticleType primary, double energy, siren::dataclasses::ParticleType target
 ) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow TotalCrossSection to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsCrossSection::TotalCrossSection should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsCrossSection::TotalCrossSection should be implemented in Python!"));
     return 0;
 }
 
-double DarkNewsCrossSection::DifferentialCrossSection(SI::dataclasses::ParticleType primary, SI::dataclasses::ParticleType target, double energy, double Q2
+double DarkNewsCrossSection::DifferentialCrossSection(siren::dataclasses::ParticleType primary, siren::dataclasses::ParticleType target, double energy, double Q2
 ) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsCrossSection::DifferentialCrossSection should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsCrossSection::DifferentialCrossSection should be implemented in Python!"));
     return 0;
 }
 
@@ -85,46 +85,46 @@ double DarkNewsCrossSection::DifferentialCrossSection(SI::dataclasses::ParticleT
 double DarkNewsCrossSection::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsCrossSection::InteractionThreshold should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsCrossSection::InteractionThreshold should be implemented in Python!"));
     return 0;
 }
 
 double DarkNewsCrossSection::Q2Min(dataclasses::InteractionRecord const & interaction) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsCrossSection::Q2Min should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsCrossSection::Q2Min should be implemented in Python!"));
     return 0;
 }
 
 double DarkNewsCrossSection::Q2Max(dataclasses::InteractionRecord const & interaction) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsCrossSection::Q2Max should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsCrossSection::Q2Max should be implemented in Python!"));
     return 0;
 }
 
 double DarkNewsCrossSection::TargetMass(dataclasses::ParticleType const &) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsCrossSection::TargetMass should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsCrossSection::TargetMass should be implemented in Python!"));
     return 0;
 }
 
 std::vector<double> DarkNewsCrossSection::SecondaryMasses(std::vector<dataclasses::ParticleType> const & secondary_types) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsCrossSection::SecondaryMasses should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsCrossSection::SecondaryMasses should be implemented in Python!"));
     return std::vector<double>();
 }
 
 std::vector<double> DarkNewsCrossSection::SecondaryHelicities(dataclasses::InteractionRecord const & record) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsCrossSection::SecondaryHelicities should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsCrossSection::SecondaryHelicities should be implemented in Python!"));
     return std::vector<double>();
 }
 
-void DarkNewsCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<SI::utilities::LI_random> random) const {
+void DarkNewsCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const {
     // Set our upscattering masses and helicities using values from DarkNews
     record.SetTargetMass(TargetMass(record.target_type));
     std::vector<double> secondary_masses = SecondaryMasses(record.signature.secondary_types);
@@ -253,10 +253,10 @@ void DarkNewsCrossSection::SampleFinalState(dataclasses::CrossSectionDistributio
     p3 = p3_lab;
     p4 = p4_lab;
 
-    std::vector<SI::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
+    std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
 
-    SI::dataclasses::SecondaryParticleRecord & p3_record = secondaries[0];
-    SI::dataclasses::SecondaryParticleRecord & p4_record = secondaries[1];
+    siren::dataclasses::SecondaryParticleRecord & p3_record = secondaries[0];
+    siren::dataclasses::SecondaryParticleRecord & p4_record = secondaries[1];
 
     p3_record.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
     p3_record.SetMass(secondary_masses.at(0));
@@ -284,4 +284,4 @@ std::vector<std::string> DarkNewsCrossSection::DensityVariables() const {
 }
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren

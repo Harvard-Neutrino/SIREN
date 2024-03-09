@@ -8,7 +8,7 @@
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/utilities/Constants.h"
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 Decay::Decay() {}
@@ -25,7 +25,7 @@ double Decay::TotalDecayLength(dataclasses::InteractionRecord const & interactio
     std::array<double, 4> const & p4 = interaction.primary_momentum;
     double const & mass = interaction.primary_mass;
     rk::P4 p1(geom3::Vector3(p4[1], p4[2], p4[3]), mass);
-    return p1.beta() * p1.gamma() * tau * SI::utilities::Constants::hbarc;
+    return p1.beta() * p1.gamma() * tau * siren::utilities::Constants::hbarc;
 }
 
 double Decay::TotalDecayLengthForFinalState(dataclasses::InteractionRecord const & interaction) const {
@@ -33,9 +33,9 @@ double Decay::TotalDecayLengthForFinalState(dataclasses::InteractionRecord const
     std::array<double, 4> const & p4 = interaction.primary_momentum;
     double const & mass = interaction.primary_mass;
     rk::P4 p1(geom3::Vector3(p4[1], p4[2], p4[3]), mass);
-    return p1.beta() * p1.gamma() * tau * SI::utilities::Constants::hbarc;
+    return p1.beta() * p1.gamma() * tau * siren::utilities::Constants::hbarc;
 }
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren
 

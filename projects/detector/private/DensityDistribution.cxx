@@ -1,6 +1,6 @@
 #include "SIREN/detector/DensityDistribution.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 DensityDistribution::DensityDistribution() {}
@@ -19,5 +19,5 @@ bool DensityDistribution::operator!=(const DensityDistribution& dens_distr) cons
     return !(*this == dens_distr);
 }
 
-} // namespace SI
+} // namespace siren
 } // namespace detector

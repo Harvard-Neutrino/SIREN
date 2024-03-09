@@ -6,7 +6,7 @@
 #include <vector>
 #include <cassert>
 
-namespace SI {
+namespace siren {
 namespace utilities {
 
 /**

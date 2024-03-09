@@ -15,19 +15,19 @@
 
 #include "SIREN/distributions/Distributions.h"  // for InjectionDis...
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace detector { class DetectorModel; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace detector { class DetectorModel; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 class PrimaryNeutrinoHelicityDistribution : virtual public PrimaryInjectionDistribution {
 friend cereal::access;
 public:
-    virtual void Sample(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const override;
+    virtual void Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
 	PrimaryNeutrinoHelicityDistribution();
 	PrimaryNeutrinoHelicityDistribution(const PrimaryNeutrinoHelicityDistribution &) = default;
     virtual std::vector<std::string> DensityVariables() const override;
@@ -55,10 +55,10 @@ protected:
 };
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::distributions::PrimaryNeutrinoHelicityDistribution, 0);
-CEREAL_REGISTER_TYPE(SI::distributions::PrimaryNeutrinoHelicityDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::PrimaryInjectionDistribution, SI::distributions::PrimaryNeutrinoHelicityDistribution);
+CEREAL_CLASS_VERSION(siren::distributions::PrimaryNeutrinoHelicityDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::PrimaryNeutrinoHelicityDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryInjectionDistribution, siren::distributions::PrimaryNeutrinoHelicityDistribution);
 
 #endif // LI_PrimaryNeutrinoHelicityDistribution_H

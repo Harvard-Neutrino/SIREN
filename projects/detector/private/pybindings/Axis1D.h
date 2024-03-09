@@ -11,8 +11,8 @@
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
 
 using namespace pybind11;
-using namespace SI::detector;
-class PyAxis1D : public SI::detector::Axis1D {
+using namespace siren::detector;
+class PyAxis1D : public siren::detector::Axis1D {
 public:
     using Axis1D::Axis1D;
 
@@ -43,7 +43,7 @@ public:
         );
     }
 
-    double GetX(const SI::math::Vector3D& xi) const override {
+    double GetX(const siren::math::Vector3D& xi) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             Axis1D,
@@ -52,7 +52,7 @@ public:
         );
     }
 
-    double GetdX(const SI::math::Vector3D& xi, const SI::math::Vector3D& direction) const override {
+    double GetdX(const siren::math::Vector3D& xi, const siren::math::Vector3D& direction) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             Axis1D,
@@ -65,7 +65,7 @@ public:
 
 void register_Axis1D(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::detector;
+    using namespace siren::detector;
 
     class_<Axis1D, std::shared_ptr<Axis1D>, PyAxis1D>(m, "Axis1D")
         .def(init<>())

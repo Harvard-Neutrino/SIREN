@@ -14,7 +14,7 @@
 
 void register_Decay(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::interactions;
+    using namespace siren::interactions;
 
     class_<Decay, std::shared_ptr<Decay>>(m, "Decay")
         .def("TotalDecayLength",&Decay::TotalDecayLength)

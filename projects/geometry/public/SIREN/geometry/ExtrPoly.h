@@ -22,7 +22,7 @@
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/geometry/Geometry.h"
 
-namespace SI {
+namespace siren {
 namespace geometry {
 
 class ExtrPoly : public Geometry {
@@ -135,10 +135,10 @@ private:
 };
 
 } // namespace geometry
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::geometry::ExtrPoly, 0);
-CEREAL_REGISTER_TYPE(SI::geometry::ExtrPoly)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::geometry::Geometry, SI::geometry::ExtrPoly);
+CEREAL_CLASS_VERSION(siren::geometry::ExtrPoly, 0);
+CEREAL_REGISTER_TYPE(siren::geometry::ExtrPoly)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::ExtrPoly);
 
 #endif // LI_ExtrPoly_H

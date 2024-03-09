@@ -11,8 +11,8 @@
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
 
 using namespace pybind11;
-using namespace SI::detector;
-class PyDensityDistribution : public SI::detector::DensityDistribution {
+using namespace siren::detector;
+class PyDensityDistribution : public siren::detector::DensityDistribution {
 public:
     using DensityDistribution::DensityDistribution;
 
@@ -43,8 +43,8 @@ public:
         );
     }
 
-    double Derivative(SI::math::Vector3D const & xi,
-            SI::math::Vector3D const & direction) const override {
+    double Derivative(siren::math::Vector3D const & xi,
+            siren::math::Vector3D const & direction) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             DensityDistribution,
@@ -53,8 +53,8 @@ public:
             direction
         );
     }
-    double AntiDerivative(SI::math::Vector3D const & xi,
-            SI::math::Vector3D const & direction) const override {
+    double AntiDerivative(siren::math::Vector3D const & xi,
+            siren::math::Vector3D const & direction) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             DensityDistribution,
@@ -63,8 +63,8 @@ public:
             direction
         );
     }
-    double Integral(SI::math::Vector3D const & xi,
-            SI::math::Vector3D const & direction,
+    double Integral(siren::math::Vector3D const & xi,
+            siren::math::Vector3D const & direction,
             double distance) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
@@ -75,8 +75,8 @@ public:
             distance
         );
     }
-    double Integral(SI::math::Vector3D const & xi,
-            SI::math::Vector3D const & xj) const override {
+    double Integral(siren::math::Vector3D const & xi,
+            siren::math::Vector3D const & xj) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             DensityDistribution,
@@ -85,8 +85,8 @@ public:
             xj
         );
     }
-    double InverseIntegral(SI::math::Vector3D const & xi,
-            SI::math::Vector3D const & direction,
+    double InverseIntegral(siren::math::Vector3D const & xi,
+            siren::math::Vector3D const & direction,
             double integral,
             double max_distance) const override {
         PYBIND11_OVERRIDE_PURE(
@@ -99,8 +99,8 @@ public:
             max_distance
         );
     }
-    double InverseIntegral(SI::math::Vector3D const & xi,
-            SI::math::Vector3D const & direction,
+    double InverseIntegral(siren::math::Vector3D const & xi,
+            siren::math::Vector3D const & direction,
             double constant,
             double integral,
             double max_distance) const override {
@@ -115,7 +115,7 @@ public:
             max_distance
         );
     }
-    double Evaluate(const SI::math::Vector3D& xi) const override {
+    double Evaluate(const siren::math::Vector3D& xi) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             DensityDistribution,
@@ -127,7 +127,7 @@ public:
 
 void register_DensityDistribution(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::detector;
+    using namespace siren::detector;
 
     class_<DensityDistribution, std::shared_ptr<DensityDistribution>, PyDensityDistribution>(m, "DensityDistribution")
         .def(init<>())
@@ -140,26 +140,26 @@ void register_DensityDistribution(pybind11::module_ & m) {
         .def("AntiDerivative", &DensityDistribution::AntiDerivative)
         .def("Integral", (
                     double (DensityDistribution::*)(
-                        SI::math::Vector3D const &,
-                        SI::math::Vector3D const &,
+                        siren::math::Vector3D const &,
+                        siren::math::Vector3D const &,
                         double) const)(&DensityDistribution::Integral)
                     )
         .def("Integral", (
                     double (DensityDistribution::*)(
-                        SI::math::Vector3D const &,
-                        SI::math::Vector3D const &) const)(&DensityDistribution::Integral)
+                        siren::math::Vector3D const &,
+                        siren::math::Vector3D const &) const)(&DensityDistribution::Integral)
                     )
         .def("InverseIntegral", (
                     double (DensityDistribution::*)(
-                        SI::math::Vector3D const &,
-                        SI::math::Vector3D const &,
+                        siren::math::Vector3D const &,
+                        siren::math::Vector3D const &,
                         double,
                         double) const)(&DensityDistribution::InverseIntegral)
                     )
         .def("InverseIntegral", (
                     double (DensityDistribution::*)(
-                        SI::math::Vector3D const &,
-                        SI::math::Vector3D const &,
+                        siren::math::Vector3D const &,
+                        siren::math::Vector3D const &,
                         double,
                         double,
                         double) const)(&DensityDistribution::InverseIntegral)

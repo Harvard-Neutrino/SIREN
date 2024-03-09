@@ -9,13 +9,13 @@
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/geometry/MeshBuilder.h"
 
-using namespace SI::geometry;
+using namespace siren::geometry;
 
 /******************************************************************************
  *                                  OStream                                    *
  ******************************************************************************/
 
-namespace SI {
+namespace siren {
 namespace geometry {
 
 TriangularMesh::TriangularMesh()
@@ -146,4 +146,4 @@ std::pair<double, double> TriangularMesh::ComputeDistanceToBorder(const math::Ve
 }
 
 } // namespace geometry
-} // namespace SI
+} // namespace siren

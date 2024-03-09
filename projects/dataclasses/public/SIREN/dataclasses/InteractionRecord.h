@@ -24,19 +24,19 @@
 #include "SIREN/dataclasses/ParticleType.h"
 #include "SIREN/dataclasses/InteractionSignature.h"
 
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace dataclasses { class PrimaryDistributionRecord; } }
-namespace SI { namespace dataclasses { class SecondaryParticleRecord; } }
-namespace SI { namespace dataclasses { class CrossSectionDistributionRecord; } }
-namespace SI { namespace dataclasses { class SecondaryDistributionRecord; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace dataclasses { class PrimaryDistributionRecord; } }
+namespace siren { namespace dataclasses { class SecondaryParticleRecord; } }
+namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
+namespace siren { namespace dataclasses { class SecondaryDistributionRecord; } }
 
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::InteractionRecord const & record);
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::PrimaryDistributionRecord const & record);
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::SecondaryParticleRecord const & record);
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::CrossSectionDistributionRecord const & record);
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::SecondaryDistributionRecord const & record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::InteractionRecord const & record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::PrimaryDistributionRecord const & record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryParticleRecord const & record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::CrossSectionDistributionRecord const & record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryDistributionRecord const & record);
 
-namespace SI {
+namespace siren {
 namespace dataclasses {
 
 // Record intended to be passed to the primary particle injection distributions
@@ -345,8 +345,8 @@ public:
 
 
 } // namespace dataclasses
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::dataclasses::InteractionRecord, 0);
+CEREAL_CLASS_VERSION(siren::dataclasses::InteractionRecord, 0);
 
 #endif // LI_InteractionRecord_H

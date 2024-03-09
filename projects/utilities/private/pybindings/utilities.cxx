@@ -10,7 +10,7 @@
 using namespace pybind11;
 
 PYBIND11_MODULE(utilities,m) {
-  using namespace SI::utilities;
+  using namespace siren::utilities;
 
   class_<LI_random, std::shared_ptr<LI_random>>(m, "LI_random")
     .def(init<>())

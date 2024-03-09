@@ -20,36 +20,36 @@
 #include "SIREN/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h"
 #include "SIREN/math/Vector3D.h"
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace detector { class DetectorModel; } }
-namespace SI { namespace distributions { class SecondaryInjectionDistribution; } }
-namespace SI { namespace distributions { class WeightableDistribution; } }
-namespace SI { namespace geometry { class Geometry; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace detector { class DetectorModel; } }
+namespace siren { namespace distributions { class SecondaryInjectionDistribution; } }
+namespace siren { namespace distributions { class WeightableDistribution; } }
+namespace siren { namespace geometry { class Geometry; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 class SecondaryBoundedVertexDistribution : virtual public SecondaryVertexPositionDistribution {
 friend cereal::access;
 private:
-    std::shared_ptr<SI::geometry::Geometry> fiducial_volume = nullptr;
+    std::shared_ptr<siren::geometry::Geometry> fiducial_volume = nullptr;
     double max_length = std::numeric_limits<double>::infinity();
 public:
 
     SecondaryBoundedVertexDistribution();
     SecondaryBoundedVertexDistribution(const SecondaryBoundedVertexDistribution &) = default;
     SecondaryBoundedVertexDistribution(double max_length);
-    SecondaryBoundedVertexDistribution(std::shared_ptr<SI::geometry::Geometry> fiducial_volume);
-    SecondaryBoundedVertexDistribution(std::shared_ptr<SI::geometry::Geometry> fiducial_volume, double max_length);
+    SecondaryBoundedVertexDistribution(std::shared_ptr<siren::geometry::Geometry> fiducial_volume);
+    SecondaryBoundedVertexDistribution(std::shared_ptr<siren::geometry::Geometry> fiducial_volume, double max_length);
 
-    virtual void SampleVertex(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::SecondaryDistributionRecord & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const override;
+    virtual void SampleVertex(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
 
     std::string Name() const override;
     virtual std::shared_ptr<SecondaryInjectionDistribution> clone() const override;
-    virtual std::tuple<SI::math::Vector3D, SI::math::Vector3D> InjectionBounds(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & interaction) const override;
+    virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -77,10 +77,10 @@ protected:
 };
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::distributions::SecondaryBoundedVertexDistribution, 0);
-CEREAL_REGISTER_TYPE(SI::distributions::SecondaryBoundedVertexDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::SecondaryVertexPositionDistribution, SI::distributions::SecondaryBoundedVertexDistribution);
+CEREAL_CLASS_VERSION(siren::distributions::SecondaryBoundedVertexDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::SecondaryBoundedVertexDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::SecondaryVertexPositionDistribution, siren::distributions::SecondaryBoundedVertexDistribution);
 
 #endif // LI_SecondaryBoundedVertexDistribution_H

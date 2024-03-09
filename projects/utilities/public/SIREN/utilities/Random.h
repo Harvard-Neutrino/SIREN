@@ -9,7 +9,7 @@
 
 #include <random> // default_random_engine, uniform_real_distribution
 
-namespace SI {
+namespace siren {
 namespace utilities {
 
     class LI_random{
@@ -30,7 +30,7 @@ namespace utilities {
     };
 
 } // namespace utilities
-} // namespace SI
+} // namespace siren
 
 #endif // LI_Random_H
 

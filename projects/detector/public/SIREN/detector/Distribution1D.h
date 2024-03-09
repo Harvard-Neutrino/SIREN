@@ -8,7 +8,7 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 class Distribution1D {
@@ -29,8 +29,8 @@ public:
 };
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::Distribution1D, 0);
+CEREAL_CLASS_VERSION(siren::detector::Distribution1D, 0);
 
 #endif // LI_Distribution1D_H

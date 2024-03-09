@@ -5,9 +5,9 @@
 #include <math.h>             // for sqrt
 #include <algorithm>          // for min
 
-namespace SI { namespace dataclasses { enum class ParticleType : int32_t; } }
+namespace siren { namespace dataclasses { enum class ParticleType : int32_t; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 //---------------
@@ -24,15 +24,15 @@ double DecayRangeFunction::DecayLength(double particle_mass, double decay_width,
     return length; // meters
 }
 
-double DecayRangeFunction::DecayLength(SI::dataclasses::ParticleType const & primary_type, double energy) const {
+double DecayRangeFunction::DecayLength(siren::dataclasses::ParticleType const & primary_type, double energy) const {
     return DecayRangeFunction::DecayLength(particle_mass, decay_width, energy);
 }
 
-double DecayRangeFunction::Range(SI::dataclasses::ParticleType const & primary_type, double energy) const {
+double DecayRangeFunction::Range(siren::dataclasses::ParticleType const & primary_type, double energy) const {
     return std::min(DecayLength(primary_type, energy) * multiplier, max_distance);
 }
 
-double DecayRangeFunction::operator()(SI::dataclasses::ParticleType const & primary_type, double energy) const {
+double DecayRangeFunction::operator()(siren::dataclasses::ParticleType const & primary_type, double energy) const {
     return Range(primary_type, energy);
 }
 
@@ -76,4 +76,4 @@ bool DecayRangeFunction::less(RangeFunction const & other) const {
 }
 
 } // namespace distributions
-} // namespace SIREN
+} // namespace sirenREN

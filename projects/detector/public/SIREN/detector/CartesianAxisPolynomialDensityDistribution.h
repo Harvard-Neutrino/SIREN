@@ -13,16 +13,16 @@
 #include "SIREN/detector/DensityDistribution1D.h"
 #include "SIREN/detector/PolynomialDistribution1D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 typedef DensityDistribution1D<CartesianAxis1D,PolynomialDistribution1D> CartesianAxisPolynomialDensityDistribution;
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::CartesianAxisPolynomialDensityDistribution, 0);
-CEREAL_REGISTER_TYPE(SI::detector::CartesianAxisPolynomialDensityDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::detector::DensityDistribution, SI::detector::CartesianAxisPolynomialDensityDistribution);
+CEREAL_CLASS_VERSION(siren::detector::CartesianAxisPolynomialDensityDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::detector::CartesianAxisPolynomialDensityDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::CartesianAxisPolynomialDensityDistribution);
 
 #endif // LI_CartesianAxisPolynomialDensityDistribution.h

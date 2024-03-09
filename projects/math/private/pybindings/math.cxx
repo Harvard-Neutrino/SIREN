@@ -11,7 +11,7 @@
 using namespace pybind11;
 
 PYBIND11_MODULE(math,m) {
-    using namespace SI::math;
+    using namespace siren::math;
 
     class_<Vector3D, std::shared_ptr<Vector3D>>(m, "Vector3D")
         .def(init<>())

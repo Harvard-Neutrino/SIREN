@@ -32,7 +32,7 @@
 
 #include "delabella.h"
 
-namespace SI {
+namespace siren {
 namespace math {
 
 template<typename T>
@@ -1505,42 +1505,42 @@ public:
 } // math
 } // LI
 
-CEREAL_CLASS_VERSION(SI::math::Transform<double>, 0);
+CEREAL_CLASS_VERSION(siren::math::Transform<double>, 0);
 
-CEREAL_CLASS_VERSION(SI::math::IdentityTransform<double>, 0);
-CEREAL_REGISTER_TYPE(SI::math::IdentityTransform<double>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::math::Transform<double>, SI::math::IdentityTransform<double>);
+CEREAL_CLASS_VERSION(siren::math::IdentityTransform<double>, 0);
+CEREAL_REGISTER_TYPE(siren::math::IdentityTransform<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::math::Transform<double>, siren::math::IdentityTransform<double>);
 
-CEREAL_CLASS_VERSION(SI::math::LogTransform<double>, 0);
-CEREAL_REGISTER_TYPE(SI::math::LogTransform<double>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::math::Transform<double>, SI::math::LogTransform<double>);
+CEREAL_CLASS_VERSION(siren::math::LogTransform<double>, 0);
+CEREAL_REGISTER_TYPE(siren::math::LogTransform<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::math::Transform<double>, siren::math::LogTransform<double>);
 
-CEREAL_CLASS_VERSION(SI::math::SymLogTransform<double>, 0);
-CEREAL_REGISTER_TYPE(SI::math::SymLogTransform<double>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::math::Transform<double>, SI::math::SymLogTransform<double>);
+CEREAL_CLASS_VERSION(siren::math::SymLogTransform<double>, 0);
+CEREAL_REGISTER_TYPE(siren::math::SymLogTransform<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::math::Transform<double>, siren::math::SymLogTransform<double>);
 
-CEREAL_CLASS_VERSION(SI::math::RangeTransform<double>, 0);
-CEREAL_REGISTER_TYPE(SI::math::RangeTransform<double>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::math::Transform<double>, SI::math::RangeTransform<double>);
+CEREAL_CLASS_VERSION(siren::math::RangeTransform<double>, 0);
+CEREAL_REGISTER_TYPE(siren::math::RangeTransform<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::math::Transform<double>, siren::math::RangeTransform<double>);
 
-CEREAL_CLASS_VERSION(SI::math::LinearInterpolationOperator<double>, 0);
+CEREAL_CLASS_VERSION(siren::math::LinearInterpolationOperator<double>, 0);
 
-CEREAL_CLASS_VERSION(SI::math::DropLinearInterpolationOperator<double>, 0);
-CEREAL_REGISTER_TYPE(SI::math::DropLinearInterpolationOperator<double>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::math::LinearInterpolationOperator<double>, SI::math::DropLinearInterpolationOperator<double>);
+CEREAL_CLASS_VERSION(siren::math::DropLinearInterpolationOperator<double>, 0);
+CEREAL_REGISTER_TYPE(siren::math::DropLinearInterpolationOperator<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::math::LinearInterpolationOperator<double>, siren::math::DropLinearInterpolationOperator<double>);
 
-CEREAL_CLASS_VERSION(SI::math::Indexer1D<double>, 0);
+CEREAL_CLASS_VERSION(siren::math::Indexer1D<double>, 0);
 
-CEREAL_CLASS_VERSION(SI::math::RegularIndexer1D<double>, 0);
-CEREAL_REGISTER_TYPE(SI::math::RegularIndexer1D<double>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::math::Indexer1D<double>, SI::math::RegularIndexer1D<double>);
+CEREAL_CLASS_VERSION(siren::math::RegularIndexer1D<double>, 0);
+CEREAL_REGISTER_TYPE(siren::math::RegularIndexer1D<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::math::Indexer1D<double>, siren::math::RegularIndexer1D<double>);
 
-CEREAL_CLASS_VERSION(SI::math::IrregularIndexer1D<double>, 0);
-CEREAL_REGISTER_TYPE(SI::math::IrregularIndexer1D<double>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::math::Indexer1D<double>, SI::math::IrregularIndexer1D<double>);
+CEREAL_CLASS_VERSION(siren::math::IrregularIndexer1D<double>, 0);
+CEREAL_REGISTER_TYPE(siren::math::IrregularIndexer1D<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::math::Indexer1D<double>, siren::math::IrregularIndexer1D<double>);
 
-CEREAL_CLASS_VERSION(SI::math::TransformIndexer1D<double>, 0);
-CEREAL_REGISTER_TYPE(SI::math::TransformIndexer1D<double>);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::math::Indexer1D<double>, SI::math::TransformIndexer1D<double>);
+CEREAL_CLASS_VERSION(siren::math::TransformIndexer1D<double>, 0);
+CEREAL_REGISTER_TYPE(siren::math::TransformIndexer1D<double>);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::math::Indexer1D<double>, siren::math::TransformIndexer1D<double>);
 
 #endif // LI_Interpolation_H

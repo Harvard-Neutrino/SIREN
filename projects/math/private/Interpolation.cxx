@@ -3,7 +3,7 @@
 #include <tuple>
 #include <memory>
 
-namespace SI {
+namespace siren {
 namespace math {
 
 //template<> class Transform<double>;
@@ -55,4 +55,4 @@ template<> class DelaunayIndexer2D<double>;
 template<> class LinearDelaunayInterpolator2D<double>;
 
 } // namespace math
-} // namespace SI
+} // namespace siren

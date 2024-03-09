@@ -30,7 +30,7 @@ PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
 using namespace pybind11;
 
 PYBIND11_MODULE(interactions,m) {
-    using namespace SI::interactions;
+    using namespace siren::interactions;
 
     register_CrossSection(m);
     register_Decay(m);

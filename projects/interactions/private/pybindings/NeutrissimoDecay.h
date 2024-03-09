@@ -16,19 +16,19 @@
 
 void register_NeutrissimoDecay(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::interactions;
+    using namespace siren::interactions;
 
     class_<NeutrissimoDecay, std::shared_ptr<NeutrissimoDecay>, Decay> neutrissimodecay(m, "NeutrissimoDecay");
 
     neutrissimodecay
         .def(init<double, std::vector<double>, NeutrissimoDecay::ChiralNature>())
-        .def(init<double, std::vector<double>, NeutrissimoDecay::ChiralNature, std::set<SI::dataclasses::ParticleType> const &>())
+        .def(init<double, std::vector<double>, NeutrissimoDecay::ChiralNature, std::set<siren::dataclasses::ParticleType> const &>())
         .def(init<double, double, NeutrissimoDecay::ChiralNature>())
-        .def(init<double, double, NeutrissimoDecay::ChiralNature, std::set<SI::dataclasses::ParticleType> const &>())
+        .def(init<double, double, NeutrissimoDecay::ChiralNature, std::set<siren::dataclasses::ParticleType> const &>())
         .def(self == self)
         .def("GetHNLMass",&NeutrissimoDecay::GetHNLMass)
-        .def("TotalDecayWidth",overload_cast<SI::dataclasses::InteractionRecord const &>(&NeutrissimoDecay::TotalDecayWidth, const_))
-        .def("TotalDecayWidth",overload_cast<SI::dataclasses::ParticleType>(&NeutrissimoDecay::TotalDecayWidth, const_))
+        .def("TotalDecayWidth",overload_cast<siren::dataclasses::InteractionRecord const &>(&NeutrissimoDecay::TotalDecayWidth, const_))
+        .def("TotalDecayWidth",overload_cast<siren::dataclasses::ParticleType>(&NeutrissimoDecay::TotalDecayWidth, const_))
         .def("TotalDecayWidthForFinalState",&NeutrissimoDecay::TotalDecayWidthForFinalState)
         .def("DifferentialDecayWidth",&NeutrissimoDecay::DifferentialDecayWidth)
         .def("GetPossibleSignatures",&NeutrissimoDecay::GetPossibleSignatures)

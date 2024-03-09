@@ -28,10 +28,10 @@
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
 
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 class DISFromSpline : public CrossSection {
@@ -41,10 +41,10 @@ private:
     photospline::splinetable<> total_cross_section_;
 
     std::vector<dataclasses::InteractionSignature> signatures_;
-    std::set<SI::dataclasses::ParticleType> primary_types_;
-    std::set<SI::dataclasses::ParticleType> target_types_;
-    std::map<SI::dataclasses::ParticleType, std::vector<SI::dataclasses::ParticleType>> targets_by_primary_types_;
-    std::map<std::pair<SI::dataclasses::ParticleType, SI::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
+    std::set<siren::dataclasses::ParticleType> primary_types_;
+    std::set<siren::dataclasses::ParticleType> target_types_;
+    std::map<siren::dataclasses::ParticleType, std::vector<siren::dataclasses::ParticleType>> targets_by_primary_types_;
+    std::map<std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
 
     int interaction_type_;
     double target_mass_;
@@ -54,29 +54,29 @@ private:
 
 public:
     DISFromSpline();
-    DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::set<SI::dataclasses::ParticleType> primary_types, std::set<SI::dataclasses::ParticleType> target_types, std::string units = "cm");
-    DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::vector<SI::dataclasses::ParticleType> primary_types, std::vector<SI::dataclasses::ParticleType> target_types, std::string units = "cm");
-    DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::set<SI::dataclasses::ParticleType> primary_types, std::set<SI::dataclasses::ParticleType> target_types, std::string units = "cm");
-    DISFromSpline(std::string differential_filename, std::string total_filename, std::set<SI::dataclasses::ParticleType> primary_types, std::set<SI::dataclasses::ParticleType> target_types, std::string units = "cm");
-    DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<SI::dataclasses::ParticleType> primary_types, std::vector<SI::dataclasses::ParticleType> target_types, std::string units = "cm");
-    DISFromSpline(std::string differential_filename, std::string total_filename, std::vector<SI::dataclasses::ParticleType> primary_types, std::vector<SI::dataclasses::ParticleType> target_types, std::string units = "cm");
+    DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    DISFromSpline(std::string differential_filename, std::string total_filename, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    DISFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
     
     void SetUnits(std::string units);
 
     virtual bool equal(CrossSection const & other) const override;
 
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    double TotalCrossSection(SI::dataclasses::ParticleType primary, double energy) const;
+    double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2=std::numeric_limits<double>::quiet_NaN()) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<SI::utilities::LI_random> random) const override;
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random> random) const override;
 
-    std::vector<SI::dataclasses::ParticleType> GetPossibleTargets() const override;
-    std::vector<SI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(SI::dataclasses::ParticleType primary_type) const override;
-    std::vector<SI::dataclasses::ParticleType> GetPossiblePrimaries() const override;
+    std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override;
+    std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override;
+    std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const override;
     std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
-    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(SI::dataclasses::ParticleType primary_type, SI::dataclasses::ParticleType target_type) const override;
+    std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override;
 
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
@@ -87,7 +87,7 @@ public:
     double GetTargetMass() const {return target_mass_;};
     int GetInteractionType() const {return interaction_type_;};
 
-    static double GetLeptonMass(SI::dataclasses::ParticleType lepton_type);
+    static double GetLeptonMass(siren::dataclasses::ParticleType lepton_type);
 
 public:
     virtual std::vector<std::string> DensityVariables() const override;
@@ -151,10 +151,10 @@ private:
 };
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::interactions::DISFromSpline, 0);
-CEREAL_REGISTER_TYPE(SI::interactions::DISFromSpline);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::interactions::CrossSection, SI::interactions::DISFromSpline);
+CEREAL_CLASS_VERSION(siren::interactions::DISFromSpline, 0);
+CEREAL_REGISTER_TYPE(siren::interactions::DISFromSpline);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::DISFromSpline);
 
 #endif // LI_DISFromSpline_H

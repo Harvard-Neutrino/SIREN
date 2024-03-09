@@ -14,7 +14,7 @@
 
 #include "SIREN/detector/Distribution1D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 class ConstantDistribution1D : public Distribution1D {
@@ -44,10 +44,10 @@ protected:
 };
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::ConstantDistribution1D, 0);
-CEREAL_REGISTER_TYPE(SI::detector::ConstantDistribution1D);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::detector::Distribution1D, SI::detector::ConstantDistribution1D);
+CEREAL_CLASS_VERSION(siren::detector::ConstantDistribution1D, 0);
+CEREAL_REGISTER_TYPE(siren::detector::ConstantDistribution1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::Distribution1D, siren::detector::ConstantDistribution1D);
 
 #endif // LI_ConstantDistribution1D_H

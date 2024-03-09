@@ -15,10 +15,10 @@
  ******************************************************************************/
 
 
-namespace SI {
+namespace siren {
 namespace geometry {
 
-std::ostream& operator<<(std::ostream& os, SI::geometry::Geometry const& geometry)
+std::ostream& operator<<(std::ostream& os, siren::geometry::Geometry const& geometry)
 {
     os << "Geometry(" << &geometry << ")" << std::endl;
     os << geometry.placement_ << std::endl;
@@ -111,7 +111,7 @@ bool Geometry::operator!=(const Geometry& geometry) const
 // Member functions
 // ------------------------------------------------------------------------- //
 
-bool Geometry::IsInside(const SI::math::Vector3D& position, const SI::math::Vector3D& direction) const
+bool Geometry::IsInside(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     bool is_inside = false;
 
@@ -125,7 +125,7 @@ bool Geometry::IsInside(const SI::math::Vector3D& position, const SI::math::Vect
 }
 
 // ------------------------------------------------------------------------- //
-bool Geometry::IsInfront(const SI::math::Vector3D& position, const SI::math::Vector3D& direction) const
+bool Geometry::IsInfront(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     bool is_infront = false;
 
@@ -139,7 +139,7 @@ bool Geometry::IsInfront(const SI::math::Vector3D& position, const SI::math::Vec
 }
 
 // ------------------------------------------------------------------------- //
-bool Geometry::IsBehind(const SI::math::Vector3D& position, const SI::math::Vector3D& direction) const
+bool Geometry::IsBehind(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     bool is_behind = false;
 
@@ -152,7 +152,7 @@ bool Geometry::IsBehind(const SI::math::Vector3D& position, const SI::math::Vect
     return is_behind;
 }
 
-Geometry::ParticleLocation::Enum Geometry::GetLocation(const SI::math::Vector3D& position, const SI::math::Vector3D& direction) const {
+Geometry::ParticleLocation::Enum Geometry::GetLocation(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const {
     if(IsInfront(position, direction))
         return Geometry::ParticleLocation::InfrontGeometry;
     if(IsInside(position, direction))
@@ -162,41 +162,41 @@ Geometry::ParticleLocation::Enum Geometry::GetLocation(const SI::math::Vector3D&
 }
 
 // ------------------------------------------------------------------------- //
-double Geometry::DistanceToClosestApproach(const SI::math::Vector3D& position, const SI::math::Vector3D& direction) const
+double Geometry::DistanceToClosestApproach(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
-    SI::math::Vector3D pos = GlobalToLocalPosition(position);
-    SI::math::Vector3D dir = GlobalToLocalPosition(direction);
+    siren::math::Vector3D pos = GlobalToLocalPosition(position);
+    siren::math::Vector3D dir = GlobalToLocalPosition(direction);
     return scalar_product(-pos, dir);
 }
 
-SI::math::Vector3D Geometry::LocalToGlobalPosition(SI::math::Vector3D const & p0) const
+siren::math::Vector3D Geometry::LocalToGlobalPosition(siren::math::Vector3D const & p0) const
 {
     return placement_.LocalToGlobalPosition(p0);
 }
 
-SI::math::Vector3D Geometry::LocalToGlobalDirection(SI::math::Vector3D const & p0) const
+siren::math::Vector3D Geometry::LocalToGlobalDirection(siren::math::Vector3D const & p0) const
 {
     return placement_.LocalToGlobalDirection(p0);
 }
 
-SI::math::Vector3D Geometry::GlobalToLocalPosition(SI::math::Vector3D const & p0) const
+siren::math::Vector3D Geometry::GlobalToLocalPosition(siren::math::Vector3D const & p0) const
 {
     return placement_.GlobalToLocalPosition(p0);
 }
 
-SI::math::Vector3D Geometry::GlobalToLocalDirection(SI::math::Vector3D const & p0) const
+siren::math::Vector3D Geometry::GlobalToLocalDirection(siren::math::Vector3D const & p0) const
 {
     return placement_.GlobalToLocalDirection(p0);
 }
 
-std::pair<double, double> Geometry::DistanceToBorder(const SI::math::Vector3D& position, const SI::math::Vector3D& direction) const {
-    SI::math::Vector3D local_position = GlobalToLocalPosition(position);
-    SI::math::Vector3D local_direction = GlobalToLocalDirection(direction);
+std::pair<double, double> Geometry::DistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const {
+    siren::math::Vector3D local_position = GlobalToLocalPosition(position);
+    siren::math::Vector3D local_direction = GlobalToLocalDirection(direction);
     return ComputeDistanceToBorder(position, direction);
 }
-std::vector<Geometry::Intersection> Geometry::Intersections(SI::math::Vector3D const & position, SI::math::Vector3D const & direction) const {
-    SI::math::Vector3D local_position = GlobalToLocalPosition(position);
-    SI::math::Vector3D local_direction = GlobalToLocalDirection(direction);
+std::vector<Geometry::Intersection> Geometry::Intersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
+    siren::math::Vector3D local_position = GlobalToLocalPosition(position);
+    siren::math::Vector3D local_direction = GlobalToLocalDirection(direction);
     std::vector<Geometry::Intersection> intersections = ComputeIntersections(local_position, local_direction);
     for(auto & intersection : intersections) {
         intersection.position = LocalToGlobalPosition(intersection.position);
@@ -205,4 +205,4 @@ std::vector<Geometry::Intersection> Geometry::Intersections(SI::math::Vector3D c
 }
 
 } // namespace geometry
-} // namespace SI
+} // namespace siren

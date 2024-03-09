@@ -18,8 +18,8 @@
 #include "SIREN/math/Quaternion.h"
 #include "SIREN/math/Polynomial.h"
 
-using namespace SI::detector;
-using namespace SI::math;
+using namespace siren::detector;
+using namespace siren::math;
 
 template <typename T>
 std::string str(std::vector<T> v) {

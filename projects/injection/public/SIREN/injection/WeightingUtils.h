@@ -4,16 +4,16 @@
 
 #include <memory>                 // for shared_ptr
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace detector { class DetectorModel; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace detector { class DetectorModel; } }
 
-namespace SI {
+namespace siren {
 namespace injection {
 
-double CrossSectionProbability(std::shared_ptr<SI::detector::DetectorModel const>, std::shared_ptr<SI::interactions::InteractionCollection const>, SI::dataclasses::InteractionRecord const &);
+double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &);
 
 } // namespace injection
-} // namespace SI
+} // namespace siren
 
 #endif // LI_WeightingUtils_H

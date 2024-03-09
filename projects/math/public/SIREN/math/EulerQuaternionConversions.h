@@ -8,7 +8,7 @@
 #include "SIREN/math/Quaternion.h"
 #include "SIREN/math/EulerAngles.h"
 
-namespace SI {
+namespace siren {
 namespace math {
 
 class Quaternion;
@@ -118,7 +118,7 @@ EulerAngles XYZsFromQ(Quaternion const & quaternion) {
 }
 
 } // namespace math
-} // namespace SI
+} // namespace siren
 
 #endif // LI_EulerQuaternionConversions_H
 

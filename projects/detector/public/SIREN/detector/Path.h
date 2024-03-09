@@ -26,7 +26,7 @@
 #include "SIREN/detector/Coordinates.h"
 #include "SIREN/math/Vector3D.h"         // for Vector3D
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 class Path {
@@ -54,7 +54,7 @@ private:
     bool set_intersections_ = false;
 
     void UpdatePoints();
-    static bool IsInfinite(SI::math::Vector3D const & vec);
+    static bool IsInfinite(siren::math::Vector3D const & vec);
     void RequireFirstFinite();
     void RequireLastFinite();
     void RequireBothFinite();
@@ -125,19 +125,19 @@ public:
     void ShrinkFromStartByColumnDepth(double column_depth);
 
     void ExtendFromEndByInteractionDepth(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     void ExtendFromStartByInteractionDepth(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     void ShrinkFromEndByInteractionDepth(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     void ShrinkFromStartByInteractionDepth(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
 
@@ -153,19 +153,19 @@ public:
     void ShrinkFromStartToColumnDepth(double column_depth);
 
     void ExtendFromEndToInteractionDepth(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     void ExtendFromStartToInteractionDepth(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     void ShrinkFromEndToInteractionDepth(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     void ShrinkFromStartToInteractionDepth(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     //
@@ -173,7 +173,7 @@ public:
     // Get
     double GetColumnDepthInBounds();
     double GetInteractionDepthInBounds(
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     //
@@ -187,27 +187,27 @@ public:
     double GetColumnDepthFromEndInReverse(double distance);
 
     double GetInteractionDepthFromStartInBounds(double distance,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     double GetInteractionDepthFromEndInBounds(double distance,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     double GetInteractionDepthFromStartAlongPath(double distance,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     double GetInteractionDepthFromEndAlongPath(double distance,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     double GetInteractionDepthFromStartInReverse(double distance,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     double GetInteractionDepthFromEndInReverse(double distance,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     //
@@ -221,27 +221,27 @@ public:
     double GetDistanceFromEndInReverse(double column_depth);
 
     double GetDistanceFromStartInBounds(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     double GetDistanceFromEndInBounds(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     double GetDistanceFromStartAlongPath(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     double GetDistanceFromEndAlongPath(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     double GetDistanceFromStartInReverse(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     double GetDistanceFromEndInReverse(double interaction_depth,
-            std::vector<SI::dataclasses::ParticleType> const & targets,
+            std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length);
     //
@@ -253,9 +253,9 @@ public:
 };
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::Path, 0);
+CEREAL_CLASS_VERSION(siren::detector::Path, 0);
 
 # endif // LI_Path_H
 

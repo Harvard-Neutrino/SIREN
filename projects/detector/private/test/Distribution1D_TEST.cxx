@@ -15,8 +15,8 @@
 #include "SIREN/detector/PolynomialDistribution1D.h"
 #include "SIREN/detector/ExponentialDistribution1D.h"
 
-using namespace SI::math;
-using namespace SI::detector;
+using namespace siren::math;
+using namespace siren::detector;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);

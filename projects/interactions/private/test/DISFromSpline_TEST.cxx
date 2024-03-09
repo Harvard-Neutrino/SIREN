@@ -17,9 +17,9 @@
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/InteractionSignature.h"
 
-using namespace SI::interactions;
-using namespace SI::dataclasses;
-using namespace SI::utilities;
+using namespace siren::interactions;
+using namespace siren::dataclasses;
+using namespace siren::utilities;
 
 TEST(DISFromSpline, Constructor)
 {
@@ -53,7 +53,7 @@ TEST(DISFromSpline, Constructor)
     event.primary_momentum[2] = y * energy;
     event.primary_momentum[3] = z * energy;
 
-    SI::dataclasses::CrossSectionDistributionRecord xsec_record(event);
+    siren::dataclasses::CrossSectionDistributionRecord xsec_record(event);
     xs->SampleFinalState(xsec_record, rand);
     xsec_record.Finalize(event);
     cereal::JSONOutputArchive output(std::cout);

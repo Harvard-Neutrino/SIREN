@@ -37,14 +37,14 @@
 
 #define AUSTIN
 
-using namespace SI::math;
-using namespace SI::geometry;
-using namespace SI::detector;
-using namespace SI::injection;
-using namespace SI::dataclasses;
-using namespace SI::interactions;
-using namespace SI::utilities;
-using namespace SI::distributions;
+using namespace siren::math;
+using namespace siren::geometry;
+using namespace siren::detector;
+using namespace siren::injection;
+using namespace siren::dataclasses;
+using namespace siren::interactions;
+using namespace siren::utilities;
+using namespace siren::distributions;
 
 bool z_samp = false;
 bool in_invGeV = true;

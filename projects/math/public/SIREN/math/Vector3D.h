@@ -35,7 +35,7 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-namespace SI {
+namespace siren {
 namespace math {
 
 class Matrix3D;
@@ -193,9 +193,9 @@ Vector3D vector_product(const Vector3D& vec1, const Vector3D& vec2);
 Vector3D cross_product(const Vector3D& vec1, const Vector3D& vec2);
 
 } // namespace math
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::math::Vector3D, 0);
+CEREAL_CLASS_VERSION(siren::math::Vector3D, 0);
 
 #endif // LI_Vector3D_H
 

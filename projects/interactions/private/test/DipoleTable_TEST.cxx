@@ -14,7 +14,7 @@
 #include "SIREN/Random.h"
 #include "SIREN/Particle.h"
 
-using namespace SIREN;
+using namespace sirenREN;
 
 std::vector<double> logspace(double x_min, double x_max, unsigned int n_edges) {
     double log_x_min = log10(x_min);

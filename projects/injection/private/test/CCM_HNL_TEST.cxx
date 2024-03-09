@@ -37,14 +37,14 @@
 #include "SIREN/interactions/Decay.h"
 #include "SIREN/interactions/NeutrissimoDecay.h"
 
-using namespace SI::math;
-using namespace SI::geometry;
-using namespace SI::detector;
-using namespace SI::injection;
-using namespace SI::dataclasses;
-using namespace SI::interactions;
-using namespace SI::utilities;
-using namespace SI::distributions;
+using namespace siren::math;
+using namespace siren::geometry;
+using namespace siren::detector;
+using namespace siren::injection;
+using namespace siren::dataclasses;
+using namespace siren::interactions;
+using namespace siren::utilities;
+using namespace siren::distributions;
 
 using ParticleType = ParticleType;
 
@@ -234,12 +234,12 @@ TEST(Injector, Generation)
 
     // Primary direction: cone
     double opening_angle = std::atan(2./23.); // slightly larger than CCM xsec
-    SI::math::Vector3D upper_target_origin(0, 0, 0.1375);
-    SI::math::Vector3D lower_target_origin(0, 0, -0.241);
-    SI::math::Vector3D detector_origin(23, 0, -0.65);
-    SI::math::Vector3D upper_dir = detector_origin - upper_target_origin;
+    siren::math::Vector3D upper_target_origin(0, 0, 0.1375);
+    siren::math::Vector3D lower_target_origin(0, 0, -0.241);
+    siren::math::Vector3D detector_origin(23, 0, -0.65);
+    siren::math::Vector3D upper_dir = detector_origin - upper_target_origin;
     upper_dir.normalize();
-    SI::math::Vector3D lower_dir = detector_origin - lower_target_origin;
+    siren::math::Vector3D lower_dir = detector_origin - lower_target_origin;
     lower_dir.normalize();
     std::shared_ptr<PrimaryDirectionDistribution> upper_inj_ddist = std::make_shared<Cone>(upper_dir,opening_angle);
     std::shared_ptr<PrimaryDirectionDistribution> lower_inj_ddist = std::make_shared<Cone>(lower_dir,opening_angle);
@@ -280,7 +280,7 @@ TEST(Injector, Generation)
     secondary_decay_phys_process->SetInteractions(secondary_interactions);
 
     // Secondary physical distribution
-    std::shared_ptr<const SI::geometry::Geometry> fid_vol = NULL;
+    std::shared_ptr<const siren::geometry::Geometry> fid_vol = NULL;
     for(auto sector : detector_model->GetSectors()) {
       if(sector.name=="ccm_inner_argon") fid_vol = sector.geo;
     }
@@ -295,8 +295,8 @@ TEST(Injector, Generation)
     std::shared_ptr<Injector> lower_injector = std::make_shared<Injector>(events_to_inject, detector_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
 
     // Set stopping condition
-    std::function<bool(std::shared_ptr<SI::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition =
-      [&] (std::shared_ptr<SI::dataclasses::InteractionTreeDatum> datum, size_t i) {
+    std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition =
+      [&] (std::shared_ptr<siren::dataclasses::InteractionTreeDatum> datum, size_t i) {
         if(datum->depth() >=1) return true;
         return false;
     };

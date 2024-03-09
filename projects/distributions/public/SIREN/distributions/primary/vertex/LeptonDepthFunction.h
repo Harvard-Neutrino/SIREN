@@ -18,7 +18,7 @@
 #include "SIREN/dataclasses/ParticleType.h"
 #include "SIREN/distributions/primary/vertex/DepthFunction.h"
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 class LeptonDepthFunction : virtual public DepthFunction {
@@ -30,10 +30,10 @@ private:
     double tau_beta = 2.6315789473684212e-7;
     double scale = 1.0;
     double max_depth = 3e7;
-    std::set<SI::dataclasses::ParticleType> tau_primaries = {SI::dataclasses::ParticleType::NuTau, SI::dataclasses::ParticleType::NuTauBar};
+    std::set<siren::dataclasses::ParticleType> tau_primaries = {siren::dataclasses::ParticleType::NuTau, siren::dataclasses::ParticleType::NuTauBar};
 public:
     LeptonDepthFunction();
-    double GetLeptonDepthFunctionReturnValue(SI::dataclasses::ParticleType const & primary_type, double energy) const; 
+    double GetLeptonDepthFunctionReturnValue(siren::dataclasses::ParticleType const & primary_type, double energy) const; 
     void SetMuParams(double mu_alpha, double mu_beta);
     void SetTauParams(double tau_alpha, double tau_beta);
     void SetScale(double scale);
@@ -44,7 +44,7 @@ public:
     double GetTauBeta() const;
     double GetScale() const;
     double GetMaxDepth() const;
-    virtual double operator()(SI::dataclasses::ParticleType const & primary_type, double energy) const override;
+    virtual double operator()(siren::dataclasses::ParticleType const & primary_type, double energy) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -80,9 +80,9 @@ protected:
 
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::distributions::LeptonDepthFunction, 0);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::DepthFunction, SI::distributions::LeptonDepthFunction);
+CEREAL_CLASS_VERSION(siren::distributions::LeptonDepthFunction, 0);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::DepthFunction, siren::distributions::LeptonDepthFunction);
 
 #endif // LI_LeptonDepthFunction_H

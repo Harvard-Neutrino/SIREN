@@ -20,17 +20,17 @@
 #include "SIREN/detector/DensityDistribution1D.h"
 #include "SIREN/detector/ExponentialDistribution1D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 typedef DensityDistribution1D<RadialAxis1D,ExponentialDistribution1D> RadialAxisExponentialDensityDistribution;
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::RadialAxisExponentialDensityDistribution, 0);
-CEREAL_REGISTER_TYPE(SI::detector::RadialAxisExponentialDensityDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::detector::DensityDistribution, SI::detector::RadialAxisExponentialDensityDistribution);
+CEREAL_CLASS_VERSION(siren::detector::RadialAxisExponentialDensityDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::detector::RadialAxisExponentialDensityDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::RadialAxisExponentialDensityDistribution);
 
 #endif // LI_RadialAxisExponentialDensityDistribution.h
 

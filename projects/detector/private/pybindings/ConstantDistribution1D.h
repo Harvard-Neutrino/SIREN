@@ -13,7 +13,7 @@
 
 void register_ConstantDistribution1D(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::detector;
+    using namespace siren::detector;
 
     class_<ConstantDistribution1D, std::shared_ptr<ConstantDistribution1D>>(m, "ConstantDistribution1D")
         .def(init<>())

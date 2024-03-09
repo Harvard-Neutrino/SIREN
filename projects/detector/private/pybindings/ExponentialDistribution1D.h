@@ -13,7 +13,7 @@
 
 void register_ExponentialDistribution1D(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::detector;
+    using namespace siren::detector;
 
     class_<ExponentialDistribution1D, std::shared_ptr<ExponentialDistribution1D>>(m, "ExponentialDistribution1D")
         .def(init<>())

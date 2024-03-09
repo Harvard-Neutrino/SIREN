@@ -10,8 +10,8 @@
 
 void register_Coordinates(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::math;
-    using namespace SI::detector;
+    using namespace siren::math;
+    using namespace siren::detector;
 
     // Register the NamedTypes
 

@@ -25,7 +25,7 @@
 #include "SIREN/serialization/array.h"
 #include "SIREN/dataclasses/Particle.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 class MaterialModel {
@@ -34,7 +34,7 @@ class MaterialModel {
 public:
     static const std::map<std::tuple<int, int, int, int>, double> atomic_masses;
     struct Component {
-        SI::dataclasses::ParticleType type = SI::dataclasses::ParticleType::unknown;
+        siren::dataclasses::ParticleType type = siren::dataclasses::ParticleType::unknown;
         int strange_count = 0;
         int neutron_count = 0;
         int nucleon_count = 0;
@@ -42,7 +42,7 @@ public:
         double molar_mass = 0;
         bool is_atom = true;
         Component() {}
-        Component(SI::dataclasses::ParticleType type);
+        Component(siren::dataclasses::ParticleType type);
         bool operator==(Component const & component) const;
         template<class Archive>
         void serialize(Archive & archive, std::uint32_t const version) {
@@ -85,9 +85,9 @@ private:
     std::map<std::string, int> material_ids_;
 
     std::vector<std::vector<MaterialComponent>> material_components_;
-    std::map<std::pair<int, SI::dataclasses::ParticleType>, MaterialComponent> material_components_by_id_;
+    std::map<std::pair<int, siren::dataclasses::ParticleType>, MaterialComponent> material_components_by_id_;
     std::vector<double> material_radiation_length_;
-    std::map<std::pair<int, SI::dataclasses::ParticleType>, double> component_radiation_length_;
+    std::map<std::pair<int, siren::dataclasses::ParticleType>, double> component_radiation_length_;
 public:
     bool operator==(MaterialModel const & component) const;
     template<class Archive>
@@ -115,46 +115,46 @@ public:
     void AddModelFiles(std::vector<std::string> const & matratios);
     void AddModelFile(std::string matratio);
 
-    std::vector<SI::dataclasses::ParticleType> GetMaterialTargets(int material_id) const;
+    std::vector<siren::dataclasses::ParticleType> GetMaterialTargets(int material_id) const;
     double GetMaterialRadiationLength(int material_id) const;
     std::string GetMaterialName(int material_id) const;
     int GetMaterialId(std::string const & material_name) const;
     bool HasMaterial(std::string const & material_name) const;
     bool HasMaterial(int material_id) const;
 
-    double GetTargetMassFraction(int material_id, SI::dataclasses::ParticleType) const;
-    double GetTargetParticleFraction(int material_id, SI::dataclasses::ParticleType) const;
-    std::vector<double> GetTargetMassFraction(int material_id, std::vector<SI::dataclasses::ParticleType> const &) const;
-    std::vector<double> GetTargetParticleFraction(int material_id, std::vector<SI::dataclasses::ParticleType> const &) const;
+    double GetTargetMassFraction(int material_id, siren::dataclasses::ParticleType) const;
+    double GetTargetParticleFraction(int material_id, siren::dataclasses::ParticleType) const;
+    std::vector<double> GetTargetMassFraction(int material_id, std::vector<siren::dataclasses::ParticleType> const &) const;
+    std::vector<double> GetTargetParticleFraction(int material_id, std::vector<siren::dataclasses::ParticleType> const &) const;
 
-    template<typename Iterator, typename = typename std::enable_if<std::is_same<SI::dataclasses::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<siren::dataclasses::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
     std::vector<double> GetTargetMassFraction(int material_id, Iterator begin, Iterator end) const;
-    template<typename Iterator, typename = typename std::enable_if<std::is_same<SI::dataclasses::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<siren::dataclasses::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
     std::vector<double> GetTargetParticleFraction(int material_id, Iterator begin, Iterator end) const;
 
-    std::vector<double> GetTargetRadiationFraction(int material_id, std::vector<SI::dataclasses::ParticleType> const &) const;
-    template<typename Iterator, typename = typename std::enable_if<std::is_same<SI::dataclasses::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
+    std::vector<double> GetTargetRadiationFraction(int material_id, std::vector<siren::dataclasses::ParticleType> const &) const;
+    template<typename Iterator, typename = typename std::enable_if<std::is_same<siren::dataclasses::ParticleType, typename Iterator::value_type>::value, Iterator>::type>
     std::vector<double> GetTargetRadiationFraction(int material_id, Iterator begin, Iterator end) const;
 
-    std::vector<SI::dataclasses::ParticleType> GetMaterialConstituents(int material_id) const;
+    std::vector<siren::dataclasses::ParticleType> GetMaterialConstituents(int material_id) const;
 private:
     double ComputeMaterialRadiationLength(int id) const;
 public:
     static int GetNucleonContent(int code, int & num_strange, int & num_neutrons, int & num_protons, int & num_nucleons);
-    static double GetMolarMass(SI::dataclasses::ParticleType particle);
-    static int GetStrangeCount(SI::dataclasses::ParticleType particle);
-    static int GetNucleonCount(SI::dataclasses::ParticleType particle);
-    static int GetNeutronCount(SI::dataclasses::ParticleType particle);
-    static int GetProtonCount(SI::dataclasses::ParticleType particle);
+    static double GetMolarMass(siren::dataclasses::ParticleType particle);
+    static int GetStrangeCount(siren::dataclasses::ParticleType particle);
+    static int GetNucleonCount(siren::dataclasses::ParticleType particle);
+    static int GetNeutronCount(siren::dataclasses::ParticleType particle);
+    static int GetProtonCount(siren::dataclasses::ParticleType particle);
     static int GetEmpericalNuclearBindingEnergy(int num_strange, int num_neutrons, int num_protons, int num_nucleons);
 };
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::MaterialModel, 0);
-CEREAL_CLASS_VERSION(SI::detector::MaterialModel::Component, 0);
-CEREAL_CLASS_VERSION(SI::detector::MaterialModel::MaterialComponent, 0);
+CEREAL_CLASS_VERSION(siren::detector::MaterialModel, 0);
+CEREAL_CLASS_VERSION(siren::detector::MaterialModel::Component, 0);
+CEREAL_CLASS_VERSION(siren::detector::MaterialModel::MaterialComponent, 0);
 
 #include "SIREN/detector/MaterialModel.tcc"
 

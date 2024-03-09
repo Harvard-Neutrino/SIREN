@@ -7,7 +7,7 @@
 
 #include "SIREN/math/Polynomial.h"
 
-using namespace SI::math;
+using namespace siren::math;
 
 double f1(double x){
     return pow(x, 3) - 4;

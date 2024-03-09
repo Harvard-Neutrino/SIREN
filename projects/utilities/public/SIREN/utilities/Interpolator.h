@@ -25,7 +25,7 @@
 #include <cereal/types/utility.hpp>
 
 
-namespace SI {
+namespace siren {
 namespace utilities {
 
 template<typename T>
@@ -703,14 +703,14 @@ public:
 };
 
 } // namespace utilities
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::utilities::TableData1D<double>, 0);
-CEREAL_CLASS_VERSION(SI::utilities::TableData2D<double>, 0);
-CEREAL_CLASS_VERSION(SI::utilities::IndexFinderRegular<double>, 0);
-CEREAL_CLASS_VERSION(SI::utilities::IndexFinderIrregular<double>, 0);
-CEREAL_CLASS_VERSION(SI::utilities::Indexer1D<double>, 0);
-CEREAL_CLASS_VERSION(SI::utilities::Interpolator1D<double>, 0);
-CEREAL_CLASS_VERSION(SI::utilities::Interpolator2D<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::TableData1D<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::TableData2D<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::IndexFinderRegular<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::IndexFinderIrregular<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::Indexer1D<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::Interpolator1D<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::Interpolator2D<double>, 0);
 
 #endif // LI_Interpolator_H

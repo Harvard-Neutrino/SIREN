@@ -20,7 +20,7 @@
 #include "SIREN/detector/DensityDistribution1D.h"
 #include "SIREN/detector/PolynomialDistribution1D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 /*
@@ -76,7 +76,7 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
         std::function<double(double)> f = [&](double x)->double {
             return Evaluate(xi+x*direction);
         };
-        return SI::utilities::rombergIntegrate(f, 0, distance, 1e-6);
+        return siren::utilities::rombergIntegrate(f, 0, distance, 1e-6);
     }
 
     double Integral(const math::Vector3D& xi,
@@ -107,8 +107,8 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
             if(std::isinf(init)) {
                 init = dF(0.0);
             }
-            res = SI::math::NewtonRaphson(F, dF, 0, max_distance, init);
-        } catch(SI::math::MathException& e) {
+            res = siren::math::NewtonRaphson(F, dF, 0, max_distance, init);
+        } catch(siren::math::MathException& e) {
             res = -1;
         }
         return res;
@@ -134,8 +134,8 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
             if(std::isinf(init)) {
                 init = dF(0.0);
             }
-            res = SI::math::NewtonRaphson(F, dF, 0, max_distance, init);
-        } catch(SI::math::MathException& e) {
+            res = siren::math::NewtonRaphson(F, dF, 0, max_distance, init);
+        } catch(siren::math::MathException& e) {
             res = -1;
         }
         return res;
@@ -161,10 +161,10 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
 typedef DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D> RadialAxisPolynomialDensityDistribution;
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::RadialAxisPolynomialDensityDistribution, 0);
-CEREAL_REGISTER_TYPE(SI::detector::RadialAxisPolynomialDensityDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::detector::DensityDistribution, SI::detector::RadialAxisPolynomialDensityDistribution);
+CEREAL_CLASS_VERSION(siren::detector::RadialAxisPolynomialDensityDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::detector::RadialAxisPolynomialDensityDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::RadialAxisPolynomialDensityDistribution);
 
 #endif // LI_RadialAxisPolynomialDensityDistribution.h

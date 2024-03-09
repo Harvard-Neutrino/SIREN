@@ -14,14 +14,14 @@
 
 #include "SIREN/distributions/primary/energy/PrimaryEnergyDistribution.h"
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace detector { class DetectorModel; } }
-namespace SI { namespace distributions { class PrimaryInjectionDistribution; } }
-namespace SI { namespace distributions { class WeightableDistribution; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace detector { class DetectorModel; } }
+namespace siren { namespace distributions { class PrimaryInjectionDistribution; } }
+namespace siren { namespace distributions { class WeightableDistribution; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 class Monoenergetic : virtual public PrimaryEnergyDistribution {
@@ -33,8 +33,8 @@ private:
 public:
     Monoenergetic(double gen_energy);
     double pdf(double energy) const;
-    virtual double SampleEnergy(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const override;
+    virtual double SampleEnergy(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     template<typename Archive>
@@ -63,10 +63,10 @@ protected:
 };
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::distributions::Monoenergetic, 0);
-CEREAL_REGISTER_TYPE(SI::distributions::Monoenergetic);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::PrimaryEnergyDistribution, SI::distributions::Monoenergetic);
+CEREAL_CLASS_VERSION(siren::distributions::Monoenergetic, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::Monoenergetic);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryEnergyDistribution, siren::distributions::Monoenergetic);
 
 #endif // LI_Monoenergetic_H

@@ -16,12 +16,12 @@
 
 #include "SIREN/dataclasses/Particle.h"
 
-namespace SI {
+namespace siren {
 namespace dataclasses {
 
 struct DecaySignature {
-    SI::dataclasses::ParticleType primary_type;
-    std::vector<SI::dataclasses::ParticleType> secondary_types;
+    siren::dataclasses::ParticleType primary_type;
+    std::vector<siren::dataclasses::ParticleType> secondary_types;
 
     bool operator==(DecaySignature const & other) const;
     friend std::ostream& operator<<(std::ostream& os, DecaySignature const& signature);
@@ -37,8 +37,8 @@ struct DecaySignature {
 };
 
 } // namespace dataclasses
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::dataclasses::DecaySignature, 0);
+CEREAL_CLASS_VERSION(siren::dataclasses::DecaySignature, 0);
 
 #endif // LI_DecaySignature_H

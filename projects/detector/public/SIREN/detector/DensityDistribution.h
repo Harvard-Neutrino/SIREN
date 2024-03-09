@@ -42,7 +42,7 @@
 
 #include "SIREN/math/Vector3D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 class DensityException : public std::exception {
@@ -94,9 +94,9 @@ public:
 };
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::DensityDistribution, 0);
+CEREAL_CLASS_VERSION(siren::detector::DensityDistribution, 0);
 
 #endif // LI_DensityDistribution_H
 

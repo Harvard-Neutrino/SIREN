@@ -14,9 +14,9 @@
 
 #include "SIREN/distributions/primary/vertex/RangeFunction.h"
 
-namespace SI { namespace dataclasses { enum class ParticleType : int32_t; } }
+namespace siren { namespace dataclasses { enum class ParticleType : int32_t; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 class DecayRangeFunction : virtual public RangeFunction {
@@ -31,9 +31,9 @@ private:
 public:
     DecayRangeFunction(double particle_mass, double decay_width, double multiplier, double max_distance);
     static double DecayLength(double mass, double width, double energy);
-    double operator()(SI::dataclasses::ParticleType const & primary_type, double energy) const override;
-    double DecayLength(SI::dataclasses::ParticleType const & primary_type, double energy) const;
-    double Range(SI::dataclasses::ParticleType const & primary_type, double energy) const;
+    double operator()(siren::dataclasses::ParticleType const & primary_type, double energy) const override;
+    double DecayLength(siren::dataclasses::ParticleType const & primary_type, double energy) const;
+    double Range(siren::dataclasses::ParticleType const & primary_type, double energy) const;
     double Multiplier() const;
     double ParticleMass() const;
     double DecayWidth() const;
@@ -73,10 +73,10 @@ protected:
 };
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::distributions::DecayRangeFunction, 0);
-CEREAL_REGISTER_TYPE(SI::distributions::DecayRangeFunction);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::RangeFunction, SI::distributions::DecayRangeFunction);
+CEREAL_CLASS_VERSION(siren::distributions::DecayRangeFunction, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::DecayRangeFunction);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::RangeFunction, siren::distributions::DecayRangeFunction);
 
 #endif // LI_DecayRangeFunction_H

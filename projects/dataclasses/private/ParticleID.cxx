@@ -6,7 +6,7 @@
 #include <ostream>
 #include <unistd.h>
 
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::ParticleID const& record) {
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::ParticleID const& record) {
     os << "ParticleID (" << &record << ")\n";
     os << "IDSet: " << record.id_set << "\n";
     os << "MajorID: " << record.major_id << "\n";
@@ -15,7 +15,7 @@ std::ostream& operator<<(std::ostream& os, SI::dataclasses::ParticleID const& re
     return os;
 }
 
-namespace SI {
+namespace siren {
 namespace dataclasses {
 
 namespace {
@@ -102,4 +102,4 @@ ParticleID ParticleID::GenerateID() {
 }
 
 } // namespace dataclasses
-} // namespace SI
+} // namespace siren

@@ -5,13 +5,13 @@
 #include <cassert>
 #include <ostream>  // for operator<<, basic_ostream, char_traits, endl, ost...
 
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::InteractionRecord const& record);
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::PrimaryDistributionRecord const& record);
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::SecondaryParticleRecord const& record);
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::CrossSectionDistributionRecord const& record);
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::SecondaryDistributionRecord const& record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::InteractionRecord const& record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::PrimaryDistributionRecord const& record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryParticleRecord const& record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::CrossSectionDistributionRecord const& record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryDistributionRecord const& record);
 
-namespace SI {
+namespace siren {
 namespace dataclasses {
 
 PrimaryDistributionRecord::PrimaryDistributionRecord(ParticleType type) :
@@ -848,9 +848,9 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
 }
 
 } // namespace dataclasses
-} // namespace SI
+} // namespace siren
 
-std::ostream & operator<<(std::ostream & os, SI::dataclasses::PrimaryDistributionRecord const & record) {
+std::ostream & operator<<(std::ostream & os, siren::dataclasses::PrimaryDistributionRecord const & record) {
     std::stringstream ss;
     ss << "PrimaryDistributionRecord (" << &record << ") ";
     os << ss.str() << '\n';
@@ -927,7 +927,7 @@ std::ostream & operator<<(std::ostream & os, SI::dataclasses::PrimaryDistributio
     return os;
 }
 
-std::ostream & operator<<(std::ostream & os, SI::dataclasses::CrossSectionDistributionRecord const & record) {
+std::ostream & operator<<(std::ostream & os, siren::dataclasses::CrossSectionDistributionRecord const & record) {
     std::stringstream ss;
     ss << "CrossSectionDistributionRecord (" << &record << ") ";
     os << ss.str() << '\n';
@@ -999,7 +999,7 @@ std::ostream & operator<<(std::ostream & os, SI::dataclasses::CrossSectionDistri
     return os;
 }
 
-std::ostream & operator<<(std::ostream & os, SI::dataclasses::SecondaryParticleRecord const & record) {
+std::ostream & operator<<(std::ostream & os, siren::dataclasses::SecondaryParticleRecord const & record) {
     std::stringstream ss;
     ss << "SecondaryParticleRecord (" << &record << ") ";
     os << ss.str() << '\n';
@@ -1060,7 +1060,7 @@ std::ostream & operator<<(std::ostream & os, SI::dataclasses::SecondaryParticleR
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::SecondaryDistributionRecord const& record) {
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryDistributionRecord const& record) {
     std::stringstream ss;
     ss << "SecondaryDistributionRecord (" << &record << ") ";
     os << ss.str() << '\n';
@@ -1099,7 +1099,7 @@ std::ostream& operator<<(std::ostream& os, SI::dataclasses::SecondaryDistributio
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::InteractionRecord const& record) {
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::InteractionRecord const& record) {
     std::stringstream ss;
     ss << "InteractionRecord (" << &record << ") ";
     os << ss.str() << '\n';

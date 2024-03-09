@@ -16,42 +16,42 @@
 #include "SIREN/math/Vector3D.h"                         // for Vec...
 #include "SIREN/utilities/Constants.h"                   // for cm
 
-namespace SI {
+namespace siren {
 namespace injection {
 
 using detector::DetectorPosition;
 using detector::DetectorDirection;
 
-double CrossSectionProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) {
-    std::set<SI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
-    std::set<SI::dataclasses::ParticleType> available_targets_list = detector_model->GetAvailableTargets(DetectorPosition(record.interaction_vertex));
-    std::set<SI::dataclasses::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
+double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) {
+    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<siren::dataclasses::ParticleType> available_targets_list = detector_model->GetAvailableTargets(DetectorPosition(record.interaction_vertex));
+    std::set<siren::dataclasses::ParticleType> available_targets(available_targets_list.begin(), available_targets_list.end());
 
-    SI::math::Vector3D interaction_vertex(
+    siren::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    SI::math::Vector3D primary_direction(
+    siren::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    SI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
 
     double total_prob = 0.0;
     // double selected_prob = 0.0;
     double selected_final_state = 0.0;
-    SI::dataclasses::InteractionRecord fake_record = record;
+    siren::dataclasses::InteractionRecord fake_record = record;
     // first let's check decays
-    std::vector<std::shared_ptr<SI::interactions::Decay>> decays = interactions->GetDecays();
+    std::vector<std::shared_ptr<siren::interactions::Decay>> decays = interactions->GetDecays();
     for(auto const & decay : decays) {
-      std::vector<SI::dataclasses::InteractionSignature> signatures = decay->GetPossibleSignaturesFromParent(record.signature.primary_type);
+      std::vector<siren::dataclasses::InteractionSignature> signatures = decay->GetPossibleSignaturesFromParent(record.signature.primary_type);
       for(auto const & signature : signatures) {
         fake_record.signature = signature;
         // fake_prob has units of 1/cm to match cross section probabilities
-        double decay_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/SI::utilities::Constants::cm);
+        double decay_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
         total_prob += decay_prob;
         if(signature == record.signature) {
             selected_final_state += decay_prob * decay->FinalStateProbability(record);
@@ -64,10 +64,10 @@ double CrossSectionProbability(std::shared_ptr<SI::detector::DetectorModel const
             // Get target density
             double target_density = detector_model->GetParticleDensity(intersections, DetectorPosition(interaction_vertex), target);
             // Loop over cross sections that have this target
-            std::vector<std::shared_ptr<SI::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
+            std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
             for(auto const & cross_section : target_cross_sections) {
                 // Loop over cross section signatures with the same target
-                std::vector<SI::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
+                std::vector<siren::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
                 for(auto const & signature : signatures) {
                     fake_record.signature = signature;
                     fake_record.target_mass = detector_model->GetTargetMass(target);
@@ -87,5 +87,5 @@ double CrossSectionProbability(std::shared_ptr<SI::detector::DetectorModel const
 }
 
 } // namespace injection
-} // namespace SI
+} // namespace siren
 

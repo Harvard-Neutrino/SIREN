@@ -16,7 +16,7 @@
 #include "SIREN/dataclasses/InteractionSignature.h"
 #include "SIREN/dataclasses/InteractionRecord.h"
 
-using namespace SI::dataclasses;
+using namespace siren::dataclasses;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);

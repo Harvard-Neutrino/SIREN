@@ -19,33 +19,33 @@
 #include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "SIREN/math/Vector3D.h"
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace detector { class DetectorModel; } }
-namespace SI { namespace distributions { class PrimaryInjectionDistribution; } }
-namespace SI { namespace distributions { class WeightableDistribution; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace detector { class DetectorModel; } }
+namespace siren { namespace distributions { class PrimaryInjectionDistribution; } }
+namespace siren { namespace distributions { class WeightableDistribution; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 class PointSourcePositionDistribution : virtual public VertexPositionDistribution {
 friend cereal::access;
 private:
-    SI::math::Vector3D origin;
+    siren::math::Vector3D origin;
     double max_distance;
-    std::set<SI::dataclasses::ParticleType> target_types;
+    std::set<siren::dataclasses::ParticleType> target_types;
 
-    SI::math::Vector3D SampleFromDisk(std::shared_ptr<SI::utilities::LI_random> rand, SI::math::Vector3D const & dir) const;
+    siren::math::Vector3D SampleFromDisk(std::shared_ptr<siren::utilities::LI_random> rand, siren::math::Vector3D const & dir) const;
 
-    std::tuple<SI::math::Vector3D, SI::math::Vector3D> SamplePosition(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const override;
+    std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePosition(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
 public:
-    virtual double GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     PointSourcePositionDistribution();
     PointSourcePositionDistribution(const PointSourcePositionDistribution &) = default;
-    PointSourcePositionDistribution(SI::math::Vector3D origin, double max_distance, std::set<SI::dataclasses::ParticleType> target_types);
+    PointSourcePositionDistribution(siren::math::Vector3D origin, double max_distance, std::set<siren::dataclasses::ParticleType> target_types);
     std::string Name() const override;
-    virtual std::tuple<SI::math::Vector3D, SI::math::Vector3D> InjectionBounds(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & interaction) const override;
+    virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -61,9 +61,9 @@ public:
     template<typename Archive>
     static void load_and_construct(Archive & archive, cereal::construct<PointSourcePositionDistribution> & construct, std::uint32_t const version) {
         if(version == 0) {
-            SI::math::Vector3D r;
+            siren::math::Vector3D r;
             double l;
-            std::set<SI::dataclasses::ParticleType> t;
+            std::set<siren::dataclasses::ParticleType> t;
             archive(::cereal::make_nvp("Origin", r));
             archive(::cereal::make_nvp("MaxDistance", l));
             archive(::cereal::make_nvp("TargetTypes", t));
@@ -79,10 +79,10 @@ protected:
 };
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::distributions::PointSourcePositionDistribution, 0);
-CEREAL_REGISTER_TYPE(SI::distributions::PointSourcePositionDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::VertexPositionDistribution, SI::distributions::PointSourcePositionDistribution);
+CEREAL_CLASS_VERSION(siren::distributions::PointSourcePositionDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::PointSourcePositionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::VertexPositionDistribution, siren::distributions::PointSourcePositionDistribution);
 
 #endif // LI_PointSourcePositionDistribution_H

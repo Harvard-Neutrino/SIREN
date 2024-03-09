@@ -25,42 +25,42 @@
 
 #include "SIREN/dataclasses/Particle.h"  // for Particle
 
-namespace SI { namespace interactions { class CrossSection; } }
-namespace SI { namespace interactions { class Decay; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace interactions { class CrossSection; } }
+namespace siren { namespace interactions { class Decay; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 class InteractionCollection {
 private:
-    SI::dataclasses::ParticleType primary_type;
+    siren::dataclasses::ParticleType primary_type;
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::vector<std::shared_ptr<Decay>> decays;
-    std::map<SI::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>> cross_sections_by_target;
-    std::set<SI::dataclasses::ParticleType> target_types;
+    std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>> cross_sections_by_target;
+    std::set<siren::dataclasses::ParticleType> target_types;
     static const std::vector<std::shared_ptr<CrossSection>> empty;
     void InitializeTargetTypes();
 public:
     InteractionCollection();
     virtual ~InteractionCollection() {};
-    InteractionCollection(SI::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
-    InteractionCollection(SI::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays);
-    InteractionCollection(SI::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays);
+    InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
+    InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays);
+    InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays);
     bool operator==(InteractionCollection const & other) const;
     std::vector<std::shared_ptr<CrossSection>> const & GetCrossSections() const {return cross_sections;}
     std::vector<std::shared_ptr<Decay>> const & GetDecays() const {return decays;}
     bool const HasCrossSections() const {return cross_sections.size() > 0;}
     bool const HasDecays() const {return decays.size() > 0;}
-    std::vector<std::shared_ptr<CrossSection>> const & GetCrossSectionsForTarget(SI::dataclasses::ParticleType p) const;
-    std::map<SI::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & GetCrossSectionsByTarget() const {
+    std::vector<std::shared_ptr<CrossSection>> const & GetCrossSectionsForTarget(siren::dataclasses::ParticleType p) const;
+    std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>> const & GetCrossSectionsByTarget() const {
         return cross_sections_by_target;
     };
-    std::set<SI::dataclasses::ParticleType> const & TargetTypes() const {
+    std::set<siren::dataclasses::ParticleType> const & TargetTypes() const {
         return target_types;
     };
-    double TotalDecayWidth(SI::dataclasses::InteractionRecord const & record) const;
-    double TotalDecayLength(SI::dataclasses::InteractionRecord const & record) const;
+    double TotalDecayWidth(siren::dataclasses::InteractionRecord const & record) const;
+    double TotalDecayLength(siren::dataclasses::InteractionRecord const & record) const;
     virtual bool MatchesPrimary(dataclasses::InteractionRecord const & record) const;
 public:
     template<class Archive>
@@ -87,8 +87,8 @@ public:
 };
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::interactions::InteractionCollection, 0);
+CEREAL_CLASS_VERSION(siren::interactions::InteractionCollection, 0);
 
 #endif // LI_InteractionCollection_H

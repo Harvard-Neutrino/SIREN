@@ -20,7 +20,7 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-namespace SI {
+namespace siren {
 namespace dataclasses {
 
 struct InteractionTreeDatum {
@@ -60,7 +60,7 @@ struct InteractionTree {
 };
 
 } // namespace dataclasses
-} // namespace SI
+} // namespace siren
 
 #endif // LI_InteractionTree_H
 

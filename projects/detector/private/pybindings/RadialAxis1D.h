@@ -13,12 +13,12 @@
 
 void register_RadialAxis1D(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::detector;
+    using namespace siren::detector;
 
     class_<RadialAxis1D, std::shared_ptr<RadialAxis1D>>(m, "RadialAxis1D")
         .def(init<>())
-        .def(init<SI::math::Vector3D>())
-        .def(init<SI::math::Vector3D, SI::math::Vector3D>())
+        .def(init<siren::math::Vector3D>())
+        .def(init<siren::math::Vector3D, siren::math::Vector3D>())
         .def(self == self)
         .def(self != self)
         .def("_compare", &RadialAxis1D::compare)

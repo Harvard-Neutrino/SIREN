@@ -17,14 +17,14 @@
 #include "SIREN/distributions/primary/energy/PrimaryEnergyDistribution.h"
 #include "SIREN/utilities/Interpolator.h"
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace detector { class DetectorModel; } }
-namespace SI { namespace distributions { class PrimaryInjectionDistribution; } }
-namespace SI { namespace distributions { class WeightableDistribution; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace detector { class DetectorModel; } }
+namespace siren { namespace distributions { class PrimaryInjectionDistribution; } }
+namespace siren { namespace distributions { class WeightableDistribution; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 class TabulatedFluxDistribution : virtual public PrimaryEnergyDistribution {
@@ -38,8 +38,8 @@ private:
     double energyMax;
     bool bounds_set;
     std::string fluxTableFilename;
-    SI::utilities::Interpolator1D<double> fluxTable;
-    SI::utilities::Interpolator1D<double> inverseCdfTable;
+    siren::utilities::Interpolator1D<double> fluxTable;
+    siren::utilities::Interpolator1D<double> inverseCdfTable;
     double integral;
     std::vector<double> cdf;
     std::vector<double> energy_nodes;
@@ -57,8 +57,8 @@ public:
     std::vector<double> GetCDF() const;
     std::vector<double> GetEnergyNodes() const;
     std::vector<double> GetCDFEnergyNodes() const;
-    double SampleEnergy(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const override;
+    double SampleEnergy(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);
     TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
     TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false);
@@ -95,11 +95,11 @@ protected:
 };
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::distributions::TabulatedFluxDistribution, 0);
-CEREAL_REGISTER_TYPE(SI::distributions::TabulatedFluxDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::PrimaryEnergyDistribution, SI::distributions::TabulatedFluxDistribution);
+CEREAL_CLASS_VERSION(siren::distributions::TabulatedFluxDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::TabulatedFluxDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryEnergyDistribution, siren::distributions::TabulatedFluxDistribution);
 
 #endif // LI_TabulatedFluxDistribution_H
 

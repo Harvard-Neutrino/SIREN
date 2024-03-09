@@ -2,7 +2,7 @@
 
 #include "SIREN/math/Vector3D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -25,5 +25,5 @@ bool Axis1D::operator!=(const Axis1D& axis) const {
     return !(*this == axis);
 }
 
-} // namespace SI
+} // namespace siren
 } // namespace detector

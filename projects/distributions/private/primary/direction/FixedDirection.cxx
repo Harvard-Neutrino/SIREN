@@ -9,24 +9,24 @@
 #include "SIREN/distributions/Distributions.h"    // for InjectionD...
 #include "SIREN/math/Vector3D.h"                  // for Vector3D
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace detector { class DetectorModel; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace detector { class DetectorModel; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 //---------------
 // class FixedDirection : PrimaryDirectionDistribution
 //---------------
-SI::math::Vector3D FixedDirection::SampleDirection(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
+siren::math::Vector3D FixedDirection::SampleDirection(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     return dir;
 }
 
-double FixedDirection::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
-    SI::math::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+double FixedDirection::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D event_dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     event_dir.normalize();
-    if(abs(1.0 - SI::math::scalar_product(dir, event_dir)) < 1e-9)
+    if(abs(1.0 - siren::math::scalar_product(dir, event_dir)) < 1e-9)
         return 1.0;
     else
         return 0.0;
@@ -50,12 +50,12 @@ bool FixedDirection::equal(WeightableDistribution const & other) const {
     if(!x)
         return false;
     else
-        return (abs(1.0 - SI::math::scalar_product(dir, x->dir)) < 1e-9);
+        return (abs(1.0 - siren::math::scalar_product(dir, x->dir)) < 1e-9);
 }
 
 bool FixedDirection::less(WeightableDistribution const & other) const {
     const FixedDirection* x = dynamic_cast<const FixedDirection*>(&other);
-    if(abs(1.0 - SI::math::scalar_product(dir, x->dir)) < 1e-9) {
+    if(abs(1.0 - siren::math::scalar_product(dir, x->dir)) < 1e-9) {
         return false;
     } else {
         double X = dir.GetX();
@@ -72,5 +72,5 @@ bool FixedDirection::less(WeightableDistribution const & other) const {
 }
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 

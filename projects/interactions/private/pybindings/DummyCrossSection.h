@@ -16,16 +16,16 @@
 
 void register_DummyCrossSection(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::interactions;
+    using namespace siren::interactions;
 
     class_<DummyCrossSection, std::shared_ptr<DummyCrossSection>, CrossSection> dummycrosssection(m, "DummyCrossSection");
 
     dummycrosssection
         .def(init<>())
         .def("_equal", &DummyCrossSection::equal)
-        .def("TotalCrossSection",overload_cast<SI::dataclasses::InteractionRecord const &>(&DummyCrossSection::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<SI::dataclasses::ParticleType, double, SI::dataclasses::ParticleType>(&DummyCrossSection::TotalCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<SI::dataclasses::InteractionRecord const &>(&DummyCrossSection::DifferentialCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<siren::dataclasses::InteractionRecord const &>(&DummyCrossSection::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<siren::dataclasses::ParticleType, double, siren::dataclasses::ParticleType>(&DummyCrossSection::TotalCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<siren::dataclasses::InteractionRecord const &>(&DummyCrossSection::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DummyCrossSection::InteractionThreshold)
         .def("GetPossibleTargets",&DummyCrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary",&DummyCrossSection::GetPossibleTargetsFromPrimary)

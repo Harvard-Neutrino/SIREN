@@ -2,7 +2,7 @@
 
 #include "SIREN/math/Vector3D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -37,5 +37,5 @@ double CartesianAxis1D::GetdX(const math::Vector3D& xi, const math::Vector3D& di
     return fAxis_ * direction;
 }
 
-} // namespace SI
+} // namespace siren
 } // namespace detector

@@ -37,7 +37,7 @@
 
 #include <rk/rk.hh>
 
-namespace SI {
+namespace siren {
 namespace injection {
 
 using detector::DetectorPosition;
@@ -54,13 +54,13 @@ void LeptonTreeWeighter::Initialize() {
     for(auto const & injector : injectors) {
         assert(primary_physical_process->MatchesHead(injector->GetPrimaryProcess()));
         primary_process_weighters.push_back(std::make_shared<PrimaryProcessWeighter>(PrimaryProcessWeighter(primary_physical_process, injector->GetPrimaryProcess(), detector_model)));
-        std::map<SI::dataclasses::ParticleType, std::shared_ptr<SecondaryProcessWeighter>>
+        std::map<siren::dataclasses::ParticleType, std::shared_ptr<SecondaryProcessWeighter>>
             injector_sec_process_weighter_map;
-        std::map<SI::dataclasses::ParticleType, std::shared_ptr<SI::injection::SecondaryInjectionProcess>>
+        std::map<siren::dataclasses::ParticleType, std::shared_ptr<siren::injection::SecondaryInjectionProcess>>
             injector_sec_process_map = injector->GetSecondaryProcessMap();
         for(auto const & sec_phys_process : secondary_physical_processes) {
             try{
-                std::shared_ptr<SI::injection::SecondaryInjectionProcess> sec_inj_process = injector_sec_process_map.at(sec_phys_process->GetPrimaryType());
+                std::shared_ptr<siren::injection::SecondaryInjectionProcess> sec_inj_process = injector_sec_process_map.at(sec_phys_process->GetPrimaryType());
                 assert(sec_phys_process->MatchesHead(sec_inj_process)); // make sure cross section collection matches
                 injector_sec_process_weighter_map[sec_phys_process->GetPrimaryType()] =
                     std::make_shared<SecondaryProcessWeighter>(
@@ -83,7 +83,7 @@ void LeptonTreeWeighter::Initialize() {
     }
 }
 
-double LeptonTreeWeighter::EventWeight(SI::dataclasses::InteractionTree const & tree) const {
+double LeptonTreeWeighter::EventWeight(siren::dataclasses::InteractionTree const & tree) const {
     // The weight is given by
     //
     // [sum_{injectors i}
@@ -96,7 +96,7 @@ double LeptonTreeWeighter::EventWeight(SI::dataclasses::InteractionTree const & 
         double physical_probability = 1.0;
         double generation_probability = injectors[idx]->EventsToInject();//GenerationProbability(tree);
         for(auto const & datum : tree.tree) {
-            std::tuple<SI::math::Vector3D, SI::math::Vector3D> bounds;
+            std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
             if(datum->depth() == 0) {
                 bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
                 physical_probability *= primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
@@ -120,7 +120,7 @@ double LeptonTreeWeighter::EventWeight(SI::dataclasses::InteractionTree const & 
     return 1./inv_weight;
 }
 
-LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<SI::detector::DetectorModel> detector_model, std::shared_ptr<SI::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<SI::injection::PhysicalProcess>> secondary_physical_processes)
+LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes)
     : injectors(injectors)
       , detector_model(detector_model)
       , primary_physical_process(primary_physical_process)
@@ -129,14 +129,14 @@ LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> in
     Initialize();
 }
 
-LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<SI::detector::DetectorModel> detector_model, std::shared_ptr<SI::injection::PhysicalProcess> primary_physical_process)
+LeptonTreeWeighter::LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process)
     : injectors(injectors)
       , detector_model(detector_model)
       , primary_physical_process(primary_physical_process)
-      , secondary_physical_processes(std::vector<std::shared_ptr<SI::injection::PhysicalProcess>>())
+      , secondary_physical_processes(std::vector<std::shared_ptr<siren::injection::PhysicalProcess>>())
 {
     Initialize();
 }
 
 } // namespace injection
-} // namespace SI
+} // namespace siren

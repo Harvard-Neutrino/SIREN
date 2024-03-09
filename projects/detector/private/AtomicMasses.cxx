@@ -3,7 +3,7 @@
 
 #include "SIREN/detector/MaterialModel.h"  // for MaterialModel
 
-using namespace SI::detector;
+using namespace siren::detector;
 
 // keys are {strange_count, neutron_count, proton_count, nucleon_count}
 const std::map<std::tuple<int, int, int, int>, double> MaterialModel::atomic_masses {

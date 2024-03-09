@@ -15,13 +15,13 @@
 
 void register_InteractionCollection(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::interactions;
+    using namespace siren::interactions;
 
     class_<InteractionCollection, std::shared_ptr<InteractionCollection>>(m, "InteractionCollection")
         .def(init<>())
-        .def(init<SI::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())
-        .def(init<SI::dataclasses::ParticleType, std::vector<std::shared_ptr<Decay>>>())
-        .def(init<SI::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>>())
+        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())
+        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<Decay>>>())
+        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>>())
         .def(self == self)
         .def("GetDecays",&InteractionCollection::GetDecays)
         .def("HasCrossSections",&InteractionCollection::HasCrossSections)

@@ -16,7 +16,7 @@
 #include <cereal/types/utility.hpp>
 #include <cereal/details/helpers.hpp>
 
-namespace SI {
+namespace siren {
 namespace dataclasses {
 
 enum class ParticleType : int32_t {
@@ -43,26 +43,26 @@ static const std::map<int32_t, std::string> ParticleTypeIntNames = {
 #undef X
 };
 
-} // namespace SI
+} // namespace siren
 } // namespace dataclasses
 
-std::ostream & operator<<(std::ostream & os, SI::dataclasses::ParticleType && p);
-std::ostream & operator<<(std::ostream & os, SI::dataclasses::ParticleType const & p);
+std::ostream & operator<<(std::ostream & os, siren::dataclasses::ParticleType && p);
+std::ostream & operator<<(std::ostream & os, siren::dataclasses::ParticleType const & p);
 
 namespace cereal {
     template <class Archive>
-    int save_minimal(Archive const &, SI::dataclasses::ParticleType const & p) {
+    int save_minimal(Archive const &, siren::dataclasses::ParticleType const & p) {
         return static_cast<int>(p);
     }
 
     template <class Archive>
-    void load_minimal(Archive const &, SI::dataclasses::ParticleType & p, int const & value )
+    void load_minimal(Archive const &, siren::dataclasses::ParticleType & p, int const & value )
     {
-        p = static_cast<SI::dataclasses::ParticleType>(value);
+        p = static_cast<siren::dataclasses::ParticleType>(value);
     }
 
     template <class Archive, class C, class A> inline
-    void save( Archive & ar, std::set<SI::dataclasses::ParticleType, C, A> const & set )
+    void save( Archive & ar, std::set<siren::dataclasses::ParticleType, C, A> const & set )
     {
       ar( make_size_tag( static_cast<size_type>(set.size()) ) );
 
@@ -71,7 +71,7 @@ namespace cereal {
     }
 
     template <class Archive, class C, class A> inline
-    void load( Archive & ar, std::set<SI::dataclasses::ParticleType, C, A> & set )
+    void load( Archive & ar, std::set<siren::dataclasses::ParticleType, C, A> & set )
     {
       size_type size;
       ar( make_size_tag( size ) );
@@ -81,7 +81,7 @@ namespace cereal {
       auto hint = set.begin();
       for( size_type i = 0; i < size; ++i )
       {
-        typename std::set<SI::dataclasses::ParticleType>::key_type key;
+        typename std::set<siren::dataclasses::ParticleType>::key_type key;
         ar( key );
         hint = set.emplace_hint( hint, std::move( key ) );
       }

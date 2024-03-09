@@ -28,8 +28,8 @@
 #include "FakeMaterialModel.h"
 #include "FakeDetectorModel.h"
 
-using namespace SI::detector;
-using namespace SI::geometry;
+using namespace siren::detector;
+using namespace siren::geometry;
 
 #define EXPECT_NEAR_REL(A, B, C) \
     EXPECT_NEAR(A, B, C * std::max(std::abs(A), std::abs(B)));

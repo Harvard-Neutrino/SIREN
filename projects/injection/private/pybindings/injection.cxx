@@ -25,7 +25,7 @@ PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
 using namespace pybind11;
 
 PYBIND11_MODULE(injection,m) {
-  using namespace SI::injection;
+  using namespace siren::injection;
 
   // Utils function
     
@@ -56,9 +56,9 @@ PYBIND11_MODULE(injection,m) {
   // Injection
 
   class_<Injector, std::shared_ptr<Injector>>(m, "Injector")
-    .def(init<unsigned int, std::shared_ptr<SI::detector::DetectorModel>, std::shared_ptr<SI::utilities::LI_random>>())
-    .def(init<unsigned int, std::shared_ptr<SI::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<SI::utilities::LI_random>>())
-    .def(init<unsigned int, std::shared_ptr<SI::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<SI::utilities::LI_random>>())
+    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::utilities::LI_random>>())
+    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<siren::utilities::LI_random>>())
+    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::LI_random>>())
     .def("SetStoppingCondition",&Injector::SetStoppingCondition)
     .def("SetPrimaryProcess",&Injector::SetPrimaryProcess)
     .def("AddSecondaryProcess",&Injector::AddSecondaryProcess)
@@ -77,27 +77,27 @@ PYBIND11_MODULE(injection,m) {
     .def("EventsToInject",&Injector::EventsToInject);
 
 //  class_<RangedSIREN, std::shared_ptr<RangedSIREN>, Injector>(m, "RangedSIREN")
-//    .def(init<unsigned int, std::shared_ptr<SI::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<SI::utilities::LI_random>, std::shared_ptr<SI::distributions::RangeFunction>, double, double>())
+//    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::LI_random>, std::shared_ptr<siren::distributions::RangeFunction>, double, double>())
 //    .def("Name",&RangedSIREN::Name);
 
 //  class_<DecayRangeSIREN, std::shared_ptr<DecayRangeSIREN>, Injector>(m, "DecayRangeSIREN")
-//    .def(init<unsigned int, std::shared_ptr<SI::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<SI::utilities::LI_random>, std::shared_ptr<SI::distributions::DecayRangeFunction>, double, double>())
+//    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::LI_random>, std::shared_ptr<siren::distributions::DecayRangeFunction>, double, double>())
 //    .def("Name",&DecayRangeSIREN::Name);
 //
 //  class_<ColumnDepthSIREN, std::shared_ptr<ColumnDepthSIREN>, Injector>(m, "ColumnDepthSIREN")
-//    .def(init<unsigned int, std::shared_ptr<SI::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<SI::utilities::LI_random>, std::shared_ptr<SI::distributions::DepthFunction>, double, double>())
+//    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::LI_random>, std::shared_ptr<siren::distributions::DepthFunction>, double, double>())
 //    .def("Name",&ColumnDepthSIREN::Name)
 //    .def("PrimaryInjectionBounds",&ColumnDepthSIREN::PrimaryInjectionBounds)
 //    .def("SecondaryInjectionBounds",&ColumnDepthSIREN::SecondaryInjectionBounds);
 //
 //  class_<CylinderVolumeSIREN, std::shared_ptr<CylinderVolumeSIREN>, Injector>(m, "CylinderVolumeSIREN")
-//    .def(init<unsigned int, std::shared_ptr<SI::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<SI::utilities::LI_random>, SI::geometry::Cylinder>())
+//    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::LI_random>, siren::geometry::Cylinder>())
 //    .def("Name",&CylinderVolumeSIREN::Name);
 
   // Weighter classes
 
   class_<PrimaryProcessWeighter, std::shared_ptr<PrimaryProcessWeighter>>(m, "PrimaryProcessWeighter")
-    .def(init<std::shared_ptr<PhysicalProcess>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<SI::detector::DetectorModel>>())
+    .def(init<std::shared_ptr<PhysicalProcess>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<siren::detector::DetectorModel>>())
     .def("InteractionProbability",&PrimaryProcessWeighter::InteractionProbability)
     .def("NormalizedPositionProbability",&PrimaryProcessWeighter::NormalizedPositionProbability)
     .def("PhysicalProbability",&PrimaryProcessWeighter::PhysicalProbability)
@@ -105,7 +105,7 @@ PYBIND11_MODULE(injection,m) {
     .def("EventWeight",&PrimaryProcessWeighter::EventWeight);
 
   class_<SecondaryProcessWeighter, std::shared_ptr<SecondaryProcessWeighter>>(m, "SecondaryProcessWeighter")
-    .def(init<std::shared_ptr<PhysicalProcess>, std::shared_ptr<SecondaryInjectionProcess>, std::shared_ptr<SI::detector::DetectorModel>>())
+    .def(init<std::shared_ptr<PhysicalProcess>, std::shared_ptr<SecondaryInjectionProcess>, std::shared_ptr<siren::detector::DetectorModel>>())
     .def("InteractionProbability",&SecondaryProcessWeighter::InteractionProbability)
     .def("NormalizedPositionProbability",&SecondaryProcessWeighter::NormalizedPositionProbability)
     .def("PhysicalProbability",&SecondaryProcessWeighter::PhysicalProbability)
@@ -113,12 +113,12 @@ PYBIND11_MODULE(injection,m) {
     .def("EventWeight",&SecondaryProcessWeighter::EventWeight);
 
   class_<LeptonTreeWeighter, std::shared_ptr<LeptonTreeWeighter>>(m, "LeptonTreeWeighter")
-    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<SI::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>())
-    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<SI::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>>())
+    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>())
+    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>>())
     .def("EventWeight",&LeptonTreeWeighter::EventWeight);
 
   class_<LeptonWeighter, std::shared_ptr<LeptonWeighter>>(m, "LeptonWeighter")
-    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<SI::detector::DetectorModel>, std::shared_ptr<SI::interactions::InteractionCollection>, std::vector<std::shared_ptr<SI::distributions::WeightableDistribution>>>())
+    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>, std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>>>())
     .def("EventWeight",&LeptonWeighter::EventWeight)
     .def("SimplifiedEventWeight",&LeptonWeighter::SimplifiedEventWeight);
 

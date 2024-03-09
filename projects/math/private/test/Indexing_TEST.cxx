@@ -10,7 +10,7 @@
 
 #include "SIREN/math/Interpolation.h"
 
-using namespace SI::math;
+using namespace siren::math;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);

@@ -10,29 +10,29 @@
 #include "SIREN/distributions/Distributions.h"       // for Injecti...
 #include "SIREN/math/Vector3D.h"                     // for Vector3D
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 //---------------
 // class PrimaryNeutrinoHelicityDistribution : PrimaryInjectionDistribution
 //---------------
-void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
-    SI::dataclasses::ParticleType const & t = record.type;
+void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+    siren::dataclasses::ParticleType const & t = record.type;
     if(static_cast<int32_t>(t) > 0) // Particles are left handed, anti-particles are right handed
         record.SetHelicity(-0.5);
     else
         record.SetHelicity(0.5);
 }
 
-double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
+double PrimaryNeutrinoHelicityDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     std::array<double, 4> const & mom = record.primary_momentum;
-    SI::math::Vector3D dir(mom[1], mom[2], mom[3]);
+    siren::math::Vector3D dir(mom[1], mom[2], mom[3]);
     dir.normalize();
 
     if(abs(0.5 - abs(record.primary_helicity)) > 1e-9) // Helicity magnitude must be 0.5
         return 0.0;
 
-    SI::dataclasses::ParticleType const & t = record.signature.primary_type;
+    siren::dataclasses::ParticleType const & t = record.signature.primary_type;
     // Particles are left handed, anti-particles are right handed
     if(static_cast<int32_t>(t) > 0) {
         if(record.primary_helicity < 0) // expect opposite direction
@@ -75,4 +75,4 @@ bool PrimaryNeutrinoHelicityDistribution::less(WeightableDistribution const & ot
 }
 
 } // namespace distributions
-} // namespace SIREN
+} // namespace sirenREN

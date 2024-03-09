@@ -28,27 +28,27 @@
 #include "SIREN/distributions/primary/vertex/DecayRangePositionDistribution.h"
 #include "SIREN/injection/Injector.h"  // for Injector
 
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace injection { class PrimaryInjectionProcess; } }
-namespace SI { namespace math { class Vector3D; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace injection { class PrimaryInjectionProcess; } }
+namespace siren { namespace math { class Vector3D; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace injection {
 
 class DecayRangeSIREN : public Injector {
 friend cereal::access;
 protected:
-    std::shared_ptr<SI::distributions::DecayRangeFunction> range_func;
+    std::shared_ptr<siren::distributions::DecayRangeFunction> range_func;
     double disk_radius;
     double endcap_length;
-    std::shared_ptr<SI::distributions::DecayRangePositionDistribution> position_distribution;
-    std::shared_ptr<SI::interactions::InteractionCollection> interactions;
+    std::shared_ptr<siren::distributions::DecayRangePositionDistribution> position_distribution;
+    std::shared_ptr<siren::interactions::InteractionCollection> interactions;
     DecayRangeSIREN();
 public:
-    DecayRangeSIREN(unsigned int events_to_inject, std::shared_ptr<SI::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<SI::utilities::LI_random> random, std::shared_ptr<SI::distributions::DecayRangeFunction> range_func, double disk_radius, double endcap_length);
+    DecayRangeSIREN(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::LI_random> random, std::shared_ptr<siren::distributions::DecayRangeFunction> range_func, double disk_radius, double endcap_length);
     std::string Name() const override;
-    virtual std::tuple<SI::math::Vector3D, SI::math::Vector3D> PrimaryInjectionBounds(SI::dataclasses::InteractionRecord const & interaction) const override;
+    virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryInjectionBounds(siren::dataclasses::InteractionRecord const & interaction) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -77,10 +77,10 @@ public:
 };
 
 } // namespace injection
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::injection::DecayRangeSIREN, 0);
-CEREAL_REGISTER_TYPE(SI::injection::DecayRangeSIREN);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::injection::Injector, SI::injection::DecayRangeSIREN);
+CEREAL_CLASS_VERSION(siren::injection::DecayRangeSIREN, 0);
+CEREAL_REGISTER_TYPE(siren::injection::DecayRangeSIREN);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::injection::Injector, siren::injection::DecayRangeSIREN);
 
 #endif // LI_DecayRangeSIREN_H

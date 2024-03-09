@@ -11,7 +11,7 @@
 
 #include "SIREN/math/Vector3D.h"
 
-namespace SI {
+namespace siren {
 namespace math {
 
 class Vector3D;
@@ -123,7 +123,7 @@ private:
 } // namespace math
 } // LI
 
-CEREAL_CLASS_VERSION(SI::math::Matrix3D, 0);
+CEREAL_CLASS_VERSION(siren::math::Matrix3D, 0);
 
 #endif // LI_Matrix3D_H
 

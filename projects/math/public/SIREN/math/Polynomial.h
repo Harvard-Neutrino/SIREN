@@ -44,7 +44,7 @@
 // %%%%%%%%%%%%%%%%%%%       Polynom      %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-namespace SI {
+namespace siren {
 namespace math {
 
 class Polynom {
@@ -116,9 +116,9 @@ double NewtonRaphson(std::function<double(double)> f, std::function<double(doubl
         double xinit, int MAX_STEPS = 101, double xacc = 1.e-6);
 
 }  // namespace math
-}  // namespace SI
+}  // namespace siren
 
-CEREAL_CLASS_VERSION(SI::math::Polynom, 0);
+CEREAL_CLASS_VERSION(siren::math::Polynom, 0);
 
 #endif // LI_Polynomial_H
 

@@ -16,12 +16,12 @@
 
 #include "SIREN/dataclasses/Particle.h"  // for Particle
 
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace dataclasses { class CrossSectionDistributionRecord; } }
-namespace SI { namespace dataclasses { struct InteractionSignature; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
+namespace siren { namespace dataclasses { struct InteractionSignature; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 class Decay{
@@ -33,14 +33,14 @@ public:
     bool operator==(Decay const & other) const;
     virtual bool equal(Decay const & other) const = 0;
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const = 0;
-    virtual double TotalDecayWidth(SI::dataclasses::ParticleType primary) const = 0;
+    virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const = 0;
     virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const = 0;
-    virtual double TotalDecayLength(SI::dataclasses::InteractionRecord const & record) const;
-    virtual double TotalDecayLengthForFinalState(SI::dataclasses::InteractionRecord const & record) const;
+    virtual double TotalDecayLength(siren::dataclasses::InteractionRecord const & record) const;
+    virtual double TotalDecayLengthForFinalState(siren::dataclasses::InteractionRecord const & record) const;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const = 0;
-    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<SI::utilities::LI_random>) const = 0;
-    virtual std::vector<SI::dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;
-    virtual std::vector<SI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(SI::dataclasses::ParticleType primary) const = 0;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random>) const = 0;
+    virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;
+    virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const = 0;
     template<class Archive>
@@ -51,8 +51,8 @@ public:
 }; // class Decay
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::interactions::Decay, 0);
+CEREAL_CLASS_VERSION(siren::interactions::Decay, 0);
 
 #endif // LI_Decay_H

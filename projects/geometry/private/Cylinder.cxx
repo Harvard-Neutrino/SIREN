@@ -14,7 +14,7 @@
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/Placement.h"
 
-namespace SI {
+namespace siren {
 namespace geometry {
 
 Cylinder::Cylinder()
@@ -162,7 +162,7 @@ void Cylinder::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(SI::math::Vector3D const & position, SI::math::Vector3D const & direction) const {
+std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the cylinder
     // cylinder barrel (x1 + x0)^2 + (x2 + y0)^2  = radius^2 [ z0_-0.5*z_ <
     // particle->z <z0_ - 0.5*z_ ]
@@ -197,7 +197,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(SI::math::Vec
 
     std::function<void(double, bool)> save = [&](double t, bool entering){
         Intersection i;
-        i.position = SI::math::Vector3D(intersection_x,intersection_y,intersection_z);
+        i.position = siren::math::Vector3D(intersection_x,intersection_y,intersection_z);
         i.distance = t;
         i.hierarchy = 0;
         i.entering = entering;
@@ -205,7 +205,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(SI::math::Vec
     };
 
     std::function<bool()> entering_radial = [&]() {
-        return SI::math::Vector3D(intersection_x, intersection_y, 0) * direction < 0;
+        return siren::math::Vector3D(intersection_x, intersection_y, 0) * direction < 0;
     };
 
     double z_calc_pos = 0.5 * z_;
@@ -376,7 +376,7 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(SI::math::Vec
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Cylinder::ComputeDistanceToBorder(const SI::math::Vector3D& position, const SI::math::Vector3D& direction) const
+std::pair<double, double> Cylinder::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -448,4 +448,4 @@ std::pair<double, double> Cylinder::ComputeDistanceToBorder(const SI::math::Vect
 }
 
 } // namespace geometry
-} // namespace SI
+} // namespace siren

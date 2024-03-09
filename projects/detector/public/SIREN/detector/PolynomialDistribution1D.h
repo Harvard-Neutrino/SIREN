@@ -17,7 +17,7 @@
 
 #include "SIREN/detector/Distribution1D.h"  // for Distribution1D
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 class PolynomialDistribution1D : public Distribution1D {
@@ -54,10 +54,10 @@ protected:
 };
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::PolynomialDistribution1D, 0);
-CEREAL_REGISTER_TYPE(SI::detector::PolynomialDistribution1D);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::detector::Distribution1D, SI::detector::PolynomialDistribution1D);
+CEREAL_CLASS_VERSION(siren::detector::PolynomialDistribution1D, 0);
+CEREAL_REGISTER_TYPE(siren::detector::PolynomialDistribution1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::Distribution1D, siren::detector::PolynomialDistribution1D);
 
 #endif // LI_PolynomialDistribution1D_H

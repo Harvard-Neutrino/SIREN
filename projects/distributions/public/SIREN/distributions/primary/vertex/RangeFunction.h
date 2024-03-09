@@ -12,9 +12,9 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-namespace SI { namespace dataclasses { enum class ParticleType : int32_t; } }
+namespace siren { namespace dataclasses { enum class ParticleType : int32_t; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 class RangeFunction {
@@ -23,7 +23,7 @@ public:
     virtual ~RangeFunction() {};
 public:
     RangeFunction();
-    virtual double operator()(SI::dataclasses::ParticleType const & primary_type, double energy) const;
+    virtual double operator()(siren::dataclasses::ParticleType const & primary_type, double energy) const;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -46,8 +46,8 @@ protected:
 };
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::distributions::RangeFunction, 0);
+CEREAL_CLASS_VERSION(siren::distributions::RangeFunction, 0);
 
 #endif // LI_RangeFunction_H

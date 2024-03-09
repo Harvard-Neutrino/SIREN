@@ -24,17 +24,17 @@
 
 #include "SIREN/serialization/array.h"
 
-namespace SI { namespace dataclasses { class Particle; } }
+namespace siren { namespace dataclasses { class Particle; } }
 
-std::ostream & operator<<(std::ostream & os, SI::dataclasses::Particle const & p);
+std::ostream & operator<<(std::ostream & os, siren::dataclasses::Particle const & p);
 
-namespace SI {
+namespace siren {
 namespace dataclasses {
 
 // simple data structure for particles
 class Particle {
 public:
-    typedef SI::dataclasses::ParticleType ParticleType;
+    typedef siren::dataclasses::ParticleType ParticleType;
 
     Particle() = default;
     Particle(Particle const & other) = default;
@@ -51,7 +51,7 @@ public:
 
     ParticleID & GenerateID();
 
-    friend std::ostream & ::operator<<(std::ostream & os, SI::dataclasses::Particle const & p);
+    friend std::ostream & ::operator<<(std::ostream & os, siren::dataclasses::Particle const & p);
 
     template<typename Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
@@ -76,8 +76,8 @@ bool isCharged(ParticleType p);
 bool isNeutrino(ParticleType p);
 
 } // namespace dataclasses
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::dataclasses::Particle, 0);
+CEREAL_CLASS_VERSION(siren::dataclasses::Particle, 0);
 
 #endif // LI_Particle_H

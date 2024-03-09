@@ -20,7 +20,7 @@
 #include "SIREN/detector/DensityDistribution1D.h"
 #include "SIREN/detector/ConstantDistribution1D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 template<typename AxisT>
@@ -125,13 +125,13 @@ class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_
 typedef DensityDistribution1D<CartesianAxis1D, ConstantDistribution1D> ConstantDensityDistribution;
 
 // Technically we could define this with the radial axis as well, but there is not point since it will have the same functionality
-// typedef DensityDistribution1D<SI::detector::RadialAxis1D ConstantDensityDistribution;
+// typedef DensityDistribution1D<siren::detector::RadialAxis1D ConstantDensityDistribution;
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::ConstantDensityDistribution, 0);
-CEREAL_REGISTER_TYPE(SI::detector::ConstantDensityDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::detector::DensityDistribution, SI::detector::ConstantDensityDistribution);
+CEREAL_CLASS_VERSION(siren::detector::ConstantDensityDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::detector::ConstantDensityDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::ConstantDensityDistribution);
 
 #endif // LI_ConstantDensityDistribution.h

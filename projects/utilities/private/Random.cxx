@@ -3,7 +3,7 @@
 #include <random>
 #include <utility>
 
-namespace SI {
+namespace siren {
 namespace utilities {
 
     LI_random::LI_random(void){
@@ -44,4 +44,4 @@ namespace utilities {
     }
 
 } // namespace utilities
-} // namespace SI
+} // namespace siren

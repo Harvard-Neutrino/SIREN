@@ -14,7 +14,7 @@
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/Placement.h"
 
-namespace SI {
+namespace siren {
 namespace geometry {
 
 Box::Box()
@@ -151,7 +151,7 @@ void Box::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Box::ComputeIntersections(SI::math::Vector3D const & position, SI::math::Vector3D const & direction) const {
+std::vector<Geometry::Intersection> Box::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the box
     // Surface of the box is defined by six planes:
     // E1: x1   =   position.GetX() + 0.5*x
@@ -180,7 +180,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(SI::math::Vector3D
 
     std::function<void()> save = [&](){
         Intersection i;
-        i.position = SI::math::Vector3D(intersection_x,intersection_y,intersection_z);
+        i.position = siren::math::Vector3D(intersection_x,intersection_y,intersection_z);
         i.distance = t;
         i.hierarchy = 0;
         i.entering = entering;
@@ -329,7 +329,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(SI::math::Vector3D
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Box::ComputeDistanceToBorder(const SI::math::Vector3D& position, const SI::math::Vector3D& direction) const
+std::pair<double, double> Box::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -387,4 +387,4 @@ std::pair<double, double> Box::ComputeDistanceToBorder(const SI::math::Vector3D&
 }
 
 } // namespace geometry
-} // namespace SI
+} // namespace siren

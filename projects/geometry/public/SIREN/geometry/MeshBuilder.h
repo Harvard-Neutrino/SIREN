@@ -22,7 +22,7 @@
 
 #include "SIREN/serialization/array.h"
 
-namespace SI {
+namespace siren {
 namespace geometry {
 namespace Mesh {
 
@@ -183,7 +183,7 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangles_data, d
 
 } // namespace Mesh
 } // namespace geometry
-} // namespace SI
+} // namespace siren
 
 #endif // LI_MeshBuilder_H
 

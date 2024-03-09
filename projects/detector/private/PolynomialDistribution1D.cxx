@@ -4,7 +4,7 @@
 
 #include "SIREN/math/Polynomial.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -52,5 +52,5 @@ double PolynomialDistribution1D::Evaluate(double x) const {
     return polynom_.evaluate(x);
 }
 
-} // namespace SI
+} // namespace siren
 } // namespace detector

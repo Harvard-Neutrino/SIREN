@@ -16,23 +16,23 @@
 
 void register_HNLFromSpline(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::interactions;
+    using namespace siren::interactions;
 
     class_<HNLFromSpline, std::shared_ptr<HNLFromSpline>, CrossSection> disfromspline(m, "HNLFromSpline");
 
     disfromspline
         .def(init<>())
-        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::set<SI::dataclasses::ParticleType>, std::set<SI::dataclasses::ParticleType>>())
-        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::vector<SI::dataclasses::ParticleType>, std::vector<SI::dataclasses::ParticleType>>())
-        .def(init<std::string, std::string, int, double, double, std::set<SI::dataclasses::ParticleType>, std::set<SI::dataclasses::ParticleType>>())
-        .def(init<std::string, std::string, std::set<SI::dataclasses::ParticleType>, std::set<SI::dataclasses::ParticleType>>())
-        .def(init<std::string, std::string, int, double, double, std::vector<SI::dataclasses::ParticleType>, std::vector<SI::dataclasses::ParticleType>>())
-        .def(init<std::string, std::string, std::vector<SI::dataclasses::ParticleType>, std::vector<SI::dataclasses::ParticleType>>())
+        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::set<siren::dataclasses::ParticleType>, std::set<siren::dataclasses::ParticleType>>())
+        .def(init<std::vector<char>, std::vector<char>, int, double, double, std::vector<siren::dataclasses::ParticleType>, std::vector<siren::dataclasses::ParticleType>>())
+        .def(init<std::string, std::string, int, double, double, std::set<siren::dataclasses::ParticleType>, std::set<siren::dataclasses::ParticleType>>())
+        .def(init<std::string, std::string, std::set<siren::dataclasses::ParticleType>, std::set<siren::dataclasses::ParticleType>>())
+        .def(init<std::string, std::string, int, double, double, std::vector<siren::dataclasses::ParticleType>, std::vector<siren::dataclasses::ParticleType>>())
+        .def(init<std::string, std::string, std::vector<siren::dataclasses::ParticleType>, std::vector<siren::dataclasses::ParticleType>>())
         .def(self == self)
-        .def("TotalCrossSection",overload_cast<SI::dataclasses::InteractionRecord const &>(&HNLFromSpline::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<SI::dataclasses::ParticleType, double>(&HNLFromSpline::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<SI::dataclasses::ParticleType, double, SI::dataclasses::ParticleType>(&HNLFromSpline::TotalCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<SI::dataclasses::InteractionRecord const &>(&HNLFromSpline::DifferentialCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<siren::dataclasses::InteractionRecord const &>(&HNLFromSpline::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<siren::dataclasses::ParticleType, double>(&HNLFromSpline::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<siren::dataclasses::ParticleType, double, siren::dataclasses::ParticleType>(&HNLFromSpline::TotalCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<siren::dataclasses::InteractionRecord const &>(&HNLFromSpline::DifferentialCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<double, double, double, double>(&HNLFromSpline::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&HNLFromSpline::InteractionThreshold)
         .def("GetPossibleTargets",&HNLFromSpline::GetPossibleTargets)

@@ -10,7 +10,7 @@
 // This header defines a lot of constants - not all actually used in this code.
 // This was, for the most part, just copied from previous code of mine
 
-namespace SI {
+namespace siren {
 namespace utilities {
 namespace Constants {
 
@@ -106,7 +106,7 @@ static const double hbarc           = 197.3*(1e-9)*(1e-7)*GeV*cm; // [GeV m]
 
 } // namespace Constants
 } // namespace utilities
-} // namespace SI
+} // namespace siren
 
 #endif // LI_Constants_H
 

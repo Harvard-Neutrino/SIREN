@@ -27,28 +27,28 @@
 #include "SIREN/distributions/primary/vertex/DepthFunction.h"
 #include "SIREN/injection/Injector.h"  // for Injector
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace injection { class PrimaryInjectionProcess; } }
-namespace SI { namespace math { class Vector3D; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace injection { class PrimaryInjectionProcess; } }
+namespace siren { namespace math { class Vector3D; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace injection {
 
 class ColumnDepthSIREN : public Injector {
 friend cereal::access;
 protected:
-    std::shared_ptr<SI::distributions::DepthFunction> depth_func;
+    std::shared_ptr<siren::distributions::DepthFunction> depth_func;
     double disk_radius;
     double endcap_length;
-    std::shared_ptr<SI::distributions::ColumnDepthPositionDistribution> position_distribution;
-    std::shared_ptr<SI::interactions::InteractionCollection> interactions;
+    std::shared_ptr<siren::distributions::ColumnDepthPositionDistribution> position_distribution;
+    std::shared_ptr<siren::interactions::InteractionCollection> interactions;
     ColumnDepthSIREN();
 public:
-    ColumnDepthSIREN(unsigned int events_to_inject, std::shared_ptr<SI::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<SI::utilities::LI_random> random, std::shared_ptr<SI::distributions::DepthFunction> depth_func, double disk_radius, double endcap_length);
+    ColumnDepthSIREN(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::LI_random> random, std::shared_ptr<siren::distributions::DepthFunction> depth_func, double disk_radius, double endcap_length);
     std::string Name() const override;
-    virtual std::tuple<SI::math::Vector3D, SI::math::Vector3D> PrimaryInjectionBounds(SI::dataclasses::InteractionRecord const & interaction) const override;
+    virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryInjectionBounds(siren::dataclasses::InteractionRecord const & interaction) const override;
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -78,10 +78,10 @@ public:
 };
 
 } // namespace injection
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::injection::ColumnDepthSIREN, 0);
-CEREAL_REGISTER_TYPE(SI::injection::ColumnDepthSIREN);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::injection::Injector, SI::injection::ColumnDepthSIREN);
+CEREAL_CLASS_VERSION(siren::injection::ColumnDepthSIREN, 0);
+CEREAL_REGISTER_TYPE(siren::injection::ColumnDepthSIREN);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::injection::Injector, siren::injection::ColumnDepthSIREN);
 
 #endif // LI_ColumnDepthSIREN_H

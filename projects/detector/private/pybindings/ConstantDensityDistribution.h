@@ -12,7 +12,7 @@
 
 void register_ConstantDensityDistribution(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::detector;
+    using namespace siren::detector;
 
     typedef CartesianAxis1D AxisT;
     typedef ConstantDistribution1D DistributionT;
@@ -33,26 +33,26 @@ void register_ConstantDensityDistribution(pybind11::module_ & m) {
         .def("AntiDerivative", &DDist1DT::AntiDerivative)
         .def("Integral", (
                     double (DDist1DT::*)(
-                        SI::math::Vector3D const &,
-                        SI::math::Vector3D const &,
+                        siren::math::Vector3D const &,
+                        siren::math::Vector3D const &,
                         double) const)(&DDist1DT::Integral)
                     )
         .def("Integral", (
                     double (DDist1DT::*)(
-                        SI::math::Vector3D const &,
-                        SI::math::Vector3D const &) const)(&DDist1DT::Integral)
+                        siren::math::Vector3D const &,
+                        siren::math::Vector3D const &) const)(&DDist1DT::Integral)
                     )
         .def("InverseIntegral", (
                     double (DDist1DT::*)(
-                        SI::math::Vector3D const &,
-                        SI::math::Vector3D const &,
+                        siren::math::Vector3D const &,
+                        siren::math::Vector3D const &,
                         double,
                         double) const)(&DDist1DT::InverseIntegral)
                     )
         .def("InverseIntegral", (
                     double (DDist1DT::*)(
-                        SI::math::Vector3D const &,
-                        SI::math::Vector3D const &,
+                        siren::math::Vector3D const &,
+                        siren::math::Vector3D const &,
                         double,
                         double,
                         double) const)(&DDist1DT::InverseIntegral)

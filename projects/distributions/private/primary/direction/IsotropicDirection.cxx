@@ -7,28 +7,28 @@
 #include "SIREN/math/Vector3D.h"                // for Vector3D
 #include "SIREN/utilities/Random.h"             // for LI_random
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace detector { class DetectorModel; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace detector { class DetectorModel; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 //---------------
 // class IsotropicDirection : PrimaryDirectionDistribution
 //---------------
-SI::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
+siren::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     double nz = rand->Uniform(-1, 1);
     double nr = sqrt(1.0 - nz*nz);
     double phi = rand->Uniform(-M_PI, M_PI);
     double nx = nr * cos(phi);
     double ny = nr * sin(phi);
-    SI::math::Vector3D res(nx, ny, nz);
+    siren::math::Vector3D res(nx, ny, nz);
     res.normalize();
     return res;
 }
 
-double IsotropicDirection::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
+double IsotropicDirection::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     return 1.0 / (4.0 * M_PI);
 }
 
@@ -54,4 +54,4 @@ bool IsotropicDirection::less(WeightableDistribution const & other) const {
 }
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren

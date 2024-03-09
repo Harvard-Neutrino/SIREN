@@ -15,7 +15,7 @@
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/Placement.h"
 
-namespace SI {
+namespace siren {
 namespace geometry {
 
 ExtrPoly::ExtrPoly()
@@ -158,7 +158,7 @@ void ExtrPoly::ComputeLateralPlanes()
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(SI::math::Vector3D const & position, SI::math::Vector3D const & direction) const {
+std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the extr poly
     // Implementation follows that of Geant4, see here:
     //
@@ -168,11 +168,11 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(SI::math::Vec
 
     std::vector<Geometry::Intersection> dist;
 
-    SI::math::Vector3D intersection;
+    siren::math::Vector3D intersection;
 
     std::function<void(double, bool)> save = [&](double t, bool entering){
         Intersection i;
-        i.position = SI::math::Vector3D(position.GetX() + direction.GetX()*t,
+        i.position = siren::math::Vector3D(position.GetX() + direction.GetX()*t,
                 position.GetY() + direction.GetY()*t,
                 position.GetZ() + direction.GetZ()*t);
         i.distance = t;
@@ -239,7 +239,7 @@ std::vector<Geometry::Intersection> ExtrPoly::ComputeIntersections(SI::math::Vec
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> ExtrPoly::ComputeDistanceToBorder(const SI::math::Vector3D& position, const SI::math::Vector3D& direction) const
+std::pair<double, double> ExtrPoly::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -311,4 +311,4 @@ std::pair<double, double> ExtrPoly::ComputeDistanceToBorder(const SI::math::Vect
 }
 
 } // namespace geometry
-} // namespace SI
+} // namespace siren

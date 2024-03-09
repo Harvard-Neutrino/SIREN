@@ -6,7 +6,7 @@
 
 #include "SIREN/math/Vector3D.h"
 
-using namespace SI::math;
+using namespace siren::math;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -107,7 +107,7 @@ void EulerAngles::swap(EulerAngles& euler)
     swap(gamma_, euler.gamma_);
 }
 
-namespace SI {
+namespace siren {
 namespace math {
 std::ostream& operator<<(std::ostream& os, EulerAngles const& euler)
 {
@@ -118,5 +118,5 @@ std::ostream& operator<<(std::ostream& os, EulerAngles const& euler)
 }
 
 } // namespace math
-} // namespace SI
+} // namespace siren
 

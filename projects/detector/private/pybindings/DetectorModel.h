@@ -11,7 +11,7 @@
 
 void register_DetectorModel(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::detector;
+    using namespace siren::detector;
 
     class_<DetectorModel, std::shared_ptr<DetectorModel>>(m, "DetectorModel")
         .def(init<>())
@@ -20,33 +20,33 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("LoadDetectorModel",&DetectorModel::LoadDetectorModel)
         .def("LoadMaterialModel",&DetectorModel::LoadMaterialModel)
         .def("GetMassDensity", (
-                    double (DetectorModel::*)(SI::geometry::Geometry::IntersectionList const &, DetectorPosition const &) const
+                    double (DetectorModel::*)(siren::geometry::Geometry::IntersectionList const &, DetectorPosition const &) const
                     )(&DetectorModel::GetMassDensity))
         .def("GetMassDensity", (
                     double (DetectorModel::*)(DetectorPosition const &) const
                     )(&DetectorModel::GetMassDensity))
         .def("GetParticleDensity", (
-                    double (DetectorModel::*)(SI::geometry::Geometry::IntersectionList const &, DetectorPosition const &, SI::dataclasses::ParticleType) const
+                    double (DetectorModel::*)(siren::geometry::Geometry::IntersectionList const &, DetectorPosition const &, siren::dataclasses::ParticleType) const
                     )(&DetectorModel::GetParticleDensity))
         .def("GetParticleDensity", (
-                    double (DetectorModel::*)(DetectorPosition const &, SI::dataclasses::ParticleType) const
+                    double (DetectorModel::*)(DetectorPosition const &, siren::dataclasses::ParticleType) const
                     )(&DetectorModel::GetParticleDensity))
         .def("GetInteractionDensity", (
-                    double (DetectorModel::*)(SI::geometry::Geometry::IntersectionList const &,
+                    double (DetectorModel::*)(siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &,
-                        std::vector<SI::dataclasses::ParticleType> const &,
+                        std::vector<siren::dataclasses::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
                     )(&DetectorModel::GetInteractionDensity))
         .def("GetInteractionDensity", (
                     double (DetectorModel::*)(DetectorPosition const &,
-                        std::vector<SI::dataclasses::ParticleType> const &,
+                        std::vector<siren::dataclasses::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
                     )(&DetectorModel::GetInteractionDensity))
         .def("GetColumnDepthInCGS", (
                     double (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &,
                         DetectorPosition const &) const
                     )(&DetectorModel::GetColumnDepthInCGS))
@@ -57,7 +57,7 @@ void register_DetectorModel(pybind11::module_ & m) {
                     )(&DetectorModel::GetColumnDepthInCGS))
         .def("DistanceForColumnDepthFromPoint", (
                     double (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &,
                         DetectorDirection const &,
                         double) const
@@ -70,7 +70,7 @@ void register_DetectorModel(pybind11::module_ & m) {
                     )(&DetectorModel::DistanceForColumnDepthFromPoint))
         .def("DistanceForColumnDepthToPoint", (
                     double (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &,
                         DetectorDirection const &,
                         double) const
@@ -83,32 +83,32 @@ void register_DetectorModel(pybind11::module_ & m) {
                     )(&DetectorModel::DistanceForColumnDepthToPoint))
         .def("GetMassDensity", (
                     double (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &,
-                        std::set<SI::dataclasses::ParticleType>) const
+                        std::set<siren::dataclasses::ParticleType>) const
                     )(&DetectorModel::GetMassDensity))
         .def("GetMassDensity", (
                     double (DetectorModel::*)(
                         DetectorPosition const &,
-                        std::set<SI::dataclasses::ParticleType>) const
+                        std::set<siren::dataclasses::ParticleType>) const
                     )(&DetectorModel::GetMassDensity))
         .def("GetParticleDensity", (
                     std::vector<double> (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &,
-                        std::set<SI::dataclasses::ParticleType>) const
+                        std::set<siren::dataclasses::ParticleType>) const
                     )(&DetectorModel::GetParticleDensity))
         .def("GetParticleDensity", (
                     std::vector<double> (DetectorModel::*)(
                         DetectorPosition const &,
-                        std::set<SI::dataclasses::ParticleType>) const
+                        std::set<siren::dataclasses::ParticleType>) const
                     )(&DetectorModel::GetParticleDensity))
         .def("GetInteractionDepthInCGS", (
                     double (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &,
                         DetectorPosition const &,
-                        std::vector<SI::dataclasses::ParticleType> const &,
+                        std::vector<siren::dataclasses::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
                     )(&DetectorModel::GetInteractionDepthInCGS))
@@ -116,17 +116,17 @@ void register_DetectorModel(pybind11::module_ & m) {
                     double (DetectorModel::*)(
                         DetectorPosition const &,
                         DetectorPosition const &,
-                        std::vector<SI::dataclasses::ParticleType> const &,
+                        std::vector<siren::dataclasses::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
                     )(&DetectorModel::GetInteractionDepthInCGS))
         .def("DistanceForInteractionDepthFromPoint", (
                     double (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &,
                         DetectorDirection const &,
                         double,
-                        std::vector<SI::dataclasses::ParticleType> const &,
+                        std::vector<siren::dataclasses::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
                     )(&DetectorModel::DistanceForInteractionDepthFromPoint))
@@ -135,17 +135,17 @@ void register_DetectorModel(pybind11::module_ & m) {
                         DetectorPosition const &,
                         DetectorDirection const &,
                         double,
-                        std::vector<SI::dataclasses::ParticleType> const &,
+                        std::vector<siren::dataclasses::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
                     )(&DetectorModel::DistanceForInteractionDepthFromPoint))
         .def("DistanceForInteractionDepthToPoint", (
                     double (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &,
                         DetectorDirection const &,
                         double,
-                        std::vector<SI::dataclasses::ParticleType> const &,
+                        std::vector<siren::dataclasses::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
                     )(&DetectorModel::DistanceForInteractionDepthToPoint))
@@ -154,20 +154,20 @@ void register_DetectorModel(pybind11::module_ & m) {
                         DetectorPosition const &,
                         DetectorDirection const &,
                         double,
-                        std::vector<SI::dataclasses::ParticleType> const &,
+                        std::vector<siren::dataclasses::ParticleType> const &,
                         std::vector<double> const &,
                         double const &) const
                     )(&DetectorModel::DistanceForInteractionDepthToPoint))
         .def("GetParticleColumnDepth", (
                     std::vector<double> (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &,
                         DetectorPosition const &,
-                        std::vector<SI::dataclasses::ParticleType> const &) const
+                        std::vector<siren::dataclasses::ParticleType> const &) const
                     )(&DetectorModel::GetParticleColumnDepth))
         .def("GetContainingSector", (
                     DetectorSector (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const & p0) const
                     )(&DetectorModel::GetContainingSector))
         .def("GetContainingSector", (
@@ -182,36 +182,36 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("GetSector", &DetectorModel::GetSector)
         .def("ClearSectors", &DetectorModel::ClearSectors)
         .def("GetIntersections", (
-                    SI::geometry::Geometry::IntersectionList (DetectorModel::*)(
+                    siren::geometry::Geometry::IntersectionList (DetectorModel::*)(
                         DetectorPosition const &,
                         DetectorDirection const &) const
                     )(&DetectorModel::GetIntersections))
         .def_static("SortIntersections", (
-                    void (*)(SI::geometry::Geometry::IntersectionList &)
+                    void (*)(siren::geometry::Geometry::IntersectionList &)
                     )(&DetectorModel::SortIntersections))
         .def_static("SortIntersections", (
-                    void (*)(std::vector<SI::geometry::Geometry::Intersection> &)
+                    void (*)(std::vector<siren::geometry::Geometry::Intersection> &)
                     )(&DetectorModel::SortIntersections))
         .def_static("SectorLoop", &DetectorModel::SectorLoop)
         .def_static("GetOuterBoundsFromIntersections", (
-                    SI::geometry::Geometry::IntersectionList (*)(
-                        SI::geometry::Geometry::IntersectionList const &)
+                    siren::geometry::Geometry::IntersectionList (*)(
+                        siren::geometry::Geometry::IntersectionList const &)
                     )(&DetectorModel::GetOuterBounds))
-        .def("GetOuterBounds", [](SI::detector::DetectorModel const & detector, SI::geometry::Geometry::IntersectionList const & intersections){
+        .def("GetOuterBounds", [](siren::detector::DetectorModel const & detector, siren::geometry::Geometry::IntersectionList const & intersections){
                 return detector.GetOuterBounds(intersections);
                 })
         .def("GetOuterBounds", (
-                SI::geometry::Geometry::IntersectionList (DetectorModel::*)(
+                siren::geometry::Geometry::IntersectionList (DetectorModel::*)(
                     DetectorPosition const &,
                     DetectorDirection const &) const
                 )(&DetectorModel::GetOuterBounds))
         .def("GetAvailableTargets", (
-                    std::set<SI::dataclasses::ParticleType> (DetectorModel::*)(
-                        SI::geometry::Geometry::IntersectionList const &,
+                    std::set<siren::dataclasses::ParticleType> (DetectorModel::*)(
+                        siren::geometry::Geometry::IntersectionList const &,
                         DetectorPosition const &) const
                     )(&DetectorModel::GetAvailableTargets))
         .def("GetAvailableTargets", (
-                    std::set<SI::dataclasses::ParticleType> (DetectorModel::*)(
+                    std::set<siren::dataclasses::ParticleType> (DetectorModel::*)(
                         DetectorPosition const &) const
                     )(&DetectorModel::GetAvailableTargets))
         .def("GetTargetMass", &DetectorModel::GetTargetMass)
@@ -229,7 +229,7 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def("DetDirectionToGeoDirection", (
                     GeometryDirection (DetectorModel::*)(DetectorDirection const &) const
                     )(&DetectorModel::ToGeo))
-        .def("ParseFiducialVolume", (std::shared_ptr<SI::geometry::Geometry> (*)(std::string, std::string))(&DetectorModel::ParseFiducialVolume))
-        .def("ParseFiducialVolume", (std::shared_ptr<SI::geometry::Geometry> (*)(std::string, SI::math::Vector3D, SI::math::Quaternion))(&DetectorModel::ParseFiducialVolume))
+        .def("ParseFiducialVolume", (std::shared_ptr<siren::geometry::Geometry> (*)(std::string, std::string))(&DetectorModel::ParseFiducialVolume))
+        .def("ParseFiducialVolume", (std::shared_ptr<siren::geometry::Geometry> (*)(std::string, siren::math::Vector3D, siren::math::Quaternion))(&DetectorModel::ParseFiducialVolume))
         ;
 }

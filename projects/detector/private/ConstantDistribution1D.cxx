@@ -1,6 +1,6 @@
 #include "SIREN/detector/ConstantDistribution1D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -39,5 +39,5 @@ double ConstantDistribution1D::Evaluate(double x) const {
     return val_;
 }
 
-} // namespace SI
+} // namespace siren
 } // namespace detector

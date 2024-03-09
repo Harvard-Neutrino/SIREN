@@ -6,7 +6,7 @@
 
 #include "../../public/SIREN/detector/DetectorModel.h"
 
-std::string to_str(SI::detector::DetectorSector const & sector) {
+std::string to_str(siren::detector::DetectorSector const & sector) {
     std::stringstream ss;
     sector.Print(ss);
     return ss.str();
@@ -14,7 +14,7 @@ std::string to_str(SI::detector::DetectorSector const & sector) {
 
 void register_DetectorSector(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::detector;
+    using namespace siren::detector;
 
     class_<DetectorSector, std::shared_ptr<DetectorSector>>(m, "DetectorSector")
         .def(init<>())

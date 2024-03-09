@@ -11,17 +11,17 @@
 #include "SIREN/dataclasses/Particle.h"  // for Particle
                                                   //
 
-namespace SI { namespace dataclasses { struct InteractionSignature; } }
+namespace siren { namespace dataclasses { struct InteractionSignature; } }
 
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::InteractionSignature const& signature);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::InteractionSignature const& signature);
 
-namespace SI {
+namespace siren {
 namespace dataclasses {
 
 struct InteractionSignature {
-    SI::dataclasses::ParticleType primary_type = SI::dataclasses::ParticleType::unknown;
-    SI::dataclasses::ParticleType target_type = SI::dataclasses::ParticleType::unknown;
-    std::vector<SI::dataclasses::ParticleType> secondary_types;
+    siren::dataclasses::ParticleType primary_type = siren::dataclasses::ParticleType::unknown;
+    siren::dataclasses::ParticleType target_type = siren::dataclasses::ParticleType::unknown;
+    std::vector<siren::dataclasses::ParticleType> secondary_types;
 
     bool operator==(InteractionSignature const & other) const;
     bool operator<(InteractionSignature const & other) const;
@@ -39,8 +39,8 @@ struct InteractionSignature {
 };
 
 } // namespace dataclasses
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::dataclasses::InteractionSignature, 0);
+CEREAL_CLASS_VERSION(siren::dataclasses::InteractionSignature, 0);
 
 #endif // LI_InteractionSignature_H

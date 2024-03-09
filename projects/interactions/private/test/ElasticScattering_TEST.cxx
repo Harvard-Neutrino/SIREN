@@ -36,14 +36,14 @@
 #include "SIREN/injection/Weighter.h"
 #include "SIREN/injection/ColumnDepthSIREN.h"
 
-using namespace SI::interactions;
-using namespace SI::distributions;
-using namespace SI::dataclasses;
-using namespace SI::injection;
-using namespace SI::utilities;
-using namespace SI::detector;
-using namespace SI::geometry;
-using namespace SI::math;
+using namespace siren::interactions;
+using namespace siren::distributions;
+using namespace siren::dataclasses;
+using namespace siren::injection;
+using namespace siren::utilities;
+using namespace siren::detector;
+using namespace siren::geometry;
+using namespace siren::math;
 
 #define AUSTIN
 

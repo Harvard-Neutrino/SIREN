@@ -9,7 +9,7 @@
 #include "SIREN/detector/DetectorModel.h"
 #include "SIREN/detector/DensityDistribution.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 template<typename Iterator, class>
@@ -138,6 +138,6 @@ std::vector<double> DetectorModel::GetParticleDensity(DetectorPosition const & p
 }
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
 #endif

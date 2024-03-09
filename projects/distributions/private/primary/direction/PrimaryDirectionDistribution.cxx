@@ -7,14 +7,14 @@
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
 #include "SIREN/math/Vector3D.h"                  // for Vector3D
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 //---------------
 // class PrimaryDirectionDistribution : PrimaryInjectionDistribution
 //---------------
-void PrimaryDirectionDistribution::Sample(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
-    SI::math::Vector3D dir = SampleDirection(rand, detector_model, interactions, record);
+void PrimaryDirectionDistribution::Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+    siren::math::Vector3D dir = SampleDirection(rand, detector_model, interactions, record);
     record.SetDirection(dir);
 }
 
@@ -23,5 +23,5 @@ std::vector<std::string> PrimaryDirectionDistribution::DensityVariables() const 
 }
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 

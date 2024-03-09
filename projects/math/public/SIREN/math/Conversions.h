@@ -9,7 +9,7 @@
 #include "SIREN/math/Quaternion.h"
 #include "SIREN/math/EulerAngles.h"
 
-namespace SI {
+namespace siren {
 namespace math {
 
 class Vector3D;
@@ -221,7 +221,7 @@ EulerAngles EulerAnglesFromQuaternion(Quaternion const & quaternion, EulerOrder 
 }
 
 } // namespace math
-} // namespace SI
+} // namespace siren
 
 #endif // LI_Conversions_H
 

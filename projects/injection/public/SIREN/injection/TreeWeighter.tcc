@@ -33,7 +33,7 @@
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/dataclasses/InteractionSignature.h"
 
-namespace SI {
+namespace siren {
 namespace injection {
 
 double one_minus_exp_of_negative(double x) {
@@ -68,7 +68,7 @@ template<typename ProcessType>
 void ProcessWeighter<ProcessType>::Initialize() {
     normalization = 1.0;
     for(auto physical_dist : phys_process->GetPhysicalDistributions()) {
-        const SI::distributions::PhysicallyNormalizedDistribution* p = dynamic_cast<const SI::distributions::PhysicallyNormalizedDistribution*>(physical_dist.get());
+        const siren::distributions::PhysicallyNormalizedDistribution* p = dynamic_cast<const siren::distributions::PhysicallyNormalizedDistribution*>(physical_dist.get());
         if(p) {
             if(p->IsNormalizationSet()) {
                 normalization *= p->GetNormalization();
@@ -79,7 +79,7 @@ void ProcessWeighter<ProcessType>::Initialize() {
     unique_phys_distributions = phys_process->GetPhysicalDistributions();
     for(typename std::vector<std::shared_ptr<typename ProcessType::InjectionType>>::reverse_iterator gen_it = unique_gen_distributions.rbegin();
             gen_it != unique_gen_distributions.rend(); ++gen_it) {
-        for(std::vector<std::shared_ptr<SI::distributions::WeightableDistribution>>::reverse_iterator phys_it = unique_phys_distributions.rbegin();
+        for(std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>>::reverse_iterator phys_it = unique_phys_distributions.rbegin();
                 phys_it != unique_phys_distributions.rend(); ++phys_it) {
             if((*gen_it) == (*phys_it)) {
                 unique_gen_distributions.erase(std::next(gen_it).base());
@@ -91,35 +91,35 @@ void ProcessWeighter<ProcessType>::Initialize() {
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<SI::math::Vector3D, SI::math::Vector3D> const & bounds, SI::dataclasses::InteractionRecord const & record) const {
-    using SI::detector::DetectorPosition;
-    using SI::detector::DetectorDirection;
-    SI::math::Vector3D interaction_vertex(
+double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
+    using siren::detector::DetectorPosition;
+    using siren::detector::DetectorDirection;
+    siren::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    SI::math::Vector3D primary_direction(
+    siren::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    SI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<SI::dataclasses::ParticleType, std::vector<std::shared_ptr<SI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
-    std::vector<SI::dataclasses::ParticleType> targets;
+    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+    std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<siren::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
+    std::vector<siren::dataclasses::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
     double total_decay_length = phys_process->GetInteractions()->TotalDecayLength(record);
 
-    SI::dataclasses::InteractionRecord fake_record = record;
+    siren::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-        std::vector<std::shared_ptr<SI::interactions::CrossSection>> const & xs_list = target_xs.second;
+        std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            std::vector<SI::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
             for(auto const & signature : signatures) {
                 fake_record.signature = signature;
                 // Add total cross section
@@ -141,36 +141,36 @@ double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<SI::math:
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<SI::math::Vector3D, SI::math::Vector3D> const & bounds, SI::dataclasses::InteractionRecord const & record) const {
-    using SI::detector::DetectorPosition;
-    using SI::detector::DetectorDirection;
-    SI::math::Vector3D interaction_vertex(
+double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
+    using siren::detector::DetectorPosition;
+    using siren::detector::DetectorDirection;
+    siren::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    SI::math::Vector3D primary_direction(
+    siren::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    SI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<SI::dataclasses::ParticleType, std::vector<std::shared_ptr<SI::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
+    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+    std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<siren::interactions::CrossSection>>> const & cross_sections_by_target = phys_process->GetInteractions()->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
 
-    std::vector<SI::dataclasses::ParticleType> targets; targets.reserve(n_targets);
+    std::vector<siren::dataclasses::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
     double total_decay_length = phys_process->GetInteractions()->TotalDecayLength(record);
-    SI::dataclasses::InteractionRecord fake_record = record;
+    siren::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-        std::vector<std::shared_ptr<SI::interactions::CrossSection>> const & xs_list = target_xs.second;
+        std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            std::vector<SI::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
             for(auto const & signature : signatures) {
                 fake_record.signature = signature;
                 // Add total cross section
@@ -195,8 +195,8 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<SI
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<SI::math::Vector3D, SI::math::Vector3D> const & bounds,
-        SI::dataclasses::InteractionRecord const & record ) const {
+double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
+        siren::dataclasses::InteractionRecord const & record ) const {
 
     double physical_probability = 1.0;
     double prob = InteractionProbability(bounds, record);
@@ -205,7 +205,7 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<SI::math::Ve
     prob = NormalizedPositionProbability(bounds, record);
     physical_probability *= prob;
 
-    prob = SI::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), record);
+    prob = siren::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), record);
     physical_probability *= prob;
 
     for(auto physical_dist : unique_phys_distributions) {
@@ -216,8 +216,8 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<SI::math::Ve
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::GenerationProbability(SI::dataclasses::InteractionTreeDatum const & datum ) const {
-    double gen_probability = SI::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), datum.record);
+double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum ) const {
+    double gen_probability = siren::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), datum.record);
 
     for(auto gen_dist : unique_gen_distributions) {
         gen_probability *= gen_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), datum.record);
@@ -226,13 +226,13 @@ double ProcessWeighter<ProcessType>::GenerationProbability(SI::dataclasses::Inte
 }
 
 template<typename ProcessType>
-double ProcessWeighter<ProcessType>::EventWeight(std::tuple<SI::math::Vector3D, SI::math::Vector3D> const & bounds,
-        SI::dataclasses::InteractionTreeDatum const & datum) const {
+double ProcessWeighter<ProcessType>::EventWeight(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
+        siren::dataclasses::InteractionTreeDatum const & datum) const {
     return PhysicalProbability(bounds,datum.record)/GenerationProbability(datum);
 }
 
 template<typename ProcessType>
-ProcessWeighter<ProcessType>::ProcessWeighter(std::shared_ptr<SI::injection::PhysicalProcess> phys_process, std::shared_ptr<ProcessType> inj_process, std::shared_ptr<SI::detector::DetectorModel> detector_model)
+ProcessWeighter<ProcessType>::ProcessWeighter(std::shared_ptr<siren::injection::PhysicalProcess> phys_process, std::shared_ptr<ProcessType> inj_process, std::shared_ptr<siren::detector::DetectorModel> detector_model)
     : phys_process(phys_process)
       , inj_process(inj_process)
       , detector_model(detector_model)
@@ -246,16 +246,16 @@ ProcessWeighter<ProcessType>::ProcessWeighter(std::shared_ptr<SI::injection::Phy
 //}
 
 template<>
-std::vector<std::shared_ptr<SI::distributions::PrimaryInjectionDistribution>> const & PrimaryProcessWeighter::GetInjectionDistributions() {
+std::vector<std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>> const & PrimaryProcessWeighter::GetInjectionDistributions() {
     return inj_process->GetPrimaryInjectionDistributions();
 }
 
 template<>
-std::vector<std::shared_ptr<SI::distributions::SecondaryInjectionDistribution>> const & SecondaryProcessWeighter::GetInjectionDistributions() {
+std::vector<std::shared_ptr<siren::distributions::SecondaryInjectionDistribution>> const & SecondaryProcessWeighter::GetInjectionDistributions() {
     return inj_process->GetSecondaryInjectionDistributions();
 }
 
 } // namespace injection
-} // namespace SI
+} // namespace siren
 
 #endif // LI_TreeWeighter_TCC

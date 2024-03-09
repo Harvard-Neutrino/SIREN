@@ -21,12 +21,12 @@
 #include "SIREN/interactions/Decay.h"   // for Decay
 #include "SIREN/dataclasses/Particle.h"  // for Particle
 
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace dataclasses { class CrossSectionDistributionRecord; } }
-namespace SI { namespace dataclasses { struct InteractionSignature; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
+namespace siren { namespace dataclasses { struct InteractionSignature; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 class NeutrissimoDecay : public Decay {
@@ -39,22 +39,22 @@ private:
     double hnl_mass;
     std::vector<double> dipole_coupling; // d_e, d_mu, d_tau
     ChiralNature nature;
-    const std::set<SI::dataclasses::ParticleType> primary_types = {SI::dataclasses::ParticleType::NuF4, SI::dataclasses::ParticleType::NuF4Bar};
+    const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::NuF4, siren::dataclasses::ParticleType::NuF4Bar};
 public:
     NeutrissimoDecay(double hnl_mass, std::vector<double> dipole_coupling, ChiralNature nature) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), nature(nature) {};
-    NeutrissimoDecay(double hnl_mass, std::vector<double> dipole_coupling, ChiralNature nature, std::set<SI::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), nature(nature), primary_types(primary_types) {};
+    NeutrissimoDecay(double hnl_mass, std::vector<double> dipole_coupling, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), nature(nature), primary_types(primary_types) {};
     virtual bool equal(Decay const & other) const override;
     double GetHNLMass() const {return hnl_mass;};
     // if only one dipole coupling provided, assume it is d_mu
     NeutrissimoDecay(double hnl_mass, double dipole_coupling, ChiralNature nature) : hnl_mass(hnl_mass), dipole_coupling(std::vector<double>{0,dipole_coupling,0}), nature(nature) {};
-    NeutrissimoDecay(double hnl_mass, double dipole_coupling, ChiralNature nature, std::set<SI::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(std::vector<double>{0,dipole_coupling,0}), nature(nature), primary_types(primary_types) {};
+    NeutrissimoDecay(double hnl_mass, double dipole_coupling, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(std::vector<double>{0,dipole_coupling,0}), nature(nature), primary_types(primary_types) {};
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
-    virtual double TotalDecayWidth(SI::dataclasses::ParticleType primary) const override;
+    virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
     virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
-    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<SI::utilities::LI_random>) const override;
-    virtual std::vector<SI::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
-    virtual std::vector<SI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(SI::dataclasses::ParticleType primary) const override;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random>) const override;
+    virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
+    virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const override;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 public:
     virtual std::vector<std::string> DensityVariables() const override;
@@ -73,7 +73,7 @@ public:
     template<typename Archive>
     void load_and_construct(Archive & archive, cereal::construct<NeutrissimoDecay> & construct, std::uint32_t version) {
         if(version == 0) {
-            std::set<SI::dataclasses::ParticleType> _primary_types;
+            std::set<siren::dataclasses::ParticleType> _primary_types;
             double _hnl_mass;
             double _dipole_coupling;
             ChiralNature _nature;
@@ -92,10 +92,10 @@ public:
 };
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::interactions::NeutrissimoDecay, 0);
-CEREAL_REGISTER_TYPE(SI::interactions::NeutrissimoDecay);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::interactions::Decay, SI::interactions::NeutrissimoDecay);
+CEREAL_CLASS_VERSION(siren::interactions::NeutrissimoDecay, 0);
+CEREAL_REGISTER_TYPE(siren::interactions::NeutrissimoDecay);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::Decay, siren::interactions::NeutrissimoDecay);
 
 #endif // LI_NeutrissimoDecay_H

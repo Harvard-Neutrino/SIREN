@@ -15,7 +15,7 @@
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/Placement.h"
 
-namespace SI {
+namespace siren {
 namespace geometry {
 
 Sphere::Sphere()
@@ -158,7 +158,7 @@ void Sphere::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Sphere::ComputeIntersections(SI::math::Vector3D const & position, SI::math::Vector3D const & direction) const {
+std::vector<Geometry::Intersection> Sphere::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the sphere
     // sphere (x1 + x0)^2 + (x2 + y0)^2 + (x3 + z0)^2 = radius^2
     // straight line (particle trajectory) g = vec(x,y,z) + t * dir_vec( cosph
@@ -175,7 +175,7 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(SI::math::Vecto
 
     std::vector<Intersection> dist;
 
-    SI::math::Vector3D intersection;
+    siren::math::Vector3D intersection;
 
     std::function<void(double, bool)> save = [&](double t, bool entering){
         Intersection i;
@@ -253,7 +253,7 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(SI::math::Vecto
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Sphere::ComputeDistanceToBorder(const SI::math::Vector3D& position, const SI::math::Vector3D& direction) const
+std::pair<double, double> Sphere::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -325,4 +325,4 @@ std::pair<double, double> Sphere::ComputeDistanceToBorder(const SI::math::Vector
 }
 
 } // namespace geometry
-} // namespace SI
+} // namespace siren

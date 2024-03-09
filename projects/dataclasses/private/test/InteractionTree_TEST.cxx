@@ -15,7 +15,7 @@
 
 #include "SIREN/dataclasses/InteractionTree.h"
 
-using namespace SI::dataclasses;
+using namespace siren::dataclasses;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
@@ -71,16 +71,16 @@ std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(InteractionReco
 TEST(DatumConstructor, InteractionRecord)
 {
     InteractionRecord record;
-    record.signature.primary_type = SI::dataclasses::ParticleType::EPlus;
-    record.signature.target_type = SI::dataclasses::ParticleType::EPlus;
-    record.signature.secondary_types.push_back(SI::dataclasses::ParticleType::EPlus);
-    record.signature.secondary_types.push_back(SI::dataclasses::ParticleType::EMinus);
+    record.signature.primary_type = siren::dataclasses::ParticleType::EPlus;
+    record.signature.target_type = siren::dataclasses::ParticleType::EPlus;
+    record.signature.secondary_types.push_back(siren::dataclasses::ParticleType::EPlus);
+    record.signature.secondary_types.push_back(siren::dataclasses::ParticleType::EMinus);
 
     InteractionTreeDatum datum(record);
-    EXPECT_EQ(datum.record.signature.primary_type, SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum.record.signature.target_type, SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum.record.signature.secondary_types[0], SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum.record.signature.secondary_types[1], SI::dataclasses::ParticleType::EMinus);
+    EXPECT_EQ(datum.record.signature.primary_type, siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum.record.signature.target_type, siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum.record.signature.secondary_types[0], siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum.record.signature.secondary_types[1], siren::dataclasses::ParticleType::EMinus);
 }
 
 TEST(TreeConstructor, Default)
@@ -93,71 +93,71 @@ TEST(TreeAddEntry, Record)
 {
     InteractionTree tree;
     InteractionRecord record;
-    record.signature.primary_type = SI::dataclasses::ParticleType::EPlus;
-    record.signature.target_type = SI::dataclasses::ParticleType::EPlus;
-    record.signature.secondary_types.push_back(SI::dataclasses::ParticleType::EPlus);
-    record.signature.secondary_types.push_back(SI::dataclasses::ParticleType::EMinus);
+    record.signature.primary_type = siren::dataclasses::ParticleType::EPlus;
+    record.signature.target_type = siren::dataclasses::ParticleType::EPlus;
+    record.signature.secondary_types.push_back(siren::dataclasses::ParticleType::EPlus);
+    record.signature.secondary_types.push_back(siren::dataclasses::ParticleType::EMinus);
 
     std::shared_ptr<InteractionTreeDatum> datum = tree.add_entry(record);
     EXPECT_EQ(tree.tree.size(), 1);
-    EXPECT_EQ(datum->record.signature.primary_type, SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum->record.signature.target_type, SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum->record.signature.secondary_types[0], SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum->record.signature.secondary_types[1], SI::dataclasses::ParticleType::EMinus);
+    EXPECT_EQ(datum->record.signature.primary_type, siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum->record.signature.target_type, siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum->record.signature.secondary_types[0], siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum->record.signature.secondary_types[1], siren::dataclasses::ParticleType::EMinus);
 }
 
 TEST(TreeAddEntry, DatumReference)
 {
     InteractionTree tree;
     InteractionRecord record;
-    record.signature.primary_type = SI::dataclasses::ParticleType::EPlus;
-    record.signature.target_type = SI::dataclasses::ParticleType::EPlus;
-    record.signature.secondary_types.push_back(SI::dataclasses::ParticleType::EPlus);
-    record.signature.secondary_types.push_back(SI::dataclasses::ParticleType::EMinus);
+    record.signature.primary_type = siren::dataclasses::ParticleType::EPlus;
+    record.signature.target_type = siren::dataclasses::ParticleType::EPlus;
+    record.signature.secondary_types.push_back(siren::dataclasses::ParticleType::EPlus);
+    record.signature.secondary_types.push_back(siren::dataclasses::ParticleType::EMinus);
 
     InteractionTreeDatum datum = InteractionTreeDatum(record);
     std::shared_ptr<InteractionTreeDatum> datum2 = tree.add_entry(datum);
     EXPECT_EQ(tree.tree.size(), 1);
-    EXPECT_EQ(datum2->record.signature.primary_type, SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.signature.target_type, SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.signature.secondary_types[0], SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.signature.secondary_types[1], SI::dataclasses::ParticleType::EMinus);
+    EXPECT_EQ(datum2->record.signature.primary_type, siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.target_type, siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[0], siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[1], siren::dataclasses::ParticleType::EMinus);
 }
 
 TEST(TreeAddEntry, DatumPointer)
 {
     InteractionTree tree;
     InteractionRecord record;
-    record.signature.primary_type = SI::dataclasses::ParticleType::EPlus;
-    record.signature.target_type = SI::dataclasses::ParticleType::EPlus;
-    record.signature.secondary_types.push_back(SI::dataclasses::ParticleType::EPlus);
-    record.signature.secondary_types.push_back(SI::dataclasses::ParticleType::EMinus);
+    record.signature.primary_type = siren::dataclasses::ParticleType::EPlus;
+    record.signature.target_type = siren::dataclasses::ParticleType::EPlus;
+    record.signature.secondary_types.push_back(siren::dataclasses::ParticleType::EPlus);
+    record.signature.secondary_types.push_back(siren::dataclasses::ParticleType::EMinus);
 
     std::shared_ptr<InteractionTreeDatum> datum = std::make_shared<InteractionTreeDatum>(record);
     std::shared_ptr<InteractionTreeDatum> datum2 = tree.add_entry(datum);
     EXPECT_EQ(tree.tree.size(), 1);
-    EXPECT_EQ(datum2->record.signature.primary_type, SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.signature.target_type, SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.signature.secondary_types[0], SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.signature.secondary_types[1], SI::dataclasses::ParticleType::EMinus);
+    EXPECT_EQ(datum2->record.signature.primary_type, siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.target_type, siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[0], siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[1], siren::dataclasses::ParticleType::EMinus);
 }
 
 TEST(TreeAddEntry, Parent)
 {
     InteractionTree tree;
     InteractionRecord record;
-    record.signature.primary_type = SI::dataclasses::ParticleType::EPlus;
-    record.signature.target_type = SI::dataclasses::ParticleType::EPlus;
-    record.signature.secondary_types.push_back(SI::dataclasses::ParticleType::EPlus);
-    record.signature.secondary_types.push_back(SI::dataclasses::ParticleType::EMinus);
+    record.signature.primary_type = siren::dataclasses::ParticleType::EPlus;
+    record.signature.target_type = siren::dataclasses::ParticleType::EPlus;
+    record.signature.secondary_types.push_back(siren::dataclasses::ParticleType::EPlus);
+    record.signature.secondary_types.push_back(siren::dataclasses::ParticleType::EMinus);
 
     auto datum = tree.add_entry(record);
     auto datum2 = tree.add_entry(record, datum);
     EXPECT_EQ(tree.tree.size(), 2);
-    EXPECT_EQ(datum2->record.signature.primary_type, SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.signature.target_type, SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.signature.secondary_types[0], SI::dataclasses::ParticleType::EPlus);
-    EXPECT_EQ(datum2->record.signature.secondary_types[1], SI::dataclasses::ParticleType::EMinus);
+    EXPECT_EQ(datum2->record.signature.primary_type, siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.target_type, siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[0], siren::dataclasses::ParticleType::EPlus);
+    EXPECT_EQ(datum2->record.signature.secondary_types[1], siren::dataclasses::ParticleType::EMinus);
     EXPECT_EQ(datum2->parent, datum);
 }
 

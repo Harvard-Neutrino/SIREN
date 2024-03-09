@@ -1,7 +1,7 @@
 #ifndef LI_InjectionFailure_H
 #define LI_InjectionFailure_H
 
-namespace SI {
+namespace siren {
 namespace utilities {
 
 class InjectionFailure : public std::runtime_error {

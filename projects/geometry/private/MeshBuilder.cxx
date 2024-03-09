@@ -18,7 +18,7 @@
  *                                  OStream                                    *
  ******************************************************************************/
 
-namespace SI {
+namespace siren {
 namespace geometry {
 namespace Mesh {
 
@@ -953,4 +953,4 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangle_data, do
 
 } // namespace Mesh
 } // namespace geometry
-} // namespace SI
+} // namespace siren

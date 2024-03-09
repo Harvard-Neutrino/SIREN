@@ -54,7 +54,7 @@
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/geometry/Placement.h"
 
-namespace SI {
+namespace siren {
 namespace geometry {
 
 class Geometry {
@@ -210,10 +210,10 @@ enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY, TRIANGULARMESH};
 const std::array<std::string, 5>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh"};
 
 } // namespace geometry
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::geometry::Geometry, 0);
-CEREAL_CLASS_VERSION(SI::geometry::Geometry::Intersection, 0);
-CEREAL_CLASS_VERSION(SI::geometry::Geometry::IntersectionList, 0);
+CEREAL_CLASS_VERSION(siren::geometry::Geometry, 0);
+CEREAL_CLASS_VERSION(siren::geometry::Geometry::Intersection, 0);
+CEREAL_CLASS_VERSION(siren::geometry::Geometry::IntersectionList, 0);
 
 #endif // LI_Geometry_H

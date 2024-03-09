@@ -9,10 +9,10 @@
 #include "SIREN/distributions/Distributions.h"    // for InjectionD...
 #include "SIREN/utilities/Random.h"               // for LI_random
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace detector { class DetectorModel; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace detector { class DetectorModel; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 //---------------
@@ -24,7 +24,7 @@ PowerLaw::PowerLaw(double powerLawIndex, double energyMin, double energyMax)
     , energyMax(energyMax)
 {}
 
-double PowerLaw::SampleEnergy(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
+double PowerLaw::SampleEnergy(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     if(energyMin == energyMax)
         return energyMin; //return the only allowed energy
 
@@ -48,7 +48,7 @@ double PowerLaw::pdf(double energy) const {
     }
 }
 
-double PowerLaw::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
+double PowerLaw::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     return pdf(record.primary_momentum[0]);
 }
 
@@ -85,5 +85,5 @@ void PowerLaw::SetNormalizationAtEnergy(double norm, double energy) {
 }
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 

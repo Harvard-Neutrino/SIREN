@@ -12,10 +12,10 @@
 #include "SIREN/utilities/Integration.h"          // for rombergInt...
 #include "SIREN/utilities/Random.h"               // for LI_random
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace detector { class DetectorModel; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace detector { class DetectorModel; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 //---------------
@@ -52,17 +52,17 @@ ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEner
     std::function<double(double)> integrand = [&] (double x) -> double {
         return pdf(x);
     };
-    double test_norm = SI::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-8);
+    double test_norm = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-8);
     if(std::abs(1.0 - test_norm) < 1e-6) {
         integral = 1.0;
-        integral = SI::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-8);
+        integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-8);
     }
     if(has_physical_normalization) {
         SetNormalization(integral);
     }
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     // Metropolis-Hastings algorithm to sample from PDF.
     // Pass in a function pointer for the PDF
 
@@ -88,7 +88,7 @@ double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_
     return energy;
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
     if(energy < energyMin or energy > energyMax)
         return 0.0;
@@ -125,5 +125,5 @@ bool ModifiedMoyalPlusExponentialEnergyDistribution::less(WeightableDistribution
 }
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 

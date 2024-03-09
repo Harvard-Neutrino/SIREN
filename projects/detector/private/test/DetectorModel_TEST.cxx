@@ -29,11 +29,11 @@
 #include "FakeDetectorModel.h"
 #include "FakeMaterialModel.h"
 
-using namespace SI::math;
-using namespace SI::geometry;
-using namespace SI::detector;
-using namespace SI::utilities;
-using namespace SI::dataclasses;
+using namespace siren::math;
+using namespace siren::geometry;
+using namespace siren::detector;
+using namespace siren::utilities;
+using namespace siren::dataclasses;
 
 TEST(Constructor, Default)
 {

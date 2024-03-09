@@ -16,7 +16,7 @@
 
 #include "SIREN/detector/Axis1D.h"  // for Axis1D
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 class RadialAxis1D : public Axis1D {
@@ -48,10 +48,10 @@ public:
 };
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::detector::RadialAxis1D, 0);
-CEREAL_REGISTER_TYPE(SI::detector::RadialAxis1D);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::detector::Axis1D, SI::detector::RadialAxis1D);
+CEREAL_CLASS_VERSION(siren::detector::RadialAxis1D, 0);
+CEREAL_REGISTER_TYPE(siren::detector::RadialAxis1D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::Axis1D, siren::detector::RadialAxis1D);
 
 #endif // LI_RadialAxis1D_H

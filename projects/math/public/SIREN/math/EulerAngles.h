@@ -10,7 +10,7 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 
-namespace SI {
+namespace siren {
 namespace math {
 
 class Matrix3D;
@@ -154,9 +154,9 @@ private:
 };
 
 } // namespace math
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::math::EulerAngles, 0);
+CEREAL_CLASS_VERSION(siren::math::EulerAngles, 0);
 
 #endif // LI_EulerAngles_H
 

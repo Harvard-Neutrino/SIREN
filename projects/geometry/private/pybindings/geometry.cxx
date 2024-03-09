@@ -16,7 +16,7 @@
 using namespace pybind11;
 
 PYBIND11_MODULE(geometry,m) {
-    using namespace SI::geometry;
+    using namespace siren::geometry;
 
     // geometry
 
@@ -112,9 +112,9 @@ PYBIND11_MODULE(geometry,m) {
 
     class_<Placement, std::shared_ptr<Placement>>(m, "Placement")
         .def(init<>())
-        .def(init<SI::math::Vector3D const &>())
-        .def(init<SI::math::Quaternion const &>())
-        .def(init<SI::math::Vector3D const &, SI::math::Quaternion const &>())
+        .def(init<siren::math::Vector3D const &>())
+        .def(init<siren::math::Quaternion const &>())
+        .def(init<siren::math::Vector3D const &, siren::math::Quaternion const &>())
         .def(init<Placement const &>())
         .def_property("Position", &Placement::GetPosition, &Placement::SetPosition)
         .def_property("Quaternion", &Placement::GetQuaternion, &Placement::SetQuaternion);

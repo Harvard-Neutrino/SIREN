@@ -16,18 +16,18 @@
 
 #include "SIREN/dataclasses/Particle.h"  // for Particle
 
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace dataclasses { class CrossSectionDistributionRecord; } }
-namespace SI { namespace dataclasses { struct InteractionSignature; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
+namespace siren { namespace dataclasses { struct InteractionSignature; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 class CrossSection {
 friend cereal::access;
 private:
-    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<SI::utilities::LI_random>) const;
+    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<siren::utilities::LI_random>) const;
 public:
     CrossSection();
     virtual ~CrossSection() {};
@@ -37,14 +37,14 @@ public:
     virtual double TotalCrossSectionAllFinalStates(dataclasses::InteractionRecord const &) const;
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const = 0;
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const = 0;
-    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<SI::utilities::LI_random>) const = 0;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random>) const = 0;
 
-    virtual std::vector<SI::dataclasses::ParticleType> GetPossibleTargets() const = 0;
-    virtual std::vector<SI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(SI::dataclasses::ParticleType primary_type) const = 0;
-    virtual std::vector<SI::dataclasses::ParticleType> GetPossiblePrimaries() const = 0;
+    virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const = 0;
+    virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const = 0;
+    virtual std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const = 0;
     virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;
 
-    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(SI::dataclasses::ParticleType primary_type, SI::dataclasses::ParticleType target_type) const = 0;
+    virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const = 0;
     template<class Archive>
@@ -54,9 +54,9 @@ public:
 };
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::interactions::CrossSection, 0);
+CEREAL_CLASS_VERSION(siren::interactions::CrossSection, 0);
 
 #endif // LI_CrossSection_H
 

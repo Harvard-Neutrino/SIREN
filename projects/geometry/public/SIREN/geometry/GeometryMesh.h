@@ -27,7 +27,7 @@
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/MeshBuilder.h"
 
-namespace SI {
+namespace siren {
 namespace geometry {
 
 class TriangularMesh : public Geometry {
@@ -78,11 +78,11 @@ private:
 };
 
 } // namespace geometry
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::geometry::TriangularMesh, 0);
-CEREAL_REGISTER_TYPE(SI::geometry::TriangularMesh)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::geometry::Geometry, SI::geometry::TriangularMesh);
+CEREAL_CLASS_VERSION(siren::geometry::TriangularMesh, 0);
+CEREAL_REGISTER_TYPE(siren::geometry::TriangularMesh)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::TriangularMesh);
 
 #endif // LI_GeometryMesh_H
 

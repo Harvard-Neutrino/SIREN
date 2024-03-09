@@ -1,20 +1,20 @@
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/dataclasses/InteractionRecord.h"
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 CrossSection::CrossSection() {}
 
-void CrossSection::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<SI::utilities::LI_random> rand) const {
-    SI::dataclasses::CrossSectionDistributionRecord csdr(record);
+void CrossSection::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<siren::utilities::LI_random> rand) const {
+    siren::dataclasses::CrossSectionDistributionRecord csdr(record);
     this->SampleFinalState(csdr, rand);
     csdr.Finalize(record);
 }
 
-double CrossSection::TotalCrossSectionAllFinalStates(SI::dataclasses::InteractionRecord const & record) const {
-    std::vector<SI::dataclasses::InteractionSignature> signatures = this->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type);
-    SI::dataclasses::InteractionRecord fake_record = record;
+double CrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const {
+    std::vector<siren::dataclasses::InteractionSignature> signatures = this->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type);
+    siren::dataclasses::InteractionRecord fake_record = record;
     double total_cross_section = 0;
     for(auto signature : signatures) {
         fake_record.signature = signature;
@@ -31,5 +31,5 @@ bool CrossSection::operator==(CrossSection const & other) const {
 }
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren
 

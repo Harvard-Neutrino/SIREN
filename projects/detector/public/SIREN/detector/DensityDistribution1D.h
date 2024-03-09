@@ -21,7 +21,7 @@
 
 #include "SIREN/utilities/Integration.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 template <typename AxisT, typename DistributionT, class E = typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value && std::is_base_of<Distribution1D, DistributionT>::value>::type>
@@ -69,7 +69,7 @@ public:
         std::function<double(double)> f = [&](double x)->double {
             return Evaluate(xi+x*direction);
         };
-        return SI::utilities::rombergIntegrate(f, 0, distance, 1e-6);
+        return siren::utilities::rombergIntegrate(f, 0, distance, 1e-6);
     }
 
     double Integral(const math::Vector3D& xi,
@@ -98,8 +98,8 @@ public:
             if(std::isinf(init)) {
                 init = dF(0.0);
             }
-            res = SI::math::NewtonRaphson(F, dF, 0, max_distance, init);
-        } catch(SI::math::MathException& e) {
+            res = siren::math::NewtonRaphson(F, dF, 0, max_distance, init);
+        } catch(siren::math::MathException& e) {
             res = -1;
         }
         return res;
@@ -124,8 +124,8 @@ public:
             if(std::isinf(init)) {
                 init = dF(0.0);
             }
-            res = SI::math::NewtonRaphson(F, dF, 0, max_distance, init);
-        } catch(SI::math::MathException& e) {
+            res = siren::math::NewtonRaphson(F, dF, 0, max_distance, init);
+        } catch(siren::math::MathException& e) {
             res = -1;
         }
         return res;
@@ -148,6 +148,6 @@ public:
 };
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
 #endif // LI_DensityDistribution1D.h

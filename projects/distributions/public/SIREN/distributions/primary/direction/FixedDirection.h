@@ -15,14 +15,14 @@
 #include "SIREN/distributions/primary/direction/PrimaryDirectionDistribution.h"
 #include "SIREN/math/Vector3D.h"
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace detector { class DetectorModel; } }
-namespace SI { namespace distributions { class PrimaryInjectionDistribution; } }
-namespace SI { namespace distributions { class WeightableDistribution; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace detector { class DetectorModel; } }
+namespace siren { namespace distributions { class PrimaryInjectionDistribution; } }
+namespace siren { namespace distributions { class WeightableDistribution; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 class FixedDirection : virtual public PrimaryDirectionDistribution {
@@ -30,12 +30,12 @@ friend cereal::access;
 protected:
     FixedDirection() {};
 private:
-    SI::math::Vector3D dir;
+    siren::math::Vector3D dir;
 public:
-    FixedDirection(SI::math::Vector3D dir) : dir(dir) {};
+    FixedDirection(siren::math::Vector3D dir) : dir(dir) {};
 private:
-    SI::math::Vector3D SampleDirection(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const override;
-    virtual double GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const override;
+    siren::math::Vector3D SampleDirection(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     std::string Name() const override;
@@ -51,7 +51,7 @@ private:
     template<typename Archive>
     static void load_and_construct(Archive & archive, cereal::construct<FixedDirection> & construct, std::uint32_t const version) {
         if(version == 0) {
-            SI::math::Vector3D d;
+            siren::math::Vector3D d;
             archive(::cereal::make_nvp("Direction", d));
             construct(d);
             archive(cereal::virtual_base_class<PrimaryDirectionDistribution>(construct.ptr()));
@@ -65,10 +65,10 @@ protected:
 };
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::distributions::FixedDirection, 0);
-CEREAL_REGISTER_TYPE(SI::distributions::FixedDirection);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::PrimaryDirectionDistribution, SI::distributions::FixedDirection);
+CEREAL_CLASS_VERSION(siren::distributions::FixedDirection, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::FixedDirection);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryDirectionDistribution, siren::distributions::FixedDirection);
 
 #endif // LI_FixedDirection_H

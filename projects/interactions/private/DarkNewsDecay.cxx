@@ -17,7 +17,7 @@
 #include "SIREN/utilities/Errors.h"                  // for PythonImplementationError
 
 
-namespace SI {
+namespace siren {
 namespace interactions {
 
 DarkNewsDecay::DarkNewsDecay() {}
@@ -39,24 +39,24 @@ double DarkNewsDecay::TotalDecayWidth(dataclasses::InteractionRecord const & int
     return TotalDecayWidth(interaction.signature.primary_type);
 }
 
-double DarkNewsDecay::TotalDecayWidth(SI::dataclasses::ParticleType primary) const {
+double DarkNewsDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow TotalDecayWidth to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsDecay::TotalDecayWidth should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsDecay::TotalDecayWidth should be implemented in Python!"));
     return 0;
 }
 
 double DarkNewsDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & interaction) const {
      // Should be implemented on the python side
     // Not pure virtual in order to allow FinalStateProbability to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsDecay::TotalDecayWidthForFinalState should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsDecay::TotalDecayWidthForFinalState should be implemented in Python!"));
     return 0;
 }
 
 double DarkNewsDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & interaction) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow FinalStateProbability to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsDecay::DifferentialDecayWidth should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsDecay::DifferentialDecayWidth should be implemented in Python!"));
     return 0;
 }
 
@@ -68,15 +68,15 @@ double DarkNewsDecay::FinalStateProbability(dataclasses::InteractionRecord const
   else return dd/td;
 }
 
-void DarkNewsDecay::SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<SI::utilities::LI_random> random) const {
+void DarkNewsDecay::SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<siren::utilities::LI_random> random) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
-    throw(SI::utilities::PythonImplementationError("DarkNewsDecay::SampleRecordFromDarkNews should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsDecay::SampleRecordFromDarkNews should be implemented in Python!"));
 }
 
-void DarkNewsDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<SI::utilities::LI_random> random) const {
+void DarkNewsDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<siren::utilities::LI_random> random) const {
     SampleRecordFromDarkNews(interaction, random);
 }
 
 } // namespace interactions
-} // namespace SI
+} // namespace siren

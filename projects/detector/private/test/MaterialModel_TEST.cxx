@@ -14,7 +14,7 @@
 
 #include "FakeMaterialModel.h"
 
-using namespace SI::detector;
+using namespace siren::detector;
 
 TEST(Constructor, Default)
 {

@@ -15,12 +15,12 @@
 
 #include "SIREN/dataclasses/InteractionTree.h"  // for InteractionT...
 
-namespace SI { namespace interactions { class InteractionCollection; } }
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace detector { class DetectorModel; } }
-namespace SI { namespace utilities { class LI_random; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace detector { class DetectorModel; } }
+namespace siren { namespace utilities { class LI_random; } }
 
-namespace SI {
+namespace siren {
 namespace utilities {
 class LI_random;
 }
@@ -37,9 +37,9 @@ namespace interactions {
 class InteractionCollection;
 }
 
-} // namespace SIREN
+} // namespace sirenREN
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 class PhysicallyNormalizedDistribution {
@@ -78,7 +78,7 @@ class WeightableDistribution {
 friend cereal::access;
 public:
     virtual ~WeightableDistribution() {};
-    virtual double GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const = 0;
+    virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const = 0;
     virtual std::vector<std::string> DensityVariables() const;
     virtual std::string Name() const = 0;
     template<class Archive>
@@ -97,7 +97,7 @@ public:
     }
     bool operator==(WeightableDistribution const & distribution) const;
     bool operator<(WeightableDistribution const & distribution) const;
-    virtual bool AreEquivalent(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<SI::detector::DetectorModel const> second_detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> second_interactions) const;
+    virtual bool AreEquivalent(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<siren::detector::DetectorModel const> second_detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> second_interactions) const;
 protected:
     virtual bool equal(WeightableDistribution const & distribution) const = 0;
     virtual bool less(WeightableDistribution const & distribution) const = 0;
@@ -110,7 +110,7 @@ protected:
 public:
     virtual ~NormalizationConstant() {};
     NormalizationConstant(double norm);
-    virtual double GenerationProbability(std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::InteractionRecord const & record) const override;
+    virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     virtual std::string Name() const override;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -140,7 +140,7 @@ friend cereal::access;
 private:
 public:
     virtual ~PrimaryInjectionDistribution() {};
-    virtual void Sample(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::PrimaryDistributionRecord & record) const = 0;
+    virtual void Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const = 0;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -167,7 +167,7 @@ friend cereal::access;
 private:
 public:
     virtual ~SecondaryInjectionDistribution() {};
-    virtual void Sample(std::shared_ptr<SI::utilities::LI_random> rand, std::shared_ptr<SI::detector::DetectorModel const> detector_model, std::shared_ptr<SI::interactions::InteractionCollection const> interactions, SI::dataclasses::SecondaryDistributionRecord & record) const = 0;
+    virtual void Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const = 0;
     virtual std::shared_ptr<SecondaryInjectionDistribution> clone() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -190,24 +190,24 @@ public:
 };
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::distributions::PhysicallyNormalizedDistribution, 0);
+CEREAL_CLASS_VERSION(siren::distributions::PhysicallyNormalizedDistribution, 0);
 
-CEREAL_CLASS_VERSION(SI::distributions::WeightableDistribution, 0);
+CEREAL_CLASS_VERSION(siren::distributions::WeightableDistribution, 0);
 
-CEREAL_CLASS_VERSION(SI::distributions::NormalizationConstant, 0);
-CEREAL_REGISTER_TYPE(SI::distributions::NormalizationConstant);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::WeightableDistribution, SI::distributions::NormalizationConstant);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::PhysicallyNormalizedDistribution, SI::distributions::NormalizationConstant);
+CEREAL_CLASS_VERSION(siren::distributions::NormalizationConstant, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::NormalizationConstant);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::WeightableDistribution, siren::distributions::NormalizationConstant);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PhysicallyNormalizedDistribution, siren::distributions::NormalizationConstant);
 
-CEREAL_CLASS_VERSION(SI::distributions::PrimaryInjectionDistribution, 0);
-CEREAL_REGISTER_TYPE(SI::distributions::PrimaryInjectionDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::WeightableDistribution, SI::distributions::PrimaryInjectionDistribution);
+CEREAL_CLASS_VERSION(siren::distributions::PrimaryInjectionDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::PrimaryInjectionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::WeightableDistribution, siren::distributions::PrimaryInjectionDistribution);
 
-CEREAL_CLASS_VERSION(SI::distributions::SecondaryInjectionDistribution, 0);
-CEREAL_REGISTER_TYPE(SI::distributions::SecondaryInjectionDistribution);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::distributions::WeightableDistribution, SI::distributions::SecondaryInjectionDistribution);
+CEREAL_CLASS_VERSION(siren::distributions::SecondaryInjectionDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::SecondaryInjectionDistribution);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::WeightableDistribution, siren::distributions::SecondaryInjectionDistribution);
 
 #endif // LI_Distributions_H
 

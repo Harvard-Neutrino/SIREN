@@ -11,8 +11,8 @@
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
 
 using namespace pybind11;
-using namespace SI::detector;
-class PyDistribution1D : public SI::detector::Distribution1D {
+using namespace siren::detector;
+class PyDistribution1D : public siren::detector::Distribution1D {
 public:
     using Distribution1D::Distribution1D;
 
@@ -71,7 +71,7 @@ public:
 
 void register_Distribution1D(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace SI::detector;
+    using namespace siren::detector;
 
     class_<Distribution1D, std::shared_ptr<Distribution1D>, PyDistribution1D>(m, "Distribution1D")
         .def(init<>())

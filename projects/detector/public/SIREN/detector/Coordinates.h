@@ -44,15 +44,15 @@ struct DivisibleBy : crtp<T, DivisibleBy>
 } // namespace fluent
 
 
-namespace SI {
+namespace siren {
 namespace detector {
 
-using GeometryPosition = fluent::NamedType<SI::math::Vector3D, struct GeometryPositionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
-using GeometryDirection = fluent::NamedType<SI::math::Vector3D, struct GeometryDirectionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
-using DetectorPosition = fluent::NamedType<SI::math::Vector3D, struct DetectorPositionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
-using DetectorDirection = fluent::NamedType<SI::math::Vector3D, struct DetectorDirectionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
+using GeometryPosition = fluent::NamedType<siren::math::Vector3D, struct GeometryPositionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
+using GeometryDirection = fluent::NamedType<siren::math::Vector3D, struct GeometryDirectionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
+using DetectorPosition = fluent::NamedType<siren::math::Vector3D, struct DetectorPositionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
+using DetectorDirection = fluent::NamedType<siren::math::Vector3D, struct DetectorDirectionTag, fluent::Callable, fluent::Comparable, fluent::BinaryAddable, fluent::Subtractable, fluent::A<double>::MultiplicableBy, fluent::A<double>::DivisibleBy>;
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
 #endif // LI_Coordinates_H

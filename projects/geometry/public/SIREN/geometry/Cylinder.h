@@ -20,7 +20,7 @@
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/geometry/Geometry.h"
 
-namespace SI {
+namespace siren {
 namespace geometry {
 
 class Cylinder : public Geometry {
@@ -77,10 +77,10 @@ private:
 
 
 } // namespace geometry
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::geometry::Cylinder, 0);
-CEREAL_REGISTER_TYPE(SI::geometry::Cylinder)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::geometry::Geometry, SI::geometry::Cylinder);
+CEREAL_CLASS_VERSION(siren::geometry::Cylinder, 0);
+CEREAL_REGISTER_TYPE(siren::geometry::Cylinder)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::Cylinder);
 
 #endif // LI_Cylinder_H

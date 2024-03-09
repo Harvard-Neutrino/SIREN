@@ -12,11 +12,11 @@
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
-namespace SI { namespace dataclasses { class ParticleID; } }
+namespace siren { namespace dataclasses { class ParticleID; } }
 
-std::ostream& operator<<(std::ostream& os, SI::dataclasses::ParticleID const& record);
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::ParticleID const& record);
 
-namespace SI {
+namespace siren {
 namespace dataclasses {
 
 class ParticleID {
@@ -58,8 +58,8 @@ public:
 };
 
 } // namespace dataclasses
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::dataclasses::ParticleID, 0);
+CEREAL_CLASS_VERSION(siren::dataclasses::ParticleID, 0);
 
 #endif // LI_ParticleID_H

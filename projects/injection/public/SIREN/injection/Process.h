@@ -19,18 +19,18 @@
 #include "SIREN/dataclasses/Particle.h"         // for Particle
 #include "SIREN/distributions/Distributions.h"  // for InjectionDis...
 
-namespace SI { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
 
-namespace SI {
+namespace siren {
 namespace injection {
 
 class Process {
 private:
-    SI::dataclasses::ParticleType primary_type;
+    siren::dataclasses::ParticleType primary_type;
     std::shared_ptr<interactions::InteractionCollection> interactions;
 public:
     Process() = default;
-    Process(SI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
+    Process(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     Process(Process const & other);
     Process(Process && other);
     Process & operator=(Process const & other);
@@ -39,8 +39,8 @@ public:
 
     void SetInteractions(std::shared_ptr<interactions::InteractionCollection> _interactions);
     std::shared_ptr<interactions::InteractionCollection> GetInteractions() const;
-    void SetPrimaryType(SI::dataclasses::ParticleType _primary_type);
-    SI::dataclasses::ParticleType GetPrimaryType() const;
+    void SetPrimaryType(siren::dataclasses::ParticleType _primary_type);
+    siren::dataclasses::ParticleType GetPrimaryType() const;
 
     bool operator==(Process const & other) const;
     bool MatchesHead(std::shared_ptr<Process> const & other) const; // required to compared instances of derived classs
@@ -60,7 +60,7 @@ protected:
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> physical_distributions;
 public:
     PhysicalProcess() = default;
-    PhysicalProcess(SI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
+    PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     PhysicalProcess(PhysicalProcess const & other);
     PhysicalProcess(PhysicalProcess && other);
     PhysicalProcess & operator=(PhysicalProcess const & other);
@@ -85,7 +85,7 @@ protected:
 public:
     typedef distributions::PrimaryInjectionDistribution InjectionType;
     PrimaryInjectionProcess() = default;
-    PrimaryInjectionProcess(SI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
+    PrimaryInjectionProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     PrimaryInjectionProcess(PrimaryInjectionProcess const & other);
     PrimaryInjectionProcess(PrimaryInjectionProcess && other);
     PrimaryInjectionProcess & operator=(PrimaryInjectionProcess const & other);
@@ -111,7 +111,7 @@ protected:
 public:
     typedef distributions::SecondaryInjectionDistribution InjectionType;
     SecondaryInjectionProcess() = default;
-    SecondaryInjectionProcess(SI::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
+    SecondaryInjectionProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions);
     SecondaryInjectionProcess(SecondaryInjectionProcess const & other);
     SecondaryInjectionProcess(SecondaryInjectionProcess && other);
     SecondaryInjectionProcess & operator=(SecondaryInjectionProcess const & other);
@@ -132,8 +132,8 @@ public:
 };
 
 } // namespace injection
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::injection::Process, 0);
+CEREAL_CLASS_VERSION(siren::injection::Process, 0);
 
 #endif // LI_Process_H

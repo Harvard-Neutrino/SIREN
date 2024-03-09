@@ -3,7 +3,7 @@
 #include <tuple>
 #include <vector>
 
-using namespace SI::utilities;
+using namespace siren::utilities;
 
 template<>
 template<>

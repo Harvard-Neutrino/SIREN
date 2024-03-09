@@ -28,12 +28,12 @@
 #include "SIREN/geometry/Cylinder.h"       // for Cylinder
 #include "SIREN/injection/Injector.h"  // for Injector
 
-namespace SI { namespace dataclasses { class InteractionRecord; } }
-namespace SI { namespace injection { class PrimaryInjectionProcess; } }
-namespace SI { namespace math { class Vector3D; } }  // lines 40-40
-namespace SI { namespace utilities { class LI_random; } }  // lines 44-44
+namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace injection { class PrimaryInjectionProcess; } }
+namespace siren { namespace math { class Vector3D; } }  // lines 40-40
+namespace siren { namespace utilities { class LI_random; } }  // lines 44-44
 
-namespace SI {
+namespace siren {
 namespace math {
 class Vector3D;
 }
@@ -47,13 +47,13 @@ namespace injection {
 class CylinderVolumeSIREN : public Injector {
 friend cereal::access;
 protected:
-    std::shared_ptr<SI::distributions::CylinderVolumePositionDistribution> position_distribution;
-    std::shared_ptr<SI::interactions::InteractionCollection> interactions;
+    std::shared_ptr<siren::distributions::CylinderVolumePositionDistribution> position_distribution;
+    std::shared_ptr<siren::interactions::InteractionCollection> interactions;
     CylinderVolumeSIREN();
 public:
-    CylinderVolumeSIREN(unsigned int events_to_inject, std::shared_ptr<SI::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<SI::utilities::LI_random> random, SI::geometry::Cylinder cylinder);
+    CylinderVolumeSIREN(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::LI_random> random, siren::geometry::Cylinder cylinder);
     std::string Name() const override;
-    virtual std::tuple<SI::math::Vector3D, SI::math::Vector3D> PrimaryInjectionBounds(SI::dataclasses::InteractionRecord const & interaction) const override;
+    virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryInjectionBounds(siren::dataclasses::InteractionRecord const & interaction) const override;
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
@@ -77,10 +77,10 @@ public:
 
 
 } // namespace injection
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::injection::CylinderVolumeSIREN, 0);
-CEREAL_REGISTER_TYPE(SI::injection::CylinderVolumeSIREN);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(SI::injection::Injector, SI::injection::CylinderVolumeSIREN);
+CEREAL_CLASS_VERSION(siren::injection::CylinderVolumeSIREN, 0);
+CEREAL_REGISTER_TYPE(siren::injection::CylinderVolumeSIREN);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::injection::Injector, siren::injection::CylinderVolumeSIREN);
 
 #endif // LI_CylinderVolumeSIREN_H

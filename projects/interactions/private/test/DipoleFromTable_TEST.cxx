@@ -17,9 +17,9 @@
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/InteractionSignature.h"
 
-using namespace SI::interactions;
-using namespace SI::dataclasses;
-using namespace SI::utilities;
+using namespace siren::interactions;
+using namespace siren::dataclasses;
+using namespace siren::utilities;
 
 TEST(DipoleFromTable, Constructor)
 {
@@ -77,7 +77,7 @@ TEST(DipoleFromTable, Constructor)
     unsigned int total_events = 10000;
     output(cereal::make_size_tag(static_cast<size_t>(total_events)));
     for(unsigned int i=0; i<total_events; ++i) {
-        SI::dataclasses::CrossSectionDistributionRecord xsec_record(event);
+        siren::dataclasses::CrossSectionDistributionRecord xsec_record(event);
         xs->SampleFinalState(xsec_record, rand);
         xsec_record.Finalize(event);
         //std::cerr << event << std::endl;

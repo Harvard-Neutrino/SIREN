@@ -13,7 +13,7 @@
 
 #include "SIREN/math/EulerAngles.h"
 
-namespace SI {
+namespace siren {
 namespace math {
 class Matrix3D;
 class Vector3D;
@@ -120,9 +120,9 @@ private:
 Quaternion rotation_between(Vector3D const & v0, Vector3D const & v1);
 
 } // namespace math
-} // namespace SI
+} // namespace siren
 
-CEREAL_CLASS_VERSION(SI::math::Quaternion, 0);
+CEREAL_CLASS_VERSION(siren::math::Quaternion, 0);
 
 #endif // LI_Quaternion_H
 

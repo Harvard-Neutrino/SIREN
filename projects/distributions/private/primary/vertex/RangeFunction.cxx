@@ -3,7 +3,7 @@
 #include <typeindex>  // for type_index
 #include <typeinfo>   // for type_info
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 //---------------
@@ -12,7 +12,7 @@ namespace distributions {
 
 RangeFunction::RangeFunction() {}
 
-double RangeFunction::operator()(SI::dataclasses::ParticleType const & primary_type, double energy) const {
+double RangeFunction::operator()(siren::dataclasses::ParticleType const & primary_type, double energy) const {
     return 0.0;
 }
 
@@ -31,4 +31,4 @@ bool RangeFunction::operator<(RangeFunction const & distribution) const {
 }
 
 } // namespace distributions
-} // namespace SIREN
+} // namespace sirenREN

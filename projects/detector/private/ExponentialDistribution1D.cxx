@@ -2,7 +2,7 @@
 
 #include <cmath>  // for exp
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -39,5 +39,5 @@ double ExponentialDistribution1D::Evaluate(double x) const {
     return exp(sigma_*x);
 }
 
-} // namespace SI
+} // namespace siren
 } // namespace detector

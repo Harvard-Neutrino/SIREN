@@ -6,7 +6,7 @@
 
 #include "SIREN/math/Vector3D.h"
 
-using namespace SI::math;
+using namespace siren::math;
 
 TEST(Comparison, Comparison_equal)
 {

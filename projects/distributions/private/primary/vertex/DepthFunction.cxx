@@ -3,9 +3,9 @@
 #include <typeinfo>   // for type_info
 #include <typeindex>  // for type_index
 
-namespace SI { namespace dataclasses { enum class ParticleType : int32_t; } }
+namespace siren { namespace dataclasses { enum class ParticleType : int32_t; } }
 
-namespace SI {
+namespace siren {
 namespace distributions {
 
 //---------------
@@ -13,7 +13,7 @@ namespace distributions {
 //---------------
 DepthFunction::DepthFunction() {}
 
-double DepthFunction::operator()(SI::dataclasses::ParticleType const & primary_type, double energy) const {
+double DepthFunction::operator()(siren::dataclasses::ParticleType const & primary_type, double energy) const {
     return 0.0;
 }
 
@@ -32,4 +32,4 @@ bool DepthFunction::operator<(DepthFunction const & distribution) const {
 }
 
 } // namespace distributions
-} // namespace SI
+} // namespace siren

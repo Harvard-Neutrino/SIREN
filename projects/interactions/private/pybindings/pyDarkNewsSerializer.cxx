@@ -10,13 +10,13 @@
 
 namespace py = pybind11;
 
-std::string pyDarkNewsCrossSection_dumper(SI::interactions::pyDarkNewsCrossSection & object) {
+std::string pyDarkNewsCrossSection_dumper(siren::interactions::pyDarkNewsCrossSection & object) {
     pybind11::object obj;
     if(object.self) {
         obj = object.self;
     } else {
-        auto *tinfo = pybind11::detail::get_type_info(typeid(SI::interactions::DarkNewsCrossSection));
-        pybind11::handle self_handle = get_object_handle(static_cast<const SI::interactions::DarkNewsCrossSection *>(&object), tinfo);
+        auto *tinfo = pybind11::detail::get_type_info(typeid(siren::interactions::DarkNewsCrossSection));
+        pybind11::handle self_handle = get_object_handle(static_cast<const siren::interactions::DarkNewsCrossSection *>(&object), tinfo);
         obj = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
     }
     py::module pkl = py::module::import("pickle");
@@ -25,8 +25,8 @@ std::string pyDarkNewsCrossSection_dumper(SI::interactions::pyDarkNewsCrossSecti
     return str;
 }
 
-SI::interactions::pyDarkNewsCrossSection pyDarkNewsCrossSection_loader(std::string & state) {
-    SI::interactions::pyDarkNewsCrossSection object;
+siren::interactions::pyDarkNewsCrossSection pyDarkNewsCrossSection_loader(std::string & state) {
+    siren::interactions::pyDarkNewsCrossSection object;
     py::module pkl = py::module::import("pickle");
 
     py::object fromhex = py::globals()["__builtins__"].attr("bytes").attr("fromhex");
@@ -37,13 +37,13 @@ SI::interactions::pyDarkNewsCrossSection pyDarkNewsCrossSection_loader(std::stri
     return object;
 }
 
-std::string pyDarkNewsDecay_dumper(SI::interactions::pyDarkNewsDecay & object) {
+std::string pyDarkNewsDecay_dumper(siren::interactions::pyDarkNewsDecay & object) {
     pybind11::object obj;
     if(object.self) {
         obj = object.self;
     } else {
-        auto *tinfo = pybind11::detail::get_type_info(typeid(SI::interactions::DarkNewsDecay));
-        pybind11::handle self_handle = get_object_handle(static_cast<const SI::interactions::DarkNewsDecay *>(&object), tinfo);
+        auto *tinfo = pybind11::detail::get_type_info(typeid(siren::interactions::DarkNewsDecay));
+        pybind11::handle self_handle = get_object_handle(static_cast<const siren::interactions::DarkNewsDecay *>(&object), tinfo);
         obj = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
     }
     py::module pkl = py::module::import("pickle");
@@ -52,8 +52,8 @@ std::string pyDarkNewsDecay_dumper(SI::interactions::pyDarkNewsDecay & object) {
     return str;
 }
 
-SI::interactions::pyDarkNewsDecay pyDarkNewsDecay_loader(std::string & state) {
-    SI::interactions::pyDarkNewsDecay object;
+siren::interactions::pyDarkNewsDecay pyDarkNewsDecay_loader(std::string & state) {
+    siren::interactions::pyDarkNewsDecay object;
     py::module pkl = py::module::import("pickle");
 
     py::object fromhex = py::globals()["__builtins__"].attr("bytes").attr("fromhex");

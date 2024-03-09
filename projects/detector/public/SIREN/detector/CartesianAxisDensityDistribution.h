@@ -19,7 +19,7 @@
 #include "SIREN/detector/DensityDistribution.h"
 #include "SIREN/detector/DensityDistribution1D.h"
 
-namespace SI {
+namespace siren {
 namespace detector {
 
 template<typename DistributionT>
@@ -103,9 +103,9 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
         };
 
         try {
-            double b_res = SI::math::NewtonRaphson(F, dF, a, b, (a+b)/2.0);
+            double b_res = siren::math::NewtonRaphson(F, dF, a, b, (a+b)/2.0);
             return (b_res - a)/dxdt;
-        } catch(SI::math::MathException& e) {
+        } catch(siren::math::MathException& e) {
             return -1;
         }
     };
@@ -131,9 +131,9 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
         };
 
         try {
-            double b_res = SI::math::NewtonRaphson(F, dF, a, b, (a+b)/2.0);
+            double b_res = siren::math::NewtonRaphson(F, dF, a, b, (a+b)/2.0);
             return (b_res - a)/dxdt;
-        } catch(SI::math::MathException& e) {
+        } catch(siren::math::MathException& e) {
             return -1;
         }
     };
@@ -155,6 +155,6 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
 };
 
 } // namespace detector
-} // namespace SI
+} // namespace siren
 
 #endif // LI_CartesianAxisDensityDistribution.h

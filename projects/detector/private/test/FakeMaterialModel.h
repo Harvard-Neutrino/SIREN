@@ -15,7 +15,7 @@
 #include "SIREN/detector/DetectorModel.h"
 #include "SIREN/detector/MaterialModel.h"
 
-using namespace SI::detector;
+using namespace siren::detector;
 
 class FakeMaterialModelFile {
 public:
