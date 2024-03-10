@@ -451,7 +451,7 @@ int MaterialModel::GetProtonCount(siren::dataclasses::ParticleType particle) {
     return Component(particle).proton_count;
 }
 
-int MaterialModel::GetEmpericalNuclearBindingEnergy(int strange_count, int neutron_count, int proton_count, int nucleon_count) {
+double MaterialModel::GetEmpericalNuclearBindingEnergy(int strange_count, int neutron_count, int proton_count, int nucleon_count) {
     // Generalized mass formula and parameters from https://arxiv.org/abs/nucl-th/0504085
     // Nucleus mass formula parameters comes from least squares fit to experimental data
     // Hypernucleus correction parameters in the paper result from a two parameter fit of c1 and c2 while keeping c0 fixed

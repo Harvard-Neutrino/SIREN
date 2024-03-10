@@ -146,7 +146,7 @@ public:
     static int GetNucleonCount(siren::dataclasses::ParticleType particle);
     static int GetNeutronCount(siren::dataclasses::ParticleType particle);
     static int GetProtonCount(siren::dataclasses::ParticleType particle);
-    static int GetEmpericalNuclearBindingEnergy(int num_strange, int num_neutrons, int num_protons, int num_nucleons);
+    static double GetEmpericalNuclearBindingEnergy(int num_strange, int num_neutrons, int num_protons, int num_nucleons);
 };
 
 } // namespace detector
