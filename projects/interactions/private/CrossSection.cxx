@@ -18,7 +18,7 @@ double CrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::Interac
     double total_cross_section = 0;
     for(auto signature : signatures) {
         fake_record.signature = signature;
-        total_cross_section += this->TotalCrossSection(record);
+        total_cross_section += this->TotalCrossSection(fake_record);
     }
     return total_cross_section;
 }

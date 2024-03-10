@@ -98,5 +98,35 @@ bool InteractionCollection::MatchesPrimary(dataclasses::InteractionRecord const 
     return primary_type == record.signature.primary_type;
 }
 
+std::map<siren::dataclasses::ParticleType, double> InteractionCollection::TotalCrossSectionByTarget(siren::dataclasses::InteractionRecord const & record) const {
+    std::map<siren::dataclasses::ParticleType, double> result;
+    for(siren::dataclasses::ParticleType target : target_types) {
+        siren::dataclasses::InteractionRecord fake_record = record;
+        fake_record.signature.target_type = target;
+
+        double total_xs = 0;
+        for(auto xs : cross_sections_by_target.at(target)) {
+            total_xs += xs->TotalCrossSection(fake_record);
+        }
+        result.insert(std::make_pair(target, total_xs));
+    }
+    return result;
+}
+
+std::map<siren::dataclasses::ParticleType, double> InteractionCollection::TotalCrossSectionByTargetAllFinalStates(siren::dataclasses::InteractionRecord const & record) const {
+    std::map<siren::dataclasses::ParticleType, double> result;
+    for(siren::dataclasses::ParticleType target : target_types) {
+        siren::dataclasses::InteractionRecord fake_record = record;
+        fake_record.signature.target_type = target;
+
+        double total_xs = 0;
+        for(auto xs : cross_sections_by_target.at(target)) {
+            total_xs += xs->TotalCrossSectionAllFinalStates(fake_record);
+        }
+        result.insert(std::make_pair(target, total_xs));
+    }
+    return result;
+}
+
 } // namespace interactions
 } // namespace siren

@@ -62,6 +62,8 @@ public:
     double TotalDecayWidth(siren::dataclasses::InteractionRecord const & record) const;
     double TotalDecayLength(siren::dataclasses::InteractionRecord const & record) const;
     virtual bool MatchesPrimary(dataclasses::InteractionRecord const & record) const;
+    std::map<siren::dataclasses::ParticleType, double> TotalCrossSectionByTarget(siren::dataclasses::InteractionRecord const & record) const;
+    std::map<siren::dataclasses::ParticleType, double> TotalCrossSectionByTargetAllFinalStates(siren::dataclasses::InteractionRecord const & record) const;
 public:
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
