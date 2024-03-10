@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_serialization_array_H
-#define LI_serialization_array_H
+#ifndef SIREN_serialization_array_H
+#define SIREN_serialization_array_H
 
 #include "cereal/cereal.hpp"
 #include <array>
@@ -53,5 +53,5 @@ CEREAL_LOAD_FUNCTION_NAME( Archive & ar, std::array<int, N> & array )
 
 } // namespace cereal
 
-#endif // LI_serialization_array_H
+#endif // SIREN_serialization_array_H
 

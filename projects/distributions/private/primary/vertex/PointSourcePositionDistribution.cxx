@@ -17,7 +17,7 @@
 #include "SIREN/distributions/Distributions.h"           // for Inj...
 #include "SIREN/math/Vector3D.h"                         // for Vec...
 #include "SIREN/utilities/Errors.h"                      // for Inj...
-#include "SIREN/utilities/Random.h"                      // for LI_...
+#include "SIREN/utilities/Random.h"                      // for SIREN_...
 
 namespace siren {
 namespace distributions {
@@ -47,7 +47,7 @@ namespace {
 // class PointSourcePositionDistribution : public VertexPositionDistribution
 //---------------
 
-std::tuple<siren::math::Vector3D, siren::math::Vector3D> PointSourcePositionDistribution::SamplePosition(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> PointSourcePositionDistribution::SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     siren::math::Vector3D dir(record.GetDirection());
 
     siren::math::Vector3D endcap_0 = origin;

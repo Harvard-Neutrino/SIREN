@@ -12,9 +12,9 @@ using namespace pybind11;
 PYBIND11_MODULE(utilities,m) {
   using namespace siren::utilities;
 
-  class_<LI_random, std::shared_ptr<LI_random>>(m, "LI_random")
+  class_<SIREN_random, std::shared_ptr<SIREN_random>>(m, "SIREN_random")
     .def(init<>())
     .def(init<unsigned int>())
-    .def("Uniform",&LI_random::Uniform)
-    .def("set_seed",&LI_random::set_seed);
+    .def("Uniform",&SIREN_random::Uniform)
+    .def("set_seed",&SIREN_random::set_seed);
 }

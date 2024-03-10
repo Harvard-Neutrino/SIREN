@@ -94,7 +94,7 @@ TEST(PowerLaw, ConstructorGeneral) {
 }
 
 TEST(PowerLaw, SampleBounds) {
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     size_t N = 1000;
     size_t M = 10000;
     for(size_t i=0; i<N; ++i) {
@@ -120,7 +120,7 @@ TEST(PowerLaw, SampleDistribution) {
     size_t n_two_sigma = 0;
     size_t n_three_sigma = 0;
     size_t n_four_sigma = 0;
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         double gamma = (RandomDouble() - 0.5) + 1;
         double energyMin = RandomDouble() * 100 + 10;
@@ -182,7 +182,7 @@ TEST(PowerLaw, SampleDistribution) {
 TEST(PowerLaw, GenerationProbability) {
     size_t N = 1000;
     size_t M = 10000;
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         double gamma = (RandomDouble() - 0.5) + 1;
         double energyMin = RandomDouble() * 100 + 10;

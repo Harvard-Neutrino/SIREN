@@ -24,7 +24,7 @@ CylinderVolumeSIREN::CylinderVolumeSIREN(
         std::shared_ptr<siren::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes,
-        std::shared_ptr<siren::utilities::LI_random> random,
+        std::shared_ptr<siren::utilities::SIREN_random> random,
         siren::geometry::Cylinder cylinder) :
     Injector(events_to_inject, detector_model, random),
     position_distribution(std::make_shared<siren::distributions::CylinderVolumePositionDistribution>(cylinder)) {

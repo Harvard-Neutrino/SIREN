@@ -1,5 +1,5 @@
-#ifndef LI_InjectionFailure_H
-#define LI_InjectionFailure_H
+#ifndef SIREN_InjectionFailure_H
+#define SIREN_InjectionFailure_H
 
 namespace siren {
 namespace utilities {

@@ -14,7 +14,7 @@ namespace distributions {
 //---------------
 // class SecondaryVertexPositionDistribution : InjectionDistribution
 //---------------
-void SecondaryVertexPositionDistribution::Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const {
+void SecondaryVertexPositionDistribution::Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const {
     SampleVertex(rand, detector_model, interactions, record);
 }
 

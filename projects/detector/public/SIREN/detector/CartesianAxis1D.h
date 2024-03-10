@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_CartesianAxis1D_H
-#define LI_CartesianAxis1D_H
+#ifndef SIREN_CartesianAxis1D_H
+#define SIREN_CartesianAxis1D_H
 
 #include <memory>                            // for shared_ptr
 #include <cstdint>                           // for uint32_t
@@ -53,4 +53,4 @@ CEREAL_CLASS_VERSION(siren::detector::CartesianAxis1D, 0);
 CEREAL_REGISTER_TYPE(siren::detector::CartesianAxis1D);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::Axis1D, siren::detector::CartesianAxis1D);
 
-#endif // LI_CartesianAxis1D_H
+#endif // SIREN_CartesianAxis1D_H

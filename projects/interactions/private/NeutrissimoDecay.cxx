@@ -14,7 +14,7 @@
 #include "SIREN/dataclasses/Particle.h"              // for Particle
 #include "SIREN/math/Vector3D.h"                     // for Vector3D
 #include "SIREN/utilities/Constants.h"               // for GeV, pi
-#include "SIREN/utilities/Random.h"                  // for LI_random
+#include "SIREN/utilities/Random.h"                  // for SIREN_random
 
 namespace siren {
 namespace interactions {
@@ -132,7 +132,7 @@ double NeutrissimoDecay::DifferentialDecayWidth(dataclasses::InteractionRecord c
     return DecayWidth/2. * (1 + alpha*CosThetaGamma);
 }
 
-void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const {
+void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
 
     siren::dataclasses::InteractionSignature const & signature = record.GetSignature();
 

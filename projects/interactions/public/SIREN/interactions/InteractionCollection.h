@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_InteractionCollection_H
-#define LI_InteractionCollection_H
+#ifndef SIREN_InteractionCollection_H
+#define SIREN_InteractionCollection_H
 
 #include <map>                                    // for map
 #include <set>                                    // for set
@@ -93,4 +93,4 @@ public:
 
 CEREAL_CLASS_VERSION(siren::interactions::InteractionCollection, 0);
 
-#endif // LI_InteractionCollection_H
+#endif // SIREN_InteractionCollection_H

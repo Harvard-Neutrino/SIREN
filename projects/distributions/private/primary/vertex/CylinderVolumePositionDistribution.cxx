@@ -11,7 +11,7 @@
 #include "SIREN/distributions/Distributions.h"    // for InjectionD...
 #include "SIREN/geometry/Geometry.h"              // for Geometry
 #include "SIREN/math/Vector3D.h"                  // for Vector3D
-#include "SIREN/utilities/Random.h"               // for LI_random
+#include "SIREN/utilities/Random.h"               // for SIREN_random
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 
@@ -21,7 +21,7 @@ namespace distributions {
 //---------------
 // class CylinderVolumePositionDistribution : public VertexPositionDistribution
 //---------------
-std::tuple<siren::math::Vector3D, siren::math::Vector3D> CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     double t = rand->Uniform(0, 2 * M_PI);
     const double outer_radius = cylinder.GetRadius();
     const double inner_radius = cylinder.GetInnerRadius();

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_ColumnDepthPositionDistribution_H
-#define LI_ColumnDepthPositionDistribution_H
+#ifndef SIREN_ColumnDepthPositionDistribution_H
+#define SIREN_ColumnDepthPositionDistribution_H
 
 #include <set>
 #include <tuple>
@@ -25,7 +25,7 @@ namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace detector { class DetectorModel; } }
 namespace siren { namespace distributions { class PrimaryInjectionDistribution; } }
 namespace siren { namespace distributions { class WeightableDistribution; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace distributions {
@@ -40,11 +40,11 @@ private:
     std::shared_ptr<DepthFunction> depth_function;
     std::set<siren::dataclasses::ParticleType> target_types;
 
-    siren::math::Vector3D SampleFromDisk(std::shared_ptr<siren::utilities::LI_random> rand, siren::math::Vector3D const & dir) const;
+    siren::math::Vector3D SampleFromDisk(std::shared_ptr<siren::utilities::SIREN_random> rand, siren::math::Vector3D const & dir) const;
 
-    std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePosition(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
+    std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
 public:
-    std::tuple<siren::math::Vector3D, siren::math::Vector3D> GetSamplePosition(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record); 
+    std::tuple<siren::math::Vector3D, siren::math::Vector3D> GetSamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record); 
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<siren::dataclasses::ParticleType> target_types);
     std::string Name() const override;
@@ -91,4 +91,4 @@ CEREAL_CLASS_VERSION(siren::distributions::ColumnDepthPositionDistribution, 0);
 CEREAL_REGISTER_TYPE(siren::distributions::ColumnDepthPositionDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::VertexPositionDistribution, siren::distributions::ColumnDepthPositionDistribution);
 
-#endif // LI_ColumnDepthPositionDistribution_H
+#endif // SIREN_ColumnDepthPositionDistribution_H

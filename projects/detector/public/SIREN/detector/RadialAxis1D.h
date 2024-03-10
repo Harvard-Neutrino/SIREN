@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_RadialAxis1D_H
-#define LI_RadialAxis1D_H
+#ifndef SIREN_RadialAxis1D_H
+#define SIREN_RadialAxis1D_H
 
 #include <memory>                            // for shared_ptr
 #include <cstdint>                           // for uint32_t
@@ -54,4 +54,4 @@ CEREAL_CLASS_VERSION(siren::detector::RadialAxis1D, 0);
 CEREAL_REGISTER_TYPE(siren::detector::RadialAxis1D);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::Axis1D, siren::detector::RadialAxis1D);
 
-#endif // LI_RadialAxis1D_H
+#endif // SIREN_RadialAxis1D_H

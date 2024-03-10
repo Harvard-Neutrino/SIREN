@@ -13,7 +13,7 @@ namespace distributions {
 //---------------
 // class PrimaryDirectionDistribution : PrimaryInjectionDistribution
 //---------------
-void PrimaryDirectionDistribution::Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+void PrimaryDirectionDistribution::Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     siren::math::Vector3D dir = SampleDirection(rand, detector_model, interactions, record);
     record.SetDirection(dir);
 }

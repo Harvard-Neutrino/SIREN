@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Weighter_H
-#define LI_Weighter_H
+#ifndef SIREN_Weighter_H
+#define SIREN_Weighter_H
 
 #include <tuple>                  // for tuple
 #include <memory>                 // for shared_ptr
@@ -66,5 +66,5 @@ public:
 CEREAL_CLASS_VERSION(siren::injection::LeptonWeighter, 0);
 
 
-#endif // LI_Weighter_H
+#endif // SIREN_Weighter_H
 

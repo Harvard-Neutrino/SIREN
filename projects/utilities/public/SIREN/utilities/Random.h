@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Random_H
-#define LI_Random_H
+#ifndef SIREN_Random_H
+#define SIREN_Random_H
 
 // Ben Smithers
 // benjamin.smithers@mavs.uta.edu
@@ -12,10 +12,10 @@
 namespace siren {
 namespace utilities {
 
-    class LI_random{
+    class SIREN_random{
         public:
-            LI_random();
-            LI_random( unsigned int seed );
+            SIREN_random();
+            SIREN_random( unsigned int seed );
 
             // this naming convention is used to
             double Uniform( double from=0.0, double to=1.0);
@@ -32,5 +32,5 @@ namespace utilities {
 } // namespace utilities
 } // namespace siren
 
-#endif // LI_Random_H
+#endif // SIREN_Random_H
 

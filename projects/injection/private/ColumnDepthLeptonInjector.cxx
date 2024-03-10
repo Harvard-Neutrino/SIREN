@@ -29,7 +29,7 @@ ColumnDepthSIREN::ColumnDepthSIREN(
         std::shared_ptr<siren::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes,
-        std::shared_ptr<siren::utilities::LI_random> random,
+        std::shared_ptr<siren::utilities::SIREN_random> random,
         std::shared_ptr<siren::distributions::DepthFunction> depth_func,
         double disk_radius,
         double endcap_length) :

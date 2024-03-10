@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Integration_H
-#define LI_Integration_H
+#ifndef SIREN_Integration_H
+#define SIREN_Integration_H
 
 #include <cmath>
 #include <vector>
@@ -153,4 +153,4 @@ double rombergIntegrate(const FuncType& func, double a, double b, double tol=1e-
 }
 }
 
-#endif // LI_Integration_H
+#endif // SIREN_Integration_H

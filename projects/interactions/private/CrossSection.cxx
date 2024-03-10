@@ -6,7 +6,7 @@ namespace interactions {
 
 CrossSection::CrossSection() {}
 
-void CrossSection::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<siren::utilities::LI_random> rand) const {
+void CrossSection::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> rand) const {
     siren::dataclasses::CrossSectionDistributionRecord csdr(record);
     this->SampleFinalState(csdr, rand);
     csdr.Finalize(record);

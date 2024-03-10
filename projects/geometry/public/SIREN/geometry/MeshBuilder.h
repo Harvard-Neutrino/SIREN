@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_MeshBuilder_H
-#define LI_MeshBuilder_H
+#ifndef SIREN_MeshBuilder_H
+#define SIREN_MeshBuilder_H
 
 #include <set>
 #include <map>
@@ -185,5 +185,5 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangles_data, d
 } // namespace geometry
 } // namespace siren
 
-#endif // LI_MeshBuilder_H
+#endif // SIREN_MeshBuilder_H
 

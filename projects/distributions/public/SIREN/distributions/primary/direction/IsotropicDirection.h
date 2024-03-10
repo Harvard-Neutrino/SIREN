@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_IsotropicDirection_H
-#define LI_IsotropicDirection_H
+#ifndef SIREN_IsotropicDirection_H
+#define SIREN_IsotropicDirection_H
 
 #include <memory>
 #include <string>
@@ -20,7 +20,7 @@ namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace detector { class DetectorModel; } }
 namespace siren { namespace distributions { class PrimaryInjectionDistribution; } }
 namespace siren { namespace distributions { class WeightableDistribution; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace math {
@@ -31,7 +31,7 @@ namespace distributions {
 class IsotropicDirection : virtual public PrimaryDirectionDistribution {
 friend cereal::access;
 public:
-    siren::math::Vector3D SampleDirection(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
+    siren::math::Vector3D SampleDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     std::string Name() const override;
@@ -64,4 +64,4 @@ CEREAL_CLASS_VERSION(siren::distributions::IsotropicDirection, 0);
 CEREAL_REGISTER_TYPE(siren::distributions::IsotropicDirection);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryDirectionDistribution, siren::distributions::IsotropicDirection);
 
-#endif // LI_IsotropicDirection_H
+#endif // SIREN_IsotropicDirection_H

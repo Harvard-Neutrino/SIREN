@@ -90,7 +90,7 @@ public:
         )
     }
 
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const override {
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override {
         SELF_OVERRIDE_PURE(
             self,
             Decay,
@@ -199,7 +199,7 @@ public:
         )
     }
 
-    void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const override {
+    void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override {
         SELF_OVERRIDE(
             self,
             DarkNewsDecay,
@@ -211,7 +211,7 @@ public:
         )
     }
 
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const override {
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override {
         SELF_OVERRIDE(
             self,
             DarkNewsDecay,

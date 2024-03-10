@@ -48,7 +48,7 @@ namespace {
 //---------------
 // class ColumnDepthPositionDistribution : VertexPositionDistribution
 //---------------
-siren::math::Vector3D ColumnDepthPositionDistribution::SampleFromDisk(std::shared_ptr<siren::utilities::LI_random> rand, siren::math::Vector3D const & dir) const {
+siren::math::Vector3D ColumnDepthPositionDistribution::SampleFromDisk(std::shared_ptr<siren::utilities::SIREN_random> rand, siren::math::Vector3D const & dir) const {
     double t = rand->Uniform(0, 2 * M_PI);
     double r = radius * std::sqrt(rand->Uniform());
     siren::math::Vector3D pos(r * cos(t), r * sin(t), 0.0);
@@ -56,7 +56,7 @@ siren::math::Vector3D ColumnDepthPositionDistribution::SampleFromDisk(std::share
     return q.rotate(pos, false);
 }
 
-std::tuple<siren::math::Vector3D, siren::math::Vector3D> ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> ColumnDepthPositionDistribution::SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     siren::math::Vector3D dir(record.GetDirection());
     dir.normalize();
     siren::math::Vector3D pca = SampleFromDisk(rand, dir);
@@ -110,7 +110,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> ColumnDepthPositionDist
 }
 
 // public getter function for the private SamplePosition function (for debugging)
-std::tuple<siren::math::Vector3D, siren::math::Vector3D> ColumnDepthPositionDistribution::GetSamplePosition(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) {
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> ColumnDepthPositionDistribution::GetSamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) {
 
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> samplepos = ColumnDepthPositionDistribution::SamplePosition(rand, detector_model, interactions, record);
 

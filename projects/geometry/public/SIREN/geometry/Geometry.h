@@ -27,8 +27,8 @@
  ******************************************************************************/
 
 #pragma once
-#ifndef LI_Geometry_H
-#define LI_Geometry_H
+#ifndef SIREN_Geometry_H
+#define SIREN_Geometry_H
 
 #include <array>
 #include <memory>
@@ -216,4 +216,4 @@ CEREAL_CLASS_VERSION(siren::geometry::Geometry, 0);
 CEREAL_CLASS_VERSION(siren::geometry::Geometry::Intersection, 0);
 CEREAL_CLASS_VERSION(siren::geometry::Geometry::IntersectionList, 0);
 
-#endif // LI_Geometry_H
+#endif // SIREN_Geometry_H

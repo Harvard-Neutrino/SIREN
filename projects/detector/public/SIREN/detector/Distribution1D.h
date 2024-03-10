@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Distribution1D_H
-#define LI_Distribution1D_H
+#ifndef SIREN_Distribution1D_H
+#define SIREN_Distribution1D_H
 #include <memory>                 // for shared_ptr
 #include <cstdint>                // for uint32_t
 
@@ -33,4 +33,4 @@ public:
 
 CEREAL_CLASS_VERSION(siren::detector::Distribution1D, 0);
 
-#endif // LI_Distribution1D_H
+#endif // SIREN_Distribution1D_H

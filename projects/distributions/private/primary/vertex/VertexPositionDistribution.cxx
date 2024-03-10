@@ -14,7 +14,7 @@ namespace distributions {
 //---------------
 // class VertexPositionDistribution : PrimaryInjectionDistribution
 //---------------
-void VertexPositionDistribution::Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+void VertexPositionDistribution::Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> init_and_pos = SamplePosition(rand, detector_model, interactions, record);
     siren::math::Vector3D const & init = std::get<0>(init_and_pos);
     siren::math::Vector3D const & pos = std::get<1>(init_and_pos);

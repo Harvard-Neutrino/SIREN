@@ -7,7 +7,7 @@
 
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
 #include "SIREN/distributions/Distributions.h"    // for InjectionD...
-#include "SIREN/utilities/Random.h"               // for LI_random
+#include "SIREN/utilities/Random.h"               // for SIREN_random
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace detector { class DetectorModel; } }
@@ -24,7 +24,7 @@ PowerLaw::PowerLaw(double powerLawIndex, double energyMin, double energyMax)
     , energyMax(energyMax)
 {}
 
-double PowerLaw::SampleEnergy(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+double PowerLaw::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     if(energyMin == energyMax)
         return energyMin; //return the only allowed energy
 

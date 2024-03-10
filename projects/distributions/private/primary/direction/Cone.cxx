@@ -9,7 +9,7 @@
 #include "SIREN/distributions/Distributions.h"    // for InjectionD...
 #include "SIREN/math/Quaternion.h"                // for Quaternion
 #include "SIREN/math/Vector3D.h"                  // for Vector3D
-#include "SIREN/utilities/Random.h"               // for LI_random
+#include "SIREN/utilities/Random.h"               // for SIREN_random
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace detector { class DetectorModel; } }
@@ -34,7 +34,7 @@ Cone::Cone(siren::math::Vector3D dir, double opening_angle) : dir(dir), opening_
     }
 }
 
-siren::math::Vector3D Cone::SampleDirection(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const{
+siren::math::Vector3D Cone::SampleDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const{
     double theta = acos(rand->Uniform(cos(opening_angle), 1));
     double phi = rand->Uniform(0, 2.0 * M_PI);
     siren::math::Quaternion q;

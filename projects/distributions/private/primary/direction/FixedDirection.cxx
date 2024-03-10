@@ -11,7 +11,7 @@
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace detector { class DetectorModel; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace distributions {
@@ -19,7 +19,7 @@ namespace distributions {
 //---------------
 // class FixedDirection : PrimaryDirectionDistribution
 //---------------
-siren::math::Vector3D FixedDirection::SampleDirection(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+siren::math::Vector3D FixedDirection::SampleDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     return dir;
 }
 

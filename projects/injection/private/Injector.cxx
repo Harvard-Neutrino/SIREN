@@ -44,7 +44,7 @@ Injector::Injector() {}
 Injector::Injector(
         unsigned int events_to_inject,
         std::shared_ptr<siren::detector::DetectorModel> detector_model,
-        std::shared_ptr<siren::utilities::LI_random> random) :
+        std::shared_ptr<siren::utilities::SIREN_random> random) :
     events_to_inject(events_to_inject),
     random(random),
     detector_model(detector_model)
@@ -54,7 +54,7 @@ Injector::Injector(
         unsigned int events_to_inject,
         std::shared_ptr<siren::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
-        std::shared_ptr<siren::utilities::LI_random> random) :
+        std::shared_ptr<siren::utilities::SIREN_random> random) :
     events_to_inject(events_to_inject),
     random(random),
     detector_model(detector_model)
@@ -67,7 +67,7 @@ Injector::Injector(
         std::shared_ptr<siren::detector::DetectorModel> detector_model,
         std::shared_ptr<injection::PrimaryInjectionProcess> primary_process,
         std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes,
-        std::shared_ptr<siren::utilities::LI_random> random) :
+        std::shared_ptr<siren::utilities::SIREN_random> random) :
     events_to_inject(events_to_inject),
     random(random),
     detector_model(detector_model)
@@ -129,7 +129,7 @@ siren::dataclasses::InteractionRecord Injector::NewRecord() const {
     return record;
 }
 
-void Injector::SetRandom(std::shared_ptr<siren::utilities::LI_random> random) {
+void Injector::SetRandom(std::shared_ptr<siren::utilities::SIREN_random> random) {
     this->random = random;
 }
 

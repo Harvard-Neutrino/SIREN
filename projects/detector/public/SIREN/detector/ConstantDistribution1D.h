@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_ConstantDistribution1D_H
-#define LI_ConstantDistribution1D_H
+#ifndef SIREN_ConstantDistribution1D_H
+#define SIREN_ConstantDistribution1D_H
 
 #include <memory>                                    // for shared_ptr
 #include <cstdint>                                   // for uint32_t
@@ -50,4 +50,4 @@ CEREAL_CLASS_VERSION(siren::detector::ConstantDistribution1D, 0);
 CEREAL_REGISTER_TYPE(siren::detector::ConstantDistribution1D);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::Distribution1D, siren::detector::ConstantDistribution1D);
 
-#endif // LI_ConstantDistribution1D_H
+#endif // SIREN_ConstantDistribution1D_H

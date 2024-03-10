@@ -172,7 +172,7 @@ TEST(Injector, Generation)
     detector_model->LoadDetectorModel(detector_file);
 
     // random class instance
-    std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
+    std::shared_ptr<SIREN_random> random = std::make_shared<SIREN_random>();
 
     // let's make the process instances
     // Injection processes

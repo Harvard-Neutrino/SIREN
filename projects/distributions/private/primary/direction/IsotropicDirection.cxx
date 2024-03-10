@@ -5,7 +5,7 @@
 
 #include "SIREN/distributions/Distributions.h"  // for InjectionDis...
 #include "SIREN/math/Vector3D.h"                // for Vector3D
-#include "SIREN/utilities/Random.h"             // for LI_random
+#include "SIREN/utilities/Random.h"             // for SIREN_random
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
@@ -17,7 +17,7 @@ namespace distributions {
 //---------------
 // class IsotropicDirection : PrimaryDirectionDistribution
 //---------------
-siren::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+siren::math::Vector3D IsotropicDirection::SampleDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     double nz = rand->Uniform(-1, 1);
     double nr = sqrt(1.0 - nz*nz);
     double phi = rand->Uniform(-M_PI, M_PI);

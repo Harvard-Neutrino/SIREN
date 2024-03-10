@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_ExponentialDistribution1D_H
-#define LI_ExponentialDistribution1D_H
+#ifndef SIREN_ExponentialDistribution1D_H
+#define SIREN_ExponentialDistribution1D_H
 
 #include <memory>                                    // for shared_ptr
 #include <cstdint>                                   // for uint32_t
@@ -51,4 +51,4 @@ CEREAL_CLASS_VERSION(siren::detector::ExponentialDistribution1D, 0);
 CEREAL_REGISTER_TYPE(siren::detector::ExponentialDistribution1D);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::Distribution1D, siren::detector::ExponentialDistribution1D);
 
-#endif // LI_ExponentialDistribution1D_H
+#endif // SIREN_ExponentialDistribution1D_H

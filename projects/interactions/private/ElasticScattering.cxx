@@ -20,7 +20,7 @@
 #include "SIREN/dataclasses/Particle.h"              // for Particle
 #include "SIREN/utilities/Constants.h"               // for electro...
 #include "SIREN/utilities/Integration.h"             // for romberg...
-#include "SIREN/utilities/Random.h"                  // for LI_random
+#include "SIREN/utilities/Random.h"                  // for SIREN_random
 
 namespace siren {
 namespace interactions {
@@ -113,7 +113,7 @@ double ElasticScattering::TotalCrossSection(siren::dataclasses::ParticleType pri
     return siren::utilities::rombergIntegrate(integrand, 0, ymax);
 }
 
-void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const {
+void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
 
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional

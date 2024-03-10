@@ -1,5 +1,5 @@
-add_library(LI_serialization INTERFACE)
-target_include_directories(LI_serialization INTERFACE
+add_library(SIREN_serialization INTERFACE)
+target_include_directories(SIREN_serialization INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/serialization/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/serialization/>
 )

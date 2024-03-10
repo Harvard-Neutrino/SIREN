@@ -10,7 +10,7 @@
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
 #include "SIREN/distributions/Distributions.h"    // for InjectionD...
 #include "SIREN/utilities/Integration.h"          // for rombergInt...
-#include "SIREN/utilities/Random.h"               // for LI_random
+#include "SIREN/utilities/Random.h"               // for SIREN_random
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace detector { class DetectorModel; } }
@@ -62,7 +62,7 @@ ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEner
     }
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     // Metropolis-Hastings algorithm to sample from PDF.
     // Pass in a function pointer for the PDF
 

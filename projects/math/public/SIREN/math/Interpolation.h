@@ -1,5 +1,5 @@
-#ifndef LI_Interpolation_H
-#define LI_Interpolation_H
+#ifndef SIREN_Interpolation_H
+#define SIREN_Interpolation_H
 
 #include <map>
 #include <set>
@@ -1543,4 +1543,4 @@ CEREAL_CLASS_VERSION(siren::math::TransformIndexer1D<double>, 0);
 CEREAL_REGISTER_TYPE(siren::math::TransformIndexer1D<double>);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::math::Indexer1D<double>, siren::math::TransformIndexer1D<double>);
 
-#endif // LI_Interpolation_H
+#endif // SIREN_Interpolation_H

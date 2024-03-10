@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_DummyCrossSection_H
-#define LI_DummyCrossSection_H
+#ifndef SIREN_DummyCrossSection_H
+#define SIREN_DummyCrossSection_H
 
 #include <memory>
 #include <string>
@@ -24,7 +24,7 @@
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace siren { namespace dataclasses { struct InteractionSignature; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace interactions {
@@ -41,7 +41,7 @@ public:
     double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy, siren::dataclasses::ParticleType target) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random> random) const override;
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
 
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override;
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override;
@@ -78,4 +78,4 @@ CEREAL_CLASS_VERSION(siren::interactions::DummyCrossSection, 0);
 CEREAL_REGISTER_TYPE(siren::interactions::DummyCrossSection);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::DummyCrossSection);
 
-#endif // LI_DummyCrossSection_H
+#endif // SIREN_DummyCrossSection_H

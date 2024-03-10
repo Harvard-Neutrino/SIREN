@@ -9,18 +9,18 @@ LIST (APPEND dataclasses_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/ParticleID.cxx
     ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/ParticleType.cxx
 )
-add_library(LI_dataclasses OBJECT ${dataclasses_SOURCES})
-set_property(TARGET LI_dataclasses PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_include_directories(LI_dataclasses PUBLIC
+add_library(SIREN_dataclasses OBJECT ${dataclasses_SOURCES})
+set_property(TARGET SIREN_dataclasses PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_include_directories(SIREN_dataclasses PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/dataclasses/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/dataclasses/>
 )
 
-target_link_libraries(LI_dataclasses PUBLIC
+target_link_libraries(SIREN_dataclasses PUBLIC
     photospline
-    LI_serialization
-    LI_utilities
-    LI_math
+    SIREN_serialization
+    SIREN_utilities
+    SIREN_math
 )
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/dataclasses/public/"

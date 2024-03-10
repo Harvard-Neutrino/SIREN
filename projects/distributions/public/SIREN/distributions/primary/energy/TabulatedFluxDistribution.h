@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_TabulatedFluxDistribution_H
-#define LI_TabulatedFluxDistribution_H
+#ifndef SIREN_TabulatedFluxDistribution_H
+#define SIREN_TabulatedFluxDistribution_H
 
 #include <memory>
 #include <string>
@@ -22,7 +22,7 @@ namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace detector { class DetectorModel; } }
 namespace siren { namespace distributions { class PrimaryInjectionDistribution; } }
 namespace siren { namespace distributions { class WeightableDistribution; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace distributions {
@@ -57,7 +57,7 @@ public:
     std::vector<double> GetCDF() const;
     std::vector<double> GetEnergyNodes() const;
     std::vector<double> GetCDFEnergyNodes() const;
-    double SampleEnergy(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
+    double SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);
     TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
@@ -101,5 +101,5 @@ CEREAL_CLASS_VERSION(siren::distributions::TabulatedFluxDistribution, 0);
 CEREAL_REGISTER_TYPE(siren::distributions::TabulatedFluxDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryEnergyDistribution, siren::distributions::TabulatedFluxDistribution);
 
-#endif // LI_TabulatedFluxDistribution_H
+#endif // SIREN_TabulatedFluxDistribution_H
 

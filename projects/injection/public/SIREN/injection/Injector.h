@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_SIREN_H
-#define LI_SIREN_H
+#ifndef SIREN_SIREN_H
+#define SIREN_SIREN_H
 
 #include <map>                                             // for map
 #include <set>                                             // for set
@@ -40,7 +40,7 @@ namespace siren { namespace geometry { class Geometry; } }
 namespace siren { namespace injection { class PrimaryInjectionProcess; } }
 namespace siren { namespace injection { class SecondaryInjectionProcess; } }
 namespace siren { namespace math { class Vector3D; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace injection {
@@ -52,7 +52,7 @@ public:
 protected:
     unsigned int events_to_inject = 0;
     unsigned int injected_events = 0;
-    std::shared_ptr<siren::utilities::LI_random> random;
+    std::shared_ptr<siren::utilities::SIREN_random> random;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
     // This funciton returns true if the given datum is the last entry to be saved in a tree
     std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition;
@@ -66,9 +66,9 @@ private:
     std::map<siren::dataclasses::ParticleType,std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distribution_map;
 public:
     // Constructors
-    Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::utilities::LI_random> random);
-    Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::shared_ptr<siren::utilities::LI_random> random);
-    Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::LI_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::utilities::SIREN_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::shared_ptr<siren::utilities::SIREN_random> random);
+    Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::SIREN_random> random);
 
     void SetStoppingCondition(std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> f_in) {stopping_condition = f_in;}
     std::shared_ptr<distributions::VertexPositionDistribution> FindPrimaryVertexDistribution(std::shared_ptr<siren::injection::PrimaryInjectionProcess> process);
@@ -79,7 +79,7 @@ public:
     std::map<siren::dataclasses::ParticleType,std::shared_ptr<siren::injection::SecondaryInjectionProcess>> GetSecondaryProcessMap() {return secondary_process_map;}
     void AddSecondaryProcess(std::shared_ptr<siren::injection::SecondaryInjectionProcess> secondary);
     virtual siren::dataclasses::InteractionRecord NewRecord() const; // set primary type from primary process;
-    void SetRandom(std::shared_ptr<siren::utilities::LI_random> random);
+    void SetRandom(std::shared_ptr<siren::utilities::SIREN_random> random);
     virtual void SampleCrossSection(siren::dataclasses::InteractionRecord & record) const;
     virtual void SampleCrossSection(siren::dataclasses::InteractionRecord & record,
                                     std::shared_ptr<siren::interactions::InteractionCollection> interactions) const;
@@ -135,5 +135,5 @@ public:
 
 CEREAL_CLASS_VERSION(siren::injection::Injector, 0);
 
-#endif // LI_SIREN_H
+#endif // SIREN_SIREN_H
 

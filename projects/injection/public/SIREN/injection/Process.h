@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Process_H
-#define LI_Process_H
+#ifndef SIREN_Process_H
+#define SIREN_Process_H
 
 #include <memory>                                        // for shared_ptr
 #include <vector>                                        // for vector
@@ -136,4 +136,4 @@ public:
 
 CEREAL_CLASS_VERSION(siren::injection::Process, 0);
 
-#endif // LI_Process_H
+#endif // SIREN_Process_H

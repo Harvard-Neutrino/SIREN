@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_RangeFunction_H
-#define LI_RangeFunction_H
+#ifndef SIREN_RangeFunction_H
+#define SIREN_RangeFunction_H
 
 #include <cstdint>            // for uint32_t
 #include <stdexcept>          // for runtime_error
@@ -50,4 +50,4 @@ protected:
 
 CEREAL_CLASS_VERSION(siren::distributions::RangeFunction, 0);
 
-#endif // LI_RangeFunction_H
+#endif // SIREN_RangeFunction_H

@@ -1,5 +1,5 @@
-#ifndef LI_DistributionTest_H
-#define LI_DistributionTest_H
+#ifndef SIREN_DistributionTest_H
+#define SIREN_DistributionTest_H
 
 #include <map>
 #include <cmath>
@@ -315,4 +315,4 @@ public:
     }
 };
 
-#endif // LI_DistributionTest_H
+#endif // SIREN_DistributionTest_H

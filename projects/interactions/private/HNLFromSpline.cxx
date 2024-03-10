@@ -23,7 +23,7 @@
 #include "SIREN/interactions/CrossSection.h"     // for CrossSection
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
 #include "SIREN/dataclasses/Particle.h"           // for Particle
-#include "SIREN/utilities/Random.h"               // for LI_random
+#include "SIREN/utilities/Random.h"               // for SIREN_random
 #include "SIREN/utilities/Constants.h"            // for electronMass
 
 namespace siren {
@@ -366,7 +366,7 @@ double HNLFromSpline::InteractionThreshold(dataclasses::InteractionRecord const 
     return 0;
 }
 
-void HNLFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const {
+void HNLFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
     if (differential_cross_section_.get_ndim() != 3) {

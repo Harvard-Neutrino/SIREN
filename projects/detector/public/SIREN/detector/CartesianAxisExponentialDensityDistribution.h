@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_CartesianAxisDensityDistribution_H
-#define LI_CartesianAxisDensityDistribution_H
+#ifndef SIREN_CartesianAxisDensityDistribution_H
+#define SIREN_CartesianAxisDensityDistribution_H
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
@@ -25,4 +25,4 @@ CEREAL_CLASS_VERSION(siren::detector::CartesianAxisExponentialDensityDistributio
 CEREAL_REGISTER_TYPE(siren::detector::CartesianAxisExponentialDensityDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::CartesianAxisExponentialDensityDistribution);
 
-#endif // LI_CartesianAxisExponentialDensityDistribution.h
+#endif // SIREN_CartesianAxisExponentialDensityDistribution.h

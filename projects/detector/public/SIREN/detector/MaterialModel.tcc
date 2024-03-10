@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_MaterialModel_TCC
-#define LI_MaterialModel_TCC
+#ifndef SIREN_MaterialModel_TCC
+#define SIREN_MaterialModel_TCC
 
 #include "SIREN/detector/MaterialModel.h"
 

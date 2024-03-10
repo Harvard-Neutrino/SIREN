@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_CrossSection_H
-#define LI_CrossSection_H
+#ifndef SIREN_CrossSection_H
+#define SIREN_CrossSection_H
 
 #include <memory>                                 // for shared_ptr
 #include <string>                                 // for string
@@ -19,7 +19,7 @@
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace siren { namespace dataclasses { struct InteractionSignature; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace interactions {
@@ -27,7 +27,7 @@ namespace interactions {
 class CrossSection {
 friend cereal::access;
 private:
-    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<siren::utilities::LI_random>) const;
+    void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const;
 public:
     CrossSection();
     virtual ~CrossSection() {};
@@ -37,7 +37,7 @@ public:
     virtual double TotalCrossSectionAllFinalStates(dataclasses::InteractionRecord const &) const;
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const = 0;
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const = 0;
-    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random>) const = 0;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const = 0;
 
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const = 0;
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const = 0;
@@ -58,5 +58,5 @@ public:
 
 CEREAL_CLASS_VERSION(siren::interactions::CrossSection, 0);
 
-#endif // LI_CrossSection_H
+#endif // SIREN_CrossSection_H
 

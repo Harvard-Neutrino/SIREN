@@ -1,5 +1,5 @@
-#ifndef LI_ParticleID_H
-#define LI_ParticleID_H
+#ifndef SIREN_ParticleID_H
+#define SIREN_ParticleID_H
 
 #include <cstdint>                                      // for uint32_t
 #include <ostream>                                      // for ostream
@@ -62,4 +62,4 @@ public:
 
 CEREAL_CLASS_VERSION(siren::dataclasses::ParticleID, 0);
 
-#endif // LI_ParticleID_H
+#endif // SIREN_ParticleID_H

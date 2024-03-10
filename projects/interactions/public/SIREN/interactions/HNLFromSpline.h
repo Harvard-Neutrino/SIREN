@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_HNLFromSpline_H
-#define LI_HNLFromSpline_H
+#ifndef SIREN_HNLFromSpline_H
+#define SIREN_HNLFromSpline_H
 
 #include <map>                                                // for map
 #include <set>                                                // for set
@@ -30,7 +30,7 @@
 #include "photospline/detail/fitsio.h"                        // for splinet...
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 namespace cereal { class access; }
 
 
@@ -70,7 +70,7 @@ public:
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random> random) const override;
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
 
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override;
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override;
@@ -156,4 +156,4 @@ CEREAL_CLASS_VERSION(siren::interactions::HNLFromSpline, 0);
 CEREAL_REGISTER_TYPE(siren::interactions::HNLFromSpline);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::HNLFromSpline);
 
-#endif // LI_HNLFromSpline_H
+#endif // SIREN_HNLFromSpline_H

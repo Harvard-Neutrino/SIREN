@@ -1,5 +1,5 @@
-#ifndef LI_TEST_FakeMaterialModel_H
-#define LI_TEST_FakeMaterialModel_H
+#ifndef SIREN_TEST_FakeMaterialModel_H
+#define SIREN_TEST_FakeMaterialModel_H
 
 #include <cmath>
 #include <math.h>
@@ -286,5 +286,5 @@ protected:
     }
 };
 
-#endif // LI_TEST_FakeMaterialModel_H
+#endif // SIREN_TEST_FakeMaterialModel_H
 

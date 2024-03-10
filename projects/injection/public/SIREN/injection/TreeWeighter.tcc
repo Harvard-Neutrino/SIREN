@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_TreeWeighter_TCC
-#define LI_TreeWeighter_TCC
+#ifndef SIREN_TreeWeighter_TCC
+#define SIREN_TreeWeighter_TCC
 #include "SIREN/injection/TreeWeighter.h"
 
 #include <iterator>                                              // for ite...
@@ -258,4 +258,4 @@ std::vector<std::shared_ptr<siren::distributions::SecondaryInjectionDistribution
 } // namespace injection
 } // namespace siren
 
-#endif // LI_TreeWeighter_TCC
+#endif // SIREN_TreeWeighter_TCC

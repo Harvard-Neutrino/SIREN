@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_DarkNewsDecay_H
-#define LI_DarkNewsDecay_H
+#ifndef SIREN_DarkNewsDecay_H
+#define SIREN_DarkNewsDecay_H
 
 #include <set>                                    // for set
 #include <memory>                                 // for shared_ptr
@@ -26,7 +26,7 @@
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace siren { namespace dataclasses { struct InteractionSignature; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace interactions {
@@ -45,8 +45,8 @@ public:
     virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
     virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
-    virtual void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random>) const;
-    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random>) const override;
+    virtual void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
     
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override = 0; // Requires python-side implementation
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const override = 0; // Requires python-side implementation
@@ -80,4 +80,4 @@ CEREAL_CLASS_VERSION(siren::interactions::DarkNewsDecay, 0);
 CEREAL_REGISTER_TYPE(siren::interactions::DarkNewsDecay);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::Decay, siren::interactions::DarkNewsDecay);
 
-#endif // LI_DarkNewsDecay_H
+#endif // SIREN_DarkNewsDecay_H

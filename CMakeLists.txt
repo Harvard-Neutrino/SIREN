@@ -21,7 +21,7 @@ endif()
 # parse pyproject.toml for the version
 include(pyproject)
 
-project(siren VERSION ${LI_VERSION} LANGUAGES CXX)
+project(siren VERSION ${SIREN_VERSION} LANGUAGES CXX)
 
 # include cmake dependencies
 include(GNUInstallDirs)
@@ -50,11 +50,11 @@ if(DEFINED SKBUILD)
     cmake_path(RELATIVE_PATH SKBUILD_PLATLIB_DIR BASE_DIRECTORY ${SKBUILD_PLATLIB_DIR} OUTPUT_VARIABLE CMAKE_INSTALL_LIBDIR)
     message(STATUS "Setting include dir to: ${CMAKE_INSTALL_INCLUDEDIR}")
     message(STATUS "Setting lib dir to: ${CMAKE_INSTALL_LIBDIR}")
-    set(LI_INSTALL_INCLUDEDIR ${SKBUILD_HEADERS_DIR})
-    set(LI_INSTALL_LIBDIR ${SKBUILD_PLATLIB_DIR})
+    set(SIREN_INSTALL_INCLUDEDIR ${SKBUILD_HEADERS_DIR})
+    set(SIREN_INSTALL_LIBDIR ${SKBUILD_PLATLIB_DIR})
 else()
-    set(LI_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR})
-    set(LI_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+    set(SIREN_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR})
+    set(SIREN_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
 endif()
 
 # load python and pybind11
@@ -99,15 +99,15 @@ target_link_libraries(SIREN
     PUBLIC
         delabella_shared
         photospline
-        LI_utilities
-        LI_serialization
-        LI_math
-        LI_dataclasses
-        LI_geometry
-        LI_detector
-        LI_interactions
-        LI_distributions
-        LI_injection
+        SIREN_utilities
+        SIREN_serialization
+        SIREN_math
+        SIREN_dataclasses
+        SIREN_geometry
+        SIREN_detector
+        SIREN_interactions
+        SIREN_distributions
+        SIREN_injection
 )
 else()
 target_link_libraries(SIREN
@@ -115,15 +115,15 @@ target_link_libraries(SIREN
     PUBLIC
         photospline
         delabella_shared
-        LI_utilities
-        LI_serialization
-        LI_math
-        LI_dataclasses
-        LI_geometry
-        LI_detector
-        LI_interactions
-        LI_distributions
-        LI_injection
+        SIREN_utilities
+        SIREN_serialization
+        SIREN_math
+        SIREN_dataclasses
+        SIREN_geometry
+        SIREN_detector
+        SIREN_interactions
+        SIREN_distributions
+        SIREN_injection
 )
 endif()
 
@@ -137,30 +137,30 @@ if(DEFINED SKBUILD)
         message(STATUS "Setting SIREN install include dir to: ${CI_INSTALL_PREFIX}/include")
         install(TARGETS SIREN
             delabella_shared
-            LI_utilities
-            LI_serialization
-            LI_math
-            LI_dataclasses
-            LI_geometry
-            LI_detector
-            LI_interactions
-            LI_distributions
-            LI_injection
+            SIREN_utilities
+            SIREN_serialization
+            SIREN_math
+            SIREN_dataclasses
+            SIREN_geometry
+            SIREN_detector
+            SIREN_interactions
+            SIREN_distributions
+            SIREN_injection
             EXPORT ${PROJECT_NAME}Config
             LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/lib"
             PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")
     else()
         install(TARGETS SIREN
             delabella_shared
-            LI_utilities
-            LI_serialization
-            LI_math
-            LI_dataclasses
-            LI_geometry
-            LI_detector
-            LI_interactions
-            LI_distributions
-            LI_injection
+            SIREN_utilities
+            SIREN_serialization
+            SIREN_math
+            SIREN_dataclasses
+            SIREN_geometry
+            SIREN_detector
+            SIREN_interactions
+            SIREN_distributions
+            SIREN_injection
             EXPORT ${PROJECT_NAME}Config
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren.libs
             PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -168,15 +168,15 @@ if(DEFINED SKBUILD)
 else()
     install(TARGETS SIREN
         delabella_shared
-        LI_utilities
-        LI_serialization
-        LI_math
-        LI_dataclasses
-        LI_geometry
-        LI_detector
-        LI_interactions
-        LI_distributions
-        LI_injection
+        SIREN_utilities
+        SIREN_serialization
+        SIREN_math
+        SIREN_dataclasses
+        SIREN_geometry
+        SIREN_detector
+        SIREN_interactions
+        SIREN_distributions
+        SIREN_injection
         EXPORT ${PROJECT_NAME}Config
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

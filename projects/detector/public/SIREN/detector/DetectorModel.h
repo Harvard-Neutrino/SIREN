@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_DetectorModel_H
-#define LI_DetectorModel_H
+#ifndef SIREN_DetectorModel_H
+#define SIREN_DetectorModel_H
 
 #include <map>                                      // for map
 #include <set>                                      // for set
@@ -294,4 +294,4 @@ std::ostream& operator<<(std::ostream& oss, siren::detector::DetectorSector & bc
 
 CEREAL_CLASS_VERSION(siren::detector::DetectorModel, 0);
 
-#endif // LI_DetectorModel_H
+#endif // SIREN_DetectorModel_H

@@ -11,26 +11,26 @@ LIST (APPEND injection_SOURCES
     #${PROJECT_SOURCE_DIR}/projects/injection/private/DecayRangeSIREN.cxx
     #${PROJECT_SOURCE_DIR}/projects/injection/private/RangedSIREN.cxx
 )
-add_library(LI_injection OBJECT ${injection_SOURCES})
-set_property(TARGET LI_injection PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_include_directories(LI_injection PUBLIC
+add_library(SIREN_injection OBJECT ${injection_SOURCES})
+set_property(TARGET SIREN_injection PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_include_directories(SIREN_injection PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/injection/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/injection/>
 )
 
-target_link_libraries(LI_injection
+target_link_libraries(SIREN_injection
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
     PUBLIC
         photospline
-        LI_serialization
-        LI_utilities
-        LI_math
-        LI_dataclasses
-        LI_geometry
-        LI_detector
-        LI_interactions
-        LI_distributions
+        SIREN_serialization
+        SIREN_utilities
+        SIREN_math
+        SIREN_dataclasses
+        SIREN_geometry
+        SIREN_detector
+        SIREN_interactions
+        SIREN_distributions
 )
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/injection/public/"

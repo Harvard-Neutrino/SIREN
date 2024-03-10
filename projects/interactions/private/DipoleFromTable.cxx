@@ -30,7 +30,7 @@
 #include "SIREN/utilities/Constants.h"               // for invGeVs...
 #include "SIREN/utilities/Errors.h"                  // for Injecti...
 #include "SIREN/utilities/Interpolator.h"            // for Interpo...
-#include "SIREN/utilities/Random.h"                  // for LI_random
+#include "SIREN/utilities/Random.h"                  // for SIREN_random
 
 namespace siren {
 namespace interactions {
@@ -243,7 +243,7 @@ double DipoleFromTable::InteractionThreshold(dataclasses::InteractionRecord cons
     return hnl_mass + (hnl_mass*hnl_mass)/(2*interaction.target_mass);
 }
 
-void DipoleFromTable::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const {
+void DipoleFromTable::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     siren::utilities::Interpolator2D<double> const & diff_table = differential.at(record.GetTargetType());
     siren::utilities::Interpolator2D<double> const & diff_table_proton = differential.at(siren::dataclasses::ParticleType::HNucleus);
     int nprotons = siren::detector::MaterialModel::GetProtonCount(record.GetTargetType());

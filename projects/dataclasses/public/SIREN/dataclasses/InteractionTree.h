@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_InteractionTree_H
-#define LI_InteractionTree_H
+#ifndef SIREN_InteractionTree_H
+#define SIREN_InteractionTree_H
 
 #include "SIREN/dataclasses/InteractionRecord.h"
 
@@ -62,5 +62,5 @@ struct InteractionTree {
 } // namespace dataclasses
 } // namespace siren
 
-#endif // LI_InteractionTree_H
+#endif // SIREN_InteractionTree_H
 

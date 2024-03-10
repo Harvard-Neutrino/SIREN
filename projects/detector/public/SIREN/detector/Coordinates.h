@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Coordinates_H
-#define LI_Coordinates_H
+#ifndef SIREN_Coordinates_H
+#define SIREN_Coordinates_H
 
 #include <utility>
 #include "SIREN/math/Vector3D.h"           // for Vector3D
@@ -55,4 +55,4 @@ using DetectorDirection = fluent::NamedType<siren::math::Vector3D, struct Detect
 } // namespace detector
 } // namespace siren
 
-#endif // LI_Coordinates_H
+#endif // SIREN_Coordinates_H

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Decay_H
-#define LI_Decay_H
+#ifndef SIREN_Decay_H
+#define SIREN_Decay_H
 
 #include <memory>                                 // for shared_ptr
 #include <string>                                 // for string
@@ -19,7 +19,7 @@
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace siren { namespace dataclasses { struct InteractionSignature; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace interactions {
@@ -38,7 +38,7 @@ public:
     virtual double TotalDecayLength(siren::dataclasses::InteractionRecord const & record) const;
     virtual double TotalDecayLengthForFinalState(siren::dataclasses::InteractionRecord const & record) const;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const = 0;
-    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::LI_random>) const = 0;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const = 0;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const = 0;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const = 0;
@@ -55,4 +55,4 @@ public:
 
 CEREAL_CLASS_VERSION(siren::interactions::Decay, 0);
 
-#endif // LI_Decay_H
+#endif // SIREN_Decay_H

@@ -13,7 +13,7 @@
 #include "SIREN/dataclasses/InteractionRecord.h"     // for Interac...
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
-#include "SIREN/utilities/Random.h"                  // for LI_random
+#include "SIREN/utilities/Random.h"                  // for SIREN_random
 #include "SIREN/utilities/Errors.h"                  // for PythonImplementationError
 
 
@@ -68,13 +68,13 @@ double DarkNewsDecay::FinalStateProbability(dataclasses::InteractionRecord const
   else return dd/td;
 }
 
-void DarkNewsDecay::SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<siren::utilities::LI_random> random) const {
+void DarkNewsDecay::SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     // Should be implemented on the python side
     // Not pure virtual in order to allow SampleFinalState to call
     throw(siren::utilities::PythonImplementationError("DarkNewsDecay::SampleRecordFromDarkNews should be implemented in Python!"));
 }
 
-void DarkNewsDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<siren::utilities::LI_random> random) const {
+void DarkNewsDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & interaction, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     SampleRecordFromDarkNews(interaction, random);
 }
 

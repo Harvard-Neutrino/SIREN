@@ -26,8 +26,8 @@
  ******************************************************************************/
 
 #pragma once
-#ifndef LI_DensityDistribution_H
-#define LI_DensityDistribution_H
+#ifndef SIREN_DensityDistribution_H
+#define SIREN_DensityDistribution_H
 
 #include <string>                          // for basic_string
 #include <memory>                          // for shared_ptr
@@ -98,5 +98,5 @@ public:
 
 CEREAL_CLASS_VERSION(siren::detector::DensityDistribution, 0);
 
-#endif // LI_DensityDistribution_H
+#endif // SIREN_DensityDistribution_H
 

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Particle_H
-#define LI_Particle_H
+#ifndef SIREN_Particle_H
+#define SIREN_Particle_H
 
 // Used to define the Particle class
 // Partiles have a type, energy, position, and direction
@@ -80,4 +80,4 @@ bool isNeutrino(ParticleType p);
 
 CEREAL_CLASS_VERSION(siren::dataclasses::Particle, 0);
 
-#endif // LI_Particle_H
+#endif // SIREN_Particle_H

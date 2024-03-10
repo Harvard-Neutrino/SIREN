@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_EulerAngles_H
-#define LI_EulerAngles_H
+#ifndef SIREN_EulerAngles_H
+#define SIREN_EulerAngles_H
 
 #include <cstdint>
 #include <sstream>
@@ -158,5 +158,5 @@ private:
 
 CEREAL_CLASS_VERSION(siren::math::EulerAngles, 0);
 
-#endif // LI_EulerAngles_H
+#endif // SIREN_EulerAngles_H
 

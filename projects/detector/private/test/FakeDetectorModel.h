@@ -1,5 +1,5 @@
-#ifndef LI_TEST_FakeDetectorModel_H
-#define LI_TEST_FakeDetectorModel_H
+#ifndef SIREN_TEST_FakeDetectorModel_H
+#define SIREN_TEST_FakeDetectorModel_H
 
 #include <cmath>
 #include <math.h>
@@ -760,5 +760,5 @@ protected:
     }
 };
 
-#endif // LI_TEST_FakeDetectorModel_H
+#endif // SIREN_TEST_FakeDetectorModel_H
 

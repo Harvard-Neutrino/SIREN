@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_CartesianAxisDensityDistribution_H
-#define LI_CartesianAxisDensityDistribution_H
+#ifndef SIREN_CartesianAxisDensityDistribution_H
+#define SIREN_CartesianAxisDensityDistribution_H
 #include <memory>
 #include <string>
 #include <exception>
@@ -157,4 +157,4 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
 } // namespace detector
 } // namespace siren
 
-#endif // LI_CartesianAxisDensityDistribution.h
+#endif // SIREN_CartesianAxisDensityDistribution.h

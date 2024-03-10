@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_CylinderVolumeSIREN_H
-#define LI_CylinderVolumeSIREN_H
+#ifndef SIREN_CylinderVolumeSIREN_H
+#define SIREN_CylinderVolumeSIREN_H
 
 #include <tuple>
 #include <memory>
@@ -31,7 +31,7 @@
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace injection { class PrimaryInjectionProcess; } }
 namespace siren { namespace math { class Vector3D; } }  // lines 40-40
-namespace siren { namespace utilities { class LI_random; } }  // lines 44-44
+namespace siren { namespace utilities { class SIREN_random; } }  // lines 44-44
 
 namespace siren {
 namespace math {
@@ -39,7 +39,7 @@ class Vector3D;
 }
 
 namespace utilities {
-class LI_random;
+class SIREN_random;
 }
 
 namespace injection {
@@ -51,7 +51,7 @@ protected:
     std::shared_ptr<siren::interactions::InteractionCollection> interactions;
     CylinderVolumeSIREN();
 public:
-    CylinderVolumeSIREN(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::LI_random> random, siren::geometry::Cylinder cylinder);
+    CylinderVolumeSIREN(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::SIREN_random> random, siren::geometry::Cylinder cylinder);
     std::string Name() const override;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryInjectionBounds(siren::dataclasses::InteractionRecord const & interaction) const override;
     template<typename Archive>
@@ -83,4 +83,4 @@ CEREAL_CLASS_VERSION(siren::injection::CylinderVolumeSIREN, 0);
 CEREAL_REGISTER_TYPE(siren::injection::CylinderVolumeSIREN);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::injection::Injector, siren::injection::CylinderVolumeSIREN);
 
-#endif // LI_CylinderVolumeSIREN_H
+#endif // SIREN_CylinderVolumeSIREN_H

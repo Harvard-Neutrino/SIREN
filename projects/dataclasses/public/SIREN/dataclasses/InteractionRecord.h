@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_InteractionRecord_H
-#define LI_InteractionRecord_H
+#ifndef SIREN_InteractionRecord_H
+#define SIREN_InteractionRecord_H
 
 #include <array>                                              // for array
 #include <iosfwd>                                             // for ostream
@@ -349,4 +349,4 @@ public:
 
 CEREAL_CLASS_VERSION(siren::dataclasses::InteractionRecord, 0);
 
-#endif // LI_InteractionRecord_H
+#endif // SIREN_InteractionRecord_H

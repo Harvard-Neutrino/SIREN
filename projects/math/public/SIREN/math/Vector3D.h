@@ -23,8 +23,8 @@
  ******************************************************************************/
 
 #pragma once
-#ifndef LI_Vector3D_H
-#define LI_Vector3D_H
+#ifndef SIREN_Vector3D_H
+#define SIREN_Vector3D_H
 
 #include <array>
 #include <cstdint>
@@ -197,5 +197,5 @@ Vector3D cross_product(const Vector3D& vec1, const Vector3D& vec2);
 
 CEREAL_CLASS_VERSION(siren::math::Vector3D, 0);
 
-#endif // LI_Vector3D_H
+#endif // SIREN_Vector3D_H
 

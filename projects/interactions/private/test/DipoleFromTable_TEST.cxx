@@ -55,7 +55,7 @@ TEST(DipoleFromTable, Constructor)
     event.target_mass = target_mass;
     event.target_mass = target_mass;
 
-    std::shared_ptr<LI_random> rand = std::make_shared<LI_random>();
+    std::shared_ptr<SIREN_random> rand = std::make_shared<SIREN_random>();
 
     double z = rand->Uniform(-1.0, 1.0);
     double rho = sqrt(1.0 - z*z);

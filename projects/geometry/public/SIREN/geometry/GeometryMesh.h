@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_GeometryMesh_H
-#define LI_GeometryMesh_H
+#ifndef SIREN_GeometryMesh_H
+#define SIREN_GeometryMesh_H
 
 #include <memory>
 #include <vector>
@@ -84,5 +84,5 @@ CEREAL_CLASS_VERSION(siren::geometry::TriangularMesh, 0);
 CEREAL_REGISTER_TYPE(siren::geometry::TriangularMesh)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::TriangularMesh);
 
-#endif // LI_GeometryMesh_H
+#endif // SIREN_GeometryMesh_H
 

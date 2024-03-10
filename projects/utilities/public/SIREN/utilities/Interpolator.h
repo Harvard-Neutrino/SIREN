@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Interpolator_H
-#define LI_Interpolator_H
+#ifndef SIREN_Interpolator_H
+#define SIREN_Interpolator_H
 
 #include <map>
 #include <set>
@@ -713,4 +713,4 @@ CEREAL_CLASS_VERSION(siren::utilities::Indexer1D<double>, 0);
 CEREAL_CLASS_VERSION(siren::utilities::Interpolator1D<double>, 0);
 CEREAL_CLASS_VERSION(siren::utilities::Interpolator2D<double>, 0);
 
-#endif // LI_Interpolator_H
+#endif // SIREN_Interpolator_H

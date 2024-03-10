@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Placement_H
-#define LI_Placement_H
+#ifndef SIREN_Placement_H
+#define SIREN_Placement_H
 
 #include <memory>
 #include <cstdint>
@@ -87,5 +87,5 @@ private:
 
 CEREAL_CLASS_VERSION(siren::geometry::Placement, 0);
 
-#endif // LI_Placement_H
+#endif // SIREN_Placement_H
 

@@ -13,7 +13,7 @@
 #include "SIREN/dataclasses/InteractionRecord.h"     // for Interac...
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
-#include "SIREN/utilities/Random.h"                  // for LI_random
+#include "SIREN/utilities/Random.h"                  // for SIREN_random
 
 namespace siren {
 namespace interactions {
@@ -59,7 +59,7 @@ double DummyCrossSection::InteractionThreshold(dataclasses::InteractionRecord co
     return 0;
 }
 
-void DummyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const {
+void DummyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
 

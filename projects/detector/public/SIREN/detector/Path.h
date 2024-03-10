@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Path_H
-#define LI_Path_H
+#ifndef SIREN_Path_H
+#define SIREN_Path_H
 
 #include <vector>                                 // for vector
 #include <memory>                                 // for shared_ptr
@@ -257,5 +257,5 @@ public:
 
 CEREAL_CLASS_VERSION(siren::detector::Path, 0);
 
-# endif // LI_Path_H
+# endif // SIREN_Path_H
 

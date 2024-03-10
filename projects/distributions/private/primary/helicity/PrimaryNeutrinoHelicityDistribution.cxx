@@ -16,7 +16,7 @@ namespace distributions {
 //---------------
 // class PrimaryNeutrinoHelicityDistribution : PrimaryInjectionDistribution
 //---------------
-void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+void PrimaryNeutrinoHelicityDistribution::Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     siren::dataclasses::ParticleType const & t = record.type;
     if(static_cast<int32_t>(t) > 0) // Particles are left handed, anti-particles are right handed
         record.SetHelicity(-0.5);

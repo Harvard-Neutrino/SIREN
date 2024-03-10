@@ -17,23 +17,23 @@ LIST (APPEND detector_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/detector/private/MaterialModel.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/Path.cxx
 )
-add_library(LI_detector OBJECT ${detector_SOURCES})
-set_property(TARGET LI_detector PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_include_directories(LI_detector PUBLIC
+add_library(SIREN_detector OBJECT ${detector_SOURCES})
+set_property(TARGET SIREN_detector PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_include_directories(SIREN_detector PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/detector/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/detector/>
 )
 
-target_link_libraries(LI_detector
+target_link_libraries(SIREN_detector
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
     PUBLIC
         photospline
-        LI_serialization
-        LI_utilities
-        LI_math
-        LI_dataclasses
-        LI_geometry
+        SIREN_serialization
+        SIREN_utilities
+        SIREN_math
+        SIREN_dataclasses
+        SIREN_geometry
 )
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/detector/public/"

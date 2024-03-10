@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Matrix3D_H
-#define LI_Matrix3D_H
+#ifndef SIREN_Matrix3D_H
+#define SIREN_Matrix3D_H
 
 #include <sstream>
 #include <initializer_list>
@@ -125,5 +125,5 @@ private:
 
 CEREAL_CLASS_VERSION(siren::math::Matrix3D, 0);
 
-#endif // LI_Matrix3D_H
+#endif // SIREN_Matrix3D_H
 

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_DecayRangePositionDistribution_H
-#define LI_DecayRangePositionDistribution_H
+#ifndef SIREN_DecayRangePositionDistribution_H
+#define SIREN_DecayRangePositionDistribution_H
 
 #include <set>
 #include <tuple>
@@ -25,7 +25,7 @@ namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace detector { class DetectorModel; } }
 namespace siren { namespace distributions { class PrimaryInjectionDistribution; } }
 namespace siren { namespace distributions { class WeightableDistribution; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace distributions {
@@ -36,9 +36,9 @@ private:
     double endcap_length;
     std::shared_ptr<DecayRangeFunction> range_function;
 
-    siren::math::Vector3D SampleFromDisk(std::shared_ptr<siren::utilities::LI_random> rand, siren::math::Vector3D const & dir) const;
+    siren::math::Vector3D SampleFromDisk(std::shared_ptr<siren::utilities::SIREN_random> rand, siren::math::Vector3D const & dir) const;
 
-    std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePosition(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
+    std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
 public:
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     DecayRangePositionDistribution();
@@ -86,4 +86,4 @@ CEREAL_CLASS_VERSION(siren::distributions::DecayRangePositionDistribution, 0);
 CEREAL_REGISTER_TYPE(siren::distributions::DecayRangePositionDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::VertexPositionDistribution, siren::distributions::DecayRangePositionDistribution);
 
-#endif // LI_DecayRangePositionDistribution_H
+#endif // SIREN_DecayRangePositionDistribution_H

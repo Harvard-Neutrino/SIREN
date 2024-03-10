@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_HNLDecay_H
-#define LI_HNLDecay_H
+#ifndef SIREN_HNLDecay_H
+#define SIREN_HNLDecay_H
 
 #include <map>
 #include <set>
@@ -52,7 +52,7 @@ public:
     virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
     virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
-    virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<siren::utilities::LI_random>) const override;
+    virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const override;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
@@ -98,4 +98,4 @@ CEREAL_CLASS_VERSION(siren::interactions::HNLDecay, 0);
 CEREAL_REGISTER_TYPE(siren::interactions::HNLDecay);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::Decay, siren::interactions::HNLDecay);
 
-#endif // LI_HNLDecay_H
+#endif // SIREN_HNLDecay_H

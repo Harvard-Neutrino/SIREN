@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_DepthFunction_H
-#define LI_DepthFunction_H
+#ifndef SIREN_DepthFunction_H
+#define SIREN_DepthFunction_H
 
 #include <cstdint>            // for uint32_t
 #include <stdexcept>          // for runtime_error
@@ -50,4 +50,4 @@ protected:
 
 CEREAL_CLASS_VERSION(siren::distributions::DepthFunction, 0);
 
-#endif // LI_DepthFunction_H
+#endif // SIREN_DepthFunction_H

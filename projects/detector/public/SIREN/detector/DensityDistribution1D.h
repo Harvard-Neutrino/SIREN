@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_DensityDistribution1D_H
-#define LI_DensityDistribution1D_H
+#ifndef SIREN_DensityDistribution1D_H
+#define SIREN_DensityDistribution1D_H
 #include <memory>
 #include <string>
 #include <exception>
@@ -150,4 +150,4 @@ public:
 } // namespace detector
 } // namespace siren
 
-#endif // LI_DensityDistribution1D.h
+#endif // SIREN_DensityDistribution1D.h

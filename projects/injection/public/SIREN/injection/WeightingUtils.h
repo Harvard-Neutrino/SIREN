@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_WeightingUtils_H
-#define LI_WeightingUtils_H
+#ifndef SIREN_WeightingUtils_H
+#define SIREN_WeightingUtils_H
 
 #include <memory>                 // for shared_ptr
 
@@ -16,4 +16,4 @@ double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel co
 } // namespace injection
 } // namespace siren
 
-#endif // LI_WeightingUtils_H
+#endif // SIREN_WeightingUtils_H

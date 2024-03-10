@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_SecondaryBoundedVertexDistribution_H
-#define LI_SecondaryBoundedVertexDistribution_H
+#ifndef SIREN_SecondaryBoundedVertexDistribution_H
+#define SIREN_SecondaryBoundedVertexDistribution_H
 
 #include <tuple>
 #include <limits>
@@ -26,7 +26,7 @@ namespace siren { namespace detector { class DetectorModel; } }
 namespace siren { namespace distributions { class SecondaryInjectionDistribution; } }
 namespace siren { namespace distributions { class WeightableDistribution; } }
 namespace siren { namespace geometry { class Geometry; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace distributions {
@@ -44,7 +44,7 @@ public:
     SecondaryBoundedVertexDistribution(std::shared_ptr<siren::geometry::Geometry> fiducial_volume);
     SecondaryBoundedVertexDistribution(std::shared_ptr<siren::geometry::Geometry> fiducial_volume, double max_length);
 
-    virtual void SampleVertex(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const override;
+    virtual void SampleVertex(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
 
     std::string Name() const override;
@@ -83,4 +83,4 @@ CEREAL_CLASS_VERSION(siren::distributions::SecondaryBoundedVertexDistribution, 0
 CEREAL_REGISTER_TYPE(siren::distributions::SecondaryBoundedVertexDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::SecondaryVertexPositionDistribution, siren::distributions::SecondaryBoundedVertexDistribution);
 
-#endif // LI_SecondaryBoundedVertexDistribution_H
+#endif // SIREN_SecondaryBoundedVertexDistribution_H

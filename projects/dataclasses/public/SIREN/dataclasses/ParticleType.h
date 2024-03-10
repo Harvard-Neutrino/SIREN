@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_ParticleType_H
-#define LI_ParticleType_H
+#ifndef SIREN_ParticleType_H
+#define SIREN_ParticleType_H
 
 #include <map>
 #include <string>
@@ -88,4 +88,4 @@ namespace cereal {
     }
 }
 
-#endif // LI_ParticleType_H
+#endif // SIREN_ParticleType_H

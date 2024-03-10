@@ -36,7 +36,7 @@ TEST(Cone, Constructor) {
 TEST(Cone, SampleBounds) {
     size_t N = 100;
     size_t M = 10000;
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         direction.normalize();
@@ -63,7 +63,7 @@ TEST(Cone, SampleDistributionTheta) {
     size_t n_two_sigma = 0;
     size_t n_three_sigma = 0;
     size_t n_four_sigma = 0;
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         direction.normalize();
@@ -117,7 +117,7 @@ TEST(Cone, SampleDistributionPhi) {
     size_t n_two_sigma = 0;
     size_t n_three_sigma = 0;
     size_t n_four_sigma = 0;
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         direction.normalize();
@@ -176,7 +176,7 @@ TEST(Cone, SampleDistributionPhi) {
 TEST(Cone, GenerationProbability) {
     size_t N = 1000;
     size_t M = 10000;
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         while(true) {
@@ -252,7 +252,7 @@ TEST(FixedDirection, Constructor) {
 TEST(FixedDirection, Sample) {
     size_t N = 10000;
     size_t M = 10;
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         while(true) {
@@ -282,7 +282,7 @@ TEST(IsotropicDirection, Constructor) {
 
 TEST(IsotropicDirection, SampleDistributionTheta) {
     size_t N = 100000;
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     IsotropicDirection A;
     double bin_max = 1.0;
     double bin_min = -1.0;
@@ -308,7 +308,7 @@ TEST(IsotropicDirection, SampleDistributionTheta) {
 
 TEST(IsotropicDirection, SampleDistributionPhi) {
     size_t N = 100000;
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     IsotropicDirection A;
     double bin_max = M_PI;
     double bin_min = -M_PI;
@@ -335,7 +335,7 @@ TEST(IsotropicDirection, SampleDistributionPhi) {
 
 TEST(IsotropicDirection, GenerationProbability) {
     size_t N = 100000;
-    std::shared_ptr<siren::utilities::LI_random> rand = std::make_shared<siren::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     IsotropicDirection A;
     double expected_density = 1.0 / (4.0 * M_PI);
     for(size_t i=0; i<N; ++i) {

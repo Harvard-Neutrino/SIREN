@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Constants_H
-#define LI_Constants_H
+#ifndef SIREN_Constants_H
+#define SIREN_Constants_H
 
 #include <math.h> // pow function
 
@@ -108,5 +108,5 @@ static const double hbarc           = 197.3*(1e-9)*(1e-7)*GeV*cm; // [GeV m]
 } // namespace utilities
 } // namespace siren
 
-#endif // LI_Constants_H
+#endif // SIREN_Constants_H
 

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_ExtrPoly_H
-#define LI_ExtrPoly_H
+#ifndef SIREN_ExtrPoly_H
+#define SIREN_ExtrPoly_H
 
 #include <array>
 #include <tuple>
@@ -141,4 +141,4 @@ CEREAL_CLASS_VERSION(siren::geometry::ExtrPoly, 0);
 CEREAL_REGISTER_TYPE(siren::geometry::ExtrPoly)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::ExtrPoly);
 
-#endif // LI_ExtrPoly_H
+#endif // SIREN_ExtrPoly_H

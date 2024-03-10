@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_MaterialModel_H
-#define LI_MaterialModel_H
+#ifndef SIREN_MaterialModel_H
+#define SIREN_MaterialModel_H
 
 #include <map>                                    // for map
 #include <tuple>                                  // for tuple
@@ -158,5 +158,5 @@ CEREAL_CLASS_VERSION(siren::detector::MaterialModel::MaterialComponent, 0);
 
 #include "SIREN/detector/MaterialModel.tcc"
 
-# endif // LI_MaterialModel_H
+# endif // SIREN_MaterialModel_H
 

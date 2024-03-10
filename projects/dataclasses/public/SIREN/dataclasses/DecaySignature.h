@@ -1,5 +1,5 @@
-#ifndef LI_DecaySignature_H
-#define LI_DecaySignature_H
+#ifndef SIREN_DecaySignature_H
+#define SIREN_DecaySignature_H
 
 #include <cstdint>                                // for uint32_t
 #include <vector>                                 // for vector
@@ -41,4 +41,4 @@ struct DecaySignature {
 
 CEREAL_CLASS_VERSION(siren::dataclasses::DecaySignature, 0);
 
-#endif // LI_DecaySignature_H
+#endif // SIREN_DecaySignature_H

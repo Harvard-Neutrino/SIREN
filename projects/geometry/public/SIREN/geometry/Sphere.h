@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Sphere_H
-#define LI_Sphere_H
+#ifndef SIREN_Sphere_H
+#define SIREN_Sphere_H
 
 #include <memory>
 #include <vector>
@@ -80,4 +80,4 @@ CEREAL_CLASS_VERSION(siren::geometry::Sphere, 0);
 CEREAL_REGISTER_TYPE(siren::geometry::Sphere)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::Sphere);
 
-#endif // LI_Sphere_H
+#endif // SIREN_Sphere_H

@@ -301,7 +301,7 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
     return DecayWidth/2. * (1 + alpha*CosThetaGamma);
 }
 
-void HNLDecay::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const {
+void HNLDecay::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     
     unsigned int gamma_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;

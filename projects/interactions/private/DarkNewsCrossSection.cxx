@@ -13,7 +13,7 @@
 #include "SIREN/dataclasses/InteractionRecord.h"     // for Interac...
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
-#include "SIREN/utilities/Random.h"                  // for LI_random
+#include "SIREN/utilities/Random.h"                  // for SIREN_random
 #include "SIREN/utilities/Errors.h"                  // for PythonImplementationError
 
 namespace siren {
@@ -124,7 +124,7 @@ std::vector<double> DarkNewsCrossSection::SecondaryHelicities(dataclasses::Inter
     return std::vector<double>();
 }
 
-void DarkNewsCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const {
+void DarkNewsCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     // Set our upscattering masses and helicities using values from DarkNews
     record.SetTargetMass(TargetMass(record.target_type));
     std::vector<double> secondary_masses = SecondaryMasses(record.signature.secondary_types);

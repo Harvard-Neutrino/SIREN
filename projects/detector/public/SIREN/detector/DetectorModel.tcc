@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_DetectorModel_TCC
-#define LI_DetectorModel_TCC
+#ifndef SIREN_DetectorModel_TCC
+#define SIREN_DetectorModel_TCC
 
 #include <numeric>
 #include <cassert>

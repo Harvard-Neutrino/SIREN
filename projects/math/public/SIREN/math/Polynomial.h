@@ -1,5 +1,5 @@
-#ifndef LI_Polynomial_H
-#define LI_Polynomial_H
+#ifndef SIREN_Polynomial_H
+#define SIREN_Polynomial_H
 
 /******************************************************************************
  *                                                                            *
@@ -120,5 +120,5 @@ double NewtonRaphson(std::function<double(double)> f, std::function<double(doubl
 
 CEREAL_CLASS_VERSION(siren::math::Polynom, 0);
 
-#endif // LI_Polynomial_H
+#endif // SIREN_Polynomial_H
 

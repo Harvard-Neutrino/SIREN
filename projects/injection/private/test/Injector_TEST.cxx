@@ -283,7 +283,7 @@ TEST(Injector, Generation)
     std::shared_ptr<PrimaryInjector> primary_injector = std::make_shared<PrimaryInjector>(primary_type, 0);
 
     // Setup power law
-    std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
+    std::shared_ptr<SIREN_random> random = std::make_shared<SIREN_random>();
 
     std::vector<double> moyal_exp_params = p_ME_FHC_numu;
 

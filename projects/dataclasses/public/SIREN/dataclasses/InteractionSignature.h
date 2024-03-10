@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_InteractionSignature_H
-#define LI_InteractionSignature_H
+#ifndef SIREN_InteractionSignature_H
+#define SIREN_InteractionSignature_H
 
 #include <iosfwd>                                 // for ostream
 #include <vector>                                 // for vector
@@ -43,4 +43,4 @@ struct InteractionSignature {
 
 CEREAL_CLASS_VERSION(siren::dataclasses::InteractionSignature, 0);
 
-#endif // LI_InteractionSignature_H
+#endif // SIREN_InteractionSignature_H

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_SecondaryPhysicalVertexDistribution_H
-#define LI_SecondaryPhysicalVertexDistribution_H
+#ifndef SIREN_SecondaryPhysicalVertexDistribution_H
+#define SIREN_SecondaryPhysicalVertexDistribution_H
 
 #include <tuple>
 #include <limits>
@@ -26,7 +26,7 @@ namespace siren { namespace detector { class DetectorModel; } }
 namespace siren { namespace distributions { class InjectionDistribution; } }
 namespace siren { namespace distributions { class WeightableDistribution; } }
 namespace siren { namespace geometry { class Geometry; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace distributions {
@@ -38,7 +38,7 @@ public:
     SecondaryPhysicalVertexDistribution();
     SecondaryPhysicalVertexDistribution(const SecondaryPhysicalVertexDistribution &) = default;
 
-    virtual void SampleVertex(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const override;
+    virtual void SampleVertex(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
 
     std::string Name() const override;
@@ -74,4 +74,4 @@ CEREAL_CLASS_VERSION(siren::distributions::SecondaryPhysicalVertexDistribution, 
 CEREAL_REGISTER_TYPE(siren::distributions::SecondaryPhysicalVertexDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::SecondaryVertexPositionDistribution, siren::distributions::SecondaryPhysicalVertexDistribution);
 
-#endif // LI_SecondaryPhysicalVertexDistribution_H
+#endif // SIREN_SecondaryPhysicalVertexDistribution_H

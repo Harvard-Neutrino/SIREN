@@ -19,7 +19,7 @@
 #include "SIREN/geometry/Geometry.h"                     // for Geo...
 #include "SIREN/math/Vector3D.h"                         // for Vec...
 #include "SIREN/utilities/Errors.h"                      // for Sec...
-#include "SIREN/utilities/Random.h"                      // for LI_...
+#include "SIREN/utilities/Random.h"                      // for SIREN_...
 
 namespace siren {
 namespace distributions {
@@ -50,7 +50,7 @@ double log_one_minus_exp_of_negative(double x) {
 //---------------
 
 
-void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const {
+void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const {
     siren::math::Vector3D pos = record.initial_position;
     siren::math::Vector3D dir = record.direction;
 

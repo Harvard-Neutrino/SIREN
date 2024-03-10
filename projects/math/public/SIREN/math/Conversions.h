@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Conversions_H
-#define LI_Conversions_H
+#ifndef SIREN_Conversions_H
+#define SIREN_Conversions_H
 
 #include <limits>
 
@@ -223,5 +223,5 @@ EulerAngles EulerAnglesFromQuaternion(Quaternion const & quaternion, EulerOrder 
 } // namespace math
 } // namespace siren
 
-#endif // LI_Conversions_H
+#endif // SIREN_Conversions_H
 

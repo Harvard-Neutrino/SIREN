@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_TreeWeighter_H
-#define LI_TreeWeighter_H
+#ifndef SIREN_TreeWeighter_H
+#define SIREN_TreeWeighter_H
 
 #include <map>                                           // for map
 #include <tuple>
@@ -93,4 +93,4 @@ public:
 CEREAL_CLASS_VERSION(siren::injection::LeptonTreeWeighter, 0);
 
 
-#endif // LI_TreeWeighter_H
+#endif // SIREN_TreeWeighter_H

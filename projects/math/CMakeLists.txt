@@ -8,24 +8,24 @@ LIST (APPEND math_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/math/private/EulerAngles.cxx
     ${PROJECT_SOURCE_DIR}/projects/math/private/Interpolation.cxx
 )
-add_library(LI_math OBJECT ${math_SOURCES})
-set_property(TARGET LI_math PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_include_directories(LI_math PUBLIC
+add_library(SIREN_math OBJECT ${math_SOURCES})
+set_property(TARGET SIREN_math PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_include_directories(SIREN_math PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/math/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/math/>
 )
 
 if(${MACOSX})
-target_link_libraries(LI_math
+target_link_libraries(SIREN_math
     PUBLIC
         photospline
         delabella_shared
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
-        LI_serialization
+        SIREN_serialization
 )
 else()
-target_link_libraries(LI_math
+target_link_libraries(SIREN_math
     PUBLIC
         photospline
         delabella_shared
@@ -33,7 +33,7 @@ target_link_libraries(LI_math
         -Wl,--whole-archive
         $<BUILD_INTERFACE:rk_static>
         -Wl,--no-whole-archive
-        LI_serialization
+        SIREN_serialization
 )
 endif()
 

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Cylinder_H
-#define LI_Cylinder_H
+#ifndef SIREN_Cylinder_H
+#define SIREN_Cylinder_H
 
 #include <memory>
 #include <vector>
@@ -83,4 +83,4 @@ CEREAL_CLASS_VERSION(siren::geometry::Cylinder, 0);
 CEREAL_REGISTER_TYPE(siren::geometry::Cylinder)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::Cylinder);
 
-#endif // LI_Cylinder_H
+#endif // SIREN_Cylinder_H

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_LeptonDepthFunction_H
-#define LI_LeptonDepthFunction_H
+#ifndef SIREN_LeptonDepthFunction_H
+#define SIREN_LeptonDepthFunction_H
 
 #include <cereal/types/polymorphic.hpp>
 #include <set>
@@ -85,4 +85,4 @@ protected:
 CEREAL_CLASS_VERSION(siren::distributions::LeptonDepthFunction, 0);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::DepthFunction, siren::distributions::LeptonDepthFunction);
 
-#endif // LI_LeptonDepthFunction_H
+#endif // SIREN_LeptonDepthFunction_H

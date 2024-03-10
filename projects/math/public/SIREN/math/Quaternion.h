@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Quaternion_H
-#define LI_Quaternion_H
+#ifndef SIREN_Quaternion_H
+#define SIREN_Quaternion_H
 
 #include <tuple>
 #include <cstdint>
@@ -124,5 +124,5 @@ Quaternion rotation_between(Vector3D const & v0, Vector3D const & v1);
 
 CEREAL_CLASS_VERSION(siren::math::Quaternion, 0);
 
-#endif // LI_Quaternion_H
+#endif // SIREN_Quaternion_H
 

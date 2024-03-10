@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_RadialAxisPolynomialDensityDistribution_H
-#define LI_RadialAxisPolynomialDensityDistribution_H
+#ifndef SIREN_RadialAxisPolynomialDensityDistribution_H
+#define SIREN_RadialAxisPolynomialDensityDistribution_H
 #include <memory>
 #include <string>
 #include <exception>
@@ -167,4 +167,4 @@ CEREAL_CLASS_VERSION(siren::detector::RadialAxisPolynomialDensityDistribution, 0
 CEREAL_REGISTER_TYPE(siren::detector::RadialAxisPolynomialDensityDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::RadialAxisPolynomialDensityDistribution);
 
-#endif // LI_RadialAxisPolynomialDensityDistribution.h
+#endif // SIREN_RadialAxisPolynomialDensityDistribution.h

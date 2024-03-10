@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_DecayRangeFunction_H
-#define LI_DecayRangeFunction_H
+#ifndef SIREN_DecayRangeFunction_H
+#define SIREN_DecayRangeFunction_H
 
 #include <cstdint>
 #include <stdexcept>
@@ -79,4 +79,4 @@ CEREAL_CLASS_VERSION(siren::distributions::DecayRangeFunction, 0);
 CEREAL_REGISTER_TYPE(siren::distributions::DecayRangeFunction);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::RangeFunction, siren::distributions::DecayRangeFunction);
 
-#endif // LI_DecayRangeFunction_H
+#endif // SIREN_DecayRangeFunction_H

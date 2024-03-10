@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_ConstantDensityDistribution_H
-#define LI_ConstantDensityDistribution_H
+#ifndef SIREN_ConstantDensityDistribution_H
+#define SIREN_ConstantDensityDistribution_H
 #include <memory>
 #include <string>
 #include <exception>
@@ -134,4 +134,4 @@ CEREAL_CLASS_VERSION(siren::detector::ConstantDensityDistribution, 0);
 CEREAL_REGISTER_TYPE(siren::detector::ConstantDensityDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::ConstantDensityDistribution);
 
-#endif // LI_ConstantDensityDistribution.h
+#endif // SIREN_ConstantDensityDistribution.h

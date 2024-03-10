@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_RangedSIREN_H
-#define LI_RangedSIREN_H
+#ifndef SIREN_RangedSIREN_H
+#define SIREN_RangedSIREN_H
 
 #include <tuple>
 #include <memory>
@@ -29,7 +29,7 @@
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace injection { class PrimaryInjectionProcess; } }
 namespace siren { namespace math { class Vector3D; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace injection {
@@ -44,7 +44,7 @@ protected:
     std::shared_ptr<siren::interactions::InteractionCollection> interactions;
     RangedSIREN();
 public:
-    RangedSIREN(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::LI_random> random, std::shared_ptr<siren::distributions::RangeFunction> range_func, double disk_radius, double endcap_length);
+    RangedSIREN(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::SIREN_random> random, std::shared_ptr<siren::distributions::RangeFunction> range_func, double disk_radius, double endcap_length);
     std::string Name() const override;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryInjectionBounds(siren::dataclasses::InteractionRecord const & interaction) const override;
 
@@ -82,4 +82,4 @@ CEREAL_CLASS_VERSION(siren::injection::RangedSIREN, 0);
 CEREAL_REGISTER_TYPE(siren::injection::RangedSIREN);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::injection::Injector, siren::injection::RangedSIREN);
 
-#endif // LI_RangedSIREN_H
+#endif // SIREN_RangedSIREN_H

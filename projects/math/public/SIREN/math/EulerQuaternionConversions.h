@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_EulerQuaternionConversions_H
-#define LI_EulerQuaternionConversions_H
+#ifndef SIREN_EulerQuaternionConversions_H
+#define SIREN_EulerQuaternionConversions_H
 
 #include <cmath>
 #include <limits>
@@ -120,5 +120,5 @@ EulerAngles XYZsFromQ(Quaternion const & quaternion) {
 } // namespace math
 } // namespace siren
 
-#endif // LI_EulerQuaternionConversions_H
+#endif // SIREN_EulerQuaternionConversions_H
 

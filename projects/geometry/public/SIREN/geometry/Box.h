@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Box_H
-#define LI_Box_H
+#ifndef SIREN_Box_H
+#define SIREN_Box_H
 
 #include <memory>
 #include <vector>
@@ -82,4 +82,4 @@ CEREAL_CLASS_VERSION(siren::geometry::Box, 0);
 CEREAL_REGISTER_TYPE(siren::geometry::Box)
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::Box);
 
-#endif // LI_Box_H
+#endif // SIREN_Box_H

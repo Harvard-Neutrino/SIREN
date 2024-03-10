@@ -1,6 +1,6 @@
 #pragma once
-#ifndef LI_Distributions_H
-#define LI_Distributions_H
+#ifndef SIREN_Distributions_H
+#define SIREN_Distributions_H
 
 #include <string>                                        // for string
 #include <memory>                                        // for shared_ptr
@@ -18,11 +18,11 @@
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace detector { class DetectorModel; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace utilities {
-class LI_random;
+class SIREN_random;
 }
 
 namespace detector {
@@ -140,7 +140,7 @@ friend cereal::access;
 private:
 public:
     virtual ~PrimaryInjectionDistribution() {};
-    virtual void Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const = 0;
+    virtual void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const = 0;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -167,7 +167,7 @@ friend cereal::access;
 private:
 public:
     virtual ~SecondaryInjectionDistribution() {};
-    virtual void Sample(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const = 0;
+    virtual void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const = 0;
     virtual std::shared_ptr<SecondaryInjectionDistribution> clone() const = 0;
     template<class Archive>
     void save(Archive & archive, std::uint32_t const version) const {
@@ -209,6 +209,6 @@ CEREAL_CLASS_VERSION(siren::distributions::SecondaryInjectionDistribution, 0);
 CEREAL_REGISTER_TYPE(siren::distributions::SecondaryInjectionDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::WeightableDistribution, siren::distributions::SecondaryInjectionDistribution);
 
-#endif // LI_Distributions_H
+#endif // SIREN_Distributions_H
 
 

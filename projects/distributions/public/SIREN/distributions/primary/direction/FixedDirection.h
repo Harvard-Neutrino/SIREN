@@ -1,5 +1,5 @@
-#ifndef LI_FixedDirection_H
-#define LI_FixedDirection_H
+#ifndef SIREN_FixedDirection_H
+#define SIREN_FixedDirection_H
 
 #include <memory>
 #include <string>
@@ -20,7 +20,7 @@ namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace detector { class DetectorModel; } }
 namespace siren { namespace distributions { class PrimaryInjectionDistribution; } }
 namespace siren { namespace distributions { class WeightableDistribution; } }
-namespace siren { namespace utilities { class LI_random; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace distributions {
@@ -34,7 +34,7 @@ private:
 public:
     FixedDirection(siren::math::Vector3D dir) : dir(dir) {};
 private:
-    siren::math::Vector3D SampleDirection(std::shared_ptr<siren::utilities::LI_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
+    siren::math::Vector3D SampleDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
@@ -71,4 +71,4 @@ CEREAL_CLASS_VERSION(siren::distributions::FixedDirection, 0);
 CEREAL_REGISTER_TYPE(siren::distributions::FixedDirection);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryDirectionDistribution, siren::distributions::FixedDirection);
 
-#endif // LI_FixedDirection_H
+#endif // SIREN_FixedDirection_H
