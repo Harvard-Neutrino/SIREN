@@ -13,57 +13,7 @@
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
 #include "../../../utilities/public/SIREN/utilities/Random.h"
-
-// Macro for defining pure virtual methods of PyDarkNewsDecay 
-#define C_PYBIND11_OVERRIDE_PURE(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
-        const BaseType * ref; \
-        if(selfname) { \
-            ref = selfname.cast<BaseType *>(); \
-        } else { \
-            ref = this; \
-        } \
-        do { \
-            do { \
-                auto *tinfo = pybind11::detail::get_type_info(typeid(BaseType)); \
-                pybind11::function override = \
-                    tinfo ? pybind11::detail::get_type_override(static_cast<const BaseType *>(ref), tinfo, pyfuncname) : pybind11::function(); \
-                if (override) { \
-                    auto o = override(__VA_ARGS__); \
-                    if (pybind11::detail::cast_is_temporary_value_reference<returnType>::value) { \
-                        static pybind11::detail::override_caster_t<returnType> caster; \
-                        return pybind11::detail::cast_ref<returnType>(std::move(o), caster); \
-                    } \
-                    return pybind11::detail::cast_safe<returnType>(std::move(o)); \
-                } \
-            } while (false); \
-            pybind11::pybind11_fail( \
-                "Tried to call pure virtual function \"" PYBIND11_STRINGIFY(BaseType) "::" "cfuncname" "\""); \
-        } while (false);
-
-// Macro for defining virtual methods of PyDarkNewsDecay 
-#define C_PYBIND11_OVERRIDE(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
-        const BaseType * ref; \
-        if(selfname) { \
-            ref = selfname.cast<BaseType *>(); \
-        } else { \
-            ref = this; \
-        } \
-        do { \
-            do { \
-                auto *tinfo = pybind11::detail::get_type_info(typeid(BaseType)); \
-                pybind11::function override = \
-                    tinfo ? pybind11::detail::get_type_override(static_cast<const BaseType *>(ref), tinfo, pyfuncname) : pybind11::function(); \
-                if (override) { \
-                    auto o = override(__VA_ARGS__); \
-                    if (pybind11::detail::cast_is_temporary_value_reference<returnType>::value) { \
-                        static pybind11::detail::override_caster_t<returnType> caster; \
-                        return pybind11::detail::cast_ref<returnType>(std::move(o), caster); \
-                    } \
-                    return pybind11::detail::cast_safe<returnType>(std::move(o)); \
-                } \
-            } while (false); \
-            return BaseType::cfuncname(__VA_ARGS__); \
-        } while (false);
+#include "../../../utilities/public/SIREN/utilities/Pybind11Trampoline.h"
 
 namespace siren {
 namespace interactions {
@@ -75,7 +25,7 @@ public:
     pybind11::object self;
 
     double TotalDecayLength(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             Decay,
             double,
@@ -86,7 +36,7 @@ public:
     }
 
     double TotalDecayLengthForFinalState(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             Decay,
             double,
@@ -97,7 +47,7 @@ public:
     }
     
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             Decay,
             double,
@@ -108,7 +58,7 @@ public:
     }
 
     double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             Decay,
             double,
@@ -119,7 +69,7 @@ public:
     }
 
     double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             Decay,
             double,
@@ -130,7 +80,7 @@ public:
     }
 
     double DifferentialDecayWidth(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             Decay,
             double,
@@ -141,7 +91,7 @@ public:
     }
 
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             Decay,
             void,
@@ -153,7 +103,7 @@ public:
     }
 
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             Decay,
             std::vector<siren::dataclasses::InteractionSignature>,
@@ -163,7 +113,7 @@ public:
     }
 
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary_type) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             Decay,
             std::vector<siren::dataclasses::InteractionSignature>,
@@ -174,7 +124,7 @@ public:
     }
 
     std::vector<std::string> DensityVariables() const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             Decay,
             std::vector<std::string>,
@@ -184,7 +134,7 @@ public:
     }
 
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             Decay,
             double,
@@ -206,7 +156,7 @@ public:
     pybind11::object self;
 
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsDecay,
             double,
@@ -217,7 +167,7 @@ public:
     }
 
     double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsDecay,
             double,
@@ -228,7 +178,7 @@ public:
     }
 
     double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsDecay,
             double,
@@ -239,7 +189,7 @@ public:
     }
 
     double DifferentialDecayWidth(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsDecay,
             double,
@@ -250,7 +200,7 @@ public:
     }
 
     void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsDecay,
             void,
@@ -262,7 +212,7 @@ public:
     }
 
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::LI_random> random) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsDecay,
             void,
@@ -274,7 +224,7 @@ public:
     }
 
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             DarkNewsDecay,
             std::vector<siren::dataclasses::InteractionSignature>,
@@ -284,7 +234,7 @@ public:
     }
 
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary_type) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             DarkNewsDecay,
             std::vector<siren::dataclasses::InteractionSignature>,
@@ -295,7 +245,7 @@ public:
     }
 
     std::vector<std::string> DensityVariables() const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             DarkNewsDecay,
             std::vector<std::string>,
@@ -305,7 +255,7 @@ public:
     }
 
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsDecay,
             double,
