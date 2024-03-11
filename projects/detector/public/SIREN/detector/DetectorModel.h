@@ -255,6 +255,8 @@ public:
 
     GeometryPosition GetDetectorOrigin() const;
     void SetDetectorOrigin(GeometryPosition const & detector_origin);
+    siren::math::Quaternion GetDetectorRotation() const;
+    void SetDetectorRotation(siren::math::Quaternion const & detector_rotation);
 
     void AddSector(DetectorSector sector);
     DetectorSector GetSector(int level) const;

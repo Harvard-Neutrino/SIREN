@@ -216,6 +216,14 @@ void DetectorModel::SetDetectorOrigin(GeometryPosition const & detector_origin) 
     detector_origin_ = detector_origin;
 }
 
+siren::math::Quaternion DetectorModel::GetDetectorRotation() const {
+    return siren::math::Quaternion(detector_rotation_);
+}
+
+void DetectorModel::SetDetectorRotation(siren::math::Quaternion const & detector_rotation) {
+    detector_rotation_ = detector_rotation;
+}
+
 void DetectorModel::AddSector(DetectorSector sector) {
     if(sector_map_.count(sector.level) > 0) {
         throw(std::runtime_error("Already have a sector of that heirarchy!"));
@@ -388,13 +396,13 @@ std::tuple<siren::math::Vector3D, siren::math::Quaternion> DetectorModel::ParseD
     // Set the detector origin
     siren::math::Vector3D detector_origin(x0, y0, z0);
 
+    bool is_empty = ss.rdbuf()->in_avail() == 0;
+
     siren::math::Quaternion detector_rotation;
-    try {
+    if(not is_empty) {
         double alpha, beta, gamma; // Euler Angles of shape rotation
         ss >> alpha >> beta >> gamma;
         detector_rotation = QFromZXZr(alpha, beta, gamma);
-    } catch(std::ios_base::failure e) {
-        detector_rotation = siren::math::Quaternion();
     }
     return {detector_origin, detector_rotation};
 }

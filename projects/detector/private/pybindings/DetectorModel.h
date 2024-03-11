@@ -178,6 +178,7 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def_property("Materials", &DetectorModel::GetMaterials, &DetectorModel::SetMaterials)
         .def_property("Sectors", &DetectorModel::GetSectors, &DetectorModel::SetSectors)
         .def_property("DetectorOrigin", &DetectorModel::GetDetectorOrigin, &DetectorModel::SetDetectorOrigin)
+        .def_property("DetectorRotation", &DetectorModel::GetDetectorRotation, &DetectorModel::SetDetectorRotation)
         .def("AddSector", &DetectorModel::AddSector)
         .def("GetSector", &DetectorModel::GetSector)
         .def("ClearSectors", &DetectorModel::ClearSectors)
