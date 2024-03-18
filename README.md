@@ -2,9 +2,9 @@
 
 # SIREN
 
-SIREN is a framework for injecting and weighting interaction final states of complex topology, with specific concern for the detector geometry. SIREN is designed to support a wide variety of neutrino experimental setups, including atmospheric neutrinos, accelerator beam decay-in-flight neutrinos, and neutrinos from decay-at-rest sources. The original [SIREN-v1](https://github.com/icecube/SIREN) was developed within the IceCube collaboration to study atmospheric and astrophysical neutrino interactions in the IceCube detector.
+SIREN is a framework for injecting and weighting interaction final states of complex topology, with specific concern for the detector geometry. SIREN is designed to support a wide variety of neutrino experimental setups, including atmospheric neutrinos, accelerator beam decay-in-flight neutrinos, and neutrinos from decay-at-rest sources. SIREN grew out of [LeptonInjector](https://github.com/icecube/LeptonInjector), a neutrino injection code developed within the IceCube collaboration to study atmospheric and astrophysical neutrino interactions in the IceCube detector.
 
-This iteration of SIREN provides a generic interface for user-defined BSM processes (with support for a few pre-defined processes). It also supports generation of any number of secondary processes, e.g. the decay of a BSM particle after it has been created by an initial process. SIREN also includes the geometric setup for a number of existing HEP experiments out of the box, although contributions are always appreciated!
+SIREN provides a generic interface for user-defined BSM processes (and includes several pre-defined processes). It also supports generation of any number of secondary processes, e.g. the decay of a BSM particle after it has been created by an initial process. SIREN also includes detector geometry definitions for a number of existing HEP experiments, although contributions are always appreciated!
 
 # Python installation of SIREN
 
@@ -43,9 +43,9 @@ To use SIREN, you will
 
 4. Generate interaction trees using the InjectorBase object
 
-5. Create a LeptonTreeWeighter object using a list of primary and secondary physical processes
+5. Create a TreeWeighter object using a list of primary and secondary physical processes
 
-6. Calculate the event weight for each interaction tree using the LeptonTreeWeighter object
+6. Calculate the event weight for each interaction tree using the TreeWeighter object
 
 For an example of this in action, see `resources/DipoleInjection/inject_HNLs_CCM.{py,ipynb}`
 
@@ -61,7 +61,7 @@ For local installations, you need the following:
 
 For building py-bindings,
 
-* Python > 3.7
+* Python > 3.8
 
 * That's it! We use pybind11 to generate our pybindings, which is automatically included in SIREN as a submodule
 

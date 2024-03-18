@@ -40,7 +40,51 @@ DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH delocate-wheel --requi
 [project]
 name = "siren"
 version = "0.0.1"
+description = "Sampling and Injection for Rare EveNts: A neutrino and rare-process injection toolkit"
+readme = "README.md"
 requires-python = ">=3.8"
+license = {file = "LICENSE"}
+keywords = ["physics". "hep", "netrino", "bsm", "simulation", "injection", "weighting"]
+authors = [
+    {name = "Austin Schneider", email = "aschn@mit.edu"}
+    {name = "Nicholas Kamp", email = "nkamp@fas.harvard.edu"}
+]
+maintainers = [
+    {name = "Austin Schneider", email = "aschn@mit.edu"}
+    {name = "Nicholas Kamp", email = "nkamp@fas.harvard.edu"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "awkward",
+    "pyarrow",
+    "h5py",
+    "DarkNews",
+]
+
+[project.urls]
+Homepage = "https://github.com/Harvard-Neutrino/SIREN"
+Documentation = "https://readthedocs.org"
+Repository = "https://github.com/Harvard-Neutrino/SIREN.git"
+Issues = "https://github.com/Harvard-Neutrino/LeptonInjector/issues"
 
 [wheel]
 no-clean = true
