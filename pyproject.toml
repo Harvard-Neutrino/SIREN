@@ -44,13 +44,13 @@ description = "Sampling and Injection for Rare EveNts: A neutrino and rare-proce
 readme = "README.md"
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
-keywords = ["physics". "hep", "netrino", "bsm", "simulation", "injection", "weighting"]
+keywords = ["physics", "hep", "netrino", "bsm", "simulation", "injection", "weighting"]
 authors = [
-    {name = "Austin Schneider", email = "aschn@mit.edu"}
+    {name = "Austin Schneider", email = "aschn@mit.edu"},
     {name = "Nicholas Kamp", email = "nkamp@fas.harvard.edu"}
 ]
 maintainers = [
-    {name = "Austin Schneider", email = "aschn@mit.edu"}
+    {name = "Austin Schneider", email = "aschn@mit.edu"},
     {name = "Nicholas Kamp", email = "nkamp@fas.harvard.edu"}
 ]
 classifiers = [
