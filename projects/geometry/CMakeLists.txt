@@ -10,20 +10,20 @@ LIST (APPEND geometry_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/MeshBuilder.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Placement.cxx
 )
-add_library(LI_geometry OBJECT ${geometry_SOURCES})
-set_property(TARGET LI_geometry PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_include_directories(LI_geometry PUBLIC
+add_library(SIREN_geometry OBJECT ${geometry_SOURCES})
+set_property(TARGET SIREN_geometry PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_include_directories(SIREN_geometry PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/geometry/public/>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/LeptonInjector/geometry/>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/geometry/>
 )
 
-target_link_libraries(LI_geometry
+target_link_libraries(SIREN_geometry
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
     PUBLIC
         photospline
-        LI_serialization
-        LI_math
+        SIREN_serialization
+        SIREN_math
 )
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/geometry/public/"
@@ -37,9 +37,9 @@ package_add_test(UnitTest_Geometry ${PROJECT_SOURCE_DIR}/projects/geometry/priva
 package_add_test(UnitTest_ExtrPoly ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/ExtrPoly_TEST.cxx)
 
 pybind11_add_module(geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
-target_link_libraries(geometry PRIVATE LeptonInjector)
+target_link_libraries(geometry PRIVATE SIREN)
 if(DEFINED SKBUILD)
 set_target_properties(geometry PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
-        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../leptoninjector.libs/")
+        LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN/../siren.libs/")
 endif()

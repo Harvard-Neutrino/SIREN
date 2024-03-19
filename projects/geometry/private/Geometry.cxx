@@ -1,4 +1,4 @@
-#include "LeptonInjector/geometry/Geometry.h"
+#include "SIREN/geometry/Geometry.h"
 
 #include <string>
 #include <vector>
@@ -7,18 +7,18 @@
 #include <typeinfo>
 #include <typeindex>
 
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/geometry/Placement.h"
+#include "SIREN/math/Vector3D.h"
+#include "SIREN/geometry/Placement.h"
 
 /******************************************************************************
  *                                  OStream                                    *
  ******************************************************************************/
 
 
-namespace LI {
+namespace siren {
 namespace geometry {
 
-std::ostream& operator<<(std::ostream& os, LI::geometry::Geometry const& geometry)
+std::ostream& operator<<(std::ostream& os, siren::geometry::Geometry const& geometry)
 {
     os << "Geometry(" << &geometry << ")" << std::endl;
     os << geometry.placement_ << std::endl;
@@ -111,7 +111,7 @@ bool Geometry::operator!=(const Geometry& geometry) const
 // Member functions
 // ------------------------------------------------------------------------- //
 
-bool Geometry::IsInside(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
+bool Geometry::IsInside(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     bool is_inside = false;
 
@@ -125,7 +125,7 @@ bool Geometry::IsInside(const LI::math::Vector3D& position, const LI::math::Vect
 }
 
 // ------------------------------------------------------------------------- //
-bool Geometry::IsInfront(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
+bool Geometry::IsInfront(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     bool is_infront = false;
 
@@ -139,7 +139,7 @@ bool Geometry::IsInfront(const LI::math::Vector3D& position, const LI::math::Vec
 }
 
 // ------------------------------------------------------------------------- //
-bool Geometry::IsBehind(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
+bool Geometry::IsBehind(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     bool is_behind = false;
 
@@ -152,7 +152,7 @@ bool Geometry::IsBehind(const LI::math::Vector3D& position, const LI::math::Vect
     return is_behind;
 }
 
-Geometry::ParticleLocation::Enum Geometry::GetLocation(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const {
+Geometry::ParticleLocation::Enum Geometry::GetLocation(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const {
     if(IsInfront(position, direction))
         return Geometry::ParticleLocation::InfrontGeometry;
     if(IsInside(position, direction))
@@ -162,41 +162,41 @@ Geometry::ParticleLocation::Enum Geometry::GetLocation(const LI::math::Vector3D&
 }
 
 // ------------------------------------------------------------------------- //
-double Geometry::DistanceToClosestApproach(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
+double Geometry::DistanceToClosestApproach(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
-    LI::math::Vector3D pos = GlobalToLocalPosition(position);
-    LI::math::Vector3D dir = GlobalToLocalPosition(direction);
+    siren::math::Vector3D pos = GlobalToLocalPosition(position);
+    siren::math::Vector3D dir = GlobalToLocalPosition(direction);
     return scalar_product(-pos, dir);
 }
 
-LI::math::Vector3D Geometry::LocalToGlobalPosition(LI::math::Vector3D const & p0) const
+siren::math::Vector3D Geometry::LocalToGlobalPosition(siren::math::Vector3D const & p0) const
 {
     return placement_.LocalToGlobalPosition(p0);
 }
 
-LI::math::Vector3D Geometry::LocalToGlobalDirection(LI::math::Vector3D const & p0) const
+siren::math::Vector3D Geometry::LocalToGlobalDirection(siren::math::Vector3D const & p0) const
 {
     return placement_.LocalToGlobalDirection(p0);
 }
 
-LI::math::Vector3D Geometry::GlobalToLocalPosition(LI::math::Vector3D const & p0) const
+siren::math::Vector3D Geometry::GlobalToLocalPosition(siren::math::Vector3D const & p0) const
 {
     return placement_.GlobalToLocalPosition(p0);
 }
 
-LI::math::Vector3D Geometry::GlobalToLocalDirection(LI::math::Vector3D const & p0) const
+siren::math::Vector3D Geometry::GlobalToLocalDirection(siren::math::Vector3D const & p0) const
 {
     return placement_.GlobalToLocalDirection(p0);
 }
 
-std::pair<double, double> Geometry::DistanceToBorder(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const {
-    LI::math::Vector3D local_position = GlobalToLocalPosition(position);
-    LI::math::Vector3D local_direction = GlobalToLocalDirection(direction);
+std::pair<double, double> Geometry::DistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const {
+    siren::math::Vector3D local_position = GlobalToLocalPosition(position);
+    siren::math::Vector3D local_direction = GlobalToLocalDirection(direction);
     return ComputeDistanceToBorder(position, direction);
 }
-std::vector<Geometry::Intersection> Geometry::Intersections(LI::math::Vector3D const & position, LI::math::Vector3D const & direction) const {
-    LI::math::Vector3D local_position = GlobalToLocalPosition(position);
-    LI::math::Vector3D local_direction = GlobalToLocalDirection(direction);
+std::vector<Geometry::Intersection> Geometry::Intersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
+    siren::math::Vector3D local_position = GlobalToLocalPosition(position);
+    siren::math::Vector3D local_direction = GlobalToLocalDirection(direction);
     std::vector<Geometry::Intersection> intersections = ComputeIntersections(local_position, local_direction);
     for(auto & intersection : intersections) {
         intersection.position = LocalToGlobalPosition(intersection.position);
@@ -205,4 +205,4 @@ std::vector<Geometry::Intersection> Geometry::Intersections(LI::math::Vector3D c
 }
 
 } // namespace geometry
-} // namespace LI
+} // namespace siren

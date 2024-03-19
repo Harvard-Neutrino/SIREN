@@ -6,14 +6,14 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/detector/DetectorModel.h"
-#include "../../public/LeptonInjector/detector/Distribution1D.h"
-#include "../../public/LeptonInjector/detector/ExponentialDistribution1D.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
+#include "../../public/SIREN/detector/DetectorModel.h"
+#include "../../public/SIREN/detector/Distribution1D.h"
+#include "../../public/SIREN/detector/ExponentialDistribution1D.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
 
 void register_ExponentialDistribution1D(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::detector;
+    using namespace siren::detector;
 
     class_<ExponentialDistribution1D, std::shared_ptr<ExponentialDistribution1D>>(m, "ExponentialDistribution1D")
         .def(init<>())

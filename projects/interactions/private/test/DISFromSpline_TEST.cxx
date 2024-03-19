@@ -9,17 +9,17 @@
 #include <cereal/types/vector.hpp>
 #include <cereal/types/array.hpp>
 
-#include "LeptonInjector/interactions/CrossSection.h"
-#include "LeptonInjector/interactions/DISFromSpline.h"
+#include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/DISFromSpline.h"
 
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
+#include "SIREN/utilities/Random.h"
+#include "SIREN/dataclasses/Particle.h"
+#include "SIREN/dataclasses/InteractionRecord.h"
+#include "SIREN/dataclasses/InteractionSignature.h"
 
-using namespace LI::interactions;
-using namespace LI::dataclasses;
-using namespace LI::utilities;
+using namespace siren::interactions;
+using namespace siren::dataclasses;
+using namespace siren::utilities;
 
 TEST(DISFromSpline, Constructor)
 {
@@ -41,7 +41,7 @@ TEST(DISFromSpline, Constructor)
     double target_mass = dis_xs->GetTargetMass();
     event.target_mass = target_mass;
 
-    std::shared_ptr<LI_random> rand = std::make_shared<LI_random>();
+    std::shared_ptr<SIREN_random> rand = std::make_shared<SIREN_random>();
 
     double z = rand->Uniform(-1.0, 1.0);
     double rho = sqrt(1.0 - z*z);
@@ -53,7 +53,7 @@ TEST(DISFromSpline, Constructor)
     event.primary_momentum[2] = y * energy;
     event.primary_momentum[3] = z * energy;
 
-    LI::dataclasses::CrossSectionDistributionRecord xsec_record(event);
+    siren::dataclasses::CrossSectionDistributionRecord xsec_record(event);
     xs->SampleFinalState(xsec_record, rand);
     xsec_record.Finalize(event);
     cereal::JSONOutputArchive output(std::cout);

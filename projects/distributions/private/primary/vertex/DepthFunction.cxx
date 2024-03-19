@@ -1,11 +1,11 @@
-#include "LeptonInjector/distributions/primary/vertex/DepthFunction.h"
+#include "SIREN/distributions/primary/vertex/DepthFunction.h"
 
 #include <typeinfo>   // for type_info
 #include <typeindex>  // for type_index
 
-namespace LI { namespace dataclasses { enum class ParticleType : int32_t; } }
+namespace siren { namespace dataclasses { enum class ParticleType : int32_t; } }
 
-namespace LI {
+namespace siren {
 namespace distributions {
 
 //---------------
@@ -13,7 +13,7 @@ namespace distributions {
 //---------------
 DepthFunction::DepthFunction() {}
 
-double DepthFunction::operator()(LI::dataclasses::ParticleType const & primary_type, double energy) const {
+double DepthFunction::operator()(siren::dataclasses::ParticleType const & primary_type, double energy) const {
     return 0.0;
 }
 
@@ -32,4 +32,4 @@ bool DepthFunction::operator<(DepthFunction const & distribution) const {
 }
 
 } // namespace distributions
-} // namespace LI
+} // namespace siren

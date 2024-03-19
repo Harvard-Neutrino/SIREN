@@ -9,16 +9,16 @@
 
 #include "DistributionTest.h"
 
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Integration.h"
+#include "SIREN/utilities/Random.h"
+#include "SIREN/utilities/Integration.h"
 
-#include "LeptonInjector/distributions/primary/energy/PrimaryEnergyDistribution.h"
-#include "LeptonInjector/distributions/primary/energy/Monoenergetic.h"
-#include "LeptonInjector/distributions/primary/energy/PowerLaw.h"
-#include "LeptonInjector/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
+#include "SIREN/distributions/primary/energy/PrimaryEnergyDistribution.h"
+#include "SIREN/distributions/primary/energy/Monoenergetic.h"
+#include "SIREN/distributions/primary/energy/PowerLaw.h"
+#include "SIREN/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
 
-using namespace LI::distributions;
-using namespace LI::dataclasses;
+using namespace siren::distributions;
+using namespace siren::dataclasses;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
@@ -40,7 +40,7 @@ TEST(Monoenergetic, Sample) {
         double energy = RandomDouble();
         Monoenergetic A(energy);
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
             A.Sample(nullptr, nullptr, nullptr, record);
             double test_energy = record.GetEnergy();
             EXPECT_NEAR(energy, test_energy, energy * 1e-6);
@@ -94,7 +94,7 @@ TEST(PowerLaw, ConstructorGeneral) {
 }
 
 TEST(PowerLaw, SampleBounds) {
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     size_t N = 1000;
     size_t M = 10000;
     for(size_t i=0; i<N; ++i) {
@@ -104,7 +104,7 @@ TEST(PowerLaw, SampleBounds) {
         double energyMax = energyMin + energyRange;
         PowerLaw A(gamma, energyMin, energyMax);
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
             A.Sample(rand, nullptr, nullptr, record);
             double test_energy = record.GetEnergy();
             EXPECT_TRUE(test_energy >= energyMin);
@@ -120,7 +120,7 @@ TEST(PowerLaw, SampleDistribution) {
     size_t n_two_sigma = 0;
     size_t n_three_sigma = 0;
     size_t n_four_sigma = 0;
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         double gamma = (RandomDouble() - 0.5) + 1;
         double energyMin = RandomDouble() * 100 + 10;
@@ -141,7 +141,7 @@ TEST(PowerLaw, SampleDistribution) {
         for(size_t j=0; j<n_bins; ++j) {
             double min = test.bin_edges[j];
             double max = test.bin_edges[j+1];
-            double integral = LI::utilities::rombergIntegrate(f, min, max, 1e-8);
+            double integral = siren::utilities::rombergIntegrate(f, min, max, 1e-8);
             expectation[j] = integral;
             total_integral += integral;
         }
@@ -151,7 +151,7 @@ TEST(PowerLaw, SampleDistribution) {
         }
 
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
             A.Sample(rand, nullptr, nullptr, record);
             double test_energy = record.GetEnergy();
             test.AddValue(log(test_energy));
@@ -182,7 +182,7 @@ TEST(PowerLaw, SampleDistribution) {
 TEST(PowerLaw, GenerationProbability) {
     size_t N = 1000;
     size_t M = 10000;
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         double gamma = (RandomDouble() - 0.5) + 1;
         double energyMin = RandomDouble() * 100 + 10;
@@ -195,13 +195,13 @@ TEST(PowerLaw, GenerationProbability) {
             return std::pow(exp(y), -gamma) * exp(y);
         };
 
-        double total_integral = LI::utilities::rombergIntegrate(f, log(energyMin), log(energyMax), 1e-8);
+        double total_integral = siren::utilities::rombergIntegrate(f, log(energyMin), log(energyMax), 1e-8);
 
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
             A.Sample(rand, nullptr, nullptr, record);
             double test_energy = record.GetEnergy();
-            LI::dataclasses::InteractionRecord interaction_record;
+            siren::dataclasses::InteractionRecord interaction_record;
             record.FinalizeAvailable(interaction_record);
             double density = A.GenerationProbability(nullptr, nullptr, interaction_record);
             double expected_density = std::pow(test_energy, -gamma) / total_integral;
@@ -303,7 +303,7 @@ TEST(ModifiedMoyalPlusExponentialEnergyDistribution, Normalization) {
             return dist.GenerationProbability(nullptr, nullptr, record) * exp(y);
         };
 
-        double norm = LI::utilities::rombergIntegrate(pdf, log(energyMin), log(energyMax), 1e-6);
+        double norm = siren::utilities::rombergIntegrate(pdf, log(energyMin), log(energyMax), 1e-6);
         EXPECT_NEAR(norm, 1.0, 2e-3);
 
         double expected_norm = dist.GetNormalization();

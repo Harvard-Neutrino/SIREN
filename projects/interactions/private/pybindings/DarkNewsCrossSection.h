@@ -7,66 +7,16 @@
 #include <pybind11/stl.h>
 #include <pybind11/embed.h>
 
-#include "../../public/LeptonInjector/interactions/CrossSection.h"
-#include "../../public/LeptonInjector/interactions/DarkNewsCrossSection.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/Particle.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionRecord.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionSignature.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
-#include "../../../utilities/public/LeptonInjector/utilities/Random.h"
+#include "../../public/SIREN/interactions/CrossSection.h"
+#include "../../public/SIREN/interactions/DarkNewsCrossSection.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
+#include "../../../utilities/public/SIREN/utilities/Random.h"
+#include "../../../utilities/public/SIREN/utilities/Pybind11Trampoline.h"
 
-// Macro for defining pure virtual methods of PyDarkNewsCrossSection 
-#define C_PYBIND11_OVERRIDE_PURE(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
-        const BaseType * ref; \
-        if(selfname) { \
-            ref = selfname.cast<BaseType *>(); \
-        } else { \
-            ref = this; \
-        } \
-        do { \
-            do { \
-                auto *tinfo = pybind11::detail::get_type_info(typeid(BaseType)); \
-                pybind11::function override = \
-                    tinfo ? pybind11::detail::get_type_override(static_cast<const BaseType *>(ref), tinfo, pyfuncname) : pybind11::function(); \
-                if (override) { \
-                    auto o = override(__VA_ARGS__); \
-                    if (pybind11::detail::cast_is_temporary_value_reference<returnType>::value) { \
-                        static pybind11::detail::override_caster_t<returnType> caster; \
-                        return pybind11::detail::cast_ref<returnType>(std::move(o), caster); \
-                    } \
-                    return pybind11::detail::cast_safe<returnType>(std::move(o)); \
-                } \
-            } while (false); \
-            pybind11::pybind11_fail( \
-                "Tried to call pure virtual function \"" PYBIND11_STRINGIFY(BaseType) "::" "cfuncname" "\""); \
-        } while (false);
-
-// Macro for defining virtual methods of PyDarkNewsCrossSection 
-#define C_PYBIND11_OVERRIDE(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
-        const BaseType * ref; \
-        if(selfname) { \
-            ref = selfname.cast<BaseType *>(); \
-        } else { \
-            ref = this; \
-        } \
-        do { \
-            do { \
-                auto *tinfo = pybind11::detail::get_type_info(typeid(BaseType)); \
-                pybind11::function override = \
-                    tinfo ? pybind11::detail::get_type_override(static_cast<const BaseType *>(ref), tinfo, pyfuncname) : pybind11::function(); \
-                if (override) { \
-                    auto o = override(__VA_ARGS__); \
-                    if (pybind11::detail::cast_is_temporary_value_reference<returnType>::value) { \
-                        static pybind11::detail::override_caster_t<returnType> caster; \
-                        return pybind11::detail::cast_ref<returnType>(std::move(o), caster); \
-                    } \
-                    return pybind11::detail::cast_safe<returnType>(std::move(o)); \
-                } \
-            } while (false); \
-            return BaseType::cfuncname(__VA_ARGS__); \
-        } while (false);
-
-namespace LI {
+namespace siren {
 namespace interactions {
 // Trampoline class for CrossSection
 class pyCrossSection : public CrossSection {
@@ -76,7 +26,7 @@ public:
     pybind11::object self;
 
     double TotalCrossSection(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             CrossSection,
             double,
@@ -86,8 +36,8 @@ public:
         )
     }
 
-    double TotalCrossSectionAllFinalStates(LI::dataclasses::InteractionRecord const & record) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    double TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const override {
+        SELF_OVERRIDE(
             self,
             CrossSection,
             double,
@@ -98,7 +48,7 @@ public:
     }
 
     double DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             CrossSection,
             double,
@@ -109,7 +59,7 @@ public:
     }
 
     double InteractionThreshold(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             CrossSection,
             double,
@@ -119,8 +69,8 @@ public:
         )
     }
 
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override {
+        SELF_OVERRIDE_PURE(
             self,
             CrossSection,
             void,
@@ -131,52 +81,52 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override {
+        SELF_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::ParticleType>,
+            std::vector<siren::dataclasses::ParticleType>,
             GetPossibleTargets,
             "GetPossibleTargets"
         )
     }
 
-    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override {
+        SELF_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::ParticleType>,
+            std::vector<siren::dataclasses::ParticleType>,
             GetPossibleTargetsFromPrimary,
             "GetPossibleTargetsFromPrimary",
             primary_type
         )
     }
 
-    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const override {
+        SELF_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::ParticleType>,
+            std::vector<siren::dataclasses::ParticleType>,
             GetPossiblePrimaries,
             "GetPossiblePrimaries"
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
+        SELF_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::InteractionSignature>,
+            std::vector<siren::dataclasses::InteractionSignature>,
             GetPossibleSignatures,
             "GetPossibleSignatures"
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override {
+        SELF_OVERRIDE_PURE(
             self,
             CrossSection,
-            std::vector<LI::dataclasses::InteractionSignature>,
+            std::vector<siren::dataclasses::InteractionSignature>,
             GetPossibleSignaturesFromParents,
             "GetPossibleSignaturesFromParents",
             primary_type,
@@ -185,7 +135,7 @@ public:
     }
 
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+        SELF_OVERRIDE_PURE(
             self,
             CrossSection,
             double,
@@ -203,11 +153,27 @@ public:
 class pyDarkNewsCrossSection : public DarkNewsCrossSection {
 public:
     using DarkNewsCrossSection::DarkNewsCrossSection;
-    pyDarkNewsCrossSection(DarkNewsCrossSection && parent) : DarkNewsCrossSection(std::move(parent)) {}
+    pyDarkNewsCrossSection(DarkNewsCrossSection && parent) : DarkNewsCrossSection(std::move(parent)) {
+        self = pybind11::reinterpret_borrow<pybind11::object>(pybind11::handle(get_object_handle(&parent, pybind11::detail::get_type_info(typeid(DarkNewsCrossSection)))));
+    }
+    pyDarkNewsCrossSection(DarkNewsCrossSection const & parent) : DarkNewsCrossSection(parent) {
+        self = pybind11::reinterpret_borrow<pybind11::object>(pybind11::handle(get_object_handle(&parent, pybind11::detail::get_type_info(typeid(DarkNewsCrossSection)))));
+    }
     pybind11::object self;
 
+    double TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const override {
+        SELF_OVERRIDE(
+            self,
+            CrossSection,
+            double,
+            TotalCrossSectionAllFinalStates,
+            "TotalCrossSectionAllFinalStates",
+            std::cref(record)
+        )
+    }
+
     double TotalCrossSection(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             double,
@@ -217,8 +183,8 @@ public:
         )
     }
 
-    double TotalCrossSection(LI::dataclasses::ParticleType primary, double energy, LI::dataclasses::ParticleType target) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy, siren::dataclasses::ParticleType target) const override {
+        SELF_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
             double,
@@ -231,7 +197,7 @@ public:
     }
 
     double DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             double,
@@ -241,8 +207,8 @@ public:
         )
     }
 
-    double DifferentialCrossSection(LI::dataclasses::ParticleType primary, LI::dataclasses::ParticleType target, double energy, double Q2) const override {
-        C_PYBIND11_OVERRIDE(
+    double DifferentialCrossSection(siren::dataclasses::ParticleType primary, siren::dataclasses::ParticleType target, double energy, double Q2) const override {
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             double,
@@ -256,7 +222,7 @@ public:
     }
 
     double InteractionThreshold(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             double,
@@ -267,7 +233,7 @@ public:
     }
 
     double Q2Min(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             double,
@@ -278,7 +244,7 @@ public:
     }
 
     double Q2Max(dataclasses::InteractionRecord const & interaction) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             double,
@@ -289,7 +255,7 @@ public:
     }
 
     double TargetMass(dataclasses::ParticleType const & target_type) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             double,
@@ -300,7 +266,7 @@ public:
     }
 
     std::vector<double> SecondaryMasses(std::vector<dataclasses::ParticleType> const & secondary_types) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             std::vector<double>,
@@ -311,7 +277,7 @@ public:
     }
 
     std::vector<double> SecondaryHelicities(dataclasses::InteractionRecord const & record) const override{
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             std::vector<double>,
@@ -321,8 +287,8 @@ public:
         )
     }
 
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const override {
-        C_PYBIND11_OVERRIDE(
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override {
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             void,
@@ -333,52 +299,52 @@ public:
         )
     }
 
-    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override {
+        SELF_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::ParticleType>,
+            std::vector<siren::dataclasses::ParticleType>,
             GetPossibleTargets,
             "GetPossibleTargets"
         )
     }
 
-    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override {
+        SELF_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::ParticleType>,
+            std::vector<siren::dataclasses::ParticleType>,
             GetPossibleTargetsFromPrimary,
             "GetPossibleTargetsFromPrimary",
             primary_type
         )
     }
 
-    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const override {
+        SELF_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::ParticleType>,
+            std::vector<siren::dataclasses::ParticleType>,
             GetPossiblePrimaries,
             "GetPossiblePrimaries"
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
+        SELF_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::InteractionSignature>,
+            std::vector<siren::dataclasses::InteractionSignature>,
             GetPossibleSignatures,
             "GetPossibleSignatures"
         )
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override {
-        C_PYBIND11_OVERRIDE_PURE(
+    std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override {
+        SELF_OVERRIDE_PURE(
             self,
             DarkNewsCrossSection,
-            std::vector<LI::dataclasses::InteractionSignature>,
+            std::vector<siren::dataclasses::InteractionSignature>,
             GetPossibleSignaturesFromParents,
             "GetPossibleSignaturesFromParents",
             primary_type,
@@ -387,7 +353,7 @@ public:
     }
 
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override {
-        C_PYBIND11_OVERRIDE(
+        SELF_OVERRIDE(
             self,
             DarkNewsCrossSection,
             double,
@@ -435,64 +401,20 @@ public:
 
 void register_DarkNewsCrossSection(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::interactions;
+    using namespace siren::interactions;
 
-    // Bindings for pyDarkNewsCrossSection
-    class_<LI::interactions::pyDarkNewsCrossSection> pyDarkNewsCrossSection(m, "pyDarkNewsCrossSection");
-
-    pyDarkNewsCrossSection
-        .def(init<>())
-        .def("__eq__", [](const LI::interactions::DarkNewsCrossSection &self, const LI::interactions::DarkNewsCrossSection &other){ return self == other; })
-        .def_readwrite("m_ups",&DarkNewsCrossSection::m_ups)
-        .def_readwrite("m_target",&DarkNewsCrossSection::m_target)
-        .def("equal", &LI::interactions::DarkNewsCrossSection::equal)
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::ParticleType, LI::dataclasses::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
-        .def("Q2Min",&DarkNewsCrossSection::Q2Min)
-        .def("Q2Max",&DarkNewsCrossSection::Q2Max)
-        .def("TargetMass",&DarkNewsCrossSection::TargetMass)
-        .def("SecondaryMasses",&DarkNewsCrossSection::SecondaryMasses)
-        .def("SecondaryHelicities",&DarkNewsCrossSection::SecondaryHelicities)
-        .def("GetPossibleTargets",&DarkNewsCrossSection::GetPossibleTargets)
-        .def("GetPossibleTargetsFromPrimary",&DarkNewsCrossSection::GetPossibleTargetsFromPrimary)
-        .def("GetPossiblePrimaries",&DarkNewsCrossSection::GetPossiblePrimaries)
-        .def("GetPossibleSignatures",&DarkNewsCrossSection::GetPossibleSignatures)
-        .def("GetPossibleSignaturesFromParents",&DarkNewsCrossSection::GetPossibleSignaturesFromParents)
-        .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
-        .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
-        .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
-        .def("get_representation", &pyDarkNewsCrossSection::get_representation)
-        .def(pybind11::pickle(
-            [](LI::interactions::pyDarkNewsCrossSection & cpp_obj) {
-                return pybind11::make_tuple(cpp_obj.get_representation());
-            },
-            [](const pybind11::tuple &t) {
-                if (t.size() != 1) {
-                    throw std::runtime_error("Invalid state!");
-                }
-                auto cpp_state = std::unique_ptr<LI::interactions::pyDarkNewsCrossSection>(new LI::interactions::pyDarkNewsCrossSection);
-                auto py_state = t[0].cast<pybind11::dict>();
-                return std::make_pair(std::move(cpp_state), py_state);
-            })
-        )
-        ;
-
-
-    class_<DarkNewsCrossSection, std::shared_ptr<DarkNewsCrossSection>, CrossSection, LI::interactions::pyDarkNewsCrossSection> DarkNewsCrossSection(m, "DarkNewsCrossSection");
+    class_<DarkNewsCrossSection, std::shared_ptr<DarkNewsCrossSection>, CrossSection, siren::interactions::pyDarkNewsCrossSection> DarkNewsCrossSection(m, "DarkNewsCrossSection");
 
     DarkNewsCrossSection
         .def(init<>())
-        .def("__eq__", [](const LI::interactions::DarkNewsCrossSection &self, const LI::interactions::DarkNewsCrossSection &other){ return self == other; })
+        .def("__eq__", [](const siren::interactions::DarkNewsCrossSection &self, const siren::interactions::DarkNewsCrossSection &other){ return self == other; })
         .def_readwrite("m_ups",&DarkNewsCrossSection::m_ups)
         .def_readwrite("m_target",&DarkNewsCrossSection::m_target)
-        .def("equal", &LI::interactions::DarkNewsCrossSection::equal)
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
-        .def("TotalCrossSection",overload_cast<LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
-        .def("DifferentialCrossSection",overload_cast<LI::dataclasses::ParticleType, LI::dataclasses::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
+        .def("equal", &siren::interactions::DarkNewsCrossSection::equal)
+        .def("TotalCrossSection",overload_cast<siren::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::TotalCrossSection, const_))
+        .def("TotalCrossSection",overload_cast<siren::dataclasses::ParticleType, double, siren::dataclasses::ParticleType>(&DarkNewsCrossSection::TotalCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<siren::dataclasses::InteractionRecord const &>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
+        .def("DifferentialCrossSection",overload_cast<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType, double, double>(&DarkNewsCrossSection::DifferentialCrossSection, const_))
         .def("InteractionThreshold",&DarkNewsCrossSection::InteractionThreshold)
         .def("Q2Min",&DarkNewsCrossSection::Q2Min)
         .def("Q2Max",&DarkNewsCrossSection::Q2Max)
@@ -509,14 +431,14 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
         .def("get_representation", &DarkNewsCrossSection::get_representation)
         .def(pybind11::pickle(
-            [](LI::interactions::DarkNewsCrossSection & cpp_obj) {
+            [](siren::interactions::DarkNewsCrossSection & cpp_obj) {
                 return pybind11::make_tuple(cpp_obj.get_representation());
             },
             [](const pybind11::tuple &t) {
                 if (t.size() != 1) {
                     throw std::runtime_error("Invalid state!");
                 }
-                auto cpp_state = std::unique_ptr<LI::interactions::DarkNewsCrossSection>(new LI::interactions::pyDarkNewsCrossSection);
+                auto cpp_state = std::unique_ptr<siren::interactions::DarkNewsCrossSection>(new siren::interactions::pyDarkNewsCrossSection);
                 auto py_state = t[0].cast<pybind11::dict>();
                 return std::make_pair(std::move(cpp_state), py_state);
             })

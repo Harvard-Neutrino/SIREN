@@ -1,4 +1,4 @@
-#include "LeptonInjector/injection/Weighter.h"
+#include "SIREN/injection/Weighter.h"
 
 #include <map>
 #include <array>
@@ -11,21 +11,21 @@
 #include <functional>
 #include <initializer_list>
 
-#include "LeptonInjector/interactions/CrossSection.h"
-#include "LeptonInjector/interactions/InteractionCollection.h"
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/detector/DetectorModel.h"
-#include "LeptonInjector/detector/Coordinates.h"
-#include "LeptonInjector/distributions/Distributions.h"
-#include "LeptonInjector/distributions/primary/vertex/VertexPositionDistribution.h"
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/injection/Injector.h"
-#include "LeptonInjector/injection/WeightingUtils.h"
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/InteractionCollection.h"
+#include "SIREN/dataclasses/InteractionRecord.h"
+#include "SIREN/dataclasses/InteractionSignature.h"
+#include "SIREN/dataclasses/Particle.h"
+#include "SIREN/detector/DetectorModel.h"
+#include "SIREN/detector/Coordinates.h"
+#include "SIREN/distributions/Distributions.h"
+#include "SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/injection/Injector.h"
+#include "SIREN/injection/WeightingUtils.h"
+#include "SIREN/math/Vector3D.h"
 
-namespace LI {
+namespace siren {
 namespace injection {
 
 using detector::DetectorPosition;
@@ -86,37 +86,37 @@ namespace {
 // class LeptonWeighter
 //---------------
 
-double LeptonWeighter::InteractionProbability(std::shared_ptr<Injector const> injector, LI::dataclasses::InteractionRecord const & record) const {
-    std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
+double LeptonWeighter::InteractionProbability(std::shared_ptr<Injector const> injector, siren::dataclasses::InteractionRecord const & record) const {
+    std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
     return InteractionProbability(bounds, record);
 }
 
-double LeptonWeighter::InteractionProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const {
-    LI::math::Vector3D interaction_vertex(
+double LeptonWeighter::InteractionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    LI::math::Vector3D primary_direction(
+    siren::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
-    std::vector<LI::dataclasses::ParticleType> targets;
+    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+    std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<siren::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
+    std::vector<siren::dataclasses::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
     double total_decay_length = interactions->TotalDecayLength(record);
-    LI::dataclasses::InteractionRecord fake_record = record;
+    siren::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-        std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & xs_list = target_xs.second;
+        std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            std::vector<LI::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
             for(auto const & signature : signatures) {
                 fake_record.signature = signature;
                 // Add total cross section
@@ -136,39 +136,39 @@ double LeptonWeighter::InteractionProbability(std::tuple<LI::math::Vector3D, LI:
     return interaction_probability;
 }
 
-double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<Injector const> injector, LI::dataclasses::InteractionRecord const & record) const {
-    std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
+double LeptonWeighter::UnnormalizedPositionProbability(std::shared_ptr<Injector const> injector, siren::dataclasses::InteractionRecord const & record) const {
+    std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
     return UnnormalizedPositionProbability(bounds, record);
 }
 
-double LeptonWeighter::UnnormalizedPositionProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const {
-    LI::math::Vector3D interaction_vertex(
+double LeptonWeighter::UnnormalizedPositionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    LI::math::Vector3D primary_direction(
+    siren::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
+    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+    std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<siren::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
 
-    std::vector<LI::dataclasses::ParticleType> targets; targets.reserve(n_targets);
+    std::vector<siren::dataclasses::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
     double total_decay_length = interactions->TotalDecayLength(record);
-    LI::dataclasses::InteractionRecord fake_record = record;
+    siren::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-        std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & xs_list = target_xs.second;
+        std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            std::vector<LI::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
             for(auto const & signature : signatures) {
                 fake_record.signature = signature;
                 // Add total cross section
@@ -192,34 +192,34 @@ double LeptonWeighter::UnnormalizedPositionProbability(std::tuple<LI::math::Vect
     return prob_density;
 }
 
-double LeptonWeighter::NormalizedPositionProbability(std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds, LI::dataclasses::InteractionRecord const & record) const {
-    LI::math::Vector3D interaction_vertex(
+double LeptonWeighter::NormalizedPositionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
 
-    LI::math::Vector3D primary_direction(
+    siren::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
 
-    LI::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::map<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<LI::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
+    siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+    std::map<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<siren::interactions::CrossSection>>> const & cross_sections_by_target = interactions->GetCrossSectionsByTarget();
 
     unsigned int n_targets = cross_sections_by_target.size();
 
-    std::vector<LI::dataclasses::ParticleType> targets; targets.reserve(n_targets);
+    std::vector<siren::dataclasses::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
     double total_decay_length = interactions->TotalDecayLength(record);
-    LI::dataclasses::InteractionRecord fake_record = record;
+    siren::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);
         fake_record.target_mass = detector_model->GetTargetMass(target_xs.first);
-        std::vector<std::shared_ptr<LI::interactions::CrossSection>> const & xs_list = target_xs.second;
+        std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            std::vector<LI::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
+            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
             for(auto const & signature : signatures) {
                 fake_record.signature = signature;
                 // Add total cross section
@@ -267,25 +267,25 @@ void LeptonWeighter::Initialize() {
 
     // Initialize the state for physical distributions
     // true ==> distribution does not cancel and is not common
-    std::vector<std::pair<bool, std::shared_ptr<LI::distributions::WeightableDistribution>>> physical_init_state;
+    std::vector<std::pair<bool, std::shared_ptr<siren::distributions::WeightableDistribution>>> physical_init_state;
     for(auto physical_dist : physical_distributions) {
         physical_init_state.push_back(std::make_pair(true, physical_dist));
-        const LI::distributions::PhysicallyNormalizedDistribution* p = dynamic_cast<const LI::distributions::PhysicallyNormalizedDistribution*>(physical_dist.get());
+        const siren::distributions::PhysicallyNormalizedDistribution* p = dynamic_cast<const siren::distributions::PhysicallyNormalizedDistribution*>(physical_dist.get());
         if(p) {
             if(p->IsNormalizationSet()) {
                 normalization *= p->GetNormalization();
             }
         }
     }
-    std::vector<std::vector<std::pair<bool, std::shared_ptr<LI::distributions::WeightableDistribution>>>> physical_distribution_state(injectors.size(), physical_init_state);
+    std::vector<std::vector<std::pair<bool, std::shared_ptr<siren::distributions::WeightableDistribution>>>> physical_distribution_state(injectors.size(), physical_init_state);
     assert(physical_distribution_state.size() == injectors.size());
     // Initialize the state for generation distributions
     // true ==> distribution does not cancel and is not common
-    std::vector<std::vector<std::pair<bool, std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>>>> generation_distribution_state;
+    std::vector<std::vector<std::pair<bool, std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>>>> generation_distribution_state;
     generation_distribution_state.reserve(injectors.size());
     for(auto injector : injectors) {
-        std::vector<std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>> dists = injector->GetPrimaryInjectionDistributions();
-        std::vector<std::pair<bool, std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>>> dist_state;
+        std::vector<std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>> dists = injector->GetPrimaryInjectionDistributions();
+        std::vector<std::pair<bool, std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>>> dist_state;
         dist_state.reserve(dists.size());
         for(auto dist : dists) {
             dist_state.push_back(std::make_pair(true, dist));
@@ -297,21 +297,21 @@ void LeptonWeighter::Initialize() {
     // Now we can try to identify term that cancel
     for(unsigned int i=0; i<injectors.size(); ++i) {
         // Consider each injector separately
-        std::vector<std::pair<bool, std::shared_ptr<LI::distributions::WeightableDistribution>>> & phys_dists = physical_distribution_state[i];
-        std::vector<std::pair<bool, std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>>> & gen_dists = generation_distribution_state[i];
+        std::vector<std::pair<bool, std::shared_ptr<siren::distributions::WeightableDistribution>>> & phys_dists = physical_distribution_state[i];
+        std::vector<std::pair<bool, std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>>> & gen_dists = generation_distribution_state[i];
         // Must check every pair of physical and injection distribution (unless already cancelled)
         for(unsigned int phys_idx=0; phys_idx<phys_dists.size(); ++phys_idx) {
-            std::pair<bool, std::shared_ptr<LI::distributions::WeightableDistribution>> & phys_dist = phys_dists[phys_idx];
+            std::pair<bool, std::shared_ptr<siren::distributions::WeightableDistribution>> & phys_dist = phys_dists[phys_idx];
             if(not phys_dist.first) // Skip if already cancelled
                 continue;
             for(unsigned int gen_idx=0; gen_idx<gen_dists.size(); ++gen_idx) {
-                std::pair<bool, std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>> & gen_dist = gen_dists[gen_idx];
+                std::pair<bool, std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>> & gen_dist = gen_dists[gen_idx];
                 if(not gen_dist.first) { // Skip if already cancelled
                     continue;
                 }
                 // Check if dists are equivalent
                 // Must consider the DetectorModel and InteractionCollection context in the comparison
-                std::shared_ptr<LI::distributions::WeightableDistribution> gen_dist_ptr(gen_dist.second);
+                std::shared_ptr<siren::distributions::WeightableDistribution> gen_dist_ptr(gen_dist.second);
                 bool equivalent_dists =
                     phys_dist.second->AreEquivalent( // physical dist
                             detector_model, // physical context
@@ -345,7 +345,7 @@ void LeptonWeighter::Initialize() {
         if(has_been_cancelled)
             continue;
         // Skip vertex position distributions and note that it is user-supplied
-        if(dynamic_cast<const LI::distributions::VertexPositionDistribution*>(physical_distributions[phys_idx].get())) {
+        if(dynamic_cast<const siren::distributions::VertexPositionDistribution*>(physical_distributions[phys_idx].get())) {
             user_supplied_position_distribution = true;
             continue;
         }
@@ -360,9 +360,9 @@ void LeptonWeighter::Initialize() {
     std::vector<unsigned int> common_generation_dist_idxs;
 
     unsigned int i=0;
-    std::vector<std::pair<bool, std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>>> & gen_dists_0 = generation_distribution_state[i];
+    std::vector<std::pair<bool, std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>>> & gen_dists_0 = generation_distribution_state[i];
     for(unsigned int gen_idx_0=0; gen_idx_0<gen_dists_0.size(); ++gen_idx_0) {
-        std::pair<bool, std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>> & gen_dist_0 = gen_dists_0[gen_idx_0];
+        std::pair<bool, std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>> & gen_dist_0 = gen_dists_0[gen_idx_0];
         if(not gen_dist_0.first)
             continue;
         bool is_common = true;
@@ -370,16 +370,16 @@ void LeptonWeighter::Initialize() {
         common_idxs[i] = gen_idx_0;
         for(unsigned int j=i+1; j<injectors.size(); ++j) {
             bool found_common = false;
-            std::vector<std::pair<bool, std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>>> & gen_dists_1 = generation_distribution_state[j];
+            std::vector<std::pair<bool, std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>>> & gen_dists_1 = generation_distribution_state[j];
             for(unsigned int gen_idx_1=0; gen_idx_1<gen_dists_1.size(); ++gen_idx_1) {
-                std::pair<bool, std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>> & gen_dist_1 = gen_dists_1[gen_idx_1];
+                std::pair<bool, std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>> & gen_dist_1 = gen_dists_1[gen_idx_1];
                 if(not gen_dist_1.first)
                     continue;
                 bool equivalent_dists =
                     gen_dist_0.second->AreEquivalent( // gen dist 0
                             injectors[i]->GetDetectorModel(), // gen dist 0 context
                             injectors[i]->GetInteractions(), // gen dist 0 context
-                            (std::shared_ptr<LI::distributions::WeightableDistribution>)(gen_dist_1.second), // gen dist 1
+                            (std::shared_ptr<siren::distributions::WeightableDistribution>)(gen_dist_1.second), // gen dist 1
                             injectors[j]->GetDetectorModel(), // gen dist 1 context
                             injectors[j]->GetInteractions()); // gen dist 1 context
                 if(not equivalent_dists)
@@ -409,10 +409,10 @@ void LeptonWeighter::Initialize() {
     // Now we can collect all the unique distributions
     for(unsigned int gen_idx : common_generation_dist_idxs) {
         // These are common to all injectors, so we pull information from the first injector
-        std::shared_ptr<LI::distributions::WeightableDistribution> dist = generation_distribution_state[0][gen_idx].second;
-        std::shared_ptr<LI::detector::DetectorModel> dist_detector = injectors[0]->GetDetectorModel();
-        std::shared_ptr<LI::interactions::InteractionCollection> dist_interactions = injectors[0]->GetInteractions();
-        std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
+        std::shared_ptr<siren::distributions::WeightableDistribution> dist = generation_distribution_state[0][gen_idx].second;
+        std::shared_ptr<siren::detector::DetectorModel> dist_detector = injectors[0]->GetDetectorModel();
+        std::shared_ptr<siren::interactions::InteractionCollection> dist_interactions = injectors[0]->GetInteractions();
+        std::function<bool(std::tuple<std::shared_ptr<siren::distributions::WeightableDistribution>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<siren::distributions::WeightableDistribution>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>> p) -> bool {
             return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_detector, dist_interactions);
         };
         auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -426,8 +426,8 @@ void LeptonWeighter::Initialize() {
     }
 
     for(unsigned int phys_idx : common_physical_dist_idxs) {
-        std::shared_ptr<LI::distributions::WeightableDistribution> dist = physical_distributions[phys_idx];
-        std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
+        std::shared_ptr<siren::distributions::WeightableDistribution> dist = physical_distributions[phys_idx];
+        std::function<bool(std::tuple<std::shared_ptr<siren::distributions::WeightableDistribution>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<siren::distributions::WeightableDistribution>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>> p) -> bool {
             return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, detector_model, interactions);
         };
         auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -441,8 +441,8 @@ void LeptonWeighter::Initialize() {
     }
 
     for(unsigned int injector_idx=0; injector_idx<injectors.size(); ++injector_idx) {
-        std::vector<std::pair<bool, std::shared_ptr<LI::distributions::WeightableDistribution>>> & phys_dists = physical_distribution_state[injector_idx];
-        std::vector<std::pair<bool, std::shared_ptr<LI::distributions::PrimaryInjectionDistribution>>> & gen_dists = generation_distribution_state[injector_idx];
+        std::vector<std::pair<bool, std::shared_ptr<siren::distributions::WeightableDistribution>>> & phys_dists = physical_distribution_state[injector_idx];
+        std::vector<std::pair<bool, std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>>> & gen_dists = generation_distribution_state[injector_idx];
 
         std::vector<unsigned int> gen_idxs;
         std::vector<unsigned int> phys_idxs;
@@ -450,11 +450,11 @@ void LeptonWeighter::Initialize() {
             bool included = gen_dists[gen_idx].first;
             if(not included)
                 continue;
-            std::shared_ptr<LI::distributions::WeightableDistribution> dist = gen_dists[gen_idx].second;
+            std::shared_ptr<siren::distributions::WeightableDistribution> dist = gen_dists[gen_idx].second;
             // These are common to all injectors, so we pull information from the first injector
-            std::shared_ptr<LI::detector::DetectorModel> dist_detector = injectors[injector_idx]->GetDetectorModel();
-            std::shared_ptr<LI::interactions::InteractionCollection> dist_interactions = injectors[injector_idx]->GetInteractions();
-            std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
+            std::shared_ptr<siren::detector::DetectorModel> dist_detector = injectors[injector_idx]->GetDetectorModel();
+            std::shared_ptr<siren::interactions::InteractionCollection> dist_interactions = injectors[injector_idx]->GetInteractions();
+            std::function<bool(std::tuple<std::shared_ptr<siren::distributions::WeightableDistribution>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<siren::distributions::WeightableDistribution>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>> p) -> bool {
                 return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, dist_detector, dist_interactions);
             };
             auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -471,8 +471,8 @@ void LeptonWeighter::Initialize() {
             bool included = phys_dists[phys_idx].first;
             if(not included)
                 continue;
-            std::shared_ptr<LI::distributions::WeightableDistribution> dist = phys_dists[phys_idx].second;
-            std::function<bool(std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<LI::distributions::WeightableDistribution>, std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>> p) -> bool {
+            std::shared_ptr<siren::distributions::WeightableDistribution> dist = phys_dists[phys_idx].second;
+            std::function<bool(std::tuple<std::shared_ptr<siren::distributions::WeightableDistribution>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>>)> predicate = [&] (std::tuple<std::shared_ptr<siren::distributions::WeightableDistribution>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>> p) -> bool {
                 return std::get<0>(p)->AreEquivalent(std::get<1>(p), std::get<2>(p), dist, detector_model, interactions);
             };
             auto it = std::find_if(unique_distributions.begin(), unique_distributions.end(), predicate);
@@ -490,11 +490,11 @@ void LeptonWeighter::Initialize() {
 
     //TODO
     // Find unique contexts
-    // std::vector<std::tuple<std::shared_ptr<LI::detector::DetectorModel>, std::shared_ptr<LI::interactions::InteractionCollection>>> unique_contexts;
+    // std::vector<std::tuple<std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>>> unique_contexts;
     // std::vector<unsigned int> context_idx_by_injector;
 }
 
-LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<LI::detector::DetectorModel> detector_model, std::shared_ptr<LI::interactions::InteractionCollection> interactions, std::vector<std::shared_ptr<LI::distributions::WeightableDistribution>> physical_distributions)
+LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::interactions::InteractionCollection> interactions, std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>> physical_distributions)
     : injectors(injectors)
     , detector_model(detector_model)
     , interactions(interactions)
@@ -503,7 +503,7 @@ LeptonWeighter::LeptonWeighter(std::vector<std::shared_ptr<Injector>> injectors,
     Initialize();
 }
 
-double LeptonWeighter::EventWeight(LI::dataclasses::InteractionRecord const & record) const {
+double LeptonWeighter::EventWeight(siren::dataclasses::InteractionRecord const & record) const {
     // The weight is given by
     //  w = (\sum_i p_gen^i / p_phys^i)^-1
 
@@ -526,7 +526,7 @@ double LeptonWeighter::EventWeight(LI::dataclasses::InteractionRecord const & re
     // From each injector we need the generation probability and the unnormalized position probability (interaction probability * position probability)
     for(auto injector : injectors) {
         double generation_probability = injector->GenerationProbability(record);
-        std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
+        std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds = injector->PrimaryInjectionBounds(record);
         double physical_probability = 1.0;
 
         /*
@@ -547,7 +547,7 @@ double LeptonWeighter::EventWeight(LI::dataclasses::InteractionRecord const & re
         physical_probability *= prob;
         prob = NormalizedPositionProbability(bounds, record);
         physical_probability *= prob;
-        prob = LI::injection::CrossSectionProbability(injector->GetDetectorModel(), injector->GetInteractions(), record);
+        prob = siren::injection::CrossSectionProbability(injector->GetDetectorModel(), injector->GetInteractions(), record);
         physical_probability *= prob;
         // Number of events is already in GenerationProbability
         // double num_events = injector->EventsToInject();
@@ -568,14 +568,14 @@ double LeptonWeighter::EventWeight(LI::dataclasses::InteractionRecord const & re
     return normalization * weight;
 }
 
-double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord const & record) const {
+double LeptonWeighter::SimplifiedEventWeight(siren::dataclasses::InteractionRecord const & record) const {
     std::vector<double> probs;
     probs.reserve(unique_distributions.size());
     for(unsigned int i=0; i<unique_distributions.size(); ++i) {
         std::tuple<
-            std::shared_ptr<LI::distributions::WeightableDistribution>,
-            std::shared_ptr<LI::detector::DetectorModel>,
-            std::shared_ptr<LI::interactions::InteractionCollection>
+            std::shared_ptr<siren::distributions::WeightableDistribution>,
+            std::shared_ptr<siren::detector::DetectorModel>,
+            std::shared_ptr<siren::interactions::InteractionCollection>
         > const & p = unique_distributions[i];
         probs.push_back(std::get<0>(p)->GenerationProbability(std::get<1>(p), std::get<2>(p), record));
     }
@@ -584,7 +584,7 @@ double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord 
     for(unsigned int i=0; i<common_phys_idxs.size(); ++i) {
         phys_over_gen *= probs[common_phys_idxs[i]];
     }
-    double prob = LI::injection::CrossSectionProbability(detector_model, interactions, record);
+    double prob = siren::injection::CrossSectionProbability(detector_model, interactions, record);
     phys_over_gen *= prob;
     for(unsigned int i=0; i<common_gen_idxs.size(); ++i) {
         phys_over_gen /= probs[common_gen_idxs[i]];
@@ -598,7 +598,7 @@ double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord 
         for(unsigned int j=0; j<distinct_gen_idxs_by_injector[i].size(); ++j) {
             prob *= probs[distinct_gen_idxs_by_injector[i][j]];
         }
-        double cross_section_probability = LI::injection::CrossSectionProbability(injectors[i]->GetDetectorModel(), injectors[i]->GetInteractions(), record);
+        double cross_section_probability = siren::injection::CrossSectionProbability(injectors[i]->GetDetectorModel(), injectors[i]->GetInteractions(), record);
         prob *= cross_section_probability;
         for(unsigned int j=0; j<distinct_physical_idxs_by_injector[i].size(); ++j) {
             prob /= probs[distinct_physical_idxs_by_injector[i][j]];
@@ -618,7 +618,7 @@ double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord 
             double pos_prob = UnnormalizedPositionProbability((std::shared_ptr<Injector const>)injectors[i], record);
             prob /= pos_prob;
         }*/
-        std::tuple<LI::math::Vector3D, LI::math::Vector3D> bounds = injectors[i]->PrimaryInjectionBounds(record);
+        std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds = injectors[i]->PrimaryInjectionBounds(record);
         double interaction_probability = InteractionProbability(bounds, record);
         double normalized_position_probability = NormalizedPositionProbability(bounds, record);
         prob /= interaction_probability;
@@ -635,5 +635,5 @@ double LeptonWeighter::SimplifiedEventWeight(LI::dataclasses::InteractionRecord 
 }
 
 } // namespace injection
-} // namespace LI
+} // namespace siren
 

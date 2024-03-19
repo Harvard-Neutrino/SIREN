@@ -1,8 +1,8 @@
-#include "LeptonInjector/dataclasses/InteractionTree.h"
+#include "SIREN/dataclasses/InteractionTree.h"
 
 #include <memory>
 
-namespace LI {
+namespace siren {
 namespace dataclasses {
 
 int InteractionTreeDatum::depth() const {
@@ -50,4 +50,4 @@ std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(InteractionReco
 }
 
 } // namespace dataclasses
-} // namespace LI
+} // namespace siren

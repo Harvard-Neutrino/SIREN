@@ -1,20 +1,20 @@
-#include "LeptonInjector/distributions/primary/energy/TabulatedFluxDistribution.h"
+#include "SIREN/distributions/primary/energy/TabulatedFluxDistribution.h"
 #include <array>                                           // for array
 #include <tuple>                                           // for tie, opera...
 #include <vector>                                          // for vector
 #include <fstream>                                         // for basic_istream
 #include <functional>                                      // for function
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
-#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
-#include "LeptonInjector/utilities/Integration.h"          // for rombergInt...
-#include "LeptonInjector/utilities/Interpolator.h"         // for TableData1D
-#include "LeptonInjector/utilities/Random.h"               // for LI_random
+#include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "SIREN/distributions/Distributions.h"    // for InjectionD...
+#include "SIREN/utilities/Integration.h"          // for rombergInt...
+#include "SIREN/utilities/Interpolator.h"         // for TableData1D
+#include "SIREN/utilities/Random.h"               // for SIREN_random
 
-namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace detector { class DetectorModel; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace detector { class DetectorModel; } }
 
-namespace LI {
+namespace siren {
 namespace distributions {
 namespace {
     bool fexists(const std::string filename)
@@ -33,7 +33,7 @@ void TabulatedFluxDistribution::ComputeIntegral() {
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    integral = LI::utilities::rombergIntegrate(integrand, energyMin, energyMax);
+    integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax);
 }
 
 void TabulatedFluxDistribution::LoadFluxTable() {
@@ -41,7 +41,7 @@ void TabulatedFluxDistribution::LoadFluxTable() {
         std::ifstream in(fluxTableFilename.c_str());
         std::string buf;
         std::string::size_type pos;
-        LI::utilities::TableData1D<double> table_data;
+        siren::utilities::TableData1D<double> table_data;
 
         while(std::getline(in, buf)) {
             // Ignore comments and blank lines
@@ -68,7 +68,7 @@ void TabulatedFluxDistribution::LoadFluxTable() {
             energyMin = table_data.x[0];
             energyMax = table_data.x[table_data.x.size()-1];
         }
-        fluxTable = LI::utilities::Interpolator1D<double>(table_data);
+        fluxTable = siren::utilities::Interpolator1D<double>(table_data);
     } else {
         throw std::runtime_error("Failed to open flux table file!");
     }
@@ -78,7 +78,7 @@ void TabulatedFluxDistribution::LoadFluxTable(std::vector<double> & energies, st
     
     assert(energies.size()==flux.size());
 
-    LI::utilities::TableData1D<double> table_data;
+    siren::utilities::TableData1D<double> table_data;
 
     table_data.x = energies;
     table_data.f = flux;
@@ -89,7 +89,7 @@ void TabulatedFluxDistribution::LoadFluxTable(std::vector<double> & energies, st
         energyMin = table_data.x[0];
         energyMax = table_data.x[table_data.x.size()-1];
     }
-    fluxTable = LI::utilities::Interpolator1D<double>(table_data);
+    fluxTable = siren::utilities::Interpolator1D<double>(table_data);
 }
 
 double TabulatedFluxDistribution::unnormed_pdf(double energy) const {
@@ -174,12 +174,12 @@ void TabulatedFluxDistribution::ComputeCDF() {
     // assign the cdf vector so it's accessible outside of the function
     cdf = cdf_vector;
 
-    LI::utilities::TableData1D<double> inverse_cdf_data;
+    siren::utilities::TableData1D<double> inverse_cdf_data;
     inverse_cdf_data.x = cdf; 
     inverse_cdf_data.f = cdf_energy_nodes;
 
 
-    inverseCdfTable = LI::utilities::Interpolator1D<double>(inverse_cdf_data);
+    inverseCdfTable = siren::utilities::Interpolator1D<double>(inverse_cdf_data);
 
 }
 
@@ -261,7 +261,7 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     ComputeCDF();
 }
 
-double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     // inverse CDF algorithm to sample from PDF.
     double randomValue = rand->Uniform(0,1);
 
@@ -269,7 +269,7 @@ double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI
 }
 
 
-double TabulatedFluxDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double TabulatedFluxDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
     if(energy < energyMin or energy > energyMax)
         return 0.0;
@@ -307,5 +307,5 @@ bool TabulatedFluxDistribution::less(WeightableDistribution const & other) const
 
 } // namespace distributions
 
-} // namespace LI
+} // namespace siren
 

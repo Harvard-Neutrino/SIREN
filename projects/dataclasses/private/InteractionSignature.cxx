@@ -1,9 +1,9 @@
-#include "LeptonInjector/dataclasses/InteractionSignature.h"
+#include "SIREN/dataclasses/InteractionSignature.h"
 
 #include <tuple>    // for tie, operator<, operator==, tuple
 #include <ostream>  // for operator<<, char_traits, basic_ostream, endl, ost...
 
-namespace LI {
+namespace siren {
 namespace dataclasses {
 
 bool InteractionSignature::operator==(InteractionSignature const & other) const {
@@ -21,9 +21,9 @@ bool InteractionSignature::operator<(InteractionSignature const & other) const {
 }
 
 } // namespace dataclasses
-} // namespace LI
+} // namespace siren
 
-std::ostream& operator<<(std::ostream& os, LI::dataclasses::InteractionSignature const& signature) {
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::InteractionSignature const& signature) {
     std::stringstream ss;
     ss << "InteractionSignature (" << &signature << ") ";
     os << ss.str() << '\n';

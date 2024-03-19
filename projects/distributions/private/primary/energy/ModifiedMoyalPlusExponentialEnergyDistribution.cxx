@@ -1,4 +1,4 @@
-#include "LeptonInjector/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
+#include "SIREN/distributions/primary/energy/ModifiedMoyalPlusExponentialEnergyDistribution.h"
 
 #include <array>                                           // for array
 #include <cmath>                                           // for exp, sqrt
@@ -7,15 +7,15 @@
 #include <stdlib.h>                                        // for abs, size_t
 #include <functional>                                      // for function
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
-#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
-#include "LeptonInjector/utilities/Integration.h"          // for rombergInt...
-#include "LeptonInjector/utilities/Random.h"               // for LI_random
+#include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "SIREN/distributions/Distributions.h"    // for InjectionD...
+#include "SIREN/utilities/Integration.h"          // for rombergInt...
+#include "SIREN/utilities/Random.h"               // for SIREN_random
 
-namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace detector { class DetectorModel; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace detector { class DetectorModel; } }
 
-namespace LI {
+namespace siren {
 namespace distributions {
 
 //---------------
@@ -52,17 +52,17 @@ ModifiedMoyalPlusExponentialEnergyDistribution::ModifiedMoyalPlusExponentialEner
     std::function<double(double)> integrand = [&] (double x) -> double {
         return pdf(x);
     };
-    double test_norm = LI::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-8);
+    double test_norm = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-8);
     if(std::abs(1.0 - test_norm) < 1e-6) {
         integral = 1.0;
-        integral = LI::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-8);
+        integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-8);
     }
     if(has_physical_normalization) {
         SetNormalization(integral);
     }
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     // Metropolis-Hastings algorithm to sample from PDF.
     // Pass in a function pointer for the PDF
 
@@ -88,7 +88,7 @@ double ModifiedMoyalPlusExponentialEnergyDistribution::SampleEnergy(std::shared_
     return energy;
 }
 
-double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double ModifiedMoyalPlusExponentialEnergyDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
     if(energy < energyMin or energy > energyMax)
         return 0.0;
@@ -125,5 +125,5 @@ bool ModifiedMoyalPlusExponentialEnergyDistribution::less(WeightableDistribution
 }
 
 } // namespace distributions
-} // namespace LI
+} // namespace siren
 

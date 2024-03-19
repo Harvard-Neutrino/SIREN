@@ -1,4 +1,4 @@
-#include "LeptonInjector/interactions/DummyCrossSection.h"
+#include "SIREN/interactions/DummyCrossSection.h"
 
 #include <array>                                              // for array
 #include <cmath>                                              // for sqrt, M_PI
@@ -9,13 +9,13 @@
 #include <rk/geom3.hh>                                        // for Vector3
 #include <rk/rk.hh>                                           // for P4, Boost
 
-#include "LeptonInjector/interactions/CrossSection.h"        // for CrossSe...
-#include "LeptonInjector/dataclasses/InteractionRecord.h"     // for Interac...
-#include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
-#include "LeptonInjector/dataclasses/Particle.h"              // for Particle
-#include "LeptonInjector/utilities/Random.h"                  // for LI_random
+#include "SIREN/interactions/CrossSection.h"        // for CrossSe...
+#include "SIREN/dataclasses/InteractionRecord.h"     // for Interac...
+#include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
+#include "SIREN/dataclasses/Particle.h"              // for Particle
+#include "SIREN/utilities/Random.h"                  // for SIREN_random
 
-namespace LI {
+namespace siren {
 namespace interactions {
 
 DummyCrossSection::DummyCrossSection() {}
@@ -31,13 +31,13 @@ bool DummyCrossSection::equal(CrossSection const & other) const {
 }
 
 double DummyCrossSection::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
-    LI::dataclasses::ParticleType target_type = interaction.signature.target_type;
+    siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
+    siren::dataclasses::ParticleType target_type = interaction.signature.target_type;
     double primary_energy = interaction.primary_momentum[0];
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
-double DummyCrossSection::TotalCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, LI::dataclasses::ParticleType target_type) const {
+double DummyCrossSection::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type) const {
     double interaction_length_m = 1e6;
     double interaction_length_cm = interaction_length_m * 100;
     double density = 1.0; // g/cm^3
@@ -49,8 +49,8 @@ double DummyCrossSection::TotalCrossSection(LI::dataclasses::ParticleType primar
 
 
 double DummyCrossSection::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
-    LI::dataclasses::ParticleType target_type = interaction.signature.target_type;
+    siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
+    siren::dataclasses::ParticleType target_type = interaction.signature.target_type;
     double primary_energy = interaction.primary_momentum[0];
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
@@ -59,7 +59,7 @@ double DummyCrossSection::InteractionThreshold(dataclasses::InteractionRecord co
     return 0;
 }
 
-void DummyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
+void DummyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
 
@@ -118,9 +118,9 @@ void DummyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRe
     size_t lepton_index = 0;
     size_t other_index = 1;
 
-    std::vector<LI::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
-    LI::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
-    LI::dataclasses::SecondaryParticleRecord & other = secondaries[other_index];
+    std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
+    siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
+    siren::dataclasses::SecondaryParticleRecord & other = secondaries[other_index];
 
     lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
     lepton.SetMass(p3.m());
@@ -141,34 +141,34 @@ double DummyCrossSection::FinalStateProbability(dataclasses::InteractionRecord c
     }
 }
 
-std::vector<LI::dataclasses::ParticleType> DummyCrossSection::GetPossibleTargets() const {
+std::vector<siren::dataclasses::ParticleType> DummyCrossSection::GetPossibleTargets() const {
     return {
-        LI::dataclasses::ParticleType::Nucleon
+        siren::dataclasses::ParticleType::Nucleon
     };
 }
 
-std::vector<LI::dataclasses::ParticleType> DummyCrossSection::GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const {
+std::vector<siren::dataclasses::ParticleType> DummyCrossSection::GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const {
     return {
-        LI::dataclasses::ParticleType::Nucleon
+        siren::dataclasses::ParticleType::Nucleon
     };
 }
 
-std::vector<LI::dataclasses::ParticleType> DummyCrossSection::GetPossiblePrimaries() const {
+std::vector<siren::dataclasses::ParticleType> DummyCrossSection::GetPossiblePrimaries() const {
     return {
-        LI::dataclasses::ParticleType::NuE,
-        LI::dataclasses::ParticleType::NuEBar,
-        LI::dataclasses::ParticleType::NuMu,
-        LI::dataclasses::ParticleType::NuMuBar,
-        LI::dataclasses::ParticleType::NuTau,
-        LI::dataclasses::ParticleType::NuTauBar
+        siren::dataclasses::ParticleType::NuE,
+        siren::dataclasses::ParticleType::NuEBar,
+        siren::dataclasses::ParticleType::NuMu,
+        siren::dataclasses::ParticleType::NuMuBar,
+        siren::dataclasses::ParticleType::NuTau,
+        siren::dataclasses::ParticleType::NuTauBar
     };
 }
 
 std::vector<dataclasses::InteractionSignature> DummyCrossSection::GetPossibleSignatures() const {
-    std::vector<LI::dataclasses::InteractionSignature> sigs;
-    LI::dataclasses::InteractionSignature signature;
-    std::vector<LI::dataclasses::ParticleType> targets = GetPossibleTargets();
-    std::vector<LI::dataclasses::ParticleType> primaries = GetPossiblePrimaries();
+    std::vector<siren::dataclasses::InteractionSignature> sigs;
+    siren::dataclasses::InteractionSignature signature;
+    std::vector<siren::dataclasses::ParticleType> targets = GetPossibleTargets();
+    std::vector<siren::dataclasses::ParticleType> primaries = GetPossiblePrimaries();
     for(auto target : targets) {
         signature.target_type = target;
         for(auto primary : primaries) {
@@ -180,7 +180,7 @@ std::vector<dataclasses::InteractionSignature> DummyCrossSection::GetPossibleSig
     return sigs;
 }
 
-std::vector<dataclasses::InteractionSignature> DummyCrossSection::GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const {
+std::vector<dataclasses::InteractionSignature> DummyCrossSection::GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const {
     std::vector<dataclasses::InteractionSignature> sigs = DummyCrossSection::GetPossibleSignatures();
     std::vector<dataclasses::InteractionSignature> these_sigs;
     for(auto sig : sigs) {
@@ -195,5 +195,5 @@ std::vector<std::string> DummyCrossSection::DensityVariables() const {
 }
 
 } // namespace interactions
-} // namespace LI
+} // namespace siren
 

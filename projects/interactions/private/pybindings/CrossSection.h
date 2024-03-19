@@ -6,16 +6,16 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/interactions/CrossSection.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/Particle.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionRecord.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/InteractionSignature.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
-#include "../../../utilities/public/LeptonInjector/utilities/Random.h"
+#include "../../public/SIREN/interactions/CrossSection.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
+#include "../../../utilities/public/SIREN/utilities/Random.h"
 
 using namespace pybind11;
-using namespace LI::interactions;
-class PyCrossSection : public LI::interactions::CrossSection {
+using namespace siren::interactions;
+class PyCrossSection : public siren::interactions::CrossSection {
 public:
     using CrossSection::CrossSection;
 
@@ -29,7 +29,7 @@ public:
         );
     }
 
-    double TotalCrossSection(LI::dataclasses::InteractionRecord const & record) const override {
+    double TotalCrossSection(siren::dataclasses::InteractionRecord const & record) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             CrossSection,
@@ -38,16 +38,17 @@ public:
         );
     }
 
-    double TotalCrossSectionAllFinalStates(LI::dataclasses::InteractionRecord const & record) const override {
-        PYBIND11_OVERRIDE(
-            double,
-            CrossSection,
-            TotalCrossSectionAllFinalStates,
+    double TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const override {
+        PYBIND11_OVERRIDE_NAME(
+            double, // Return type (ret_type)
+            CrossSection,      // Parent class (cname)
+            "TotalCrossSectionAllFinalStates",   // Name of method in Python (name)
+            TotalCrossSectionAllFinalStates,    // Name of function in C++ (fn)
             record
         );
     }
 
-    double DifferentialCrossSection(LI::dataclasses::InteractionRecord const & record) const override {
+    double DifferentialCrossSection(siren::dataclasses::InteractionRecord const & record) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             CrossSection,
@@ -56,7 +57,7 @@ public:
         );
     }
 
-    double InteractionThreshold(LI::dataclasses::InteractionRecord const & record) const override {
+    double InteractionThreshold(siren::dataclasses::InteractionRecord const & record) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             CrossSection,
@@ -65,7 +66,7 @@ public:
         );
     }
 
-    void SampleFinalState(LI::dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> rand) const override {
+    void SampleFinalState(siren::dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> rand) const override {
         PYBIND11_OVERRIDE_PURE(
             void,
             CrossSection,
@@ -75,42 +76,42 @@ public:
         );
     }
 
-    std::vector<LI::dataclasses::ParticleType> GetPossibleTargets() const override {
+    std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override {
         PYBIND11_OVERRIDE_PURE(
-            std::vector<LI::dataclasses::ParticleType>,
+            std::vector<siren::dataclasses::ParticleType>,
             CrossSection,
             GetPossibleTargets
         );
     }
 
-    std::vector<LI::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const override {
+    std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override {
         PYBIND11_OVERRIDE_PURE(
-            std::vector<LI::dataclasses::ParticleType>,
+            std::vector<siren::dataclasses::ParticleType>,
             CrossSection,
             GetPossibleTargetsFromPrimary,
             primary_type
         );
     }
 
-    std::vector<LI::dataclasses::ParticleType> GetPossiblePrimaries() const override {
+    std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const override {
         PYBIND11_OVERRIDE_PURE(
-            std::vector<LI::dataclasses::ParticleType>,
+            std::vector<siren::dataclasses::ParticleType>,
             CrossSection,
             GetPossiblePrimaries
         );
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
+    std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override {
         PYBIND11_OVERRIDE_PURE(
-            std::vector<LI::dataclasses::InteractionSignature>,
+            std::vector<siren::dataclasses::InteractionSignature>,
             CrossSection,
             GetPossibleSignatures
         );
     }
 
-    std::vector<LI::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const override {
+    std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override {
         PYBIND11_OVERRIDE_PURE(
-            std::vector<LI::dataclasses::InteractionSignature>,
+            std::vector<siren::dataclasses::InteractionSignature>,
             CrossSection,
             GetPossibleSignaturesFromParents,
             primary_type,
@@ -118,7 +119,7 @@ public:
         );
     }
 
-    double FinalStateProbability(LI::dataclasses::InteractionRecord const & record) const override {
+    double FinalStateProbability(siren::dataclasses::InteractionRecord const & record) const override {
         PYBIND11_OVERRIDE_PURE(
             double,
             CrossSection,
@@ -138,17 +139,18 @@ public:
 
 void register_CrossSection(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::interactions;
+    using namespace siren::interactions;
 
     class_<CrossSection, std::shared_ptr<CrossSection>, PyCrossSection>(m, "CrossSection")
         .def(init<>())
         .def("__eq__", [](const CrossSection &self, const CrossSection &other){ return self == other; })
         .def("equal", &CrossSection::equal)
-        .def("TotalCrossSection", (double (CrossSection::*)(LI::dataclasses::InteractionRecord const &) const)(&CrossSection::TotalCrossSection))
-        .def("TotalCrossSection", (double (CrossSection::*)(LI::dataclasses::ParticleType, double, LI::dataclasses::ParticleType) const)(&CrossSection::TotalCrossSection))
+        .def("TotalCrossSection", (double (CrossSection::*)(siren::dataclasses::InteractionRecord const &) const)(&CrossSection::TotalCrossSection))
+        .def("TotalCrossSectionAllFinalStates", (double (CrossSection::*)(siren::dataclasses::InteractionRecord const &) const)(&CrossSection::TotalCrossSectionAllFinalStates))
+        .def("TotalCrossSection", (double (CrossSection::*)(siren::dataclasses::ParticleType, double, siren::dataclasses::ParticleType) const)(&CrossSection::TotalCrossSection))
         .def("DifferentialCrossSection", &CrossSection::DifferentialCrossSection)
         .def("InteractionThreshold", &CrossSection::InteractionThreshold)
-        .def("SampleFinalState", (void (CrossSection::*)(LI::dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<LI::utilities::LI_random>) const)(&CrossSection::SampleFinalState))
+        .def("SampleFinalState", (void (CrossSection::*)(siren::dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const)(&CrossSection::SampleFinalState))
         .def("GetPossibleTargets", &CrossSection::GetPossibleTargets)
         .def("GetPossibleTargetsFromPrimary", &CrossSection::GetPossibleTargetsFromPrimary)
         .def("GetPossiblePrimaries", &CrossSection::GetPossiblePrimaries)

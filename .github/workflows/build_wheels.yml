@@ -12,7 +12,7 @@ jobs:
         arch: [x86_64, i686, aarch64, ppc64le, s390x]
 
     steps:
-      - name: Checkout LeptonInjector
+      - name: Checkout SIREN
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -41,7 +41,7 @@ jobs:
         arch: [x86_64]
 
     steps:
-      - name: Checkout LeptonInjector
+      - name: Checkout SIREN
         uses: actions/checkout@v4
 
       - name: Setup Python

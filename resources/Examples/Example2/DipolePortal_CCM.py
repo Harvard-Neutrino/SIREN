@@ -1,8 +1,8 @@
 import os
 import numpy as np
 
-import leptoninjector as LI
-from leptoninjector.LIController import LIController
+import siren
+from siren.LIController import LIController
 
 # Define a DarkNews model
 model_kwargs = {
@@ -27,9 +27,9 @@ experiment = "CCM"
 controller = LIController(events_to_inject, experiment)
 
 # Particle to inject
-primary_type = LI.dataclasses.Particle.ParticleType.NuMu
+primary_type = siren.dataclasses.Particle.ParticleType.NuMu
 
-xs_path = LI.utilities.get_cross_section_model_path(f"DarkNewsTables-v{LI.utilities.darknews_version()}", must_exist=False)
+xs_path = siren.utilities.get_cross_section_model_path(f"DarkNewsTables-v{siren.utilities.darknews_version()}", must_exist=False)
 # Define DarkNews Model
 table_dir = os.path.join(
     xs_path,
@@ -43,7 +43,7 @@ primary_physical_distributions = {}
 
 # energy distribution
 nu_energy = 0.02965  # from pi+ DAR
-edist = LI.distributions.Monoenergetic(nu_energy)
+edist = siren.distributions.Monoenergetic(nu_energy)
 primary_injection_distributions["energy"] = edist
 primary_physical_distributions["energy"] = edist
 # fill cross section tables at this energy
@@ -51,26 +51,26 @@ controller.DN_processes.FillCrossSectionTablesAtEnergy(nu_energy)
 
 # Flux normalization:
 # using the number quoted in 2105.14020, 4.74e9 nu/m^2/s / (6.2e14 POT/s) * 4*pi*20m^2 to get nu/POT
-flux_units = LI.distributions.NormalizationConstant(3.76e-2)
+flux_units = siren.distributions.NormalizationConstant(3.76e-2)
 primary_physical_distributions["flux_units"] = flux_units
 
 # direction distribution: cone from lower W target
 opening_angle = np.arctan(5 / 23.0)
 # slightly larger than CCM
-lower_target_origin = LI.math.Vector3D(0, 0, -0.241)
-detector_origin = LI.math.Vector3D(23, 0, -0.65)
+lower_target_origin = siren.math.Vector3D(0, 0, -0.241)
+detector_origin = siren.math.Vector3D(23, 0, -0.65)
 lower_dir = detector_origin - lower_target_origin
 lower_dir.normalize()
-lower_inj_ddist = LI.distributions.Cone(lower_dir, opening_angle)
+lower_inj_ddist = siren.distributions.Cone(lower_dir, opening_angle)
 phys_ddist = (
-    LI.distributions.IsotropicDirection()
+    siren.distributions.IsotropicDirection()
 )  # truly we are isotropic
 primary_injection_distributions["direction"] = lower_inj_ddist
 primary_physical_distributions["direction"] = phys_ddist
 
 # Position distribution: consider neutrinos from a point source
 max_dist = 25
-lower_pos_dist = LI.distributions.PointSourcePositionDistribution(
+lower_pos_dist = siren.distributions.PointSourcePositionDistribution(
     lower_target_origin - detector_origin, max_dist, set(controller.GetDetectorModelTargets()[0])
 )
 primary_injection_distributions["position"] = lower_pos_dist
@@ -84,7 +84,7 @@ controller.Initialize()
 
 def stop(datum, i):
     secondary_type = datum.record.signature.secondary_types[i]
-    return secondary_type != LI.dataclasses.Particle.ParticleType.N4
+    return secondary_type != siren.dataclasses.Particle.ParticleType.N4
 
 controller.injector.SetStoppingCondition(stop)
 

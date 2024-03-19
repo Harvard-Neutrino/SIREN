@@ -1,4 +1,4 @@
-#include "LeptonInjector/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
+#include "SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 
 #include <set>                                                    // for set
 #include <array>                                                  // for array
@@ -7,21 +7,21 @@
 #include <string>                                                 // for bas...
 #include <vector>                                                 // for vector
 
-#include "LeptonInjector/interactions/CrossSection.h"            // for Cro...
-#include "LeptonInjector/interactions/InteractionCollection.h"  // for Cro...
-#include "LeptonInjector/dataclasses/InteractionRecord.h"         // for Int...
-#include "LeptonInjector/dataclasses/InteractionSignature.h"      // for Int...
-#include "LeptonInjector/dataclasses/Particle.h"                  // for Par...
-#include "LeptonInjector/detector/DetectorModel.h"                   // for Ear...
-#include "LeptonInjector/detector/Path.h"                         // for Path
-#include "LeptonInjector/detector/Coordinates.h"
-#include "LeptonInjector/distributions/Distributions.h"           // for Inj...
-#include "LeptonInjector/geometry/Geometry.h"                     // for Geo...
-#include "LeptonInjector/math/Vector3D.h"                         // for Vec...
-#include "LeptonInjector/utilities/Errors.h"                      // for Sec...
-#include "LeptonInjector/utilities/Random.h"                      // for LI_...
+#include "SIREN/interactions/CrossSection.h"            // for Cro...
+#include "SIREN/interactions/InteractionCollection.h"  // for Cro...
+#include "SIREN/dataclasses/InteractionRecord.h"         // for Int...
+#include "SIREN/dataclasses/InteractionSignature.h"      // for Int...
+#include "SIREN/dataclasses/Particle.h"                  // for Par...
+#include "SIREN/detector/DetectorModel.h"                   // for Ear...
+#include "SIREN/detector/Path.h"                         // for Path
+#include "SIREN/detector/Coordinates.h"
+#include "SIREN/distributions/Distributions.h"           // for Inj...
+#include "SIREN/geometry/Geometry.h"                     // for Geo...
+#include "SIREN/math/Vector3D.h"                         // for Vec...
+#include "SIREN/utilities/Errors.h"                      // for Sec...
+#include "SIREN/utilities/Random.h"                      // for SIREN_...
 
-namespace LI {
+namespace siren {
 namespace distributions {
 
 using detector::DetectorPosition;
@@ -50,22 +50,22 @@ double log_one_minus_exp_of_negative(double x) {
 //---------------
 
 
-void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::SecondaryDistributionRecord & record) const {
-    LI::math::Vector3D pos = record.initial_position;
-    LI::math::Vector3D dir = record.direction;
+void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const {
+    siren::math::Vector3D pos = record.initial_position;
+    siren::math::Vector3D dir = record.direction;
 
-    LI::math::Vector3D endcap_0 = pos;
+    siren::math::Vector3D endcap_0 = pos;
 
-    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
+    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
     path.ClipToOuterBounds();
 
-    std::vector<LI::dataclasses::ParticleType> targets(interactions->TargetTypes().begin(), interactions->TargetTypes().end());
+    std::vector<siren::dataclasses::ParticleType> targets(interactions->TargetTypes().begin(), interactions->TargetTypes().end());
 
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = interactions->TotalDecayLength(record.record);
-    LI::dataclasses::InteractionRecord fake_record = record.record;
+    siren::dataclasses::InteractionRecord fake_record = record.record;
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::dataclasses::ParticleType const & target = targets[i];
+        siren::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -75,7 +75,7 @@ void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<LI::utili
 
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
-        throw(LI::utilities::InjectionFailure("No available interactions along path!"));
+        throw(siren::utilities::InjectionFailure("No available interactions along path!"));
     }
 
     double traversed_interaction_depth;
@@ -89,33 +89,33 @@ void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<LI::utili
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
-    LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
+    siren::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
     double length = (vertex - pos) * dir;
     record.SetLength(length);
 }
 
-double SecondaryPhysicalVertexDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+double SecondaryPhysicalVertexDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::math::Vector3D vertex(record.interaction_vertex);
+    siren::math::Vector3D vertex(record.interaction_vertex);
 
-    LI::math::Vector3D endcap_0 = record.primary_initial_position;
+    siren::math::Vector3D endcap_0 = record.primary_initial_position;
 
-    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
+    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
 
-    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    std::vector<LI::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<siren::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = interactions->TotalDecayLength(record);
-    LI::dataclasses::InteractionRecord fake_record = record;
+    siren::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::dataclasses::ParticleType const & target = targets[i];
+        siren::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -150,19 +150,19 @@ std::shared_ptr<SecondaryInjectionDistribution> SecondaryPhysicalVertexDistribut
     return std::shared_ptr<SecondaryInjectionDistribution>(new SecondaryPhysicalVertexDistribution(*this));
 }
 
-std::tuple<LI::math::Vector3D, LI::math::Vector3D> SecondaryPhysicalVertexDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> SecondaryPhysicalVertexDistribution::InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::math::Vector3D vertex(record.interaction_vertex);
+    siren::math::Vector3D vertex(record.interaction_vertex);
 
-    LI::math::Vector3D endcap_0 = record.primary_initial_position;
+    siren::math::Vector3D endcap_0 = record.primary_initial_position;
 
-    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
+    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
-        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
-    return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+        return std::tuple<siren::math::Vector3D, siren::math::Vector3D>(siren::math::Vector3D(0, 0, 0), siren::math::Vector3D(0, 0, 0));
+    return std::tuple<siren::math::Vector3D, siren::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool SecondaryPhysicalVertexDistribution::equal(WeightableDistribution const & other) const {
@@ -180,4 +180,4 @@ bool SecondaryPhysicalVertexDistribution::less(WeightableDistribution const & ot
 }
 
 } // namespace distributions
-} // namespace LeptonInjector
+} // namespace sirenREN

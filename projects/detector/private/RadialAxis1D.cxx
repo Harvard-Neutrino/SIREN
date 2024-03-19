@@ -1,8 +1,8 @@
-#include "LeptonInjector/detector/RadialAxis1D.h"
+#include "SIREN/detector/RadialAxis1D.h"
 
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/math/Vector3D.h"
 
-namespace LI {
+namespace siren {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -38,5 +38,5 @@ double RadialAxis1D::GetdX(const math::Vector3D& xi, const math::Vector3D& direc
     return aux * direction;
 }
 
-} // namespace LI
+} // namespace siren
 } // namespace detector

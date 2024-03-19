@@ -1,5 +1,5 @@
-#ifndef LI_TEST_FakeDetectorModel_H
-#define LI_TEST_FakeDetectorModel_H
+#ifndef SIREN_TEST_FakeDetectorModel_H
+#define SIREN_TEST_FakeDetectorModel_H
 
 #include <cmath>
 #include <math.h>
@@ -13,13 +13,13 @@
 
 #include "FakeMaterialModel.h"
 
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/detector/DetectorModel.h"
-#include "LeptonInjector/math/Quaternion.h"
-#include "LeptonInjector/math/Polynomial.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/detector/DetectorModel.h"
+#include "SIREN/math/Quaternion.h"
+#include "SIREN/math/Polynomial.h"
 
-using namespace LI::detector;
-using namespace LI::math;
+using namespace siren::detector;
+using namespace siren::math;
 
 template <typename T>
 std::string str(std::vector<T> v) {
@@ -760,5 +760,5 @@ protected:
     }
 };
 
-#endif // LI_TEST_FakeDetectorModel_H
+#endif // SIREN_TEST_FakeDetectorModel_H
 

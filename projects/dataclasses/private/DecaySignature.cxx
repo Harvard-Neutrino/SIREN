@@ -1,8 +1,8 @@
-#include "LeptonInjector/dataclasses/DecaySignature.h"
+#include "SIREN/dataclasses/DecaySignature.h"
 
 #include <tuple>
 
-namespace LI {
+namespace siren {
 namespace dataclasses {
 
 bool DecaySignature::operator==(DecaySignature const & other) const {
@@ -13,4 +13,4 @@ bool DecaySignature::operator==(DecaySignature const & other) const {
 }
 
 } // namespace dataclasses
-} // namespace LI
+} // namespace siren

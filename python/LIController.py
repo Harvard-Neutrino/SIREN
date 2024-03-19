@@ -33,7 +33,7 @@ class LIController:
         self.resources_dir = _util.resource_package_dir()
 
         # Initialize a random number generator
-        self.random = _utilities.LI_random(seed)
+        self.random = _utilities.SIREN_random(seed)
 
         # Save number of events to inject
         self.events_to_inject = events_to_inject

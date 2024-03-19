@@ -1,9 +1,9 @@
-#include "LeptonInjector/math/Interpolation.h"
+#include "SIREN/math/Interpolation.h"
 
 #include <tuple>
 #include <memory>
 
-namespace LI {
+namespace siren {
 namespace math {
 
 //template<> class Transform<double>;
@@ -55,4 +55,4 @@ template<> class DelaunayIndexer2D<double>;
 template<> class LinearDelaunayInterpolator2D<double>;
 
 } // namespace math
-} // namespace LI
+} // namespace siren

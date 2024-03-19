@@ -5,11 +5,11 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/math/Matrix3D.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/math/EulerAngles.h"
+#include "SIREN/math/Matrix3D.h"
+#include "SIREN/math/Vector3D.h"
+#include "SIREN/math/EulerAngles.h"
 
-using namespace LI::math;
+using namespace siren::math;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);

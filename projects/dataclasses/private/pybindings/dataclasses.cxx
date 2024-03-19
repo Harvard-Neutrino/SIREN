@@ -2,12 +2,12 @@
 #include <vector>
 #include <set>
 
-#include "../../public/LeptonInjector/dataclasses/Particle.h"
-#include "../../public/LeptonInjector/dataclasses/ParticleID.h"
-#include "../../public/LeptonInjector/dataclasses/ParticleType.h"
-#include "../../public/LeptonInjector/dataclasses/InteractionSignature.h"
-#include "../../public/LeptonInjector/dataclasses/InteractionRecord.h"
-#include "../../public/LeptonInjector/dataclasses/InteractionTree.h"
+#include "../../public/SIREN/dataclasses/Particle.h"
+#include "../../public/SIREN/dataclasses/ParticleID.h"
+#include "../../public/SIREN/dataclasses/ParticleType.h"
+#include "../../public/SIREN/dataclasses/InteractionSignature.h"
+#include "../../public/SIREN/dataclasses/InteractionRecord.h"
+#include "../../public/SIREN/dataclasses/InteractionTree.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -15,7 +15,7 @@
 using namespace pybind11;
 
 PYBIND11_MODULE(dataclasses,m) {
-  using namespace LI::dataclasses;
+  using namespace siren::dataclasses;
 
   class_<Particle, std::shared_ptr<Particle>> particle(m, "Particle");
 
@@ -35,7 +35,7 @@ PYBIND11_MODULE(dataclasses,m) {
 
   enum_<ParticleType>(particle, "ParticleType", arithmetic())
 #define X(a, b) .value( #a , ParticleType:: a )
-#include "../../public/LeptonInjector/dataclasses/ParticleTypes.def"
+#include "../../public/SIREN/dataclasses/ParticleTypes.def"
 #undef X
           .export_values();
 
@@ -48,9 +48,9 @@ PYBIND11_MODULE(dataclasses,m) {
     class_<PrimaryDistributionRecord, std::shared_ptr<PrimaryDistributionRecord>>(m, "PrimaryDistributionRecord")
         .def(init<ParticleType>())
         .def_property_readonly("id",
-            [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::ParticleID id = pdr.id; return id;})
+            [](siren::dataclasses::PrimaryDistributionRecord const & pdr) {siren::dataclasses::ParticleID id = pdr.id; return id;})
         .def_property_readonly("type",
-            [](LI::dataclasses::PrimaryDistributionRecord const & pdr) {LI::dataclasses::ParticleType pt = pdr.type; return pt;})
+            [](siren::dataclasses::PrimaryDistributionRecord const & pdr) {siren::dataclasses::ParticleType pt = pdr.type; return pt;})
         .def("GetParticle", &PrimaryDistributionRecord::GetParticle)
         .def("SetParticle", &PrimaryDistributionRecord::SetParticle)
         .def_property("mass", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetMass)), &PrimaryDistributionRecord::SetMass)
@@ -68,11 +68,11 @@ PYBIND11_MODULE(dataclasses,m) {
     class_<SecondaryParticleRecord, std::shared_ptr<SecondaryParticleRecord>>(m, "SecondaryParticleRecord")
         .def(init<InteractionRecord const &, size_t>())
         .def_property_readonly("id",
-            [](LI::dataclasses::SecondaryParticleRecord const & spr) {LI::dataclasses::ParticleID id = spr.id; return id;})
+            [](siren::dataclasses::SecondaryParticleRecord const & spr) {siren::dataclasses::ParticleID id = spr.id; return id;})
         .def_property_readonly("type",
-            [](LI::dataclasses::SecondaryParticleRecord const & spr) {LI::dataclasses::ParticleType pt = spr.type; return pt;})
+            [](siren::dataclasses::SecondaryParticleRecord const & spr) {siren::dataclasses::ParticleType pt = spr.type; return pt;})
         .def_property_readonly("initial_position",
-            [](LI::dataclasses::SecondaryParticleRecord const & spr) {std::array<double, 3> ip = spr.initial_position; return ip;})
+            [](siren::dataclasses::SecondaryParticleRecord const & spr) {std::array<double, 3> ip = spr.initial_position; return ip;})
         .def("GetParticle", &SecondaryParticleRecord::GetParticle)
         .def("SetParticle", &SecondaryParticleRecord::SetParticle)
         .def_property("mass", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetMass)), &SecondaryParticleRecord::SetMass)
@@ -87,35 +87,35 @@ PYBIND11_MODULE(dataclasses,m) {
     class_<CrossSectionDistributionRecord, std::shared_ptr<CrossSectionDistributionRecord>>(m, "CrossSectionDistributionRecord")
         .def(init<InteractionRecord const &>())
         .def_property_readonly("record",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::InteractionRecord ir = cdr.record; return ir;})
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {siren::dataclasses::InteractionRecord ir = cdr.record; return ir;})
         .def_property_readonly("signature",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::InteractionSignature is = cdr.signature; return is;})
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {siren::dataclasses::InteractionSignature is = cdr.signature; return is;})
         .def_property_readonly("primary_id",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::ParticleID id = cdr.primary_id; return id;})
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {siren::dataclasses::ParticleID id = cdr.primary_id; return id;})
         .def_property_readonly("primary_type",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::ParticleType pt = cdr.primary_type; return pt;})
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {siren::dataclasses::ParticleType pt = cdr.primary_type; return pt;})
         .def_property_readonly("primary_initial_position",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 3> ip = cdr.primary_initial_position; return ip;})
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 3> ip = cdr.primary_initial_position; return ip;})
         .def_property_readonly("primary_mass",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {double m = cdr.primary_mass; return m;})
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {double m = cdr.primary_mass; return m;})
         .def_property_readonly("primary_momentum",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 4> p = cdr.primary_momentum; return p;})
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 4> p = cdr.primary_momentum; return p;})
         .def_property_readonly("primary_helicity",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {double h = cdr.primary_helicity; return h;})
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {double h = cdr.primary_helicity; return h;})
         .def_property_readonly("interaction_vertex",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 3> iv = cdr.interaction_vertex; return iv;})
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {std::array<double, 3> iv = cdr.interaction_vertex; return iv;})
         .def_property_readonly("target_id",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::ParticleID id = cdr.target_id; return id;})
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {siren::dataclasses::ParticleID id = cdr.target_id; return id;})
         .def_property_readonly("target_type",
-            [](LI::dataclasses::CrossSectionDistributionRecord const & cdr) {LI::dataclasses::ParticleType pt = cdr.target_type; return pt;})
-        .def_property("target_mass", ((double const & (LI::dataclasses::CrossSectionDistributionRecord::*)() const)(&LI::dataclasses::CrossSectionDistributionRecord::GetTargetMass)), &LI::dataclasses::CrossSectionDistributionRecord::SetTargetMass)
-        .def_property("target_helicity", ((double const & (LI::dataclasses::CrossSectionDistributionRecord::*)() const)(&LI::dataclasses::CrossSectionDistributionRecord::GetTargetHelicity)), &LI::dataclasses::CrossSectionDistributionRecord::SetTargetHelicity)
-        .def_property("interaction_parameters", ((std::map<std::string, double> const & (LI::dataclasses::CrossSectionDistributionRecord::*)())(&LI::dataclasses::CrossSectionDistributionRecord::GetInteractionParameters)), &LI::dataclasses::CrossSectionDistributionRecord::SetInteractionParameters)
+            [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {siren::dataclasses::ParticleType pt = cdr.target_type; return pt;})
+        .def_property("target_mass", ((double const & (siren::dataclasses::CrossSectionDistributionRecord::*)() const)(&siren::dataclasses::CrossSectionDistributionRecord::GetTargetMass)), &siren::dataclasses::CrossSectionDistributionRecord::SetTargetMass)
+        .def_property("target_helicity", ((double const & (siren::dataclasses::CrossSectionDistributionRecord::*)() const)(&siren::dataclasses::CrossSectionDistributionRecord::GetTargetHelicity)), &siren::dataclasses::CrossSectionDistributionRecord::SetTargetHelicity)
+        .def_property("interaction_parameters", ((std::map<std::string, double> const & (siren::dataclasses::CrossSectionDistributionRecord::*)())(&siren::dataclasses::CrossSectionDistributionRecord::GetInteractionParameters)), &siren::dataclasses::CrossSectionDistributionRecord::SetInteractionParameters)
         .def("GetSecondaryParticleRecord",
-                [](LI::dataclasses::CrossSectionDistributionRecord & cdr, size_t i) -> LI::dataclasses::SecondaryParticleRecord & {return cdr.GetSecondaryParticleRecord(i);},
+                [](siren::dataclasses::CrossSectionDistributionRecord & cdr, size_t i) -> siren::dataclasses::SecondaryParticleRecord & {return cdr.GetSecondaryParticleRecord(i);},
                 return_value_policy::reference_internal)
         .def("GetSecondaryParticleRecords",
-                [](LI::dataclasses::CrossSectionDistributionRecord & cdr) -> std::vector<LI::dataclasses::SecondaryParticleRecord> & {return cdr.GetSecondaryParticleRecords();},
+                [](siren::dataclasses::CrossSectionDistributionRecord & cdr) -> std::vector<siren::dataclasses::SecondaryParticleRecord> & {return cdr.GetSecondaryParticleRecords();},
                 return_value_policy::reference_internal)
         .def("Finalize", &CrossSectionDistributionRecord::Finalize);
 

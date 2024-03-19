@@ -1,4 +1,4 @@
-#include "LeptonInjector/math/Quaternion.h"
+#include "SIREN/math/Quaternion.h"
 
 #include <cmath>
 #include <tuple>
@@ -8,13 +8,13 @@
 #include <iterator>
 #include <algorithm>
 
-#include "LeptonInjector/math/Matrix3D.h"
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/math/Conversions.h"
-#include "LeptonInjector/math/EulerAngles.h"
-#include "LeptonInjector/math/EulerQuaternionConversions.h"
+#include "SIREN/math/Matrix3D.h"
+#include "SIREN/math/Vector3D.h"
+#include "SIREN/math/Conversions.h"
+#include "SIREN/math/EulerAngles.h"
+#include "SIREN/math/EulerQuaternionConversions.h"
 
-using namespace LI::math;
+using namespace siren::math;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -130,7 +130,7 @@ void Quaternion::swap(Quaternion& quaternion)
     swap(w_, quaternion.w_);
 }
 
-namespace LI {
+namespace siren {
 namespace math {
 std::ostream& operator<<(std::ostream& os, Quaternion const& quaternion)
 {
@@ -141,7 +141,7 @@ std::ostream& operator<<(std::ostream& os, Quaternion const& quaternion)
     return os;
 }
 } // namespace math
-} // namespace LI
+} // namespace siren
 
 Quaternion Quaternion::operator*(Quaternion const & other) const
 {
@@ -465,17 +465,17 @@ std::tuple<Vector3D, double> Quaternion::GetAxisAngle() const
 
 void Quaternion::SetEulerAngles(EulerAngles const & euler)
 {
-    (*this) = LI::math::QuaternionFromEulerAngles(euler);
+    (*this) = siren::math::QuaternionFromEulerAngles(euler);
 }
 
 void Quaternion::GetEulerAngles(EulerAngles & euler, EulerOrder order) const
 {
-    euler = LI::math::EulerAnglesFromQuaternion(*this, order);
+    euler = siren::math::EulerAnglesFromQuaternion(*this, order);
 }
 
 void Quaternion::GetEulerAnglesZXZr(double & alpha, double & beta, double & gamma) const
 {
-    EulerAngles euler = LI::math::ZXZrFromQ(*this);
+    EulerAngles euler = siren::math::ZXZrFromQ(*this);
     alpha = euler.GetAlpha();
     beta = euler.GetBeta();
     gamma = euler.GetGamma();
@@ -483,12 +483,12 @@ void Quaternion::GetEulerAnglesZXZr(double & alpha, double & beta, double & gamm
 
 void Quaternion::SetEulerAnglesZXZr(double alpha, double beta, double gamma)
 {
-    (*this) = LI::math::QFromZXZr(alpha, beta, gamma);
+    (*this) = siren::math::QFromZXZr(alpha, beta, gamma);
 }
 
 void Quaternion::GetEulerAnglesXYZs(double & alpha, double & beta, double & gamma) const
 {
-    EulerAngles euler = LI::math::XYZsFromQ(*this);
+    EulerAngles euler = siren::math::XYZsFromQ(*this);
     alpha = euler.GetAlpha();
     beta = euler.GetBeta();
     gamma = euler.GetGamma();
@@ -496,10 +496,10 @@ void Quaternion::GetEulerAnglesXYZs(double & alpha, double & beta, double & gamm
 
 void Quaternion::SetEulerAnglesXYZs(double alpha, double beta, double gamma)
 {
-    (*this) = LI::math::QFromXYZs(alpha, beta, gamma);
+    (*this) = siren::math::QFromXYZs(alpha, beta, gamma);
 }
 
-Quaternion LI::math::rotation_between(Vector3D const & v0, Vector3D const & v1) {
+Quaternion siren::math::rotation_between(Vector3D const & v0, Vector3D const & v1) {
     Vector3D dir0 = v0.normalized();
     Vector3D dir1 = v1.normalized();
     double dot = scalar_product(dir0, dir1);

@@ -1,4 +1,4 @@
-#include "LeptonInjector/math/Polynomial.h"
+#include "SIREN/math/Polynomial.h"
 
 #include <cmath>
 #include <vector>
@@ -9,7 +9,7 @@
 // %%%%%%%%%%%%%%%%%%%       Polynom      %%%%%%%%%%%%%%%%%%%%
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-using namespace LI::math;
+using namespace siren::math;
 
 Polynom::Polynom() : N_(0) {}
 
@@ -112,7 +112,7 @@ std::function<double(double)> Polynom::GetFunction() {
                                                     std::placeholders::_1);
 }
 
-namespace LI {
+namespace siren {
 namespace math {
 std::ostream& operator<<(std::ostream& os, const Polynom& p) {
     os << "p(x) =";
@@ -215,4 +215,4 @@ double NewtonRaphson(std::function<double(double)> func,
 }
 
 } // namespace math
-} // namespace LI
+} // namespace siren

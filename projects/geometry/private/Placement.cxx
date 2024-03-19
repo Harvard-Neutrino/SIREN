@@ -1,39 +1,39 @@
-#include "LeptonInjector/geometry/Placement.h"
+#include "SIREN/geometry/Placement.h"
 
 #include <tuple>
 #include <memory>
 #include <utility>
 #include <ostream>
 
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/math/Quaternion.h"
-#include "LeptonInjector/math/EulerQuaternionConversions.h"
+#include "SIREN/math/Vector3D.h"
+#include "SIREN/math/Quaternion.h"
+#include "SIREN/math/EulerQuaternionConversions.h"
 
-using namespace LI::geometry;
+using namespace siren::geometry;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
 //----------------------------------------------------------------------//
 
 Placement::Placement() :
-    position_(LI::math::Vector3D(0,0,0)),
-    quaternion_(LI::math::QFromZXZr(0,0,0))
+    position_(siren::math::Vector3D(0,0,0)),
+    quaternion_(siren::math::QFromZXZr(0,0,0))
 {
     quaternion_.normalize();
 }
 
-Placement::Placement(LI::math::Vector3D const & position) :
+Placement::Placement(siren::math::Vector3D const & position) :
     position_(position)
 {
 }
 
-Placement::Placement(LI::math::Quaternion const & quaternion) :
+Placement::Placement(siren::math::Quaternion const & quaternion) :
     quaternion_(quaternion)
 {
     quaternion_.normalize();
 }
 
-Placement::Placement(LI::math::Vector3D const & position, LI::math::Quaternion const & quaternion) :
+Placement::Placement(siren::math::Vector3D const & position, siren::math::Quaternion const & quaternion) :
     position_(position),
     quaternion_(quaternion)
 {
@@ -110,7 +110,7 @@ void Placement::swap(Placement& placement)
     swap(quaternion_, placement.quaternion_);
 }
 
-namespace LI {
+namespace siren {
 namespace geometry {
     std::ostream& operator<<(std::ostream& os, Placement const& placement) {
         os << "Placement (" << &placement << ")" << std::endl;
@@ -119,52 +119,52 @@ namespace geometry {
         return os;
     }
 } // namespace geometry
-} // namespace LI
+} // namespace siren
 
 std::shared_ptr<Placement> Placement::create() const { return std::shared_ptr<Placement>( new Placement(*this) ); }
 
 //-------------------------------------//
 // getter and setter functions
 
-LI::math::Vector3D Placement::GetPosition() const { return position_; }
+siren::math::Vector3D Placement::GetPosition() const { return position_; }
 
-LI::math::Quaternion Placement::GetQuaternion() const { return quaternion_; }
+siren::math::Quaternion Placement::GetQuaternion() const { return quaternion_; }
 
-void Placement::SetPosition(LI::math::Vector3D const & p) { position_ = p; }
+void Placement::SetPosition(siren::math::Vector3D const & p) { position_ = p; }
 
-void Placement::SetQuaternion(LI::math::Quaternion const & q) {
+void Placement::SetQuaternion(siren::math::Quaternion const & q) {
     quaternion_ = q;
     quaternion_.normalize();
 }
 
-LI::math::Vector3D Placement::Rotate(LI::math::Vector3D const & p0, bool inv) const
+siren::math::Vector3D Placement::Rotate(siren::math::Vector3D const & p0, bool inv) const
 {
     return quaternion_.rotate(p0,inv);
 }
 
-LI::math::Vector3D Placement::LocalToGlobalPosition(LI::math::Vector3D const & p0) const
+siren::math::Vector3D Placement::LocalToGlobalPosition(siren::math::Vector3D const & p0) const
 {
-    LI::math::Vector3D p1 = quaternion_.rotate(p0, false); // Rotate about local origin to get orientation in the global system
-    LI::math::Vector3D p2 = p1 + position_; // Translate local origin to global origin
+    siren::math::Vector3D p1 = quaternion_.rotate(p0, false); // Rotate about local origin to get orientation in the global system
+    siren::math::Vector3D p2 = p1 + position_; // Translate local origin to global origin
     return p2;
 }
 
-LI::math::Vector3D Placement::LocalToGlobalDirection(LI::math::Vector3D const & p0) const
+siren::math::Vector3D Placement::LocalToGlobalDirection(siren::math::Vector3D const & p0) const
 {
-    LI::math::Vector3D p1 = quaternion_.rotate(p0, false); // Rotate about local origin to get orientation in the global system
+    siren::math::Vector3D p1 = quaternion_.rotate(p0, false); // Rotate about local origin to get orientation in the global system
     return p1;
 }
 
-LI::math::Vector3D Placement::GlobalToLocalPosition(LI::math::Vector3D const & p0) const
+siren::math::Vector3D Placement::GlobalToLocalPosition(siren::math::Vector3D const & p0) const
 {
-    LI::math::Vector3D p1 = p0 - position_; // Translate global origin to local origin
-    LI::math::Vector3D p2 = quaternion_.rotate(p1, true); // Inverse rotatation about local origin to get orientation in the local system
+    siren::math::Vector3D p1 = p0 - position_; // Translate global origin to local origin
+    siren::math::Vector3D p2 = quaternion_.rotate(p1, true); // Inverse rotatation about local origin to get orientation in the local system
     return p2;
 }
 
-LI::math::Vector3D Placement::GlobalToLocalDirection(LI::math::Vector3D const & p0) const
+siren::math::Vector3D Placement::GlobalToLocalDirection(siren::math::Vector3D const & p0) const
 {
-    LI::math::Vector3D p1 = quaternion_.rotate(p0, true); // Inverse rotatation about local origin to get orientation in the local system
+    siren::math::Vector3D p1 = quaternion_.rotate(p0, true); // Inverse rotatation about local origin to get orientation in the local system
     return p1;
 }
 

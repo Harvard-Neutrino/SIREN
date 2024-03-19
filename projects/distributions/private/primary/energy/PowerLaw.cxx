@@ -1,18 +1,18 @@
-#include "LeptonInjector/distributions/primary/energy/PowerLaw.h"
+#include "SIREN/distributions/primary/energy/PowerLaw.h"
 
 #include <array>                                           // for array
 #include <tuple>                                           // for tie, opera...
 #include <math.h>                                          // for pow, log10
 #include <string>                                          // for basic_string
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
-#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
-#include "LeptonInjector/utilities/Random.h"               // for LI_random
+#include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "SIREN/distributions/Distributions.h"    // for InjectionD...
+#include "SIREN/utilities/Random.h"               // for SIREN_random
 
-namespace LI { namespace interactions { class InteractionCollection; } }
-namespace LI { namespace detector { class DetectorModel; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace detector { class DetectorModel; } }
 
-namespace LI {
+namespace siren {
 namespace distributions {
 
 //---------------
@@ -24,7 +24,7 @@ PowerLaw::PowerLaw(double powerLawIndex, double energyMin, double energyMax)
     , energyMax(energyMax)
 {}
 
-double PowerLaw::SampleEnergy(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+double PowerLaw::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     if(energyMin == energyMax)
         return energyMin; //return the only allowed energy
 
@@ -48,7 +48,7 @@ double PowerLaw::pdf(double energy) const {
     }
 }
 
-double PowerLaw::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
+double PowerLaw::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     return pdf(record.primary_momentum[0]);
 }
 
@@ -85,5 +85,5 @@ void PowerLaw::SetNormalizationAtEnergy(double norm, double energy) {
 }
 
 } // namespace distributions
-} // namespace LI
+} // namespace siren
 

@@ -10,11 +10,11 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/detector/MaterialModel.h"
+#include "SIREN/detector/MaterialModel.h"
 
 #include "FakeMaterialModel.h"
 
-using namespace LI::detector;
+using namespace siren::detector;
 
 TEST(Constructor, Default)
 {

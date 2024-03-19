@@ -33,14 +33,14 @@ if(DEFINED SKBUILD)
                 BUILD_WITH_INSTALL_RPATH FALSE
                 LINK_FLAGS "-Wl,-rpath,$ORIGIN")
         install(TARGETS photospline
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren.libs
             PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     endif()
     #set_target_properties(spglam PROPERTIES
     #        BUILD_WITH_INSTALL_RPATH FALSE
     #        LINK_FLAGS "-Wl,-rpath,$ORIGIN")
     #install(TARGETS spglam
-    #    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
+    #    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren.libs
     #    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 else()
     #install(TARGETS photospline DESTINATION ${CMAKE_INSTALL_LIBDIR})

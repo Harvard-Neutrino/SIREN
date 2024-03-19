@@ -1,13 +1,13 @@
-#include "LeptonInjector/math/Matrix3D.h"
+#include "SIREN/math/Matrix3D.h"
 
 #include <utility>
 #include <iostream>
 #include <stdexcept>
 #include <initializer_list>
 
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/math/Vector3D.h"
 
-using namespace LI::math;
+using namespace siren::math;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -153,7 +153,7 @@ void Matrix3D::swap(Matrix3D& matrix_3d)
     swap(zz_, matrix_3d.zz_);
 }
 
-namespace LI {
+namespace siren {
 namespace math {
 std::ostream& operator<<(std::ostream& os, Matrix3D const& matrix_3d)
 {
@@ -163,13 +163,13 @@ std::ostream& operator<<(std::ostream& os, Matrix3D const& matrix_3d)
     return os;
 }
 } // namespace math
-} // namespace LI
+} // namespace siren
 
 //----------------------------------------------------------------------//
 //-----------------------operator basic arithmetic ---------------------//
 //----------------------------------------------------------------------//
 
-namespace LI {
+namespace siren {
 namespace math {
 
 Matrix3D operator+(const Matrix3D& mat1, const Matrix3D& mat2)
@@ -361,7 +361,7 @@ Matrix3D matrix_product(const Matrix3D& mat1, const Matrix3D& mat2)
 }
 
 } // namespace math
-} // namespace LI
+} // namespace siren
 
 Matrix3D Matrix3D::operator-() const
 {

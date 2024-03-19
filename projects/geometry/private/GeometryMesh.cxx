@@ -1,21 +1,21 @@
-#include "LeptonInjector/geometry/GeometryMesh.h"
+#include "SIREN/geometry/GeometryMesh.h"
 
 #include <string>
 #include <vector>
 #include <utility>
 
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/geometry/Placement.h"
-#include "LeptonInjector/geometry/MeshBuilder.h"
+#include "SIREN/math/Vector3D.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/Placement.h"
+#include "SIREN/geometry/MeshBuilder.h"
 
-using namespace LI::geometry;
+using namespace siren::geometry;
 
 /******************************************************************************
  *                                  OStream                                    *
  ******************************************************************************/
 
-namespace LI {
+namespace siren {
 namespace geometry {
 
 TriangularMesh::TriangularMesh()
@@ -146,4 +146,4 @@ std::pair<double, double> TriangularMesh::ComputeDistanceToBorder(const math::Ve
 }
 
 } // namespace geometry
-} // namespace LI
+} // namespace siren

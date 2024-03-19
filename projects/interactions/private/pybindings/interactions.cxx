@@ -1,14 +1,14 @@
 
 #include <vector>
 
-#include "../../public/LeptonInjector/interactions/CrossSection.h"
-#include "../../public/LeptonInjector/interactions/NeutrissimoDecay.h"
-#include "../../public/LeptonInjector/interactions/InteractionCollection.h"
-#include "../../public/LeptonInjector/interactions/DISFromSpline.h"
-#include "../../public/LeptonInjector/interactions/HNLFromSpline.h"
-#include "../../public/LeptonInjector/interactions/DipoleFromTable.h"
-#include "../../public/LeptonInjector/interactions/DarkNewsCrossSection.h"
-#include "../../public/LeptonInjector/interactions/DarkNewsDecay.h"
+#include "../../public/SIREN/interactions/CrossSection.h"
+#include "../../public/SIREN/interactions/NeutrissimoDecay.h"
+#include "../../public/SIREN/interactions/InteractionCollection.h"
+#include "../../public/SIREN/interactions/DISFromSpline.h"
+#include "../../public/SIREN/interactions/HNLFromSpline.h"
+#include "../../public/SIREN/interactions/DipoleFromTable.h"
+#include "../../public/SIREN/interactions/DarkNewsCrossSection.h"
+#include "../../public/SIREN/interactions/DarkNewsDecay.h"
 
 #include "./CrossSection.h"
 #include "./DipoleFromTable.h"
@@ -30,7 +30,7 @@ PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
 using namespace pybind11;
 
 PYBIND11_MODULE(interactions,m) {
-    using namespace LI::interactions;
+    using namespace siren::interactions;
 
     register_CrossSection(m);
     register_Decay(m);

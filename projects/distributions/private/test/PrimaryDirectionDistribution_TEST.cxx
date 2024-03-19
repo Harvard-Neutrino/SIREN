@@ -10,15 +10,15 @@
 
 #include "DistributionTest.h"
 
-#include "LeptonInjector/utilities/Random.h"
+#include "SIREN/utilities/Random.h"
 
-#include "LeptonInjector/distributions/primary/direction/PrimaryDirectionDistribution.h"
-#include "LeptonInjector/distributions/primary/direction/Cone.h"
-#include "LeptonInjector/distributions/primary/direction/FixedDirection.h"
-#include "LeptonInjector/distributions/primary/direction/IsotropicDirection.h"
+#include "SIREN/distributions/primary/direction/PrimaryDirectionDistribution.h"
+#include "SIREN/distributions/primary/direction/Cone.h"
+#include "SIREN/distributions/primary/direction/FixedDirection.h"
+#include "SIREN/distributions/primary/direction/IsotropicDirection.h"
 
-using namespace LI::math;
-using namespace LI::distributions;
+using namespace siren::math;
+using namespace siren::distributions;
 
 std::mt19937 rng_;
 std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
@@ -36,7 +36,7 @@ TEST(Cone, Constructor) {
 TEST(Cone, SampleBounds) {
     size_t N = 100;
     size_t M = 10000;
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         direction.normalize();
@@ -44,7 +44,7 @@ TEST(Cone, SampleBounds) {
         double opening_angle = M_PI * RandomDouble();
         Cone A(direction, opening_angle);
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
             record.SetEnergy(1);
             record.SetMass(0);
             A.Sample(rand, nullptr, nullptr, record);
@@ -63,7 +63,7 @@ TEST(Cone, SampleDistributionTheta) {
     size_t n_two_sigma = 0;
     size_t n_three_sigma = 0;
     size_t n_four_sigma = 0;
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         direction.normalize();
@@ -75,7 +75,7 @@ TEST(Cone, SampleDistributionTheta) {
         double bin_min = cos(opening_angle);
         DistributionTest test(bin_min, bin_max, n_bins);
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
             record.SetEnergy(1);
             record.SetMass(0);
             A.Sample(rand, nullptr, nullptr, record);
@@ -117,7 +117,7 @@ TEST(Cone, SampleDistributionPhi) {
     size_t n_two_sigma = 0;
     size_t n_three_sigma = 0;
     size_t n_four_sigma = 0;
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         direction.normalize();
@@ -141,7 +141,7 @@ TEST(Cone, SampleDistributionPhi) {
         double bin_min = -M_PI;
         DistributionTest test(bin_min, bin_max, n_bins);
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
             record.SetEnergy(1);
             record.SetMass(0);
             A.Sample(rand, nullptr, nullptr, record);
@@ -176,7 +176,7 @@ TEST(Cone, SampleDistributionPhi) {
 TEST(Cone, GenerationProbability) {
     size_t N = 1000;
     size_t M = 10000;
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         while(true) {
@@ -214,7 +214,7 @@ TEST(Cone, GenerationProbability) {
                 pre_c = 1;
             EXPECT_TRUE(acos(pre_c) <= opening_angle);
 
-            LI::dataclasses::InteractionRecord record;
+            siren::dataclasses::InteractionRecord record;
             record.primary_momentum[1] = vec.GetX();
             record.primary_momentum[2] = vec.GetY();
             record.primary_momentum[3] = vec.GetZ();
@@ -252,7 +252,7 @@ TEST(FixedDirection, Constructor) {
 TEST(FixedDirection, Sample) {
     size_t N = 10000;
     size_t M = 10;
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         Vector3D direction(RandomDouble(), RandomDouble(), RandomDouble());
         while(true) {
@@ -265,7 +265,7 @@ TEST(FixedDirection, Sample) {
         }
         FixedDirection A(direction);
         for(size_t j=0; j<M; ++j) {
-            LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+            siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
             record.SetEnergy(1);
             record.SetMass(0);
             A.Sample(rand, nullptr, nullptr, record);
@@ -282,7 +282,7 @@ TEST(IsotropicDirection, Constructor) {
 
 TEST(IsotropicDirection, SampleDistributionTheta) {
     size_t N = 100000;
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     IsotropicDirection A;
     double bin_max = 1.0;
     double bin_min = -1.0;
@@ -290,7 +290,7 @@ TEST(IsotropicDirection, SampleDistributionTheta) {
     size_t n_bins = (N / 5000) + 1;
     DistributionTest test(bin_min, bin_max, n_bins);
     for(size_t i=0; i<N; ++i) {
-        LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+        siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
         record.SetEnergy(1);
         record.SetMass(0);
         A.Sample(rand, nullptr, nullptr, record);
@@ -308,7 +308,7 @@ TEST(IsotropicDirection, SampleDistributionTheta) {
 
 TEST(IsotropicDirection, SampleDistributionPhi) {
     size_t N = 100000;
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     IsotropicDirection A;
     double bin_max = M_PI;
     double bin_min = -M_PI;
@@ -318,7 +318,7 @@ TEST(IsotropicDirection, SampleDistributionPhi) {
     size_t n_bins = (N / 5000) + 1;
     DistributionTest test(bin_min, bin_max, n_bins);
     for(size_t i=0; i<N; ++i) {
-        LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+        siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
         record.SetEnergy(1);
         record.SetMass(0);
         A.Sample(rand, nullptr, nullptr, record);
@@ -335,16 +335,16 @@ TEST(IsotropicDirection, SampleDistributionPhi) {
 
 TEST(IsotropicDirection, GenerationProbability) {
     size_t N = 100000;
-    std::shared_ptr<LI::utilities::LI_random> rand = std::make_shared<LI::utilities::LI_random>();
+    std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     IsotropicDirection A;
     double expected_density = 1.0 / (4.0 * M_PI);
     for(size_t i=0; i<N; ++i) {
-        LI::dataclasses::PrimaryDistributionRecord record(LI::dataclasses::ParticleType::NuMu);
+        siren::dataclasses::PrimaryDistributionRecord record(siren::dataclasses::ParticleType::NuMu);
         record.SetEnergy(1);
         record.SetMass(0);
         A.Sample(rand, nullptr, nullptr, record);
         Vector3D vec(record.GetDirection());
-        LI::dataclasses::InteractionRecord interaction_record;
+        siren::dataclasses::InteractionRecord interaction_record;
         record.FinalizeAvailable(interaction_record);
         double density = A.GenerationProbability(nullptr, nullptr, interaction_record);
         EXPECT_NEAR(density, expected_density, expected_density * 1e-8);

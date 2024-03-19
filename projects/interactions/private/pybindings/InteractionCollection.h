@@ -6,29 +6,31 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-#include "../../public/LeptonInjector/interactions/CrossSection.h"
-#include "../../public/LeptonInjector/interactions/InteractionCollection.h"
-#include "../../public/LeptonInjector/interactions/Decay.h"
-#include "../../../dataclasses/public/LeptonInjector/dataclasses/Particle.h"
-#include "../../../geometry/public/LeptonInjector/geometry/Geometry.h"
-#include "../../../utilities/public/LeptonInjector/utilities/Random.h"
+#include "../../public/SIREN/interactions/CrossSection.h"
+#include "../../public/SIREN/interactions/InteractionCollection.h"
+#include "../../public/SIREN/interactions/Decay.h"
+#include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
+#include "../../../geometry/public/SIREN/geometry/Geometry.h"
+#include "../../../utilities/public/SIREN/utilities/Random.h"
 
 void register_InteractionCollection(pybind11::module_ & m) {
     using namespace pybind11;
-    using namespace LI::interactions;
+    using namespace siren::interactions;
 
     class_<InteractionCollection, std::shared_ptr<InteractionCollection>>(m, "InteractionCollection")
         .def(init<>())
-        .def(init<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())
-        .def(init<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<Decay>>>())
-        .def(init<LI::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>>())
+        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())
+        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<Decay>>>())
+        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>>())
         .def(self == self)
-        .def("GetDecays",&InteractionCollection::GetDecays)
+        .def("GetDecays",&InteractionCollection::GetDecays, return_value_policy::reference_internal)
         .def("HasCrossSections",&InteractionCollection::HasCrossSections)
         .def("HasDecays",&InteractionCollection::HasDecays)
-        .def("GetCrossSectionsForTarget",&InteractionCollection::GetCrossSectionsForTarget)
-        .def("GetCrossSectionsByTarget",&InteractionCollection::GetCrossSectionsByTarget)
-        .def("TargetTypes",&InteractionCollection::TargetTypes)
+        .def("GetCrossSectionsForTarget",&InteractionCollection::GetCrossSectionsForTarget, return_value_policy::reference_internal)
+        .def("GetCrossSectionsByTarget",&InteractionCollection::GetCrossSectionsByTarget, return_value_policy::reference_internal)
+        .def("TotalCrossSectionByTarget",&InteractionCollection::TotalCrossSectionByTarget)
+        .def("TotalCrossSectionByTargetAllFinalStates",&InteractionCollection::TotalCrossSectionByTargetAllFinalStates)
+        .def("TargetTypes",&InteractionCollection::TargetTypes, return_value_policy::reference_internal)
         .def("TotalDecayWidth",&InteractionCollection::TotalDecayWidth)
         .def("TotalDecayLength",&InteractionCollection::TotalDecayLength)
         .def("MatchesPrimary",&InteractionCollection::MatchesPrimary)

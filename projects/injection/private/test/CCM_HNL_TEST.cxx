@@ -10,42 +10,41 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/interactions/CrossSection.h"
+#include "SIREN/interactions/CrossSection.h"
 
-#include "LeptonInjector/utilities/Random.h"
-#include "LeptonInjector/utilities/Constants.h"
-#include "LeptonInjector/dataclasses/Particle.h"
-#include "LeptonInjector/injection/Injector.h"
-#include "LeptonInjector/injection/Process.h"
-#include "LeptonInjector/injection/RangedLeptonInjector.h"
-#include "LeptonInjector/injection/TreeWeighter.h"
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/geometry/ExtrPoly.h"
-#include "LeptonInjector/geometry/Sphere.h"
-#include "LeptonInjector/math/EulerQuaternionConversions.h"
-#include "LeptonInjector/geometry/Placement.h"
+#include "SIREN/utilities/Random.h"
+#include "SIREN/utilities/Constants.h"
+#include "SIREN/dataclasses/Particle.h"
+#include "SIREN/injection/Injector.h"
+#include "SIREN/injection/Process.h"
+#include "SIREN/injection/TreeWeighter.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/ExtrPoly.h"
+#include "SIREN/geometry/Sphere.h"
+#include "SIREN/math/EulerQuaternionConversions.h"
+#include "SIREN/geometry/Placement.h"
 
-#include "LeptonInjector/distributions/primary/energy/Monoenergetic.h"
-#include "LeptonInjector/distributions/primary/direction/Cone.h"
-#include "LeptonInjector/distributions/primary/direction/IsotropicDirection.h"
-#include "LeptonInjector/distributions/primary/vertex/PointSourcePositionDistribution.h"
-#include "LeptonInjector/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
-#include "LeptonInjector/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
+#include "SIREN/distributions/primary/energy/Monoenergetic.h"
+#include "SIREN/distributions/primary/direction/Cone.h"
+#include "SIREN/distributions/primary/direction/IsotropicDirection.h"
+#include "SIREN/distributions/primary/vertex/PointSourcePositionDistribution.h"
+#include "SIREN/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
+#include "SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 
-#include "LeptonInjector/interactions/InteractionCollection.h"
-#include "LeptonInjector/interactions/CrossSection.h"
-#include "LeptonInjector/interactions/DipoleFromTable.h"
-#include "LeptonInjector/interactions/Decay.h"
-#include "LeptonInjector/interactions/NeutrissimoDecay.h"
+#include "SIREN/interactions/InteractionCollection.h"
+#include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/DipoleFromTable.h"
+#include "SIREN/interactions/Decay.h"
+#include "SIREN/interactions/NeutrissimoDecay.h"
 
-using namespace LI::math;
-using namespace LI::geometry;
-using namespace LI::detector;
-using namespace LI::injection;
-using namespace LI::dataclasses;
-using namespace LI::interactions;
-using namespace LI::utilities;
-using namespace LI::distributions;
+using namespace siren::math;
+using namespace siren::geometry;
+using namespace siren::detector;
+using namespace siren::injection;
+using namespace siren::dataclasses;
+using namespace siren::interactions;
+using namespace siren::utilities;
+using namespace siren::distributions;
 
 using ParticleType = ParticleType;
 
@@ -59,8 +58,8 @@ bool inelastic = true;
 std::string tot_xsec_table_path = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/tot_xsec_Enu/";
 std::string diff_xsec_table_path = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sandbox/xsec_tables/";
 
-std::string material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/Detectors/materials/CCM.dat";
-std::string detector_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/LeptonInjectorDevPrivate/resources/Detectors/densities/PREM_ccm.dat";
+std::string material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/SIRENDevPrivate/resources/Detectors/materials/CCM.dat";
+std::string detector_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/SIRENDevPrivate/resources/Detectors/densities/PREM_ccm.dat";
     
 double hnl_mass = 0.01375; // in GeV; The HNL mass we are injecting
 double dipole_coupling = 1.0e-6; // in GeV^-1; the effective dipole coupling strength
@@ -173,7 +172,7 @@ TEST(Injector, Generation)
     detector_model->LoadDetectorModel(detector_file);
 
     // random class instance
-    std::shared_ptr<LI_random> random = std::make_shared<LI_random>();
+    std::shared_ptr<SIREN_random> random = std::make_shared<SIREN_random>();
 
     // let's make the process instances
     // Injection processes
@@ -235,12 +234,12 @@ TEST(Injector, Generation)
 
     // Primary direction: cone
     double opening_angle = std::atan(2./23.); // slightly larger than CCM xsec
-    LI::math::Vector3D upper_target_origin(0, 0, 0.1375);
-    LI::math::Vector3D lower_target_origin(0, 0, -0.241);
-    LI::math::Vector3D detector_origin(23, 0, -0.65);
-    LI::math::Vector3D upper_dir = detector_origin - upper_target_origin;
+    siren::math::Vector3D upper_target_origin(0, 0, 0.1375);
+    siren::math::Vector3D lower_target_origin(0, 0, -0.241);
+    siren::math::Vector3D detector_origin(23, 0, -0.65);
+    siren::math::Vector3D upper_dir = detector_origin - upper_target_origin;
     upper_dir.normalize();
-    LI::math::Vector3D lower_dir = detector_origin - lower_target_origin;
+    siren::math::Vector3D lower_dir = detector_origin - lower_target_origin;
     lower_dir.normalize();
     std::shared_ptr<PrimaryDirectionDistribution> upper_inj_ddist = std::make_shared<Cone>(upper_dir,opening_angle);
     std::shared_ptr<PrimaryDirectionDistribution> lower_inj_ddist = std::make_shared<Cone>(lower_dir,opening_angle);
@@ -281,7 +280,7 @@ TEST(Injector, Generation)
     secondary_decay_phys_process->SetInteractions(secondary_interactions);
 
     // Secondary physical distribution
-    std::shared_ptr<const LI::geometry::Geometry> fid_vol = NULL;
+    std::shared_ptr<const siren::geometry::Geometry> fid_vol = NULL;
     for(auto sector : detector_model->GetSectors()) {
       if(sector.name=="ccm_inner_argon") fid_vol = sector.geo;
     }
@@ -296,8 +295,8 @@ TEST(Injector, Generation)
     std::shared_ptr<Injector> lower_injector = std::make_shared<Injector>(events_to_inject, detector_model, primary_injection_process_lower_injector, secondary_injection_processes, random);
 
     // Set stopping condition
-    std::function<bool(std::shared_ptr<LI::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition =
-      [&] (std::shared_ptr<LI::dataclasses::InteractionTreeDatum> datum, size_t i) {
+    std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition =
+      [&] (std::shared_ptr<siren::dataclasses::InteractionTreeDatum> datum, size_t i) {
         if(datum->depth() >=1) return true;
         return false;
     };

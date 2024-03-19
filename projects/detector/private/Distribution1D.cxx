@@ -1,6 +1,6 @@
-#include "LeptonInjector/detector/Distribution1D.h"
+#include "SIREN/detector/Distribution1D.h"
 
-namespace LI {
+namespace siren {
 namespace detector {
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -17,5 +17,5 @@ bool Distribution1D::operator!=(const Distribution1D& dist) const {
     return !(*this == dist);
 }
 
-} // namespace LI
+} // namespace siren
 } // namespace detector

@@ -1,4 +1,4 @@
-#include "LeptonInjector/geometry/Sphere.h"
+#include "SIREN/geometry/Sphere.h"
 
 #include <cmath>
 #include <tuple>
@@ -11,11 +11,11 @@
 #include <stdexcept>
 #include <functional>
 
-#include "LeptonInjector/math/Vector3D.h"
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/geometry/Placement.h"
+#include "SIREN/math/Vector3D.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/geometry/Placement.h"
 
-namespace LI {
+namespace siren {
 namespace geometry {
 
 Sphere::Sphere()
@@ -158,7 +158,7 @@ void Sphere::print(std::ostream& os) const
 }
 
 // ------------------------------------------------------------------------- //
-std::vector<Geometry::Intersection> Sphere::ComputeIntersections(LI::math::Vector3D const & position, LI::math::Vector3D const & direction) const {
+std::vector<Geometry::Intersection> Sphere::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
     // Calculate intersection of particle trajectory and the sphere
     // sphere (x1 + x0)^2 + (x2 + y0)^2 + (x3 + z0)^2 = radius^2
     // straight line (particle trajectory) g = vec(x,y,z) + t * dir_vec( cosph
@@ -175,7 +175,7 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(LI::math::Vecto
 
     std::vector<Intersection> dist;
 
-    LI::math::Vector3D intersection;
+    siren::math::Vector3D intersection;
 
     std::function<void(double, bool)> save = [&](double t, bool entering){
         Intersection i;
@@ -253,7 +253,7 @@ std::vector<Geometry::Intersection> Sphere::ComputeIntersections(LI::math::Vecto
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Sphere::ComputeDistanceToBorder(const LI::math::Vector3D& position, const LI::math::Vector3D& direction) const
+std::pair<double, double> Sphere::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
@@ -325,4 +325,4 @@ std::pair<double, double> Sphere::ComputeDistanceToBorder(const LI::math::Vector
 }
 
 } // namespace geometry
-} // namespace LI
+} // namespace siren

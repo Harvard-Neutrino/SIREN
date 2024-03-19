@@ -21,7 +21,7 @@ endif()
 # parse pyproject.toml for the version
 include(pyproject)
 
-project(leptoninjector VERSION ${LI_VERSION} LANGUAGES CXX)
+project(siren VERSION ${SIREN_VERSION} LANGUAGES CXX)
 
 # include cmake dependencies
 include(GNUInstallDirs)
@@ -50,11 +50,11 @@ if(DEFINED SKBUILD)
     cmake_path(RELATIVE_PATH SKBUILD_PLATLIB_DIR BASE_DIRECTORY ${SKBUILD_PLATLIB_DIR} OUTPUT_VARIABLE CMAKE_INSTALL_LIBDIR)
     message(STATUS "Setting include dir to: ${CMAKE_INSTALL_INCLUDEDIR}")
     message(STATUS "Setting lib dir to: ${CMAKE_INSTALL_LIBDIR}")
-    set(LI_INSTALL_INCLUDEDIR ${SKBUILD_HEADERS_DIR})
-    set(LI_INSTALL_LIBDIR ${SKBUILD_PLATLIB_DIR})
+    set(SIREN_INSTALL_INCLUDEDIR ${SKBUILD_HEADERS_DIR})
+    set(SIREN_INSTALL_LIBDIR ${SKBUILD_PLATLIB_DIR})
 else()
-    set(LI_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR})
-    set(LI_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+    set(SIREN_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR})
+    set(SIREN_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
 endif()
 
 # load python and pybind11
@@ -85,98 +85,98 @@ add_subdirectory(projects/distributions)
 add_subdirectory(projects/injection)
 
 # define the target library
-add_library(LeptonInjector SHARED)
-set_property(TARGET LeptonInjector PROPERTY POSITION_INDEPENDENT_CODE ON)
+add_library(SIREN SHARED)
+set_property(TARGET SIREN PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 if(${MACOSX})
 if(CMAKE_VERSION VERSION_LESS 3.13)
-    target_link_libraries(LeptonInjector PUBLIC "$<$<PLATFORM_ID:Darwin>:LINKER:-undefined,dynamic_lookup>")
+    target_link_libraries(SIREN PUBLIC "$<$<PLATFORM_ID:Darwin>:LINKER:-undefined,dynamic_lookup>")
 else()
-    target_link_options(LeptonInjector PUBLIC "$<$<PLATFORM_ID:Darwin>:LINKER:-undefined,dynamic_lookup>")
+    target_link_options(SIREN PUBLIC "$<$<PLATFORM_ID:Darwin>:LINKER:-undefined,dynamic_lookup>")
 endif()
-target_link_libraries(LeptonInjector
+target_link_libraries(SIREN
     PRIVATE
     PUBLIC
         delabella_shared
         photospline
-        LI_utilities
-        LI_serialization
-        LI_math
-        LI_dataclasses
-        LI_geometry
-        LI_detector
-        LI_interactions
-        LI_distributions
-        LI_injection
+        SIREN_utilities
+        SIREN_serialization
+        SIREN_math
+        SIREN_dataclasses
+        SIREN_geometry
+        SIREN_detector
+        SIREN_interactions
+        SIREN_distributions
+        SIREN_injection
 )
 else()
-target_link_libraries(LeptonInjector
+target_link_libraries(SIREN
     PRIVATE
     PUBLIC
         photospline
         delabella_shared
-        LI_utilities
-        LI_serialization
-        LI_math
-        LI_dataclasses
-        LI_geometry
-        LI_detector
-        LI_interactions
-        LI_distributions
-        LI_injection
+        SIREN_utilities
+        SIREN_serialization
+        SIREN_math
+        SIREN_dataclasses
+        SIREN_geometry
+        SIREN_detector
+        SIREN_interactions
+        SIREN_distributions
+        SIREN_injection
 )
 endif()
 
 # define the install path normally or for python package
 if(DEFINED SKBUILD)
-    set_target_properties(LeptonInjector PROPERTIES
+    set_target_properties(SIREN PROPERTIES
             BUILD_WITH_INSTALL_RPATH FALSE
             LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN")
     if(${CIBUILDWHEEL})
-        message(STATUS "Setting LeptonInjector install lib dir to: ${CI_INSTALL_PREFIX}/lib")
-        message(STATUS "Setting LeptonInjector install include dir to: ${CI_INSTALL_PREFIX}/include")
-        install(TARGETS LeptonInjector
+        message(STATUS "Setting SIREN install lib dir to: ${CI_INSTALL_PREFIX}/lib")
+        message(STATUS "Setting SIREN install include dir to: ${CI_INSTALL_PREFIX}/include")
+        install(TARGETS SIREN
             delabella_shared
-            LI_utilities
-            LI_serialization
-            LI_math
-            LI_dataclasses
-            LI_geometry
-            LI_detector
-            LI_interactions
-            LI_distributions
-            LI_injection
+            SIREN_utilities
+            SIREN_serialization
+            SIREN_math
+            SIREN_dataclasses
+            SIREN_geometry
+            SIREN_detector
+            SIREN_interactions
+            SIREN_distributions
+            SIREN_injection
             EXPORT ${PROJECT_NAME}Config
             LIBRARY DESTINATION "${CI_INSTALL_PREFIX}/lib"
             PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")
     else()
-        install(TARGETS LeptonInjector
+        install(TARGETS SIREN
             delabella_shared
-            LI_utilities
-            LI_serialization
-            LI_math
-            LI_dataclasses
-            LI_geometry
-            LI_detector
-            LI_interactions
-            LI_distributions
-            LI_injection
+            SIREN_utilities
+            SIREN_serialization
+            SIREN_math
+            SIREN_dataclasses
+            SIREN_geometry
+            SIREN_detector
+            SIREN_interactions
+            SIREN_distributions
+            SIREN_injection
             EXPORT ${PROJECT_NAME}Config
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector.libs
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren.libs
             PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     endif()
 else()
-    install(TARGETS LeptonInjector
+    install(TARGETS SIREN
         delabella_shared
-        LI_utilities
-        LI_serialization
-        LI_math
-        LI_dataclasses
-        LI_geometry
-        LI_detector
-        LI_interactions
-        LI_distributions
-        LI_injection
+        SIREN_utilities
+        SIREN_serialization
+        SIREN_math
+        SIREN_dataclasses
+        SIREN_geometry
+        SIREN_detector
+        SIREN_interactions
+        SIREN_distributions
+        SIREN_injection
         EXPORT ${PROJECT_NAME}Config
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -184,11 +184,11 @@ endif()
 
 # optionally package runtime dependencies
 if((DEFINED SKBUILD) AND (PACKAGE_SHARED_DEPS))
-    install(CODE "set(LeptonInjector_LIB_FILE \"${PROJECT_BINARY_DIR}/${CMAKE_SHARED_MODULE_PREFIX}LeptonInjector${CMAKE_SHARED_MODULE_SUFFIX}\")")
-    install(CODE "set(PYTHON_DEP_LIB_DESTINATION \"${SKBUILD_PLATLIB_DIR}/leptoninjector.libs/\")")
+    install(CODE "set(SIREN_LIB_FILE \"${PROJECT_BINARY_DIR}/${CMAKE_SHARED_MODULE_PREFIX}SIREN${CMAKE_SHARED_MODULE_SUFFIX}\")")
+    install(CODE "set(PYTHON_DEP_LIB_DESTINATION \"${SKBUILD_PLATLIB_DIR}/siren.libs/\")")
     install(CODE [[
         file(GET_RUNTIME_DEPENDENCIES
-            LIBRARIES ${LeptonInjector_LIB_FILE}
+            LIBRARIES ${SIREN_LIB_FILE}
             RESOLVED_DEPENDENCIES_VAR _r_deps
             UNRESOLVED_DEPENDENCIES_VAR _u_deps
             )
@@ -211,25 +211,25 @@ endif()
 # install the python extensions
 if(DEFINED SKBUILD)
     install(TARGETS utilities
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(TARGETS math
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(TARGETS dataclasses
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(TARGETS geometry
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(TARGETS detector
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(TARGETS interactions
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(TARGETS distributions
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(TARGETS injection
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(DIRECTORY ${PROJECT_SOURCE_DIR}/python/
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(DIRECTORY ${PROJECT_SOURCE_DIR}/resources
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/leptoninjector)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
 endif()
 
 # Export targets for use in downstream CMake projects

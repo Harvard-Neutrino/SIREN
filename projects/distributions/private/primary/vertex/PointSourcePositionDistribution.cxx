@@ -1,4 +1,4 @@
-#include "LeptonInjector/distributions/primary/vertex/PointSourcePositionDistribution.h"
+#include "SIREN/distributions/primary/vertex/PointSourcePositionDistribution.h"
 
 #include <array>                                                  // for array
 #include <cmath>                                                  // for exp
@@ -6,20 +6,20 @@
 #include <string>                                                 // for bas...
 #include <vector>                                                 // for vector
 
-#include "LeptonInjector/interactions/CrossSection.h"            // for Cro...
-#include "LeptonInjector/interactions/InteractionCollection.h"  // for Cro...
-#include "LeptonInjector/dataclasses/InteractionRecord.h"         // for Int...
-#include "LeptonInjector/dataclasses/InteractionSignature.h"      // for Int...
-#include "LeptonInjector/dataclasses/Particle.h"                  // for Par...
-#include "LeptonInjector/detector/DetectorModel.h"                   // for Ear...
-#include "LeptonInjector/detector/Path.h"                         // for Path
-#include "LeptonInjector/detector/Coordinates.h"
-#include "LeptonInjector/distributions/Distributions.h"           // for Inj...
-#include "LeptonInjector/math/Vector3D.h"                         // for Vec...
-#include "LeptonInjector/utilities/Errors.h"                      // for Inj...
-#include "LeptonInjector/utilities/Random.h"                      // for LI_...
+#include "SIREN/interactions/CrossSection.h"            // for Cro...
+#include "SIREN/interactions/InteractionCollection.h"  // for Cro...
+#include "SIREN/dataclasses/InteractionRecord.h"         // for Int...
+#include "SIREN/dataclasses/InteractionSignature.h"      // for Int...
+#include "SIREN/dataclasses/Particle.h"                  // for Par...
+#include "SIREN/detector/DetectorModel.h"                   // for Ear...
+#include "SIREN/detector/Path.h"                         // for Path
+#include "SIREN/detector/Coordinates.h"
+#include "SIREN/distributions/Distributions.h"           // for Inj...
+#include "SIREN/math/Vector3D.h"                         // for Vec...
+#include "SIREN/utilities/Errors.h"                      // for Inj...
+#include "SIREN/utilities/Random.h"                      // for SIREN_...
 
-namespace LI {
+namespace siren {
 namespace distributions {
 
 using detector::DetectorPosition;
@@ -47,26 +47,26 @@ namespace {
 // class PointSourcePositionDistribution : public VertexPositionDistribution
 //---------------
 
-std::tuple<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
-    LI::math::Vector3D dir(record.GetDirection());
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> PointSourcePositionDistribution::SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+    siren::math::Vector3D dir(record.GetDirection());
 
-    LI::math::Vector3D endcap_0 = origin;
-    LI::math::Vector3D endcap_1 = origin + max_distance * dir;
+    siren::math::Vector3D endcap_0 = origin;
+    siren::math::Vector3D endcap_1 = origin + max_distance * dir;
 
-    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
+    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
     path.ClipToOuterBounds();
 
-    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    std::vector<LI::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<siren::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    LI::dataclasses::InteractionRecord fake_record;
+    siren::dataclasses::InteractionRecord fake_record;
     fake_record.signature.primary_type = record.type;
     fake_record.primary_mass = record.GetMass();
     fake_record.primary_momentum[0] = record.GetEnergy();
     double total_decay_length = interactions->TotalDecayLength(fake_record);
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::dataclasses::ParticleType const & target = targets[i];
+        siren::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -76,7 +76,7 @@ std::tuple<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistributi
     }
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
-        throw(LI::utilities::InjectionFailure("No available interactions along path!"));
+        throw(siren::utilities::InjectionFailure("No available interactions along path!"));
     }
     double traversed_interaction_depth;
     if(total_interaction_depth < 1e-6) {
@@ -89,35 +89,35 @@ std::tuple<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistributi
     }
 
     double dist = path.GetDistanceFromStartAlongPath(traversed_interaction_depth, targets, total_cross_sections, total_decay_length);
-    LI::math::Vector3D init_pos = path.GetFirstPoint();
-    LI::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
+    siren::math::Vector3D init_pos = path.GetFirstPoint();
+    siren::math::Vector3D vertex = path.GetFirstPoint() + dist * path.GetDirection();
 
     return {init_pos, vertex};
 }
 
-double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::math::Vector3D vertex(record.interaction_vertex); // m
+    siren::math::Vector3D vertex(record.interaction_vertex); // m
     
-    LI::math::Vector3D endcap_0 = origin;
-    LI::math::Vector3D endcap_1 = origin + max_distance * dir;
+    siren::math::Vector3D endcap_0 = origin;
+    siren::math::Vector3D endcap_1 = origin + max_distance * dir;
 
-    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
+    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
         return 0.0;
     
 
-    std::set<LI::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
+    std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
-    std::vector<LI::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
+    std::vector<siren::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = interactions->TotalDecayLength(record);
-    LI::dataclasses::InteractionRecord fake_record = record;
+    siren::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
-        LI::dataclasses::ParticleType const & target = targets[i];
+        siren::dataclasses::ParticleType const & target = targets[i];
         fake_record.signature.target_type = target;
         fake_record.target_mass = detector_model->GetTargetMass(target);
         for(auto const & cross_section : interactions->GetCrossSectionsForTarget(target)) {
@@ -144,7 +144,7 @@ double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<LI
 
 PointSourcePositionDistribution::PointSourcePositionDistribution() {}
 
-PointSourcePositionDistribution::PointSourcePositionDistribution(LI::math::Vector3D origin, double max_distance, std::set<LI::dataclasses::ParticleType> target_types) : origin(origin), max_distance(max_distance), target_types(target_types) {}
+PointSourcePositionDistribution::PointSourcePositionDistribution(siren::math::Vector3D origin, double max_distance, std::set<siren::dataclasses::ParticleType> target_types) : origin(origin), max_distance(max_distance), target_types(target_types) {}
 
 std::string PointSourcePositionDistribution::Name() const {
     return "PointSourcePositionDistribution";
@@ -154,20 +154,20 @@ std::shared_ptr<PrimaryInjectionDistribution> PointSourcePositionDistribution::c
     return std::shared_ptr<PrimaryInjectionDistribution>(new PointSourcePositionDistribution(*this));
 }
 
-std::tuple<LI::math::Vector3D, LI::math::Vector3D> PointSourcePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-    LI::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> PointSourcePositionDistribution::InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
-    LI::math::Vector3D vertex(record.interaction_vertex); // m
+    siren::math::Vector3D vertex(record.interaction_vertex); // m
     
-    LI::math::Vector3D endcap_0 = origin;
-    LI::math::Vector3D endcap_1 = origin + max_distance * dir;
+    siren::math::Vector3D endcap_0 = origin;
+    siren::math::Vector3D endcap_1 = origin + max_distance * dir;
 
-    LI::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
+    siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), max_distance);
     path.ClipToOuterBounds();
 
     if(not path.IsWithinBounds(DetectorPosition(vertex)))
-        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
-    return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
+        return std::tuple<siren::math::Vector3D, siren::math::Vector3D>(siren::math::Vector3D(0, 0, 0), siren::math::Vector3D(0, 0, 0));
+    return std::tuple<siren::math::Vector3D, siren::math::Vector3D>(path.GetFirstPoint(), path.GetLastPoint());
 }
 
 bool PointSourcePositionDistribution::equal(WeightableDistribution const & other) const {
@@ -190,4 +190,4 @@ bool PointSourcePositionDistribution::less(WeightableDistribution const & other)
 }
 
 } // namespace distributions
-} // namespace LeptonInjector
+} // namespace sirenREN

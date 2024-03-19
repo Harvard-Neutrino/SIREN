@@ -1,4 +1,4 @@
-#include "LeptonInjector/interactions/ElasticScattering.h"
+#include "SIREN/interactions/ElasticScattering.h"
 
 #include <set>                                                // for set
 #include <array>                                              // for array
@@ -14,15 +14,15 @@
 #include <rk/geom3.hh>                                        // for Vector3
 #include <rk/rk.hh>                                           // for P4, Boost
 
-#include "LeptonInjector/interactions/CrossSection.h"        // for CrossSe...
-#include "LeptonInjector/dataclasses/InteractionRecord.h"     // for Interac...
-#include "LeptonInjector/dataclasses/InteractionSignature.h"  // for Interac...
-#include "LeptonInjector/dataclasses/Particle.h"              // for Particle
-#include "LeptonInjector/utilities/Constants.h"               // for electro...
-#include "LeptonInjector/utilities/Integration.h"             // for romberg...
-#include "LeptonInjector/utilities/Random.h"                  // for LI_random
+#include "SIREN/interactions/CrossSection.h"        // for CrossSe...
+#include "SIREN/dataclasses/InteractionRecord.h"     // for Interac...
+#include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
+#include "SIREN/dataclasses/Particle.h"              // for Particle
+#include "SIREN/utilities/Constants.h"               // for electro...
+#include "SIREN/utilities/Integration.h"             // for romberg...
+#include "SIREN/utilities/Random.h"                  // for SIREN_random
 
-namespace LI {
+namespace siren {
 namespace interactions {
 
 bool ElasticScattering::equal(CrossSection const & other) const {
@@ -39,10 +39,10 @@ double ElasticScattering::InteractionThreshold(dataclasses::InteractionRecord co
 }
 
 double ElasticScattering::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
+    siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
     double CLL;
-    if(primary_type==LI::dataclasses::ParticleType::NuE) CLL = 0.7276;
-    else if(primary_type==LI::dataclasses::ParticleType::NuMu) CLL = -0.2730;
+    if(primary_type==siren::dataclasses::ParticleType::NuE) CLL = 0.7276;
+    else if(primary_type==siren::dataclasses::ParticleType::NuMu) CLL = -0.2730;
     else {
         std::cout << "Faulty primary: " << primary_type << std::endl;
         throw std::runtime_error("Supplied primary not supported by cross section!");
@@ -52,8 +52,8 @@ double ElasticScattering::DifferentialCrossSection(dataclasses::InteractionRecor
     double s = std::pow(rk::invMass(p1, p2), 2);
     double primary_energy = interaction.primary_momentum[0];
     assert(interaction.signature.secondary_types.size() == 2);
-    assert(interaction.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuE or interaction.signature.secondary_types[1] == LI::dataclasses::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuMu or interaction.signature.secondary_types[1] == LI::dataclasses::ParticleType::NuMu);
-    unsigned int nu_index = (interaction.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuE or interaction.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuMu) ? 0 : 1;
+    assert(interaction.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuE or interaction.signature.secondary_types[1] == siren::dataclasses::ParticleType::NuE or interaction.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMu or interaction.signature.secondary_types[1] == siren::dataclasses::ParticleType::NuMu);
+    unsigned int nu_index = (interaction.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuE or interaction.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMu) ? 0 : 1;
     unsigned int electron_index = 1 - nu_index;
 
     std::array<double, 4> const & mom3 = interaction.secondary_momenta[nu_index];
@@ -66,37 +66,37 @@ double ElasticScattering::DifferentialCrossSection(dataclasses::InteractionRecor
     double E = primary_energy;
 
     // use tree level result
-    double term1 = CLL*CLL;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X1);
-    double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X2);
-    double term3 = -CLL*CLR*m*y/E;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X3);
-    double ret =  std::pow(LI::utilities::Constants::FermiConstant,2) * s / LI::utilities::Constants::pi * (term1 + term2 + term3) / LI::utilities::Constants::invGeVsq_per_cmsq;
+    double term1 = CLL*CLL;// * (1 + siren::utilities::Constants::fineStructure / siren::utilities::Constants::pi * X1);
+    double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + siren::utilities::Constants::fineStructure / siren::utilities::Constants::pi * X2);
+    double term3 = -CLL*CLR*m*y/E;// * (1 + siren::utilities::Constants::fineStructure / siren::utilities::Constants::pi * X3);
+    double ret =  std::pow(siren::utilities::Constants::FermiConstant,2) * s / siren::utilities::Constants::pi * (term1 + term2 + term3) / siren::utilities::Constants::invGeVsq_per_cmsq;
     return std::max(ret,0.);
 }
 
 // Assume initial electron at rest
-double ElasticScattering::DifferentialCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, double y) const {
+double ElasticScattering::DifferentialCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, double y) const {
     double CLL;
-    if(primary_type==LI::dataclasses::ParticleType::NuE) CLL = 0.7276;
-    else if(primary_type==LI::dataclasses::ParticleType::NuMu) CLL = -0.2730;
+    if(primary_type==siren::dataclasses::ParticleType::NuE) CLL = 0.7276;
+    else if(primary_type==siren::dataclasses::ParticleType::NuMu) CLL = -0.2730;
     else {
         std::cout << "Faulty primary: " << primary_type << std::endl;
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
 
-    double m = LI::utilities::Constants::electronMass;
+    double m = siren::utilities::Constants::electronMass;
     double E = primary_energy;
     double s = 2*m*E + m*m;
 
-    double term1 = CLL*CLL;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X1);
-    double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X2);
-    double term3 = -CLL*CLR*m*y/E;// * (1 + LI::utilities::Constants::fineStructure / LI::utilities::Constants::pi * X3);
-    double ret = std::pow(LI::utilities::Constants::FermiConstant,2) * s / LI::utilities::Constants::pi * (term1 + term2 + term3) / LI::utilities::Constants::invGeVsq_per_cmsq;
+    double term1 = CLL*CLL;// * (1 + siren::utilities::Constants::fineStructure / siren::utilities::Constants::pi * X1);
+    double term2 = CLR*CLR * (1-y)*(1-y);// * ( 1 + siren::utilities::Constants::fineStructure / siren::utilities::Constants::pi * X2);
+    double term3 = -CLL*CLR*m*y/E;// * (1 + siren::utilities::Constants::fineStructure / siren::utilities::Constants::pi * X3);
+    double ret = std::pow(siren::utilities::Constants::FermiConstant,2) * s / siren::utilities::Constants::pi * (term1 + term2 + term3) / siren::utilities::Constants::invGeVsq_per_cmsq;
     return std::max(ret,0.);
 }
 
 double ElasticScattering::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
-    LI::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
-    LI::dataclasses::ParticleType target_type = interaction.signature.target_type;
+    siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
+    siren::dataclasses::ParticleType target_type = interaction.signature.target_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     double primary_energy = interaction.primary_momentum[0];
     // if we are below threshold, return 0
@@ -105,22 +105,22 @@ double ElasticScattering::TotalCrossSection(dataclasses::InteractionRecord const
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
-double ElasticScattering::TotalCrossSection(LI::dataclasses::ParticleType primary_type, double primary_energy, LI::dataclasses::ParticleType target_type) const {
-    double ymax = 2*primary_energy / (2*primary_energy + LI::utilities::Constants::electronMass);
+double ElasticScattering::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type) const {
+    double ymax = 2*primary_energy / (2*primary_energy + siren::utilities::Constants::electronMass);
     std::function<double(double)> integrand = [&] (double y) -> double {
         return DifferentialCrossSection(primary_type, primary_energy, y);
     };
-    return LI::utilities::rombergIntegrate(integrand, 0, ymax);
+    return siren::utilities::rombergIntegrate(integrand, 0, ymax);
 }
 
-void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<LI::utilities::LI_random> random) const {
+void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
 
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
 
-    LI::dataclasses::ParticleType primary_type = record.signature.primary_type;
+    siren::dataclasses::ParticleType primary_type = record.signature.primary_type;
 
-    unsigned int nu_index = (record.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuE or record.signature.secondary_types[0] == LI::dataclasses::ParticleType::NuMu) ? 0 : 1;
+    unsigned int nu_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuE or record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMu) ? 0 : 1;
     unsigned int electron_index = 1 - nu_index;
     rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
@@ -132,7 +132,7 @@ void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRe
     p2_lab = p2;
 
     double yMin = 1e-15;
-    double yMax = 2*primary_energy / (2*primary_energy + LI::utilities::Constants::electronMass);
+    double yMax = 2*primary_energy / (2*primary_energy + siren::utilities::Constants::electronMass);
     assert(yMin > 0);
     double log_yMax = log10(yMax);
     double log_yMin = log10(yMin);
@@ -188,7 +188,7 @@ void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRe
     double phi = random->Uniform(0, 2.0 * M_PI);
     geom3::Rotation3 rand_rot(p1_lab_dir, phi);
 
-    double m3 = LI::utilities::Constants::electronMass;
+    double m3 = siren::utilities::Constants::electronMass;
 
     double E3_lab = primary_energy * (final_y) + m3;
     double p3_lab_sq = E3_lab * E3_lab- m3 * m3;
@@ -203,8 +203,8 @@ void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRe
     // doing something dumb, ignore outgoing neutrino
     rk::P4 p4_lab = p1_lab;//p2_lab + (p1_lab - p3_lab);
 
-    LI::dataclasses::SecondaryParticleRecord & electron = record.GetSecondaryParticleRecord(electron_index);
-    LI::dataclasses::SecondaryParticleRecord & neutrino = record.GetSecondaryParticleRecord(nu_index);
+    siren::dataclasses::SecondaryParticleRecord & electron = record.GetSecondaryParticleRecord(electron_index);
+    siren::dataclasses::SecondaryParticleRecord & neutrino = record.GetSecondaryParticleRecord(nu_index);
 
     electron.SetFourMomentum({p3_lab.e(), p3_lab.px(), p3_lab.py(), p3_lab.pz()});
     electron.SetMass(p3_lab.m());
@@ -215,25 +215,25 @@ void ElasticScattering::SampleFinalState(dataclasses::CrossSectionDistributionRe
     neutrino.SetHelicity(record.primary_helicity);
 }
 
-std::vector<LI::dataclasses::ParticleType> ElasticScattering::GetPossibleTargets() const {
-    std::vector<LI::dataclasses::ParticleType> res;
-    res.push_back(LI::dataclasses::ParticleType::EMinus);
+std::vector<siren::dataclasses::ParticleType> ElasticScattering::GetPossibleTargets() const {
+    std::vector<siren::dataclasses::ParticleType> res;
+    res.push_back(siren::dataclasses::ParticleType::EMinus);
     return res;
 }
 
-std::vector<LI::dataclasses::ParticleType> ElasticScattering::GetPossibleTargetsFromPrimary(LI::dataclasses::ParticleType primary_type) const {
+std::vector<siren::dataclasses::ParticleType> ElasticScattering::GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const {
     if(not primary_types.count(primary_type)) {
-        return std::vector<LI::dataclasses::ParticleType>();
+        return std::vector<siren::dataclasses::ParticleType>();
     }
     return GetPossibleTargets();
 }
 
-std::vector<LI::dataclasses::ParticleType> ElasticScattering::GetPossiblePrimaries() const {
-    return std::vector<LI::dataclasses::ParticleType>(primary_types.begin(), primary_types.end());
+std::vector<siren::dataclasses::ParticleType> ElasticScattering::GetPossiblePrimaries() const {
+    return std::vector<siren::dataclasses::ParticleType>(primary_types.begin(), primary_types.end());
 }
 
 std::vector<dataclasses::InteractionSignature> ElasticScattering::GetPossibleSignatures() const {
-    std::vector<LI::dataclasses::ParticleType> targets = GetPossibleTargets();
+    std::vector<siren::dataclasses::ParticleType> targets = GetPossibleTargets();
     std::vector<dataclasses::InteractionSignature> signatures;
     dataclasses::InteractionSignature signature;
     signature.secondary_types.resize(2);
@@ -250,8 +250,8 @@ std::vector<dataclasses::InteractionSignature> ElasticScattering::GetPossibleSig
     return signatures;
 }
 
-std::vector<dataclasses::InteractionSignature> ElasticScattering::GetPossibleSignaturesFromParents(LI::dataclasses::ParticleType primary_type, LI::dataclasses::ParticleType target_type) const {
-    std::vector<LI::dataclasses::ParticleType> targets = GetPossibleTargets();
+std::vector<dataclasses::InteractionSignature> ElasticScattering::GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const {
+    std::vector<siren::dataclasses::ParticleType> targets = GetPossibleTargets();
     if(primary_types.count(primary_type) > 0 and std::find(targets.begin(), targets.end(), target_type) != targets.end()) {
         dataclasses::InteractionSignature signature;
         signature.secondary_types.resize(2);
@@ -285,5 +285,5 @@ std::vector<std::string> ElasticScattering::DensityVariables() const {
 }
 
 } // namespace interactions
-} // namespace LI
+} // namespace siren
 

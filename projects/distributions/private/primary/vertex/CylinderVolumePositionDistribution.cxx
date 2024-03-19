@@ -1,4 +1,4 @@
-#include "LeptonInjector/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
+#include "SIREN/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
 
 #include <array>                                           // for array
 #include <cmath>                                           // for sqrt, cos
@@ -6,36 +6,36 @@
 #include <vector>                                          // for vector
 #include <stdlib.h>                                        // for abs
 
-#include "LeptonInjector/dataclasses/InteractionRecord.h"  // for Interactio...
-#include "LeptonInjector/detector/DetectorModel.h"            // for DetectorModel
-#include "LeptonInjector/distributions/Distributions.h"    // for InjectionD...
-#include "LeptonInjector/geometry/Geometry.h"              // for Geometry
-#include "LeptonInjector/math/Vector3D.h"                  // for Vector3D
-#include "LeptonInjector/utilities/Random.h"               // for LI_random
+#include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
+#include "SIREN/detector/DetectorModel.h"            // for DetectorModel
+#include "SIREN/distributions/Distributions.h"    // for InjectionD...
+#include "SIREN/geometry/Geometry.h"              // for Geometry
+#include "SIREN/math/Vector3D.h"                  // for Vector3D
+#include "SIREN/utilities/Random.h"               // for SIREN_random
 
-namespace LI { namespace interactions { class InteractionCollection; } }
+namespace siren { namespace interactions { class InteractionCollection; } }
 
-namespace LI {
+namespace siren {
 namespace distributions {
 
 //---------------
 // class CylinderVolumePositionDistribution : public VertexPositionDistribution
 //---------------
-std::tuple<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<LI::utilities::LI_random> rand, std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::PrimaryDistributionRecord & record) const {
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> CylinderVolumePositionDistribution::SamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     double t = rand->Uniform(0, 2 * M_PI);
     const double outer_radius = cylinder.GetRadius();
     const double inner_radius = cylinder.GetInnerRadius();
     const double height = cylinder.GetZ();
     double r = std::sqrt(rand->Uniform(inner_radius*inner_radius, outer_radius*outer_radius));
     double z = rand->Uniform(-height/2.0, height/2.0);
-    LI::math::Vector3D pos(r * cos(t), r * sin(t), z);
-    LI::math::Vector3D final_pos = cylinder.LocalToGlobalPosition(pos);
+    siren::math::Vector3D pos(r * cos(t), r * sin(t), z);
+    siren::math::Vector3D final_pos = cylinder.LocalToGlobalPosition(pos);
 
-    LI::math::Vector3D dir = record.GetDirection();
-    std::vector<LI::geometry::Geometry::Intersection> intersections = cylinder.Intersections(final_pos, dir);
-    LI::detector::DetectorModel::SortIntersections(intersections);
+    siren::math::Vector3D dir = record.GetDirection();
+    std::vector<siren::geometry::Geometry::Intersection> intersections = cylinder.Intersections(final_pos, dir);
+    siren::detector::DetectorModel::SortIntersections(intersections);
 
-    LI::math::Vector3D init_pos;
+    siren::math::Vector3D init_pos;
 
     if(intersections.size() == 0) {
         init_pos = final_pos;
@@ -48,8 +48,8 @@ std::tuple<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumePositionDistrib
     return {init_pos, final_pos};
 }
 
-double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & record) const {
-    LI::math::Vector3D pos(cylinder.GlobalToLocalPosition(record.interaction_vertex));
+double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    siren::math::Vector3D pos(cylinder.GlobalToLocalPosition(record.interaction_vertex));
     double z = pos.GetZ();
     double r = sqrt(pos.GetX() * pos.GetX() + pos.GetY() * pos.GetY());
     if(abs(z) >= 0.5 * cylinder.GetZ()
@@ -62,7 +62,7 @@ double CylinderVolumePositionDistribution::GenerationProbability(std::shared_ptr
 }
 
 
-CylinderVolumePositionDistribution::CylinderVolumePositionDistribution(LI::geometry::Cylinder cylinder) : cylinder(cylinder) {}
+CylinderVolumePositionDistribution::CylinderVolumePositionDistribution(siren::geometry::Cylinder cylinder) : cylinder(cylinder) {}
 
 std::string CylinderVolumePositionDistribution::Name() const {
     return "CylinderVolumePositionDistribution";
@@ -72,16 +72,16 @@ std::shared_ptr<PrimaryInjectionDistribution> CylinderVolumePositionDistribution
     return std::shared_ptr<PrimaryInjectionDistribution>(new CylinderVolumePositionDistribution(*this));
 }
 
-std::tuple<LI::math::Vector3D, LI::math::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, LI::dataclasses::InteractionRecord const & interaction) const {
-    LI::math::Vector3D dir(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]);
+std::tuple<siren::math::Vector3D, siren::math::Vector3D> CylinderVolumePositionDistribution::InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const {
+    siren::math::Vector3D dir(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]);
     dir.normalize();
-    LI::math::Vector3D pos(interaction.interaction_vertex);
-    std::vector<LI::geometry::Geometry::Intersection> intersections = cylinder.Intersections(pos, dir);
-    LI::detector::DetectorModel::SortIntersections(intersections);
+    siren::math::Vector3D pos(interaction.interaction_vertex);
+    std::vector<siren::geometry::Geometry::Intersection> intersections = cylinder.Intersections(pos, dir);
+    siren::detector::DetectorModel::SortIntersections(intersections);
     if(intersections.size() == 0) {
-        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(LI::math::Vector3D(0, 0, 0), LI::math::Vector3D(0, 0, 0));
+        return std::tuple<siren::math::Vector3D, siren::math::Vector3D>(siren::math::Vector3D(0, 0, 0), siren::math::Vector3D(0, 0, 0));
     } else if(intersections.size() >= 2) {
-        return std::tuple<LI::math::Vector3D, LI::math::Vector3D>(intersections.front().position, intersections.back().position);
+        return std::tuple<siren::math::Vector3D, siren::math::Vector3D>(intersections.front().position, intersections.back().position);
     } else {
         throw std::runtime_error("Only found one cylinder intersection!");
     }
@@ -101,9 +101,9 @@ bool CylinderVolumePositionDistribution::less(WeightableDistribution const & oth
     return cylinder < x->cylinder;
 }
 
-bool CylinderVolumePositionDistribution::AreEquivalent(std::shared_ptr<LI::detector::DetectorModel const> detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<LI::detector::DetectorModel const> second_detector_model, std::shared_ptr<LI::interactions::InteractionCollection const> second_interactions) const {
+bool CylinderVolumePositionDistribution::AreEquivalent(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<siren::detector::DetectorModel const> second_detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> second_interactions) const {
     return this->operator==(*distribution);
 }
 
 } // namespace distributions
-} // namespace LeptonInjector
+} // namespace sirenREN

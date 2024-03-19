@@ -1,33 +1,33 @@
-#include "LeptonInjector/utilities/Random.h"
+#include "SIREN/utilities/Random.h"
 
 #include <random>
 #include <utility>
 
-namespace LI {
+namespace siren {
 namespace utilities {
 
-    LI_random::LI_random(void){
+    SIREN_random::SIREN_random(void){
         // default to boring seed
         unsigned int seed   = 1;
         configuration       = std::default_random_engine(seed);
         generator           = std::uniform_real_distribution<double>( 0.0, 1.0);
     }
 
-    LI_random::LI_random( unsigned int seed ){
+    SIREN_random::SIREN_random( unsigned int seed ){
         configuration       = std::default_random_engine(seed);
         generator           = std::uniform_real_distribution<double>( 0.0, 1.0);
     }
 
     // samples a number betwen the two specified values: (from, to)
     //      defaults to ( 0, 1)
-    double LI_random::Uniform(double min, double max) {
+    double SIREN_random::Uniform(double min, double max) {
         if(max < min)
             std::swap(min, max);
         double range = max - min;
         return range * (this->generator(configuration)) + min;
     }
     
-    double LI_random::PowerLaw(double min, double max, double n) {
+    double SIREN_random::PowerLaw(double min, double max, double n) {
         if(max < min)
             std::swap(min, max);
         double range = max - min;
@@ -39,9 +39,9 @@ namespace utilities {
     }
 
     // reconfigures the generator with a new seed
-    void LI_random::set_seed( unsigned int new_seed) {
+    void SIREN_random::set_seed( unsigned int new_seed) {
         this->configuration = std::default_random_engine(new_seed);
     }
 
 } // namespace utilities
-} // namespace LI
+} // namespace siren

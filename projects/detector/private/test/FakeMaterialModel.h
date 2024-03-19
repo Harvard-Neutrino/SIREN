@@ -1,5 +1,5 @@
-#ifndef LI_TEST_FakeMaterialModel_H
-#define LI_TEST_FakeMaterialModel_H
+#ifndef SIREN_TEST_FakeMaterialModel_H
+#define SIREN_TEST_FakeMaterialModel_H
 
 #include <cmath>
 #include <math.h>
@@ -11,11 +11,11 @@
 
 #include <gtest/gtest.h>
 
-#include "LeptonInjector/geometry/Geometry.h"
-#include "LeptonInjector/detector/DetectorModel.h"
-#include "LeptonInjector/detector/MaterialModel.h"
+#include "SIREN/geometry/Geometry.h"
+#include "SIREN/detector/DetectorModel.h"
+#include "SIREN/detector/MaterialModel.h"
 
-using namespace LI::detector;
+using namespace siren::detector;
 
 class FakeMaterialModelFile {
 public:
@@ -286,5 +286,5 @@ protected:
     }
 };
 
-#endif // LI_TEST_FakeMaterialModel_H
+#endif // SIREN_TEST_FakeMaterialModel_H
 

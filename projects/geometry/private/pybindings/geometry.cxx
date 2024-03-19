@@ -1,12 +1,12 @@
 
 #include <vector>
 
-#include "../../public/LeptonInjector/geometry/Placement.h"
-#include "../../public/LeptonInjector/geometry/Geometry.h"
-#include "../../public/LeptonInjector/geometry/ExtrPoly.h"
-#include "../../public/LeptonInjector/geometry/Cylinder.h"
-#include "../../public/LeptonInjector/geometry/Box.h"
-#include "../../public/LeptonInjector/geometry/Sphere.h"
+#include "../../public/SIREN/geometry/Placement.h"
+#include "../../public/SIREN/geometry/Geometry.h"
+#include "../../public/SIREN/geometry/ExtrPoly.h"
+#include "../../public/SIREN/geometry/Cylinder.h"
+#include "../../public/SIREN/geometry/Box.h"
+#include "../../public/SIREN/geometry/Sphere.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -16,7 +16,7 @@
 using namespace pybind11;
 
 PYBIND11_MODULE(geometry,m) {
-    using namespace LI::geometry;
+    using namespace siren::geometry;
 
     // geometry
 
@@ -112,9 +112,9 @@ PYBIND11_MODULE(geometry,m) {
 
     class_<Placement, std::shared_ptr<Placement>>(m, "Placement")
         .def(init<>())
-        .def(init<LI::math::Vector3D const &>())
-        .def(init<LI::math::Quaternion const &>())
-        .def(init<LI::math::Vector3D const &, LI::math::Quaternion const &>())
+        .def(init<siren::math::Vector3D const &>())
+        .def(init<siren::math::Quaternion const &>())
+        .def(init<siren::math::Vector3D const &, siren::math::Quaternion const &>())
         .def(init<Placement const &>())
         .def_property("Position", &Placement::GetPosition, &Placement::SetPosition)
         .def_property("Quaternion", &Placement::GetQuaternion, &Placement::SetQuaternion);

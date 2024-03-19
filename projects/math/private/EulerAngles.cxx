@@ -1,12 +1,12 @@
-#include "LeptonInjector/math/EulerAngles.h"
+#include "SIREN/math/EulerAngles.h"
 
 #include <ostream>
 #include <sstream>
 #include <utility>
 
-#include "LeptonInjector/math/Vector3D.h"
+#include "SIREN/math/Vector3D.h"
 
-using namespace LI::math;
+using namespace siren::math;
 
 //----------------------------------------------------------------------//
 //------------------------- Constructors -------------------------------//
@@ -107,7 +107,7 @@ void EulerAngles::swap(EulerAngles& euler)
     swap(gamma_, euler.gamma_);
 }
 
-namespace LI {
+namespace siren {
 namespace math {
 std::ostream& operator<<(std::ostream& os, EulerAngles const& euler)
 {
@@ -118,5 +118,5 @@ std::ostream& operator<<(std::ostream& os, EulerAngles const& euler)
 }
 
 } // namespace math
-} // namespace LI
+} // namespace siren
 

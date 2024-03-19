@@ -1,4 +1,4 @@
-#include "LeptonInjector/dataclasses/ParticleID.h"
+#include "SIREN/dataclasses/ParticleID.h"
 
 #include <tuple>
 #include <mutex>
@@ -6,7 +6,7 @@
 #include <ostream>
 #include <unistd.h>
 
-std::ostream& operator<<(std::ostream& os, LI::dataclasses::ParticleID const& record) {
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::ParticleID const& record) {
     os << "ParticleID (" << &record << ")\n";
     os << "IDSet: " << record.id_set << "\n";
     os << "MajorID: " << record.major_id << "\n";
@@ -15,7 +15,7 @@ std::ostream& operator<<(std::ostream& os, LI::dataclasses::ParticleID const& re
     return os;
 }
 
-namespace LI {
+namespace siren {
 namespace dataclasses {
 
 namespace {
@@ -102,4 +102,4 @@ ParticleID ParticleID::GenerateID() {
 }
 
 } // namespace dataclasses
-} // namespace LI
+} // namespace siren

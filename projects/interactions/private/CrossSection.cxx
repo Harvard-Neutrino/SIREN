@@ -1,24 +1,24 @@
-#include "LeptonInjector/interactions/CrossSection.h"
-#include "LeptonInjector/dataclasses/InteractionRecord.h"
+#include "SIREN/interactions/CrossSection.h"
+#include "SIREN/dataclasses/InteractionRecord.h"
 
-namespace LI {
+namespace siren {
 namespace interactions {
 
 CrossSection::CrossSection() {}
 
-void CrossSection::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<LI::utilities::LI_random> rand) const {
-    LI::dataclasses::CrossSectionDistributionRecord csdr(record);
+void CrossSection::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> rand) const {
+    siren::dataclasses::CrossSectionDistributionRecord csdr(record);
     this->SampleFinalState(csdr, rand);
     csdr.Finalize(record);
 }
 
-double CrossSection::TotalCrossSectionAllFinalStates(LI::dataclasses::InteractionRecord const & record) const {
-    std::vector<LI::dataclasses::InteractionSignature> signatures = this->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type);
-    LI::dataclasses::InteractionRecord fake_record = record;
+double CrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const {
+    std::vector<siren::dataclasses::InteractionSignature> signatures = this->GetPossibleSignaturesFromParents(record.signature.primary_type, record.signature.target_type);
+    siren::dataclasses::InteractionRecord fake_record = record;
     double total_cross_section = 0;
     for(auto signature : signatures) {
         fake_record.signature = signature;
-        total_cross_section += this->TotalCrossSection(record);
+        total_cross_section += this->TotalCrossSection(fake_record);
     }
     return total_cross_section;
 }
@@ -31,5 +31,5 @@ bool CrossSection::operator==(CrossSection const & other) const {
 }
 
 } // namespace interactions
-} // namespace LI
+} // namespace siren
 

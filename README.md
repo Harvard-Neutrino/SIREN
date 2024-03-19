@@ -1,39 +1,39 @@
-[![Build](https://github.com/Harvard-Neutrino/LeptonInjector/actions/workflows/build_wheels.yml/badge.svg)](https://github.com/Harvard-Neutrino/LeptonInjector/actions/workflows/build_wheels.yml)
+[![Build](https://github.com/Harvard-Neutrino/SIREN/actions/workflows/build_wheels.yml/badge.svg)](https://github.com/Harvard-Neutrino/SIREN/actions/workflows/build_wheels.yml)
 
-# LeptonInjector
+# SIREN
 
-LeptonInjector is a framework for injecting and weighting interaction final states of complex topology, with specific concern for the detector geometry. LeptonInjector is designed to support a wide variety of neutrino experimental setups, including atmospheric neutrinos, accelerator beam decay-in-flight neutrinos, and neutrinos from decay-at-rest sources. The original [LeptonInjector-v1](https://github.com/icecube/LeptonInjector) was developed within the IceCube collaboration to study atmospheric and astrophysical neutrino interactions in the IceCube detector.
+SIREN (**S**ampling and **I**njection for **R**are **E**ve**N**ts) is a framework for injecting and weighting interaction final states of complex topology, with specific concern for the detector geometry. SIREN is designed to support a wide variety of neutrino experimental setups, including atmospheric neutrinos, accelerator beam decay-in-flight neutrinos, and neutrinos from decay-at-rest sources. SIREN grew out of [LeptonInjector](https://github.com/icecube/LeptonInjector), a neutrino injection code developed within the IceCube collaboration to study atmospheric and astrophysical neutrino interactions in the IceCube detector.
 
-This iteration of LeptonInjector provides a generic interface for user-defined BSM processes (with support for a few pre-defined processes). It also supports generation of any number of secondary processes, e.g. the decay of a BSM particle after it has been created by an initial process. LeptonInjector also includes the geometric setup for a number of existing HEP experiments out of the box, although contributions are always appreciated!
+SIREN provides a generic interface for user-defined BSM processes (and includes several pre-defined processes). It also supports generation of any number of secondary processes, e.g. the decay of a BSM particle after it has been created by an initial process. SIREN also includes detector geometry definitions for a number of existing HEP experiments, although contributions are always appreciated!
 
-# Python installation of LeptonInjector
+# Python installation of SIREN
 
-LeptonInjector is distributed on pypi as `leptoninjector`, and can be installed via pip with:
-
-```
-pip install leptoninjector
-```
-
-For development of LeptonInjector as a python project, simply clone the repository:
+SIREN is distributed on pypi as `siren`, and can be installed via pip with:
 
 ```
-git clone https://github.com/Harvard-Neutrino/LeptonInjector.git
-cd LeptonInjector
+pip install siren
 ```
 
-and run the following command to build and install LeptonInjector:
+For development of SIREN as a python project, simply clone the repository:
+
+```
+git clone https://github.com/Harvard-Neutrino/SIREN.git
+cd SIREN
+```
+
+and run the following command to build and install SIREN:
 
 ```
 pip install . --config-settings='build-dir=build'
 ```
 
-After the python bindings are installed, you should be able to import the `leptoninjector` python library. Open a python interpreter by running `python`, and then run
+After the python bindings are installed, you should be able to import the `siren` python library. Open a python interpreter by running `python`, and then run
 
 ```
-import leptoninjector
+import siren
 ```
 
-To use LeptonInjector, you will
+To use SIREN, you will
 
 1. Define a primary process and a list of secondary processes by specifying a particle type and which interactions (cross sections or decays) each particle can undergo
 
@@ -43,9 +43,9 @@ To use LeptonInjector, you will
 
 4. Generate interaction trees using the InjectorBase object
 
-5. Create a LeptonTreeWeighter object using a list of primary and secondary physical processes
+5. Create a TreeWeighter object using a list of primary and secondary physical processes
 
-6. Calculate the event weight for each interaction tree using the LeptonTreeWeighter object
+6. Calculate the event weight for each interaction tree using the TreeWeighter object
 
 For an example of this in action, see `resources/DipoleInjection/inject_HNLs_CCM.{py,ipynb}`
 
@@ -57,18 +57,18 @@ For local installations, you need the following:
 
 * Some classes also require Photospline to create and to read cross sections. Read more about it, and its installation at [github.com/icecube/photospline](https://github.com/icecube/photospline). Note that Photospline has dependencies that you will need that are not listed here.
 
-* LeptonInjector requires Photospline's `SuiteSparse` capabilities, whose dependencies are available [here](http://faculty.cse.tamu.edu/davis/suitesparse.html).
+* SIREN requires Photospline's `SuiteSparse` capabilities, whose dependencies are available [here](http://faculty.cse.tamu.edu/davis/suitesparse.html).
 
 For building py-bindings,
 
-* Python > 3.7
+* Python > 3.8
 
-* That's it! We use pybind11 to generate our pybindings, which is automatically included in LeptonInjector as a submodule
+* That's it! We use pybind11 to generate our pybindings, which is automatically included in SIREN as a submodule
 
 
 # Included External Dependencies
 
-These are not ostensibly a part of LeptonInjector, but are included automatically as submodules for its functionality.
+These are not ostensibly a part of SIREN, but are included automatically as submodules for its functionality.
 
 * [cereal](https://github.com/USCiLab/cereal): for serialization
 
@@ -82,9 +82,9 @@ These are not ostensibly a part of LeptonInjector, but are included automaticall
 
 * [photospline](https://github.com/icecube/photospline): a library that uses the penalized spline technique to efficiently compute, store, and evaluate B-spline representations of such large multi-dimensional tables
 
-# C++ installation of LeptonInjector
+# C++ installation of SIREN
 
-To use LeptonInjector in a C++ project, there are a few more steps.
+To use SIREN in a C++ project, there are a few more steps.
 
 We will be trying to keep our source, build, and install directories separate. To this end, these instructions will assume the following directory structure:
 
@@ -93,23 +93,23 @@ We will be trying to keep our source, build, and install directories separate. T
 |  --lib
 |  --include
 |  --bin
-| source (source code for LeptonInjector and other dependencies)
-|  --LeptonInjector
-|     --build (for building LeptonInjector)
-|  --(LeptonInjector dependencies...)
+| source (source code for SIREN and other dependencies)
+|  --SIREN
+|     --build (for building SIREN)
+|  --(SIREN dependencies...)
 ```
 
-`git clone git@github.com:Harvard-Neutrino/LeptonInjector.git`
+`git clone git@github.com:Harvard-Neutrino/SIREN.git`
 
 or
 
-`git clone https://github.com/Harvard-Neutrino/LeptonInjector.git`
+`git clone https://github.com/Harvard-Neutrino/SIREN.git`
 
 to download the source code. To download the submodules, run
 
 `git submodule update --init`
 
-Now `cd LeptonInjector/build` to get to the build directory. We call cmake
+Now `cd SIREN/build` to get to the build directory. We call cmake
 
 `cmake ../ -DCMAKE_INSTALL_PREFIX=../../local`
 
