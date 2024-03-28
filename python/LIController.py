@@ -14,7 +14,9 @@ from . import math as _math
 
 from . import _util
 
-from .LIDarkNews import PyDarkNewsInteractionCollection
+from . import darknews_version
+if darknews_version() is not None:
+    from .LIDarkNews import PyDarkNewsInteractionCollection
 
 
 

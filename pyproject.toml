@@ -77,8 +77,9 @@ dependencies = [
     "awkward",
     "pyarrow",
     "h5py",
-    "DarkNews",
 ]
+[project.optional-dependencies]
+DarkNews = ["DarkNews>=0.4.2"]
 
 [project.urls]
 Homepage = "https://github.com/Harvard-Neutrino/SIREN"
