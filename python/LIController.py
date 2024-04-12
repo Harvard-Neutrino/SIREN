@@ -18,6 +18,22 @@ from . import darknews_version
 if darknews_version() is not None:
     from .LIDarkNews import PyDarkNewsInteractionCollection
 
+# Helper functions
+
+# attempts to merge multiple interaction collections
+def MergeInteractionCollections(primary_type,int_col_list):
+    cross_sections = []
+    decays = []
+    record = _dataclasses.InteractionRecord()
+    record.signature.primary_type = primary_type
+    for int_col in int_col_list:
+        assert(int_col.MatchesPrimary(record))
+        if int_col.HasCrossSections():
+            cross_sections += list(int_col.GetCrossSections())
+        if int_col.HasDecays():
+            decays += list(int_col.GetDecays())
+    return _interactions.InteractionCollection(primary_type, cross_sections, decays)
+
 
 
 # Parent python class for handling event generation
@@ -287,6 +303,7 @@ class LIController:
     ):
         """
         Set cross sections for the primary and secondary processes
+        If cross sections already exist for either, attempts to merge the interaction collections
         :param InteractionCollection primary_interaction_collection: The cross section collection for the primary process
         :param list<InteractionCollection> secondary_interaction_collections: The list of cross section collections for the primary process
         """
@@ -294,8 +311,16 @@ class LIController:
             secondary_interaction_collections = []
 
         # Set primary cross sections
-        self.primary_injection_process.interactions = primary_interaction_collection
-        self.primary_physical_process.interactions = primary_interaction_collection
+        if self.primary_injection_process.interactions is None:
+            self.primary_injection_process.interactions = primary_interaction_collection
+        else:
+            self.primary_injection_process.interactions = MergeInteractionCollections(self.primary_injection_process.primary_type,
+                                                                                      [self.primary_injection_process.interactions, primary_interaction_collection])
+        if self.primary_physical_process.interactions is None:
+            self.primary_physical_process.interactions = primary_interaction_collection
+        else:
+            self.primary_physical_process.interactions = MergeInteractionCollections(self.primary_physical_process.primary_type,
+                                                                                     [self.primary_physical_process.interactions, primary_interaction_collection])
 
         # Loop through secondary processes
         for sec_inj, sec_phys in zip(
@@ -306,13 +331,22 @@ class LIController:
             record.signature.primary_type = sec_inj.primary_type
             found_collection = False
             # Loop through possible seconday cross sections
-            for sec_xs in secondary_interaction_collections:
+            for sec_ints in secondary_interaction_collections:
                 # Match cross section collection on  the primary type
-                if sec_xs.MatchesPrimary(record):
-                    sec_inj.interactions = sec_xs
-                    sec_phys.interactions = sec_xs
+                if sec_ints.MatchesPrimary(record):
+                    # Set secondary cross sections
+                    if sec_inj.interactions is None:
+                        sec_inj.interactions = sec_ints
+                    else:
+                        sec_inj.interactions = MergeInteractionCollections(sec_inj.primary_type,
+                                                                           [sec_inj.interactions, sec_ints])
+                    if sec_phys.interactions is None:
+                        sec_phys.interactions = sec_ints
+                    else:
+                        sec_phys.interactions = MergeInteractionCollections(sec_phys.primary_type,
+                                                                            [sec_phys.interactions, sec_ints])
                     found_collection = True
-            if not found_collection:
+            if not found_collection and(sec_inj.interactions is None or sec_phys.interactions is None):
                 print(
                     "Couldn't find cross section collection for secondary particle %s; Exiting"
                     % record.primary_type
