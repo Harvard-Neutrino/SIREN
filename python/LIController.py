@@ -426,6 +426,7 @@ class LIController:
             "secondary_types":[], # secondary type of each interaction
             "primary_momentum":[], # primary momentum of each interaction
             "secondary_momenta":[], # secondary momentum of each interaction
+            "parent_idx":[], # index 
         }
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
@@ -440,7 +441,8 @@ class LIController:
                       "num_secondaries",
                       "secondary_types",
                       "primary_momentum",
-                      "secondary_momenta"]:
+                      "secondary_momenta",
+                      "parent_idx"]:
                 datasets[k].append([])
             # loop over interactions
             for id, datum in enumerate(event.tree):
@@ -448,8 +450,18 @@ class LIController:
                 datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
 
                  # primary particle stuff
-                datasets["primary_type"][-1].append(str(datum.record.signature.primary_type))
+                datasets["primary_type"][-1].append(int(datum.record.signature.primary_type))
                 datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
+
+                # check parent idx; match on secondary momenta
+                if datum.depth()==0: 
+                    datasets["parent_idx"][-1].append(-1)
+                else:
+                    for _id in range(len(datasets["secondary_momenta"][-1])):
+                        for secondary_momentum in datasets["secondary_momenta"][-1][_id]:
+                            if (datasets["primary_momentum"][-1][-1] == secondary_momentum).all():
+                                datasets["parent_idx"][-1].append(_id)
+                                break
                 
                 if self.fid_vol is not None:
                     pos = _math.Vector3D(datasets["vertex"][-1][-1])
@@ -460,17 +472,17 @@ class LIController:
                     datasets["in_fiducial"][-1].append(False)
 
                 # target particle stuff
-                datasets["target_type"][-1].append(str(datum.record.signature.target_type))
+                datasets["target_type"][-1].append(int(datum.record.signature.target_type))
                 
                 # secondary particle stuff
                 datasets["secondary_types"][-1].append([])
                 datasets["secondary_momenta"][-1].append([])
                 for isec, (sec_type, sec_momenta) in enumerate(zip(datum.record.signature.secondary_types,
                                                                    datum.record.secondary_momenta)):
-                    datasets["secondary_types"][-1][-1].append(str(sec_type))
+                    datasets["secondary_types"][-1][-1].append(int(sec_type))
                     datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
-                datasets["num_secondaries"][-1].append(isec)
-            datasets["num_interactions"].append(id)
+                datasets["num_secondaries"][-1].append(isec+1)
+            datasets["num_interactions"].append(id+1)
 
         ak_array = ak.Array(datasets)
         if hdf5:

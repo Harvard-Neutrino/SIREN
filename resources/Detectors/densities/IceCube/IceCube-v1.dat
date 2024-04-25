@@ -27,3 +27,6 @@ object cylinder  0 0 6372184  0 0 0  564.19 0 1000  icecube        ICE         r
 
 # center of detector at IceCube
 detector      0 0 6372184
+
+# Fiducial volume
+fiducial cylinder    0 0 0     0 0 0    564.19 0 1000

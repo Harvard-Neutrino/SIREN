@@ -42,7 +42,7 @@ std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(std::shared_ptr
         datum->parent = parent;
         parent->daughters.push_back(datum);
     }
-    tree.insert(datum);
+    tree.push_back(datum);
     return datum;
 }
 
@@ -53,7 +53,7 @@ std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(InteractionTree
         _datum->parent = parent;
         parent->daughters.push_back(_datum);
     }
-    tree.insert(_datum);
+    tree.push_back(_datum);
     return _datum;
 }
 
@@ -64,7 +64,7 @@ std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(InteractionReco
         datum->parent = parent;
         parent->daughters.push_back(datum);
     }
-    tree.insert(datum);
+    tree.push_back(datum);
     return datum;
 }
 
