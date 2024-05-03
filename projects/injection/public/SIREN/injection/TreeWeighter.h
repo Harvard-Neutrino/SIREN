@@ -59,7 +59,7 @@ typedef ProcessWeighter<siren::injection::SecondaryInjectionProcess> SecondaryPr
 
 // Parent class for calculating event weights
 // Assumes there is a unique secondary physical process for each particle type
-class LeptonTreeWeighter {
+class TreeWeighter {
 private:
     // Supplied by constructor
     std::vector<std::shared_ptr<Injector>> injectors;
@@ -79,10 +79,10 @@ private:
     void Initialize();
 public:
     double EventWeight(siren::dataclasses::InteractionTree const & tree) const;
-    LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes);
-    LeptonTreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process);
+    TreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes);
+    TreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process);
 
-}; // LeptonTreeWeighter
+}; // TreeWeighter
 
 
 } //namespace injection
@@ -90,7 +90,7 @@ public:
 
 #include "TreeWeighter.tcc"
 
-CEREAL_CLASS_VERSION(siren::injection::LeptonTreeWeighter, 0);
+CEREAL_CLASS_VERSION(siren::injection::TreeWeighter, 0);
 
 
 #endif // SIREN_TreeWeighter_H

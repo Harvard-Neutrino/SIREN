@@ -371,7 +371,7 @@ class LIController:
         self.injector.SetStoppingCondition(StoppingCondition)
 
         # Define the weighter object
-        self.weighter = _injection.LeptonTreeWeighter(
+        self.weighter = _injection.TreeWeighter(
             [self.injector],
             self.detector_model,
             self.primary_physical_process,
@@ -416,6 +416,7 @@ class LIController:
         datasets = {
             "event_weight":[], # weight of entire event
             "event_gen_time":[], # generation time of each event
+            "event_weight_time":[], # weight calculation time of each event
             "event_global_time":[], # global time of each event
             "num_interactions":[], # number of interactions per event
             "vertex":[], # vertex of each interaction in an event
@@ -430,7 +431,9 @@ class LIController:
         }
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
+            t0 = time.time()
             datasets["event_weight"].append(self.weighter.EventWeight(event))
+            datasets["event_weight_time"].append(time.time()-t0)
             datasets["event_gen_time"].append(self.gen_times[ie])
             datasets["event_global_time"].append(self.global_times[ie])
             # add empty lists for each per interaction dataset

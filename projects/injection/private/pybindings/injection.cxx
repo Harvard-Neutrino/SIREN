@@ -112,10 +112,10 @@ PYBIND11_MODULE(injection,m) {
     .def("GenerationProbability",&SecondaryProcessWeighter::GenerationProbability)
     .def("EventWeight",&SecondaryProcessWeighter::EventWeight);
 
-  class_<LeptonTreeWeighter, std::shared_ptr<LeptonTreeWeighter>>(m, "LeptonTreeWeighter")
+  class_<TreeWeighter, std::shared_ptr<TreeWeighter>>(m, "TreeWeighter")
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>())
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>>())
-    .def("EventWeight",&LeptonTreeWeighter::EventWeight);
+    .def("EventWeight",&TreeWeighter::EventWeight);
 
   class_<LeptonWeighter, std::shared_ptr<LeptonWeighter>>(m, "LeptonWeighter")
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>, std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>>>())

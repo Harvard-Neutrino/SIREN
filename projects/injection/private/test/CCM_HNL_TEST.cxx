@@ -303,8 +303,8 @@ TEST(Injector, Generation)
     upper_injector->SetStoppingCondition(stopping_condition);
     lower_injector->SetStoppingCondition(stopping_condition);
 
-    std::shared_ptr<LeptonTreeWeighter> upper_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<Injector>>{upper_injector}, detector_model, primary_physical_process_upper_injector, secondary_physical_processes);
-    std::shared_ptr<LeptonTreeWeighter> lower_weighter = std::make_shared<LeptonTreeWeighter>(std::vector<std::shared_ptr<Injector>>{lower_injector}, detector_model, primary_physical_process_lower_injector, secondary_physical_processes);
+    std::shared_ptr<TreeWeighter> upper_weighter = std::make_shared<TreeWeighter>(std::vector<std::shared_ptr<Injector>>{upper_injector}, detector_model, primary_physical_process_upper_injector, secondary_physical_processes);
+    std::shared_ptr<TreeWeighter> lower_weighter = std::make_shared<TreeWeighter>(std::vector<std::shared_ptr<Injector>>{lower_injector}, detector_model, primary_physical_process_lower_injector, secondary_physical_processes);
 
 
     int i = 0;
