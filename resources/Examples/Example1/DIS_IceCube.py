@@ -1,7 +1,7 @@
 import os
 
 import siren
-from siren.LIController import LIController
+from siren.SIREN_Controller import SIREN_Controller
 
 # Number of events to inject
 events_to_inject = int(1e5)
@@ -10,7 +10,7 @@ events_to_inject = int(1e5)
 experiment = "IceCube"
 
 # Define the controller
-controller = LIController(events_to_inject, experiment)
+controller = SIREN_Controller(events_to_inject, experiment)
 
 # Particle to inject
 primary_type = siren.dataclasses.Particle.ParticleType.NuMu

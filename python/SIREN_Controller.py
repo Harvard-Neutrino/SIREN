@@ -16,7 +16,7 @@ from . import _util
 
 from . import darknews_version
 if darknews_version() is not None:
-    from .LIDarkNews import PyDarkNewsInteractionCollection
+    from .SIREN_DarkNews import PyDarkNewsInteractionCollection
 
 # Helper functions
 
@@ -36,11 +36,11 @@ def MergeInteractionCollections(primary_type,int_col_list):
 
 
 
-# Parent python class for handling event generation
-class LIController:
+# Parent python class for handling event generation and weighting
+class SIREN_Controller:
     def __init__(self, events_to_inject, experiment, seed=0):
         """
-        LI class constructor.
+        SIREN controller class constructor.
         :param int event_to_inject: number of events to generate
         :param str experiment: experiment name in string
         :param int seed: Optional random number generator seed
@@ -95,7 +95,7 @@ class LIController:
         secondary_physical_distributions=[],
     ):
         """
-        LI process setter.
+        SIREN process setter.
         :param ParticleType primary_type: The primary particle being generated
         :param dict<str,InjectionDistribution> primary_injection_distributions: The dict of injection distributions for the primary process
         :param dict<str,PhysicalDistribution> primary_physical_distributions: The dict of physical distributions for the primary process
