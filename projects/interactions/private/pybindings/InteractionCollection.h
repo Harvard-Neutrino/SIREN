@@ -23,6 +23,7 @@ void register_InteractionCollection(pybind11::module_ & m) {
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<Decay>>>())
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>>())
         .def(self == self)
+        .def("GetCrossSections",&InteractionCollection::GetCrossSections, return_value_policy::reference_internal)
         .def("GetDecays",&InteractionCollection::GetDecays, return_value_policy::reference_internal)
         .def("HasCrossSections",&InteractionCollection::HasCrossSections)
         .def("HasDecays",&InteractionCollection::HasDecays)
