@@ -399,6 +399,35 @@ public:
 } // end interactions namespace
 } // end LI namespace
 
+
+class pyThingyTrampoline : public Pybind11Trampoline<Thingy, pyThingyTrampoline> {
+    public:
+
+    void SomeMethod() override {
+        SELF_OVERRIDE_PURE(
+            self,
+            Thingy,
+            SomeMethod,
+            "SomeMethod"
+        )
+    }
+};
+
+void register_Thingy(pybind11::module_ & m) {
+    using namespace pybind11;
+    using namespace siren::interactions;
+
+    class_<Thingy, std::shared_ptr<Thingy>, siren::interactions::pyThingyTrampoline> Thingy(m, "Thingy");
+
+    // Thingy
+    //     .def(init<>())
+    //     TrampolinePickleMethods(siren::interactions::pyThingyTrampoline)
+    //     ;
+
+    Thingy.def(init<>());
+    RegisterTrampolinePickleMethods(Thingy, siren::interactions::pyThingyTrampoline);
+}
+
 void register_DarkNewsCrossSection(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace siren::interactions;
