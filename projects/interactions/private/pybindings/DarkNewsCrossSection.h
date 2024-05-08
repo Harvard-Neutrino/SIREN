@@ -362,6 +362,10 @@ public:
             std::cref(record)
         )
     }
+
+    pybind11::object get_representation() {
+        return self;
+    }
 };
 } // end interactions namespace
 } // end LI namespace
