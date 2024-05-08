@@ -18,7 +18,7 @@
 namespace siren {
 namespace interactions {
 // Trampoline class for Decay
-class pyDecay : public Decay {
+class pyDecay : public Decay,Pybind11Trampoline<Decay, pyDecay> {
 public:
     using Decay::Decay;
     pyDecay(Decay && parent) : Decay(std::move(parent)) {}
@@ -149,7 +149,7 @@ public:
     }
 };
 // Trampoline class for DarkNewsDecay
-class pyDarkNewsDecay : public DarkNewsDecay {
+class pyDarkNewsDecay : public DarkNewsDecay,Pybind11Trampoline<DarkNewsDecay, pyDarkNewsDecay> {
 public:
     using DarkNewsDecay::DarkNewsDecay;
     pyDarkNewsDecay(DarkNewsDecay && parent) : DarkNewsDecay(std::move(parent)) {}
@@ -264,39 +264,6 @@ public:
             std::cref(record)
         )
     }
-
-    pybind11::object get_representation() override {
-        const DarkNewsDecay * ref;
-        if(self) {
-            ref = self.cast<DarkNewsDecay *>();
-        } else {
-            ref = this;
-        }
-        auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsDecay));
-        pybind11::function override_func =
-            tinfo ? pybind11::detail::get_type_override(static_cast<const DarkNewsDecay *>(ref), tinfo, "get_representation") : pybind11::function();
-        if (override_func) {
-            pybind11::object o = override_func();
-            if(not pybind11::isinstance<pybind11::dict>(o)) {
-                throw std::runtime_error("get_representation must return a dict");
-            }
-            return o;
-        }
-
-        pybind11::object _self;
-        if(this->self) {
-            self = pybind11::reinterpret_borrow<pybind11::object>(this->self);
-        } else {
-            auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsDecay));
-            pybind11::handle self_handle = get_object_handle(static_cast<const DarkNewsDecay *>(this), tinfo);
-            _self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
-        }
-        pybind11::dict d;
-        if (pybind11::hasattr(self, "__dict__")) {
-            d = _self.attr("__dict__");
-        }
-        return d;
-    }
 };
 } // end interactions namespace
 } // end LI namespace
@@ -304,40 +271,6 @@ public:
 void register_DarkNewsDecay(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace siren::interactions;
-
-    // Bindings for pyDarkNewsDecay
-    class_<siren::interactions::pyDarkNewsDecay> pyDarkNewsDecay(m, "pyDarkNewsDecay");
-
-    pyDarkNewsDecay
-        .def(init<>())
-        .def("__eq__", [](const siren::interactions::DarkNewsDecay &self, const siren::interactions::DarkNewsDecay &other){ return self == other; })
-        .def("equal", &siren::interactions::DarkNewsDecay::equal)
-        .def("TotalDecayWidth",overload_cast<siren::dataclasses::InteractionRecord const &>(&DarkNewsDecay::TotalDecayWidth, const_))
-        .def("TotalDecayWidth",overload_cast<siren::dataclasses::ParticleType>(&DarkNewsDecay::TotalDecayWidth, const_))
-        .def("TotalDecayWidthForFinalState",&DarkNewsDecay::TotalDecayWidthForFinalState)
-        .def("DifferentialDecayWidth",&DarkNewsDecay::DifferentialDecayWidth)
-        .def("GetPossibleSignatures",&DarkNewsDecay::GetPossibleSignatures)
-        .def("GetPossibleSignaturesFromParent",&DarkNewsDecay::GetPossibleSignaturesFromParent)
-        .def("DensityVariables",&DarkNewsDecay::DensityVariables)
-        .def("FinalStateProbability",&DarkNewsDecay::FinalStateProbability)
-        .def("SampleFinalState",&DarkNewsDecay::SampleFinalState)
-        .def("SampleRecordFromDarkNews",&DarkNewsDecay::SampleRecordFromDarkNews)
-        .def("get_representation", &pyDarkNewsDecay::get_representation)
-        .def(pybind11::pickle(
-            [](siren::interactions::pyDarkNewsDecay & cpp_obj) {
-                return pybind11::make_tuple(cpp_obj.get_representation());
-            },
-            [](const pybind11::tuple &t) {
-                if (t.size() != 1) {
-                    throw std::runtime_error("Invalid state!");
-                }
-                auto cpp_state = std::unique_ptr<siren::interactions::pyDarkNewsDecay>(new siren::interactions::pyDarkNewsDecay);
-                auto py_state = t[0].cast<pybind11::dict>();
-                return std::make_pair(std::move(cpp_state), py_state);
-            })
-        )
-        ;
-
 
     class_<DarkNewsDecay, std::shared_ptr<DarkNewsDecay>, Decay, siren::interactions::pyDarkNewsDecay> DarkNewsDecay(m, "DarkNewsDecay");
 
@@ -356,18 +289,9 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("SampleFinalState",&DarkNewsDecay::SampleFinalState)
         .def("SampleRecordFromDarkNews",&DarkNewsDecay::SampleRecordFromDarkNews)
         .def("get_representation", &DarkNewsDecay::get_representation)
-        .def(pybind11::pickle(
-            [](siren::interactions::DarkNewsDecay & cpp_obj) {
-                return pybind11::make_tuple(cpp_obj.get_representation());
-            },
-            [](const pybind11::tuple &t) {
-                if (t.size() != 1) {
-                    throw std::runtime_error("Invalid state!");
-                }
-                auto cpp_state = std::unique_ptr<siren::interactions::DarkNewsDecay>(new siren::interactions::pyDarkNewsDecay);
-                auto py_state = t[0].cast<pybind11::dict>();
-                return std::make_pair(std::move(cpp_state), py_state);
-            })
-        )
         ;
+
+    // typedef appears to be necessary in order to pass template class argument to macro
+    typedef Pybind11Trampoline<siren::interactions::DarkNewsDecay, pyDarkNewsDecay> DarkNewsDecayTrampoloine;
+    RegisterTrampolinePickleMethods(DarkNewsDecay,DarkNewsDecayTrampoloine)
 }

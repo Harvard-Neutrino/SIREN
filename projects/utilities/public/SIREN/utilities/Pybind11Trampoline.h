@@ -1,7 +1,20 @@
 #ifndef SIREN_Pybind11Trampoline_H
 #define SIREN_Pybind11Trampoline_H
 
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/map.hpp>
+#include <cereal/types/set.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
+#include <cereal/types/utility.hpp>
+
 #include <pybind11/pybind11.h>
+#include <pybind11/operators.h>
+#include <pybind11/stl.h>
+#include <pybind11/embed.h>
 
 #define SELF_OVERRIDE_PURE(selfname, BaseType, returnType, cfuncname, pyfuncname, ...) \
         const BaseType * ref; \
@@ -52,9 +65,8 @@
             return BaseType::cfuncname(__VA_ARGS__); \
         } while (false);
 
-#endif // SIREN_Pybind11Trampoline_H
 
-template<BaseType, TrampolineType>
+template<typename BaseType, typename TrampolineType>
 class Pybind11Trampoline {
     pybind11::object self;
 
@@ -98,7 +110,7 @@ class Pybind11Trampoline {
     }
 
 public:
-    static pybind11::object pickle_save(BaseType & cpp_obj) {
+    static pybind11::tuple pickle_save(BaseType & cpp_obj) {
         return pybind11::make_tuple(cpp_obj.get_representation());
     }
 
@@ -114,32 +126,24 @@ public:
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
-            archive(cereal::virtual_base_class<CrossSection>(this));
+            archive(cereal::virtual_base_class<BaseType>(this));
 
             // Either use *self* or find the corresponsing python object for the instance of this class
             // Pass that python object (self) to pickle to get the byestream
             pybind11::object obj;
-            if(object.self) {
-                obj = object.self;
+            if(this->self) {
+                obj = this->self;
             } else {
                 auto *tinfo = pybind11::detail::get_type_info(typeid(BaseType));
-                pybind11::handle self_handle = get_object_handle(static_cast<const BaseType *>(&object), tinfo);
+                pybind11::handle self_handle = get_object_handle(static_cast<const BaseType *>(this), tinfo);
                 obj = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
             }
 
-			std::cout <<"#########" << std::endl;
-			std::cout << "importing pickle" << std::endl;
-			py::module pkl = py::module::import("pickle");
-			if(pkl)
-				std::cout << "imported pickle" << std::endl;
-			else
-				std::cout << "failed to import pickle" << std::endl;
-			std::cout << "dumping obj" << std::endl;
-			py::bytes bytes = pkl.attr("dumps")(obj);
-			std::cout << "dumped obj" << std::endl;
+			pybind11::module pkl = pybind11::module::import("pickle");
+			pybind11::bytes bytes = pkl.attr("dumps")(obj);
 			std::string str_repr = (std::string)(bytes.attr("hex")().cast<std::string>());
 
-			archive(::cereal::("PythonPickleBytesRepresentation", str_repr));
+			archive(::cereal::make_nvp("PythonPickleBytesRepresentation", str_repr));
 
         } else {
             throw std::runtime_error("BaseType only supports version <= 0!");
@@ -149,23 +153,17 @@ public:
     template<typename Archive>
     void load(Archive & archive, std::uint32_t version) {
         if(version == 0) {
-            archive(cereal::virtual_base_class<CrossSection>(this));
+            archive(cereal::virtual_base_class<BaseType>(this));
 
             std::string str_repr;
-			archive(::cereal::("PythonPickleBytesRepresentation", str_repr);
+			archive(::cereal::make_nvp("PythonPickleBytesRepresentation", str_repr));
 
-            std::cout << "importing pickle" << std::endl;
-            py::module pkl = py::module::import("pickle");
+            pybind11::module pkl = pybind11::module::import("pickle");
 
-            std::cout << "getting fromhex" << std::endl;
-            py::object fromhex = py::globals()["__builtins__"].attr("bytes").attr("fromhex");
-            std::cout << "calling fromhex" << std::endl;
-            py::object bytes = fromhex(str_repr);
-            py::print(bytes);
-
-            std::cout << "loading from bytes" << std::endl;
+            pybind11::object fromhex = pybind11::globals()["__builtins__"].attr("bytes").attr("fromhex");
+            pybind11::object bytes = fromhex(str_repr);
+            
             pkl.attr("loads")(bytes);
-            std::cout << "storing from bytes" << std::endl;
             this->self = pkl.attr("loads")(bytes);
         } else {
             throw std::runtime_error("BaseType only supports version <= 0!");
@@ -173,6 +171,7 @@ public:
     }
 };
 
-#define RegisterTrampolinePickleMethods(object, TrampolineType) object .def(pybind11::pickle(&TrampolineType::pickle_save, &TrampolineType::pickle_load));
+#define RegisterTrampolinePickleMethods(object, TrampolineType) object.def(pybind11::pickle(&TrampolineType::pickle_save, &TrampolineType::pickle_load));
 #define TrampolinePickleMethods(TrampolineType) .def(pybind11::pickle(&TrampolineType::pickle_save, &TrampolineType::pickle_load))
 
+#endif // SIREN_Pybind11Trampoline_H

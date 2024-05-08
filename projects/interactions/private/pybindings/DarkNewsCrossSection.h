@@ -19,7 +19,7 @@
 namespace siren {
 namespace interactions {
 // Trampoline class for CrossSection
-class pyCrossSection : public CrossSection {
+class pyCrossSection : public CrossSection,Pybind11Trampoline<CrossSection, pyCrossSection>  {
 public:
     using CrossSection::CrossSection;
     pyCrossSection(CrossSection && parent) : CrossSection(std::move(parent)) {}
@@ -150,7 +150,7 @@ public:
     }
 };
 // Trampoline class for DarkNewsCrossSection
-class pyDarkNewsCrossSection : public DarkNewsCrossSection {
+class pyDarkNewsCrossSection : public DarkNewsCrossSection,Pybind11Trampoline<DarkNewsCrossSection, pyDarkNewsCrossSection> {
 public:
     using DarkNewsCrossSection::DarkNewsCrossSection;
     pyDarkNewsCrossSection(DarkNewsCrossSection && parent) : DarkNewsCrossSection(std::move(parent)) {
@@ -362,71 +362,9 @@ public:
             std::cref(record)
         )
     }
-
-    pybind11::object get_representation() override {
-        const DarkNewsCrossSection * ref;
-        if(self) {
-            ref = self.cast<DarkNewsCrossSection *>();
-        } else {
-            ref = this;
-        }
-        auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsCrossSection));
-        pybind11::function override_func =
-            tinfo ? pybind11::detail::get_type_override(static_cast<const DarkNewsCrossSection *>(ref), tinfo, "get_representation") : pybind11::function();
-        if (override_func) {
-            pybind11::object o = override_func();
-            if(not pybind11::isinstance<pybind11::dict>(o)) {
-                throw std::runtime_error("get_representation must return a dict");
-            }
-            return o;
-        }
-
-        pybind11::object _self;
-        if(this->self) {
-            self = pybind11::reinterpret_borrow<pybind11::object>(this->self);
-        } else {
-            auto *tinfo = pybind11::detail::get_type_info(typeid(DarkNewsCrossSection));
-            pybind11::handle self_handle = get_object_handle(static_cast<const DarkNewsCrossSection *>(this), tinfo);
-            _self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
-        }
-        pybind11::dict d;
-        if (pybind11::hasattr(self, "__dict__")) {
-            d = _self.attr("__dict__");
-        }
-        return d;
-    }
 };
 } // end interactions namespace
 } // end LI namespace
-
-
-class pyThingyTrampoline : public Pybind11Trampoline<Thingy, pyThingyTrampoline> {
-    public:
-
-    void SomeMethod() override {
-        SELF_OVERRIDE_PURE(
-            self,
-            Thingy,
-            SomeMethod,
-            "SomeMethod"
-        )
-    }
-};
-
-void register_Thingy(pybind11::module_ & m) {
-    using namespace pybind11;
-    using namespace siren::interactions;
-
-    class_<Thingy, std::shared_ptr<Thingy>, siren::interactions::pyThingyTrampoline> Thingy(m, "Thingy");
-
-    // Thingy
-    //     .def(init<>())
-    //     TrampolinePickleMethods(siren::interactions::pyThingyTrampoline)
-    //     ;
-
-    Thingy.def(init<>());
-    RegisterTrampolinePickleMethods(Thingy, siren::interactions::pyThingyTrampoline);
-}
 
 void register_DarkNewsCrossSection(pybind11::module_ & m) {
     using namespace pybind11;
@@ -459,19 +397,10 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
         .def("get_representation", &DarkNewsCrossSection::get_representation)
-        .def(pybind11::pickle(
-            [](siren::interactions::DarkNewsCrossSection & cpp_obj) {
-                return pybind11::make_tuple(cpp_obj.get_representation());
-            },
-            [](const pybind11::tuple &t) {
-                if (t.size() != 1) {
-                    throw std::runtime_error("Invalid state!");
-                }
-                auto cpp_state = std::unique_ptr<siren::interactions::DarkNewsCrossSection>(new siren::interactions::pyDarkNewsCrossSection);
-                auto py_state = t[0].cast<pybind11::dict>();
-                return std::make_pair(std::move(cpp_state), py_state);
-            })
-        )
         ;
+
+    // typedef appears to be necessary in order to pass template class argument to macro
+    typedef Pybind11Trampoline<siren::interactions::DarkNewsCrossSection, pyDarkNewsCrossSection> DarkNewsCrossSectionTrampoloine;
+    RegisterTrampolinePickleMethods(DarkNewsCrossSection,DarkNewsCrossSectionTrampoloine)
 }
 
