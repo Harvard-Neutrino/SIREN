@@ -22,10 +22,6 @@ namespace interactions {
 
 DarkNewsDecay::DarkNewsDecay() {}
 
-pybind11::object DarkNewsDecay::get_representation() {
-    return pybind11::cast<pybind11::none>(Py_None);
-}
-
 bool DarkNewsDecay::equal(Decay const & other) const {
     const DarkNewsDecay* x = dynamic_cast<const DarkNewsDecay*>(&other);
 

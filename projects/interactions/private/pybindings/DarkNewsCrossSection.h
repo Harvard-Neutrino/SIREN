@@ -145,12 +145,9 @@ public:
         )
     }
 
-    pybind11::object get_representation() {
-        return self;
-    }
 };
 // Trampoline class for DarkNewsCrossSection
-class pyDarkNewsCrossSection : public DarkNewsCrossSection,Pybind11Trampoline<DarkNewsCrossSection, pyDarkNewsCrossSection> {
+class pyDarkNewsCrossSection : public DarkNewsCrossSection, public Pybind11Trampoline<DarkNewsCrossSection, pyDarkNewsCrossSection> {
 public:
     using DarkNewsCrossSection::DarkNewsCrossSection;
     pyDarkNewsCrossSection(DarkNewsCrossSection && parent) : DarkNewsCrossSection(std::move(parent)) {
@@ -363,9 +360,6 @@ public:
         )
     }
 
-    pybind11::object get_representation() {
-        return self;
-    }
 };
 } // end interactions namespace
 } // end LI namespace
@@ -400,11 +394,8 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("DensityVariables",&DarkNewsCrossSection::DensityVariables)
         .def("FinalStateProbability",&DarkNewsCrossSection::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
-        .def("get_representation", &DarkNewsCrossSection::get_representation)
         ;
 
-    // typedef appears to be necessary in order to pass template class argument to macro
-    typedef Pybind11Trampoline<siren::interactions::DarkNewsCrossSection, pyDarkNewsCrossSection> DarkNewsCrossSectionTrampoloine;
-    RegisterTrampolinePickleMethods(DarkNewsCrossSection,DarkNewsCrossSectionTrampoloine)
+    RegisterTrampolinePickleMethods(DarkNewsCrossSection,pyDarkNewsCrossSection);
 }
 

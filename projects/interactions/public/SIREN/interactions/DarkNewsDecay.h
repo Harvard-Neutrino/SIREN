@@ -36,8 +36,6 @@ friend cereal::access;
 public:
     
     DarkNewsDecay();
-
-    virtual pybind11::object get_representation();
     
     virtual bool equal(Decay const & other) const override;
     

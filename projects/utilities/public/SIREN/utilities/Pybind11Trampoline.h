@@ -70,6 +70,11 @@ template<typename BaseType, typename TrampolineType>
 class Pybind11Trampoline {
     pybind11::object self;
 
+    // one virtual function needed to call dynaimc_cast below
+    virtual void dummy() {};
+
+    public:
+
     // First attempts to call a python-side override of the "get_representation" function
     // The assumption is that "get_representation" returns a python dictionary that contains the representation of the object
     // If "get_representation" is not overriden on the python side, then this function returns the contents of __dict__
@@ -80,7 +85,10 @@ class Pybind11Trampoline {
         if(self) {
             ref = self.cast<BaseType *>();
         } else {
-            ref = this;
+            ref = dynamic_cast<const BaseType *>(this);
+            if (!ref) {
+                throw std::runtime_error("Cannot cast this to BaseType");
+        }
         }
 
         auto *tinfo = pybind11::detail::get_type_info(typeid(BaseType));
@@ -99,7 +107,7 @@ class Pybind11Trampoline {
             _self = pybind11::reinterpret_borrow<pybind11::object>(this->self);
         } else {
             auto *tinfo = pybind11::detail::get_type_info(typeid(BaseType));
-            pybind11::handle self_handle = get_object_handle(static_cast<const BaseType *>(this), tinfo);
+            pybind11::handle self_handle = get_object_handle(dynamic_cast<const BaseType *>(this), tinfo);
             _self = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
         }
         pybind11::dict d;
@@ -109,9 +117,9 @@ class Pybind11Trampoline {
         return d;
     }
 
-public:
     static pybind11::tuple pickle_save(BaseType & cpp_obj) {
-        return pybind11::make_tuple(cpp_obj.get_representation());
+        pybind11::object x = static_cast<TrampolineType&>(cpp_obj).Pybind11Trampoline<BaseType, TrampolineType>::get_representation();
+        return pybind11::make_tuple(x);
     }
 
     static std::pair<std::unique_ptr<BaseType>, pybind11::dict> pickle_load(const pybind11::tuple &t) {

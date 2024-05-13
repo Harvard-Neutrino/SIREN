@@ -144,15 +144,17 @@ public:
         )
     }
 
-    pybind11::object get_representation() {
-        return self;
-    }
 };
 // Trampoline class for DarkNewsDecay
-class pyDarkNewsDecay : public DarkNewsDecay,Pybind11Trampoline<DarkNewsDecay, pyDarkNewsDecay> {
+class pyDarkNewsDecay : public DarkNewsDecay,public Pybind11Trampoline<DarkNewsDecay, pyDarkNewsDecay> {
 public:
     using DarkNewsDecay::DarkNewsDecay;
-    pyDarkNewsDecay(DarkNewsDecay && parent) : DarkNewsDecay(std::move(parent)) {}
+    pyDarkNewsDecay(DarkNewsDecay && parent) : DarkNewsDecay(std::move(parent)) {
+        self = pybind11::reinterpret_borrow<pybind11::object>(pybind11::handle(get_object_handle(&parent, pybind11::detail::get_type_info(typeid(DarkNewsDecay)))));
+    }
+    pyDarkNewsDecay(DarkNewsDecay const & parent) : DarkNewsDecay(parent) {
+        self = pybind11::reinterpret_borrow<pybind11::object>(pybind11::handle(get_object_handle(&parent, pybind11::detail::get_type_info(typeid(DarkNewsDecay)))));
+    }
     pybind11::object self;
 
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override {
@@ -292,10 +294,7 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("FinalStateProbability",&DarkNewsDecay::FinalStateProbability)
         .def("SampleFinalState",&DarkNewsDecay::SampleFinalState)
         .def("SampleRecordFromDarkNews",&DarkNewsDecay::SampleRecordFromDarkNews)
-        .def("get_representation", &DarkNewsDecay::get_representation)
         ;
 
-    // typedef appears to be necessary in order to pass template class argument to macro
-    typedef Pybind11Trampoline<siren::interactions::DarkNewsDecay, pyDarkNewsDecay> DarkNewsDecayTrampoloine;
-    RegisterTrampolinePickleMethods(DarkNewsDecay,DarkNewsDecayTrampoloine)
+    RegisterTrampolinePickleMethods(DarkNewsDecay,pyDarkNewsDecay)
 }
