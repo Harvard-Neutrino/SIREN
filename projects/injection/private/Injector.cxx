@@ -4,10 +4,12 @@
 #include <cmath>
 #include <string>
 #include <algorithm>
+#include <fstream>
 
 #include <rk/rk.hh>
 
 #include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/DarkNewsCrossSection.h"
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/interactions/Decay.h"
 #include "SIREN/dataclasses/DecaySignature.h"
@@ -463,6 +465,18 @@ unsigned int Injector::EventsToInject() const {
 
 Injector::operator bool() const {
     return injected_events < events_to_inject;
+}
+
+void Injector::SaveInjector(std::string const & filename) const {
+    std::ofstream os(filename+".siren");
+    ::cereal::BinaryOutputArchive archive(os);
+    this->save(archive,0);
+}
+
+void Injector::LoadInjector(std::string const & filename) {
+    std::ofstream os(filename+".siren");
+    ::cereal::BinaryOutputArchive archive(os);
+    this->load(archive,0);
 }
 
 } // namespace injection

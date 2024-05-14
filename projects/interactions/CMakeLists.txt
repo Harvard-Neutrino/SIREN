@@ -15,9 +15,11 @@ LIST (APPEND interactions_SOURCES
 )
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
 set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
+find_package(PythonLibs REQUIRED)
 target_include_directories(SIREN_interactions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/interactions/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/interactions/>
+    ${PYTHON_INCLUDE_DIRS}
 )
 
 target_link_libraries(SIREN_interactions

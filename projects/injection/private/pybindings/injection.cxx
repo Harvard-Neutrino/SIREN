@@ -74,7 +74,10 @@ PYBIND11_MODULE(injection,m) {
     .def("GetDetectorModel",&Injector::GetDetectorModel)
     .def("GetInteractions",&Injector::GetInteractions)
     .def("InjectedEvents",&Injector::InjectedEvents)
-    .def("EventsToInject",&Injector::EventsToInject);
+    .def("EventsToInject",&Injector::EventsToInject)
+    .def("SaveInjector",&Injector::SaveInjector)
+    .def("LoadInjector",&Injector::LoadInjector)
+    ;
 
 //  class_<RangedSIREN, std::shared_ptr<RangedSIREN>, Injector>(m, "RangedSIREN")
 //    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::distributions::RangeFunction>, double, double>())

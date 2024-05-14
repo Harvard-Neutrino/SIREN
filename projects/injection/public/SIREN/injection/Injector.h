@@ -100,6 +100,8 @@ public:
     unsigned int InjectedEvents() const;
     unsigned int EventsToInject() const;
     operator bool() const;
+    void SaveInjector(std::string const & filename) const;
+    void LoadInjector(std::string const & filename);
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {

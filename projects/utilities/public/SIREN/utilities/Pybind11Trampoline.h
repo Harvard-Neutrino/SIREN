@@ -1,3 +1,4 @@
+#pragma once
 #ifndef SIREN_Pybind11Trampoline_H
 #define SIREN_Pybind11Trampoline_H
 
@@ -134,7 +135,7 @@ class Pybind11Trampoline {
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
-            archive(cereal::virtual_base_class<BaseType>(this));
+            archive(cereal::virtual_base_class<BaseType>(dynamic_cast<const TrampolineType*>(this)));
 
             // Either use *self* or find the corresponsing python object for the instance of this class
             // Pass that python object (self) to pickle to get the byestream
@@ -143,7 +144,7 @@ class Pybind11Trampoline {
                 obj = this->self;
             } else {
                 auto *tinfo = pybind11::detail::get_type_info(typeid(BaseType));
-                pybind11::handle self_handle = get_object_handle(static_cast<const BaseType *>(this), tinfo);
+                pybind11::handle self_handle = get_object_handle(dynamic_cast<const BaseType *>(this), tinfo);
                 obj = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
             }
 
@@ -161,7 +162,7 @@ class Pybind11Trampoline {
     template<typename Archive>
     void load(Archive & archive, std::uint32_t version) {
         if(version == 0) {
-            archive(cereal::virtual_base_class<BaseType>(this));
+            archive(cereal::virtual_base_class<BaseType>(dynamic_cast<const TrampolineType*>(this)));
 
             std::string str_repr;
 			archive(::cereal::make_nvp("PythonPickleBytesRepresentation", str_repr));
@@ -181,5 +182,13 @@ class Pybind11Trampoline {
 
 #define RegisterTrampolinePickleMethods(object, TrampolineType) object.def(pybind11::pickle(&TrampolineType::pickle_save, &TrampolineType::pickle_load));
 #define TrampolinePickleMethods(TrampolineType) .def(pybind11::pickle(&TrampolineType::pickle_save, &TrampolineType::pickle_load))
+
+#define RegisterTrampolineCerealMethods(BaseType, TrampolineType, Pybind11TrampolineType) \
+    CEREAL_CLASS_VERSION(TrampolineType,0); \
+    CEREAL_REGISTER_TYPE(TrampolineType); \
+    CEREAL_REGISTER_POLYMORPHIC_RELATION(BaseType, TrampolineType); \
+    CEREAL_CLASS_VERSION(Pybind11TrampolineType, 0); \
+    CEREAL_REGISTER_TYPE(Pybind11TrampolineType); \
+    CEREAL_REGISTER_POLYMORPHIC_RELATION(Pybind11TrampolineType, TrampolineType); \
 
 #endif // SIREN_Pybind11Trampoline_H
