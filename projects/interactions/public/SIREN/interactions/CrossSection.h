@@ -17,7 +17,7 @@
 #include "SIREN/dataclasses/Particle.h"  // for Particle
 #include "SIREN/dataclasses/InteractionSignature.h" // for InteractionSignature
 #include "SIREN/utilities/Pybind11Trampoline.h" // for Pybind11Trampoline
-#include "SIREN/utilities/Random.h" // for Pybind11Trampoline
+#include "SIREN/utilities/Random.h" // for SIREN_random
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
@@ -54,7 +54,7 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {};
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {};
-};
+}; // class CrossSection
 
 // Trampoline class for CrossSection
 class pyCrossSection : public CrossSection, public Pybind11Trampoline<CrossSection, pyCrossSection>  {
@@ -201,7 +201,7 @@ public:
             DensityVariables
         );
     }
-};
+}; // class pyCrossSection
 
 } // namespace interactions
 } // namespace siren

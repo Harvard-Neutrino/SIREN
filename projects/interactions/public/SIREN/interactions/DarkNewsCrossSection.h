@@ -21,7 +21,7 @@
 #include <pybind11/embed.h>
 
 #include "SIREN/interactions/CrossSection.h"  // for CrossSection
-#include "SIREN/dataclasses/Particle.h"        // for Particlev
+#include "SIREN/dataclasses/Particle.h"        // for Particle
 #include "SIREN/utilities/Pybind11Trampoline.h" // for Pybind11Trampoline
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
@@ -297,6 +297,16 @@ public:
             "FinalStateProbability",
             std::cref(record)
         )
+    }
+
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        archive(cereal::base_class<Pybind11Trampoline<DarkNewsCrossSection, pyDarkNewsCrossSection>>(this));
+    }
+
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t version) {
+        archive(cereal::base_class<Pybind11Trampoline<DarkNewsCrossSection, pyDarkNewsCrossSection>>(this));
     }
 
 };
