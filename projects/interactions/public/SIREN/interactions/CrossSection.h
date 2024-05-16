@@ -21,8 +21,8 @@
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
-//namespace siren { namespace dataclasses { struct InteractionSignature; } }
-//namespace siren { namespace utilities { class SIREN_random; } }
+namespace siren { namespace dataclasses { struct InteractionSignature; } }
+namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
 namespace interactions {
