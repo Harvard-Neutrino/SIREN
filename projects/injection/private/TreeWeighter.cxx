@@ -7,7 +7,12 @@
 #include <initializer_list>                                       // for ini...
 #include <iostream>                                               // for ope...
 #include <set>                                                    // for set
-#include <stdexcept>                                              // for out...
+#include <stdexcept> 
+#include <tuple>
+#include <cassert>
+#include <fstream>
+#include <algorithm>
+                                             // for out...
 #include "SIREN/interactions/CrossSection.h"            // for Cro...
 #include "SIREN/interactions/InteractionCollection.h"  // for Cro...
 #include "SIREN/dataclasses/InteractionRecord.h"         // for Int...
@@ -21,10 +26,6 @@
 #include "SIREN/injection/WeightingUtils.h"              // for Cro...
 #include "SIREN/math/Vector3D.h"                         // for Vec...
 
-#include <tuple>
-#include <cassert>
-#include <fstream>
-#include <algorithm>
 
 #include "SIREN/injection/Injector.h"
 
@@ -120,6 +121,20 @@ double TreeWeighter::EventWeight(siren::dataclasses::InteractionTree const & tre
     return 1./inv_weight;
 }
 
+void TreeWeighter::SaveWeighter(std::string const & filename) const {
+    std::ofstream os(filename+".siren_weighter", std::ios::binary);
+    ::cereal::BinaryOutputArchive archive(os);
+    this->save(archive,0);
+}
+
+void TreeWeighter::LoadWeighter(std::string const & filename) {
+    std::cout << "Weighter loading not yet supported... sorry!\n";
+    exit(0);
+    std::ifstream is(filename+".siren_weighter", std::ios::binary);
+    ::cereal::BinaryInputArchive archive(is);
+    //this->load(archive,0);
+}
+
 TreeWeighter::TreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes)
     : injectors(injectors)
       , detector_model(detector_model)
@@ -135,6 +150,16 @@ TreeWeighter::TreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std
       , primary_physical_process(primary_physical_process)
       , secondary_physical_processes(std::vector<std::shared_ptr<siren::injection::PhysicalProcess>>())
 {
+    Initialize();
+}
+
+TreeWeighter::TreeWeighter(std::vector<std::shared_ptr<Injector>> _injectors, std::string filename)
+{
+    LoadWeighter(filename);
+    if(_injectors.size() > 0) {
+        // overwrite the serialized injectors if the user have provided any
+        injectors = _injectors; 
+    }
     Initialize();
 }
 

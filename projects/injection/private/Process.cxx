@@ -50,13 +50,14 @@ bool Process::operator==(Process const & other) const {
 }
 
 bool Process::MatchesHead(std::shared_ptr<Process> const & other) const {
-    return std::tie(
-        primary_type,
-        interactions)
-        ==
-        std::tie(
-        other->primary_type,
-        other->interactions);
+    return primary_type==other->primary_type;
+    // return std::tie(
+    //     primary_type,
+    //     interactions)
+    //     ==
+    //     std::tie(
+    //     other->primary_type,
+    //     other->interactions);
 }
 
 PhysicalProcess::PhysicalProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : Process(_primary_type, _interactions) {};

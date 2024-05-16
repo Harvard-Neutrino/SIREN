@@ -45,6 +45,16 @@ Injector::Injector() {}
 
 Injector::Injector(
         unsigned int events_to_inject,
+        std::string filename,
+        std::shared_ptr<siren::utilities::SIREN_random> random) :
+    events_to_inject(events_to_inject),
+    random(random)
+{
+    LoadInjector(filename);
+}
+
+Injector::Injector(
+        unsigned int events_to_inject,
         std::shared_ptr<siren::detector::DetectorModel> detector_model,
         std::shared_ptr<siren::utilities::SIREN_random> random) :
     events_to_inject(events_to_inject),
@@ -463,19 +473,23 @@ unsigned int Injector::EventsToInject() const {
     return events_to_inject;
 }
 
+void Injector::ResetInjectedEvents() {
+    injected_events = 0;
+}
+
 Injector::operator bool() const {
     return injected_events < events_to_inject;
 }
 
 void Injector::SaveInjector(std::string const & filename) const {
-    std::ofstream os(filename+".siren");
+    std::ofstream os(filename+".siren_injector", std::ios::binary);
     ::cereal::BinaryOutputArchive archive(os);
     this->save(archive,0);
 }
 
 void Injector::LoadInjector(std::string const & filename) {
-    std::ofstream os(filename+".siren");
-    ::cereal::BinaryOutputArchive archive(os);
+    std::ifstream is(filename+".siren_injector", std::ios::binary);
+    ::cereal::BinaryInputArchive archive(is);
     this->load(archive,0);
 }
 

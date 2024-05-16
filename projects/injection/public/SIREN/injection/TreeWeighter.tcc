@@ -11,6 +11,8 @@
 #include <iostream>                                               // for ope...
 #include <set>                                                    // for set
 #include <stdexcept>                                              // for out...
+
+#include "SIREN/interactions/Decay.h"            // for Dec...
 #include "SIREN/interactions/CrossSection.h"            // for Cro...
 #include "SIREN/interactions/InteractionCollection.h"  // for Cro...
 #include "SIREN/dataclasses/InteractionRecord.h"         // for Int...
@@ -217,10 +219,10 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
 
 template<typename ProcessType>
 double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum ) const {
-    double gen_probability = siren::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), datum.record);
+    double gen_probability = siren::injection::CrossSectionProbability(detector_model, inj_process->GetInteractions(), datum.record);
 
     for(auto gen_dist : unique_gen_distributions) {
-        gen_probability *= gen_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), datum.record);
+        gen_probability *= gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
     }
     return gen_probability;
 }

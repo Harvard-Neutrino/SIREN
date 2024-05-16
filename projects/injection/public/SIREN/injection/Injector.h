@@ -54,8 +54,11 @@ protected:
     unsigned int injected_events = 0;
     std::shared_ptr<siren::utilities::SIREN_random> random;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
-    // This funciton returns true if the given datum is the last entry to be saved in a tree
-    std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition;
+    // This funciton returns true if the given secondary index i of the datum should not be simulated
+    // Defaults to no secondary interactions being saved
+    std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition= [&](std::shared_ptr<siren::dataclasses::InteractionTreeDatum> datum, size_t i) {
+        return true;
+    };
     Injector();
 private:
     std::shared_ptr<injection::PrimaryInjectionProcess> primary_process;
@@ -66,6 +69,7 @@ private:
     std::map<siren::dataclasses::ParticleType,std::shared_ptr<distributions::SecondaryVertexPositionDistribution>> secondary_position_distribution_map;
 public:
     // Constructors
+    Injector(unsigned int events_to_inject, std::string filename, std::shared_ptr<siren::utilities::SIREN_random> random);
     Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::utilities::SIREN_random> random);
     Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::shared_ptr<siren::utilities::SIREN_random> random);
     Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::SIREN_random> random);
@@ -99,6 +103,7 @@ public:
     virtual std::shared_ptr<siren::interactions::InteractionCollection> GetInteractions() const;
     unsigned int InjectedEvents() const;
     unsigned int EventsToInject() const;
+    void ResetInjectedEvents();
     operator bool() const;
     void SaveInjector(std::string const & filename) const;
     void LoadInjector(std::string const & filename);
@@ -108,10 +113,13 @@ public:
         if(version == 0) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
-            //archive(::cereal::make_nvp("StoppingCondition", stopping_condition));
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
+            archive(::cereal::make_nvp("PrimaryPositionDistribution", primary_position_distribution));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
+            archive(::cereal::make_nvp("SecondaryPositionDistributions", secondary_position_distributions));
+            archive(::cereal::make_nvp("SecondaryProcessMap", secondary_process_map));
+            archive(::cereal::make_nvp("SecondaryPositionDistributionMap", secondary_position_distribution_map));
         } else {
             throw std::runtime_error("Injector only supports version <= 0!");
         }
@@ -122,10 +130,13 @@ public:
         if(version == 0) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
-            //archive(::cereal::make_nvp("StoppingCondition", stopping_condition));
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
+            archive(::cereal::make_nvp("PrimaryPositionDistribution", primary_position_distribution));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
+            archive(::cereal::make_nvp("SecondaryPositionDistributions", secondary_position_distributions));
+            archive(::cereal::make_nvp("SecondaryProcessMap", secondary_process_map));
+            archive(::cereal::make_nvp("SecondaryPositionDistributionMap", secondary_position_distribution_map));
         } else {
             throw std::runtime_error("Injector only supports version <= 0!");
         }

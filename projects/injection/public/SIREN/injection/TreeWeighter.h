@@ -8,9 +8,13 @@
 #include <vector>                                        // for vector
 
 #include <cereal/cereal.hpp>
+#include <cereal/access.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
+#include <cereal/types/array.hpp>
+#include <cereal/types/set.hpp>
+#include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
@@ -81,6 +85,33 @@ public:
     double EventWeight(siren::dataclasses::InteractionTree const & tree) const;
     TreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes);
     TreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process);
+    TreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std::string filename);
+    void SaveWeighter(std::string const & filename) const;
+    void LoadWeighter(std::string const & filename);
+
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Injectors", injectors));
+            archive(::cereal::make_nvp("DetectorModel", detector_model));
+            archive(::cereal::make_nvp("PrimaryPhysicalProcess", primary_physical_process));
+            archive(::cereal::make_nvp("SecondaryPhysicalProcesses", secondary_physical_processes));
+        } else {
+            throw std::runtime_error("TreeWeighter only supports version <= 0!");
+        }
+    }
+
+    template<typename Archive>
+    void load(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("Injectors", injectors));
+            archive(::cereal::make_nvp("DetectorModel", detector_model));
+            archive(::cereal::make_nvp("PrimaryPhysicalProcess", primary_physical_process));
+            archive(::cereal::make_nvp("SecondaryPhysicalProcesses", secondary_physical_processes));
+        } else {
+            throw std::runtime_error("TreeWeighter only supports version <= 0!");
+        }
+    }
 
 }; // TreeWeighter
 

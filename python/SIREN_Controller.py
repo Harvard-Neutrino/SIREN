@@ -85,6 +85,104 @@ class SIREN_Controller:
                 return sector.geo
         return None
 
+    def SetInjectionProcesses(
+        self,
+        primary_type,
+        primary_injection_distributions,
+        secondary_types=[],
+        secondary_injection_distributions=[],
+    ):
+        """
+        SIREN injection process setter.
+        :param ParticleType primary_type: The primary particle being generated
+        :param dict<str,InjectionDistribution> primary_injection_distributions: The dict of injection distributions for the primary process
+        :param list<ParticleType> secondary_types: The secondary particles being generated
+        :param list<dict<str,InjectionDistribution> secondary_injection_distributions: List of dict of injection distributions for each secondary process
+        """
+
+        # Define the primary injection process primary type
+        self.primary_injection_process.primary_type = primary_type
+
+        # Default injection distributions
+        if "mass" not in primary_injection_distributions.keys():
+            self.primary_injection_process.AddPrimaryInjectionDistribution(
+                _distributions.PrimaryMass(0)
+            )
+
+        if "helicity" not in primary_injection_distributions.keys():
+            self.primary_injection_process.AddPrimaryInjectionDistribution(
+                _distributions.PrimaryNeutrinoHelicityDistribution()
+            )
+
+        # Add all injection distributions
+        for _, idist in primary_injection_distributions.items():
+            self.primary_injection_process.AddPrimaryInjectionDistribution(idist)
+
+        # Loop through possible secondary interactions
+        for i_sec, secondary_type in enumerate(secondary_types):
+            secondary_injection_process = _injection.SecondaryInjectionProcess()
+            secondary_injection_process.primary_type = secondary_type
+
+            # Add all injection distributions
+            for idist in secondary_injection_distributions[i_sec]:
+                secondary_injection_process.AddSecondaryInjectionDistribution(idist)
+
+            # Add the position distribution
+            if self.fid_vol is not None:
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
+                )
+            else:
+                secondary_injection_process.AddSecondaryInjectionDistribution(
+                    _distributions.SecondaryPhysicalVertexDistribution()
+                )
+
+            self.secondary_injection_processes.append(secondary_injection_process)
+
+    def SetPhysicalProcesses(
+        self,
+        primary_type,
+        primary_physical_distributions,
+        secondary_types=[],
+        secondary_physical_distributions=[],
+    ):
+        """
+        SIREN physical process setter.
+        :param ParticleType primary_type: The primary particle being generated
+        :param dict<str,PhysicalDistribution> primary_physical_distributions: The dict of physical distributions for the primary process
+        :param list<ParticleType> secondary_types: The secondary particles being generated
+        :param list<dict<str,PhysicalDistribution> secondary_physical_distributions: List of dict of physical distributions for each secondary process
+        """
+
+        # Define the primary physical process primary type
+        self.primary_physical_process.primary_type = primary_type
+
+        # Default physical distributions
+        if "mass" not in primary_physical_distributions.keys():
+            self.primary_physical_process.AddPhysicalDistribution(
+                _distributions.PrimaryMass(0)
+            )
+
+        if "helicity" not in primary_physical_distributions.keys():
+            self.primary_physical_process.AddPhysicalDistribution(
+                _distributions.PrimaryNeutrinoHelicityDistribution()
+            )
+
+        # Add all physical distributions
+        for _, pdist in primary_physical_distributions.items():
+            self.primary_physical_process.AddPhysicalDistribution(pdist)
+
+        # Loop through possible secondary interactions
+        for i_sec, secondary_type in enumerate(secondary_types):
+            secondary_physical_process = _injection.PhysicalProcess()
+            secondary_physical_process.primary_type = secondary_type
+
+            # Add all physical distributions
+            for pdist in secondary_physical_distributions[i_sec]:
+                secondary_physical_process.AddPhysicalDistribution(pdist)
+
+            self.secondary_physical_processes.append(secondary_physical_process)
+
     def SetProcesses(
         self,
         primary_type,
@@ -103,71 +201,8 @@ class SIREN_Controller:
         :param list<dict<str,InjectionDistribution> secondary_injection_distributions: List of dict of injection distributions for each secondary process
         :param list<dict<str,PhysicalDistribution> secondary_physical_distributions: List of dict of physical distributions for each secondary process
         """
-
-        # Define the primary injection and physical process
-        self.primary_injection_process.primary_type = primary_type
-        self.primary_physical_process.primary_type = primary_type
-
-        # Default injection distributions
-        if "mass" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(
-                _distributions.PrimaryMass(0)
-            )
-
-        # Default injection distributions
-        if "mass" not in primary_physical_distributions.keys():
-            self.primary_physical_process.AddPhysicalDistribution(
-                _distributions.PrimaryMass(0)
-            )
-
-        # Default injection distributions
-        if "helicity" not in primary_injection_distributions.keys():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(
-                _distributions.PrimaryNeutrinoHelicityDistribution()
-            )
-
-        # Default physical distributions
-        if "helicity" not in primary_physical_distributions.keys():
-            self.primary_physical_process.AddPhysicalDistribution(
-                _distributions.PrimaryNeutrinoHelicityDistribution()
-            )
-
-        # Add all injection distributions
-        for _, idist in primary_injection_distributions.items():
-            self.primary_injection_process.AddPrimaryInjectionDistribution(idist)
-        # Add all physical distributions
-        for _, pdist in primary_physical_distributions.items():
-            self.primary_physical_process.AddPhysicalDistribution(pdist)
-
-        # Loop through possible secondary interactions
-        for i_sec, secondary_type in enumerate(secondary_types):
-            secondary_injection_process = _injection.SecondaryInjectionProcess()
-            secondary_physical_process = _injection.PhysicalProcess()
-            secondary_injection_process.primary_type = secondary_type
-            secondary_physical_process.primary_type = secondary_type
-
-            # Add all injection distributions
-            for idist in secondary_injection_distributions[i_sec]:
-                secondary_injection_process.AddSecondaryInjectionDistribution(idist)
-            # Add all physical distributions
-            for pdist in secondary_physical_distributions[i_sec]:
-                secondary_physical_process.AddPhysicalDistribution(pdist)
-
-            # Add the position distribution
-            if self.fid_vol is not None:
-                secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
-                )
-            else:
-                secondary_injection_process.AddSecondaryInjectionDistribution(
-                    _distributions.SecondaryPhysicalVertexDistribution()
-                )
-
-            self.secondary_injection_processes.append(secondary_injection_process)
-            self.secondary_physical_processes.append(secondary_physical_process)
-
-    
-
+        self.SetInjectionProcesses(primary_type,primary_injection_distributions,secondary_types,secondary_injection_distributions)
+        self.SetPhysicalProcesses(primary_type,primary_physical_distributions,secondary_types,secondary_physical_distributions)
     
     def InputDarkNewsModel(self, primary_type, table_dir, fill_tables_at_start=False, Emax=None, **kwargs):
         """
@@ -270,7 +305,20 @@ class SIREN_Controller:
             if fiducial_line is None or detector_line is None:
                 return None
             return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
-        return None            
+        return None
+
+    def GetCylinderVolumePositionDistributionFromSector(self, sector_name):
+        geo = self.GetDetectorSectorGeometry(sector_name)
+        if geo is None:
+            print("Sector %s not found. Exiting"%sector_name)
+            exit(0)
+        # the position of this cylinder is in geometry coordinates
+        # must update to detector coordintes
+        det_position = self.detector_model.GeoPositionToDetPosition(_detector.GeometryPosition(geo.placement.Position))
+        det_rotation = geo.placement.Quaternion
+        det_placement = _geometry.Placement(det_position.get(), det_rotation)
+        cylinder = _geometry.Cylinder(det_placement,geo.Radius,geo.InnerRadius,geo.Z)
+        return _distributions.CylinderVolumePositionDistribution(cylinder)         
 
     def GetDetectorModelTargets(self):
         """
@@ -299,28 +347,32 @@ class SIREN_Controller:
         return targets, target_strs
 
     def SetInteractions(
-        self, primary_interaction_collection, secondary_interaction_collections=None
+        self, primary_interaction_collection, secondary_interaction_collections=None, injection=True, physical=True
     ):
         """
         Set cross sections for the primary and secondary processes
         If cross sections already exist for either, attempts to merge the interaction collections
         :param InteractionCollection primary_interaction_collection: The cross section collection for the primary process
         :param list<InteractionCollection> secondary_interaction_collections: The list of cross section collections for the primary process
+        :param bool injection: whether to apply these interaction collections to the injection processes
+        :param bool physical: whether to apply these interaction collections to the physical processes
         """
         if secondary_interaction_collections is None:
             secondary_interaction_collections = []
 
         # Set primary cross sections
-        if self.primary_injection_process.interactions is None:
-            self.primary_injection_process.interactions = primary_interaction_collection
-        else:
-            self.primary_injection_process.interactions = MergeInteractionCollections(self.primary_injection_process.primary_type,
-                                                                                      [self.primary_injection_process.interactions, primary_interaction_collection])
-        if self.primary_physical_process.interactions is None:
-            self.primary_physical_process.interactions = primary_interaction_collection
-        else:
-            self.primary_physical_process.interactions = MergeInteractionCollections(self.primary_physical_process.primary_type,
-                                                                                     [self.primary_physical_process.interactions, primary_interaction_collection])
+        if injection:
+            if self.primary_injection_process.interactions is None:
+                self.primary_injection_process.interactions = primary_interaction_collection
+            else:
+                self.primary_injection_process.interactions = MergeInteractionCollections(self.primary_injection_process.primary_type,
+                                                                                        [self.primary_injection_process.interactions, primary_interaction_collection])
+        if physical:
+            if self.primary_physical_process.interactions is None:
+                self.primary_physical_process.interactions = primary_interaction_collection
+            else:
+                self.primary_physical_process.interactions = MergeInteractionCollections(self.primary_physical_process.primary_type,
+                                                                                        [self.primary_physical_process.interactions, primary_interaction_collection])
 
         # Loop through secondary processes
         for sec_inj, sec_phys in zip(
@@ -332,19 +384,21 @@ class SIREN_Controller:
             found_collection = False
             # Loop through possible seconday cross sections
             for sec_ints in secondary_interaction_collections:
-                # Match cross section collection on  the primary type
+                # Match cross section collection on the primary type
                 if sec_ints.MatchesPrimary(record):
                     # Set secondary cross sections
-                    if sec_inj.interactions is None:
-                        sec_inj.interactions = sec_ints
-                    else:
-                        sec_inj.interactions = MergeInteractionCollections(sec_inj.primary_type,
-                                                                           [sec_inj.interactions, sec_ints])
-                    if sec_phys.interactions is None:
-                        sec_phys.interactions = sec_ints
-                    else:
-                        sec_phys.interactions = MergeInteractionCollections(sec_phys.primary_type,
-                                                                            [sec_phys.interactions, sec_ints])
+                    if injection:
+                        if sec_inj.interactions is None:
+                            sec_inj.interactions = sec_ints
+                        else:
+                            sec_inj.interactions = MergeInteractionCollections(sec_inj.primary_type,
+                                                                            [sec_inj.interactions, sec_ints])
+                    if physical:
+                        if sec_phys.interactions is None:
+                            sec_phys.interactions = sec_ints
+                        else:
+                            sec_phys.interactions = MergeInteractionCollections(sec_phys.primary_type,
+                                                                                [sec_phys.interactions, sec_ints])
                     found_collection = True
             if not found_collection and(sec_inj.interactions is None or sec_phys.interactions is None):
                 print(
@@ -353,44 +407,72 @@ class SIREN_Controller:
                 )
                 exit(0)
 
-    def Initialize(self):
-        # Define stopping condition
-        # TODO: make this more general
-        def StoppingCondition(datum, i):
-            return True
+    # set the stopping condition of the injector with a python function
+    # must accept two arguments, assumes first is datum and the second is the index of the secondary particle
+    def SetInjectorStoppingCondition(self, stopping_condition):
+        self.injector.SetStoppingCondition(stopping_condition)
+    
+    # Initialize the injector, either from an existing .siren_injector file or from controller injection objects
+    def InitializeInjector(self,filenames=None):
+        self.injectors=[]
+        if filenames is None:
+            assert(self.primary_injection_process.primary_type is not None)
+            # Use controller injection objects
+            self.injectors.append(
+                _injection.Injector(
+                    self.events_to_inject,
+                    self.detector_model,
+                    self.primary_injection_process,
+                    self.secondary_injection_processes,
+                    self.random,
+                )
+            )
+        else:
+            # Try initilalizing with the provided filenames
+            self.injectors = []
+            assert(len(filenames)>0) # require at least one injector filename
+            for filename in filenames:
+                self.injectors.append(
+                    _injection.Injector(
+                        self.events_to_inject,
+                        filename,
+                        self.random,
+                    )
+                )
+                self.injectors[-1].ResetInjectedEvents()
+        self.injector = self.injectors[0] # presume that injection happens with only the first provided injector
+        
 
-        # Define the injector object
-        self.injector = _injection.Injector(
-            self.events_to_inject,
-            self.detector_model,
-            self.primary_injection_process,
-            self.secondary_injection_processes,
-            self.random,
-        )
+    # Initialize the weighter, either from an existing .siren_weighter file or from controller injection objects
+    def InitializeWeighter(self,filename=None):
+        if filename is None:
+            assert(self.primary_physical_process.primary_type is not None)
+            # Use controller physical objects
+            self.weighter = _injection.TreeWeighter(
+                self.injectors,
+                self.detector_model,
+                self.primary_physical_process,
+                self.secondary_physical_processes,
+            )
+        else:
+            # Try initilalizing with the provided filename
+            self.weighter = _injection.TreeWeighter(
+                self.injectors,
+                filename
+            )
+        
 
-        self.injector.SetStoppingCondition(StoppingCondition)
+    # Initialize the injector and weighter objects
+    # Use existing .siren_injector and/or .siren_weighter files if they exist
+    def Initialize(self, injection_filenames=None, weighter_filename=None):
+
+        # Define the injector object(s)
+        self.InitializeInjector(filenames=injection_filenames)
 
         # Define the weighter object
-        self.weighter = _injection.TreeWeighter(
-            [self.injector],
-            self.detector_model,
-            self.primary_physical_process,
-            self.secondary_physical_processes,
-        )
-    
-    def GetCylinderVolumePositionDistributionFromSector(self, sector_name):
-        geo = self.GetDetectorSectorGeometry(sector_name)
-        if geo is None:
-            print("Sector %s not found. Exiting"%sector_name)
-            exit(0)
-        # the position of this cylinder is in geometry coordinates
-        # must update to detector coordintes
-        det_position = self.detector_model.GeoPositionToDetPosition(_detector.GeometryPosition(geo.placement.Position))
-        det_rotation = geo.placement.Quaternion
-        det_placement = _geometry.Placement(det_position.get(), det_rotation)
-        cylinder = _geometry.Cylinder(det_placement,geo.Radius,geo.InnerRadius,geo.Z)
-        return _distributions.CylinderVolumePositionDistribution(cylinder)
+        self.InitializeWeighter(filename=weighter_filename)
 
+    # Generate events using the self.injector object    
     def GenerateEvents(self, N=None, fill_tables_at_exit=True):
         if N is None:
             N = self.events_to_inject
@@ -487,6 +569,10 @@ class SIREN_Controller:
                 datasets["num_secondaries"][-1].append(isec+1)
             datasets["num_interactions"].append(id+1)
 
+        # save injector and weighter
+        self.injector.SaveInjector(filename)
+        self.weighter.SaveWeighter(filename)
+        # save events
         ak_array = ak.Array(datasets)
         if hdf5:
             fout = h5py.File(filename+".hdf5", "w")
@@ -497,5 +583,7 @@ class SIREN_Controller:
             fout.close()
         if parquet:
             ak.to_parquet(ak_array,filename+".parquet")
+        
+        # save darknews cross section tables
         if hasattr(self, "DN_processes"):
             self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)

@@ -49,5 +49,6 @@ protected:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::distributions::DepthFunction, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::DepthFunction);
 
 #endif // SIREN_DepthFunction_H

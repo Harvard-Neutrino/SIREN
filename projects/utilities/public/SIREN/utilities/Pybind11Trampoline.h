@@ -161,17 +161,24 @@ class Pybind11Trampoline {
 
     template<typename Archive>
     void load(Archive & archive, std::uint32_t version) {
+        std::cout << "Pybind11Trampoline::load\n";
         if(version == 0) {
+            std::cout << "attempting to load base class\n";
             archive(cereal::virtual_base_class<BaseType>(dynamic_cast<const TrampolineType*>(this)));
 
+            std::cout << "loading bytes rep\n";
             std::string str_repr;
 			archive(::cereal::make_nvp("PythonPickleBytesRepresentation", str_repr));
 
+            std::cout << "importing pickle rep\n";
             pybind11::module pkl = pybind11::module::import("pickle");
 
+            std::cout << "fromhex function load\n";
             pybind11::object fromhex = pybind11::globals()["__builtins__"].attr("bytes").attr("fromhex");
+            std::cout << "fromhex function run\n";
             pybind11::object bytes = fromhex(str_repr);
             
+            std::cout << "running pickle loads on bytes load\n";
             pkl.attr("loads")(bytes);
             this->self = pkl.attr("loads")(bytes);
         } else {

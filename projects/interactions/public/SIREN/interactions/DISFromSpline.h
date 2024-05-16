@@ -121,6 +121,7 @@ public:
             archive(::cereal::make_nvp("InteractionType", interaction_type_));
             archive(::cereal::make_nvp("TargetMass", target_mass_));
             archive(::cereal::make_nvp("MinimumQ2", minimum_Q2_));
+            archive(::cereal::make_nvp("Unit", unit));
             archive(cereal::virtual_base_class<CrossSection>(this));
         } else {
             throw std::runtime_error("DISFromSpline only supports version <= 0!");
@@ -138,6 +139,7 @@ public:
             archive(::cereal::make_nvp("InteractionType", interaction_type_));
             archive(::cereal::make_nvp("TargetMass", target_mass_));
             archive(::cereal::make_nvp("MinimumQ2", minimum_Q2_));
+            archive(::cereal::make_nvp("Unit", unit));
             archive(cereal::virtual_base_class<CrossSection>(this));
             LoadFromMemory(differential_data, total_data);
             InitializeSignatures();

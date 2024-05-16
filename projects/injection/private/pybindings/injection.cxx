@@ -57,6 +57,7 @@ PYBIND11_MODULE(injection,m) {
 
   class_<Injector, std::shared_ptr<Injector>>(m, "Injector")
     .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::utilities::SIREN_random>>())
+    .def(init<unsigned int, std::string, std::shared_ptr<siren::utilities::SIREN_random>>())
     .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<siren::utilities::SIREN_random>>())
     .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::SIREN_random>>())
     .def("SetStoppingCondition",&Injector::SetStoppingCondition)
@@ -75,6 +76,7 @@ PYBIND11_MODULE(injection,m) {
     .def("GetInteractions",&Injector::GetInteractions)
     .def("InjectedEvents",&Injector::InjectedEvents)
     .def("EventsToInject",&Injector::EventsToInject)
+    .def("ResetInjectedEvents",&Injector::ResetInjectedEvents)
     .def("SaveInjector",&Injector::SaveInjector)
     .def("LoadInjector",&Injector::LoadInjector)
     ;
@@ -118,7 +120,11 @@ PYBIND11_MODULE(injection,m) {
   class_<TreeWeighter, std::shared_ptr<TreeWeighter>>(m, "TreeWeighter")
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>())
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>>())
-    .def("EventWeight",&TreeWeighter::EventWeight);
+    .def(init<std::vector<std::shared_ptr<Injector>>, std::string>())
+    .def("EventWeight",&TreeWeighter::EventWeight)
+    .def("SaveWeighter",&TreeWeighter::SaveWeighter)
+    .def("LoadWeighter",&TreeWeighter::LoadWeighter)
+    ;
 
   class_<LeptonWeighter, std::shared_ptr<LeptonWeighter>>(m, "LeptonWeighter")
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>, std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>>>())
