@@ -74,7 +74,7 @@ def stop(datum, i):
     secondary_type = datum.record.signature.secondary_types[i]
     return secondary_type != siren.dataclasses.Particle.ParticleType.N4
 
-controller.injector.SetStoppingCondition(stop)
+controller.SetInjectorStoppingCondition(stop)
 
 events = controller.GenerateEvents(fill_tables_at_exit=False)
 

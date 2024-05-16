@@ -414,6 +414,8 @@ class SIREN_Controller:
     
     # Initialize the injector, either from an existing .siren_injector file or from controller injection objects
     def InitializeInjector(self,filenames=None):
+        if type(filenames)==str:
+            filenames = [filenames]
         self.injectors=[]
         if filenames is None:
             assert(self.primary_injection_process.primary_type is not None)
@@ -481,8 +483,8 @@ class SIREN_Controller:
         prev_time = time.time()
         while (self.injector.InjectedEvents() < self.events_to_inject) and (count < N):
             print("Injecting Event %d/%d  " % (count, N), end="\r")
-            tree = self.injector.GenerateEvent()
-            self.events.append(tree)
+            event = self.injector.GenerateEvent()
+            self.events.append(event)
             t = time.time()
             self.gen_times.append(t-prev_time)
             self.global_times.append(t-self.global_start)
@@ -492,8 +494,20 @@ class SIREN_Controller:
             self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)
         return self.events
 
-    def SaveEvents(self, filename, fill_tables_at_exit=True, hdf5=True, parquet=True):
+    # Load events from the custom SIREN event format
+    def LoadEvents(self, filename):
+        self.events = _dataclasses.LoadInteractionTrees(filename)
+        self.gen_times = np.zeros_like(self.events)
+        self.global_times = np.zeros_like(self.events)
+    
+    # Save events to hdf5, parquet, and/or custom SIREN filetypes
+    # if the weighter exists, calculate the event weight too
+    def SaveEvents(self, filename, fill_tables_at_exit=True,
+                   hdf5=True, parquet=True, siren_events=True # filetypes to save events
+                   ):
         
+        if siren_events:
+            _dataclasses.SaveInteractionTrees(self.events, filename)
         # A dictionary containing each dataset we'd like to save
         datasets = {
             "event_weight":[], # weight of entire event
@@ -509,12 +523,12 @@ class SIREN_Controller:
             "secondary_types":[], # secondary type of each interaction
             "primary_momentum":[], # primary momentum of each interaction
             "secondary_momenta":[], # secondary momentum of each interaction
-            "parent_idx":[], # index 
+            "parent_idx":[], # index of the parent interaction
         }
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             t0 = time.time()
-            datasets["event_weight"].append(self.weighter.EventWeight(event))
+            datasets["event_weight"].append(self.weighter.EventWeight(event) if hasattr(self,"weighter") else 0)
             datasets["event_weight_time"].append(time.time()-t0)
             datasets["event_gen_time"].append(self.gen_times[ie])
             datasets["event_global_time"].append(self.global_times[ie])
@@ -571,7 +585,9 @@ class SIREN_Controller:
 
         # save injector and weighter
         self.injector.SaveInjector(filename)
-        self.weighter.SaveWeighter(filename)
+        # weighter saving not yet supported
+        #self.weighter.SaveWeighter(filename)
+
         # save events
         ak_array = ak.Array(datasets)
         if hdf5:

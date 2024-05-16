@@ -49,5 +49,19 @@ std::shared_ptr<InteractionTreeDatum> InteractionTree::add_entry(InteractionReco
     return datum;
 }
 
+void SaveInteractionTrees(std::vector<std::shared_ptr<InteractionTree>>& trees, std::string const & filename) {
+    std::ofstream os(filename+".siren_events", std::ios::binary);
+    ::cereal::BinaryOutputArchive archive(os);
+    archive(trees);
+}
+
+std::vector<std::shared_ptr<InteractionTree>> LoadInteractionTrees(std::string const & filename) {
+    std::ifstream is(filename+".siren_events", std::ios::binary);
+    ::cereal::BinaryInputArchive archive(is);
+    std::vector<std::shared_ptr<InteractionTree>> trees;
+    archive(trees);
+    return trees;
+}
+
 } // namespace dataclasses
 } // namespace siren
