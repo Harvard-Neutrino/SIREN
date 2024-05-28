@@ -177,7 +177,7 @@ class Pybind11Trampoline {
             pybind11::object fromhex = pybind11::globals()["__builtins__"].attr("bytes").attr("fromhex");
             std::cout << "fromhex function run\n";
             pybind11::object bytes = fromhex(str_repr);
-            
+
             std::cout << "running pickle loads on bytes load\n";
             pkl.attr("loads")(bytes);
             this->self = pkl.attr("loads")(bytes);
@@ -199,3 +199,4 @@ class Pybind11Trampoline {
     CEREAL_REGISTER_POLYMORPHIC_RELATION(Pybind11TrampolineType, TrampolineType); \
 
 #endif // SIREN_Pybind11Trampoline_H
+

@@ -6,6 +6,8 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
+#include "pyCrossSection.h"
+
 #include "../../public/SIREN/interactions/CrossSection.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"

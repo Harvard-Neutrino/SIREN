@@ -1,4 +1,5 @@
 #include "./DarkNewsCrossSection.h"
+#include "./pyDarkNewsCrossSection.h"
 #include "../../public/SIREN/interactions/DarkNewsCrossSection.h"
 #include "./DarkNewsDecay.h"
 #include "../../public/SIREN/interactions/DarkNewsDecay.h"

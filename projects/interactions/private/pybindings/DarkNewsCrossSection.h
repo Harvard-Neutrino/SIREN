@@ -7,6 +7,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/embed.h>
 
+#include "pyDarkNewsCrossSection.h"
+
 #include "../../public/SIREN/interactions/CrossSection.h"
 #include "../../public/SIREN/interactions/DarkNewsCrossSection.h"
 
