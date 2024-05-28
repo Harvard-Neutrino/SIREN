@@ -84,7 +84,9 @@ public:
             archive(::cereal::make_nvp("EnergyMax", energyMax));
             archive(::cereal::make_nvp("FluxTable", fluxTable));
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
+            bounds_set = true;
             ComputeIntegral();
+            ComputeCDF();
         } else {
             throw std::runtime_error("TabulatedFluxDistribution only supports version <= 0!");
         }

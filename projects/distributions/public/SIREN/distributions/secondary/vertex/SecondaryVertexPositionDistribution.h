@@ -13,6 +13,7 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
+#include <cereal/types/memory.hpp>
 
 #include "SIREN/dataclasses/InteractionTree.h"  // for InteractionT...
 #include "SIREN/distributions/Distributions.h"  // for WeightableDi...

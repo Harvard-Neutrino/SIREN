@@ -431,7 +431,6 @@ class SIREN_Controller:
             )
         else:
             # Try initilalizing with the provided filenames
-            self.injectors = []
             assert(len(filenames)>0) # require at least one injector filename
             for filename in filenames:
                 self.injectors.append(

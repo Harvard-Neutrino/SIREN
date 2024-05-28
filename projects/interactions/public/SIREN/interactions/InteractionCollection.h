@@ -25,9 +25,9 @@
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/dataclasses/Particle.h"  // for Particle
+#include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/Decay.h"
 
-namespace siren { namespace interactions { class CrossSection; } }
-namespace siren { namespace interactions { class Decay; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 
 namespace siren {

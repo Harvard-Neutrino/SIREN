@@ -12,14 +12,14 @@
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
 #include <cereal/types/array.hpp>
+#include <cereal/types/memory.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/dataclasses/Particle.h"         // for Particle
 #include "SIREN/distributions/Distributions.h"  // for InjectionDis...
-
-namespace siren { namespace interactions { class InteractionCollection; } }
+#include "SIREN/interactions/InteractionCollection.h"
 
 namespace siren {
 namespace injection {
@@ -135,5 +135,17 @@ public:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::injection::Process, 0);
+
+CEREAL_CLASS_VERSION(siren::injection::PhysicalProcess, 0);
+CEREAL_REGISTER_TYPE(siren::injection::PhysicalProcess);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::injection::Process, siren::injection::PhysicalProcess);
+
+CEREAL_CLASS_VERSION(siren::injection::SecondaryInjectionProcess, 0);
+CEREAL_REGISTER_TYPE(siren::injection::SecondaryInjectionProcess);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::injection::PhysicalProcess, siren::injection::SecondaryInjectionProcess);
+
+CEREAL_CLASS_VERSION(siren::injection::PrimaryInjectionProcess, 0);
+CEREAL_REGISTER_TYPE(siren::injection::PrimaryInjectionProcess);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::injection::PhysicalProcess, siren::injection::PrimaryInjectionProcess);
 
 #endif // SIREN_Process_H

@@ -17,7 +17,7 @@ model_kwargs = {
 }
 
 # Number of events to inject
-events_to_inject = 100000
+events_to_inject = 10#0000
 
 # Expeirment to run
 experiment = "MiniBooNE"
@@ -68,7 +68,8 @@ controller.SetProcesses(
     primary_type, primary_injection_distributions, primary_physical_distributions
 )
 
-controller.Initialize()
+controller.Initialize("output/MiniBooNE_Dipole_M%2.2e_mu%2.2e_example"
+                      % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]))
 
 def stop(datum, i):
     secondary_type = datum.record.signature.secondary_types[i]

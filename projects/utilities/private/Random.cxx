@@ -8,12 +8,13 @@ namespace utilities {
 
     SIREN_random::SIREN_random(void){
         // default to boring seed
-        unsigned int seed   = 1;
+        seed   = 1;
         configuration       = std::default_random_engine(seed);
         generator           = std::uniform_real_distribution<double>( 0.0, 1.0);
     }
 
-    SIREN_random::SIREN_random( unsigned int seed ){
+    SIREN_random::SIREN_random( unsigned int _seed ){
+        seed = _seed;
         configuration       = std::default_random_engine(seed);
         generator           = std::uniform_real_distribution<double>( 0.0, 1.0);
     }
@@ -40,7 +41,8 @@ namespace utilities {
 
     // reconfigures the generator with a new seed
     void SIREN_random::set_seed( unsigned int new_seed) {
-        this->configuration = std::default_random_engine(new_seed);
+        seed = new_seed;
+        this->configuration = std::default_random_engine(seed);
     }
 
 } // namespace utilities

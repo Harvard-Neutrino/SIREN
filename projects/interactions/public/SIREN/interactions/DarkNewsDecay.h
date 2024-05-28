@@ -82,7 +82,7 @@ public:
     pyDarkNewsDecay(DarkNewsDecay const & parent) : DarkNewsDecay(parent) {
         self = pybind11::reinterpret_borrow<pybind11::object>(pybind11::handle(get_object_handle(&parent, pybind11::detail::get_type_info(typeid(DarkNewsDecay)))));
     }
-    pybind11::object self;
+    //pybind11::object self;
 
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override {
         SELF_OVERRIDE(

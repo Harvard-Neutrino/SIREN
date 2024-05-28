@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SIREN_SIREN_H
-#define SIREN_SIREN_H
+#ifndef SIREN_Injector_H
+#define SIREN_Injector_H
 
 #include <map>                                             // for map
 #include <set>                                             // for set
@@ -22,6 +22,7 @@
 #include <cereal/types/vector.hpp>
 #include <cereal/types/array.hpp>
 #include <cereal/types/set.hpp>
+#include <cereal/types/memory.hpp>
 #include <cereal/types/map.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
@@ -115,12 +116,10 @@ public:
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             archive(::cereal::make_nvp("DetectorModel", detector_model));
+            // archive(::cereal::make_nvp("SIRENRandom", random));
+            // std::cout << "saved SIRENRandom\n";
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
-            archive(::cereal::make_nvp("PrimaryPositionDistribution", primary_position_distribution));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
-            archive(::cereal::make_nvp("SecondaryPositionDistributions", secondary_position_distributions));
-            archive(::cereal::make_nvp("SecondaryProcessMap", secondary_process_map));
-            archive(::cereal::make_nvp("SecondaryPositionDistributionMap", secondary_position_distribution_map));
         } else {
             throw std::runtime_error("Injector only supports version <= 0!");
         }
@@ -129,15 +128,20 @@ public:
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
+            std::shared_ptr<injection::PrimaryInjectionProcess> _primary_process;
+            std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> _secondary_processes;
+            
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             archive(::cereal::make_nvp("DetectorModel", detector_model));
-            archive(::cereal::make_nvp("PrimaryProcess", primary_process));
-            archive(::cereal::make_nvp("PrimaryPositionDistribution", primary_position_distribution));
-            archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
-            archive(::cereal::make_nvp("SecondaryPositionDistributions", secondary_position_distributions));
-            archive(::cereal::make_nvp("SecondaryProcessMap", secondary_process_map));
-            archive(::cereal::make_nvp("SecondaryPositionDistributionMap", secondary_position_distribution_map));
+            // archive(::cereal::make_nvp("SIRENRandom", random));
+            // std::cout << "loaded SIRENRandom\n";
+            archive(::cereal::make_nvp("PrimaryProcess", _primary_process));
+            archive(::cereal::make_nvp("SecondaryProcesses", _secondary_processes));
+            SetPrimaryProcess(_primary_process);
+            for(auto secondary_process : _secondary_processes) {
+                AddSecondaryProcess(secondary_process);
+            }
         } else {
             throw std::runtime_error("Injector only supports version <= 0!");
         }
@@ -149,5 +153,5 @@ public:
 
 CEREAL_CLASS_VERSION(siren::injection::Injector, 0);
 
-#endif // SIREN_SIREN_H
+#endif // SIREN_Injector_H
 

@@ -95,7 +95,7 @@ public:
     pyDarkNewsCrossSection(DarkNewsCrossSection const & parent) : DarkNewsCrossSection(parent) {
         self = pybind11::reinterpret_borrow<pybind11::object>(pybind11::handle(get_object_handle(&parent, pybind11::detail::get_type_info(typeid(DarkNewsCrossSection)))));
     }
-    pybind11::object self;
+    //pybind11::object self;
 
     double TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const override {
         SELF_OVERRIDE(

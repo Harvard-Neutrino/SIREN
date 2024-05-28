@@ -69,12 +69,14 @@
 
 template<typename BaseType, typename TrampolineType>
 class Pybind11Trampoline {
-    pybind11::object self;
+    
 
     // one virtual function needed to call dynaimc_cast below
     virtual void dummy() {};
 
     public:
+
+    pybind11::object self;
 
     // First attempts to call a python-side override of the "get_representation" function
     // The assumption is that "get_representation" returns a python dictionary that contains the representation of the object
@@ -135,7 +137,6 @@ class Pybind11Trampoline {
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
-            archive(cereal::virtual_base_class<BaseType>(dynamic_cast<const TrampolineType*>(this)));
 
             // Either use *self* or find the corresponsing python object for the instance of this class
             // Pass that python object (self) to pickle to get the byestream
@@ -143,8 +144,8 @@ class Pybind11Trampoline {
             if(this->self) {
                 obj = this->self;
             } else {
-                auto *tinfo = pybind11::detail::get_type_info(typeid(BaseType));
-                pybind11::handle self_handle = get_object_handle(dynamic_cast<const BaseType *>(this), tinfo);
+                auto *tinfo = pybind11::detail::get_type_info(typeid(TrampolineType));
+                pybind11::handle self_handle = get_object_handle(dynamic_cast<const TrampolineType *>(this), tinfo);
                 obj = pybind11::reinterpret_borrow<pybind11::object>(self_handle);
             }
 
@@ -154,6 +155,8 @@ class Pybind11Trampoline {
 
 			archive(::cereal::make_nvp("PythonPickleBytesRepresentation", str_repr));
 
+            archive(cereal::virtual_base_class<BaseType>(dynamic_cast<const TrampolineType*>(this)));
+
         } else {
             throw std::runtime_error("BaseType only supports version <= 0!");
         }
@@ -161,26 +164,22 @@ class Pybind11Trampoline {
 
     template<typename Archive>
     void load(Archive & archive, std::uint32_t version) {
-        std::cout << "Pybind11Trampoline::load\n";
         if(version == 0) {
-            std::cout << "attempting to load base class\n";
-            archive(cereal::virtual_base_class<BaseType>(dynamic_cast<const TrampolineType*>(this)));
+            
 
-            std::cout << "loading bytes rep\n";
             std::string str_repr;
 			archive(::cereal::make_nvp("PythonPickleBytesRepresentation", str_repr));
 
-            std::cout << "importing pickle rep\n";
             pybind11::module pkl = pybind11::module::import("pickle");
 
-            std::cout << "fromhex function load\n";
-            pybind11::object fromhex = pybind11::globals()["__builtins__"].attr("bytes").attr("fromhex");
-            std::cout << "fromhex function run\n";
-            pybind11::object bytes = fromhex(str_repr);
+            pybind11::object bytes_module = pybind11::module::import("builtins").attr("bytes");
+            pybind11::object bytes = bytes_module.attr("fromhex")(str_repr);
             
-            std::cout << "running pickle loads on bytes load\n";
             pkl.attr("loads")(bytes);
             this->self = pkl.attr("loads")(bytes);
+
+            archive(cereal::virtual_base_class<BaseType>(dynamic_cast<const TrampolineType*>(this)));
+
         } else {
             throw std::runtime_error("BaseType only supports version <= 0!");
         }
