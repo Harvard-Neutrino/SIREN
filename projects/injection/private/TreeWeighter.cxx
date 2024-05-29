@@ -7,7 +7,7 @@
 #include <initializer_list>                                       // for ini...
 #include <iostream>                                               // for ope...
 #include <set>                                                    // for set
-#include <stdexcept> 
+#include <stdexcept>
 #include <tuple>
 #include <cassert>
 #include <fstream>
@@ -153,12 +153,11 @@ TreeWeighter::TreeWeighter(std::vector<std::shared_ptr<Injector>> injectors, std
     Initialize();
 }
 
-TreeWeighter::TreeWeighter(std::vector<std::shared_ptr<Injector>> _injectors, std::string filename)
-{
+TreeWeighter::TreeWeighter(std::vector<std::shared_ptr<Injector>> _injectors, std::string filename) {
     LoadWeighter(filename);
     if(_injectors.size() > 0) {
         // overwrite the serialized injectors if the user have provided any
-        injectors = _injectors; 
+        injectors = _injectors;
     }
     Initialize();
 }

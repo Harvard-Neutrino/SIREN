@@ -55,7 +55,7 @@ public:
             interaction
         )
     }
-    
+
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override {
         SELF_OVERRIDE_PURE(
             self,
