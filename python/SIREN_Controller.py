@@ -203,7 +203,7 @@ class SIREN_Controller:
         """
         self.SetInjectionProcesses(primary_type,primary_injection_distributions,secondary_types,secondary_injection_distributions)
         self.SetPhysicalProcesses(primary_type,primary_physical_distributions,secondary_types,secondary_physical_distributions)
-    
+
     def InputDarkNewsModel(self, primary_type, table_dir, fill_tables_at_start=False, Emax=None, **kwargs):
         """
         Sets up the relevant processes and cross section/decay objects related to a provided DarkNews model dictionary.
@@ -318,7 +318,7 @@ class SIREN_Controller:
         det_rotation = geo.placement.Quaternion
         det_placement = _geometry.Placement(det_position.get(), det_rotation)
         cylinder = _geometry.Cylinder(det_placement,geo.Radius,geo.InnerRadius,geo.Z)
-        return _distributions.CylinderVolumePositionDistribution(cylinder)         
+        return _distributions.CylinderVolumePositionDistribution(cylinder)
 
     def GetDetectorModelTargets(self):
         """
@@ -411,7 +411,7 @@ class SIREN_Controller:
     # must accept two arguments, assumes first is datum and the second is the index of the secondary particle
     def SetInjectorStoppingCondition(self, stopping_condition):
         self.injector.SetStoppingCondition(stopping_condition)
-    
+
     # Initialize the injector, either from an existing .siren_injector file or from controller injection objects
     def InitializeInjector(self,filenames=None):
         if type(filenames)==str:
@@ -442,7 +442,6 @@ class SIREN_Controller:
                 )
                 self.injectors[-1].ResetInjectedEvents()
         self.injector = self.injectors[0] # presume that injection happens with only the first provided injector
-        
 
     # Initialize the weighter, either from an existing .siren_weighter file or from controller injection objects
     def InitializeWeighter(self,filename=None):
@@ -461,7 +460,6 @@ class SIREN_Controller:
                 self.injectors,
                 filename
             )
-        
 
     # Initialize the injector and weighter objects
     # Use existing .siren_injector and/or .siren_weighter files if they exist
@@ -473,7 +471,7 @@ class SIREN_Controller:
         # Define the weighter object
         self.InitializeWeighter(filename=weighter_filename)
 
-    # Generate events using the self.injector object    
+    # Generate events using the self.injector object
     def GenerateEvents(self, N=None, fill_tables_at_exit=True):
         if N is None:
             N = self.events_to_inject
@@ -498,13 +496,13 @@ class SIREN_Controller:
         self.events = _dataclasses.LoadInteractionTrees(filename)
         self.gen_times = np.zeros_like(self.events)
         self.global_times = np.zeros_like(self.events)
-    
+
     # Save events to hdf5, parquet, and/or custom SIREN filetypes
     # if the weighter exists, calculate the event weight too
     def SaveEvents(self, filename, fill_tables_at_exit=True,
                    hdf5=True, parquet=True, siren_events=True # filetypes to save events
                    ):
-        
+
         if siren_events:
             _dataclasses.SaveInteractionTrees(self.events, filename)
         # A dictionary containing each dataset we'd like to save
@@ -544,7 +542,6 @@ class SIREN_Controller:
                 datasets[k].append([])
             # loop over interactions
             for id, datum in enumerate(event.tree):
-                
                 datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
 
                  # primary particle stuff
@@ -552,7 +549,7 @@ class SIREN_Controller:
                 datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
 
                 # check parent idx; match on secondary momenta
-                if datum.depth()==0: 
+                if datum.depth()==0:
                     datasets["parent_idx"][-1].append(-1)
                 else:
                     for _id in range(len(datasets["secondary_momenta"][-1])):
@@ -560,7 +557,7 @@ class SIREN_Controller:
                             if (datasets["primary_momentum"][-1][-1] == secondary_momentum).all():
                                 datasets["parent_idx"][-1].append(_id)
                                 break
-                
+
                 if self.fid_vol is not None:
                     pos = _math.Vector3D(datasets["vertex"][-1][-1])
                     dir = _math.Vector3D(datasets["primary_momentum"][-1][-1][1:])
@@ -571,7 +568,7 @@ class SIREN_Controller:
 
                 # target particle stuff
                 datasets["target_type"][-1].append(int(datum.record.signature.target_type))
-                
+
                 # secondary particle stuff
                 datasets["secondary_types"][-1].append([])
                 datasets["secondary_momenta"][-1].append([])
@@ -598,7 +595,7 @@ class SIREN_Controller:
             fout.close()
         if parquet:
             ak.to_parquet(ak_array,filename+".parquet")
-        
+
         # save darknews cross section tables
         if hasattr(self, "DN_processes"):
             self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)

@@ -56,7 +56,7 @@ protected:
     unsigned int injected_events = 0;
     std::shared_ptr<siren::utilities::SIREN_random> random;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
-    // This funciton returns true if the given secondary index i of the datum should not be simulated
+    // This function returns true if the given secondary index i of the datum should not be simulated
     // Defaults to no secondary interactions being saved
     std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> stopping_condition= [&](std::shared_ptr<siren::dataclasses::InteractionTreeDatum> datum, size_t i) {
         return true;
