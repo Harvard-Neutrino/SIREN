@@ -61,7 +61,7 @@ class pyCrossSection : public CrossSection, public Pybind11Trampoline<CrossSecti
 public:
     using CrossSection::CrossSection;
     pyCrossSection(CrossSection && parent) : CrossSection(std::move(parent)) {}
-    pybind11::object self;
+    //pybind11::object self;
 
     bool equal(CrossSection const & other) const override { 
         SELF_OVERRIDE_PURE(

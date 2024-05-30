@@ -58,7 +58,7 @@ class pyDecay : public Decay,Pybind11Trampoline<Decay, pyDecay> {
 public:
     using Decay::Decay;
     pyDecay(Decay && parent) : Decay(std::move(parent)) {}
-    pybind11::object self;
+    //pybind11::object self;
 
     double TotalDecayLength(dataclasses::InteractionRecord const & interaction) const override {
         SELF_OVERRIDE(
