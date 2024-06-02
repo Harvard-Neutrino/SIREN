@@ -59,8 +59,6 @@ public:
 } // namespace interactions
 } // namespace siren
 
-using DarkNewsDecayTrampolineType = Pybind11Trampoline<siren::interactions::DarkNewsDecay,siren::interactions::pyDarkNewsDecay>;
-//RegisterTrampolineCerealMethods(siren::interactions::DarkNewsDecay, siren::interactions::pyDarkNewsDecay, DarkNewsDecayTrampolineType)
 CEREAL_CLASS_VERSION(siren::interactions::pyDarkNewsDecay, 0);
 CEREAL_REGISTER_TYPE(siren::interactions::pyDarkNewsDecay);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::DarkNewsDecay, siren::interactions::pyDarkNewsDecay);
