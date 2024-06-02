@@ -61,4 +61,3 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::i
 
 #endif // SIREN_pyCrossSection_H
 
-

@@ -15,8 +15,6 @@
 #include "../../../utilities/public/SIREN/utilities/Random.h"
 #include "../../../utilities/public/SIREN/utilities/Pybind11Trampoline.h"
 
-#include "pyCrossSection.h"
-
 void register_CrossSection(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace siren::interactions;
