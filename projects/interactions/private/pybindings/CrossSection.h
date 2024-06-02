@@ -7,6 +7,7 @@
 #include <pybind11/stl.h>
 
 #include "../../public/SIREN/interactions/CrossSection.h"
+#include "../../public/SIREN/interactions/pyCrossSection.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"

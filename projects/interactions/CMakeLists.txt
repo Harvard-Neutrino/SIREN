@@ -3,6 +3,7 @@
 LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/Decay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CrossSection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/InteractionCollection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DipoleFromTable.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DarkNewsCrossSection.cxx
