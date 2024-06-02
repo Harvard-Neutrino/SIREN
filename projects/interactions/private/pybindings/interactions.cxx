@@ -26,6 +26,7 @@
 #include <pybind11/stl.h>
 
 PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
+//CEREAL_FORCE_DYNAMIC_INIT(pyDarkNewsCrossSection);
 
 using namespace pybind11;
 

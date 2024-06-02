@@ -9,6 +9,7 @@
 
 #include "../../public/SIREN/interactions/Decay.h"
 #include "../../public/SIREN/interactions/DarkNewsDecay.h"
+#include "../../public/SIREN/interactions/pyDarkNewsDecay.h"
 
 void register_DarkNewsDecay(pybind11::module_ & m) {
     using namespace pybind11;
@@ -32,5 +33,5 @@ void register_DarkNewsDecay(pybind11::module_ & m) {
         .def("SampleRecordFromDarkNews",&DarkNewsDecay::SampleRecordFromDarkNews)
         ;
 
-    RegisterTrampolinePickleMethods(DarkNewsDecay,pyDarkNewsDecay)
+    RegisterTrampolinePickleMethods(DarkNewsDecay, pyDarkNewsDecay)
 }

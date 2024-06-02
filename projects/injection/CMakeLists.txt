@@ -21,6 +21,7 @@ target_include_directories(SIREN_injection PUBLIC
 target_link_libraries(SIREN_injection
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
+        pybind11::embed
     PUBLIC
         photospline
         SIREN_serialization
@@ -42,9 +43,10 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/injection/public/"
 
 #package_add_test(UnitTest_Injector ${PROJECT_SOURCE_DIR}/projects/injection/private/test/Injector_TEST.cxx)
 package_add_test(UnitTest_CCM_HNL ${PROJECT_SOURCE_DIR}/projects/injection/private/test/CCM_HNL_TEST.cxx)
+target_link_libraries(UnitTest_CCM_HNL pybind11::embed)
 
 pybind11_add_module(injection ${PROJECT_SOURCE_DIR}/projects/injection/private/pybindings/injection.cxx)
-target_link_libraries(injection PRIVATE SIREN photospline)
+target_link_libraries(injection PRIVATE SIREN photospline pybind11::embed)
 if(DEFINED SKBUILD)
 set_target_properties(injection PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

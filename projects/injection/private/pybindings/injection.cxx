@@ -16,11 +16,20 @@
 #include "../../../detector/public/SIREN/detector/DetectorModel.h"
 #include "../../../interactions/public/SIREN/interactions/InteractionCollection.h"
 
+#include "../../../interactions/public/SIREN/interactions/pyDarkNewsCrossSection.h"
+#include "../../../interactions/public/SIREN/interactions/pyDarkNewsDecay.h"
+
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/polymorphic.hpp>
+
 #include <pybind11/pybind11.h>
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
-PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
+PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>);
+//CEREAL_FORCE_DYNAMIC_INIT(pyDarkNewsCrossSection);
 
 using namespace pybind11;
 
@@ -28,9 +37,9 @@ PYBIND11_MODULE(injection,m) {
   using namespace siren::injection;
 
   // Utils function
-    
+
   m.def("CrossSectionProbability", &CrossSectionProbability);
-    
+
   // Process
 
   class_<Process, std::shared_ptr<Process>>(m, "Process")
@@ -130,8 +139,4 @@ PYBIND11_MODULE(injection,m) {
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>, std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>>>())
     .def("EventWeight",&LeptonWeighter::EventWeight)
     .def("SimplifiedEventWeight",&LeptonWeighter::SimplifiedEventWeight);
-
-
-
-
 }

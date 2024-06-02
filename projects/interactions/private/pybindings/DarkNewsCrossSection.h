@@ -9,6 +9,7 @@
 
 #include "../../public/SIREN/interactions/CrossSection.h"
 #include "../../public/SIREN/interactions/DarkNewsCrossSection.h"
+#include "../../public/SIREN/interactions/pyDarkNewsCrossSection.h"
 
 void register_DarkNewsCrossSection(pybind11::module_ & m) {
     using namespace pybind11;
@@ -42,6 +43,6 @@ void register_DarkNewsCrossSection(pybind11::module_ & m) {
         .def("SampleFinalState",&DarkNewsCrossSection::SampleFinalState)
         ;
 
-    RegisterTrampolinePickleMethods(DarkNewsCrossSection,pyDarkNewsCrossSection);
+    RegisterTrampolinePickleMethods(DarkNewsCrossSection, pyDarkNewsCrossSection);
 }
 

@@ -32,6 +32,7 @@
 #include "SIREN/dataclasses/InteractionTree.h"    // for Interactio...
 #include "SIREN/dataclasses/Particle.h"           // for Particle
 #include "SIREN/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h" // for Secondary...
+#include "SIREN/interactions/pyDarkNewsCrossSection.h"
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace detector { class DetectorModel; } }
@@ -130,7 +131,7 @@ public:
         if(version == 0) {
             std::shared_ptr<injection::PrimaryInjectionProcess> _primary_process;
             std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> _secondary_processes;
-            
+
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             archive(::cereal::make_nvp("DetectorModel", detector_model));
