@@ -22,7 +22,6 @@
 
 #include "SIREN/interactions/Decay.h"   // for Decay
 #include "SIREN/dataclasses/Particle.h"  // for Particle
-#include "SIREN/utilities/Pybind11Trampoline.h" // for Pybind11Trampoline
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
