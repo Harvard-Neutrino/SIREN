@@ -48,7 +48,7 @@ public:
     std::vector<std::string> DensityVariables() const override;
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
-    RegisterPybind11Trampoline(Decay, pyDecay);
+    Pybind11TrampolineCerealMethods(Decay, pyDecay);
 }; // class pyDecay
 
 } // namespace interactions

@@ -49,7 +49,7 @@ public:
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
     std::vector<std::string> DensityVariables() const override;
 
-    RegisterPybind11Trampoline(CrossSection, pyCrossSection);
+    Pybind11TrampolineCerealMethods(CrossSection, pyCrossSection);
 }; // class pyCrossSection
 
 } // namespace interactions

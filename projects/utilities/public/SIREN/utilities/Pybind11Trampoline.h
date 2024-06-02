@@ -69,7 +69,7 @@
             return BaseType::cfuncname(__VA_ARGS__); \
         } while (false);
 
-#define RegisterPybind11Trampoline(BaseType, TrampolineType) \
+#define Pybind11TrampolineCerealMethods(BaseType, TrampolineType) \
 public: \
     pybind11::object self; \
     pybind11::object get_representation() { \

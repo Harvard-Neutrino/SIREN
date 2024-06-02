@@ -56,7 +56,7 @@ public:
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override;
     double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
-    RegisterPybind11Trampoline(DarkNewsCrossSection, pyDarkNewsCrossSection);
+    Pybind11TrampolineCerealMethods(DarkNewsCrossSection, pyDarkNewsCrossSection);
 };
 
 } // namespace interactions
