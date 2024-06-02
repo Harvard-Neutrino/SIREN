@@ -12,6 +12,7 @@ set_target_properties(gmock_main PROPERTIES FOLDER extern)
 
 if(${CIBUILDWHEEL})
     macro(package_add_test TESTNAME)
+        add_custom_target(${TESTNAME})
     endmacro()
 else()
     macro(package_add_test TESTNAME)
