@@ -64,9 +64,6 @@ using DarkNewsDecayTrampolineType = Pybind11Trampoline<siren::interactions::Dark
 CEREAL_CLASS_VERSION(siren::interactions::pyDarkNewsDecay, 0);
 CEREAL_REGISTER_TYPE(siren::interactions::pyDarkNewsDecay);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::DarkNewsDecay, siren::interactions::pyDarkNewsDecay);
-CEREAL_CLASS_VERSION(DarkNewsDecayTrampolineType, 0);
-CEREAL_REGISTER_TYPE(DarkNewsDecayTrampolineType);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(DarkNewsDecayTrampolineType, siren::interactions::pyDarkNewsDecay);
 
 #endif // SIREN_pyDarkNewsDecay_H
 
