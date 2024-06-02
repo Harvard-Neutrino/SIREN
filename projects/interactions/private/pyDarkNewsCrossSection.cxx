@@ -244,13 +244,3 @@ double pyDarkNewsCrossSection::FinalStateProbability(dataclasses::InteractionRec
 } // namespace interactions
 } // namespace siren
 
-//using DarkNewsCrossSectionTrampolineType = Pybind11Trampoline<siren::interactions::DarkNewsCrossSection, siren::interactions::pyDarkNewsCrossSection>;
-////RegisterTrampolineCerealMethods(siren::interactions::DarkNewsCrossSection, siren::interactions::pyDarkNewsCrossSection, DarkNewsCrossSectionTrampolineType)
-//CEREAL_CLASS_VERSION(siren::interactions::pyDarkNewsCrossSection, 0);
-//CEREAL_REGISTER_TYPE(siren::interactions::pyDarkNewsCrossSection);
-//CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::DarkNewsCrossSection, siren::interactions::pyDarkNewsCrossSection);
-//CEREAL_CLASS_VERSION(DarkNewsCrossSectionTrampolineType, 0);
-//CEREAL_REGISTER_TYPE(DarkNewsCrossSectionTrampolineType);
-//CEREAL_REGISTER_POLYMORPHIC_RELATION(DarkNewsCrossSectionTrampolineType, siren::interactions::pyDarkNewsCrossSection);
-//
-//CEREAL_REGISTER_DYNAMIC_INIT(pyDarkNewsCrossSection);

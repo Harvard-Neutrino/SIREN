@@ -13,7 +13,6 @@
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
 #include "../../../geometry/public/SIREN/geometry/Geometry.h"
 #include "../../../utilities/public/SIREN/utilities/Random.h"
-#include "../../../utilities/public/SIREN/utilities/Pybind11Trampoline.h"
 
 void register_CrossSection(pybind11::module_ & m) {
     using namespace pybind11;
