@@ -187,6 +187,8 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<si
     double interaction_density = detector_model->GetInteractionDensity(intersections, DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length); //units of m^-1
 
     double prob_density;
+    // This is equivalent to equation 11 of the SIREN paper
+    // Reach out to the authors if you disagree and we can send the derivation :)
     if(total_interaction_depth < 1e-6) {
         prob_density = interaction_density / total_interaction_depth;
     } else {
