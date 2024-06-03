@@ -17,7 +17,7 @@
 #include "SIREN/dataclasses/Particle.h"
 #include "SIREN/injection/Injector.h"
 #include "SIREN/injection/Process.h"
-#include "SIREN/injection/TreeWeighter.h"
+#include "SIREN/injection/Weighter.h"
 #include "SIREN/geometry/Geometry.h"
 #include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/Sphere.h"
@@ -303,8 +303,8 @@ TEST(Injector, Generation)
     upper_injector->SetStoppingCondition(stopping_condition);
     lower_injector->SetStoppingCondition(stopping_condition);
 
-    std::shared_ptr<TreeWeighter> upper_weighter = std::make_shared<TreeWeighter>(std::vector<std::shared_ptr<Injector>>{upper_injector}, detector_model, primary_physical_process_upper_injector, secondary_physical_processes);
-    std::shared_ptr<TreeWeighter> lower_weighter = std::make_shared<TreeWeighter>(std::vector<std::shared_ptr<Injector>>{lower_injector}, detector_model, primary_physical_process_lower_injector, secondary_physical_processes);
+    std::shared_ptr<Weighter> upper_weighter = std::make_shared<Weighter>(std::vector<std::shared_ptr<Injector>>{upper_injector}, detector_model, primary_physical_process_upper_injector, secondary_physical_processes);
+    std::shared_ptr<Weighter> lower_weighter = std::make_shared<Weighter>(std::vector<std::shared_ptr<Injector>>{lower_injector}, detector_model, primary_physical_process_lower_injector, secondary_physical_processes);
 
 
     int i = 0;

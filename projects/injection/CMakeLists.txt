@@ -4,12 +4,7 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Process.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Injector.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
-    ${PROJECT_SOURCE_DIR}/projects/injection/private/TreeWeighter.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Weighter.cxx
-    #${PROJECT_SOURCE_DIR}/projects/injection/private/ColumnDepthSIREN.cxx
-    #${PROJECT_SOURCE_DIR}/projects/injection/private/CylinderVolumeSIREN.cxx
-    #${PROJECT_SOURCE_DIR}/projects/injection/private/DecayRangeSIREN.cxx
-    #${PROJECT_SOURCE_DIR}/projects/injection/private/RangedSIREN.cxx
 )
 add_library(SIREN_injection OBJECT ${injection_SOURCES})
 set_property(TARGET SIREN_injection PROPERTY POSITION_INDEPENDENT_CODE ON)

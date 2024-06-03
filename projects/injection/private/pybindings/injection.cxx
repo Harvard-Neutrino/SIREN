@@ -3,11 +3,6 @@
 
 #include "../../public/SIREN/injection/Process.h"
 #include "../../public/SIREN/injection/Injector.h"
-//#include "../../public/SIREN/injection/ColumnDepthSIREN.h"
-//#include "../../public/SIREN/injection/CylinderVolumeSIREN.h"
-//#include "../../public/SIREN/injection/DecayRangeSIREN.h"
-//#include "../../public/SIREN/injection/RangedSIREN.h"
-#include "../../public/SIREN/injection/TreeWeighter.h"
 #include "../../public/SIREN/injection/Weighter.h"
 #include "../../public/SIREN/injection/WeightingUtils.h"
 
@@ -126,17 +121,12 @@ PYBIND11_MODULE(injection,m) {
     .def("GenerationProbability",&SecondaryProcessWeighter::GenerationProbability)
     .def("EventWeight",&SecondaryProcessWeighter::EventWeight);
 
-  class_<TreeWeighter, std::shared_ptr<TreeWeighter>>(m, "TreeWeighter")
+  class_<Weighter, std::shared_ptr<Weighter>>(m, "Weighter")
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>())
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>>())
     .def(init<std::vector<std::shared_ptr<Injector>>, std::string>())
-    .def("EventWeight",&TreeWeighter::EventWeight)
-    .def("SaveWeighter",&TreeWeighter::SaveWeighter)
-    .def("LoadWeighter",&TreeWeighter::LoadWeighter)
+    .def("EventWeight",&Weighter::EventWeight)
+    .def("SaveWeighter",&Weighter::SaveWeighter)
+    .def("LoadWeighter",&Weighter::LoadWeighter)
     ;
-
-  class_<LeptonWeighter, std::shared_ptr<LeptonWeighter>>(m, "LeptonWeighter")
-    .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::interactions::InteractionCollection>, std::vector<std::shared_ptr<siren::distributions::WeightableDistribution>>>())
-    .def("EventWeight",&LeptonWeighter::EventWeight)
-    .def("SimplifiedEventWeight",&LeptonWeighter::SimplifiedEventWeight);
 }

@@ -448,7 +448,7 @@ class SIREN_Controller:
         if filename is None:
             assert(self.primary_physical_process.primary_type is not None)
             # Use controller physical objects
-            self.weighter = _injection.TreeWeighter(
+            self.weighter = _injection.Weighter(
                 self.injectors,
                 self.detector_model,
                 self.primary_physical_process,
@@ -456,7 +456,7 @@ class SIREN_Controller:
             )
         else:
             # Try initilalizing with the provided filename
-            self.weighter = _injection.TreeWeighter(
+            self.weighter = _injection.Weighter(
                 self.injectors,
                 filename
             )
