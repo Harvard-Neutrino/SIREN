@@ -57,6 +57,7 @@ jobs:
           # configure cibuildwheel to build native archs ('auto'), and some
           # emulated ones
           CIBW_BUILD: ${{ matrix.py }}-${{ matrix.image }}_${{ matrix.arch }}
+          CIBW_ARCHS: all
 
       - uses: actions/upload-artifact@v4
         with:
