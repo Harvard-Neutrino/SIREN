@@ -17,11 +17,9 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
-#include <pybind11/pybind11.h>
-#include <pybind11/embed.h>
 
 #include "SIREN/interactions/CrossSection.h"  // for CrossSection
-#include "SIREN/dataclasses/Particle.h"        // for Particlev
+#include "SIREN/dataclasses/Particle.h"        // for Particle
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { struct InteractionSignature; } }
@@ -42,14 +40,12 @@ public:
 
     DarkNewsCrossSection();
 
-    virtual pybind11::object get_representation();
-
     virtual bool equal(CrossSection const & other) const override;
 
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     virtual double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy, siren::dataclasses::ParticleType target) const;
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
-    virtual double DifferentialCrossSection(siren::dataclasses::ParticleType primary, siren::dataclasses::ParticleType target, double energy, double Q2) const; 
+    virtual double DifferentialCrossSection(siren::dataclasses::ParticleType primary, siren::dataclasses::ParticleType target, double energy, double Q2) const;
     virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     virtual double Q2Min(dataclasses::InteractionRecord const &) const;
     virtual double Q2Max(dataclasses::InteractionRecord const &) const;

@@ -32,4 +32,3 @@ bool CrossSection::operator==(CrossSection const & other) const {
 
 } // namespace interactions
 } // namespace siren
-

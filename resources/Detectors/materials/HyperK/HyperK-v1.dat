@@ -1,0 +1,29 @@
+# Material model file
+# Detector: HyperK
+# Version: v1
+# Date: 2024-05-03
+# Authors: Nick Kamp
+# Notes:
+#
+
+WATER   2     # H20
+1000080160    0.8881016     # 0, 88.8% in weight  
+1000010010    0.1118984     # 2H, 11% in weight
+
+ROCK  2     # SiO2
+1000140280    0.4674349     # Si, 33% 
+1000080160    0.5325651     # 20, 66%
+
+INNERCORE 1 # Fe
+1000260560    1.0000000     # Fe56 100%
+
+OUTERCORE 1 # Fe
+1000260560    1.0000000     # Fe56 100%
+
+MANTLE  2   # SiO2
+1000140280    0.4674349     # Si, 33% 
+1000080160    0.5325651     # 20, 66%
+
+AIR 2       # N2 + O2
+1000070140    0.7562326     # N2 78% in volume
+1000080160    0.2437674     # O2 22% in volume

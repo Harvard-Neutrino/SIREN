@@ -1,7 +1,7 @@
 import os
 
 import siren
-from siren.LIController import LIController
+from siren.SIREN_Controller import SIREN_Controller
 
 # Define a DarkNews model
 model_kwargs = {
@@ -23,7 +23,7 @@ events_to_inject = 100000
 experiment = "MINERvA"
 
 # Define the controller
-controller = LIController(events_to_inject, experiment)
+controller = SIREN_Controller(events_to_inject, experiment)
 
 # Particle to inject
 primary_type = siren.dataclasses.Particle.ParticleType.NuMu

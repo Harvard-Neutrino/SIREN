@@ -98,6 +98,7 @@ public:
             archive(cereal::make_nvp("MaterialNames", material_names_));
             archive(cereal::make_nvp("MaterialIDs", material_ids_));
             archive(cereal::make_nvp("MaterialComponents", material_components_));
+            archive(cereal::make_nvp("MaterialComponentsByID", material_components_by_id_));
             archive(cereal::make_nvp("MaterialRadiationLength", material_radiation_length_));
             archive(cereal::make_nvp("ComponentRadiationLength", component_radiation_length_));
         } else {

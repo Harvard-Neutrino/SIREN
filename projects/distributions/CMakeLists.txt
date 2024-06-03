@@ -44,6 +44,7 @@ target_include_directories(SIREN_distributions PUBLIC
 target_link_libraries(SIREN_distributions
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
+        pybind11::embed
     PUBLIC
         photospline
         SIREN_serialization

@@ -10,6 +10,7 @@
 #include <cstdint>                                         // for uint32_t
 #include <stddef.h>                                        // for NULL
 #include <stdexcept>                                       // for runtime_error
+#include <fstream>                                         // for if/ofstream
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -24,6 +25,7 @@ namespace siren {
 namespace dataclasses {
 
 struct InteractionTreeDatum {
+  InteractionTreeDatum() {}
   InteractionTreeDatum(dataclasses::InteractionRecord& record) : record(record) {}
   dataclasses::InteractionRecord record;
   std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL;
@@ -42,7 +44,7 @@ struct InteractionTreeDatum {
 };
 
 struct InteractionTree {
-  std::set<std::shared_ptr<dataclasses::InteractionTreeDatum>> tree;
+  std::vector<std::shared_ptr<dataclasses::InteractionTreeDatum>> tree;
   std::shared_ptr<InteractionTreeDatum> add_entry(std::shared_ptr<dataclasses::InteractionTreeDatum> datum,
                                                   std::shared_ptr<dataclasses::InteractionTreeDatum> parent = NULL);
   std::shared_ptr<InteractionTreeDatum> add_entry(dataclasses::InteractionTreeDatum& datum,
@@ -59,8 +61,14 @@ struct InteractionTree {
   };
 };
 
+void SaveInteractionTrees(std::vector<std::shared_ptr<InteractionTree>>& trees, std::string const & filename);
+std::vector<std::shared_ptr<InteractionTree>> LoadInteractionTrees(std::string const & filename);
+
 } // namespace dataclasses
 } // namespace siren
+
+CEREAL_CLASS_VERSION(siren::dataclasses::InteractionTreeDatum, 0);
+CEREAL_CLASS_VERSION(siren::dataclasses::InteractionTree, 0);
 
 #endif // SIREN_InteractionTree_H
 

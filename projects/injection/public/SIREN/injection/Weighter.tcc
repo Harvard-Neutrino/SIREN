@@ -1,7 +1,7 @@
 #pragma once
-#ifndef SIREN_TreeWeighter_TCC
-#define SIREN_TreeWeighter_TCC
-#include "SIREN/injection/TreeWeighter.h"
+#ifndef SIREN_Weighter_TCC
+#define SIREN_Weighter_TCC
+#include "SIREN/injection/Weighter.h"
 
 #include <iterator>                                              // for ite...
 #include <array>                                                  // for array
@@ -11,6 +11,8 @@
 #include <iostream>                                               // for ope...
 #include <set>                                                    // for set
 #include <stdexcept>                                              // for out...
+
+#include "SIREN/interactions/Decay.h"            // for Dec...
 #include "SIREN/interactions/CrossSection.h"            // for Cro...
 #include "SIREN/interactions/InteractionCollection.h"  // for Cro...
 #include "SIREN/dataclasses/InteractionRecord.h"         // for Int...
@@ -185,6 +187,8 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<si
     double interaction_density = detector_model->GetInteractionDensity(intersections, DetectorPosition(interaction_vertex), targets, total_cross_sections, total_decay_length); //units of m^-1
 
     double prob_density;
+    // This is equivalent to equation 11 of the SIREN paper
+    // Reach out to the authors if you disagree and we can send the derivation :)
     if(total_interaction_depth < 1e-6) {
         prob_density = interaction_density / total_interaction_depth;
     } else {
@@ -217,10 +221,10 @@ double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math:
 
 template<typename ProcessType>
 double ProcessWeighter<ProcessType>::GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum ) const {
-    double gen_probability = siren::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), datum.record);
+    double gen_probability = siren::injection::CrossSectionProbability(detector_model, inj_process->GetInteractions(), datum.record);
 
     for(auto gen_dist : unique_gen_distributions) {
-        gen_probability *= gen_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), datum.record);
+        gen_probability *= gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
     }
     return gen_probability;
 }
@@ -258,4 +262,4 @@ std::vector<std::shared_ptr<siren::distributions::SecondaryInjectionDistribution
 } // namespace injection
 } // namespace siren
 
-#endif // SIREN_TreeWeighter_TCC
+#endif // SIREN_Weighter_TCC

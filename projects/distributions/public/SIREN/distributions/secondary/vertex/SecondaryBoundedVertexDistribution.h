@@ -15,6 +15,7 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
+#include <cereal/types/memory.hpp>
 
 #include "SIREN/dataclasses/InteractionTree.h"
 #include "SIREN/distributions/secondary/vertex/SecondaryVertexPositionDistribution.h"
@@ -55,6 +56,7 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(::cereal::make_nvp("MaxLength", max_length));
+            archive(::cereal::make_nvp("FidVol", fiducial_volume));
             archive(cereal::virtual_base_class<SecondaryVertexPositionDistribution>(this));
         } else {
             throw std::runtime_error("SecondaryBoundedVertexDistribution only supports version <= 0!");
@@ -64,8 +66,10 @@ public:
     static void load_and_construct(Archive & archive, cereal::construct<SecondaryBoundedVertexDistribution> & construct, std::uint32_t const version) {
         if(version == 0) {
             double max_length;
+            std::shared_ptr<siren::geometry::Geometry> fiducial_volume;
             archive(::cereal::make_nvp("MaxLength", max_length));
-            construct(max_length);
+            archive(::cereal::make_nvp("FidVol", fiducial_volume));
+            construct(fiducial_volume,max_length);
             archive(cereal::virtual_base_class<SecondaryVertexPositionDistribution>(construct.ptr()));
         } else {
             throw std::runtime_error("SecondaryBoundedVertexDistribution only supports version <= 0!");

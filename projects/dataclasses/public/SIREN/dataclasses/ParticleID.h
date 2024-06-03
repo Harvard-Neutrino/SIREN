@@ -4,6 +4,7 @@
 #include <cstdint>                                      // for uint32_t
 #include <ostream>                                      // for ostream
 #include <stdexcept>                                    // for runtime_error
+#include <sstream>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

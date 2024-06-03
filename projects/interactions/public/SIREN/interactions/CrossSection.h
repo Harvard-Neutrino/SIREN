@@ -15,6 +15,8 @@
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/dataclasses/Particle.h"  // for Particle
+#include "SIREN/dataclasses/InteractionSignature.h" // for InteractionSignature
+#include "SIREN/utilities/Random.h" // for SIREN_random
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
@@ -51,7 +53,7 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {};
     template<class Archive>
     void load(Archive & archive, std::uint32_t const version) {};
-};
+}; // class CrossSection
 
 } // namespace interactions
 } // namespace siren

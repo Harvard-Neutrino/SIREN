@@ -2,7 +2,9 @@
 #core files
 LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/Decay.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CrossSection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/InteractionCollection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DipoleFromTable.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DarkNewsCrossSection.cxx
@@ -12,12 +14,15 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLFromSpline.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElasticScattering.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsDecay.cxx
 )
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
 set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(SIREN_interactions PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/interactions/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/interactions/>
+    ${PYTHON_INCLUDE_DIRS}
 )
 
 target_link_libraries(SIREN_interactions
@@ -46,8 +51,8 @@ package_add_test(UnitTest_DipoleFromTable ${PROJECT_SOURCE_DIR}/projects/interac
 
 pybind11_add_module(interactions ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/interactions.cxx)
 target_link_libraries(interactions PRIVATE SIREN photospline rk_static pybind11::embed)
-pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
-target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)
+#pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
+#target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)
 if(DEFINED SKBUILD)
 set_target_properties(interactions PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

@@ -21,9 +21,6 @@ namespace interactions {
 
 DarkNewsCrossSection::DarkNewsCrossSection() {}
 
-pybind11::object DarkNewsCrossSection::get_representation() {
-    return pybind11::cast<pybind11::none>(Py_None);
-}
 
 bool DarkNewsCrossSection::equal(CrossSection const & other) const {
     const DarkNewsCrossSection* x = dynamic_cast<const DarkNewsCrossSection*>(&other);

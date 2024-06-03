@@ -19,14 +19,15 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/vector.hpp>
+#include <cereal/types/set.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
 
 #include "SIREN/dataclasses/Particle.h"  // for Particle
+#include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/Decay.h"
 
-namespace siren { namespace interactions { class CrossSection; } }
-namespace siren { namespace interactions { class Decay; } }
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 
 namespace siren {
@@ -69,6 +70,7 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(cereal::make_nvp("PrimaryType", primary_type));
+            archive(cereal::make_nvp("TargetTypes", target_types));
             archive(cereal::make_nvp("CrossSections", cross_sections));
             archive(cereal::make_nvp("Decays", decays));
         } else {
@@ -80,8 +82,10 @@ public:
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::make_nvp("PrimaryType", primary_type));
+            archive(cereal::make_nvp("TargetTypes", target_types));
             archive(cereal::make_nvp("CrossSections", cross_sections));
             archive(cereal::make_nvp("Decays", decays));
+            InitializeTargetTypes();
         } else {
             throw std::runtime_error("InteractionCollection only supports version <= 0!");
         }

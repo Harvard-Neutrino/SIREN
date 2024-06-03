@@ -4,12 +4,7 @@ LIST (APPEND injection_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Process.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Injector.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/WeightingUtils.cxx
-    ${PROJECT_SOURCE_DIR}/projects/injection/private/TreeWeighter.cxx
     ${PROJECT_SOURCE_DIR}/projects/injection/private/Weighter.cxx
-    #${PROJECT_SOURCE_DIR}/projects/injection/private/ColumnDepthSIREN.cxx
-    #${PROJECT_SOURCE_DIR}/projects/injection/private/CylinderVolumeSIREN.cxx
-    #${PROJECT_SOURCE_DIR}/projects/injection/private/DecayRangeSIREN.cxx
-    #${PROJECT_SOURCE_DIR}/projects/injection/private/RangedSIREN.cxx
 )
 add_library(SIREN_injection OBJECT ${injection_SOURCES})
 set_property(TARGET SIREN_injection PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -21,6 +16,7 @@ target_include_directories(SIREN_injection PUBLIC
 target_link_libraries(SIREN_injection
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
+        pybind11::embed
     PUBLIC
         photospline
         SIREN_serialization
@@ -41,10 +37,13 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/injection/public/"
 )
 
 #package_add_test(UnitTest_Injector ${PROJECT_SOURCE_DIR}/projects/injection/private/test/Injector_TEST.cxx)
+if(NOT ${CIBUILDWHEEL})
 package_add_test(UnitTest_CCM_HNL ${PROJECT_SOURCE_DIR}/projects/injection/private/test/CCM_HNL_TEST.cxx)
+target_link_libraries(UnitTest_CCM_HNL pybind11::embed)
+endif()
 
 pybind11_add_module(injection ${PROJECT_SOURCE_DIR}/projects/injection/private/pybindings/injection.cxx)
-target_link_libraries(injection PRIVATE SIREN photospline)
+target_link_libraries(injection PRIVATE SIREN photospline pybind11::embed)
 if(DEFINED SKBUILD)
 set_target_properties(injection PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE

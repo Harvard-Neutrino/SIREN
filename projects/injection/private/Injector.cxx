@@ -4,10 +4,12 @@
 #include <cmath>
 #include <string>
 #include <algorithm>
+#include <fstream>
 
 #include <rk/rk.hh>
 
 #include "SIREN/interactions/CrossSection.h"
+#include "SIREN/interactions/DarkNewsCrossSection.h"
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/interactions/Decay.h"
 #include "SIREN/dataclasses/DecaySignature.h"
@@ -40,6 +42,16 @@ using detector::DetectorDirection;
 //---------------
 
 Injector::Injector() {}
+
+Injector::Injector(
+        unsigned int events_to_inject,
+        std::string filename,
+        std::shared_ptr<siren::utilities::SIREN_random> random) :
+    events_to_inject(events_to_inject),
+    random(random)
+{
+    LoadInjector(filename);
+}
 
 Injector::Injector(
         unsigned int events_to_inject,
@@ -363,7 +375,7 @@ double Injector::SecondaryGenerationProbability(std::shared_ptr<siren::dataclass
 
 double Injector::GenerationProbability(siren::dataclasses::InteractionTree const & tree) const {
     double probability = 1.0;
-    std::set<std::shared_ptr<siren::dataclasses::InteractionTreeDatum>>::const_iterator it = tree.tree.cbegin();
+    std::vector<std::shared_ptr<siren::dataclasses::InteractionTreeDatum>>::const_iterator it = tree.tree.cbegin();
     while(it != tree.tree.cend()) {
         if((*it)->depth()==0) probability *= GenerationProbability((*it));
         else probability *= SecondaryGenerationProbability((*it));
@@ -461,8 +473,24 @@ unsigned int Injector::EventsToInject() const {
     return events_to_inject;
 }
 
+void Injector::ResetInjectedEvents() {
+    injected_events = 0;
+}
+
 Injector::operator bool() const {
     return injected_events < events_to_inject;
+}
+
+void Injector::SaveInjector(std::string const & filename) const {
+    std::ofstream os(filename+".siren_injector", std::ios::binary);
+    ::cereal::BinaryOutputArchive archive(os);
+    this->save(archive,0);
+}
+
+void Injector::LoadInjector(std::string const & filename) {
+    std::ifstream is(filename+".siren_injector", std::ios::binary);
+    ::cereal::BinaryInputArchive archive(is);
+    this->load(archive,0);
 }
 
 } // namespace injection

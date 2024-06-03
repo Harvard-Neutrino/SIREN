@@ -48,7 +48,6 @@ public:
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
-        } else {
             archive(::cereal::make_nvp("MuAlpha", mu_alpha));
             archive(::cereal::make_nvp("MuBeta", mu_beta));
             archive(::cereal::make_nvp("TauAlpha", tau_alpha));
@@ -56,13 +55,13 @@ public:
             archive(::cereal::make_nvp("Scale", scale));
             archive(::cereal::make_nvp("MaxDepth", max_depth));
             archive(::cereal::make_nvp("TauPrimaries", tau_primaries));
+        } else {
             throw std::runtime_error("LeptonDepthFunction only supports version <= 0!");
         }
     }
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
-        } else {
             archive(::cereal::make_nvp("MuAlpha", mu_alpha));
             archive(::cereal::make_nvp("MuBeta", mu_beta));
             archive(::cereal::make_nvp("TauAlpha", tau_alpha));
@@ -70,6 +69,7 @@ public:
             archive(::cereal::make_nvp("Scale", scale));
             archive(::cereal::make_nvp("MaxDepth", max_depth));
             archive(::cereal::make_nvp("TauPrimaries", tau_primaries));
+        } else {
             throw std::runtime_error("LeptonDepthFunction only supports version <= 0!");
         }
     }
@@ -83,6 +83,7 @@ protected:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::distributions::LeptonDepthFunction, 0);
+CEREAL_REGISTER_TYPE(siren::distributions::LeptonDepthFunction);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::DepthFunction, siren::distributions::LeptonDepthFunction);
 
 #endif // SIREN_LeptonDepthFunction_H

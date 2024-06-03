@@ -34,23 +34,21 @@ namespace interactions {
 class DarkNewsDecay : public Decay {
 friend cereal::access;
 public:
-    
+
     DarkNewsDecay();
 
-    virtual pybind11::object get_representation();
-    
     virtual bool equal(Decay const & other) const override;
-    
+
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
     virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
-    
+
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override = 0; // Requires python-side implementation
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const override = 0; // Requires python-side implementation
-    
+
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 public:
     virtual std::vector<std::string> DensityVariables() const override = 0; // Requires python-side implementation
@@ -71,7 +69,7 @@ public:
         }
     }
 
-};
+}; // class DarkNewsDecay
 
 } // namespace interactions
 } // namespace siren

@@ -1,7 +1,7 @@
 import os
 
 import siren
-from siren.LIController import LIController
+from siren.SIREN_Controller import SIREN_Controller
 
 # Define a DarkNews model
 model_kwargs = {
@@ -23,7 +23,7 @@ events_to_inject = 100000
 experiment = "MiniBooNE"
 
 # Define the controller
-controller = LIController(events_to_inject, experiment)
+controller = SIREN_Controller(events_to_inject, experiment)
 
 # Particle to inject
 primary_type = siren.dataclasses.Particle.ParticleType.NuMu
@@ -74,7 +74,7 @@ def stop(datum, i):
     secondary_type = datum.record.signature.secondary_types[i]
     return secondary_type != siren.dataclasses.Particle.ParticleType.N4
 
-controller.injector.SetStoppingCondition(stop)
+controller.SetInjectorStoppingCondition(stop)
 
 events = controller.GenerateEvents(fill_tables_at_exit=False)
 

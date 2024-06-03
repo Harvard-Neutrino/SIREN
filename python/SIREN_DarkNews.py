@@ -10,8 +10,8 @@ import logging
 from scipy.interpolate import LinearNDInterpolator,PchipInterpolator
 
 # SIREN methods
-import siren
 from siren.interactions import DarkNewsCrossSection, DarkNewsDecay
+from siren import dataclasses
 from siren.dataclasses import Particle
 from siren import _util
 
@@ -419,7 +419,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             )
             num_added_points+=1
         if diff:
-            interaction = siren.dataclasses.InteractionRecord()
+            interaction = dataclasses.InteractionRecord()
             interaction.signature.primary_type = self.GetPossiblePrimaries()[
                 0
             ]  # only one primary
@@ -507,7 +507,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     def GetPossibleSignatures(self):
         self._ensure_configured()
-        signature = siren.dataclasses.InteractionSignature()
+        signature = dataclasses.InteractionSignature()
         signature.primary_type = Particle.ParticleType(
             self.ups_case.nu_projectile.pdgid
         )
@@ -527,7 +527,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         ) and (
             (self.target_type == target_type)
         ):
-            signature = siren.dataclasses.InteractionSignature()
+            signature = dataclasses.InteractionSignature()
             signature.primary_type = Particle.ParticleType(
                 self.ups_case.nu_projectile.pdgid
             )
@@ -544,7 +544,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         return []
 
     def DifferentialCrossSection(self, arg1, target=None, energy=None, Q2=None):
-        if type(arg1) == siren.dataclasses.InteractionRecord:
+        if type(arg1) == dataclasses.InteractionRecord:
             interaction = arg1
             # Calculate Q2 assuming we are in the target rest frame
             m1sq = interaction.primary_momentum[0] ** 2 - np.sum(
@@ -566,7 +566,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             energy = interaction.primary_momentum[0]
         else:
             primary = arg1
-            interaction = siren.dataclasses.InteractionRecord()
+            interaction = dataclasses.InteractionRecord()
             interaction.signature.primary_type = primary
             interaction.signature.target_type = target
             interaction.primary_momentum = [energy, 0, 0, 0]
@@ -614,7 +614,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     def TotalCrossSection(self, arg1, energy=None, target=None):
         # Handle overloaded arguments
-        if type(arg1) == siren.dataclasses.InteractionRecord:
+        if type(arg1) == dataclasses.InteractionRecord:
             primary = arg1.signature.primary_type
             energy = arg1.primary_momentum[0]
             target = arg1.signature.target_type
@@ -625,7 +625,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             exit(0)
         if int(primary) != self.ups_case.nu_projectile:
             return 0
-        interaction = siren.dataclasses.InteractionRecord()
+        interaction = dataclasses.InteractionRecord()
         interaction.signature.primary_type = primary
         interaction.signature.target_type = target
         interaction.primary_momentum[0] = energy
@@ -732,7 +732,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 self.decay_norm = json.load(nfile)
 
     def GetPossibleSignatures(self):
-        signature = siren.dataclasses.InteractionSignature()
+        signature = dataclasses.InteractionSignature()
         signature.primary_type = Particle.ParticleType(self.dec_case.nu_parent.pdgid)
         signature.target_type = Particle.ParticleType.Decay
         secondary_types = []
@@ -744,7 +744,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
 
     def GetPossibleSignaturesFromParent(self, primary_type):
         if Particle.ParticleType(self.dec_case.nu_parent.pdgid) == primary_type:
-            signature = siren.dataclasses.InteractionSignature()
+            signature = dataclasses.InteractionSignature()
             signature.primary_type = Particle.ParticleType(
                 self.dec_case.nu_parent.pdgid
             )
@@ -766,7 +766,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         if type(self.dec_case) == FermionSinglePhotonDecay:
             gamma_idx = 0
             for secondary in record.signature.secondary_types:
-                if secondary == siren.dataclasses.Particle.ParticleType.Gamma:
+                if secondary == dataclasses.Particle.ParticleType.Gamma:
                     break
                 gamma_idx += 1
             if gamma_idx >= len(record.signature.secondary_types):
@@ -782,15 +782,15 @@ class PyDarkNewsDecay(DarkNewsDecay):
             nu_idx = -1
             for idx, secondary in enumerate(record.signature.secondary_types):
                 if secondary in [
-                    siren.dataclasses.Particle.ParticleType.EMinus,
-                    siren.dataclasses.Particle.ParticleType.MuMinus,
-                    siren.dataclasses.Particle.ParticleType.TauMinus,
+                    dataclasses.Particle.ParticleType.EMinus,
+                    dataclasses.Particle.ParticleType.MuMinus,
+                    dataclasses.Particle.ParticleType.TauMinus,
                 ]:
                     lepminus_idx = idx
                 elif secondary in [
-                    siren.dataclasses.Particle.ParticleType.EPlus,
-                    siren.dataclasses.Particle.ParticleType.MuPlus,
-                    siren.dataclasses.Particle.ParticleType.TauPlus,
+                    dataclasses.Particle.ParticleType.EPlus,
+                    dataclasses.Particle.ParticleType.MuPlus,
+                    dataclasses.Particle.ParticleType.TauPlus,
                 ]:
                     lepplus_idx = idx
                 else:
@@ -813,9 +813,9 @@ class PyDarkNewsDecay(DarkNewsDecay):
         return self.dec_case.differential_width(momenta)
 
     def TotalDecayWidth(self, arg1):
-        if type(arg1) == siren.dataclasses.InteractionRecord:
+        if type(arg1) == dataclasses.InteractionRecord:
             primary = arg1.signature.primary_type
-        elif type(arg1) == siren.dataclasses.Particle.ParticleType:
+        elif type(arg1) == dataclasses.Particle.ParticleType:
             primary = arg1
         else:
             print("Incorrect function call to TotalDecayWidth!")
@@ -930,7 +930,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         if type(self.dec_case) == FermionSinglePhotonDecay:
             gamma_idx = 0
             for secondary in record.signature.secondary_types:
-                if secondary == siren.dataclasses.Particle.ParticleType.Gamma:
+                if secondary == dataclasses.Particle.ParticleType.Gamma:
                     break
                 gamma_idx += 1
             if gamma_idx >= len(record.signature.secondary_types):
@@ -948,15 +948,15 @@ class PyDarkNewsDecay(DarkNewsDecay):
             nu_idx = -1
             for idx, secondary in enumerate(record.signature.secondary_types):
                 if secondary in [
-                    siren.dataclasses.Particle.ParticleType.EMinus,
-                    siren.dataclasses.Particle.ParticleType.MuMinus,
-                    siren.dataclasses.Particle.ParticleType.TauMinus,
+                    dataclasses.Particle.ParticleType.EMinus,
+                    dataclasses.Particle.ParticleType.MuMinus,
+                    dataclasses.Particle.ParticleType.TauMinus,
                 ]:
                     lepminus_idx = idx
                 elif secondary in [
-                    siren.dataclasses.Particle.ParticleType.EPlus,
-                    siren.dataclasses.Particle.ParticleType.MuPlus,
-                    siren.dataclasses.Particle.ParticleType.TauPlus,
+                    dataclasses.Particle.ParticleType.EPlus,
+                    dataclasses.Particle.ParticleType.MuPlus,
+                    dataclasses.Particle.ParticleType.TauPlus,
                 ]:
                     lepplus_idx = idx
                 else:

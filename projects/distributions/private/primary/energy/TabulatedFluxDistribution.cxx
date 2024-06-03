@@ -292,9 +292,9 @@ bool TabulatedFluxDistribution::equal(WeightableDistribution const & other) cons
         return false;
     else
         return
-            std::tie(energyMin, energyMax, fluxTableFilename)
+            std::tie(energyMin, energyMax, fluxTable)
             ==
-            std::tie(x->energyMin, x->energyMax, x->fluxTableFilename);
+            std::tie(x->energyMin, x->energyMax, x->fluxTable);
 }
 
 bool TabulatedFluxDistribution::less(WeightableDistribution const & other) const {

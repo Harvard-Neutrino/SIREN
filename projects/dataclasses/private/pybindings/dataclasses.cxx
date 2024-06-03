@@ -148,4 +148,7 @@ PYBIND11_MODULE(dataclasses,m) {
           .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionTreeDatum&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry))
           .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionRecord&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry));
 
+  m.def("SaveInteractionTrees",&SaveInteractionTrees);
+  m.def("LoadInteractionTrees",&LoadInteractionTrees,pybind11::return_value_policy::reference);
+
 }
