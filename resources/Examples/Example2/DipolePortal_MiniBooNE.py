@@ -41,11 +41,8 @@ primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-flux_file = siren.utilities.get_tabulated_flux_file("BNB","FHC_numu")
-edist = siren.distributions.TabulatedFluxDistribution(flux_file, True)
-edist_gen = siren.distributions.TabulatedFluxDistribution(
-    model_kwargs["m4"], 10, flux_file, False
-)
+edist = siren.utilities.load_flux("BNB", tag="FHC_numu", physically_normalized=True)
+edist_gen = siren.utilities.load_flux("BNB", tag="FHC_numu", min_energy=model_kwargs["m4"], max_energy=10, physically_normalized=False)
 primary_injection_distributions["energy"] = edist_gen
 primary_physical_distributions["energy"] = edist
 

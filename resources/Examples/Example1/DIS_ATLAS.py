@@ -38,9 +38,10 @@ primary_physical_distributions = {}
 
 # energy distribution
 # HE SN flux from ATLAS paper
-flux_file = siren.utilities.get_tabulated_flux_file("HE_SN","numu")
-edist = siren.distributions.TabulatedFluxDistribution(100, 1e6, flux_file, True) #bool is whether flux is physical
-primary_injection_distributions["energy"] = edist
+edist = siren.utilities.load_flux("HE_SN", tag="numu", min_energy=100, max_energy=1e6, physically_normalized=True)
+edist_gen = siren.utilities.load_flux("HE_SN", tag="numu", min_energy=100, max_energy=1e6, physically_normalized=False)
+
+primary_injection_distributions["energy"] = edist_gen
 primary_physical_distributions["energy"] = edist
 
 # direction distribution

@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import uuid
 import importlib
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -537,19 +538,21 @@ def get_cross_section_model_path(model_name, must_exist=True):
     return _get_model_path(model_name, prefix="CrossSections", is_file=False, must_exist=must_exist)
 
 
-def get_tabulated_flux_model_path(model_name, must_exist=True):
+def get_flux_model_path(model_name, must_exist=True):
     return _get_model_path(model_name,prefix="Fluxes", is_file=False, must_exist=must_exist)
- 
- 
-def get_tabulated_flux_file(model_name, tag, must_exist=True):
-        abs_flux_dir = get_tabulated_flux_model_path(model_name,must_exist=must_exist)
-        # require existence of FluxCalculator.py
-        FluxCalculatorFile = os.path.join(abs_flux_dir,"FluxCalculator.py")
-        assert(os.path.isfile(FluxCalculatorFile))
-        spec = importlib.util.spec_from_file_location("FluxCalculator", FluxCalculatorFile)
-        FluxCalculator = importlib.util.module_from_spec(spec)
-        sys.modules["FluxCalculator"] = FluxCalculator
-        spec.loader.exec_module(FluxCalculator)
-        flux_file = FluxCalculator.MakeFluxFile(tag,abs_flux_dir)
-        del sys.modules["FluxCalculator"] # remove flux directory from the system
-        return flux_file
+
+
+def load_flux(model_name, *args, **kwargs):
+    abs_flux_dir = get_flux_model_path(model_name, must_exist=True)
+
+    # require existence of flux.py
+    flux_file = os.path.join(abs_flux_dir, "flux.py")
+    assert(os.path.isfile(flux_file))
+    spec = importlib.util.spec_from_file_location("flux", flux_file)
+    flux = importlib.util.module_from_spec(spec)
+    module_name = f"siren-flux-{model_name}-{str(uuid.uuid4())}"
+    sys.modules[module_name] = flux
+    spec.loader.exec_module(flux)
+    flux_file = flux.load_flux(*args, **kwargs)
+    del sys.modules[module_name] # remove flux directory from the system
+    return flux_file
