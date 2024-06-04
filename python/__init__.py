@@ -14,8 +14,8 @@ utilities.get_resource_package_dir = _util.resource_package_dir
 utilities.get_detector_model_path = _util.get_detector_model_path
 utilities.get_material_model_path = _util.get_material_model_path
 utilities.get_cross_section_model_path = _util.get_cross_section_model_path
-utilities.get_tabulated_flux_model_path = _util.get_tabulated_flux_model_path
-utilities.get_tabulated_flux_file = _util.get_tabulated_flux_file
+utilities.get_flux_model_path = _util.get_flux_model_path
+utilities.load_flux = _util.load_flux
 
 def darknews_version():
     try:
@@ -25,3 +25,4 @@ def darknews_version():
         print("WARNING: DarkNews is not installed in the local environment")
         return None
 utilities.darknews_version = darknews_version
+

@@ -1,3 +1,4 @@
+import os
 import h5py
 import numpy as np
 import awkward as ak
@@ -413,10 +414,12 @@ class SIREN_Controller:
         self.injector.SetStoppingCondition(stopping_condition)
 
     # Initialize the injector, either from an existing .siren_injector file or from controller injection objects
-    def InitializeInjector(self,filenames=None):
-        if type(filenames)==str:
-            filenames = [filenames]
+    def InitializeInjector(self, filenames=None):
+        if type(filenames) == str:
+            if os.path.isfile(filenames):
+                filenames = [filenames]
         self.injectors=[]
+        filenames = None
         if filenames is None:
             assert(self.primary_injection_process.primary_type is not None)
             # Use controller injection objects
