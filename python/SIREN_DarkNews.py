@@ -13,15 +13,10 @@ from siren.interactions import DarkNewsCrossSection, DarkNewsDecay
 from siren import dataclasses
 from siren.dataclasses import Particle
 from siren import _util
+from siren.DNModelContainer import ModelContainer
 
 # DarkNews methods
 from DarkNews import phase_space
-from DarkNews.ModelContainer import ModelContainer
-ModelContainer_configure_logger = ModelContainer.configure_logger
-@functools.wraps(ModelContainer.configure_logger)
-def suppress_info(self, logger, loglevel="INFO", prettyprinter=None, logfile=None, verbose=False):
-    return ModelContainer_configure_logger(self, logger, loglevel="WARNING", prettyprinter=prettyprinter, logfile=logfile, verbose=verbose)
-ModelContainer.configure_logger = suppress_info
 from DarkNews.processes import *
 from DarkNews.nuclear_tools import NuclearTarget
 from DarkNews.integrands import get_decay_momenta_from_vegas_samples
