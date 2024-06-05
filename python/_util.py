@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import uuid
+import pathlib
 import importlib
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -167,6 +168,22 @@ def has_module(module_name):
         except ImportError:
             return False
         return True
+
+
+def load_module(name, path, persist=True):
+    """Load a module with a specific name and path"""
+    url = pathlib.Path(os.path.abspath(path)).as_uri()
+    module_name = f"{name}-{str(uuid.uuid5(uuid.NAMESPACE_URL, url))}"
+    if module_name in sys.modules:
+        return module
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module_name)
+    module = sys.modules[module_name]
+    if not persist:
+        del sys.modules[module_name]
+    return module
 
 
 _VERSION_PATTERN = r"""
@@ -556,3 +573,4 @@ def load_flux(model_name, *args, **kwargs):
     flux_file = flux.load_flux(*args, **kwargs)
     del sys.modules[module_name] # remove flux directory from the system
     return flux_file
+
