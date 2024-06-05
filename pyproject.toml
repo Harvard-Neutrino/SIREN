@@ -39,7 +39,7 @@ DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH:$DYLD_LIBRARY_PATH delocate-wheel --requi
 
 [project]
 name = "siren"
-version = "0.0.2"
+version = "0.0.3"
 description = "Sampling and Injection for Rare EveNts: A neutrino and rare-process injection toolkit"
 readme = "README.md"
 requires-python = ">=3.8"
