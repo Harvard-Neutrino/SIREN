@@ -100,9 +100,6 @@ class PyDarkNewsInteractionCollection:
         self.GenerateCrossSections(use_pickles=use_pickles,**xs_kwargs)
         self.GenerateDecays(use_pickles=use_pickles)
 
-
-
-
     def GenerateCrossSections(self, use_pickles, **kwargs):
         # Save all unique scattering processes
         self.cross_sections = []
