@@ -14,15 +14,10 @@ from siren.interactions import DarkNewsCrossSection, DarkNewsDecay
 from siren import dataclasses
 from siren.dataclasses import Particle
 from siren import _util
+from siren.DNModelContainer import ModelContainer
 
 # DarkNews methods
 from DarkNews import phase_space
-from DarkNews.ModelContainer import ModelContainer
-ModelContainer_configure_logger = ModelContainer.configure_logger
-@functools.wraps(ModelContainer.configure_logger)
-def suppress_info(self, logger, loglevel="INFO", prettyprinter=None, logfile=None, verbose=False):
-    return ModelContainer_configure_logger(self, logger, loglevel="WARNING", prettyprinter=prettyprinter, logfile=logfile, verbose=verbose)
-ModelContainer.configure_logger = suppress_info
 from DarkNews.processes import *
 from DarkNews.nuclear_tools import NuclearTarget
 from DarkNews.integrands import get_decay_momenta_from_vegas_samples
@@ -101,14 +96,14 @@ class PyDarkNewsInteractionCollection:
             # Dump the model arguments
             with open(os.path.join(self.table_dir, "model_parameters.json"), "w") as f:
                 json.dump(self.models.model_args_dict, f)
-    
+
         self.GenerateCrossSections(use_pickles=use_pickles,**xs_kwargs)
         self.GenerateDecays(use_pickles=use_pickles)
-        
-        
 
-        
-    def GenerateCrossSections(self, use_pickles, **kwargs):    
+
+
+
+    def GenerateCrossSections(self, use_pickles, **kwargs):
         # Save all unique scattering processes
         self.cross_sections = []
         for ups_key, ups_case in self.models.ups_cases.items():
@@ -133,7 +128,7 @@ class PyDarkNewsInteractionCollection:
                         **kwargs
                     )
                 )
-    
+
     def GenerateDecays(self, use_pickles, **kwargs):
         # Save all unique decay processes
         self.decays = []
@@ -150,7 +145,7 @@ class PyDarkNewsInteractionCollection:
             else:
                 self.decays.append(
                     PyDarkNewsDecay(
-                        dec_case, 
+                        dec_case,
                         table_dir=table_dir,
                         **kwargs
                     )
@@ -174,14 +169,14 @@ class PyDarkNewsInteractionCollection:
         for decay in self.decays:
             with open(os.path.join(decay.table_dir,"dec_object.pkl"),"wb") as f:
                 pickle.dump(decay,f)
-    
+
     # Fill every cross section table
     def FillCrossSectionTables(self, Emax=None):
         for cross_section in self.cross_sections:
             print("Filling cross section table at %s" % cross_section.table_dir)
             num = cross_section.FillInterpolationTables(Emax=Emax)
             print("Added %d points" % num)
-    
+
     # Fill every cross section table
     def FillCrossSectionTablesAtEnergy(self, E):
         for cross_section in self.cross_sections:
@@ -249,7 +244,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 self.differential_cross_section_table = np.load(diff_xsec_file)
 
         self.configure()
-    
+
     # serialization method
     def get_representation(self):
         return {"total_cross_section_table":self.total_cross_section_table,
@@ -261,7 +256,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
                 "always_interpolate":self.always_interpolate,
                 "is_configured":False
                }
-    
+
     # Configure function to set up member variables
     # assumes we have defined the following:
     #   ups_case, total_cross_section_table, differential_cross_section_table,
@@ -277,7 +272,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         self.target_type = Particle.ParticleType(self.ups_case.nuclear_target.pdgid)
         if self.target_type==Particle.ParticleType.PPlus:
             self.target_type = Particle.ParticleType.HNucleus
-        
+
         # Initialize interpolation objects
         self.total_cross_section_interpolator = None
         self.differential_cross_section_interpolator = None
@@ -377,7 +372,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
         if self.always_interpolate:
             # check if energy is within table range
-            
+
             if interpolator is None or inputs[0] > interp_table[-1,0]:
                 print("Requested interpolation at %2.2f GeV. Either this is above the table boundary or the interpolator doesn't yet exist. Filling %s table"%(inputs[0],mode))
                 n = self.FillInterpolationTables(total=(mode=="total"),
@@ -393,9 +388,9 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             if val<0:
                 print("WARNING: negative interpolated value for %s-%s %s cross section at,"%(self.ups_case.nuclear_target.name,
                                                                                              self.ups_case.scattering_regime,
-                                                                                             mode),inputs) 
+                                                                                             mode),inputs)
             return val
-        
+
         UseSinglePoint, Interpolate, closest_idx = self._interpolation_flags(
             inputs, mode
         )
@@ -445,13 +440,13 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         self._redefine_interpolation_objects(total=total, diff=diff)
         return num_added_points
 
-    
+
     # Fills the total and differential cross section tables within interp_tolerance
     def FillInterpolationTables(self, total=True, diff=True, factor=0.8, Emax=None):
         increment_factor = 0.5*factor * self.interp_tolerance
         Emin = (1.0 + self.tolerance) * self.ups_case.Ethreshold
         if Emax is None:
-            if (len(self.total_cross_section_table) + 
+            if (len(self.total_cross_section_table) +
                 len(self.differential_cross_section_table)) <=0:
                 return 0
             Emax = max(np.max([0] + list(self.total_cross_section_table[:, 0])),
@@ -716,7 +711,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 "total_width":self.total_width,
                 "table_dir":self.table_dir
                }
-    
+
     def SetIntegratorAndNorm(self):
         # Try to find the decay integrator
         int_file = os.path.join(self.table_dir, "decay_integrator.pkl")
