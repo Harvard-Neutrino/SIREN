@@ -1,21 +1,24 @@
-#include "SIREN/interactions/DISFromSpline.h"
+#include "SIREN/interactions/HNLDISFromSpline.h"
 
 #include <map>                                             // for map, opera...
 #include <set>                                             // for set, opera...
 #include <array>                                           // for array
 #include <cmath>                                           // for pow, log10
 #include <tuple>                                           // for tie, opera...
-#include <memory>                                          // for allocator
 #include <string>                                          // for basic_string
+#include <memory>                                          // for allocator
 #include <vector>                                          // for vector
 #include <assert.h>                                        // for assert
 #include <stddef.h>                                        // for size_t
 
-#include <rk/rk.hh>                                        // for P4, Boost
 #include <rk/geom3.hh>                                     // for Vector3
+#include <rk/rk.hh>                                        // for P4, Boost
 
-#include <photospline/splinetable.h>                       // for splinetable
-//#include <photospline/cinter/splinetable.h>
+#include <rk/rk.hh>
+#include <rk/geom3.hh>
+
+#include <photospline/splinetable.h>
+#include <photospline/cinter/splinetable.h>
 
 #include "SIREN/interactions/CrossSection.h"     // for CrossSection
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
@@ -53,53 +56,47 @@ bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
 }
 }
 
-DISFromSpline::DISFromSpline() {}
+HNLDISFromSpline::HNLDISFromSpline() {}
 
-DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+HNLDISFromSpline::HNLDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), hnl_mass_(hnl_mass), mixing_(mixing), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
-    SetMinimiumW2();
     SetUnits(units);
 }
 
-DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+HNLDISFromSpline::HNLDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), hnl_mass_(hnl_mass), mixing_(mixing), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
-    SetMinimiumW2();
     SetUnits(units);
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), hnl_mass_(hnl_mass), mixing_(mixing), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
-    SetMinimiumW2();
     SetUnits(units);
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types) {
+HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : hnl_mass_(hnl_mass), mixing_(mixing), primary_types_(primary_types), target_types_(target_types) {
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
-    SetMinimiumW2();
     SetUnits(units);
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : hnl_mass_(hnl_mass), mixing_(mixing), primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
-    SetMinimiumW2();
     SetUnits(units);
 }
 
-DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()) {
+HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : hnl_mass_(hnl_mass), mixing_(mixing), primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()) {
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
-    SetMinimiumW2();
     SetUnits(units);
 }
 
-void DISFromSpline::SetUnits(std::string units) {
+void HNLDISFromSpline::SetUnits(std::string units) {
     std::transform(units.begin(), units.end(), units.begin(),
         [](unsigned char c){ return std::tolower(c); });
     if(units == "cm") {
@@ -109,17 +106,20 @@ void DISFromSpline::SetUnits(std::string units) {
     } else {
         throw std::runtime_error("Cross section units not supported!");
     }
+    // below is leftover code from when I (Nick) am stupid and made the cross section splines in eV^-2 somehow...
+    // unit = pow(siren::utilities::Constants::hbarc,2) / pow(siren::utilities::Constants::eV,2) / pow(siren::utilities::Constants::cm,2);
 }
 
-bool DISFromSpline::equal(CrossSection const & other) const {
-    const DISFromSpline* x = dynamic_cast<const DISFromSpline*>(&other);
+bool HNLDISFromSpline::equal(CrossSection const & other) const {
+    const HNLDISFromSpline* x = dynamic_cast<const HNLDISFromSpline*>(&other);
 
     if(!x)
         return false;
     else
         return
             std::tie(
-            interaction_type_,
+            hnl_mass_,
+            mixing_,
             target_mass_,
             minimum_Q2_,
             signatures_,
@@ -129,7 +129,8 @@ bool DISFromSpline::equal(CrossSection const & other) const {
             total_cross_section_)
             ==
             std::tie(
-            x->interaction_type_,
+            x->hnl_mass_,
+            x->mixing_,
             x->target_mass_,
             x->minimum_Q2_,
             x->signatures_,
@@ -139,7 +140,7 @@ bool DISFromSpline::equal(CrossSection const & other) const {
             x->total_cross_section_);
 }
 
-void DISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::string total_crossSectionFile) {
+void HNLDISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::string total_crossSectionFile) {
 
     differential_cross_section_ = photospline::splinetable<>(dd_crossSectionFile.c_str());
 
@@ -154,48 +155,23 @@ void DISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::string to
                 + " dimensions, should have 1, log10(E)");
 }
 
-void DISFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data) {
+void HNLDISFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data) {
     differential_cross_section_.read_fits_mem(differential_data.data(), differential_data.size());
     total_cross_section_.read_fits_mem(total_data.data(), total_data.size());
 }
 
-double DISFromSpline::GetLeptonMass(siren::dataclasses::ParticleType lepton_type) {
-    int32_t lepton_number = std::abs(static_cast<int32_t>(lepton_type));
-    double lepton_mass;
-    switch(lepton_number) {
-        case 11:
-            lepton_mass = siren::utilities::Constants::electronMass;
-            break;
-        case 13:
-            lepton_mass = siren::utilities::Constants::muonMass;
-            break;
-        case 15:
-            lepton_mass = siren::utilities::Constants::tauMass;
-            break;
-        case 12:
-            lepton_mass = 0;
-        case 14:
-            lepton_mass = 0;
-        case 16:
-            lepton_mass = 0;
-            break;
-        default:
-            throw std::runtime_error("Unknown lepton type!");
-    }
-    return lepton_mass;
-}
-
-void DISFromSpline::ReadParamsFromSplineTable() {
+void HNLDISFromSpline::ReadParamsFromSplineTable() {
     // returns true if successfully read target mass
     bool mass_good = differential_cross_section_.read_key("TARGETMASS", target_mass_);
     // returns true if successfully read interaction type
+    int interaction_type_ = 2;
     bool int_good = differential_cross_section_.read_key("INTERACTION", interaction_type_);
     // returns true if successfully read minimum Q2
     bool q2_good = differential_cross_section_.read_key("Q2MIN", minimum_Q2_);
 
     if(!int_good) {
         // assume DIS to preserve compatability with previous versions
-        interaction_type_ = 1;
+        interaction_type_ = 2;
     }
 
     if(!q2_good) {
@@ -225,44 +201,26 @@ void DISFromSpline::ReadParamsFromSplineTable() {
     }
 }
 
-void DISFromSpline::InitializeSignatures() {
+void HNLDISFromSpline::InitializeSignatures() {
     signatures_.clear();
     for(auto primary_type : primary_types_) {
         dataclasses::InteractionSignature signature;
         signature.primary_type = primary_type;
 
         if(not isNeutrino(primary_type)) {
-            throw std::runtime_error("This DIS implementation only supports neutrinos as primaries!");
+            throw std::runtime_error("This HNL implementation only supports neutrinos as primaries!");
         }
 
-        siren::dataclasses::ParticleType charged_lepton_product = siren::dataclasses::ParticleType::unknown;
-        siren::dataclasses::ParticleType neutral_lepton_product = primary_type;
+        siren::dataclasses::Particle::ParticleType neutral_lepton_product = siren::dataclasses::Particle::ParticleType::unknown;
 
-        if(primary_type == siren::dataclasses::ParticleType::NuE) {
-            charged_lepton_product = siren::dataclasses::ParticleType::EMinus;
-        } else if(primary_type == siren::dataclasses::ParticleType::NuEBar) {
-            charged_lepton_product = siren::dataclasses::ParticleType::EPlus;
-        } else if(primary_type == siren::dataclasses::ParticleType::NuMu) {
-            charged_lepton_product = siren::dataclasses::ParticleType::MuMinus;
-        } else if(primary_type == siren::dataclasses::ParticleType::NuMuBar) {
-            charged_lepton_product = siren::dataclasses::ParticleType::MuPlus;
-        } else if(primary_type == siren::dataclasses::ParticleType::NuTau) {
-            charged_lepton_product = siren::dataclasses::ParticleType::TauMinus;
-        } else if(primary_type == siren::dataclasses::ParticleType::NuTauBar) {
-            charged_lepton_product = siren::dataclasses::ParticleType::TauPlus;
-        } else {
-            throw std::runtime_error("InitializeSignatures: Unkown parent neutrino type!");
+        if(int(primary_type) > 0) {
+            neutral_lepton_product = siren::dataclasses::Particle::ParticleType::N4;
+        }
+        else {
+            neutral_lepton_product = siren::dataclasses::Particle::ParticleType::N4Bar;
         }
 
-        if(interaction_type_ == 1) {
-            signature.secondary_types.push_back(charged_lepton_product);
-        } else if(interaction_type_ == 2) {
-            signature.secondary_types.push_back(neutral_lepton_product);
-        } else if(interaction_type_ == 3) {
-            signature.secondary_types.push_back(siren::dataclasses::ParticleType::Hadrons);
-        } else {
-            throw std::runtime_error("InitializeSignatures: Unkown interaction type!");
-        }
+        signature.secondary_types.push_back(neutral_lepton_product);
 
         signature.secondary_types.push_back(siren::dataclasses::ParticleType::Hadrons);
         for(auto target_type : target_types_) {
@@ -276,26 +234,18 @@ void DISFromSpline::InitializeSignatures() {
     }
 }
 
-void DISFromSpline::SetMinimiumW2() {
-    if (target_mass_ <=0) {
-        std::cerr << "Trying to set minimum W2 with non positive target mass\n";
-        exit(0);
-    }
-    minimum_W2_ = pow(target_mass_ + siren::utilities::Constants::Pi0Mass,2);
-}
-
-double DISFromSpline::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
+double HNLDISFromSpline::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
     siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
-    double primary_energy;
-    primary_energy = interaction.primary_momentum[0];
+    rk::P4 p2(geom3::Vector3(0, 0, 0), interaction.target_mass);
+    double primary_energy = interaction.primary_momentum[0];
     // if we are below threshold, return 0
     if(primary_energy < InteractionThreshold(interaction))
         return 0;
     return TotalCrossSection(primary_type, primary_energy);
 }
 
-double DISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy) const {
+double HNLDISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy) const {
     if(not primary_types_.count(primary_type)) {
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
@@ -312,22 +262,38 @@ double DISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType primary
     int center;
     total_cross_section_.searchcenters(&log_energy, &center);
     double log_xs = total_cross_section_.ndsplineeval(&log_energy, &center, 0);
-
-    return unit * std::pow(10.0, log_xs);
+    double norm = 0;
+    if (primary_type==siren::dataclasses::ParticleType::NuE || primary_type==siren::dataclasses::ParticleType::NuEBar)
+        norm = std::pow(mixing_[0],2);
+    else if (primary_type==siren::dataclasses::ParticleType::NuMu || primary_type==siren::dataclasses::ParticleType::NuMuBar)
+        norm = std::pow(mixing_[1],2);
+    else if (primary_type==siren::dataclasses::ParticleType::NuTau || primary_type==siren::dataclasses::ParticleType::NuTauBar)
+        norm = std::pow(mixing_[2],2);
+    return norm * unit * std::pow(10.0, log_xs);
 }
 
-double DISFromSpline::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
+// No implementation for HNL yet, just use non-target function
+double HNLDISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type) const {
+		return HNLDISFromSpline::TotalCrossSection(primary_type,primary_energy);
+}
+
+
+double HNLDISFromSpline::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(0, 0, 0), interaction.target_mass);
     double primary_energy;
+    rk::P4 p1_lab;
+    rk::P4 p2_lab;
     primary_energy = interaction.primary_momentum[0];
+    p1_lab = p1;
+    p2_lab = p2;
     assert(interaction.signature.secondary_types.size() == 2);
-    unsigned int lepton_index = (isLepton(interaction.signature.secondary_types[0])) ? 0 : 1;
-    unsigned int other_index = 1 - lepton_index;
+    unsigned int hnl_index = (interaction.signature.secondary_types[0]==siren::dataclasses::ParticleType::N4 || interaction.signature.secondary_types[0]==siren::dataclasses::ParticleType::N4Bar) ? 0 : 1;
+    unsigned int other_index = 1 - hnl_index;
 
-    std::array<double, 4> const & mom3 = interaction.secondary_momenta[lepton_index];
+    std::array<double, 4> const & mom3 = interaction.secondary_momenta[hnl_index];
     std::array<double, 4> const & mom4 = interaction.secondary_momenta[other_index];
-    rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses[lepton_index]);
+    rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses[hnl_index]);
     rk::P4 p4(geom3::Vector3(mom4[1], mom4[2], mom4[3]), interaction.secondary_masses[other_index]);
 
     rk::P4 q = p1 - p3;
@@ -335,12 +301,11 @@ double DISFromSpline::DifferentialCrossSection(dataclasses::InteractionRecord co
     double Q2 = -q.dot(q);
     double y = 1.0 - p2.dot(p3) / p2.dot(p1);
     double x = Q2 / (2.0 * p2.dot(q));
-    double lepton_mass = GetLeptonMass(interaction.signature.secondary_types[lepton_index]);
 
-    return DifferentialCrossSection(primary_energy, x, y, lepton_mass, Q2);
+    return DifferentialCrossSection(interaction.signature.primary_type, primary_energy, x, y, Q2);
 }
 
-double DISFromSpline::DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2) const {
+double HNLDISFromSpline::DifferentialCrossSection(siren::dataclasses::Particle::ParticleType primary_type, double energy, double x, double y, double Q2) const {
     double log_energy = log10(energy);
     // check preconditions
     if(log_energy < differential_cross_section_.lower_extent(0)
@@ -360,13 +325,9 @@ double DISFromSpline::DifferentialCrossSection(double energy, double x, double y
     if(Q2 < minimum_Q2_) // cross section not calculated, assumed to be zero
         return 0;
 
-    double W2 = pow(target_mass_, 2) + Q2/x * (1-x); // calculate invariant hardonic mass
-    if (W2 < minimum_W2_) // cross section not calculated, assumed to be zero
-        return 0;
-
     // cross section should be zero, but this check is missing from the original
     // CSMS calculation, so we must add it here
-    if(!kinematicallyAllowed(x, y, energy, target_mass_, secondary_lepton_mass))
+    if(!kinematicallyAllowed(x, y, energy, target_mass_, hnl_mass_))
         return 0;
 
     std::array<double,3> coordinates{{log_energy, log10(x), log10(y)}};
@@ -375,15 +336,24 @@ double DISFromSpline::DifferentialCrossSection(double energy, double x, double y
         return 0;
     double result = pow(10., differential_cross_section_.ndsplineeval(coordinates.data(), centers.data(), 0));
     assert(result >= 0);
-    return unit * result;
+    double norm = 0;
+    if (primary_type==siren::dataclasses::ParticleType::NuE || primary_type==siren::dataclasses::ParticleType::NuEBar)
+        norm = std::pow(mixing_[0],2);
+    else if (primary_type==siren::dataclasses::ParticleType::NuMu || primary_type==siren::dataclasses::ParticleType::NuMuBar)
+        norm = std::pow(mixing_[1],2);
+    else if (primary_type==siren::dataclasses::ParticleType::NuTau || primary_type==siren::dataclasses::ParticleType::NuTauBar)
+        norm = std::pow(mixing_[2],2);
+    return norm * unit * result;
 }
 
-double DISFromSpline::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
-    // Consider implementing DIS thershold at some point
-    return 0;
+double HNLDISFromSpline::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
+    // Using center of mass frame
+    // require E_cm > m_HNL
+    double M_iso = siren::utilities::Constants::isoscalarMass;
+    return (std::pow(hnl_mass_ + M_iso,2) - M_iso*M_iso)/(2*M_iso);
 }
 
-void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+void HNLDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
     if (differential_cross_section_.get_ndim() != 3) {
@@ -406,15 +376,14 @@ void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord
     p2_lab = p2;
     primary_energy = p1_lab.e();
 
-    unsigned int lepton_index = (isLepton(record.signature.secondary_types[0])) ? 0 : 1;
-    unsigned int other_index = 1 - lepton_index;
-    double m = GetLeptonMass(record.signature.secondary_types[lepton_index]);
+    unsigned int hnl_index = (record.signature.secondary_types[0]==siren::dataclasses::ParticleType::N4 || record.signature.secondary_types[0]==siren::dataclasses::ParticleType::N4Bar) ? 0 : 1;
+    unsigned int other_index = 1 - hnl_index;
+    double m = hnl_mass_;
 
     double m1 = record.primary_mass;
     double m3 = m;
     double E1_lab = p1_lab.e();
     double E2_lab = p2_lab.e();
-
 
     // The out-going particle always gets at least enough energy for its rest mass
     double yMax = 1 - m / primary_energy;
@@ -452,13 +421,12 @@ void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord
     // sample an intial point
     do {
         // rejection sample a point which is kinematically allowed by calculation limits
-        double trialQ,trialW;
+        double trialQ;
         do {
             kin_vars[1] = random->Uniform(logXMin,0);
             kin_vars[2] = random->Uniform(logYMin,logYMax);
             trialQ = (2 * E1_lab * E2_lab) * pow(10., kin_vars[1] + kin_vars[2]);
-            trialW = pow(target_mass_, 2) + trialQ/pow(10,kin_vars[1]) * (1-pow(10,kin_vars[1]));
-        } while(trialQ<minimum_Q2_ || trialW<minimum_W2_ || !kinematicallyAllowed(pow(10., kin_vars[1]), pow(10., kin_vars[2]), primary_energy, target_mass_, m));
+        } while(trialQ<minimum_Q2_ || !kinematicallyAllowed(pow(10., kin_vars[1]), pow(10., kin_vars[2]), primary_energy, target_mass_, m));
 
         accept = true;
         //sanity check: demand that the sampled point be within the table extents
@@ -491,13 +459,12 @@ void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord
     // big number means more accurate, but slower
     for(size_t j = 0; j <= burnin; j++) {
         // repeat the sampling from above to get a new valid point
-        double trialQ,trialW;
+        double trialQ;
         do {
             test_kin_vars[1] = random->Uniform(logXMin, 0);
             test_kin_vars[2] = random->Uniform(logYMin, logYMax);
             trialQ = (2 * E1_lab * E2_lab) * pow(10., test_kin_vars[1] + test_kin_vars[2]);
-            trialW = pow(target_mass_, 2) + trialQ/pow(10,test_kin_vars[1]) * (1-pow(10,test_kin_vars[1]));
-        } while(trialQ < minimum_Q2_ || trialW < minimum_W2_ || !kinematicallyAllowed(pow(10., test_kin_vars[1]), pow(10., test_kin_vars[2]), primary_energy, target_mass_, m));
+        } while(trialQ < minimum_Q2_ || !kinematicallyAllowed(pow(10., test_kin_vars[1]), pow(10., test_kin_vars[2]), primary_energy, target_mass_, m));
 
         accept = true;
         if(test_kin_vars[1] < differential_cross_section_.lower_extent(1)
@@ -539,7 +506,6 @@ void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord
     double p1x_lab = std::sqrt(p1_lab.px() * p1_lab.px() + p1_lab.py() * p1_lab.py() + p1_lab.pz() * p1_lab.pz());
     double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
     double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
-    // rounding error check
     double pqy_lab;
     if (pqx_lab>momq_lab){
         assert(((pqx_lab-momq_lab)/momq_lab)<1e-3);
@@ -569,7 +535,7 @@ void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord
     p4 = p4_lab;
 
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
-    siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
+    siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[hnl_index];
     siren::dataclasses::SecondaryParticleRecord & other = secondaries[other_index];
 
 
@@ -582,7 +548,7 @@ void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord
     other.SetHelicity(record.target_helicity);
 }
 
-double DISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
+double HNLDISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
     double dxs = DifferentialCrossSection(interaction);
     double txs = TotalCrossSection(interaction);
     if(dxs == 0) {
@@ -592,23 +558,23 @@ double DISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const
     }
 }
 
-std::vector<siren::dataclasses::ParticleType> DISFromSpline::GetPossiblePrimaries() const {
+std::vector<siren::dataclasses::ParticleType> HNLDISFromSpline::GetPossiblePrimaries() const {
     return std::vector<siren::dataclasses::ParticleType>(primary_types_.begin(), primary_types_.end());
 }
 
-std::vector<siren::dataclasses::ParticleType> DISFromSpline::GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const {
+std::vector<siren::dataclasses::ParticleType> HNLDISFromSpline::GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const {
     return std::vector<siren::dataclasses::ParticleType>(target_types_.begin(), target_types_.end());
 }
 
-std::vector<dataclasses::InteractionSignature> DISFromSpline::GetPossibleSignatures() const {
+std::vector<dataclasses::InteractionSignature> HNLDISFromSpline::GetPossibleSignatures() const {
     return std::vector<dataclasses::InteractionSignature>(signatures_.begin(), signatures_.end());
 }
 
-std::vector<siren::dataclasses::ParticleType> DISFromSpline::GetPossibleTargets() const {
+std::vector<siren::dataclasses::ParticleType> HNLDISFromSpline::GetPossibleTargets() const {
     return std::vector<siren::dataclasses::ParticleType>(target_types_.begin(), target_types_.end());
 }
 
-std::vector<dataclasses::InteractionSignature> DISFromSpline::GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const {
+std::vector<dataclasses::InteractionSignature> HNLDISFromSpline::GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const {
     std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType> key(primary_type, target_type);
     if(signatures_by_parent_types_.find(key) != signatures_by_parent_types_.end()) {
         return signatures_by_parent_types_.at(key);
@@ -617,7 +583,7 @@ std::vector<dataclasses::InteractionSignature> DISFromSpline::GetPossibleSignatu
     }
 }
 
-std::vector<std::string> DISFromSpline::DensityVariables() const {
+std::vector<std::string> HNLDISFromSpline::DensityVariables() const {
     return std::vector<std::string>{"Bjorken x", "Bjorken y"};
 }
 

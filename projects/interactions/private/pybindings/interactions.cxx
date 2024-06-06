@@ -3,23 +3,23 @@
 
 #include "../../public/SIREN/interactions/Interaction.h"
 #include "../../public/SIREN/interactions/CrossSection.h"
-#include "../../public/SIREN/interactions/NeutrissimoDecay.h"
 #include "../../public/SIREN/interactions/InteractionCollection.h"
 #include "../../public/SIREN/interactions/DISFromSpline.h"
-#include "../../public/SIREN/interactions/HNLFromSpline.h"
-#include "../../public/SIREN/interactions/DipoleFromTable.h"
 #include "../../public/SIREN/interactions/DarkNewsCrossSection.h"
 #include "../../public/SIREN/interactions/DarkNewsDecay.h"
+#include "../../public/SIREN/interactions/HNLDipoleFromTable.h"
+#include "../../public/SIREN/interactions/HNLDipoleDISFromSpline.h"
+#include "../../public/SIREN/interactions/HNLDISFromSpline.h"
 
 #include "./Interaction.h"
 #include "./CrossSection.h"
-#include "./DipoleFromTable.h"
 #include "./DarkNewsCrossSection.h"
 #include "./DarkNewsDecay.h"
 #include "./DISFromSpline.h"
-#include "./HNLFromSpline.h"
 #include "./Decay.h"
-#include "./NeutrissimoDecay.h"
+#include "./HNLDipoleFromTable.h"
+#include "./HNLDipoleDISFromSpline.h"
+#include "./HNLDISFromSpline.h"
 #include "./InteractionCollection.h"
 #include "./DummyCrossSection.h"
 #include "./MarleyCrossSection.h"
@@ -38,12 +38,12 @@ PYBIND11_MODULE(interactions,m) {
     register_Interaction(m);
     register_CrossSection(m);
     register_Decay(m);
-    register_DipoleFromTable(m);
     register_DarkNewsCrossSection(m);
     register_DarkNewsDecay(m);
     register_DISFromSpline(m);
-    register_HNLFromSpline(m);
-    register_NeutrissimoDecay(m);
+    register_HNLDipoleFromTable(m);
+    register_HNLDipoleDISFromSpline(m);
+    register_HNLDISFromSpline(m);
     register_InteractionCollection(m);
     register_DummyCrossSection(m);
     register_MarleyCrossSection(m);
