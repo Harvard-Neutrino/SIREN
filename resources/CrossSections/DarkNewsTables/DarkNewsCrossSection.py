@@ -39,30 +39,37 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
     def load_from_table(self, table_dir):
         # Make the table directory where will we store cross section tables
-        table_dir_exists = False
-        if os.path.exists(table_dir):
-            # print("Directory '%s' already exists"%table_dir)
-            table_dir_exists = True
-        else:
+        if not os.path.exists(table_dir):
             try:
                 os.makedirs(table_dir, exist_ok=False)
-                # print("Directory '%s' created successfully" % table_dir)
             except OSError as error:
                 raise RuntimeError("Directory '%s' cannot be created" % table_dir)
 
         # Look in table dir and check whether total/differential xsec tables exist
-        if table_dir_exists:
-            total_xsec_file = os.path.join(table_dir, "total_cross_sections.npy")
-            if os.path.exists(total_xsec_file):
-                self.total_cross_section_table = np.load(total_xsec_file)
-            diff_xsec_file = os.path.join(
-                table_dir, "differential_cross_sections.npy"
-            )
-            if os.path.exists(diff_xsec_file):
-                self.differential_cross_section_table = np.load(diff_xsec_file)
+        total_xsec_file = os.path.join(table_dir, "total_cross_sections.npy")
+        if os.path.exists(total_xsec_file):
+            self.total_cross_section_table = np.load(total_xsec_file)
+        diff_xsec_file = os.path.join(
+            table_dir, "differential_cross_sections.npy"
+        )
+        if os.path.exists(diff_xsec_file):
+            self.differential_cross_section_table = np.load(diff_xsec_file)
 
         self.configure()
 
+    def save_to_table(self, table_dir, total=True, diff=True):
+        if total:
+            self._redefine_interpolation_objects(total=True)
+            with open(
+                os.path.join(table_dir, "total_cross_sections.npy"), "wb"
+            ) as f:
+                np.save(f, self.total_cross_section_table)
+        if diff:
+            self._redefine_interpolation_objects(diff=True)
+            with open(
+                os.path.join(table_dir, "differential_cross_sections.npy"), "wb"
+            ) as f:
+                np.save(f, self.differential_cross_section_table)
 
     # serialization method
     def get_representation(self):
@@ -312,21 +319,6 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             E *= 1 + increment_factor
         self._redefine_interpolation_objects(total=total, diff=diff)
         return num_added_points
-
-    # Saves the tables for the scipy interpolation objects
-    def SaveInterpolationTables(self, table_dir, total=True, diff=True):
-        if total:
-            self._redefine_interpolation_objects(total=True)
-            with open(
-                os.path.join(table_dir, "total_cross_sections.npy"), "wb"
-            ) as f:
-                np.save(f, self.total_cross_section_table)
-        if diff:
-            self._redefine_interpolation_objects(diff=True)
-            with open(
-                os.path.join(table_dir, "differential_cross_sections.npy"), "wb"
-            ) as f:
-                np.save(f, self.differential_cross_section_table)
 
     def GetPossiblePrimaries(self):
         return [Particle.ParticleType(self.ups_case.nu_projectile.pdgid)]

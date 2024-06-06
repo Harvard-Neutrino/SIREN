@@ -27,49 +27,35 @@ class PyDarkNewsDecay(DarkNewsDecay):
         self.total_width = None
 
     def load_from_table(self, table_dir):
-        if table_dir is None:
-            print(
-                "No table_dir specified; will sample from new VEGAS integrator for each decay"
-            )
-            print("WARNING: this will siginficantly slow down event generation")
-            return
-
         # Make the table directory where will we store cross section integrators
-        table_dir_exists = False
-        if os.path.exists(table_dir):
-            # print("Directory '%s' already exists"%table_dir)
-            table_dir_exists = True
-        else:
+        if not os.path.exists(table_dir):
             try:
                 os.makedirs(table_dir, exist_ok=False)
-                print("Directory '%s' created successfully" % table_dir)
             except OSError as error:
-                print("Directory '%s' cannot be created" % table_dir)
-                exit(0)
+                raise RuntimeError("Directory '%s' cannot be created" % table_dir)
 
         # Try to find the decay integrator
-        int_file = os.path.join(table_dir, "decay_integrator.pkl")
-        if os.path.isfile(int_file):
-            with open(int_file, "rb") as ifile:
-                self.decay_integrator = pickle.load(ifile)
-        # Try to find the normalization information
-        norm_file = os.path.join(table_dir, "decay_norm.json")
-        if os.path.isfile(norm_file):
-            with open(
-                norm_file,
-            ) as nfile:
-                self.decay_norm = json.load(nfile)
+        decay_file = os.path.join(table_dir, "decay.pkl")
+        if os.path.isfile(decay_file):
+            with open(decay_file, "rb") as f:
+                self.decay_norm, self.decay_integrator = pickle.load(f)
 
+    def save_to_table(self, table_dir):
+        with open(os.path.join(table_dir, "decay.pkl") as f:
+            pickle.dump(f, {
+                "decay_integrator": self.decay_integrator,
+                "decay_norm": self.decay_norm
+            })
 
     # serialization method
     def get_representation(self):
-        return {"decay_integrator":self.decay_integrator,
-                "decay_norm":self.decay_norm,
-                "dec_case":self.dec_case,
-                "PS_samples":self.PS_samples,
-                "PS_weights":self.PS_weights,
-                "PS_weights_CDF":self.PS_weights_CDF,
-                "total_width":self.total_width,
+        return {"decay_integrator": self.decay_integrator,
+                "decay_norm": self.decay_norm,
+                "dec_case": self.dec_case,
+                "PS_samples": self.PS_samples,
+                "PS_weights": self.PS_weights,
+                "PS_weights_CDF": self.PS_weights_CDF,
+                "total_width": self.total_width,
                }
 
     def SetIntegratorAndNorm(self, decay_norm, decay_integrator):
