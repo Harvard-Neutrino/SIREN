@@ -172,7 +172,7 @@ def attempt_to_load_cross_section(
 
 
 def load_cross_sections(
-    model_kwargs,
+    models,
     table_dir=None,
     tolerance=1e-6,
     interp_tolerance=5e-2,
@@ -181,8 +181,6 @@ def load_cross_sections(
 ):
     if preferences is None:
         preferences = ["table", "pickle", "normal"]
-
-    models = ModelContainer(**model_kwargs)
 
     if table_dir is None:
         table_dir = ""
@@ -296,14 +294,12 @@ def attempt_to_load_decay(
 
 
 def load_decays(
-    model_kwargs,
+    models,
     table_dir=None,
     preferences=None,
 ):
     if preferences is None:
         preferences = ["table", "pickle", "normal"]
-
-    models = ModelContainer(**model_kwargs)
 
     if table_dir is None:
         table_dir = ""
@@ -347,32 +343,31 @@ def load_processes(
     base_path = os.path.dirname(os.path.abspath(__file__))
     table_dir = os.path.join(base_path, "Dipole_M%2.2e_mu%2.2e" % (m4, mu_tr_mu4))
 
-    model_kwargs = {
-        "m4": m4,
-        "mu_tr_mu4": mu_tr_mu4,
-        "UD4": UD4,
-        "Umu4": Umu4,
-        "epsilon": epsilon,
-        "gD": gD,
-        "decay_product": decay_product,
-        "noHC": noHC,
-    }
+    models = ModelContainer(
+        m4=m4,
+        mu_tr_mu4=mu_tr_mu4,
+        UD4=UD4,
+        Umu4=Umu4,
+        epsilon=epsilon,
+        gD=gD,
+        decay_product=decay_product,
+        noHC=noHC,
+    )
 
     cross_sections = load_cross_sections(
-        model_kwargs,
-        table_dir=None,
+        models,
+        table_dir=table_dir,
         tolerance=tolerance,
         interp_tolerance=interp_tolerance,
         always_interpolate=always_interpolate,
     )
 
     decays = load_decays(
-        model_kwargs,
-        table_dir=None,
-        tolerance=tolerance,
-        interp_tolerance=interp_tolerance,
-        always_interpolate=always_interpolate,
+        models,
+        table_dir=table_dir,
     )
+
+    cross_sections = [xs for xs in cross_sections if len([s for s in xs.GetPossibleSignatures() if s.primary_type == primary_type])>0]
 
     if fill_tables_at_start:
         if Emax is None:
@@ -383,82 +378,5 @@ def load_processes(
             for cross_section in cross_sections:
                 cross_section.FillInterpolationTables(Emax=Emax)
 
-    # Initialize primary InteractionCollection
-    # Loop over available cross sections and save those which match primary type
-    primary_cross_sections = []
-    for cross_section in self.DN_processes.cross_sections:
-        if primary_type == _dataclasses.Particle.ParticleType(
-            cross_section.ups_case.nu_projectile.pdgid
-        ):
-            primary_cross_sections.append(cross_section)
-    primary_interaction_collection = _interactions.InteractionCollection(
-        primary_type, primary_cross_sections
-    )
+    return cross_sections + decays
 
-    # Initialize secondary processes and define secondary InteractionCollection objects
-    secondary_decays = {}
-    # Also keep track of the minimum decay width for defining the position distribution later
-    self.DN_min_decay_width = np.inf
-    # Loop over available decays, group by parent type
-    for decay in self.DN_processes.decays:
-        secondary_type = _dataclasses.Particle.ParticleType(
-            decay.dec_case.nu_parent.pdgid
-        )
-        if secondary_type not in secondary_decays.keys():
-            secondary_decays[secondary_type] = []
-        secondary_decays[secondary_type].append(decay)
-        total_decay_width = decay.TotalDecayWidth(secondary_type)
-        if total_decay_width < self.DN_min_decay_width:
-            self.DN_min_decay_width = total_decay_width
-    # Now make the list of secondary cross section collections
-    # Add new secondary injection and physical processes at the same time
-    secondary_interaction_collections = []
-    for secondary_type, decay_list in secondary_decays.items():
-        # Define a sedcondary injection distribution
-        secondary_injection_process = _injection.SecondaryInjectionProcess()
-        secondary_physical_process = _injection.PhysicalProcess()
-        secondary_injection_process.primary_type = secondary_type
-        secondary_physical_process.primary_type = secondary_type
-
-        # Add the secondary position distribution
-        if self.fid_vol is not None:
-            secondary_injection_process.AddSecondaryInjectionDistribution(
-                _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
-            )
-        else:
-            secondary_injection_process.AddSecondaryInjectionDistribution(
-                _distributions.SecondaryPhysicalVertexDistribution()
-            )
-
-        self.secondary_injection_processes.append(secondary_injection_process)
-        self.secondary_physical_processes.append(secondary_physical_process)
-
-        secondary_interaction_collections.append(
-            _interactions.InteractionCollection(secondary_type, decay_list)
-        )
-
-    self.SetInteractions(
-        primary_interaction_collection, secondary_interaction_collections
-    )
-
-
-def GetFiducialVolume(self):
-    """
-    :return: identified fiducial volume for the experiment, None if not found
-    """
-    detector_model_file = _util.get_detector_model_path(self.experiment)
-    with open(detector_model_file) as file:
-        fiducial_line = None
-        detector_line = None
-        for line in file:
-            data = line.split()
-            if len(data) <= 0:
-                continue
-            elif data[0] == "fiducial":
-                fiducial_line = line
-            elif data[0] == "detector":
-                detector_line = line
-        if fiducial_line is None or detector_line is None:
-            return None
-        return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
-    return None
