@@ -12,6 +12,8 @@
 #include "SIREN/interactions/HNLDipoleFromTable.h"
 #include "SIREN/interactions/HNLDipoleDISFromSpline.h"
 #include "SIREN/interactions/HNLDISFromSpline.h"
+#include "SIREN/interactions/HNLDecay.h"
+#include "SIREN/interactions/HNLDipoleDecay.h"
 
 
 #endif // SIREN_serializable_H
