@@ -10,7 +10,7 @@
 #include <cereal/types/array.hpp>
 
 #include "SIREN/interactions/CrossSection.h"
-#include "SIREN/interactions/DipoleFromTable.h"
+#include "SIREN/interactions/HNLDipoleFromTable.h"
 
 #include "SIREN/utilities/Random.h"
 #include "SIREN/dataclasses/Particle.h"
@@ -21,7 +21,7 @@ using namespace siren::interactions;
 using namespace siren::dataclasses;
 using namespace siren::utilities;
 
-TEST(DipoleFromTable, Constructor)
+TEST(HNLDipoleFromTable, Constructor)
 {
     double hnl_mass = 0.001;
     std::string differential_xs = "/home/austin/nu-dipole/xsecs/xsec_tables/diff_xsec_y_Enu/dxsec_Z_6_A_12_mHNL_0.001_hf.dat";
@@ -30,7 +30,7 @@ TEST(DipoleFromTable, Constructor)
     std::string proton_total_xs = "/home/austin/nu-dipole/xsecs/xsec_tables/tot_xsec_Enu/xsec_Z_1_A_1_mHNL_0.001_hf.dat";
     std::vector<ParticleType> primary_types = {ParticleType::NuE, ParticleType::NuMu, ParticleType::NuTau};
     std::vector<ParticleType> target_types = {ParticleType::PPlus, ParticleType::Neutron, ParticleType::Nucleon};
-    std::shared_ptr<DipoleFromTable> dipole_xs = std::make_shared<DipoleFromTable>(hnl_mass, 1e-7, DipoleFromTable::HelicityChannel::Flipping);
+    std::shared_ptr<HNLDipoleFromTable> dipole_xs = std::make_shared<HNLDipoleFromTable>(hnl_mass, 1e-7, HNLDipoleFromTable::HelicityChannel::Flipping);
     dipole_xs->AddDifferentialCrossSectionFile(differential_xs, ParticleType::C12Nucleus);
     dipole_xs->AddTotalCrossSectionFile(total_xs, ParticleType::C12Nucleus);
     dipole_xs->AddDifferentialCrossSectionFile(proton_differential_xs, ParticleType::HNucleus);
