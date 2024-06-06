@@ -543,34 +543,53 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
     return os.path.join(base_dir, model_name, model_file_name)
 
 
-def get_detector_model_path(model_name, must_exist=True):
+def get_detector_model_file_path(model_name, must_exist=True):
     return _get_model_path(model_name, prefix="Detectors/densities", suffix=".dat", is_file=True, must_exist=must_exist)
 
 
-def get_material_model_path(model_name, must_exist=True):
+def get_material_model_file_path(model_name, must_exist=True):
     return _get_model_path(model_name, prefix="Detectors/materials", suffix=".dat", is_file=True, must_exist=must_exist)
 
 
-def get_cross_section_model_path(model_name, must_exist=True):
-    return _get_model_path(model_name, prefix="CrossSections", is_file=False, must_exist=must_exist)
+_resource_folder_by_name = {
+    "flux": "Fluxes",
+    "detector": "Detectors",
+    "processes": "Processes",
+}
 
 
 def get_flux_model_path(model_name, must_exist=True):
-    return _get_model_path(model_name,prefix="Fluxes", is_file=False, must_exist=must_exist)
+    return _get_model_path(model_name, prefix=_resource_folder_by_name["flux"], is_file=False, must_exist=must_exist)
+
+
+def get_detector_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix=_resource_folder_by_name["detector"], is_file=False, must_exist=must_exist)
+
+
+def get_processes_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix=_resource_folder_by_name["processes"], is_file=False, must_exist=must_exist)
+
+
+def load_resource(resource_name, resource_type, *args, **kwargs):
+    folder = _resource_folder_by_name[resource_type]
+
+    abs_dir = _get_model_path(model_name, prefix=folder, is_file=False, must_exist=True)
+
+    fname = os.path.join(abs_flux_dir, f"{resource_name}.py")
+    assert(os.path.isfile(fname))
+    resource_module = load_module(f"siren-{resource_type}-{model_name}", fname, persist=False)
+    loader = getattr(resource_module, f"load_{resource_name}")
+    resource = loader(*args, **kwargs)
+    return resource
 
 
 def load_flux(model_name, *args, **kwargs):
-    abs_flux_dir = get_flux_model_path(model_name, must_exist=True)
+    return load_resource("flux", model_name, *args, **kwargs)
 
-    # require existence of flux.py
-    flux_file = os.path.join(abs_flux_dir, "flux.py")
-    assert(os.path.isfile(flux_file))
-    spec = importlib.util.spec_from_file_location("flux", flux_file)
-    flux = importlib.util.module_from_spec(spec)
-    module_name = f"siren-flux-{model_name}-{str(uuid.uuid4())}"
-    sys.modules[module_name] = flux
-    spec.loader.exec_module(flux)
-    flux_file = flux.load_flux(*args, **kwargs)
-    del sys.modules[module_name] # remove flux directory from the system
-    return flux_file
 
+def load_detector(model_name, *args, **kwargs):
+    return load_resource("detector", model_name, *args, **kwargs)
+
+
+def load_processes(model_name, *args, **kwargs):
+    return load_resource("processes", model_name, *args, **kwargs)
