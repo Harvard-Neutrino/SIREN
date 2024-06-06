@@ -33,17 +33,32 @@ PYBIND11_MODULE(dataclasses,m) {
           .def_readwrite("helicity",&Particle::helicity)
           .def("GenerateID",&Particle::GenerateID);
 
-  enum_<ParticleType>(particle, "ParticleType", arithmetic())
+    enum_<ParticleType>(particle, "ParticleType", arithmetic())
 #define X(a, b) .value( #a , ParticleType:: a )
 #include "../../public/SIREN/dataclasses/ParticleTypes.def"
 #undef X
-          .export_values();
+        .export_values();
 
-  class_<InteractionSignature, std::shared_ptr<InteractionSignature>>(m, "InteractionSignature")
-          .def(init<>())
-          .def_readwrite("primary_type",&InteractionSignature::primary_type)
-          .def_readwrite("target_type",&InteractionSignature::target_type)
-          .def_readwrite("secondary_types",&InteractionSignature::secondary_types);
+    class_<InteractionSignature, std::shared_ptr<InteractionSignature>>(m, "InteractionSignature")
+        .def(init<>())
+        .def("__str__", [](InteractionSignature const & p) { std::stringstream ss; ss << p; return ss.str(); })
+        .def("__repr__", [](InteractionSignature const & s) {
+            std::stringstream ss;
+            ss << "InteractionSignature( ";
+            ss << s.primary_type << " ";
+            if(s.primary_type == ParticleType::unknown or s.target_type != ParticleType::unknown) {
+                ss << s.target_type << " ";
+            }
+            ss << "-> ";
+            for(auto const & secondary : s.secondary_types) {
+                ss << secondary << " ";
+            }
+            ss << ")";
+            return ss.str();
+        })
+        .def_readwrite("primary_type",&InteractionSignature::primary_type)
+        .def_readwrite("target_type",&InteractionSignature::target_type)
+        .def_readwrite("secondary_types",&InteractionSignature::secondary_types);
 
     class_<PrimaryDistributionRecord, std::shared_ptr<PrimaryDistributionRecord>>(m, "PrimaryDistributionRecord")
         .def(init<ParticleType>())

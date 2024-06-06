@@ -57,7 +57,7 @@ class PyDarkNewsInteractionCollection:
         if self.table_dir is None:
             self.table_dir = os.path.join(
                 resources_dir,
-                "CrossSections",
+                "Processes",
                 "DarkNewsTables",
                 datetime.datetime.now().strftime("%Y_%m_%d__%H:%M"),
             )
@@ -99,9 +99,6 @@ class PyDarkNewsInteractionCollection:
 
         self.GenerateCrossSections(use_pickles=use_pickles,**xs_kwargs)
         self.GenerateDecays(use_pickles=use_pickles)
-
-
-
 
     def GenerateCrossSections(self, use_pickles, **kwargs):
         # Save all unique scattering processes

@@ -1,6 +1,8 @@
 import os
 import re
 import sys
+import uuid
+import pathlib
 import importlib
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -166,6 +168,22 @@ def has_module(module_name):
         except ImportError:
             return False
         return True
+
+
+def load_module(name, path, persist=True):
+    """Load a module with a specific name and path"""
+    url = pathlib.Path(os.path.abspath(path)).as_uri()
+    module_name = f"{name}-{str(uuid.uuid5(uuid.NAMESPACE_URL, url))}"
+    if module_name in sys.modules:
+        return module
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module_name)
+    module = sys.modules[module_name]
+    if not persist:
+        del sys.modules[module_name]
+    return module
 
 
 _VERSION_PATTERN = r"""
@@ -525,31 +543,53 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
     return os.path.join(base_dir, model_name, model_file_name)
 
 
-def get_detector_model_path(model_name, must_exist=True):
+def get_detector_model_file_path(model_name, must_exist=True):
     return _get_model_path(model_name, prefix="Detectors/densities", suffix=".dat", is_file=True, must_exist=must_exist)
 
 
-def get_material_model_path(model_name, must_exist=True):
+def get_material_model_file_path(model_name, must_exist=True):
     return _get_model_path(model_name, prefix="Detectors/materials", suffix=".dat", is_file=True, must_exist=must_exist)
 
 
-def get_cross_section_model_path(model_name, must_exist=True):
-    return _get_model_path(model_name, prefix="CrossSections", is_file=False, must_exist=must_exist)
+_resource_folder_by_name = {
+    "flux": "Fluxes",
+    "detector": "Detectors",
+    "processes": "Processes",
+}
 
 
-def get_tabulated_flux_model_path(model_name, must_exist=True):
-    return _get_model_path(model_name,prefix="Fluxes", is_file=False, must_exist=must_exist)
- 
- 
-def get_tabulated_flux_file(model_name, tag, must_exist=True):
-        abs_flux_dir = get_tabulated_flux_model_path(model_name,must_exist=must_exist)
-        # require existence of FluxCalculator.py
-        FluxCalculatorFile = os.path.join(abs_flux_dir,"FluxCalculator.py")
-        assert(os.path.isfile(FluxCalculatorFile))
-        spec = importlib.util.spec_from_file_location("FluxCalculator", FluxCalculatorFile)
-        FluxCalculator = importlib.util.module_from_spec(spec)
-        sys.modules["FluxCalculator"] = FluxCalculator
-        spec.loader.exec_module(FluxCalculator)
-        flux_file = FluxCalculator.MakeFluxFile(tag,abs_flux_dir)
-        del sys.modules["FluxCalculator"] # remove flux directory from the system
-        return flux_file
+def get_flux_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix=_resource_folder_by_name["flux"], is_file=False, must_exist=must_exist)
+
+
+def get_detector_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix=_resource_folder_by_name["detector"], is_file=False, must_exist=must_exist)
+
+
+def get_processes_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix=_resource_folder_by_name["processes"], is_file=False, must_exist=must_exist)
+
+
+def load_resource(resource_name, resource_type, *args, **kwargs):
+    folder = _resource_folder_by_name[resource_type]
+
+    abs_dir = _get_model_path(model_name, prefix=folder, is_file=False, must_exist=True)
+
+    fname = os.path.join(abs_flux_dir, f"{resource_name}.py")
+    assert(os.path.isfile(fname))
+    resource_module = load_module(f"siren-{resource_type}-{model_name}", fname, persist=False)
+    loader = getattr(resource_module, f"load_{resource_name}")
+    resource = loader(*args, **kwargs)
+    return resource
+
+
+def load_flux(model_name, *args, **kwargs):
+    return load_resource("flux", model_name, *args, **kwargs)
+
+
+def load_detector(model_name, *args, **kwargs):
+    return load_resource("detector", model_name, *args, **kwargs)
+
+
+def load_processes(model_name, *args, **kwargs):
+    return load_resource("processes", model_name, *args, **kwargs)

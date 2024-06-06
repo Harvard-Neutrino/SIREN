@@ -9,13 +9,23 @@ from . import injection
 
 from . import _util
 
+# Intropspect package version
+import sys
+if sys.version_info >= (3, 8):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata
+__version__ = metadata.version(__package__)
+del sys
+del metadata
+
 # set up some public-facing utilities functions
 utilities.get_resource_package_dir = _util.resource_package_dir
 utilities.get_detector_model_path = _util.get_detector_model_path
 utilities.get_material_model_path = _util.get_material_model_path
 utilities.get_cross_section_model_path = _util.get_cross_section_model_path
-utilities.get_tabulated_flux_model_path = _util.get_tabulated_flux_model_path
-utilities.get_tabulated_flux_file = _util.get_tabulated_flux_file
+utilities.get_flux_model_path = _util.get_flux_model_path
+utilities.load_flux = _util.load_flux
 
 def darknews_version():
     try:
@@ -25,3 +35,4 @@ def darknews_version():
         print("WARNING: DarkNews is not installed in the local environment")
         return None
 utilities.darknews_version = darknews_version
+
