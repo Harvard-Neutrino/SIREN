@@ -11,7 +11,8 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DarkNewsDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/NeutrissimoDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DISFromSpline.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDISFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDipoleDISFromSpline.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElasticScattering.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
