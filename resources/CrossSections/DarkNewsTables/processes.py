@@ -11,6 +11,7 @@ xs_path = siren.utilities.get_cross_section_model_path(
     f"DarkNewsTables-v{siren.utilities.darknews_version()}", must_exist=False
 )
 
+
 def GetDetectorModelTargets(detector_model):
     """
     Determines the targets that exist inside the detector model
@@ -117,15 +118,13 @@ def attempt_to_load_cross_section(
             table_subdir = os.path.join(table_dir, subdir)
             if os.path.isdir(table_subdir):
                 try:
-                    cross_section = append(
-                        load_cross_section_from_table(
-                            models,
-                            ups_key,
-                            table_subdir,
-                            tolerance=tolerance,
-                            interp_tolerance=interp_tolerance,
-                            always_interpolate=always_interpolate,
-                        )
+                    cross_section = load_cross_section_from_table(
+                        models,
+                        ups_key,
+                        table_subdir,
+                        tolerance=tolerance,
+                        interp_tolerance=interp_tolerance,
+                        always_interpolate=always_interpolate,
                     )
                     loaded = True
                 except Exception as e:
@@ -138,14 +137,12 @@ def attempt_to_load_cross_section(
             table_subdir = os.path.join(table_dir, subdir)
             if os.path.isdir(table_subdir):
                 try:
-                    cross_section = append(
-                        load_cross_section_from_pickle(
-                            ups_key,
-                            table_subdir,
-                            tolerance=tolerance,
-                            interp_tolerance=interp_tolerance,
-                            always_interpolate=always_interpolate,
-                        )
+                    cross_section = load_cross_section_from_pickle(
+                        ups_key,
+                        table_subdir,
+                        tolerance=tolerance,
+                        interp_tolerance=interp_tolerance,
+                        always_interpolate=always_interpolate,
                     )
                     loaded = True
                 except Exception as e:
@@ -156,14 +153,12 @@ def attempt_to_load_cross_section(
                 break
         elif p == "normal":
             try:
-                cross_sections = append(
-                    load_cross_section(
-                        models,
-                        ups_key,
-                        tolerance=tolerance,
-                        interp_tolerance=interp_tolerance,
-                        always_interpolate=always_interpolate,
-                    )
+                cross_sections = load_cross_section(
+                    models,
+                    ups_key,
+                    tolerance=tolerance,
+                    interp_tolerance=interp_tolerance,
+                    always_interpolate=always_interpolate,
                 )
                 loaded = True
             except Exception as e:
@@ -199,6 +194,125 @@ def load_cross_sections(
         )
 
     return cross_sections
+
+
+def load_decay(
+    model_container,
+    decay_key,
+):
+    if decay_key not in model_container.dec_cases:
+        raise KeyError(
+            f'Decay key "{decay_key}" not present in model_container.dec_cases'
+        )
+    decay_model = model_container.dec_cases[decay_key]
+    return PyDarkNewsDecay(
+        decay_model,
+    )
+
+
+def load_decay_from_table(
+    model_container,
+    decay_key,
+    table_dir,
+):
+    subdir = "_".join(["Decay"] + [str(x) for x in decay_key])
+    table_subdir = os.path.join(table_dir, subdir)
+
+    decay = load_decay(
+        model_container,
+        decay_key,
+    )
+    decay.load_from_table(table_subdir)
+    return decay
+
+
+def load_decay_from_pickle(
+    decay_key,
+    table_dir,
+):
+    subdir = "_".join(["Decay"] + [str(x) for x in decay_key])
+    table_subdir = os.path.join(table_dir, subdir)
+    fname = os.path.join(table_dir, "dec_object.pkl")
+    with open(fname, "rb") as f:
+        dec_obj = pickle.load(f)
+        return dec_obj
+
+
+def attempt_to_load_decay(
+    models,
+    dec_key,
+    tabel_dir,
+    preferences,
+):
+    if len(preferences) == 0:
+        raise ValueError("preferences must have at least one entry")
+
+    subdir = "_".join(["Decay"] + [str(x) for x in dec_key])
+    loaded = False
+    decay = None
+    for p in preferences:
+        if p == "table":
+            table_subdir = os.path.join(table_dir, subdir)
+            if os.path.isdir(table_subdir):
+                try:
+                    decay = load_decay_from_table(
+                        models,
+                        dec_key,
+                        table_subdir,
+                    )
+                    loaded = True
+                except Exception as e:
+                    print("Encountered exception while loading DN decay from table")
+                    raise e from None
+                break
+        elif p == "pickle":
+            table_subdir = os.path.join(table_dir, subdir)
+            if os.path.isdir(table_subdir):
+                try:
+                    decay = load_decay_from_pickle(
+                        ups_key,
+                        table_dir,
+                    )
+                    loaded = True
+                except Exception as e:
+                    print("Encountered exception while loading DN decay from pickle")
+                    raise e from None
+                break
+        elif p == "normal":
+            try:
+                decay = load_decay(
+                    models,
+                    dec_key,
+                )
+                loaded = True
+            except Exception as e:
+                print("Encountered exception while loading DN decay normally")
+                raise e from None
+            break
+
+    if not loaded:
+        raise RuntimeError("Not able to load DN decay with any strategy")
+    return decay
+
+
+def load_decays(
+    model_kwargs,
+    table_dir=None,
+    preferences=None,
+):
+    if preferences is None:
+        preferences = ["table", "pickle", "normal"]
+
+    models = ModelContainer(**model_kwargs)
+
+    if table_dir is None:
+        table_dir = ""
+
+    decays = []
+    for dec_key, dec_case in models.dec_cases.items():
+        decays.append(attempt_to_load_decy(models, dec_key, table_dir, preferences))
+
+    return decays
 
 
 def load_processes(
@@ -245,11 +359,19 @@ def load_processes(
     }
 
     cross_sections = load_cross_sections(
-       model_kwargs,
-       table_dir=None,
-       tolerance=tolerance,
-       interp_tolerance=interp_tolerance,
-       always_interpolate=always_interpolate,
+        model_kwargs,
+        table_dir=None,
+        tolerance=tolerance,
+        interp_tolerance=interp_tolerance,
+        always_interpolate=always_interpolate,
+    )
+
+    decays = load_decays(
+        model_kwargs,
+        table_dir=None,
+        tolerance=tolerance,
+        interp_tolerance=interp_tolerance,
+        always_interpolate=always_interpolate,
     )
 
     if fill_tables_at_start:
