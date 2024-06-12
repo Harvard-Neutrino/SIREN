@@ -56,6 +56,12 @@ X(TauPlus, -15)
 X(TauMinus, 15)
 X(NuTau, 16)
 X(NuTauBar, -16)
+X(Charm, 4)
+X(CharmBar, -4)
+X(K0, 311)
+X(K0Bar, -311)
+
+
 
 /* Nuclei */
 X(HNucleus, 1000010010)

@@ -53,6 +53,9 @@ static const double EtaMass         = 0.547862; // GeV
 static const double EtaPrimeMass    = 0.95778;  // GeV
 static const double RhoMass         = 0.77526; // GeV
 static const double OmegaMass       = 0.78266; // GeV
+static const double D0Mass          = 1.86962; // GeV
+static const double DPlusMass       = 1.86484; // GeV
+static const double CharmMass       = 1.27; // GeV
 
 // confusing units
 // static const double second          = 1.523e15; // [eV^-1 sec^-1]
@@ -102,6 +105,9 @@ static const double thetaWeinberg   = 0.2312; // dimensionless
 static const double gravConstant    = 6.6700e-11; // [m^3 kg^-1 s^-2]
 static const double fineStructure   = 1.0/137.0; // dimensionless
 static const double hbarc           = 197.3*(1e-9)*(1e-7)*GeV*cm; // [GeV m]
+
+//hbar
+static const double hbar            = 6.58211957 * (1e-25); // GeV seconds
 
 
 } // namespace Constants

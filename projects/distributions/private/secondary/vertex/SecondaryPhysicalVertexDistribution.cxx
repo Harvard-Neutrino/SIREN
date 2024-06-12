@@ -51,10 +51,21 @@ double log_one_minus_exp_of_negative(double x) {
 
 
 void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const {
+    std::cout << "in sample physical vertex" << std::endl;
     siren::math::Vector3D pos = record.initial_position;
     siren::math::Vector3D dir = record.direction;
+    // std::cout << "in sample physical vertex-1" << std::endl;
 
     siren::math::Vector3D endcap_0 = pos;
+    // treat hadronizations differntely
+    if (interactions->HasHadronizations()) {
+        std::cout << "in sample physical vertex-hadron" << std::endl;
+
+        record.SetLength(0);
+        return;
+    }
+    // std::cout << "in sample physical vertex-shouldnm't be here" << std::endl;
+
 
     siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
     path.ClipToOuterBounds();
@@ -75,6 +86,7 @@ void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<siren::ut
 
     double total_interaction_depth = path.GetInteractionDepthInBounds(targets, total_cross_sections, total_decay_length);
     if(total_interaction_depth == 0) {
+        std::cout << "error is here" << std::endl;
         throw(siren::utilities::InjectionFailure("No available interactions along path!"));
     }
 
@@ -96,11 +108,20 @@ void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<siren::ut
 }
 
 double SecondaryPhysicalVertexDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
+    std::cout << "in sample physical vertex gen prob" << std::endl;
+    
     siren::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();
     siren::math::Vector3D vertex(record.interaction_vertex);
 
     siren::math::Vector3D endcap_0 = record.primary_initial_position;
+    if (interactions->HasHadronizations()) {
+        if (vertex == endcap_0) {
+            return 1.0;
+        } else {
+            return 0.0;
+        }
+    }
 
     siren::detector::Path path(detector_model, DetectorPosition(endcap_0), DetectorDirection(dir), std::numeric_limits<double>::infinity());
     path.ClipToOuterBounds();

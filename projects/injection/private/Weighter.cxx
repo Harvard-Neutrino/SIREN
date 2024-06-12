@@ -25,6 +25,8 @@
 #include "SIREN/injection/Process.h"                     // for Phy...
 #include "SIREN/injection/WeightingUtils.h"              // for Cro...
 #include "SIREN/math/Vector3D.h"                         // for Vec...
+#include "SIREN/dataclasses/Particle.h"
+
 
 
 #include "SIREN/injection/Injector.h"
@@ -111,6 +113,10 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
         double physical_probability = 1.0;
         double generation_probability = injectors[idx]->EventsToInject();//GenerationProbability(tree);
         for(auto const & datum : tree.tree) {
+            // skip weighting if record contains hadronization
+            if (isQuark(datum->record.signature.primary_type)) {
+                continue;
+            }
             std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
             if(datum->depth() == 0) {
                 bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
