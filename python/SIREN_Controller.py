@@ -362,12 +362,21 @@ class SIREN_Controller:
 
         # Set primary cross sections
         if injection:
+            # set the primary type if doesn't exist
+            if self.primary_injection_process.primary_type == _dataclasses.Particle.ParticleType.unknown:
+                self.primary_injection_process.primary_type = primary_interaction_collection.GetPrimaryType()
+            else:
+                assert(self.primary_injection_process.primary_type == primary_interaction_collection.GetPrimaryType())
             if self.primary_injection_process.interactions is None:
                 self.primary_injection_process.interactions = primary_interaction_collection
             else:
                 self.primary_injection_process.interactions = MergeInteractionCollections(self.primary_injection_process.primary_type,
-                                                                                        [self.primary_injection_process.interactions, primary_interaction_collection])
+                                                                                         [self.primary_injection_process.interactions, primary_interaction_collection])
         if physical:
+            if self.primary_physical_process.primary_type == _dataclasses.Particle.ParticleType.unknown:
+                self.primary_physical_process.primary_type = primary_interaction_collection.GetPrimaryType()
+            else:
+                assert(self.primary_injection_process.primary_type == primary_interaction_collection.GetPrimaryType())
             if self.primary_physical_process.interactions is None:
                 self.primary_physical_process.interactions = primary_interaction_collection
             else:

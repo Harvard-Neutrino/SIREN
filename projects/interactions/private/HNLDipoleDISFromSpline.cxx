@@ -264,7 +264,7 @@ double HNLDipoleDISFromSpline::DifferentialCrossSection(dataclasses::Interaction
     double primary_energy;
     primary_energy = interaction.primary_momentum[0];
     assert(interaction.signature.secondary_types.size() == 2);
-    unsigned int hnl_index = (interaction.signature.secondary_types[0]==siren::dataclasses::ParticleType::NuF4 || interaction.signature.secondary_types[0]==siren::dataclasses::ParticleType::NuF4Bar) ? 0 : 1;
+    unsigned int hnl_index = (interaction.signature.secondary_types[0]==siren::dataclasses::ParticleType::N4 || interaction.signature.secondary_types[0]==siren::dataclasses::ParticleType::N4Bar) ? 0 : 1;
     unsigned int other_index = 1 - hnl_index;
 
     std::array<double, 4> const & mom3 = interaction.secondary_momenta[hnl_index];
@@ -353,7 +353,7 @@ void HNLDipoleDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistribut
     p2_lab = p2;
     primary_energy = p1_lab.e();
 
-    unsigned int hnl_index = (interaction.signature.secondary_types[0]==siren::dataclasses::ParticleType::NuF4 || interaction.signature.secondary_types[0]==siren::dataclasses::ParticleType::NuF4Bar) ? 0 : 1;
+    unsigned int hnl_index = (interaction.signature.secondary_types[0]==siren::dataclasses::ParticleType::N4 || interaction.signature.secondary_types[0]==siren::dataclasses::ParticleType::N4Bar) ? 0 : 1;
     unsigned int other_index = 1 - hnl_index;
     double m = hnl_mass_;
 
