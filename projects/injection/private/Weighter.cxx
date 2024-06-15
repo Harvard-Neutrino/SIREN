@@ -104,7 +104,7 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
     // Thus, the two will cancel out and we are left with only the unnormalized position probability
     //  w = p_physCommon / (\sum_i p_gen^i / p_physPosNonNorm^i)
 
-    
+
 
     double inv_weight = 0;
     for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
@@ -133,6 +133,58 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
         inv_weight += generation_probability / physical_probability;
     }
     return 1./inv_weight;
+}
+
+std::vector<double> Weighter::GetInteractionProbabilities(siren::dataclasses::InteractionTree const & tree, int i_inj) const {
+    // Returns the vector of interaction physical probabilities for each process
+    // Since we are concerned only with the physical probability, we use the first injector since physical processes are the same for all injectors
+    // HOWEVER the injection bounds will change based on the injector
+    // so, we allow the user to specify which injector they are interseted in
+
+    std::vector<double> int_probs;
+    for(auto const & datum : tree.tree) {
+        std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+        if(datum->depth() == 0) {
+            bounds = injectors[i_inj]->PrimaryInjectionBounds(datum->record);
+            int_probs.push_back(primary_process_weighters[i_inj]->InteractionProbability(bounds, datum->record));
+        }
+        else {
+            try {
+                bounds = injectors[i_inj]->SecondaryInjectionBounds(datum->record);
+                int_probs.push_back(secondary_process_weighter_maps[i_inj].at(datum->record.signature.primary_type)->InteractionProbability(bounds, datum->record));
+            } catch(const std::out_of_range& oor) {
+                std::cout << "Out of Range error: " << oor.what() << '\n';
+                return {};
+            }
+        }
+    }
+    return int_probs;
+}
+
+std::vector<double> Weighter::GetSurvivalProbabilities(siren::dataclasses::InteractionTree const & tree, int i_inj) const {
+    // This allows the user to get the survival probabilities for each interaction
+    // Useful in the case that secondary interactions are restricted to fiducial volumes
+
+    std::vector<double> survival_probs;
+    for(auto const & datum : tree.tree) {
+        std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+        if(datum->depth() == 0) {
+            std::get<0>(bounds) = datum->record.primary_initial_position; // start location
+            std::get<1>(bounds) = std::get<0>(injectors[i_inj]->PrimaryInjectionBounds(datum->record)); // start of injection bounds
+            survival_probs.push_back(1 - primary_process_weighters[i_inj]->InteractionProbability(bounds, datum->record));
+        }
+        else {
+            try {
+                std::get<0>(bounds) = datum->record.primary_initial_position; // start location
+                std::get<1>(bounds) = std::get<0>(injectors[i_inj]->SecondaryInjectionBounds(datum->record)); // start of injection bounds
+                survival_probs.push_back(1 - secondary_process_weighter_maps[i_inj].at(datum->record.signature.primary_type)->InteractionProbability(bounds, datum->record));
+            } catch(const std::out_of_range& oor) {
+                std::cout << "Out of Range error: " << oor.what() << '\n';
+                return {};
+            }
+        }
+    }
+    return survival_probs;
 }
 
 void Weighter::SaveWeighter(std::string const & filename) const {
