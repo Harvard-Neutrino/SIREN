@@ -1,4 +1,4 @@
-#include "SIREN/interactions/DipoleFromTable.h"
+#include "SIREN/interactions/HNLDipoleFromTable.h"
 
 #include <set>                                                // for set
 #include <array>                                              // for array
@@ -42,8 +42,8 @@ bool fexists(const std::string filename) {
 }
 }
 
-bool DipoleFromTable::equal(CrossSection const & other) const {
-    const DipoleFromTable* x = dynamic_cast<const DipoleFromTable*>(&other);
+bool HNLDipoleFromTable::equal(CrossSection const & other) const {
+    const HNLDipoleFromTable* x = dynamic_cast<const HNLDipoleFromTable*>(&other);
 
     if(!x)
         return false;
@@ -66,7 +66,7 @@ bool DipoleFromTable::equal(CrossSection const & other) const {
                     x->total);
 }
 
-double DipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) {
+double HNLDipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) {
     double yMin = 0;
     double target_mass2 = target_mass * target_mass;
     double mHNL2 = mHNL * mHNL;
@@ -95,7 +95,7 @@ double DipoleFromTable::DipoleyMin(double Enu, double mHNL, double target_mass) 
 }
 
 
-double DipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) {
+double HNLDipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) {
     double target_mass2 = target_mass * target_mass;
     double target_mass4 = target_mass2 * target_mass2;
     double mHNL2 = mHNL * mHNL;
@@ -111,7 +111,7 @@ double DipoleFromTable::DipoleyMax(double Enu, double mHNL, double target_mass) 
 }
 
 
-double DipoleFromTable::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
+double HNLDipoleFromTable::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
     siren::dataclasses::ParticleType const & primary_type = interaction.signature.primary_type;
     siren::dataclasses::ParticleType const & target_type = interaction.signature.target_type;
     std::array<double, 4> const & primary_momentum = interaction.primary_momentum;
@@ -124,7 +124,7 @@ double DipoleFromTable::TotalCrossSection(dataclasses::InteractionRecord const &
     return TotalCrossSection(primary_type, primary_energy, target_type);
 }
 
-double DipoleFromTable::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type) const {
+double HNLDipoleFromTable::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type) const {
     if(not primary_types.count(primary_type)) {
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
@@ -160,7 +160,7 @@ double DipoleFromTable::TotalCrossSection(siren::dataclasses::ParticleType prima
         return std::pow(dipole_coupling, 2) * xsec;
 }
 
-double DipoleFromTable::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
+double HNLDipoleFromTable::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
     siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
     siren::dataclasses::ParticleType target_type = interaction.signature.target_type;
     std::array<double, 4> const & primary_momentum = interaction.primary_momentum;
@@ -192,14 +192,14 @@ double DipoleFromTable::DifferentialCrossSection(dataclasses::InteractionRecord 
     return DifferentialCrossSection(primary_type, primary_energy, target_type, target_mass, y, thresh);
 }
 
-double DipoleFromTable::DifferentialCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type, double target_mass, double y) const {
+double HNLDipoleFromTable::DifferentialCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type, double target_mass, double y) const {
     // Assume threshold is first entry of table
     siren::utilities::Interpolator2D<double> const & interp = differential.at(target_type);
     double thresh = interp.MinX();
     return DifferentialCrossSection(primary_type, primary_energy, target_type, target_mass, y, thresh);
 }
 
-double DipoleFromTable::DifferentialCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type, double target_mass, double y, double thresh) const {
+double HNLDipoleFromTable::DifferentialCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy, siren::dataclasses::ParticleType target_type, double target_mass, double y, double thresh) const {
     if(not primary_types.count(primary_type))
         return 0.0;
 
@@ -239,11 +239,11 @@ double DipoleFromTable::DifferentialCrossSection(siren::dataclasses::ParticleTyp
     return std::pow(dipole_coupling, 2) * differential_cross_section;
 }
 
-double DipoleFromTable::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
+double HNLDipoleFromTable::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
     return hnl_mass + (hnl_mass*hnl_mass)/(2*interaction.target_mass);
 }
 
-void DipoleFromTable::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+void HNLDipoleFromTable::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     siren::utilities::Interpolator2D<double> const & diff_table = differential.at(record.GetTargetType());
     siren::utilities::Interpolator2D<double> const & diff_table_proton = differential.at(siren::dataclasses::ParticleType::HNucleus);
     int nprotons = siren::detector::MaterialModel::GetProtonCount(record.GetTargetType());
@@ -459,7 +459,7 @@ void DipoleFromTable::SampleFinalState(dataclasses::CrossSectionDistributionReco
     other.SetHelicity(std::copysign(0.5, record.GetPrimaryHelicity() * helicity_mul));
 }
 
-double DipoleFromTable::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
+double HNLDipoleFromTable::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
     double dxs = DifferentialCrossSection(interaction);
     double txs = TotalCrossSection(interaction);
     if(dxs == 0) {
@@ -471,7 +471,7 @@ double DipoleFromTable::FinalStateProbability(dataclasses::InteractionRecord con
     }
 }
 
-std::vector<siren::dataclasses::ParticleType> DipoleFromTable::GetPossibleTargets() const {
+std::vector<siren::dataclasses::ParticleType> HNLDipoleFromTable::GetPossibleTargets() const {
     std::set<siren::dataclasses::ParticleType> diff_targets;
     std::set<siren::dataclasses::ParticleType> tot_targets;
     for(auto const & diff : differential)
@@ -483,18 +483,18 @@ std::vector<siren::dataclasses::ParticleType> DipoleFromTable::GetPossibleTarget
     return res;
 }
 
-std::vector<siren::dataclasses::ParticleType> DipoleFromTable::GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const {
+std::vector<siren::dataclasses::ParticleType> HNLDipoleFromTable::GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const {
     if(not primary_types.count(primary_type)) {
         return std::vector<siren::dataclasses::ParticleType>();
     }
     return GetPossibleTargets();
 }
 
-std::vector<siren::dataclasses::ParticleType> DipoleFromTable::GetPossiblePrimaries() const {
+std::vector<siren::dataclasses::ParticleType> HNLDipoleFromTable::GetPossiblePrimaries() const {
     return std::vector<siren::dataclasses::ParticleType>(primary_types.begin(), primary_types.end());
 }
 
-std::vector<dataclasses::InteractionSignature> DipoleFromTable::GetPossibleSignatures() const {
+std::vector<dataclasses::InteractionSignature> HNLDipoleFromTable::GetPossibleSignatures() const {
     std::vector<siren::dataclasses::ParticleType> targets = GetPossibleTargets();
     std::vector<dataclasses::InteractionSignature> signatures;
     dataclasses::InteractionSignature signature;
@@ -517,7 +517,7 @@ std::vector<dataclasses::InteractionSignature> DipoleFromTable::GetPossibleSigna
     return signatures;
 }
 
-std::vector<dataclasses::InteractionSignature> DipoleFromTable::GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const {
+std::vector<dataclasses::InteractionSignature> HNLDipoleFromTable::GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const {
     std::vector<siren::dataclasses::ParticleType> targets = GetPossibleTargets();
     if(primary_types.count(primary_type) > 0 and std::find(targets.begin(), targets.end(), target_type) != targets.end()) {
         dataclasses::InteractionSignature signature;
@@ -537,11 +537,11 @@ std::vector<dataclasses::InteractionSignature> DipoleFromTable::GetPossibleSigna
     }
 }
 
-std::vector<std::string> DipoleFromTable::DensityVariables() const {
+std::vector<std::string> HNLDipoleFromTable::DensityVariables() const {
     return std::vector<std::string>{"Bjorken y"};
 }
 
-void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, siren::dataclasses::ParticleType target) {
+void HNLDipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, siren::dataclasses::ParticleType target) {
     std::string delimeter = "_";
     std::string end_delimeter = ".";
     std::string::size_type pos = filename.rfind("/") + 1;
@@ -646,7 +646,7 @@ void DipoleFromTable::AddDifferentialCrossSectionFile(std::string filename, sire
     }
 }
 
-void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, siren::dataclasses::ParticleType target) {
+void HNLDipoleFromTable::AddTotalCrossSectionFile(std::string filename, siren::dataclasses::ParticleType target) {
     std::string delimeter = "_";
     std::string end_delimeter = ".";
     std::string::size_type pos = filename.rfind("/") + 1;
@@ -747,11 +747,11 @@ void DipoleFromTable::AddTotalCrossSectionFile(std::string filename, siren::data
     }
 }
 
-void DipoleFromTable::AddDifferentialCrossSection(siren::dataclasses::ParticleType target, siren::utilities::Interpolator2D<double> interp) {
+void HNLDipoleFromTable::AddDifferentialCrossSection(siren::dataclasses::ParticleType target, siren::utilities::Interpolator2D<double> interp) {
     differential.insert(std::make_pair(target, interp));
 }
 
-void DipoleFromTable::AddTotalCrossSection(siren::dataclasses::ParticleType target, siren::utilities::Interpolator1D<double> interp) {
+void HNLDipoleFromTable::AddTotalCrossSection(siren::dataclasses::ParticleType target, siren::utilities::Interpolator1D<double> interp) {
     total.insert(std::make_pair(target, interp));
 }
 

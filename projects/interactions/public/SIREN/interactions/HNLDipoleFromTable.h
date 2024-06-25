@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SIREN_DipoleFromTable_H
-#define SIREN_DipoleFromTable_H
+#ifndef SIREN_HNLDipoleFromTable_H
+#define SIREN_HNLDipoleFromTable_H
 
 #include <map>                                          // for map
 #include <set>                                          // for set
@@ -31,10 +31,10 @@ namespace siren { namespace utilities { class SIREN_random; } }
 namespace siren {
 namespace interactions {
 
-class DipoleFromTable : public CrossSection {
+class HNLDipoleFromTable : public CrossSection {
 friend cereal::access;
 protected:
-DipoleFromTable() {};
+HNLDipoleFromTable() {};
 public:
     enum HelicityChannel {Conserving, Flipping};
 private:
@@ -52,12 +52,12 @@ public:
     double GetHNLMass() const {return hnl_mass;};
     static double DipoleyMin(double Enu, double mHNL, double target_mass);
     static double DipoleyMax(double Enu, double mHNL, double target_mass);
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV) : z_samp(z_samp), in_invGeV(in_invGeV), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, std::set<siren::dataclasses::ParticleType> const & primary_types) : primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, std::set<siren::dataclasses::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
-    DipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic, std::set<siren::dataclasses::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    HNLDipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    HNLDipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV) : z_samp(z_samp), in_invGeV(in_invGeV), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    HNLDipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    HNLDipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, std::set<siren::dataclasses::ParticleType> const & primary_types) : primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    HNLDipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, std::set<siren::dataclasses::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
+    HNLDipoleFromTable(double hnl_mass, double dipole_coupling, HelicityChannel channel, bool z_samp, bool in_invGeV, bool inelastic, std::set<siren::dataclasses::ParticleType> const & primary_types) : z_samp(z_samp), in_invGeV(in_invGeV), inelastic(inelastic), primary_types(primary_types), hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), channel(channel) {};
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy, siren::dataclasses::ParticleType target) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
@@ -94,11 +94,11 @@ public:
             archive(::cereal::make_nvp("HelicityChannel", static_cast<int>(channel)));
             archive(::cereal::make_nvp("CrossSection", cereal::virtual_base_class<CrossSection>(this)));
         } else {
-            throw std::runtime_error("DipoleFromTable only supports version <= 0!");
+            throw std::runtime_error("HNLDipoleFromTable only supports version <= 0!");
         }
     }
     template<typename Archive>
-    void load_and_construct(Archive & archive, cereal::construct<DipoleFromTable> & construct, std::uint32_t version) {
+    void load_and_construct(Archive & archive, cereal::construct<HNLDipoleFromTable> & construct, std::uint32_t version) {
         if(version == 0) {
             bool _z_samp = true;
             bool _in_invGeV = true;
@@ -124,7 +124,7 @@ public:
             construct.ptr()->differential = _differential;
             construct.ptr()->total = _total;
         } else {
-            throw std::runtime_error("DipoleFromTable only supports version <= 0!");
+            throw std::runtime_error("HNLDipoleFromTable only supports version <= 0!");
         }
     }
 };
@@ -132,8 +132,8 @@ public:
 } // namespace interactions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::interactions::DipoleFromTable, 0);
-CEREAL_REGISTER_TYPE(siren::interactions::DipoleFromTable);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::DipoleFromTable);
+CEREAL_CLASS_VERSION(siren::interactions::HNLDipoleFromTable, 0);
+CEREAL_REGISTER_TYPE(siren::interactions::HNLDipoleFromTable);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::HNLDipoleFromTable);
 
-#endif // SIREN_DipoleFromTable_H
+#endif // SIREN_HNLDipoleFromTable_H
