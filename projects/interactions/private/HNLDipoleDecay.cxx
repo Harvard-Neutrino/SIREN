@@ -1,4 +1,4 @@
-#include "SIREN/interactions/NeutrissimoDecay.h"
+#include "SIREN/interactions/HNLDipoleDecay.h"
 
 #include <array>                                              // for array
 #include <cmath>                                              // for copysign
@@ -19,8 +19,8 @@
 namespace siren {
 namespace interactions {
 
-bool NeutrissimoDecay::equal(Decay const & other) const {
-    const NeutrissimoDecay* x = dynamic_cast<const NeutrissimoDecay*>(&other);
+bool HNLDipoleDecay::equal(Decay const & other) const {
+    const HNLDipoleDecay* x = dynamic_cast<const HNLDipoleDecay*>(&other);
 
     if(!x)
         return false;
@@ -39,17 +39,17 @@ bool NeutrissimoDecay::equal(Decay const & other) const {
                     x->dipole_coupling);
 }
 
-double NeutrissimoDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
+double HNLDipoleDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
     return TotalDecayWidth(record.signature.primary_type);
 }
 
-double NeutrissimoDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary) const {
+double HNLDipoleDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary) const {
     double total_coupling_sq = 0;
     for(auto dc : dipole_coupling) total_coupling_sq += dc*dc;
     return total_coupling_sq * std::pow(hnl_mass,3) / (4*siren::utilities::Constants::pi) * siren::utilities::Constants::GeV;
 }
 
-double NeutrissimoDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
+double HNLDipoleDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
     siren::dataclasses::InteractionSignature const & signature = record.signature;
     unsigned int gamma_index = (signature.secondary_types[0] == siren::dataclasses::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;
@@ -66,12 +66,12 @@ double NeutrissimoDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRe
     return dipole_coupling_sq * std::pow(hnl_mass,3) / (4*siren::utilities::Constants::pi) * siren::utilities::Constants::GeV;
 }
 
-std::vector<std::string> NeutrissimoDecay::DensityVariables() const {
+std::vector<std::string> HNLDipoleDecay::DensityVariables() const {
     return std::vector<std::string>{"CosTheta"};
 }
 
 
-std::vector<dataclasses::InteractionSignature> NeutrissimoDecay::GetPossibleSignatures() const {
+std::vector<dataclasses::InteractionSignature> HNLDipoleDecay::GetPossibleSignatures() const {
     std::vector<dataclasses::InteractionSignature> signatures;
     for(auto primary : primary_types) {
         std::vector<dataclasses::InteractionSignature> new_signatures = GetPossibleSignaturesFromParent(primary);
@@ -80,7 +80,7 @@ std::vector<dataclasses::InteractionSignature> NeutrissimoDecay::GetPossibleSign
     return signatures;
 }
 
-std::vector<dataclasses::InteractionSignature> NeutrissimoDecay::GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const {
+std::vector<dataclasses::InteractionSignature> HNLDipoleDecay::GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const {
     std::vector<dataclasses::InteractionSignature> signatures;
     dataclasses::InteractionSignature signature;
     signature.primary_type = primary;
@@ -102,7 +102,7 @@ std::vector<dataclasses::InteractionSignature> NeutrissimoDecay::GetPossibleSign
     return signatures;
 }
 
-double NeutrissimoDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
+double HNLDipoleDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
     double DecayWidth = TotalDecayWidthForFinalState(record);
     if(nature==ChiralNature::Majorana) {
       //TODO: make sure factor of 2 is correct here
@@ -132,7 +132,7 @@ double NeutrissimoDecay::DifferentialDecayWidth(dataclasses::InteractionRecord c
     return DecayWidth/2. * (1 + alpha*CosThetaGamma);
 }
 
-void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+void HNLDipoleDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
 
     siren::dataclasses::InteractionSignature const & signature = record.GetSignature();
 
@@ -191,7 +191,7 @@ void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRec
     nu.SetHelicity(-1*record.primary_helicity);
 }
 
-double NeutrissimoDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
+double HNLDipoleDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
   double dd = DifferentialDecayWidth(record);
   double td = TotalDecayWidthForFinalState(record);
   if (dd == 0) return 0.;

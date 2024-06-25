@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SIREN_HNLDecay_H
-#define SIREN_HNLDecay_H
+#ifndef SIREN_HNLTwoBodyDecay_H
+#define SIREN_HNLTwoBodyDecay_H
 
 #include <map>
 #include <set>
@@ -29,10 +29,10 @@
 namespace siren {
 namespace interactions {
 
-class HNLDecay : public Decay {
+class HNLTwoBodyDecay : public Decay {
 friend cereal::access;
 protected:
-HNLDecay() {};
+HNLTwoBodyDecay() {};
 public:
     enum ChiralNature {Dirac, Majorana};
 private:
@@ -41,13 +41,13 @@ private:
     ChiralNature nature;
     const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::NuF4, siren::dataclasses::ParticleType::NuF4Bar};
 public:
-    HNLDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(mixing), nature(nature) {};
-    HNLDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), primary_types(primary_types) {};
+    HNLTwoBodyDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(mixing), nature(nature) {};
+    HNLTwoBodyDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), primary_types(primary_types) {};
     virtual bool equal(Decay const & other) const override;
     double GetHNLMass() const {return hnl_mass;};
     // if only one dipole coupling provided, assume it is U4t
-    HNLDecay(double hnl_mass, double mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(std::vector<double>{0,0,mixing}), nature(nature) {};
-    HNLDecay(double hnl_mass, double mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(std::vector<double>{0,0,mixing}), nature(nature), primary_types(primary_types) {};
+    HNLTwoBodyDecay(double hnl_mass, double mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(std::vector<double>{0,0,mixing}), nature(nature) {};
+    HNLTwoBodyDecay(double hnl_mass, double mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(std::vector<double>{0,0,mixing}), nature(nature), primary_types(primary_types) {};
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
     virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
@@ -67,11 +67,11 @@ public:
             archive(::cereal::make_nvp("ChiralNature", static_cast<int>(nature)));
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(this)));
         } else {
-            throw std::runtime_error("HNLDecay only supports version <= 0!");
+            throw std::runtime_error("HNLTwoBodyDecay only supports version <= 0!");
         }
     }
     template<typename Archive>
-    void load_and_construct(Archive & archive, cereal::construct<HNLDecay> & construct, std::uint32_t version) {
+    void load_and_construct(Archive & archive, cereal::construct<HNLTwoBodyDecay> & construct, std::uint32_t version) {
         if(version == 0) {
             std::set<siren::dataclasses::ParticleType> _primary_types;
             double _hnl_mass;
@@ -85,7 +85,7 @@ public:
             construct(_hnl_mass, _mixing, _nature, _primary_types);
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));
         } else {
-            throw std::runtime_error("HNLDecay only supports version <= 0!");
+            throw std::runtime_error("HNLTwoBodyDecay only supports version <= 0!");
         }
     }
 
@@ -94,8 +94,8 @@ public:
 } // namespace interactions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::interactions::HNLDecay, 0);
-CEREAL_REGISTER_TYPE(siren::interactions::HNLDecay);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::Decay, siren::interactions::HNLDecay);
+CEREAL_CLASS_VERSION(siren::interactions::HNLTwoBodyDecay, 0);
+CEREAL_REGISTER_TYPE(siren::interactions::HNLTwoBodyDecay);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::Decay, siren::interactions::HNLTwoBodyDecay);
 
-#endif // SIREN_HNLDecay_H
+#endif // SIREN_HNLTwoBodyDecay_H
