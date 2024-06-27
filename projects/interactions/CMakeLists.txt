@@ -6,13 +6,14 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/InteractionCollection.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/DipoleFromTable.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DarkNewsCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DarkNewsDecay.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/NeutrissimoDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DISFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDipoleDecay.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDipoleFromTable.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDISFromSpline.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDipoleDISFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLTwoBodyDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElasticScattering.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
