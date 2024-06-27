@@ -1,4 +1,4 @@
-#include "SIREN/interactions/HNLDecay.h"
+#include "SIREN/interactions/HNLTwoBodyDecay.h"
 
 #include <cmath>
 
@@ -24,8 +24,8 @@ double lambda (double a, double b, double c) {
 namespace siren {
 namespace interactions {
 
-bool HNLDecay::equal(Decay const & other) const {
-    const HNLDecay* x = dynamic_cast<const HNLDecay*>(&other);
+bool HNLTwoBodyDecay::equal(Decay const & other) const {
+    const HNLTwoBodyDecay* x = dynamic_cast<const HNLTwoBodyDecay*>(&other);
 
     if(!x)
         return false;
@@ -35,30 +35,31 @@ bool HNLDecay::equal(Decay const & other) const {
                     primary_types,
                     hnl_mass,
                     nature,
-                    dipole_coupling)
+                    mixing)
             ==
             std::tie(
                     x->primary_types,
                     x->hnl_mass,
                     x->nature,
-                    x->dipole_coupling);
+                    x->mixing);
 }
 
-double HNLDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
+double HNLTwoBodyDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
     return TotalDecayWidth(record.signature.primary_type);
 }
 
-double HNLDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary) const {
+double HNLTwoBodyDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary) const {
   std::vector<dataclasses::InteractionSignature> signatures = GetPossibleSignaturesFromParent(primary); 
   double gamma_tot = 0;
   dataclasses::InteractionRecord record;
   for(auto signature : signatures) {
-    record.siganture = signature;
+    record.signature = signature;
     gamma_tot += TotalDecayWidthForFinalState(record);
   }
+  return gamma_tot;
 }
 
-double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
+double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
   
   // All decay widths from 2007.03701
   
@@ -103,29 +104,29 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
   }
 
   // Let's start with 2 body decays 
-  if(record.signature.size() == 2) {
+  if(record.signature.secondary_types.size() == 2) {
 
     double f, m_meson, Vqq, gV;
-    bool psuedoscalar;
+    bool pseudoscalar;
     
     // Neutral Pseudoscalar mesons: N -> P nu (P = pi0, eta, etaprime)
     if(record.signature.secondary_types[1]==siren::dataclasses::ParticleType::Pi0) {
       assert(!charged);
       f = 0.130; // GeV
       m_meson = siren::utilities::Constants::Pi0Mass;
-      psuedoscalar = true;
+      pseudoscalar = true;
     }
     else if(record.signature.secondary_types[1]==siren::dataclasses::ParticleType::Eta) {
       assert(!charged);
       f = 0.0816; // GeV
       m_meson = siren::utilities::Constants::EtaMass;
-      psuedoscalar = true;
+      pseudoscalar = true;
     }
     else if(record.signature.secondary_types[1]==siren::dataclasses::ParticleType::EtaPrime) {
       assert(!charged);
       f = -0.0946; // GeV
       m_meson = siren::utilities::Constants::EtaPrimeMass;
-      psuedoscalar = true;
+      pseudoscalar = true;
     }
     // Charged Pseudoscalar mesons: N -> P+- l-+ (P = pi, K, D, Ds)
     else if (record.signature.secondary_types[1]==siren::dataclasses::ParticleType::PiPlus ||
@@ -214,11 +215,18 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
     else if (!charged && record.signature.secondary_types[1]==siren::dataclasses::ParticleType::Hadrons) {
       return 0;
     }
+    // Signature not recognized
+    else {
+      std::cout << "HNL decay signature not recongized! Exiting\n";
+      exit(0);
+    }
 
-    x_meson = m_meson / hnl_mass;
-    x_alpha = m_alpha / hnl_mass;
+    double x_meson = m_meson / hnl_mass;
+    double x_alpha = m_alpha / hnl_mass;
+    if(x_meson + x_alpha >= 1) return 0;
+    double constant;
 
-    if(psuedoscalar && !charged) {
+    if(pseudoscalar && !charged) {
       constant = pow(f,2) * pow(siren::utilities::Constants::FermiConstant,2) / (32 * siren::utilities::Constants::pi);
       width = constant * pow(hnl_mass,3) * pow(mixing_element,2) * pow(1-x_meson*x_meson,2);
     }
@@ -239,19 +247,34 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
       exit(0);
     }
   }
+  else if(record.signature.secondary_types.size() == 3) {
+    if(record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLight && 
+       record.signature.secondary_types[1] == siren::dataclasses::ParticleType::NuLight &&
+       record.signature.secondary_types[2] == siren::dataclasses::ParticleType::NuLight) {
+        mixing_element = pow(mixing[0],2) + pow(mixing[1],2) + pow(mixing[2],2);
+        width = pow(siren::utilities::Constants::FermiConstant,2) * pow(hnl_mass,5) / (192*pow(siren::utilities::Constants::pi,3));
+    }
+    else {
+      std::cout << "Only 3 neutrino 3-body decay is supported\n";
+      exit(0);
+    }
+  }
   else {
-    std::cout << "3+ body HNL decays not supported by this class\n";
+    std::cout << "4+ body HNL decays not supported by this class\n";
     exit(0);
   }
-  return width;
+
+  if(nature==ChiralNature::Majorana) return 2*width;
+  else if(nature==ChiralNature::Dirac) return width;
+  return 0;
 }
 
-std::vector<std::string> HNLDecay::DensityVariables() const {
+std::vector<std::string> HNLTwoBodyDecay::DensityVariables() const {
     return std::vector<std::string>{"CosTheta"};
 }
 
 
-std::vector<dataclasses::InteractionSignature> HNLDecay::GetPossibleSignatures() const {
+std::vector<dataclasses::InteractionSignature> HNLTwoBodyDecay::GetPossibleSignatures() const {
     std::vector<dataclasses::InteractionSignature> signatures;
     for(auto primary : primary_types) {
       std::vector<dataclasses::InteractionSignature> new_signatures = GetPossibleSignaturesFromParent(primary);
@@ -260,7 +283,7 @@ std::vector<dataclasses::InteractionSignature> HNLDecay::GetPossibleSignatures()
     return signatures;
 }
 
-std::vector<dataclasses::InteractionSignature> HNLDecay::GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const {
+std::vector<dataclasses::InteractionSignature> HNLTwoBodyDecay::GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const {
     
     std::vector<dataclasses::InteractionSignature> signatures;
     dataclasses::InteractionSignature signature;
@@ -350,8 +373,12 @@ std::vector<dataclasses::InteractionSignature> HNLDecay::GetPossibleSignaturesFr
       }
     }
     
-    // Three body decays (from 2007.03701)
-    // signature.secondary_types.resize(3);
+    // Three body decays (only nu nu nu for now, TODO include those from 2007.03701)
+    signature.secondary_types.resize(3);
+    signature.secondary_types[0] = siren::dataclasses::ParticleType::NuLight;
+    signature.secondary_types[1] = siren::dataclasses::ParticleType::NuLight;
+    signature.secondary_types[2] = siren::dataclasses::ParticleType::NuLight;
+    signatures.push_back(signature);
     // if(primary==siren::dataclasses::ParticleType::N4) {
     //   for(auto particle : std::vector<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::NuE, siren::dataclasses::ParticleType::NuMu, siren::dataclasses::ParticleType::NuTau}) {
     //     signature.secondary_types[0] = particle;
@@ -430,9 +457,8 @@ std::vector<dataclasses::InteractionSignature> HNLDecay::GetPossibleSignaturesFr
 
     return signatures;
 }
-}
 
-double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
+double HNLTwoBodyDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
     double DecayWidth = TotalDecayWidthForFinalState(record);
     if(nature==ChiralNature::Majorana) {
       //TODO: make sure factor of 2 is correct here
@@ -458,14 +484,16 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
     return DecayWidth/2. * (1 + alpha*CosThetaGamma);
 }
 
-void HNLDecay::SampleFinalState(dataclasses::InteractionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+void HNLTwoBodyDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     
-    unsigned int gamma_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::Gamma) ? 0 : 1;
+    siren::dataclasses::InteractionSignature const & signature = record.GetSignature();
+    
+    unsigned int gamma_index = (signature.secondary_types[0] == siren::dataclasses::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;
 
     double CosTheta;
     double alpha = std::copysign(1.0,record.primary_helicity); // 1 for RH, -1 for LH
-    alpha = (record.signature.primary_type == siren::dataclasses::ParticleType::N4) ? -1*alpha : alpha;
+    alpha = (signature.primary_type == siren::dataclasses::ParticleType::N4) ? -1*alpha : alpha;
     if(nature==ChiralNature::Majorana) {
       CosTheta = random->Uniform(-1,1);
     }
@@ -493,27 +521,28 @@ void HNLDecay::SampleFinalState(dataclasses::InteractionRecord & record, std::sh
     rk::P4 pGamma = pGamma_HNLrest.boost(boost_to_lab);
     rk::P4 pNu(pHNL.momentum() - pGamma.momentum(),0); // ensures the neutrino has zero mass, avoids rounding errors
 
-    record.secondary_momenta.resize(2);
-    record.secondary_masses.resize(2);
-    record.secondary_helicities.resize(2);
-    
-    record.secondary_momenta[gamma_index][0] = pGamma.e(); // pGamma_energy
-    record.secondary_momenta[gamma_index][1] = pGamma.px(); // pGamma_x
-    record.secondary_momenta[gamma_index][2] = pGamma.py(); // pGamma_y
-    record.secondary_momenta[gamma_index][3] = pGamma.pz(); // pGamma_z
-    record.secondary_masses[gamma_index] = pGamma.m();
-    record.secondary_helicities[gamma_index] = 0;
+    siren::dataclasses::SecondaryParticleRecord & gamma = record.GetSecondaryParticleRecord(gamma_index);
+    siren::dataclasses::SecondaryParticleRecord & nu = record.GetSecondaryParticleRecord(nu_index);
 
-    record.secondary_momenta[nu_index][0] = pNu.e(); // pNu_energy
-    record.secondary_momenta[nu_index][1] = pNu.px(); // pNu_x
-    record.secondary_momenta[nu_index][2] = pNu.py(); // pNu_y
-    record.secondary_momenta[nu_index][3] = pNu.pz(); // pNu_z
-    record.secondary_masses[nu_index] = pNu.m();
-    record.secondary_helicities[nu_index] = -1*record.primary_helicity;
+    assert(gamma.type == siren::dataclasses::ParticleType::Gamma);
+    assert(nu.type == siren::dataclasses::ParticleType::NuE ||
+           nu.type == siren::dataclasses::ParticleType::NuMu ||
+           nu.type == siren::dataclasses::ParticleType::NuTau ||
+           nu.type == siren::dataclasses::ParticleType::NuEBar ||
+           nu.type == siren::dataclasses::ParticleType::NuMuBar ||
+           nu.type == siren::dataclasses::ParticleType::NuTauBar);
+
+    gamma.SetFourMomentum({pGamma.e(), pGamma.px(), pGamma.py(), pGamma.pz()});
+    gamma.SetMass(pGamma.m());
+    gamma.SetHelicity(std::copysign(1.0, record.primary_helicity));
+
+    nu.SetFourMomentum({pNu.e(), pNu.px(), pNu.py(), pNu.pz()});
+    nu.SetMass(pNu.m());
+    nu.SetHelicity(-1*record.primary_helicity);
 
 }
 
-double HNLDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
+double HNLTwoBodyDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
   double dd = DifferentialDecayWidth(record);
   double td = TotalDecayWidthForFinalState(record);
   if (dd == 0) return 0.;

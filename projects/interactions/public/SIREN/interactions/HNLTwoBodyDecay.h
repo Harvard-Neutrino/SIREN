@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
-#include <math>
+#include <cmath>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -39,7 +39,7 @@ private:
     double hnl_mass;
     std::vector<double> mixing; // Ue4, Um4, Ut4
     ChiralNature nature;
-    const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::NuF4, siren::dataclasses::ParticleType::NuF4Bar};
+    const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::N4, siren::dataclasses::ParticleType::N4Bar};
 public:
     HNLTwoBodyDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(mixing), nature(nature) {};
     HNLTwoBodyDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), primary_types(primary_types) {};
@@ -52,7 +52,7 @@ public:
     virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
     virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
-    virtual void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const override;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
