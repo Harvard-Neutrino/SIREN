@@ -1,0 +1,88 @@
+# Detector model file
+# Detector: ND280 Upgrade
+# Version: v1
+# Material model file: ND280UPGRD-v1.dat
+# Date: 2023-07-11
+# Authors: Ming-Shau Liu
+# Notes:
+#   Includes old ND280 and upgrade elements
+#   Old: ECAL, TPC, FGD
+#   New: 2x TPC, 1x Super FGD, 6x TOF, ECAL
+
+# TDL Dirt
+object box       0 0 -142         0 0 0      24 24 300    surr_earth         ROCK         constant    2.900 
+
+# Detector Hall
+object box       0 0 0            0 0 0      19 19 37       Det_Hall           AIR          constant    0.001225   # 0.673atm x 1.205e-3(g/cm3 for 1atm)
+
+
+
+############################
+#          MAGNETS         #
+#    COIL, YOKE, CHAMBER   #
+############################
+object box      0 0 1.41    0 0 0      5.6 6.1 7.6      UA1_yoke            IRON           constant    5.54772
+object box      0 0 1.41    0 0 0      3.5 4.0 7.6      UA1_chamber_1       AIR            constant    0.001225
+object box      0 0 1.41    0 0 0      3.5 4.0 7.4      UA1_coil            ALUM           constant    1.70330
+object box      0 0 1.41    0 0 0      3.5 3.6 7.0      UA1_chamber_2       AIR            constant    0.001225
+
+
+############################
+#        NEW MODULES       #
+#  2x TPC, 1x sFGD, 6x TOF #
+############################
+
+# 2 new TPC
+object box       0 0.74 -0.795    0 0 0      1.795 0.795 2     new_TPC_shell       TPC_padding      constant   0.164   
+object box       0 0.74 -0.795    0 0 0      1.700 0.700 2     new_TPC_gas         GAS              constant   1.855   
+
+object box       0 -0.74 -0.795    0 0 0     1.795 0.795 2     new_TPC_shell       TPC_padding      constant   0.164   
+object box       0 -0.74 -0.795    0 0 0     1.700 0.700 2     new_TPC_gas         GAS              constant   1.855   
+
+# 1 new sFGD
+object box       0 0 -0.795    0 0 0     2.018 0.64 2.018     sFGD_box            sFGD_box      constant   0.284   
+object box       0 0 -0.795    0 0 0     1.920 0.56 1.920     sFGD_cubes          sFGD_cubes    constant   1.05   
+
+# 6 new TOF
+object box       0 1.165 -0.795      0 0 0      2.3 0.01 2.3         TOF                 TOF_scint     constant     1.023
+object box       0 -1.165 -0.795     0 0 0      2.3 0.01 2.3         TOF                 TOF_scint     constant     1.023
+object box       1.195 0 -0.795      0 0 0      0.01 2.3 2.3         TOF                 TOF_scint     constant     1.023
+object box       -1.195 0 -0.795     0 0 0      0.01 2.3 2.3         TOF                 TOF_scint     constant     1.023
+object box       0 0 -1.85           0 0 0      2.3 2.3 0.01         TOF                 TOF_scint     constant     1.023
+object box       0 0 0.25            0 0 0      2.3 2.3 0.01         TOF                 TOF_scint     constant     1.023
+
+
+############################
+#        OLD MODULES       #
+#  4x ECAL, 3x TPC, 2x FGD #
+############################
+
+# 3 old TPC
+object box       0 0 1.035    0 0 0      2.5 2.5 1.0        old_TPC_shell       old_TPC_padding      constant   0.685   
+object box       0 0 1.035    0 0 0      2.47 2.47 0.97     new_TPC_gas         GAS                  constant   1.855   
+
+object box       0 0 2.4    0 0 0      2.5 2.5 1.0        old_TPC_shell       old_TPC_padding      constant   0.685   
+object box       0 0 2.4    0 0 0      2.47 2.47 0.97     new_TPC_gas         GAS                  constant   1.855   
+
+object box       0 0 3.765    0 0 0      2.5 2.5 1.0        old_TPC_shell       old_TPC_padding      constant   0.685   
+object box       0 0 3.765    0 0 0      2.47 2.47 0.97     new_TPC_gas         GAS                  constant   1.855   
+
+# 4x ECAL
+object box       0 0 -2.09       0 0 0      2.04 2.04 0.5     ECAL            SCINT      constant   1.05   # Upstream
+object box       0 0 4.660       0 0 0      2.04 2.04 0.5     ECAL            SCINT      constant   1.05   # Downstream
+object box       1.5 0 2.455     0 0 0      0.5 2.36 3.84     ECAL            SCINT      constant   1.05   # Side 1
+object box       -1.5 0 2.455    0 0 0      0.5 2.36 3.84     ECAL            SCINT      constant   1.05   # Side 2
+object box       0 1.5 2.455     0 0 0      1.52 0.5 3.84     ECAL            SCINT      constant   1.05   # Top
+object box       0 -1.5 2.455    0 0 0      1.52 0.5 3.84     ECAL            SCINT      constant   1.05   # Bottom
+
+# 2x FGD
+object box       0 0 1.7175    0 0 0      2.300 2.400 0.365     FGDXYBox           FGDbox      constant   0.06     # XY MODULE
+object box       0 0 1.7175    0 0 0      1.843 1.843 0.288     FGDXYScint         SCINT       constant   1.05   
+
+object box       0 0 3.0825    0 0 0      2.300 2.400 0.365     FGDWaterBox        FGDbox      constant   0.06     # SCINT WATER MODULE
+object box       0 0 3.0825    0 0 0      1.843 1.843 0.217     FGDWaterScint      H2OSCINT    constant   1.0134   
+
+
+
+detector         0 0 0
+
