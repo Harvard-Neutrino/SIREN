@@ -15,22 +15,16 @@ object box       0 0 -142         0 0 0      24 24 300     surr_earth         RO
 # Detector Hall
 object box       0 0 0            0 0 0      19 19 37       Det_Hall           AIR          constant    0.001225   # 0.673atm x 1.205e-3(g/cm3 for 1atm)
 
+#          MAGNETS         
+#    COIL, YOKE, CHAMBER   
 
-
-############################
-#          MAGNETS         #
-#    COIL, YOKE, CHAMBER   #
-############################
 object box      0 0 1.41    0 0 0      5.6 6.1 7.6      UA1_yoke            IRON           constant    5.54772
 object box      0 0 1.41    0 0 0      3.5 4.0 7.6      UA1_chamber_1       AIR            constant    0.001225
 object box      0 0 1.41    0 0 0      3.5 4.0 7.4      UA1_coil            ALUM           constant    1.70330
 object box      0 0 1.41    0 0 0      3.5 3.6 7.0      UA1_chamber_2       AIR            constant    0.001225
 
-
-############################
-#        NEW MODULES       #
-#  2x TPC, 1x sFGD, 6x TOF #
-############################
+#        NEW MODULES       
+#  2x TPC, 1x sFGD, 6x TOF 
 
 # 2 new TPC
 object box       0 0.74 -0.795    0 0 0      1.795 0.795 2     new_TPC_shell_top       TPC_padding      constant   0.164   
@@ -51,11 +45,8 @@ object box       -1.195 0 -0.795     0 0 0      0.01 2.3 2.3         TOF_side_2 
 object box       0 0 -1.85           0 0 0      2.3 2.3 0.01         TOF_front               TOF_scint     constant     1.023
 object box       0 0 0.25            0 0 0      2.3 2.3 0.01         TOF_back                TOF_scint     constant     1.023
 
-
-############################
-#        OLD MODULES       #
-#  4x ECAL, 3x TPC, 2x FGD #
-############################
+#        OLD MODULES       
+#  4x ECAL, 3x TPC, 2x FGD 
 
 # 3 old TPC
 object box       0 0 1.035    0 0 0      2.5 2.5 1.0        old_TPC_shell_1       old_TPC_padding      constant   0.685   
