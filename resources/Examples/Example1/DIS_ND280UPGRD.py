@@ -10,7 +10,7 @@ events_to_inject = int(1e5)
 experiment = "ND280UPGRD"
 
 # Define the controller
-controller = SIREN_Controller(events_to_inject, experiment, seed=99)
+controller = SIREN_Controller(events_to_inject, experiment)
 
 # Particle to inject
 primary_type = siren.dataclasses.Particle.ParticleType.NuMu
@@ -36,23 +36,25 @@ controller.SetInteractions(primary_xs)
 primary_injection_distributions = {}
 primary_physical_distributions = {}
 
+mass_dist = siren.distributions.PrimaryMass(0)
+primary_injection_distributions["mass"] = mass_dist
+primary_physical_distributions["mass"] = mass_dist
+
 # energy distribution
-# HE SN flux from ATLAS paper
-flux_file = siren.utilities.get_tabulated_flux_file("HE_SN","numu")
-edist = siren.distributions.TabulatedFluxDistribution(100, 1e6, flux_file, True) #bool is whether flux is physical
+edist = siren.distributions.PowerLaw(2, 1e3, 1e6)
 primary_injection_distributions["energy"] = edist
 primary_physical_distributions["energy"] = edist
 
 # direction distribution
-# let's just inject upwards
-injection_dir = siren.math.Vector3D(0, 0, 1)
-injection_dir.normalize()
-direction_distribution = siren.distributions.FixedDirection(injection_dir)
+direction_distribution = siren.distributions.IsotropicDirection()
 primary_injection_distributions["direction"] = direction_distribution
 primary_physical_distributions["direction"] = direction_distribution
 
 # position distribution
-position_distribution = controller.GetCylinderVolumePositionDistributionFromSector("tilecal")
+muon_range_func = siren.distributions.LeptonDepthFunction()
+position_distribution = siren.distributions.ColumnDepthPositionDistribution(
+    600, 600.0, muon_range_func, set(controller.GetDetectorModelTargets()[0])
+)
 primary_injection_distributions["position"] = position_distribution
 
 # SetProcesses
@@ -66,4 +68,4 @@ events = controller.GenerateEvents()
 
 os.makedirs("output", exist_ok=True)
 
-controller.SaveEvents("output/ND280UPGRD")
+controller.SaveEvents("output/ND280UPGRD_DIS")
