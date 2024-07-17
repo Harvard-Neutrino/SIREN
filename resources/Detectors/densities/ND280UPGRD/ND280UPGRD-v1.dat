@@ -75,5 +75,5 @@ object box       0 0 3.0825    0 0 0      1.843 1.843 0.217     FGDWaterScint   
 
 
 
-detector         0 0 0
+detector         0 0 1.44
 

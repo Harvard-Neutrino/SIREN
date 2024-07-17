@@ -41,7 +41,12 @@ primary_injection_distributions["mass"] = mass_dist
 primary_physical_distributions["mass"] = mass_dist
 
 # energy distribution
-edist = siren.distributions.PowerLaw(2, 1e3, 1e6)
+# edist = siren.distributions.PowerLaw(2, 1e3, 1e6)
+# primary_injection_distributions["energy"] = edist
+# primary_physical_distributions["energy"] = edist
+
+flux_file = siren.utilities.get_tabulated_flux_file("HE_SN","numu")
+edist = siren.distributions.TabulatedFluxDistribution(100, 1e6, flux_file, True) #bool is whether flux is physical
 primary_injection_distributions["energy"] = edist
 primary_physical_distributions["energy"] = edist
 
@@ -50,10 +55,16 @@ direction_distribution = siren.distributions.IsotropicDirection()
 primary_injection_distributions["direction"] = direction_distribution
 primary_physical_distributions["direction"] = direction_distribution
 
+# injection_dir = siren.math.Vector3D(0, 0, 1)
+# injection_dir.normalize()
+# direction_distribution = siren.distributions.FixedDirection(injection_dir)
+# primary_injection_distributions["direction"] = direction_distribution
+# primary_physical_distributions["direction"] = direction_distribution
+
 # position distribution
 muon_range_func = siren.distributions.LeptonDepthFunction()
 position_distribution = siren.distributions.ColumnDepthPositionDistribution(
-    600, 600.0, muon_range_func, set(controller.GetDetectorModelTargets()[0])
+    8, 8.0, muon_range_func, set(controller.GetDetectorModelTargets()[0])
 )
 primary_injection_distributions["position"] = position_distribution
 
