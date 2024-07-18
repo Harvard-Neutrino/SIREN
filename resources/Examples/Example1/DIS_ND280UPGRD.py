@@ -64,7 +64,7 @@ primary_physical_distributions["direction"] = direction_distribution
 # position distribution
 muon_range_func = siren.distributions.LeptonDepthFunction()
 position_distribution = siren.distributions.ColumnDepthPositionDistribution(
-    8, 8.0, muon_range_func, set(controller.GetDetectorModelTargets()[0])
+    4, 4.0, muon_range_func, set(controller.GetDetectorModelTargets()[0])
 )
 primary_injection_distributions["position"] = position_distribution
 
