@@ -1,0 +1,30 @@
+
+This directory contains the source files of
+RunDec (RunDec.m) and CRunDec (CRunDec.cpp and CRunDec.h).
+
+The folder 'examples' contains the Mathematica and C++
+source code of the examples discussed in the paper
+  
+  "Version 3 of {\tt RunDec} and {\tt CRunDec}",
+  Florian Herren and Matthias Steinhauser,
+  TTP17-011, arXiv1703.03751
+
+and a soft link of CRunDec.h and RunDec.m.
+
+The C++ examples can be compiled using 'compile'.
+The executables are generated in bin/.
+
+The Mathematica examples can be loaded into
+a Mathematica session.
+
+Description of files:
+
+CRunDec.h:   Header file which contains the declarations of the CRunDec
+             classes with all its member functions
+CRunDec.cpp: Containts the implementation of the functions
+RunDec.m:    Mathematica package containing all RunDec functions
+
+Improvements and extensions for v3.1:
+  - Coefficients ctil[3,{3,4,5}] updated.
+    Thanks to Christopher Lepenik for providing the new values.
+  - Relation between kinetic and MSbar mass implemented.
