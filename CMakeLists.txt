@@ -113,6 +113,7 @@ include(pybind11)
 
 # load project dependencies
 include(rk)
+include(crundec3)
 if(TARGET rk_static)
     apply_siren_compile_options(rk_static)
 endif()
