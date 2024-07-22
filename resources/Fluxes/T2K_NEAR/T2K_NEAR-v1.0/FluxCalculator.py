@@ -1,55 +1,31 @@
+import pandas as pd
 import os
 
 def MakeFluxFile(tag, abs_flux_dir):
-    def format_scientific(value):
-        # Convert to float and then to scientific notation with 17 digits
-        return f"{float(value):.17e}"
-
-    result = "Average Energy [GeV]    numu/m^2/GeV/POT\n"
-
-    input_flux_file=os.path.join(abs_flux_dir,'t2kflux_2020_plus250kA_runcond_nd280.txt')
-    output_flux_file = os.path.join(abs_flux_dir,"t2k_flux.txt")
-
+    # Read the file, skipping the header rows
     
-    with open(input_flux_file, 'r') as infile:
-        # Skip the header lines
-        for _ in range(3):
-            next(infile)
+    input_file=os.path.join(abs_flux_dir,'t2kflux_2020_plus250kA_runcond_nd280.txt')
+    
+    df = pd.read_csv(input_file, sep='\s+', skiprows=3)
 
-        for line in infile:
-            parts = line.split()
-            if len(parts) >= 5 and parts[0].isdigit():
-                energy_range = parts[1:4]
-                numu = float(parts[4])  # Convert numu to float
+    # Process the 'Energy [GeV]' column
+    df['Energy_Start'] = df['Energy'].str.split('-').str[0].astype(float)
+    df['Energy_End'] = df['Energy'].str.split('-').str[1].astype(float)
+    df['Energy_Avg'] = (df['Energy_Start'] + df['Energy_End']) / 2
 
-                # Calculate average energy
-                start_energy = float(energy_range[0])
-                end_energy = float(energy_range[2])
-                avg_energy = (start_energy + end_energy) / 2
+    # Process the 'numu' column
+    df['numu_processed'] = df['numu'] * 2e-16
 
-                # Multiply numu by 2e-16
-                numu *= 2e-16
+    # Create the output dataframe
+    output_df = pd.DataFrame({
+        'Energy_Avg': df['Energy_Avg'].round(8),
+        'numu_processed': df['numu_processed'].round(8)
+    })
 
-                # Format both average energy and numu to scientific notation with 17 digits
-                formatted_avg_energy = format_scientific(avg_energy)
-                formatted_numu = format_scientific(numu)
+    # Define the output file path
+    output_file = os.path.join(abs_flux_dir,"t2k_flux.txt")
 
-                # Append to result string
-                result += f"{formatted_avg_energy}    {formatted_numu}\n"
-                
-                with open('t2k_flux.txt', 'w') as outfile:
-                    outfile.write(result)
+    # Write the output file
+    output_df.to_csv(output_file, sep=' ', index=False, header=False, float_format='%.8f')
 
-    return output_flux_file
-
-# Usage
-# input_filename = 't2kflux_2020_plus250kA_runcond_nd280.txt'  # Your input .txt filename
-# output_text = MakeFluxFile(input_filename)
-
-# Print the first few lines of the output (for verification)
-# print("First few lines of the output:")
-# print("\n".join(output_text.split("\n")[:5]))
-
-# If you want to save the output to a file, you can do:
-# with open('output.dat', 'w') as outfile:
-#     outfile.write(output_text)
+    return output_file

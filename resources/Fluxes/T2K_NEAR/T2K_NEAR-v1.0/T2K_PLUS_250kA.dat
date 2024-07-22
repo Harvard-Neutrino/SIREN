@@ -1,5 +1,5 @@
                         Flux [/cm^2/50MeV/1E21POT]
-Bin#   Energy [GeV]     numu      anti-numu nue       anti-nue 
+Bin#   Energy           numu      numubar   nue       nuebar 
 ----------------------------------------------------------------
 1      0.00 - 0.01      1.33e+09  1.29e+09  2.20e+07  3.77e+06 
 2      0.01 - 0.02      7.13e+09  7.74e+09  9.99e+07  1.71e+07 
