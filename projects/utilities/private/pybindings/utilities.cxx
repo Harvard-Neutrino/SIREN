@@ -70,6 +70,14 @@ PYBIND11_MODULE(utilities,m) {
   Constants.attr("RhoMinusMass") = &Constants::RhoMinusMass;
   Constants.attr("OmegaMass") = &Constants::OmegaMass;
   Constants.attr("PhiMass") = &Constants::PhiMass;
+  Constants.attr("BPlusMass") = &Constants::BPlusMass;
+  Constants.attr("BMinusMass") = &Constants::BMinusMass;
+  Constants.attr("upMass") = &Constants::upMass;
+  Constants.attr("downMass") = &Constants::downMass;
+  Constants.attr("charmMass") = &Constants::charmMass;
+  Constants.attr("strangeMass") = &Constants::strangeMass;
+  Constants.attr("topMass") = &Constants::topMass;
+  Constants.attr("bottomMass") = &Constants::bottomMass;
 
   // confusing units
   // static const double second          = 1.523e15; // [eV^-1 sec^-1]

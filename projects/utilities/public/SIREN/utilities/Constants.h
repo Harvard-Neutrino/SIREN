@@ -65,6 +65,15 @@ static const double RhoPlusMass     = 0.77511; // GeV
 static const double RhoMinusMass    = 0.77511; // GeV
 static const double OmegaMass       = 0.78266; // GeV
 static const double PhiMass         = 1.019461; // GeV
+static const double BPlusMass       = 5.27932; // GeV
+static const double BMinusMass      = 5.27932; // GeV
+// Quark masses from https://pdg.lbl.gov/2020/reviews/rpp2020-rev-quark-masses.pdf
+static const double upMass          = 0.00232; // GeV
+static const double downMass        = 0.00471; // GeV
+static const double charmMass       = 1.280; // GeV
+static const double strangeMass     = 0.0929; // GeV
+static const double topMass         = 173.3; // GeV
+static const double bottomMass      = 4.198; // GeV
 
 // confusing units
 // static const double second          = 1.523e15; // [eV^-1 sec^-1]
@@ -114,6 +123,7 @@ static const double thetaWeinberg   = 0.2312; // dimensionless
 static const double gravConstant    = 6.6700e-11; // [m^3 kg^-1 s^-2]
 static const double fineStructure   = 1.0/137.0; // dimensionless
 static const double hbarc           = 197.3*(1e-9)*(1e-7)*GeV*cm; // [GeV m]
+static const double gweak           = 0.64; // Pg 588 of Schwartz
 
 // CKM matrix elements
 // from https://pdg.lbl.gov/2020/reviews/rpp2020-rev-ckm-matrix.pdf
