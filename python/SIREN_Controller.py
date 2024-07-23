@@ -412,7 +412,7 @@ class SIREN_Controller:
             if not found_collection and(sec_inj.interactions is None or sec_phys.interactions is None):
                 print(
                     "Couldn't find cross section collection for secondary particle %s; Exiting"
-                    % record.primary_type
+                    % record.signature.primary_type
                 )
                 exit(0)
 
