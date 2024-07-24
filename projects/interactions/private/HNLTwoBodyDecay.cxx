@@ -24,35 +24,7 @@
 // Fucntions to get quark decay widths
 // All follow arXiv:1805.08567
 
-double DeltaQCD(double m_N, double nloops=5) {
-  // See https://arxiv.org/pdf/1703.03751
-  // and https://arxiv.org/abs/2007.03701
-  std::vector<double> quark_masses = {siren::utilities::Constants::upMass,
-                                      siren::utilities::Constants::downMass,
-                                      siren::utilities::Constants::strangeMass,
-                                      siren::utilities::Constants::charmMass,
-                                      siren::utilities::Constants::bottomMass,
-                                      siren::utilities::Constants::topMass};
-  int nflavors = 0;
-  for (auto q_mass : quark_masses) {
-    if (m_N > q_mass) ++nflavors;
-  }
-  double m_ref, alpha_s_ref;
-  if(nflavors <=5) {
-    // Use the tau mass for reference
-    m_ref = siren::utilities::Constants::tauMass;
-    alpha_s_ref = 0.332;
-  }
-  else {
-    // Use the Z mass
-    m_ref = siren::utilities::Constants::zMass;
-    alpha_s_ref = 0.1179;
-  }
-  double alpha_s = crundec->AlphasExtract(alpha_s_ref, m_ref, m_N, nflavors, nloops);
-  return (alpha_s / siren::utilities::Constants::pi +
-          5.2 * pow(alpha_s/siren::utilities::Constants::pi,2) +
-          26.4 * pow(alpha_s/siren::utilities::Constants::pi,3));
-}
+
 
 double lambda(double a, double b, double c){
   return a*a + b*b + c*c - 2*a*b - 2*a*c - 2*b*c;
@@ -97,7 +69,7 @@ double GammaQuarksCC(double U, double m_N, double mu, double md, double ml, doub
   double xd = md/m_N;
   double xl = ml/m_N;
   if(xu+xd+xl>1) return 0;
-  return Nw * pow(siren::utilities::Constants::FermiConstant,2) * pow(mN,5) / (192*pow(siren::utilities::Constants::pi,3)) * U*U * I(xu,xd,xl);
+  return Nw * pow(siren::utilities::Constants::FermiConstant,2) * pow(m_N,5) / (192*pow(siren::utilities::Constants::pi,3)) * U*U * I(xu,xd,xl);
 }
 
 double GammaQuarksNC(double U, double m_N, double mq, double Nz = 1, std::string fs = "qup") {
@@ -129,24 +101,24 @@ double GammaHadronsCC(double U, double m_N, double m_l) {
   quark_masses[siren::dataclasses::Particle::ParticleType::t] = siren::utilities::Constants::topMass;
   quark_masses[siren::dataclasses::Particle::ParticleType::b] = siren::utilities::Constants::bottomMass;
   std::map<std::pair<siren::dataclasses::Particle::ParticleType,siren::dataclasses::Particle::ParticleType>,double> V_CKM;
-  V_CKM[std::pair(siren::dataclasses::Particle::ParticleType::u,
+  V_CKM[std::make_pair(siren::dataclasses::Particle::ParticleType::u,
                   siren::dataclasses::Particle::ParticleType::d)] = siren::utilities::Constants::Vud;
-  V_CKM[std::pair(siren::dataclasses::Particle::ParticleType::u,
+  V_CKM[std::make_pair(siren::dataclasses::Particle::ParticleType::u,
                   siren::dataclasses::Particle::ParticleType::s)] = siren::utilities::Constants::Vus;
-  V_CKM[std::pair(siren::dataclasses::Particle::ParticleType::u,
+  V_CKM[std::make_pair(siren::dataclasses::Particle::ParticleType::u,
                   siren::dataclasses::Particle::ParticleType::b)] = siren::utilities::Constants::Vub;
-  V_CKM[std::pair(siren::dataclasses::Particle::ParticleType::c,
+  V_CKM[std::make_pair(siren::dataclasses::Particle::ParticleType::c,
                   siren::dataclasses::Particle::ParticleType::d)] = siren::utilities::Constants::Vcd;
-  V_CKM[std::pair(siren::dataclasses::Particle::ParticleType::c,
+  V_CKM[std::make_pair(siren::dataclasses::Particle::ParticleType::c,
                   siren::dataclasses::Particle::ParticleType::s)] = siren::utilities::Constants::Vcs;
-  V_CKM[std::pair(siren::dataclasses::Particle::ParticleType::c,
+  V_CKM[std::make_pair(siren::dataclasses::Particle::ParticleType::c,
                   siren::dataclasses::Particle::ParticleType::b)] = siren::utilities::Constants::Vcb;
-  V_CKM[std::pair(siren::dataclasses::Particle::ParticleType::t,
+  V_CKM[std::make_pair(siren::dataclasses::Particle::ParticleType::t,
                   siren::dataclasses::Particle::ParticleType::d)] = siren::utilities::Constants::Vtd;
-  V_CKM[std::pair(siren::dataclasses::Particle::ParticleType::t,
+  V_CKM[std::make_pair(siren::dataclasses::Particle::ParticleType::t,
                   siren::dataclasses::Particle::ParticleType::s)] = siren::utilities::Constants::Vts;
-  V_CKM[std::pair(siren::dataclasses::Particle::ParticleType::t,
-                  siren::dataclasses::Particle::ParticleType::b)] = siren::utilities::Constants::Vtb;double Gamma_qq = 0;
+  V_CKM[std::make_pair(siren::dataclasses::Particle::ParticleType::t,
+                  siren::dataclasses::Particle::ParticleType::b)] = siren::utilities::Constants::Vtb;
   std::vector<siren::dataclasses::Particle::ParticleType> upquarks = {siren::dataclasses::Particle::ParticleType::u,
                                                                       siren::dataclasses::Particle::ParticleType::c,
                                                                       siren::dataclasses::Particle::ParticleType::t};
@@ -156,7 +128,7 @@ double GammaHadronsCC(double U, double m_N, double m_l) {
   double Gamma_qq = 0;
   for(auto upquark : upquarks) {
     for(auto dnquark : dnquarks) {
-      Gamma_qq += GammaQuarksCC(U, m_N, quark_masses[upquark], quark_masses[dnquark], m_l, 3*V_CKM[std::pair(upquark,dnquark)]);
+      Gamma_qq += GammaQuarksCC(U, m_N, quark_masses[upquark], quark_masses[dnquark], m_l, 3*V_CKM[std::make_pair(upquark,dnquark)]);
     }
   }
   return Gamma_qq;
@@ -384,32 +356,23 @@ double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
     // Implementation follows 1805.08567
     else if (charged && record.signature.secondary_types[1]==siren::dataclasses::ParticleType::Hadrons) {
       meson = false;
-      if(_GammaHadronsCC<=0) {
-        _GammaHadronsCC = GammaHadronsCC(mixing_element, hnl_mass, m_alpha);
-      }
-      return _GammaHadronsCC;
+      // if(_GammaHadronsCC<=0) {
+      //   SetGammaHadrons(GammaHadronsCC(mixing_element, hnl_mass, m_alpha),"CC");
+      // }
+      // width = _GammaHadronsCC;
+      width = GammaHadronsCC(mixing_element, hnl_mass, m_alpha);
     }
     else if (!charged && record.signature.secondary_types[1]==siren::dataclasses::ParticleType::Hadrons) {
       meson = false;
-      if(_GammaHadronsNC<=0) {
-        _GammaHadronsNC = GammaHadronsNC(mixing_element, hnl_mass);
-      }
-      return _GammaHadronsNC;
+      // if(_GammaHadronsNC<=0) {
+      //   SetGammaHadrons(GammaHadronsNC(mixing_element, hnl_mass),"NC");
+      // }
+      // width = _GammaHadronsNC;
+      width = GammaHadronsNC(mixing_element, hnl_mass);
     }
     // Weak Bosons
     // https://arxiv.org/abs/0901.3589v2
     else if (record.signature.secondary_types[1]==siren::dataclasses::Particle::ParticleType::Z0) {
-      assert(!charged);
-      meson = false;
-      double xw = siren::utilities::Constants::wMass/hnl_mass;
-      if (xw<=0) return 0;
-      double muw = xw*xw;
-      double Gamma_longitudinal = pow(siren::utilities::Constants::gweak,2) / (64 * siren::utilities::Constants::pi * pow(siren::utilities::Constants::wMass,2)) * pow(hnl_mass,3) * pow(1-muw,2);
-      double Gamma_transverse = pow(siren::utilities::Constants::gweak,2) / (32 * siren::utilities::Constants::pi) * hnl_mass * pow(1-muw,2);
-      width = Gamma_longitudinal + Gamma_transverse;
-    }
-    else if (record.signature.secondary_types[1]==siren::dataclasses::Particle::ParticleType::WPlus ||
-             record.signature.secondary_types[1]==siren::dataclasses::Particle::ParticleType::WMinus) {
       assert(!charged);
       meson = false;
       double xz = siren::utilities::Constants::zMass/hnl_mass;
@@ -417,8 +380,19 @@ double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
       double muz = xz*xz;
       double Gamma_longitudinal = pow(siren::utilities::Constants::gweak,2) / (64 * siren::utilities::Constants::pi * pow(siren::utilities::Constants::wMass,2)) * pow(hnl_mass,3) * pow(1-muz,2);
       double cosw = cos(asin(sqrt(siren::utilities::Constants::thetaWeinberg)));
-      double Gamma_transverse = pow(siren::utilities::Constants::gweak,2) / (32 * siren::utilities::Constants::pi * pow(cosw,2)) * hnl_mass * pow(1-muz,2);
-      width = 0.5*(Gamma_longitudinal + Gamma_transverse); // factor of 1/2 to make it Dirac
+      double Gamma_transverse = pow(siren::utilities::Constants::gweak,2) / (32 * siren::utilities::Constants::pi * cosw*cosw) * hnl_mass * pow(1-muz,2);
+      width = 0.5*(Gamma_longitudinal + Gamma_transverse);
+    }
+    else if (record.signature.secondary_types[1]==siren::dataclasses::Particle::ParticleType::WPlus ||
+             record.signature.secondary_types[1]==siren::dataclasses::Particle::ParticleType::WMinus) {
+      assert(charged);
+      meson = false;
+      double xw = siren::utilities::Constants::wMass/hnl_mass;
+      if (xw<=0) return 0;
+      double muw = xw*xw;
+      double Gamma_longitudinal = pow(siren::utilities::Constants::gweak,2) / (64 * siren::utilities::Constants::pi * pow(siren::utilities::Constants::wMass,2)) * pow(hnl_mass,3) * pow(1-muw,2);
+      double Gamma_transverse = pow(siren::utilities::Constants::gweak,2) / (32 * siren::utilities::Constants::pi) * hnl_mass * pow(1-muw,2);
+      width = Gamma_longitudinal + Gamma_transverse;
     }
     // Signature not recognized
     else {
@@ -459,7 +433,7 @@ double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
        record.signature.secondary_types[1] == siren::dataclasses::ParticleType::NuLight &&
        record.signature.secondary_types[2] == siren::dataclasses::ParticleType::NuLight) {
         mixing_element = pow(mixing[0],2) + pow(mixing[1],2) + pow(mixing[2],2);
-        width = pow(siren::utilities::Constants::FermiConstant,2) * pow(hnl_mass,5) / (192*pow(siren::utilities::Constants::pi,3));
+        width = mixing_element * pow(siren::utilities::Constants::FermiConstant,2) * pow(hnl_mass,5) / (192*pow(siren::utilities::Constants::pi,3));
     }
     else {
       std::cout << "Only 3 neutrino 3-body decay is supported\n";
@@ -500,7 +474,7 @@ std::vector<dataclasses::InteractionSignature> HNLTwoBodyDecay::GetPossibleSigna
     // Two body decays (from 2007.03701)
     signature.secondary_types.resize(2);
     if(primary==siren::dataclasses::ParticleType::N4) {
-      // N -> nu P (P = pi0, eta, eta prime, rho0, omega, kprime0, hadrons, phi)
+      // N -> nu P (P = pi0, eta, eta prime, rho0, omega, kprime0, hadrons, phi, Z)
       for(auto particle : std::vector<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::NuE, siren::dataclasses::ParticleType::NuMu, siren::dataclasses::ParticleType::NuTau}) {
         signature.secondary_types[0] = particle;
         signature.secondary_types[1] = siren::dataclasses::ParticleType::Pi0;
@@ -519,8 +493,10 @@ std::vector<dataclasses::InteractionSignature> HNLTwoBodyDecay::GetPossibleSigna
         signatures.push_back(signature);
         signature.secondary_types[1] = siren::dataclasses::ParticleType::Phi;
         signatures.push_back(signature);
+        signature.secondary_types[1] = siren::dataclasses::ParticleType::Z0;
+        signatures.push_back(signature);
       }
-      // N -> l- P+ (P+ = pi, K , rho, K*, hadrons, D, Ds)
+      // N -> l- P+ (P = pi, K , rho, K*, hadrons, D, Ds, W)
       for(auto particle : std::vector<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::EMinus, siren::dataclasses::ParticleType::MuMinus, siren::dataclasses::ParticleType::TauMinus}) {
         signature.secondary_types[0] = particle;
         signature.secondary_types[1] = siren::dataclasses::ParticleType::PiPlus;
@@ -537,10 +513,12 @@ std::vector<dataclasses::InteractionSignature> HNLTwoBodyDecay::GetPossibleSigna
         signatures.push_back(signature);
         signature.secondary_types[1] = siren::dataclasses::ParticleType::DsPlus;
         signatures.push_back(signature);
+        signature.secondary_types[1] = siren::dataclasses::ParticleType::WPlus;
+        signatures.push_back(signature);
       }
     }
     else if(primary==siren::dataclasses::ParticleType::N4Bar) {
-      // N -> nu P (P = pi0, eta, eta prime, rho0, omega, hadrons, phi)
+      // N -> nubar P (P = pi0, eta, eta prime, rho0, omega, hadrons, phi, Z)
       for(auto particle : std::vector<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::NuEBar, siren::dataclasses::ParticleType::NuMuBar, siren::dataclasses::ParticleType::NuTauBar}) {
         signature.secondary_types[0] = particle;
         signature.secondary_types[1] = siren::dataclasses::ParticleType::Pi0;
@@ -559,8 +537,10 @@ std::vector<dataclasses::InteractionSignature> HNLTwoBodyDecay::GetPossibleSigna
         signatures.push_back(signature);
         signature.secondary_types[1] = siren::dataclasses::ParticleType::Phi;
         signatures.push_back(signature);
+        signature.secondary_types[1] = siren::dataclasses::ParticleType::Z0;
+        signatures.push_back(signature);
       }
-      // N -> l- P+ (P+ = pi, K , rho, K*, hadrons, D, Ds)
+      // N -> l+ P- (P = pi, K , rho, K*, hadrons, D, Ds, W)
       for(auto particle : std::vector<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::EPlus, siren::dataclasses::ParticleType::MuPlus, siren::dataclasses::ParticleType::TauPlus}) {
         signature.secondary_types[0] = particle;
         signature.secondary_types[1] = siren::dataclasses::ParticleType::PiMinus;
@@ -576,6 +556,8 @@ std::vector<dataclasses::InteractionSignature> HNLTwoBodyDecay::GetPossibleSigna
         signature.secondary_types[1] = siren::dataclasses::ParticleType::DMinus;
         signatures.push_back(signature);
         signature.secondary_types[1] = siren::dataclasses::ParticleType::DsMinus;
+        signatures.push_back(signature);
+        signature.secondary_types[1] = siren::dataclasses::ParticleType::WMinus;
         signatures.push_back(signature);
       }
     }
@@ -757,6 +739,47 @@ double HNLTwoBodyDecay::FinalStateProbability(dataclasses::InteractionRecord con
   else return dd/td;
 }
 
+double HNLTwoBodyDecay::DeltaQCD(double m_N, double nloops=5) const {
+  // See https://arxiv.org/pdf/1703.03751
+  // and https://arxiv.org/abs/2007.03701
+  std::vector<double> quark_masses = {siren::utilities::Constants::upMass,
+                                      siren::utilities::Constants::downMass,
+                                      siren::utilities::Constants::strangeMass,
+                                      siren::utilities::Constants::charmMass,
+                                      siren::utilities::Constants::bottomMass,
+                                      siren::utilities::Constants::topMass};
+  int nflavors = 0;
+  for (auto q_mass : quark_masses) {
+    if (m_N > q_mass) ++nflavors;
+  }
+  double m_ref, alpha_s_ref;
+  if(nflavors <=5) {
+    // Use the tau mass for reference
+    m_ref = siren::utilities::Constants::tauMass;
+    alpha_s_ref = 0.332;
+  }
+  else {
+    // Use the Z mass
+    m_ref = siren::utilities::Constants::zMass;
+    alpha_s_ref = 0.1179;
+  }
+  double alpha_s = crundec->AlphasExact(alpha_s_ref, m_ref, m_N, nflavors, nloops);
+  return (alpha_s / siren::utilities::Constants::pi +
+          5.2 * pow(alpha_s/siren::utilities::Constants::pi,2) +
+          26.4 * pow(alpha_s/siren::utilities::Constants::pi,3));
+}
+
+void HNLTwoBodyDecay::SetGammaHadrons(double Gamma, std::string mode) {
+  if (mode=="CC") {
+    _GammaHadronsCC = Gamma;
+  }
+  else if (mode=="NC") {
+    _GammaHadronsNC = Gamma;
+  }
+  else {
+    std::cerr << "Invalid Gamma Hadron mode " << mode << std::endl;
+  }
+}
 
 
 } // namespace interactions

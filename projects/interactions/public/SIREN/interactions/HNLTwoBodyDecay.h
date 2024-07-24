@@ -63,6 +63,8 @@ public:
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const override;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
+    double DeltaQCD(double m_N, double nloops) const;
+    void SetGammaHadrons(double Gamma, std::string mode);
 public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
