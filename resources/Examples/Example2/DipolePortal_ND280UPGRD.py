@@ -20,7 +20,7 @@ model_kwargs = {
 events_to_inject = 100000
 
 # Expeirment to run
-experiment = "MINERvA"
+experiment = "ND280UPGRD"
 
 # Define the controller
 controller = SIREN_Controller(events_to_inject, experiment)
@@ -41,7 +41,7 @@ primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-flux_file = siren.utilities.get_tabulated_flux_file("NUMI","FHC_ME_numu")
+flux_file = siren.utilities.get_tabulated_flux_file("T2K_NEAR","PLUS_nue")
 edist = siren.distributions.TabulatedFluxDistribution(flux_file, True)
 edist_gen = siren.distributions.TabulatedFluxDistribution(
     model_kwargs["m4"], 20, flux_file, False
@@ -59,7 +59,7 @@ decay_range_func = siren.distributions.DecayRangeFunction(
     model_kwargs["m4"], controller.DN_min_decay_width, 3, 240
 )
 position_distribution = siren.distributions.RangePositionDistribution(
-    1.24, 5.0, decay_range_func, set(controller.GetDetectorModelTargets()[0])
+    5.0, 9.0, decay_range_func, set(controller.GetDetectorModelTargets()[0])
 )
 primary_injection_distributions["position"] = position_distribution
 
@@ -81,7 +81,7 @@ events = controller.GenerateEvents(fill_tables_at_exit=False)
 os.makedirs("output", exist_ok=True)
 
 controller.SaveEvents(
-    "output/MINERvA_Dipole_M%2.2e_mu%2.2e_example"
+    "output/ND280UPGRD_Dipole_M%2.2e_mu%2.2e_example"
     % (model_kwargs["m4"], model_kwargs["mu_tr_mu4"]),
     fill_tables_at_exit=True
 )

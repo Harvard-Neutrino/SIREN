@@ -1,31 +1,35 @@
-import pandas as pd
 import os
 
 def MakeFluxFile(tag, abs_flux_dir):
-    # Read the file, skipping the header rows
     
-    input_file=os.path.join(abs_flux_dir,'t2kflux_2020_plus250kA_runcond_nd280.txt')
+    '''
+    Accepts the following tags:
+        {PLUS, MINUS}_{nue,nuebar,numu,numubar}
+    '''
+
+    enhance, particle = tag.split("_")
     
-    df = pd.read_csv(input_file, sep='\s+', skiprows=3)
+    if enhance not in ["MINUS", "PLUS"]:
+        print("%s 250kA enhancement specified in tag %s is not valid"%(enhance))
+        exit(0)
+    if particle not in ["numu", "numubar", "nue", "nuebar"]:
+        print("%s particle specified in tag %s is not valid"%(particle))
+        exit(0)
+        
+    input_flux_file = os.path.join(abs_flux_dir,
+                                   "T2K_%s_250kA.dat"%(enhance))
+    
+    output_flux_file = os.path.join(abs_flux_dir,
+                                    "T2KOUT_%s.dat"%(tag))
 
-    # Process the 'Energy [GeV]' column
-    df['Energy_Start'] = df['Energy'].str.split('-').str[0].astype(float)
-    df['Energy_End'] = df['Energy'].str.split('-').str[1].astype(float)
-    df['Energy_Avg'] = (df['Energy_Start'] + df['Energy_End']) / 2
-
-    # Process the 'numu' column
-    df['numu_processed'] = df['numu'] * 2e-16
-
-    # Create the output dataframe
-    output_df = pd.DataFrame({
-        'Energy_Avg': df['Energy_Avg'].round(8),
-        'numu_processed': df['numu_processed'].round(8)
-    })
-
-    # Define the output file path
-    output_file = os.path.join(abs_flux_dir,"t2k_flux.txt")
-
-    # Write the output file
-    output_df.to_csv(output_file, sep=' ', index=False, header=False, float_format='%.8f')
-
-    return output_file
+    with open(input_flux_file,"r") as fin:
+        all_lines = fin.readlines()
+        headers = all_lines[1].strip().split()
+        data = [line.strip().split() for line in all_lines[3:]]
+        pid = headers.index(particle)
+        with open(output_flux_file,"w") as fout:
+            for row in data:
+                E, flux = (float(row[1])+float(row[3]))/2, float(row[pid+2])
+                flux*=2e-16 # put flux in units of nu/m^2/GeV/POT
+                print(E, flux, file=fout)
+    return output_flux_file 

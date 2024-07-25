@@ -77,3 +77,5 @@ object box       0 0 1.6725    0 0 0      1.843 1.843 0.217     FGDWaterScint   
 
 detector         0 0 0
 
+# Fiducial volume
+fiducial box      0 0 0    0 0 0      3.5 3.6 7.0
