@@ -47,6 +47,28 @@ private:
     CRunDec * crundec;
     double _GammaHadronsCC = 0;
     double _GammaHadronsNC = 0;
+    std::vector<siren::dataclasses::ParticleType> MinusChargedMesons = {siren::dataclasses::ParticleType::PiMinus,
+                                                                        siren::dataclasses::ParticleType::KMinus,
+                                                                        siren::dataclasses::ParticleType::RhoMinus,
+                                                                        siren::dataclasses::ParticleType::KPrimeMinus,
+                                                                        siren::dataclasses::ParticleType::Hadrons,
+                                                                        siren::dataclasses::ParticleType::DMinus,
+                                                                        siren::dataclasses::ParticleType::DsMinus};
+    std::vector<siren::dataclasses::ParticleType> PlusChargedMesons = {siren::dataclasses::ParticleType::PiPlus,
+                                                                        siren::dataclasses::ParticleType::KPlus,
+                                                                        siren::dataclasses::ParticleType::RhoPlus,
+                                                                        siren::dataclasses::ParticleType::KPrimePlus,
+                                                                        siren::dataclasses::ParticleType::DPlus,
+                                                                        siren::dataclasses::ParticleType::DsPlus};
+    std::vector<siren::dataclasses::ParticleType> NeutralMesons = {siren::dataclasses::ParticleType::Pi0,
+                                                                   siren::dataclasses::ParticleType::Eta,
+                                                                   siren::dataclasses::ParticleType::Rho0,
+                                                                   siren::dataclasses::ParticleType::Omega,
+                                                                   siren::dataclasses::ParticleType::EtaPrime,
+                                                                   siren::dataclasses::ParticleType::KPrime0,
+                                                                   siren::dataclasses::ParticleType::Phi};
+
+
 public:
     HNLTwoBodyDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(mixing), nature(nature) {crundec = new CRunDec();};
     HNLTwoBodyDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), primary_types(primary_types) {crundec = new CRunDec();};
@@ -63,8 +85,10 @@ public:
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const override;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
-    double DeltaQCD(double m_N, double nloops) const;
+    double DeltaQCD(double m_N, int nloops=5) const;
     void SetGammaHadrons(double Gamma, std::string mode);
+    double CCMesonDecayWidth(dataclasses::InteractionRecord const &) const;
+    double NCMesonDecayWidth(dataclasses::InteractionRecord const &) const;
 public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
