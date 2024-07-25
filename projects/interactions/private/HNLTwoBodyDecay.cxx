@@ -204,12 +204,42 @@ double HNLTwoBodyDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary
 
 double HNLTwoBodyDecay::CCMesonDecayWidth(dataclasses::InteractionRecord const & record) const {
   dataclasses::InteractionRecord proxyRecord = record;
-
+  // Check lepton charge
+  // negative case
+  double GammaMeson = 0;
+  if (proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::EMinus ||
+      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::MuMinus ||
+      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::TauMinus) {
+    for(auto meson : PlusChargedMesons) {
+      proxyRecord.signature.secondary_types[1] = meson;
+      GammaMeson += TotalDecayWidthForFinalState(proxyRecord);
+    }
+  }
+  else if (proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::EPlus ||
+           proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::MuPlus ||
+           proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::TauPlus) {
+    for(auto meson : MinusChargedMesons) {
+      proxyRecord.signature.secondary_types[1] = meson;
+      GammaMeson += TotalDecayWidthForFinalState(proxyRecord);
+    }
+  }
+  else {
+    std::cerr << "Asked for CC Meson Decay width but first secondary particle is " << proxyRecord.signature.secondary_types[0] << std::endl;
+  }
+  return GammaMeson;
 }
 
 double HNLTwoBodyDecay::NCMesonDecayWidth(dataclasses::InteractionRecord const & record) const {
   dataclasses::InteractionRecord proxyRecord = record;
-
+  assert(proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::NuE ||
+         proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::NuMu ||
+         proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::NuTau);
+  double GammaMeson = 0;
+  for(auto meson : NeutralMesons) {
+    proxyRecord.signature.secondary_types[1] = meson;
+    GammaMeson += TotalDecayWidthForFinalState(proxyRecord);
+  }
+  return GammaMeson;
 }
 
 double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
@@ -395,7 +425,7 @@ double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
       double Gamma_longitudinal = pow(siren::utilities::Constants::gweak,2) / (64 * siren::utilities::Constants::pi * pow(siren::utilities::Constants::wMass,2)) * pow(hnl_mass,3) * pow(1-muz,2);
       double cosw = cos(asin(sqrt(siren::utilities::Constants::thetaWeinberg)));
       double Gamma_transverse = pow(siren::utilities::Constants::gweak,2) / (32 * siren::utilities::Constants::pi * cosw*cosw) * hnl_mass * pow(1-muz,2);
-      width = 0.5*(Gamma_longitudinal + Gamma_transverse);
+      width = 0.5 * pow(mixing_element,2) * (Gamma_longitudinal + Gamma_transverse);
     }
     else if (record.signature.secondary_types[1]==siren::dataclasses::Particle::ParticleType::WPlus ||
              record.signature.secondary_types[1]==siren::dataclasses::Particle::ParticleType::WMinus) {
@@ -406,7 +436,7 @@ double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
       double muw = xw*xw;
       double Gamma_longitudinal = pow(siren::utilities::Constants::gweak,2) / (64 * siren::utilities::Constants::pi * pow(siren::utilities::Constants::wMass,2)) * pow(hnl_mass,3) * pow(1-muw,2);
       double Gamma_transverse = pow(siren::utilities::Constants::gweak,2) / (32 * siren::utilities::Constants::pi) * hnl_mass * pow(1-muw,2);
-      width = Gamma_longitudinal + Gamma_transverse;
+      width = pow(mixing_element,2) * (Gamma_longitudinal + Gamma_transverse);
     }
     // Signature not recognized
     else {
