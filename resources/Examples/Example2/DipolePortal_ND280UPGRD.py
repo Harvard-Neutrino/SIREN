@@ -41,7 +41,7 @@ primary_injection_distributions = {}
 primary_physical_distributions = {}
 
 # energy distribution
-flux_file = siren.utilities.get_tabulated_flux_file("T2K_NEAR","PLUS_nue")
+flux_file = siren.utilities.get_tabulated_flux_file("T2K_NEAR","PLUS_numu")
 edist = siren.distributions.TabulatedFluxDistribution(flux_file, True)
 edist_gen = siren.distributions.TabulatedFluxDistribution(
     model_kwargs["m4"], 20, flux_file, False

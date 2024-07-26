@@ -13,7 +13,7 @@
 object box       0 0 -142         0 0 0      24 24 300     surr_earth         ROCK         constant    2.900 
 
 # Detector Hall
-object box       0 0 0            0 0 0      19 19 37       Det_Hall           AIR          constant    0.001225   # 0.673atm x 1.205e-3(g/cm3 for 1atm)
+object box       0 0 0            0 0 0      19 19 37       det_hall           AIR          constant    0.001225   # 0.673atm x 1.205e-3(g/cm3 for 1atm)
 
 #          MAGNETS         
 #    COIL, YOKE, CHAMBER   
