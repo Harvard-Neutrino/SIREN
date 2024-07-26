@@ -1,25 +1,25 @@
 # DetectorVisuals.wl
 
-`DetectorVisuals.wl` is a Wolfram Language package that takes the detector dimension files in `/densities/` and the corresponding material file in `/materials/` to create a 3D visualisation in `MATHEMATICA`.
+`DetectorVisuals.wl` is a Wolfram Language package that takes the detector dimension files in `/densities/` and material file in `/materials/` to create a 3D model in `MATHEMATICA`.
 
-To use the package, first save your working notebook in the `\visuals\` directory, and add the `\path\to\visuals` to `$Path` so `MATHEMATICA` can find it.
+To call functions in the package, save the working notebook in `\visuals\` and add `\path\to\visuals` to `$Path` so `MATHEMATICA` can find the package file. 
 
-If you correctly saved the working notebook in `\visuals\`, run 
+If the notebook directory is correctly saved in `\visuals\`, run 
 
 ```
 AppendTo[$Path, NotebookDirectory[]];
 ```
 
-so `MATHEMATICA` has access to the directory, then run 
+to append `\path\to\visuals\` to `MATHEMATICA` so it has access to the package. Next, run 
 
 ```
 << DetectorVisuals`
 ```
 
-To create visualisation for an experiment, run 
+to import the package. To create visualisation for an experiment, run 
 
 ```
 Visuals["YourExperiment", {Excluded Modules}]
 ```
 
-to create the 3D model, excluding the specified parts of the detector. For more examples, check out `Det_Visuals_Examples.nb`.
+to create the 3D model, excluding specified parts of the detector. For more examples, check out `Det_Visuals_Examples.nb`.
