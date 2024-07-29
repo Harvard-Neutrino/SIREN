@@ -150,6 +150,82 @@ double rombergIntegrate(const FuncType& func, double a, double b, double tol=1e-
   throw(std::runtime_error("Integral failed to converge"));
 }
 
+/**
+* @brief Performs a 2D simpson integration of a function
+*
+*
+* @param func the function to integrate
+* @param a the lower bound of integration for the first dimension
+* @param b the upper bound of integration for the first dimension
+* @param c the lower bound of integration for the second dimension
+* @param d the upper bound of integration for the second dimension
+* @param tol the (absolute) tolerance on the error of the integral per dimension
+*/
+template<typename FuncType>
+double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2, double b2,
+                          double tol=1e-3, const unsigned int N1 = 10, const unsigned int N2=10, const unsigned int maxIter=15){
+
+  if(tol<0)
+     throw(std::runtime_error("Integration tolerance must be positive"));
+
+
+  double prev_estimate = 0;
+  double estimate;
+  unsigned int N1i,N2i;
+  double h1i,h2i,c1,c2;
+
+  // std::cout << a1 << " " << b1 << " " << a2 << " " << b2 << std::endl;
+
+  for(unsigned int i=0; i<maxIter; i++){
+     N1i = pow(2,i)*N1;
+     N2i = pow(2,i)*N2;
+     h1i = (b1-a1)/N1i;
+     h2i = (b2-a2)/N2i;
+     estimate = 0;
+     for(unsigned int j = 0; j < N1i+1; j++) {
+       if (j==0 || j==N1i) c1 = 1;
+       else if (j%2==0) c1 = 2;
+       else if (j%2==1) c1 = 4;
+       double x = a1 + j*h1i;
+       for(unsigned int k = 0; k < N2i+1; k++) {
+         if (k==0 || k==N2i) c2 = 1;
+         else if (k%2==0) c2 = 2;
+         else if (k%2==1) c2 = 4;
+         double y = a2 + k*h2i;
+         estimate += c1*c2*func(x, y);
+       }
+     }
+     estimate *= h1i*h2i/9;
+     if(std::abs((estimate-prev_estimate)/estimate) < tol) {
+      return estimate;
+     }
+     prev_estimate = estimate;
+  }
+  throw(std::runtime_error("Simpson 2D integral failed to converge"));
+}
+
+/**
+* @brief Performs a simple trapezoid integration given a set of points.
+*
+* This routine is simple and not suitable for complicated functions, and relies on fixed points
+* provided by the user in contrast to the TrapezoidalIntegrator class.
+*
+* @param x the x points of the integration
+* @param y the y points of the integration
+*/
+inline double trapezoidIntegrate(std::vector<double>& x, std::vector<double>& y){
+   if(x.size()!=y.size())
+       throw(std::runtime_error("Integration x and y vectors must be the same size"));
+
+   double integral = 0;
+   for(unsigned int i=1; i<x.size(); i++){
+      double dx = x[i]-x[i-1];
+      double avg = 0.5*(y[i]+y[i-1]);
+      integral += dx*avg;
+   }
+   return integral;
+}
+
 }
 }
 
