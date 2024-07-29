@@ -3,6 +3,7 @@
 #include <string>
 
 #include "../../public/SIREN/distributions/Distributions.h"
+#include "../../public/SIREN/distributions/primary/PrimaryExternalDistribution.h"
 #include "../../public/SIREN/distributions/primary/direction/PrimaryDirectionDistribution.h"
 #include "../../public/SIREN/distributions/primary/direction/Cone.h"
 #include "../../public/SIREN/distributions/primary/direction/FixedDirection.h"
@@ -25,6 +26,8 @@
 #include "../../public/SIREN/distributions/primary/vertex/PointSourcePositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/RangeFunction.h"
 #include "../../public/SIREN/distributions/primary/vertex/RangePositionDistribution.h"
+#include "../../public/SIREN/distributions/primary/vertex/PrimaryPhysicalVertexDistribution.h"
+#include "../../public/SIREN/distributions/primary/vertex/PrimaryBoundedVertexDistribution.h"
 #include "../../public/SIREN/distributions/primary/area/PrimaryAreaDistribution.h"
 #include "../../public/SIREN/distributions/primary/area/FixedTargetAreaDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
@@ -63,6 +66,15 @@ PYBIND11_MODULE(distributions,m) {
   class_<PrimaryInjectionDistribution, std::shared_ptr<PrimaryInjectionDistribution>, WeightableDistribution>(m, "PrimaryInjectionDistribution")
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::PrimaryDistributionRecord &>(&PrimaryInjectionDistribution::Sample, const_))
     ;
+
+  // External distribution
+  class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, PrimaryInjectionDistribution>(m,"PrimaryExternalDistribution")
+    .def(init<std::string>())
+    .def(init<std::string, double>())
+    .def("Sample",&PrimaryExternalDistribution::Sample)
+    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
+    .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
+    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability);
 
   // Direciton distributions
 
@@ -234,6 +246,23 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",&RangePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&RangePositionDistribution::InjectionBounds)
     .def("Name",&RangePositionDistribution::Name);
+
+  class_<PrimaryPhysicalVertexDistribution, std::shared_ptr<PrimaryPhysicalVertexDistribution>, VertexPositionDistribution>(m, "PrimaryPhysicalVertexDistribution")
+    .def(init<>())
+    .def("SamplePosition",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::PrimaryDistributionRecord &>(&PrimaryPhysicalVertexDistribution::SamplePosition, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&PrimaryPhysicalVertexDistribution::GenerationProbability, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&PrimaryPhysicalVertexDistribution::InjectionBounds, const_))
+    .def("Name",&PrimaryPhysicalVertexDistribution::Name);
+
+  class_<PrimaryBoundedVertexDistribution, std::shared_ptr<PrimaryBoundedVertexDistribution>, VertexPositionDistribution>(m, "PrimaryBoundedVertexDistribution")
+    .def(init<>())
+    .def(init<double>())
+    .def(init<std::shared_ptr<siren::geometry::Geometry>>())
+    .def(init<std::shared_ptr<siren::geometry::Geometry>, double>())
+    .def("SamplePosition",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::PrimaryDistributionRecord &>(&PrimaryBoundedVertexDistribution::SamplePosition, const_))
+    .def("GenerationProbability",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&PrimaryBoundedVertexDistribution::GenerationProbability, const_))
+    .def("InjectionBounds",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&PrimaryBoundedVertexDistribution::InjectionBounds, const_))
+    .def("Name",&PrimaryBoundedVertexDistribution::Name);
 
   class_<FixedTargetPositionDistribution, std::shared_ptr<FixedTargetPositionDistribution>, VertexPositionDistribution>(m, "FixedTargetPositionDistribution")
     .def(init<>())

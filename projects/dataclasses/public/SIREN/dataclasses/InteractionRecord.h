@@ -85,6 +85,7 @@ private:
     mutable double vertex_distance_from_closest_approach;
     mutable double initial_distance_from_closest_approach;
     mutable double helicity = 0;
+    std::map<std::string, double> interaction_parameters;
 public:
     friend std::ostream& ::operator<<(std::ostream& os, siren::dataclasses::PrimaryDistributionRecord const& record);
     friend std::string (::to_str)(siren::dataclasses::PrimaryDistributionRecord const & record);
@@ -130,6 +131,8 @@ public:
     void SetVertexDistanceFromClosestApproach(double vertex_distance_from_closest_approach);
     void SetInitialDistanceFromClosestApproach(double initial_distance_from_closest_approach);
     void SetHelicity(double helicity);
+    void SetInteractionParameters(std::map<std::string, double> const & parameters);
+    void SetInteractionParameter(std::string const & name, double value);
 
     void UpdateMass() const;
     void UpdateEnergy() const;
