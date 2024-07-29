@@ -8,10 +8,13 @@
 #include "../../public/SIREN/distributions/primary/direction/Cone.h"
 #include "../../public/SIREN/distributions/primary/direction/FixedDirection.h"
 #include "../../public/SIREN/distributions/primary/direction/IsotropicDirection.h"
+#include "../../public/SIREN/distributions/primary/energy/PrimaryEnergyDistribution.h"
 #include "../../public/SIREN/distributions/primary/energy/Monoenergetic.h"
 #include "../../public/SIREN/distributions/primary/energy/PowerLaw.h"
 #include "../../public/SIREN/distributions/primary/energy/PiDARNuEDistribution.h"
 #include "../../public/SIREN/distributions/primary/energy/TabulatedFluxDistribution.h"
+#include "../../public/SIREN/distributions/primary/energy_direction/PrimaryEnergyDirectionDistribution.h"
+#include "../../public/SIREN/distributions/primary/energy_direction/Tabulated2DFluxDistribution.h"
 #include "../../public/SIREN/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
 #include "../../public/SIREN/distributions/primary/mass/PrimaryMass.h"
 #include "../../public/SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
@@ -117,10 +120,10 @@ PYBIND11_MODULE(distributions,m) {
     .def("Name",&PowerLaw::Name);
 
   class_<TabulatedFluxDistribution, std::shared_ptr<TabulatedFluxDistribution>, PrimaryEnergyDistribution>(m, "TabulatedFluxDistribution")
-    .def(init<std::string, bool>())
-    .def(init<double, double, std::string, bool>())
-    .def(init<std::vector<double>, std::vector<double>, bool>())
-    .def(init<double, double, std::vector<double>, std::vector<double>, bool>())
+    .def(init<std::string, bool, bool>())
+    .def(init<double, double, std::string, bool, bool>())
+    .def(init<std::vector<double>, std::vector<double>, bool, bool>())
+    .def(init<double, double, std::vector<double>, std::vector<double>, bool, bool>())
     .def("InverseCDF",&TabulatedFluxDistribution::InverseCDF)
     .def("SampleEnergy",&TabulatedFluxDistribution::SampleEnergy)
     .def("GenerationProbability",&TabulatedFluxDistribution::GenerationProbability)
@@ -142,6 +145,29 @@ PYBIND11_MODULE(distributions,m) {
     .def("SampleEnergy",&PiDARNuEDistribution::SampleEnergy)
     .def("GenerationProbability",&PiDARNuEDistribution::GenerationProbability)
     .def("Name",&PiDARNuEDistribution::Name);
+
+  // Energy Direction distributions
+
+  class_<PrimaryEnergyDirectionDistribution, std::shared_ptr<PrimaryEnergyDirectionDistribution>, PrimaryInjectionDistribution, PhysicallyNormalizedDistribution>(m, "PrimaryEnergyDirectionDistribution")
+    .def("Sample",&PrimaryEnergyDirectionDistribution::Sample);
+
+  class_<Tabulated2DFluxDistribution, std::shared_ptr<Tabulated2DFluxDistribution>, PrimaryEnergyDirectionDistribution>(m, "Tabulated2DFluxDistribution")
+    .def(init<std::string, bool>())
+    .def(init<double, double, std::string, bool>())
+    .def(init<double, double, double, double, std::string, bool>())
+    .def(init<std::vector<double>, std::vector<double>, std::vector<double>, bool>())
+    .def(init<double, double, std::vector<double>, std::vector<double>, std::vector<double>, bool>())
+    .def(init<double, double, double, double, std::vector<double>, std::vector<double>, std::vector<double>, bool>())
+    .def("SampleEnergyAndDirection",&Tabulated2DFluxDistribution::SampleEnergyAndDirection)
+    .def("GenerationProbability",&Tabulated2DFluxDistribution::GenerationProbability)
+    .def("SetEnergyBounds",&Tabulated2DFluxDistribution::SetEnergyBounds)
+    .def("SetZenithBounds",&Tabulated2DFluxDistribution::SetZenithBounds)
+    .def("Name",&Tabulated2DFluxDistribution::Name)
+    .def("GetIntegral",&Tabulated2DFluxDistribution::GetIntegral)
+    .def("SamplePDF",&Tabulated2DFluxDistribution::SamplePDF)
+    .def("SampleUnnormedPDF",&Tabulated2DFluxDistribution::SampleUnnormedPDF)
+    .def("GetEnergyNodes",&Tabulated2DFluxDistribution::GetEnergyNodes)
+    .def("GetZenithNodes",&Tabulated2DFluxDistribution::GetZenithNodes);
 
   // Helicity distributions
 
@@ -202,7 +228,7 @@ PYBIND11_MODULE(distributions,m) {
     .def("GetTauAlpha",&LeptonDepthFunction::GetTauAlpha)
     .def("GetTauBeta",&LeptonDepthFunction::GetTauBeta)
     .def("GetScale",&LeptonDepthFunction::GetScale)
-    .def("GetMaxDepth",&LeptonDepthFunction::GetMaxDepth) 
+    .def("GetMaxDepth",&LeptonDepthFunction::GetMaxDepth)
     .def("GetLeptonDepthFunctionReturnValue",&LeptonDepthFunction::GetLeptonDepthFunctionReturnValue);
     //.def((siren::dataclasses::InteractionSignature const &, double));
 
