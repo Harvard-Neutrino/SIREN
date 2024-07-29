@@ -67,6 +67,7 @@ private:
     mutable std::array<double, 3> initial_position;
     mutable std::array<double, 3> interaction_vertex;
     mutable double helicity = 0;
+    std::map<std::string, double> interaction_parameters;
 public:
     friend std::ostream& ::operator<<(std::ostream& os, PrimaryDistributionRecord const& record);
 
@@ -104,6 +105,8 @@ public:
     void SetInitialPosition(std::array<double, 3> initial_position);
     void SetInteractionVertex(std::array<double, 3> interaction_vertex);
     void SetHelicity(double helicity);
+    void SetInteractionParameters(std::map<std::string, double> const & parameters);
+    void SetInteractionParameter(std::string const & name, double value);
 
     void UpdateMass() const;
     void UpdateEnergy() const;
