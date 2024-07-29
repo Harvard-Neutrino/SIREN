@@ -402,7 +402,7 @@ double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
       // }
       // width = _GammaHadronsCC;
       width = GammaHadronsCC(mixing_element, hnl_mass, m_alpha) - CCMesonDecayWidth(record);
-      width *= (1 + DeltaQCD(hnl_mass)); // loop correction
+      width *= (1 + DeltaQCD()); // loop correction
     }
     else if (!charged && record.signature.secondary_types[1]==siren::dataclasses::ParticleType::Hadrons) {
       meson = false;
@@ -412,7 +412,7 @@ double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
       // }
       // width = _GammaHadronsNC;
       width = GammaHadronsNC(mixing_element, hnl_mass) - NCMesonDecayWidth(record);
-      width *= (1 + DeltaQCD(hnl_mass)); // loop correction
+      width *= (1 + DeltaQCD()); // loop correction
     }
     // Weak Bosons
     // https://arxiv.org/abs/0901.3589v2
@@ -655,24 +655,73 @@ std::vector<dataclasses::InteractionSignature> HNLTwoBodyDecay::GetPossibleSigna
     return signatures;
 }
 
+// Follows https://arxiv.org/abs/1805.07523v1
+double HNLTwoBodyDecay::GetAlpha(dataclasses::ParticleType const & secondary) const {
+  // pseudoscalar meson, photon, hadrons
+  if (secondary == dataclasses::ParticleType::Pi0 ||
+      secondary == dataclasses::ParticleType::Eta ||
+      secondary == dataclasses::ParticleType::EtaPrime ||
+      secondary == dataclasses::ParticleType::Gamma ||
+      secondary == dataclasses::ParticleType::Hadrons) {
+    return 1;
+  }
+  // Vector particles
+  else if (secondary == dataclasses::ParticleType::Z0) {
+    double m = siren::utilities::Constants::zMass;
+    return (hnl_mass*hnl_mass - 2*m*m) / (hnl_mass*hnl_mass + 2*m*m);
+  }
+  else if (secondary == dataclasses::ParticleType::Rho0) {
+    double m = siren::utilities::Constants::Rho0Mass;
+    return (hnl_mass*hnl_mass - 2*m*m) / (hnl_mass*hnl_mass + 2*m*m);
+  }
+  else if (secondary == dataclasses::ParticleType::Omega) {
+    double m = siren::utilities::Constants::OmegaMass;
+    return (hnl_mass*hnl_mass - 2*m*m) / (hnl_mass*hnl_mass + 2*m*m);
+  }
+  else if (secondary == dataclasses::ParticleType::Phi) {
+    double m = siren::utilities::Constants::PhiMass;
+    return (hnl_mass*hnl_mass - 2*m*m) / (hnl_mass*hnl_mass + 2*m*m);
+  }
+  else if (secondary == dataclasses::ParticleType::KPrime0) {
+    double m = siren::utilities::Constants::KPrime0Mass;
+    return (hnl_mass*hnl_mass - 2*m*m) / (hnl_mass*hnl_mass + 2*m*m);
+  }
+  return 0;
+}
+
+// TODO: this function should follow from arXiv:1905.00284v2
+// For now, follow https://arxiv.org/abs/1805.07523v1 for NC decays and assume isotropy otherwise
 double HNLTwoBodyDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
     double DecayWidth = TotalDecayWidthForFinalState(record);
+    // Check for isotropic decay
+    if (nature==ChiralNature::Majorana || record.secondary_momenta.size() >=2) {
+      return DecayWidth/2.;
+    }
+    assert(record.secondary_momenta.size() ==2);
     siren::math::Vector3D hnl_dir = siren::math::Vector3D(record.primary_momentum[0],
-                                                    record.primary_momentum[1],
-                                                    record.primary_momentum[2]);
+                                                          record.primary_momentum[1],
+                                                          record.primary_momentum[2]);
     hnl_dir.normalize();
-    unsigned int gamma_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::Gamma) ? 0 : 1;
+    unsigned int nu_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuE ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMu ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTau ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuEBar ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMuBar ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTauBar ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLight) ? 0 : 1;
+    unsigned int X_index = 1 - nu_index;
     rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
-    rk::P4 pGamma(geom3::Vector3(record.secondary_momenta[gamma_index][1], record.secondary_momenta[gamma_index][2], record.secondary_momenta[gamma_index][3]), record.secondary_masses[gamma_index]);
+    rk::P4 pX(geom3::Vector3(record.secondary_momenta[X_index][1], record.secondary_momenta[X_index][2], record.secondary_momenta[X_index][3]), record.secondary_masses[X_index]);
     rk::Boost boost_to_HNL_rest = pHNL.restBoost();
-    rk::P4 pGamma_HNLrest = pGamma.boost(boost_to_HNL_rest);
+    rk::P4 pX_HNLrest = pX.boost(boost_to_HNL_rest);
 
-    siren::math::Vector3D gamma_dir = siren::math::Vector3D(pGamma_HNLrest.px(),
-                                                      pGamma_HNLrest.py(),
-                                                      pGamma_HNLrest.pz());
-    gamma_dir.normalize();
-    double CosThetaGamma = gamma_dir*hnl_dir; // scalar product
-    double alpha = std::copysign(1.0,record.primary_helicity); // 1 for RH, -1 for LH
+    siren::math::Vector3D X_dir = siren::math::Vector3D(pX_HNLrest.px(),
+                                                        pX_HNLrest.py(),
+                                                        pX_HNLrest.pz());
+    X_dir.normalize();
+    double CosThetaGamma = X_dir*hnl_dir; // scalar product
+    double alpha = GetAlpha(record.signature.secondary_types[X_index]);
+    alpha = std::copysign(alpha,record.primary_helicity); // 1 for RH, -1 for LH
     alpha = (record.signature.primary_type == siren::dataclasses::ParticleType::N4) ? -1*alpha : alpha;
     return DecayWidth/2. * (1 + alpha*CosThetaGamma);
 }
@@ -743,7 +792,7 @@ double HNLTwoBodyDecay::FinalStateProbability(dataclasses::InteractionRecord con
   else return dd/td;
 }
 
-double HNLTwoBodyDecay::DeltaQCD(double m_N, int nloops) const {
+double HNLTwoBodyDecay::DeltaQCD(int nloops) const {
   // See https://arxiv.org/pdf/1703.03751
   // and https://arxiv.org/abs/2007.03701
   std::vector<double> quark_masses = {siren::utilities::Constants::upMass,
@@ -754,7 +803,7 @@ double HNLTwoBodyDecay::DeltaQCD(double m_N, int nloops) const {
                                       siren::utilities::Constants::topMass};
   int nflavors = 0;
   for (auto q_mass : quark_masses) {
-    if (m_N > q_mass) ++nflavors;
+    if (hnl_mass > q_mass) ++nflavors;
   }
   double m_ref, alpha_s_ref;
   if(nflavors <=5) {
@@ -767,7 +816,7 @@ double HNLTwoBodyDecay::DeltaQCD(double m_N, int nloops) const {
     m_ref = siren::utilities::Constants::zMass;
     alpha_s_ref = 0.1179;
   }
-  double alpha_s = crundec->AlphasExact(alpha_s_ref, m_ref, m_N, nflavors, nloops);
+  double alpha_s = crundec->AlphasExact(alpha_s_ref, m_ref, hnl_mass, nflavors, nloops);
   return (alpha_s / siren::utilities::Constants::pi +
           5.2 * pow(alpha_s/siren::utilities::Constants::pi,2) +
           26.4 * pow(alpha_s/siren::utilities::Constants::pi,3));
