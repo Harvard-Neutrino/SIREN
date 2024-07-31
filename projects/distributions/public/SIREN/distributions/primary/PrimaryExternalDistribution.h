@@ -26,19 +26,23 @@ namespace distributions {
 
 class PrimaryExternalDistribution : virtual public PrimaryInjectionDistribution {
 friend cereal::access;
+protected:
+    PrimaryExternalDistribution() {};
 public:
     ~PrimaryExternalDistribution() {
         input_file.close();
     };
+    std::string filename;
 private:
-    std::vector<std::vector<double>> input_data;
     std::ifstream input_file;
+    std::vector<std::vector<double>> input_data;
     std::vector<std::string> keys;
     std::vector<std::string> possible_keys = {"x0","y0","z0","m","E","px","py","pz"};
     bool init_pos_set;
     bool mom_set;
 public:
-    PrimaryExternalDistribution(std::string input_file);
+    PrimaryExternalDistribution(std::string _filename);
+    PrimaryExternalDistribution(PrimaryExternalDistribution const & other);
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const override;
@@ -48,7 +52,6 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
-            archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
         } else {
             throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
         }
@@ -57,7 +60,6 @@ public:
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
-            archive(cereal::virtual_base_class<PhysicallyNormalizedDistribution>(this));
         } else {
             throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
         }
