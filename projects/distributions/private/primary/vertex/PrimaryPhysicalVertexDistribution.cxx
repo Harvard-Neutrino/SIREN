@@ -62,7 +62,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryPhysicalVertexDi
     std::vector<siren::dataclasses::ParticleType> targets(interactions->TargetTypes().begin(), interactions->TargetTypes().end());
 
     siren::dataclasses::InteractionRecord fake_record;
-    record.Finalize(fake_record);
+    record.FinalizeAvailable(fake_record);
     std::vector<double> total_cross_sections(targets.size(), 0.0);
     double total_decay_length = interactions->TotalDecayLength(fake_record);
     for(unsigned int i=0; i<targets.size(); ++i) {
