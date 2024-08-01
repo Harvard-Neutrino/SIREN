@@ -42,8 +42,8 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::string _filename)
     // fill input data
     while (std::getline(input_file,line)) {
         std::vector<double> tmp_data;
-        ss.str(line);
-        while (std::getline(ss, value, ',')) {
+        std::stringstream _ss(line);
+        while (std::getline(_ss, value, ',')) {
             tmp_data.push_back(stod(value));
         }
         input_data.push_back(tmp_data);
@@ -54,40 +54,6 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::string _filename)
 PrimaryExternalDistribution::PrimaryExternalDistribution(PrimaryExternalDistribution const & other)
 {
     PrimaryExternalDistribution(other.filename);
-    // input_file.open(filename);
-    // init_pos_set = false;
-    // mom_set = false;
-
-    // std::string line;
-    // if (!input_file.is_open()) {
-    //     std::cerr << "error: file open failed " << filename << ".\n";
-    //     exit(0);
-    // }
-    // std::getline(input_file,line);
-
-    // std::stringstream ss(line);
-    // std::string key;
-    // while (std::getline(ss, key, ',')) {
-    //     keys.push_back(key);
-    //     if (key == "x0" ||
-    //         key == "y0" ||
-    //         key == "z0") init_pos_set = true;
-    //     if (key == "px" ||
-    //         key == "py" ||
-    //         key == "pz") mom_set = true;
-    // }
-
-    // std::string value;
-    // // fill input data
-    // while (std::getline(input_file,line)) {
-    //     std::vector<double> tmp_data;
-    //     ss.str(line);
-    //     while (std::getline(ss, value, ',')) {
-    //         tmp_data.push_back(stod(value));
-    //     }
-    //     input_data.push_back(tmp_data);
-    // }
-
 }
 
 void PrimaryExternalDistribution::Sample(
