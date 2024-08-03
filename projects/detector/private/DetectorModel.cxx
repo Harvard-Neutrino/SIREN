@@ -244,6 +244,14 @@ DetectorSector DetectorModel::GetSector(int heirarchy) const {
     return sectors_[index];
 }
 
+DetectorSector DetectorModel::GetSector(std::string name) const {
+    for (auto sector : sectors_) {
+        if (sector.name==name) return sector;
+    }
+    std::cout << "Sector " << name << " not found, returning empty sector\n";
+    return DetectorSector();
+}
+
 void DetectorModel::ClearSectors() {
     sectors_.clear();
     sector_map_.clear();
