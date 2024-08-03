@@ -199,7 +199,7 @@ void HNLDipoleDISFromSpline::InitializeSignatures() {
 
         if(int(primary_type) > 0) {
             neutral_lepton_product = siren::dataclasses::Particle::ParticleType::N4;
-        } 
+        }
         else {
             neutral_lepton_product = siren::dataclasses::Particle::ParticleType::N4Bar;
         }
@@ -320,7 +320,7 @@ double HNLDipoleDISFromSpline::DifferentialCrossSection(siren::dataclasses::Part
     else if (primary_type==siren::dataclasses::ParticleType::NuMu || primary_type==siren::dataclasses::ParticleType::NuMuBar)
         norm = std::pow(dipole_coupling_[1],2);
     else if (primary_type==siren::dataclasses::ParticleType::NuTau || primary_type==siren::dataclasses::ParticleType::NuTauBar)
-        norm = std::pow(dipole_coupling_[2],2);    
+        norm = std::pow(dipole_coupling_[2],2);
     norm /= siren::utilities::Constants::invGeVsq_per_cmsq;
     return norm * unit * result;
 }
@@ -486,8 +486,13 @@ void HNLDipoleDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistribut
     double p1x_lab = std::sqrt(p1_lab.px() * p1_lab.px() + p1_lab.py() * p1_lab.py() + p1_lab.pz() * p1_lab.pz());
     double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
     double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
-    double pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);
-    double Eq_lab = std::sqrt(momq_lab*momq_lab + Q2);//E1_lab * final_y;
+    double pqy_lab;
+    if (pqx_lab>momq_lab){
+        assert(((pqx_lab-momq_lab)/momq_lab)<1e-3);
+        pqy_lab = 0;
+    }
+    else pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);
+    double Eq_lab = E1_lab * final_y;
 
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
     geom3::Vector3 p1_mom = p1_lab.momentum();
