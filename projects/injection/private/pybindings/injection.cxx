@@ -126,6 +126,7 @@ PYBIND11_MODULE(injection,m) {
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>>())
     .def(init<std::vector<std::shared_ptr<Injector>>, std::string>())
     .def("EventWeight",&Weighter::EventWeight)
+    .def("GetInteractionProbabilities",&Weighter::GetInteractionProbabilities, arg("tree"), arg("i_inj")=0)
     .def("SaveWeighter",&Weighter::SaveWeighter)
     .def("LoadWeighter",&Weighter::LoadWeighter)
     ;

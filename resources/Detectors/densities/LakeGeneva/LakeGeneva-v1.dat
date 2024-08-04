@@ -38,4 +38,4 @@ object box       0 2.5  19511.21     0 0 0      5 5 0.1       panel_1         SC
 object box       0 2.5  19512.21     0 0 0      5 5 0.1       panel_2         SCINTILLATOR     constant      1.043
 object box       0 2.5  19513.21     0 0 0      5 5 0.1       panel_3         SCINTILLATOR     constant      1.043
 detector         0 2.5  19512.21
-fiducial box     0 2.5  18512.21     0 0 0      100 100 2000
+fiducial box     0 2.5  19462.21     0 0 0      100 100 100
