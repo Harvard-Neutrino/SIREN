@@ -509,8 +509,8 @@ class SIREN_Controller:
     # Save events to hdf5, parquet, and/or custom SIREN filetypes
     # if the weighter exists, calculate the event weight too
     def SaveEvents(self, filename, fill_tables_at_exit=True,
-                   hdf5=True, parquet=True, siren_events=True # filetypes to save events
-                   ):
+                   hdf5=True, parquet=True, siren_events=True, # filetypes to save events
+                   save_int_probs=False):
 
         if siren_events:
             _dataclasses.SaveInteractionTrees(self.events, filename)
@@ -531,10 +531,14 @@ class SIREN_Controller:
             "secondary_momenta":[], # secondary momentum of each interaction
             "parent_idx":[], # index of the parent interaction
         }
+        if save_int_probs:
+            datasets["int_probs"] = []
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             t0 = time.time()
             datasets["event_weight"].append(self.weighter.EventWeight(event) if hasattr(self,"weighter") else 0)
+            if save_int_probs:
+                datasets["int_probs"].append(self.weighter.GetInteractionProbabilities(event)if hasattr(self,"weighter") else [])
             datasets["event_weight_time"].append(time.time()-t0)
             datasets["event_gen_time"].append(self.gen_times[ie])
             datasets["event_global_time"].append(self.global_times[ie])
