@@ -510,7 +510,7 @@ class SIREN_Controller:
     # if the weighter exists, calculate the event weight too
     def SaveEvents(self, filename, fill_tables_at_exit=True,
                    hdf5=True, parquet=True, siren_events=True, # filetypes to save events
-                   save_int_probs=False):
+                   save_int_probs=False,save_int_params=False):
 
         if siren_events:
             _dataclasses.SaveInteractionTrees(self.events, filename)
@@ -531,8 +531,7 @@ class SIREN_Controller:
             "secondary_momenta":[], # secondary momentum of each interaction
             "parent_idx":[], # index of the parent interaction
         }
-        if save_int_probs:
-            datasets["int_probs"] = []
+        if save_int_probs: datasets["int_probs"] = []
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             t0 = time.time()
@@ -555,6 +554,10 @@ class SIREN_Controller:
                 datasets[k].append([])
             # loop over interactions
             for id, datum in enumerate(event.tree):
+                if save_int_params:
+                    for param_name,param_value in datum.record.interaction_parameters.items():
+                        if ie==0: datasets[param_name] = []
+                        datasets[param_name].append(param_value)
                 datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
 
                  # primary particle stuff
