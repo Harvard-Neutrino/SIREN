@@ -200,20 +200,18 @@ void DISFromSpline::ReadParamsFromSplineTable() {
     if(!mass_good) {
         if(int_good) {
             if(interaction_type_ == 1 or interaction_type_ == 2) {
-                target_mass_ = (siren::dataclasses::isLepton(siren::dataclasses::ParticleType::PPlus)+
-                        siren::dataclasses::isLepton(siren::dataclasses::ParticleType::Neutron))/2;
+                target_mass_ = siren::utilities::Constants::isoscalarMass;
             } else if(interaction_type_ == 3) {
-                target_mass_ = siren::dataclasses::isLepton(siren::dataclasses::ParticleType::EMinus);
+                target_mass_ = siren::utilities::Constants::electronMass;
             } else {
                 throw std::runtime_error("Logic error. Interaction type is not 1, 2, or 3!");
             }
 
         } else {
             if(differential_cross_section_.get_ndim() == 3) {
-                target_mass_ = (siren::dataclasses::isLepton(siren::dataclasses::ParticleType::PPlus)+
-                        siren::dataclasses::isLepton(siren::dataclasses::ParticleType::Neutron))/2;
+                target_mass_ = siren::utilities::Constants::isoscalarMass;
             } else if(differential_cross_section_.get_ndim() == 2) {
-                target_mass_ = siren::dataclasses::isLepton(siren::dataclasses::ParticleType::EMinus);
+                target_mass_ = siren::utilities::Constants::electronMass;
             } else {
                 throw std::runtime_error("Logic error. Spline dimensionality is not 2, or 3!");
             }
