@@ -204,14 +204,16 @@ class SIREN_Controller:
         self.SetInjectionProcesses(primary_type,primary_injection_distributions,secondary_types,secondary_injection_distributions)
         self.SetPhysicalProcesses(primary_type,primary_physical_distributions,secondary_types,secondary_physical_distributions)
 
-    def InputDarkNewsModel(self, primary_type, table_dir, fill_tables_at_start=False, Emax=None, **kwargs):
+    def InputDarkNewsModel(self, primary_type, table_dir, upscattering=True, decay=True, fill_tables_at_start=False, Emax=None, **kwargs):
         """
         Sets up the relevant processes and cross section/decay objects related to a provided DarkNews model dictionary.
         Will handle the primary cross section collection as well as the entire list of secondary processes
 
         :param _dataclasses.Particle.ParticleType primary_type: primary particle to be generated
         :param string table_dir: Directory for storing cross section and decay tables
-        :param string fill_tables_at_start: Flag to fill total/differential cross section tables upon initialization
+        :param bool upscattering: Flag to set upscattering interactions
+        :param bool decay: Flag to set decay interactions
+        :param bool fill_tables_at_start: Flag to fill total/differential cross section tables upon initialization
         :param float Emax: maximum energy for cross section tables
         :param dict<str,val> kwargs: The dict of DarkNews model and cross section parameters
         """
@@ -259,7 +261,17 @@ class SIREN_Controller:
         # Add new secondary injection and physical processes at the same time
         secondary_interaction_collections = []
         for secondary_type, decay_list in secondary_decays.items():
-            # Define a sedcondary injection distribution
+
+            # Define a sedcondary injection distribution if necessary
+            inj_sec_defined = False
+            phys_sec_defined = False
+            for secondary_injection_process in self.secondary_injection_processes:
+                if secondary_injection_process.primary_type == secondary_type:
+                    inj_sec_defined = True
+            for secondary_physical_process in self.secondary_physical_processes:
+                if secondary_physical_process.primary_type == secondary_type:
+                    phys_sec_defined = True
+
             secondary_injection_process = _injection.SecondaryInjectionProcess()
             secondary_physical_process = _injection.PhysicalProcess()
             secondary_injection_process.primary_type = secondary_type
@@ -275,15 +287,19 @@ class SIREN_Controller:
                     _distributions.SecondaryPhysicalVertexDistribution()
                 )
 
-            self.secondary_injection_processes.append(secondary_injection_process)
-            self.secondary_physical_processes.append(secondary_physical_process)
+            if not inj_sec_defined: self.secondary_injection_processes.append(secondary_injection_process)
+            if not phys_sec_defined: self.secondary_physical_processes.append(secondary_physical_process)
 
             secondary_interaction_collections.append(
                 _interactions.InteractionCollection(secondary_type, decay_list)
             )
 
+        # check whether to not include either process
+        if not upscattering: primary_interaction_collection = None
+        if not decay: secondary_interaction_collections = None
         self.SetInteractions(
-            primary_interaction_collection, secondary_interaction_collections
+            primary_interaction_collection=primary_interaction_collection,
+            secondary_interaction_collections=secondary_interaction_collections
         )
 
     def GetFiducialVolume(self):
@@ -347,7 +363,7 @@ class SIREN_Controller:
         return targets, target_strs
 
     def SetInteractions(
-        self, primary_interaction_collection, secondary_interaction_collections=None, injection=True, physical=True
+        self, primary_interaction_collection=None, secondary_interaction_collections=None, injection=True, physical=True
     ):
         """
         Set cross sections for the primary and secondary processes
@@ -357,64 +373,64 @@ class SIREN_Controller:
         :param bool injection: whether to apply these interaction collections to the injection processes
         :param bool physical: whether to apply these interaction collections to the physical processes
         """
-        if secondary_interaction_collections is None:
-            secondary_interaction_collections = []
 
-        # Set primary cross sections
-        if injection:
-            # set the primary type if doesn't exist
-            if self.primary_injection_process.primary_type == _dataclasses.Particle.ParticleType.unknown:
-                self.primary_injection_process.primary_type = primary_interaction_collection.GetPrimaryType()
-            else:
-                assert(self.primary_injection_process.primary_type == primary_interaction_collection.GetPrimaryType())
-            if self.primary_injection_process.interactions is None:
-                self.primary_injection_process.interactions = primary_interaction_collection
-            else:
-                self.primary_injection_process.interactions = MergeInteractionCollections(self.primary_injection_process.primary_type,
-                                                                                         [self.primary_injection_process.interactions, primary_interaction_collection])
-        if physical:
-            if self.primary_physical_process.primary_type == _dataclasses.Particle.ParticleType.unknown:
-                self.primary_physical_process.primary_type = primary_interaction_collection.GetPrimaryType()
-            else:
-                assert(self.primary_injection_process.primary_type == primary_interaction_collection.GetPrimaryType())
-            if self.primary_physical_process.interactions is None:
-                self.primary_physical_process.interactions = primary_interaction_collection
-            else:
-                self.primary_physical_process.interactions = MergeInteractionCollections(self.primary_physical_process.primary_type,
-                                                                                        [self.primary_physical_process.interactions, primary_interaction_collection])
+        if primary_interaction_collection is not None:
+            # Set primary cross sections
+            if injection:
+                # set the primary type if doesn't exist
+                if self.primary_injection_process.primary_type == _dataclasses.Particle.ParticleType.unknown:
+                    self.primary_injection_process.primary_type = primary_interaction_collection.GetPrimaryType()
+                else:
+                    assert(self.primary_injection_process.primary_type == primary_interaction_collection.GetPrimaryType())
+                if self.primary_injection_process.interactions is None:
+                    self.primary_injection_process.interactions = primary_interaction_collection
+                else:
+                    self.primary_injection_process.interactions = MergeInteractionCollections(self.primary_injection_process.primary_type,
+                                                                                            [self.primary_injection_process.interactions, primary_interaction_collection])
+            if physical:
+                if self.primary_physical_process.primary_type == _dataclasses.Particle.ParticleType.unknown:
+                    self.primary_physical_process.primary_type = primary_interaction_collection.GetPrimaryType()
+                else:
+                    assert(self.primary_injection_process.primary_type == primary_interaction_collection.GetPrimaryType())
+                if self.primary_physical_process.interactions is None:
+                    self.primary_physical_process.interactions = primary_interaction_collection
+                else:
+                    self.primary_physical_process.interactions = MergeInteractionCollections(self.primary_physical_process.primary_type,
+                                                                                            [self.primary_physical_process.interactions, primary_interaction_collection])
 
-        # Loop through secondary processes
-        for sec_inj, sec_phys in zip(
-            self.secondary_injection_processes, self.secondary_physical_processes
-        ):
-            assert sec_inj.primary_type == sec_phys.primary_type
-            record = _dataclasses.InteractionRecord()
-            record.signature.primary_type = sec_inj.primary_type
-            found_collection = False
-            # Loop through possible seconday cross sections
-            for sec_ints in secondary_interaction_collections:
-                # Match cross section collection on the primary type
-                if sec_ints.MatchesPrimary(record):
-                    # Set secondary cross sections
-                    if injection:
-                        if sec_inj.interactions is None:
-                            sec_inj.interactions = sec_ints
-                        else:
-                            sec_inj.interactions = MergeInteractionCollections(sec_inj.primary_type,
-                                                                            [sec_inj.interactions, sec_ints])
-                    if physical:
-                        if sec_phys.interactions is None:
-                            sec_phys.interactions = sec_ints
-                        else:
-                            sec_phys.interactions = MergeInteractionCollections(sec_phys.primary_type,
-                                                                                [sec_phys.interactions, sec_ints])
-                    found_collection = True
-            if not found_collection and(sec_inj.interactions is None or sec_phys.interactions is None):
-                print(
-                    "Couldn't find cross section collection for secondary particle %s; Exiting"
-                    % record.signature.primary_type
-                )
-                exit(0)
+        if secondary_interaction_collections is not None:
+            # Loop through secondary processes
+            for sec_inj, sec_phys in zip(
+                self.secondary_injection_processes, self.secondary_physical_processes
+            ):
+                assert sec_inj.primary_type == sec_phys.primary_type
+                record = _dataclasses.InteractionRecord()
+                record.signature.primary_type = sec_inj.primary_type
+                found_collection = False
+                # Loop through possible seconday cross sections
+                for sec_ints in secondary_interaction_collections:
+                    # Match cross section collection on the primary type
+                    if sec_ints.MatchesPrimary(record):
+                        # Set secondary cross sections
+                        if injection:
+                            if sec_inj.interactions is None:
+                                sec_inj.interactions = sec_ints
+                            else:
+                                sec_inj.interactions = MergeInteractionCollections(sec_inj.primary_type,
+                                                                                [sec_inj.interactions, sec_ints])
+                        if physical:
+                            if sec_phys.interactions is None:
+                                sec_phys.interactions = sec_ints
+                            else:
+                                sec_phys.interactions = MergeInteractionCollections(sec_phys.primary_type,
+                                                                                    [sec_phys.interactions, sec_ints])
+                        found_collection = True
+                if not found_collection and(sec_inj.interactions is None or sec_phys.interactions is None):
+                    print(
+                        "Couldn't find cross section collection for secondary particle %s; Exiting"
+                        % record.signature.primary_type
+                    )
+                    exit(0)
 
     # set the stopping condition of the injector with a python function
     # must accept two arguments, assumes first is datum and the second is the index of the secondary particle

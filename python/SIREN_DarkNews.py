@@ -6,7 +6,6 @@ import json
 import ntpath
 import pickle
 import functools
-import logging
 from scipy.interpolate import LinearNDInterpolator,PchipInterpolator
 
 # SIREN methods
@@ -861,8 +860,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
             )
         ):
             return 0
-        ret = self.dec_case.total_width()
-        return ret
+        return self.TotalDecayWidth(record)
 
     def DensityVariables(self):
         if type(self.dec_case) == FermionSinglePhotonDecay:
@@ -920,7 +918,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         # Find the four-momenta associated with this point
         # Expand dims required to call DarkNews function on signle sample
         four_momenta = get_decay_momenta_from_vegas_samples(
-            np.expand_dims(PS, 0),
+            np.expand_dims(PS, 0).T,
             self.dec_case,
             np.expand_dims(np.array(record.primary_momentum), 0),
         )
