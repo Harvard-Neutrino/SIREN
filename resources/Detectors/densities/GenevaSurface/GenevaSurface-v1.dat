@@ -1,7 +1,7 @@
 # Detector model file
 # Detector: Lake Geneva
 # Version: v1
-# Material model file: LakeGeneva-v1.dat
+# Material model file: GenevaLake-v1.dat
 # Date: 2024-7-31
 # Authors: Nicholas Kamp
 # Notes:
@@ -43,9 +43,9 @@ object box       0 -25  10745.36     0 0 0      100000 50   7743.86   lake_genev
 # Albrecht's proposal
 # 3 tall x 2 wide shipping containers
 # each is 12.2 m wide x 2.44 m deep x 2.59 m tall
-# spaced 100 m apart for now
-object box        0 3.885 20133.44    0 0 0      24.4 7.77 2.44    panel_1     SCINTILLATOR    constant    1.043
-object box        0 3.885 20233.44    0 0 0      24.4 7.77 2.44    panel_2     SCINTILLATOR    constant    1.043
-object box        0 3.885 20333.44    0 0 0      24.4 7.77 2.44    panel_3     SCINTILLATOR    constant    1.043
+# spaced 1km apart for now
+object box        0 3.885 20233.44    0 0 0      24.4 7.77 2.44    panel_1     SCINTILLATOR    constant    1.043
+object box        0 3.885 21233.44    0 0 0      24.4 7.77 2.44    panel_2     SCINTILLATOR    constant    1.043
+object box        0 3.885 22233.44    0 0 0      24.4 7.77 2.44    panel_3     SCINTILLATOR    constant    1.043
 detector          0 3.884 20233.44
-fiducial box      0 3.884 17333.44    0 0 0      50 50 6000
+fiducial box      0 3.884 17233.44    0 0 0      50 50 10000

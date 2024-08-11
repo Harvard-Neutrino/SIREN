@@ -655,6 +655,42 @@ std::vector<dataclasses::InteractionSignature> HNLTwoBodyDecay::GetPossibleSigna
     return signatures;
 }
 
+double HNLTwoBodyDecay::GetMass(dataclasses::ParticleType const & secondary) const {
+  // pseudoscalar meson, photon, hadrons
+  if (secondary == dataclasses::ParticleType::Pi0) {
+    return siren::utilities::Constants::Pi0Mass;
+  }
+  else if (secondary == dataclasses::ParticleType::Eta) {
+    return siren::utilities::Constants::EtaMass;
+  }
+  else if (secondary == dataclasses::ParticleType::EtaPrime) {
+    return siren::utilities::Constants::EtaPrimeMass;
+  }
+  else if (secondary == dataclasses::ParticleType::Gamma) {
+    return 0;
+  }
+  else if (secondary == dataclasses::ParticleType::Hadrons) {
+    return 0;
+  }
+  // Vector particles
+  else if (secondary == dataclasses::ParticleType::Z0) {
+    return siren::utilities::Constants::zMass;
+  }
+  else if (secondary == dataclasses::ParticleType::Rho0) {
+    return siren::utilities::Constants::Rho0Mass;
+  }
+  else if (secondary == dataclasses::ParticleType::Omega) {
+    return siren::utilities::Constants::OmegaMass;
+  }
+  else if (secondary == dataclasses::ParticleType::Phi) {
+    return siren::utilities::Constants::PhiMass;
+  }
+  else if (secondary == dataclasses::ParticleType::KPrime0) {
+    return siren::utilities::Constants::KPrime0Mass;
+  }
+  return 0;
+}
+
 // Follows https://arxiv.org/abs/1805.07523v1
 double HNLTwoBodyDecay::GetAlpha(dataclasses::ParticleType const & secondary) const {
   // pseudoscalar meson, photon, hadrons
@@ -695,7 +731,7 @@ double HNLTwoBodyDecay::DifferentialDecayWidth(dataclasses::InteractionRecord co
     double DecayWidth = TotalDecayWidthForFinalState(record);
     // Check for isotropic decay
     if (nature==ChiralNature::Majorana || record.secondary_momenta.size() >=2) {
-      return DecayWidth/2.;
+      return DecayWidth/2.; // This factor of 2 is for the cosTheta phase space, not the majorana nature :-)
     }
     assert(record.secondary_momenta.size() ==2);
     siren::math::Vector3D hnl_dir = siren::math::Vector3D(record.primary_momentum[0],
@@ -730,18 +766,25 @@ void HNLTwoBodyDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
 
     siren::dataclasses::InteractionSignature const & signature = record.GetSignature();
 
-    unsigned int gamma_index = (signature.secondary_types[0] == siren::dataclasses::ParticleType::Gamma) ? 0 : 1;
-    unsigned int nu_index = 1 - gamma_index;
+     unsigned int nu_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuE ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMu ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTau ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuEBar ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMuBar ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTauBar ||
+                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLight) ? 0 : 1;
+    unsigned int X_index = 1 - nu_index;
 
     double CosTheta;
-    double alpha = std::copysign(1.0,record.primary_helicity); // 1 for RH, -1 for LH
-    alpha = (signature.primary_type == siren::dataclasses::ParticleType::N4) ? -1*alpha : alpha;
+    double alpha = GetAlpha(record.signature.secondary_types[X_index]);
+    alpha = std::copysign(alpha,record.primary_helicity); // 1 for RH, -1 for LH
+    alpha = (record.signature.primary_type == siren::dataclasses::ParticleType::N4) ? -1*alpha : alpha;
     if(nature==ChiralNature::Majorana) {
       CosTheta = random->Uniform(-1,1);
     }
     else {
-      double X = random->Uniform(0,1);
-      CosTheta = (std::sqrt(1  - 2*alpha*(1 - alpha/2. - 2*X)) - 1)/alpha;
+      double C = random->Uniform(0,1);
+      CosTheta = (std::sqrt(1  - 2*alpha*(1 - alpha/2. - 2*C)) - 1)/alpha;
     }
     double SinTheta = std::sin(std::acos(CosTheta));
 
@@ -756,17 +799,16 @@ void HNLTwoBodyDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     double phi = random->Uniform(0, 2.0 * M_PI);
     geom3::Rotation3 rand_rot(pHNL_dir, phi);
 
-    rk::P4 pGamma_HNLrest(hnl_mass/2.*geom3::Vector3(CosTheta,SinTheta,0),0);
-    pGamma_HNLrest.rotate(x_to_pHNL_rot);
-    pGamma_HNLrest.rotate(rand_rot);
+    rk::P4 pX_HNLrest(hnl_mass/2.*geom3::Vector3(CosTheta,SinTheta,0),0);
+    pX_HNLrest.rotate(x_to_pHNL_rot);
+    pX_HNLrest.rotate(rand_rot);
 
-    rk::P4 pGamma = pGamma_HNLrest.boost(boost_to_lab);
-    rk::P4 pNu(pHNL.momentum() - pGamma.momentum(),0); // ensures the neutrino has zero mass, avoids rounding errors
+    rk::P4 pX = pX_HNLrest.boost(boost_to_lab);
+    rk::P4 pNu(pHNL.momentum() - pX.momentum(),0); // ensures the neutrino has zero mass, avoids rounding errors
 
-    siren::dataclasses::SecondaryParticleRecord & gamma = record.GetSecondaryParticleRecord(gamma_index);
+    siren::dataclasses::SecondaryParticleRecord & X = record.GetSecondaryParticleRecord(X_index);
     siren::dataclasses::SecondaryParticleRecord & nu = record.GetSecondaryParticleRecord(nu_index);
 
-    assert(gamma.type == siren::dataclasses::ParticleType::Gamma);
     assert(nu.type == siren::dataclasses::ParticleType::NuE ||
            nu.type == siren::dataclasses::ParticleType::NuMu ||
            nu.type == siren::dataclasses::ParticleType::NuTau ||
@@ -774,9 +816,9 @@ void HNLTwoBodyDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
            nu.type == siren::dataclasses::ParticleType::NuMuBar ||
            nu.type == siren::dataclasses::ParticleType::NuTauBar);
 
-    gamma.SetFourMomentum({pGamma.e(), pGamma.px(), pGamma.py(), pGamma.pz()});
-    gamma.SetMass(pGamma.m());
-    gamma.SetHelicity(std::copysign(1.0, record.primary_helicity));
+    X.SetFourMomentum({pX.e(), pX.px(), pX.py(), pX.pz()});
+    X.SetMass(pX.m());
+    X.SetHelicity(std::copysign(1.0, record.primary_helicity));
 
     nu.SetFourMomentum({pNu.e(), pNu.px(), pNu.py(), pNu.pz()});
     nu.SetMass(pNu.m());

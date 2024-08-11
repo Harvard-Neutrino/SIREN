@@ -87,6 +87,7 @@ public:
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
     double DeltaQCD(int nloops=5) const;
     double GetAlpha(dataclasses::ParticleType const & secondary) const;
+    double GetMass(dataclasses::ParticleType const & secondary) const;
     void SetGammaHadrons(double Gamma, std::string mode);
     double CCMesonDecayWidth(dataclasses::InteractionRecord const &) const;
     double NCMesonDecayWidth(dataclasses::InteractionRecord const &) const;
