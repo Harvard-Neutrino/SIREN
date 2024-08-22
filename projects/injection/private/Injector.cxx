@@ -331,6 +331,7 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
     size_t tries = 0;
     size_t failed_tries = 0;
     while(true) {
+        tries += 1;
         // // std::cout << "gotcha" << std::endl;
         // for(auto & distribution : secondary_distributions) {
         //         // std::cout << "sample distribution" << std::endl;
@@ -364,7 +365,7 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
             }
             continue;
         }
-        if(failed_tries > max_tries) {
+        if(tries > max_tries) {
             throw(siren::utilities::InjectionFailure("Failed to generate secondary process!"));
             break;
         }
