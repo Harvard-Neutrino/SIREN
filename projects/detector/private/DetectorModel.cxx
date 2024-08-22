@@ -683,8 +683,7 @@ double DetectorModel::GetInteractionDensity(Geometry::IntersectionList const & i
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const {
     Vector3D direction = p0 - intersections.position;
-    // std::cout << "direction: " << direction.magnitude() << std::endl;
-    if(direction.magnitude() == 0 || direction.magnitude() <= 1e-05) {
+    if(direction.magnitude() == 0 || direction.magnitude() <= 1e-6) {
         direction = intersections.direction;
     } else {
         direction.normalize();
@@ -980,25 +979,21 @@ double DetectorModel::GetInteractionDepthInCGS(Geometry::IntersectionList const 
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
 
-    // std::cout << p0 << " " << p1 << " " << intersections.direction << std::endl;
     if(p0 == p1) {
         return 0.0;
     }
     Vector3D direction = p1 - p0;
     double distance = direction.magnitude();
-    // std::cout << "distance is " << distance << std::endl;
     if(distance == 0.0) {
         return 0.0;
     }
-    if(direction.magnitude() <= 1e-05) {
-        // std::cout << "triggered" << std::endl;
-        return 0.0;
+    if(direction.magnitude() <= 1e-6) {
+        direction = intersections.direction;
     }
     direction.normalize();
 
     double dot = intersections.direction * direction;
     assert(std::abs(1.0 - std::abs(dot)) < 1e-6);
-    // std::cout << "not at this point" << std::endl;
     double offset = (intersections.position - p0) * direction;
 
     if(dot < 0) {
