@@ -114,7 +114,7 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
         double generation_probability = injectors[idx]->EventsToInject();//GenerationProbability(tree);
         for(auto const & datum : tree.tree) {
             // skip weighting if record contains hadronization
-            if (isQuark(datum->record.signature.primary_type)) {
+            if (datum->record.signature.target_type == siren::dataclasses::Particle::ParticleType::Hadronization) {
                 continue;
             }
             std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;

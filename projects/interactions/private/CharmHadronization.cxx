@@ -141,7 +141,7 @@ std::vector<dataclasses::InteractionSignature> CharmHadronization::GetPossibleSi
     std::vector<dataclasses::InteractionSignature> signatures;
     dataclasses::InteractionSignature signature;
     signature.primary_type = primary;
-    signature.target_type = siren::dataclasses::Particle::ParticleType::Decay;
+    signature.target_type = siren::dataclasses::Particle::ParticleType::Hadronization;
     
     signature.secondary_types.resize(2);
     signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;

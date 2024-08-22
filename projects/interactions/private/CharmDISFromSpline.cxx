@@ -50,16 +50,10 @@ bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
     //the numerator of b (or b*d)
     double bd = sqrt(term * term - ((m * m) / (E * E)));
 
-    // also try the D-Meson Mass?
     double s = 2 * M * E;
     double Q2 = s * x * y;
     double Mc = siren::utilities::Constants::D0Mass;
-    // if ((Q2 / (1 - x) + pow(M, 2) < pow(M + Mc, 2))) {
-    //     std::cout << "SIREN D Meson constraint is trigged!" << std::endl;
-    // }
     return ((ad - bd) <= d * y and d * y <= (ad + bd)) && (Q2 / (1 - x) + pow(M, 2) >= pow(M + Mc, 2)); //Eq. 7
-    // return ((ad - bd) <= d * y and d * y <= (ad + bd)); //Eq. 7
-
 }
 }
 
@@ -197,8 +191,6 @@ void CharmDISFromSpline::ReadParamsFromSplineTable() {
     // returns true if successfully read minimum Q2
     bool q2_good = differential_cross_section_.read_key("Q2MIN", minimum_Q2_);
 
-    // std::cout << "reading results: " << mass_good << " " << int_good << " " << q2_good <<  std::endl;
-
     if(!int_good) {
         // assume DIS to preserve compatability with previous versions
         interaction_type_ = 1;
@@ -221,9 +213,7 @@ void CharmDISFromSpline::ReadParamsFromSplineTable() {
             }
 
         } else {
-            // // std::cout << "mass and int both not good" << std::endl;
             if(differential_cross_section_.get_ndim() == 3) {
-                // std::cout << "dim is 3" << std::endl;
                 target_mass_ = siren::utilities::Constants::isoscalarMass;
                 
             } else if(differential_cross_section_.get_ndim() == 2) {
@@ -233,8 +223,6 @@ void CharmDISFromSpline::ReadParamsFromSplineTable() {
             }
         }
     }
-
-    // std::cout << "target mass is " << target_mass_ << std::endl;
 }
 
 void CharmDISFromSpline::InitializeSignatures() {
@@ -293,7 +281,6 @@ double CharmDISFromSpline::TotalCrossSection(dataclasses::InteractionRecord cons
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     double primary_energy;
     primary_energy = interaction.primary_momentum[0];
-    // std::cout << "primary energy is " << primary_energy << std::endl;
     // if we are below threshold, return 0
     if(primary_energy < InteractionThreshold(interaction))
         return 0;
@@ -304,7 +291,6 @@ double CharmDISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType pr
     if(not primary_types_.count(primary_type)) {
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
-    // std::cout << "now in real sample total xsec func" << std::endl;
     double log_energy = log10(primary_energy);
 
     if(log_energy < total_cross_section_.lower_extent(0)
@@ -316,9 +302,7 @@ double CharmDISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType pr
     }
 
     int center;
-    // std::cout << "maybe problem is here?" << std::endl;
     total_cross_section_.searchcenters(&log_energy, &center);
-    // std::cout << "maybe problem is here??" << std::endl;
 
     double log_xs = total_cross_section_.ndsplineeval(&log_energy, &center, 0);
 
@@ -355,7 +339,6 @@ double CharmDISFromSpline::DifferentialCrossSection(dataclasses::InteractionReco
 }
 
 double CharmDISFromSpline::DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2) const {
-    bool check_criteria = false; // this is used to gauge kinematic constraint in xsec and SIREN impementations, will eventually be deleted
     double log_energy = log10(energy);
     // check preconditions
     if(log_energy < differential_cross_section_.lower_extent(0)
@@ -375,42 +358,15 @@ double CharmDISFromSpline::DifferentialCrossSection(double energy, double x, dou
     if(Q2 < minimum_Q2_) // cross section not calculated, assumed to be zero
         return 0;
 
-    if (!check_criteria) {
-        if(!kinematicallyAllowed(x, y, energy, target_mass_, secondary_lepton_mass)) {
-            return 0;
-        }
+    if(!kinematicallyAllowed(x, y, energy, target_mass_, secondary_lepton_mass)) {
+        return 0;
     }
-
     std::array<double,3> coordinates{{log_energy, log10(x), log10(y)}};
     std::array<int,3> centers;
     if(!differential_cross_section_.searchcenters(coordinates.data(), centers.data()))
         return 0;
     double result = pow(10., differential_cross_section_.ndsplineeval(coordinates.data(), centers.data(), 0));
     assert(result >= 0);
-
-    if (check_criteria) {
-        // this is a check of kinematic constraint implementation
-        if (result == 0) {
-            if(kinematicallyAllowed(x, y, energy, target_mass_, secondary_lepton_mass)) {
-                std::cout << "xsec gives 0 but kinematically allowed!" << std::endl;
-            }
-        }
-
-        if(!kinematicallyAllowed(x, y, energy, target_mass_, secondary_lepton_mass)) {
-            // check if this is due to charm production constraint
-            double M = target_mass_;
-            double E = energy;
-            double s = 2 * M * E;
-            double Q2 = s * x * y;
-            double Mc = siren::utilities::Constants::D0Mass;
-            if ((Q2 / (1 - x) + pow(M, 2) < pow(M + Mc, 2))) { // if so check result
-                if (result != 0) {
-                    std::cout << "SIREN constraint not passed but xsec does not give 0!" << std::endl;
-                }
-            }
-            return 0;
-        }
-    }
 
 
 
@@ -428,7 +384,6 @@ void CharmDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     if (differential_cross_section_.get_ndim() != 3) {
         throw std::runtime_error("I expected 3 dimensions in the cross section spline, but got " + std::to_string(differential_cross_section_.get_ndim()) +". Maybe your fits file doesn't have the right 'INTERACTION' key?");
     }
-    // std::cout << "in sample final state of charm DIS from spline" << std::endl;
     rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
 
@@ -450,11 +405,9 @@ void CharmDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     double m = GetLeptonMass(record.signature.secondary_types[lepton_index]);
 
     double m1 = record.primary_mass;
-    // std::cout << "getting mass of primary: " << m1 << std::endl;
     double m3 = m;
     double E1_lab = p1_lab.e();
     double E2_lab = p2_lab.e();
-    // std::cout << "getting energy of primary: " << E1_lab << std::endl;
 
     // The out-going particle always gets at least enough energy for its rest mass
     double yMax = 1 - m / primary_energy;
@@ -494,16 +447,12 @@ void CharmDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
         // rejection sample a point which is kinematically allowed by calculation limits
         double trialQ;
         double trials = 0;
-        // std::cout << "do loop 1" << std::endl;
         do {
-            // std::cout << "do loop 2" << std::endl;
             if (trials >= 100) throw std::runtime_error("too much trials");
             trials += 1;
             kin_vars[1] = random->Uniform(logXMin,0);
             kin_vars[2] = random->Uniform(logYMin,logYMax);
             trialQ = (2 * E1_lab * E2_lab) * pow(10., kin_vars[1] + kin_vars[2]);
-            // std::cout << kin_vars[1] << " " << kin_vars[2] << " " << trialQ << " " << minimum_Q2_ << std::endl;
-            // std::cout << primary_energy << " " << target_mass_ << " " << m << std::endl;
         } while(trialQ<minimum_Q2_ || !kinematicallyAllowed(pow(10., kin_vars[1]), pow(10., kin_vars[2]), primary_energy, target_mass_, m));
 
         accept = true;
@@ -612,12 +561,9 @@ void CharmDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
     siren::dataclasses::SecondaryParticleRecord & other = secondaries[other_index];
 
-    // std::cout << "getting m3" << p3.e() << " " << p3.px() << " " << p3.py() << " " << p3.pz() << std::endl;
     lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
     lepton.SetMass(p3.m());
     lepton.SetHelicity(record.primary_helicity);
-    // std::cout << "getting m4" << p4.e() << " " << p4.px() << " " << p4.py() << " " << p4.pz() << std::endl;
-
     other.SetFourMomentum({p4.e(), p4.px(), p4.py(), p4.pz()});
     other.SetMass(p4.m());
     other.SetHelicity(record.target_helicity);

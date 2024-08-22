@@ -148,11 +148,9 @@ double CharmMesonDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
                                                                             siren::dataclasses::Particle::ParticleType::EPlus,
                                                                             siren::dataclasses::Particle::ParticleType::NuE};
     if (primary == siren::dataclasses::Particle::ParticleType::DPlus && secondaries == k0_eplus_nue) {
-        // branching_ratio = 0.089;
         branching_ratio = 1;
         tau = 1040 * (1e-15);
     } else if (primary == siren::dataclasses::Particle::ParticleType::D0 && secondaries == kminus_eplus_nue) {
-        // branching_ratio = 0.03538;
         branching_ratio = 1;
         tau = 410.1 * (1e-15);
     }
@@ -296,34 +294,6 @@ void CharmMesonDecay::computeDiffGammaCDF(std::vector<double> constants, double 
   cdf_vector.push_back(1);
   pdf_vector.push_back(0);
   
-  // for debugging and plotting, print the pdf and cdf tables
-  // for (size_t i = 0; auto& element : cdf_Q2_nodes) {
-  //       std::cout << element;
-  //       // Print comma if it's not the last element
-  //       if (++i != cdf_Q2_nodes.size()) {
-  //           std::cout << ", ";
-  //       }
-  //   }
-  //   std::cout << std::endl;
-
-  // for (size_t i = 0; auto& element : cdf_vector) {
-  //       std::cout << element;
-  //       // Print comma if it's not the last element
-  //       if (++i != cdf_vector.size()) {
-  //           std::cout << ", ";
-  //       }
-  //   }
-  //   std::cout << std::endl;
-
-  // for (size_t i = 0; auto& element : pdf_vector) {
-  //       std::cout << element;
-  //       // Print comma if it's not the last element
-  //       if (++i != pdf_vector.size()) {
-  //           std::cout << ", ";
-  //       }
-  //   }
-  //   std::cout << std::endl;
-
   // set the spline table 
   siren::utilities::TableData1D<double> inverse_cdf_data;
   inverse_cdf_data.x = cdf_vector;
@@ -339,17 +309,11 @@ void CharmMesonDecay::computeDiffGammaCDF(std::vector<double> constants, double 
 
 void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
     // first obtain the constants needed for further computation from the signature
-    // std::cout<<"b1"<<std::endl;
     std::vector<double> constants = FormFactorFromRecord(record);
     double mD = particleMass(record.signature.primary_type);
     double mK = particleMass(record.signature.secondary_types[0]);
 
-    // std::cout << "input masses: " << mD << " " << mK << std::endl;
-    
     // first sample a q^2
-    ////////////////////////////////////////////
-    // computeDiffGammaCDF(constants, mD, mK);//
-    ////////////////////////////////////////////
     double rand_value_for_Q2 = random->Uniform(0, 1);
     double Q2 = inverseCdf(rand_value_for_Q2);
     
@@ -358,8 +322,6 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     double sinTheta = std::sin(std::acos(cosTheta));
       // set the x axis to be the D direction
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
-    // std::cout<<"b2"<<std::endl;
-
       //set the D direction in lab frame and compute its angle wrt the x axis
     rk::P4 p4D_lab(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     geom3::Vector3 p3D_lab = p4D_lab.momentum();
@@ -373,7 +335,6 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     rk::P4 p4K_Drest(PK * geom3::Vector3(cosTheta, sinTheta, 0), mK);
     rk::P4 p4W_Drest(PW * geom3::Vector3(-cosTheta, -sinTheta, 0), PW); // invariant mass assigned to virtual W boson
     // rotate the momentum vectors so they are defined wrt to the D lab frame direction
-    // std::cout<<"b3"<<std::endl;
 
     p4K_Drest.rotate(x_to_p3D_lab_rot);
     p4W_Drest.rotate(x_to_p3D_lab_rot);
@@ -386,8 +347,6 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     rk::Boost boost_from_Drest_to_lab = p4D_lab.labBoost();
     rk::P4 p4K_lab = p4K_Drest.boost(boost_from_Drest_to_lab);
     rk::P4 p4W_lab = p4W_Drest.boost(boost_from_Drest_to_lab);
-    // std::cout<<"b4"<<std::endl;
-
     // this ends the computation of D->W+K/Pi decay, now treat the W->l+nu decay
     double ml = particleMass(record.signature.secondary_types[1]);
     double mnu = 0;
@@ -400,11 +359,6 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     rk::P4 p4l_Wrest(P * geom3::Vector3(W_cosTheta, W_sinTheta, 0), ml);
     rk::P4 p4nu_Wrest(P * geom3::Vector3(-W_cosTheta, -W_sinTheta, 0), 0);
 
-    // std::cout << "momentums: " << p4l_Wrest << " " << p4nu_Wrest << std::endl;
-    // std::cout << "check mass of l and nu: " << p4l_Wrest.m() << " " << p4nu_Wrest.m() << std::endl;
-    //now rotate so they are defined wrt the lab frame W direction
-    // std::cout<<"b5"<<std::endl;
-
     geom3::Vector3 p3W_lab = p4W_lab.momentum();
     geom3::UnitVector3 p3W_lab_dir = p3W_lab.direction();
     geom3::Rotation3 x_to_p3W_lab_rot = geom3::rotationBetween(x_dir, p3W_lab_dir);
@@ -416,7 +370,6 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     rk::P4 p4l_lab = p4l_Wrest.rotate(W_azimuth_rand_rot);
     rk::P4 p4nu_lab = p4nu_Wrest.rotate(W_azimuth_rand_rot);
 
-    // std::cout<<"b6"<<std::endl;
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
     siren::dataclasses::SecondaryParticleRecord & kpi = secondaries[0];
     siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[1];
@@ -433,56 +386,6 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     neutrino.SetFourMomentum({p4nu_lab.e(), p4nu_lab.px(), p4nu_lab.py(), p4nu_lab.pz()});
     neutrino.SetMass(p4nu_lab.m());
     neutrino.SetHelicity(record.primary_helicity);
-
-    // finally, we can populate the record, for implementation in prometheus, maybe add treatment of hadrons, but could be implemnted on p side
-    // record.secondary_momenta.resize(3);
-    // record.secondary_masses.resize(3);
-    // record.secondary_helicity.resize(3); // 0 is the hadron, 1 is the lepton, 2 is the neutrino
-    // // the K/pi
-    // record.secondary_momenta[0][0] = p4K_lab.e(); 
-    // record.secondary_momenta[0][1] = p4K_lab.px(); 
-    // record.secondary_momenta[0][2] = p4K_lab.py(); 
-    // record.secondary_momenta[0][3] = p4K_lab.pz();
-    // record.secondary_masses[0] = p4K_lab.m();
-    // record.secondary_helicity[0] = 0;
-    // // the lepton
-    // record.secondary_momenta[1][0] = p4l_lab.e(); 
-    // record.secondary_momenta[1][1] = p4l_lab.px(); 
-    // record.secondary_momenta[1][2] = p4l_lab.py(); 
-    // record.secondary_momenta[1][3] = p4l_lab.pz(); 
-    // record.secondary_masses[1] = p4l_lab.m();
-    // record.secondary_helicity[1] = 1;
-    // // the neutrino
-    // record.secondary_momenta[2][0] = p4nu_lab.e(); 
-    // record.secondary_momenta[2][1] = p4nu_lab.px(); 
-    // record.secondary_momenta[2][2] = p4nu_lab.py(); 
-    // record.secondary_momenta[2][3] = p4nu_lab.pz(); 
-    // record.secondary_masses[2] = p4nu_lab.m();
-    // record.secondary_helicity[2] = 1;
-
-    //for debug purposes
-    // double p4w_rest_Q2 = pow(p4W_Drest.e(), 2) - pow(p4W_Drest.px(), 2) - 
-    //                   pow(p4W_Drest.py(), 2) - pow(p4W_Drest.pz(), 2);
-    // double p4w_lab_Q2 = pow(p4W_lab.e(), 2) - pow(p4W_lab.px(), 2) - 
-    //                   pow(p4W_lab.py(), 2) - pow(p4W_lab.pz(), 2);
-    // std::cout << p4W_Drest.e() << " " << p4W_lab.e() << " " << PW << " " << p4W_Drest.p() << " " << p4W_Drest << std::endl;
-    // std::cout << p4K_Drest.e() << " " << p4K_lab.e() << " " << PK << " " << p4K_Drest.p() << " " << p4K_Drest << std::endl;
-    // std::cout << Q2 << " " << sqrt(Q2)<< std::endl;
-    // std::cout << "invariant mass of the W in two frames are " << p4w_lab_Q2 << " " << p4w_rest_Q2 << std::endl;
-    // std::cout << "check mass of W: " << p4W_lab.m() << " " << p4W_Drest.m() << std::endl;
-    // std::cout << "check mass of K: " << p4K_lab.m() << " " << p4K_Drest.m() << std::endl;
-
-    
-
-    // rk::P4 inv_mass_Wrest = p4l_Wrest + p4nu_Wrest;
-    // rk::P4 inv_mass_lab = p4l_lab + p4nu_lab;
-    // std::cout << "inv masses in two frames: " << pow(inv_mass_Wrest.m(), 2) << " " << pow(inv_mass_lab.m(), 2) << std::endl;
-    // std::cout << "using inv mass calculator: " << pow(invMass(p4l_Wrest, p4nu_Wrest), 2) << " " << pow(invMass(p4l_lab, p4nu_lab), 2) << std::endl;
-    // std::cout << "energy of l and nu and inv mass: " << El << " " << Enu << " " << pow(El+Enu, 2) << std::endl;
-    // std::cout << "momentums: " << p4l_Wrest << " " << p4nu_Wrest << std::endl;
-    // std::cout << "check mass of l and nu: " << p4l_Wrest.m() << " " << p4nu_Wrest.m() << std::endl;
-    // std::cout << "W energy in rest frame: " << pow(p4W_lab.m(), 2) << std::endl;
-
 
 }
 
