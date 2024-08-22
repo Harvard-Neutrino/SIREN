@@ -62,6 +62,8 @@ class analysis:
         D0_separations = []
         Dp_energies = []
         Dp_separations = []
+        D0_weights = []
+        Dp_weights = []
         for i in range(self.num_events):
             cur_event = event(self.df.iloc[i])
             print("{}/{}".format(i, self.num_events), end = '\r')
@@ -70,17 +72,23 @@ class analysis:
                 # extract the vertex separations
                 D0_separations.append(cur_event.D_DECAY_LEN())
                 D0_energies.append(cur_event.row["primary_momentum"][2][0])
+                D0_weights.append(cur_event.row["event_weight"])
+
             elif cur_event.DTYPE() == 411: # This is D+
                 # extract the vertex separations
                 Dp_separations.append(cur_event.D_DECAY_LEN())
                 Dp_energies.append(cur_event.row["primary_momentum"][2][0])
-        return D0_energies, D0_separations, Dp_energies, Dp_separations
+                Dp_weights.append(cur_event.row["event_weight"])
+
+        return D0_energies, D0_separations, Dp_energies, Dp_separations, D0_weights, Dp_weights
 
     def energy_loss_analysis_2d(self):
         E_D0 = []
         E_Dp = []
         n_D0 = []
         n_Dp = []
+        w_D0 = []
+        w_Dp = []
         for i in range(self.num_events):
             cur_event = event(self.df.iloc[i])
             print("{}/{}".format(i, self.num_events), end = '\r')
@@ -88,9 +96,13 @@ class analysis:
                 # extract the vertex separations
                 n_D0.append(cur_event.row["num_interactions"] - 3)
                 E_D0.append(cur_event.row["primary_momentum"][2][0])
+                w_D0.append(cur_event.row["event_weight"])
+
             elif cur_event.DTYPE() == 411: # This is D+
                 # extract the vertex separations
                 n_Dp.append(cur_event.row["num_interactions"] - 3)
                 E_Dp.append(cur_event.row["primary_momentum"][2][0])
-        return E_D0, E_Dp, n_D0, n_Dp
+                w_Dp.append(cur_event.row["event_weight"])
+
+        return E_D0, E_Dp, n_D0, n_Dp, w_D0, w_Dp
         

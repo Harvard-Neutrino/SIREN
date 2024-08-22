@@ -4,7 +4,7 @@ import siren
 from siren.SIREN_Controller import SIREN_Controller
 
 # Number of events to inject
-events_to_inject = 50000
+events_to_inject = 5
 
 # Expeirment to run
 experiment = "IceCube"

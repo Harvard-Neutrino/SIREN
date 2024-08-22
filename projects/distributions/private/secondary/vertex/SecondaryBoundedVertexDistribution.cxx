@@ -53,7 +53,7 @@ double log_one_minus_exp_of_negative(double x) {
 
 
 void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const {
-    std::cout << "in sample bounded vertex" << std::endl;
+    // std::cout << "in sample bounded vertex" << std::endl;
     
     siren::math::Vector3D pos = record.initial_position;
     siren::math::Vector3D dir = record.direction;
@@ -123,7 +123,7 @@ void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<siren::uti
 }
 
 double SecondaryBoundedVertexDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
-    std::cout << "in sample bounded vertex gen prob" << std::endl;
+    // std::cout << "in sample bounded vertex gen prob" << std::endl;
     
     siren::math::Vector3D dir(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]);
     dir.normalize();

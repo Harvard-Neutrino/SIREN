@@ -22,7 +22,11 @@
 namespace siren {
 namespace interactions {
 
-CharmHadronization::CharmHadronization() {}
+CharmHadronization::CharmHadronization() {
+    // initialize the pdf normalization and cdf table
+    normalize_pdf();
+    compute_cdf();
+}
 
 // pybind11::object CharmHadronization::get_self() {
 //     return pybind11::cast<pybind11::none>(Py_None);
@@ -35,6 +39,72 @@ bool CharmHadronization::equal(Hadronization const & other) const {
         return false;
     else
         return primary_types == x->primary_types;
+}
+
+void CharmHadronization::normalize_pdf() {
+    if (fragmentation_integral == 0){
+         std::function<double(double)> integrand = [&] (double x) -> double {
+            return (0.8 / x ) / (std::pow(1 - (1 / x) - (0.2 / (1 - x)), 2));
+        };
+        fragmentation_integral = siren::utilities::rombergIntegrate(integrand, 0.001, 0.999);
+    } else {
+        std::cout << "Something is wrong... you already computed the normalization" << std::endl;
+        return;
+    }
+}
+
+double CharmHadronization::sample_pdf(double x) const {
+    return (0.8 / x ) / (std::pow(1 - (1 / x) - (0.2 / (1 - x)), 2)) / fragmentation_integral;
+}
+
+void CharmHadronization::compute_cdf() {
+    // first set the z nodes
+    std::vector<double> zspline;
+    for (int i = 0; i < 100; ++i) {
+        zspline.push_back(0.01 + i * (0.99-0.01) / 100 );
+    }
+
+    // declare the cdf vectors
+    std::vector<double> cdf_vector;
+    std::vector<double> cdf_z_nodes;
+    std::vector<double> pdf_vector;
+
+    cdf_z_nodes.push_back(0);
+    cdf_vector.push_back(0);
+    pdf_vector.push_back(0);
+
+    // compute the spline table
+    for (int i = 0; i < zspline.size(); ++i) {
+        if (i == 0) {
+            double cur_z = zspline[i];
+            double cur_pdf = sample_pdf(cur_z);
+            double area = cur_z * cur_pdf * 0.5;
+            pdf_vector.push_back(cur_pdf);
+            cdf_vector.push_back(area);
+            cdf_z_nodes.push_back(cur_z);
+            continue;
+        }
+        double cur_z = zspline[i];
+        double cur_pdf = sample_pdf(cur_z);
+        double area = 0.5 * (pdf_vector[i - 1] + cur_pdf) * (zspline[i] - zspline[i - 1]);
+        pdf_vector.push_back(cur_pdf);
+        cdf_z_nodes.push_back(cur_z);
+        cdf_vector.push_back(area + cdf_vector.back());
+    }
+
+    cdf_z_nodes.push_back(1);
+    cdf_vector.push_back(1);
+    pdf_vector.push_back(0);
+
+
+    // set the spline table 
+    siren::utilities::TableData1D<double> inverse_cdf_data;
+    inverse_cdf_data.x = cdf_vector;
+    inverse_cdf_data.f = cdf_z_nodes;
+
+    inverseCdfTable = siren::utilities::Interpolator1D<double>(inverse_cdf_data);
+
+    return;
 }
 
 double CharmHadronization::getHadronMass(siren::dataclasses::ParticleType hadron_type) {
@@ -96,16 +166,27 @@ void CharmHadronization::SampleFinalState(dataclasses::CrossSectionDistributionR
     rk::P4 pc(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     double p3c = std::sqrt(std::pow(interaction.primary_momentum[1], 2) + std::pow(interaction.primary_momentum[2], 2) + std::pow(interaction.primary_momentum[3], 2));
     double Ec = pc.e(); //energy of primary charm
-    // std::cout << "hadronization sample final state" << std::endl;
-    // double peterson_distribution(double z) {
-    //     return 0.8 / x * std::pow((1 - 1 / x - 0.2 / (1 - x)), 2)
-    // }
+    double mCH = getHadronMass(interaction.signature.secondary_types[1]); // obtain charmed hadron mass
 
-    double z = 0.6; // replace by actual sampling: inverse CDF
-    double ECH = z * Ec;
+    bool accept;
+    double randValue;
+    double z;
+    double ECH;
+
+    // sample again if this eenrgy is not kinematically allowed
+    do {
+        randValue = random->Uniform(0,1);
+        z = inverseCdfTable(randValue);
+        ECH = z * Ec;
+        if (std::pow(ECH, 2) - std::pow(mCH, 2) <= 0) {
+            accept = false;
+        } else {
+            accept = true;
+        }
+        double new_debug = std::pow(ECH, 2) - std::pow(mCH, 2);
+    } while (!accept);
 
     // is it ok to compute everything in lab frame?
-    double mCH = getHadronMass(interaction.signature.secondary_types[1]); // obtain charmed hadron mass
     double p3CH = std::sqrt(std::pow(ECH, 2) - std::pow(mCH, 2)); //obtain charmed hadron 3-momentum
     double rCH = p3CH/p3c; // ratio of momentum carried away by the charmed hadron, assume collinearity
     rk::P4 p4CH(geom3::Vector3(rCH * interaction.primary_momentum[1], rCH * interaction.primary_momentum[2], rCH * interaction.primary_momentum[3]), mCH);
@@ -114,9 +195,6 @@ void CharmHadronization::SampleFinalState(dataclasses::CrossSectionDistributionR
     double p3X = EX; // assume no hadronic mass
     double rX = p3X/p3c; // assume collinear
     rk::P4 p4X(geom3::Vector3(rX * interaction.primary_momentum[1], rX * interaction.primary_momentum[2], rX * interaction.primary_momentum[3]), 0);
-
-
-    // update interaction parameters: to be added here later 
 
     // new implementation of updateing outgoing particles
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = interaction.GetSecondaryParticleRecords();
@@ -130,26 +208,6 @@ void CharmHadronization::SampleFinalState(dataclasses::CrossSectionDistributionR
     d_meson.SetFourMomentum({p4CH.e(), p4CH.px(), p4CH.py(), p4CH.pz()});
     d_meson.SetMass(p4CH.m());
     d_meson.SetHelicity(interaction.primary_helicity);
-
-    // interaction.secondary_momenta.resize(2);
-    // interaction.secondary_masses.resize(2);
-    // interaction.secondary_helicities.resize(2);
-
-    // // the hadronic shower
-    // interaction.secondary_momenta[0][0] = p4X.e();
-    // interaction.secondary_momenta[0][1] = p4X.px();
-    // interaction.secondary_momenta[0][2] = p4X.py();
-    // interaction.secondary_momenta[0][3] = p4X.pz();
-    // interaction.secondary_masses[0] = 0;
-    // interaction.secondary_helicities[0] = interaction.primary_helicity; // true?
-
-    // // the charmed hadron
-    // interaction.secondary_momenta[1][0] = p4CH.e();
-    // interaction.secondary_momenta[1][1] = p4CH.px();
-    // interaction.secondary_momenta[1][2] = p4CH.py();
-    // interaction.secondary_momenta[1][3] = p4CH.pz();
-    // interaction.secondary_masses[1] = p4CH.m();
-    // interaction.secondary_helicities[1] = interaction.primary_helicity; // true?
 
 }
 

@@ -4,9 +4,18 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from parse_output import analysis
-filename = "output/FullSim.parquet"
-plt.style.use('paper.mplstyle')
+import os
 
+pathname = "/n/holylfs05/LABS/arguelles_delgado_lab/Everyone/miaochenjin/DBSearch/SIREN_outputs/"
+# parquetname = "0708_test/0708_test_.parquet"
+expname = "0709_astro_flux"
+parquetname = "{}/{}_.parquet".format(expname, expname)
+
+
+filename = os.path.join(pathname, parquetname)
+savedir = os.path.join(pathname, "plots/")
+
+plt.style.use('paper.mplstyle')
 
 sim = analysis(filename)
 
@@ -43,8 +52,8 @@ def xsec(E):
 def analytic_free_path(E):
     return (m_ice / (rho * N * xsec(E))) / 100 # convert to m
 
-def plot_separation_distribution(analysis_):
-    D0_energies, D0_separations, Dp_energies, Dp_separations = analysis_.separation_analysis()
+def plot_separation_distribution(analysis_, dim = 2):
+    D0_energies, D0_separations, Dp_energies, Dp_separations, D0_weights, Dp_weights = analysis_.separation_analysis()
     min_eng = 1e1
     max_eng = 1e9
     energy_bins = np.logspace(np.log10(min_eng), np.log10(max_eng), 20)
@@ -58,54 +67,79 @@ def plot_separation_distribution(analysis_):
     min_sep = 1e-3
     max_sep = 50000
     log_separation_bins = np.logspace(np.log10(min_sep), np.log10(max_sep), 20)
+    sep_bin_widths = np.sqrt(log_separation_bins[1:] * log_separation_bins[:-1])
 
-    X2, Y2 = np.meshgrid(energy_bins, log_separation_bins)
-    log_hist_D0, _, _ = np.histogram2d(D0_energies, D0_separations, bins = (energy_bins, log_separation_bins))
-    log_hist_Dp, _, _ = np.histogram2d(Dp_energies, Dp_separations, bins = (energy_bins, log_separation_bins))
-    log_hist_D0 = normalize(log_hist_D0, energy_bins, log_separation_bins)
-    log_hist_Dp = normalize(log_hist_Dp, energy_bins, log_separation_bins)
+    if dim == 2:
 
-    fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (11, 5))
+        X2, Y2 = np.meshgrid(energy_bins, log_separation_bins)
+        log_hist_D0, _, _ = np.histogram2d(D0_energies, D0_separations, bins = (energy_bins, log_separation_bins), weights = D0_weights)
+        log_hist_Dp, _, _ = np.histogram2d(Dp_energies, Dp_separations, bins = (energy_bins, log_separation_bins), weights = Dp_weights)
+        log_hist_D0 = normalize(log_hist_D0, energy_bins, log_separation_bins)
+        log_hist_Dp = normalize(log_hist_Dp, energy_bins, log_separation_bins)
 
-    log_im1 = axes[0].pcolor(X2, Y2, log_hist_D0.T, cmap="plasma", alpha = 0.7, vmin=0, vmax=1)
-    log_im2 = axes[1].pcolor(X2, Y2, log_hist_Dp.T, cmap="plasma", alpha = 0.7, vmin=0, vmax=1)
+        fig, axes = plt.subplots(nrows = 1, ncols = 2, figsize = (11, 5))
 
-    # divider1 = make_axes_locatable(axes[0])
-    # cax1 = divider1.append_axes('right', size='5%', pad=0.05)
-    divider2 = make_axes_locatable(axes[1])
-    cax2 = divider2.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(log_im2, cax=cax2, orientation='vertical', alpha = 0.7)
-    # fig.colorbar(log_im1, cax=cax1, orientation='vertical', alpha = 0.7)
+        log_im1 = axes[0].pcolor(X2, Y2, log_hist_D0.T, cmap="plasma", alpha = 0.7, vmin=0, vmax=1)
+        log_im2 = axes[1].pcolor(X2, Y2, log_hist_Dp.T, cmap="plasma", alpha = 0.7, vmin=0, vmax=1)
 
-    axes[0].set_title(r"$D^0$ Separation")
-    axes[1].set_title(r"$D^+$ Separation")
+        # divider1 = make_axes_locatable(axes[0])
+        # cax1 = divider1.append_axes('right', size='5%', pad=0.05)
+        divider2 = make_axes_locatable(axes[1])
+        cax2 = divider2.append_axes('right', size='5%', pad=0.05)
+        fig.colorbar(log_im2, cax=cax2, orientation='vertical', alpha = 0.7)
+        # fig.colorbar(log_im1, cax=cax1, orientation='vertical', alpha = 0.7)
 
-    axes[0].set_xlabel(r"$E_{D^0}$ [GeV]")
-    axes[1].set_xlabel(r"$E_{D^+}$ [GeV]")
+        axes[0].set_title(r"$D^0$ Separation")
+        axes[1].set_title(r"$D^+$ Separation")
 
-    axes[0].set_ylabel("Separation Length [m]")
+        axes[0].set_xlabel(r"$E_{D^0}$ [GeV]")
+        axes[1].set_xlabel(r"$E_{D^+}$ [GeV]")
 
-    axes[0].set_xscale('log')
-    axes[1].set_xscale('log')
-    axes[0].set_yscale('log')
-    axes[1].set_yscale('log')
+        axes[0].set_ylabel("Separation Length [m]")
 
-    axes[0].set_ylim(min_sep, max_sep)
-    axes[1].set_ylim(min_sep, max_sep)
-    axes[0].set_xlim(min_eng, max_eng)
-    axes[1].set_xlim(min_eng, max_eng)
+        axes[0].set_xscale('log')
+        axes[1].set_xscale('log')
+        axes[0].set_yscale('log')
+        axes[1].set_yscale('log')
 
-    # also plot the analytic lines
-    axes[0].plot(energy_bins_centers, D0_analytic_lengths, color = '#FEF3E8', alpha = 0.7)
-    axes[1].plot(energy_bins_centers, Dp_analytic_lengths, label = r"$d = \frac{E \tau}{mc}$", color = '#FEF3E8', alpha = 0.7)
+        axes[0].set_ylim(min_sep, max_sep)
+        axes[1].set_ylim(min_sep, max_sep)
+        axes[0].set_xlim(min_eng, max_eng)
+        axes[1].set_xlim(min_eng, max_eng)
 
-    legend = axes[1].legend(loc = 'upper left')
-    for text in legend.get_texts():
-        text.set_color('#FEF3E8')
+        # also plot the analytic lines
+        axes[0].plot(energy_bins_centers, D0_analytic_lengths, color = '#FEF3E8', alpha = 0.7)
+        axes[1].plot(energy_bins_centers, Dp_analytic_lengths, label = r"$d = \frac{E \tau}{mc}$", color = '#FEF3E8', alpha = 0.7)
 
-    fig.savefig("./plots/Separation_Length_Distribution", bbox_inches = 'tight')
+        legend = axes[1].legend(loc = 'upper left')
+        for text in legend.get_texts():
+            text.set_color('#FEF3E8')
 
-# plot_separation_distribution(sim)
+        savename = os.path.join(savedir, "Separation_Length_Distribution")
+    
+    elif dim == 1:
+
+        D0_separations.extend(Dp_weights)
+        D0_weights.extend(Dp_weights)
+
+        sep_hist, _ = np.histogram(D0_separations, log_separation_bins, weights = D0_weights)
+        fig, ax = plt.subplots(1, 1, figsize = (8, 6))
+        ax.hist(log_separation_bins[:-1], bins = log_separation_bins, weights = sep_hist / sep_bin_widths, \
+            label = r"$\phi \sim E^{-2}$", \
+                alpha = 0.9, color = '#D06C9D', histtype = 'step')
+        
+        savename = os.path.join(savedir, "PowerLaw_2_Separation_Length_Distribution")
+        ax.legend(loc = 'upper right')
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.set_xlabel(r'$d_{\textrm{Sep}}$ [m]')
+        ax.set_ylabel('Normalized Weights Event Count')
+
+    fig.savefig(savename, bbox_inches = 'tight')
+
+plot_separation_distribution(sim, dim = 1)
+plot_separation_distribution(sim, dim = 2)
+
 
 def plot_2d_energy_loss(analysis_):
     E_D0, E_Dp, n_D0, n_Dp = analysis_.energy_loss_analysis_2d()
@@ -149,8 +183,8 @@ def plot_2d_energy_loss(analysis_):
 
     fig.savefig("./plots/Energy_loss_2d_Distribution", bbox_inches = 'tight')
 
-plot_2d_energy_loss(sim)
-exit(0)
+# plot_2d_energy_loss(sim)
+# exit(0)
 
 def plot_free_path_distribution():
     D0_E_list, D0_free_path_list, Dp_E_list, Dp_free_path_list = analysis_.free_path_analysis()
@@ -213,4 +247,4 @@ def plot_free_path_distribution():
     fig.savefig("./plots/Free_Path_Distribution", bbox_inches = 'tight')
     return
 
-plot_free_path_distribution()
+# plot_free_path_distribution()
