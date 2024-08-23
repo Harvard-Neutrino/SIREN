@@ -72,22 +72,61 @@ std::vector<dataclasses::InteractionSignature> ElectroweakDecay::GetPossibleSign
     signature.secondary_types.resize(2);
     if(primary==siren::dataclasses::ParticleType::WPlus) {
       // W+ -> l+ nu_l
-      signature.secondary_types[0] = siren::dataclasses::ParticleType::EPlus;
-      signature.secondary_types[1] = siren::dataclasses::ParticleType::NuE;
-      signatures.push_back(signature);
-      signature.secondary_types[0] = siren::dataclasses::ParticleType::MuPlus;
-      signature.secondary_types[1] = siren::dataclasses::ParticleType::NuMu;
-      signatures.push_back(signature);
-      signature.secondary_types[0] = siren::dataclasses::ParticleType::TauPlus;
-      signature.secondary_types[1] = siren::dataclasses::ParticleType::NuTau;
-      signatures.push_back(signature);
-
+      for (int i = 0; i < AntiLeptons.size(); ++i) {
+        signature.secondary_types[0] = AntiLeptons[i];
+        signature.secondary_types[1] = Nus[i];
+        signatures.push_back(signature);
+      }
+      // W+ -> u dbar
+      for (auto u : UpQuarks) {
+        for (auto d : DownAntiQuarks) {
+          signature.secondary_types[0] = u;
+          signature.secondary_types[1] = d;
+          signatures.push_back(signature);
+        }
+      }
     }
     else if(primary==siren::dataclasses::ParticleType::WMinus) {
-
+      // W- -> l- nu_l_bar
+      for (int i = 0; i < Leptons.size(); ++i) {
+        signature.secondary_types[0] = Leptons[i];
+        signature.secondary_types[1] = AntiNus[i];
+        signatures.push_back(signature);
+      }
+      // W- -> ubar d
+      for (auto u : UpAntiQuarks) {
+        for (auto d : DownQuarks) {
+          signature.secondary_types[0] = u;
+          signature.secondary_types[1] = d;
+          signatures.push_back(signature);
+        }
+      }
     }
     else if(primary==siren::dataclasses::ParticleType::Z0) {
-
+      // Z -> nu nubar
+      for (int i = 0; i < Nus.size(); ++i) {
+        signature.secondary_types[0] = Nus[i];
+        signature.secondary_types[1] = AntiNus[i];
+        signatures.push_back(signature);
+      }
+      // Z -> l- l+
+      for (int i = 0; i < Nus.size(); ++i) {
+        signature.secondary_types[0] = Leptons[i];
+        signature.secondary_types[1] = AntiLeptons[i];
+        signatures.push_back(signature);
+      }
+      // Z -> u ubar
+      for (int i = 0; i < UpQuarks.size(); ++i) {
+        signature.secondary_types[0] = UpQuarks[i];
+        signature.secondary_types[1] = UpAntiQuarks[i];
+        signatures.push_back(signature);
+      }
+      // Z -> d dbar
+      for (int i = 0; i < DownQuarks.size(); ++i) {
+        signature.secondary_types[0] = DownQuarks[i];
+        signature.secondary_types[1] = DownAntiQuarks[i];
+        signatures.push_back(signature);
+      }
     }
 
     return signatures;

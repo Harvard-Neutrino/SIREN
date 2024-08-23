@@ -44,8 +44,15 @@ object box       0 -25  10745.36     0 0 0      100000 50   7743.86   lake_genev
 # 3 tall x 2 wide shipping containers
 # each is 12.2 m wide x 2.44 m deep x 2.59 m tall
 # spaced 1km apart for now
-object box        0 3.885 20233.44    0 0 0      24.4 7.77 2.44    panel_1     SCINTILLATOR    constant    1.043
-object box        0 3.885 21233.44    0 0 0      24.4 7.77 2.44    panel_2     SCINTILLATOR    constant    1.043
-object box        0 3.885 22233.44    0 0 0      24.4 7.77 2.44    panel_3     SCINTILLATOR    constant    1.043
-detector          0 3.884 20233.44
-fiducial box      0 3.884 17233.44    0 0 0      50 50 10000
+# object box        0 3.885 20233.44    0 0 0      24.4 7.77 2.44    panel_1     SCINTILLATOR    constant    1.043
+# object box        0 3.885 21233.44    0 0 0      24.4 7.77 2.44    panel_2     SCINTILLATOR    constant    1.043
+# object box        0 3.885 22233.44    0 0 0      24.4 7.77 2.44    panel_3     SCINTILLATOR    constant    1.043
+# detector          0 3.885 20233.44
+# fiducial box      0 3.885 17233.44    0 0 0      50 50 10000
+
+# Prototype detector: single shipping container
+# each is 12.2 m wide x 2.44 m deep x 2.59 m tall
+# spaced 1km apart for now
+object box        0 1.295 18884.72    0 0 0      12.2 2.59 2.44    prototype     SCINTILLATOR    constant    1.043
+detector          0 1.295 18884.72
+fiducial box      0 1.295 13884.72    0 0 0      50 50 10000
