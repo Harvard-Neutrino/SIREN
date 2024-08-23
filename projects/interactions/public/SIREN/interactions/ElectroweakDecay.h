@@ -39,6 +39,30 @@ private:
     const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::WPlus,
                                                                       siren::dataclasses::ParticleType::WMinus,
                                                                       siren::dataclasses::ParticleType::Z0};
+    std::vector<siren::dataclasses::ParticleType> Nus =              {siren::dataclasses::ParticleType::NuE,
+                                                                      siren::dataclasses::ParticleType::NuMu,
+                                                                      siren::dataclasses::ParticleType::NuTau};
+    std::vector<siren::dataclasses::ParticleType> AntiNus =          {siren::dataclasses::ParticleType::NuEBar,
+                                                                      siren::dataclasses::ParticleType::NuMuBar,
+                                                                      siren::dataclasses::ParticleType::NuTauBar};
+    std::vector<siren::dataclasses::ParticleType> Leptons =          {siren::dataclasses::ParticleType::EMinus,
+                                                                      siren::dataclasses::ParticleType::MuMinus,
+                                                                      siren::dataclasses::ParticleType::TauMinus};
+    std::vector<siren::dataclasses::ParticleType> AntiLeptons =      {siren::dataclasses::ParticleType::EPlus,
+                                                                      siren::dataclasses::ParticleType::MuPlus,
+                                                                      siren::dataclasses::ParticleType::TauPlus};
+    std::vector<siren::dataclasses::ParticleType> UpQuarks =         {siren::dataclasses::ParticleType::u,
+                                                                      siren::dataclasses::ParticleType::c,
+                                                                      siren::dataclasses::ParticleType::t};
+    std::vector<siren::dataclasses::ParticleType> UpAntiQuarks =     {siren::dataclasses::ParticleType::uBar,
+                                                                      siren::dataclasses::ParticleType::cBar,
+                                                                      siren::dataclasses::ParticleType::tBar};
+    std::vector<siren::dataclasses::ParticleType> DownQuarks =       {siren::dataclasses::ParticleType::d,
+                                                                      siren::dataclasses::ParticleType::s,
+                                                                      siren::dataclasses::ParticleType::b};
+    std::vector<siren::dataclasses::ParticleType> DownAntiQuarks =   {siren::dataclasses::ParticleType::dBar,
+                                                                      siren::dataclasses::ParticleType::sBar,
+                                                                      siren::dataclasses::ParticleType::bBar};
 
 
 public:
