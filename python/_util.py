@@ -133,6 +133,7 @@ def get_platform():
     sys.platform does. The result can be: linux32, linux64, win32,
     win64, osx32, osx64. Other platforms may be added in the future.
     """
+    import struct
     # Get platform
     if sys.platform.startswith("linux"):
         plat = "linux%i"
@@ -175,11 +176,11 @@ def load_module(name, path, persist=True):
     url = pathlib.Path(os.path.abspath(path)).as_uri()
     module_name = f"{name}-{str(uuid.uuid5(uuid.NAMESPACE_URL, url))}"
     if module_name in sys.modules:
-        return module
+        return sys.modules[module_name]
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
-    spec.loader.exec_module(module_name)
+    spec.loader.exec_module(module)
     module = sys.modules[module_name]
     if not persist:
         del sys.modules[module_name]
@@ -570,14 +571,14 @@ def get_processes_model_path(model_name, must_exist=True):
     return _get_model_path(model_name, prefix=_resource_folder_by_name["processes"], is_file=False, must_exist=must_exist)
 
 
-def load_resource(resource_name, resource_type, *args, **kwargs):
+def load_resource(resource_type, resource_name, *args, **kwargs):
     folder = _resource_folder_by_name[resource_type]
 
-    abs_dir = _get_model_path(model_name, prefix=folder, is_file=False, must_exist=True)
+    abs_dir = _get_model_path(resource_name, prefix=folder, is_file=False, must_exist=True)
 
-    fname = os.path.join(abs_flux_dir, f"{resource_name}.py")
+    fname = os.path.join(abs_dir, f"{resource_name}.py")
     assert(os.path.isfile(fname))
-    resource_module = load_module(f"siren-{resource_type}-{model_name}", fname, persist=False)
+    resource_module = load_module(f"siren-{resource_type}-{resource_name}", fname, persist=False)
     loader = getattr(resource_module, f"load_{resource_name}")
     resource = loader(*args, **kwargs)
     return resource
