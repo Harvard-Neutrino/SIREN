@@ -1,4 +1,5 @@
 import os
+from typing import Tuple, List, Any, Optional
 import siren
 
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -7,16 +8,30 @@ siren._util.load_module("loader", loader_file)
 
 from DarkNews.ModelContainer import ModelContainer
 
+# Import PyDarkNewsDecay and PyDarkNewsCrossSection
+decay_file = os.path.join(base_path, "DarkNewsDecay.py")
+cross_section_file = os.path.join(base_path, "DarkNewsCrossSection.py")
+siren._util.load_module("DarkNewsDecay", decay_file)
+siren._util.load_module("DarkNewsCrossSection", cross_section_file)
+
+from DarkNewsDecay import PyDarkNewsDecay
+from DarkNewsCrossSection import PyDarkNewsCrossSection
+
 xs_path = siren.utilities.get_cross_section_model_path(
     f"DarkNewsTables-v{siren.utilities.darknews_version()}", must_exist=False
 )
 
-
-def GetDetectorModelTargets(detector_model):
+def GetDetectorModelTargets(detector_model: siren.detector.DetectorModel) -> Tuple[List[siren.dataclasses.Particle.ParticleType], List[str]]:
     """
-    Determines the targets that exist inside the detector model
-    :return: lists of targets and strings
-    :rtype: (list<ParticleType>, list<str>)
+    Determines the targets that exist inside the detector model.
+
+    Args:
+        detector_model (siren.detector.DetectorModel): The detector model object.
+
+    Returns:
+        Tuple[List[siren.dataclasses.Particle.ParticleType], List[str]]: A tuple containing two lists:
+            - List of target objects (ParticleType)
+            - List of target strings
     """
     count = 0
     targets = []
@@ -40,12 +55,28 @@ def GetDetectorModelTargets(detector_model):
 
 
 def load_cross_section(
-    model_container,
-    upscattering_key,
-    tolerance=1e-6,
-    interp_tolerance=5e-2,
-    always_interpolate=True,
-):
+    model_container: ModelContainer,
+    upscattering_key: Any,
+    tolerance: float = 1e-6,
+    interp_tolerance: float = 5e-2,
+    always_interpolate: bool = True,
+) -> PyDarkNewsCrossSection:
+    """
+    Loads a cross-section object based on the given parameters.
+
+    Args:
+        model_container (ModelContainer): The model container object.
+        upscattering_key (Any): The key for the upscattering model.
+        tolerance (float, optional): Tolerance for calculations. Defaults to 1e-6.
+        interp_tolerance (float, optional): Interpolation tolerance. Defaults to 5e-2.
+        always_interpolate (bool, optional): Whether to always interpolate. Defaults to True.
+
+    Returns:
+        PyDarkNewsCrossSection: The loaded cross-section object.
+
+    Raises:
+        KeyError: If the upscattering key is not present in model_container.ups_cases.
+    """
     if upscattering_key not in model_container.ups_cases:
         raise KeyError(
             f'Upscattering key "{upscattering_key}" not present in model_container.ups_cases'
@@ -88,6 +119,7 @@ def load_cross_section_from_pickle(
     interp_tolerance=5e-2,
     always_interpolate=True,
 ):
+    import pickle
     subdir = "_".join(["CrossSection"] + [str(x) for x in upscattering_key])
     table_subdir = os.path.join(table_dir, subdir)
     fname = os.path.join(table_dir, "xs_object.pkl")
@@ -102,11 +134,33 @@ def load_cross_section_from_pickle(
 
 
 def attempt_to_load_cross_section(
-    models,
-    ups_key,
-    tabel_dir,
-    preferences,
-):
+    models: ModelContainer,
+    ups_key: Any,
+    table_dir: str,
+    preferences: List[str],
+    tolerance: float = 1e-6,
+    interp_tolerance: float = 5e-2,
+    always_interpolate: bool = True,
+) -> PyDarkNewsCrossSection:
+    """
+    Attempts to load a cross-section object using different strategies based on preferences.
+
+    Args:
+        models (ModelContainer): The model container object.
+        ups_key (Any): The key for the upscattering model.
+        table_dir (str): Directory path for the tables.
+        preferences (List[str]): List of loading preferences (e.g., ["table", "pickle", "normal"]).
+        tolerance (float, optional): Tolerance for calculations. Defaults to 1e-6.
+        interp_tolerance (float, optional): Interpolation tolerance. Defaults to 5e-2.
+        always_interpolate (bool, optional): Whether to always interpolate. Defaults to True.
+
+    Returns:
+        PyDarkNewsCrossSection: The loaded cross-section object.
+
+    Raises:
+        ValueError: If preferences list is empty.
+        RuntimeError: If unable to load the cross-section with any strategy.
+    """
     if len(preferences) == 0:
         raise ValueError("preferences must have at least one entry")
 
@@ -188,7 +242,12 @@ def load_cross_sections(
     cross_sections = []
     for ups_key, ups_case in models.ups_cases.items():
         cross_sections.append(
-            attempt_to_load_cross_section(models, ups_key, table_dir, preferences)
+            attempt_to_load_cross_section(models, ups_key,
+                                          table_dir,
+                                          preferences,
+                                          tolerance,
+                                          interp_tolerance,
+                                          always_interpolate)
         )
 
     return cross_sections
@@ -228,6 +287,7 @@ def load_decay_from_pickle(
     decay_key,
     table_dir,
 ):
+    import pickle
     subdir = "_".join(["Decay"] + [str(x) for x in decay_key])
     table_subdir = os.path.join(table_dir, subdir)
     fname = os.path.join(table_dir, "dec_object.pkl")
@@ -238,14 +298,14 @@ def load_decay_from_pickle(
 
 def attempt_to_load_decay(
     models,
-    dec_key,
-    tabel_dir,
+    decay_key,
+    table_dir,
     preferences,
 ):
     if len(preferences) == 0:
         raise ValueError("preferences must have at least one entry")
 
-    subdir = "_".join(["Decay"] + [str(x) for x in dec_key])
+    subdir = "_".join(["Decay"] + [str(x) for x in decay_key])
     loaded = False
     decay = None
     for p in preferences:
@@ -255,7 +315,7 @@ def attempt_to_load_decay(
                 try:
                     decay = load_decay_from_table(
                         models,
-                        dec_key,
+                        decay_key,
                         table_subdir,
                     )
                     loaded = True
@@ -268,7 +328,7 @@ def attempt_to_load_decay(
             if os.path.isdir(table_subdir):
                 try:
                     decay = load_decay_from_pickle(
-                        ups_key,
+                        decay_key,
                         table_dir,
                     )
                     loaded = True
@@ -280,7 +340,7 @@ def attempt_to_load_decay(
             try:
                 decay = load_decay(
                     models,
-                    dec_key,
+                    decay_key,
                 )
                 loaded = True
             except Exception as e:
@@ -305,32 +365,61 @@ def load_decays(
         table_dir = ""
 
     decays = []
-    for dec_key, dec_case in models.dec_cases.items():
-        decays.append(attempt_to_load_decy(models, dec_key, table_dir, preferences))
+    for decay_key, dec_case in models.dec_cases.items():
+        decays.append(attempt_to_load_decay(models, decay_key, table_dir, preferences))
 
     return decays
 
 
 def load_processes(
-    primary_type=None,
-    target_types=None,
-    fill_tables_at_start=False,
-    Emax=None,
-    m4=None,
-    mu_tr_mu4=None,  # GeV^-1
-    UD4=0,
-    Umu4=0,
-    epsilon=0.0,
-    gD=0.0,
-    decay_product="photon",
-    noHC=True,
-    HNLtype="dirac",
-    nuclear_targets=None,
-    detector_model=None,
-    tolerance=1e-6,  # supposed to represent machine epsilon
-    interp_tolerance=5e-2,  # relative interpolation tolerance
-    always_interpolate=True,  # bool whether to always interpolate the total/differential cross section
-):
+    primary_type: Optional[Any] = None,
+    target_types: Optional[List[Any]] = None,
+    fill_tables_at_start: bool = False,
+    Emax: Optional[float] = None,
+    m4: Optional[float] = None,
+    mu_tr_mu4: Optional[float] = None,
+    UD4: float = 0,
+    Umu4: float = 0,
+    epsilon: float = 0.0,
+    gD: float = 0.0,
+    decay_product: str = "photon",
+    noHC: bool = True,
+    HNLtype: str = "dirac",
+    nuclear_targets: Optional[List[str]] = None,
+    detector_model: Optional[Any] = None,
+    tolerance: float = 1e-6,
+    interp_tolerance: float = 5e-2,
+    always_interpolate: bool = True,
+) -> List[Any]:
+    """
+    Loads and returns a list of cross-section and decay objects based on the given parameters.
+
+    Args:
+        primary_type (Optional[Any]): The primary particle type.
+        target_types (Optional[List[Any]]): List of target particle types.
+        fill_tables_at_start (bool): Whether to fill interpolation tables at start.
+        Emax (Optional[float]): Maximum energy for table filling.
+        m4 (Optional[float]): Mass parameter.
+        mu_tr_mu4 (Optional[float]): Transition magnetic moment parameter.
+        UD4 (float): UD4 parameter.
+        Umu4 (float): Umu4 parameter.
+        epsilon (float): Epsilon parameter.
+        gD (float): gD parameter.
+        decay_product (str): Type of decay product.
+        noHC (bool): noHC parameter.
+        HNLtype (str): Type of HNL (e.g., "dirac").
+        nuclear_targets (Optional[List[str]]): List of nuclear targets.
+        detector_model (Optional[Any]): Detector model object.
+        tolerance (float): Tolerance for calculations.
+        interp_tolerance (float): Interpolation tolerance.
+        always_interpolate (bool): Whether to always interpolate.
+
+    Returns:
+        List[Any]: A list of loaded cross-section and decay objects.
+
+    Raises:
+        ValueError: If neither nuclear_targets nor detector_model is provided.
+    """
 
     if nuclear_targets is None and detector_model is None:
         raise ValueError(
