@@ -1,4 +1,5 @@
 # Monkey patch DarkNews logger to hide printouts
+import functools
 
 from DarkNews.ModelContainer import ModelContainer
 ModelContainer_configure_logger = ModelContainer.configure_logger
