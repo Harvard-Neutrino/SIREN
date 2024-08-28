@@ -15,6 +15,7 @@
 #include "../../public/SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
+#include "../../public/SIREN/distributions/primary/vertex/FixedTargetPositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/DecayRangeFunction.h"
 #include "../../public/SIREN/distributions/primary/vertex/DecayRangePositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/DepthFunction.h"
@@ -213,6 +214,15 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",&RangePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&RangePositionDistribution::InjectionBounds)
     .def("Name",&RangePositionDistribution::Name);
+
+  class_<FixedTargetPositionDistribution, std::shared_ptr<FixedTargetPositionDistribution>, VertexPositionDistribution>(m, "FixedTargetPositionDistribution")
+    .def(init<>())
+    .def(init<siren::geometry::Cylinder, double>())
+    .def(init<siren::geometry::Cylinder, std::shared_ptr<siren::geometry::Geometry>>())
+    .def(init<siren::geometry::Cylinder, std::shared_ptr<siren::geometry::Geometry>, double>())
+    .def("GenerationProbability",&FixedTargetPositionDistribution::GenerationProbability)
+    .def("InjectionBounds",&FixedTargetPositionDistribution::InjectionBounds)
+    .def("Name",&FixedTargetPositionDistribution::Name);
 
 
   class_<SecondaryInjectionDistribution, std::shared_ptr<SecondaryInjectionDistribution>, WeightableDistribution>(m, "SecondaryInjectionDistribution")
