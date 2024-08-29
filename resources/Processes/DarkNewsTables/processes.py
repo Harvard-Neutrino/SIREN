@@ -3,21 +3,21 @@ from typing import Tuple, List, Any, Optional
 import siren
 
 base_path = os.path.dirname(os.path.abspath(__file__))
-loader_file = os.path.join(base_path, "loader.py")
-siren._util.load_module("loader", loader_file)
+logger_file = os.path.join(base_path, "logger.py")
+siren._util.load_module("logger", logger_file)
 
-from DarkNews.ModelContainer import ModelContainer
+from siren.DNModelContainer import ModelContainer
 
 # Import PyDarkNewsDecay and PyDarkNewsCrossSection
 decay_file = os.path.join(base_path, "DarkNewsDecay.py")
 cross_section_file = os.path.join(base_path, "DarkNewsCrossSection.py")
-siren._util.load_module("DarkNewsDecay", decay_file)
-siren._util.load_module("DarkNewsCrossSection", cross_section_file)
+DarkNewsDecay = siren._util.load_module("DarkNewsDecay", decay_file)
+DarkNewsCrossSection = siren._util.load_module("DarkNewsCrossSection", cross_section_file)
 
-from DarkNewsDecay import PyDarkNewsDecay
-from DarkNewsCrossSection import PyDarkNewsCrossSection
+PyDarkNewsCrossSection = DarkNewsCrossSection.PyDarkNewsCrossSection
+PyDarkNewsDecay = DarkNewsDecay.PyDarkNewsDecay
 
-xs_path = siren.utilities.get_cross_section_model_path(
+xs_path = siren.utilities.get_processes_model_path(
     f"DarkNewsTables-v{siren.utilities.darknews_version()}", must_exist=False
 )
 
