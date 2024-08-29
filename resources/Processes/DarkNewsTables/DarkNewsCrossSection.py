@@ -3,9 +3,11 @@ import numpy as np
 import functools
 from scipy.interpolate import LinearNDInterpolator, PchipInterpolator
 
+from siren import _util
+
 base_path = os.path.dirname(os.path.abspath(__file__))
-loader_file = os.path.join(base_path, "loader.py")
-siren._util.load_module("loader", loader_file)
+logger_file = os.path.join(base_path, "logger.py")
+_util.load_module("logger", logger_file)
 
 # SIREN methods
 from siren.interactions import DarkNewsCrossSection
