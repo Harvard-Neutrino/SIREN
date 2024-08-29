@@ -2,6 +2,7 @@ import os
 import numpy as np
 import functools
 from scipy.interpolate import LinearNDInterpolator, PchipInterpolator
+from typing import List, Tuple
 
 from siren import _util
 
@@ -16,6 +17,7 @@ from siren.dataclasses import Particle
 
 # DarkNews methods
 from DarkNews import phase_space
+
 
 # A class representing a single ups_case DarkNews class
 # Only handles methods concerning the upscattering part
@@ -51,9 +53,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         total_xsec_file = os.path.join(table_dir, "total_cross_sections.npy")
         if os.path.exists(total_xsec_file):
             self.total_cross_section_table = np.load(total_xsec_file)
-        diff_xsec_file = os.path.join(
-            table_dir, "differential_cross_sections.npy"
-        )
+        diff_xsec_file = os.path.join(table_dir, "differential_cross_sections.npy")
         if os.path.exists(diff_xsec_file):
             self.differential_cross_section_table = np.load(diff_xsec_file)
 
@@ -62,9 +62,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     def save_to_table(self, table_dir, total=True, diff=True):
         if total:
             self._redefine_interpolation_objects(total=True)
-            with open(
-                os.path.join(table_dir, "total_cross_sections.npy"), "wb"
-            ) as f:
+            with open(os.path.join(table_dir, "total_cross_sections.npy"), "wb") as f:
                 np.save(f, self.total_cross_section_table)
         if diff:
             self._redefine_interpolation_objects(diff=True)
@@ -91,7 +89,6 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     #   tolerance, interp_tolerance, always_interpolate
     #   kwargs argument can be used to set any of these
     def configure(self, **kwargs):
-
         for k, v in kwargs.items():
             self.__setattr__(k, v)
 
@@ -254,22 +251,22 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
         else:
             return -1
 
-    def FillTableAtEnergy(self, E, total=True, diff=True, factor=0.8):
+    def FillTableAtEnergy(
+        self, E: float, total: bool = True, diff: bool = True, factor: float = 0.8
+    ) -> int:
         num_added_points = 0
+        new_total_points: List[Tuple[float, float]] = []
+        new_diff_points: List[Tuple[float, float, float]] = []
+
         if total:
             xsec = self.ups_case.total_xsec(E)
-            self.total_cross_section_table = np.append(
-                self.total_cross_section_table, [[E, xsec]], axis=0
-            )
+            new_total_points.append((E, xsec))
             num_added_points += 1
+
         if diff:
             interaction = dataclasses.InteractionRecord()
-            interaction.signature.primary_type = self.GetPossiblePrimaries()[
-                0
-            ]  # only one primary
-            interaction.signature.target_type = self.GetPossibleTargets()[
-                0
-            ]  # only one target
+            interaction.signature.primary_type = self.GetPossiblePrimaries()[0]
+            interaction.signature.target_type = self.GetPossibleTargets()[0]
             interaction.target_mass = self.ups_case.MA
             interaction.primary_momentum = [E, 0, 0, 0]
             zmin, zmax = self.tolerance, 1
@@ -279,13 +276,19 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
             while z < zmax:
                 Q2 = Q2min + z * (Q2max - Q2min)
                 dxsec = self.ups_case.diff_xsec_Q2(E, Q2).item()
-                self.differential_cross_section_table = np.append(
-                    self.differential_cross_section_table,
-                    [[E, z, dxsec]],
-                    axis=0,
-                )
+                new_diff_points.append((E, z, dxsec))
                 num_added_points += 1
                 z *= 1 + factor * self.interp_tolerance
+
+        if new_total_points:
+            self.total_cross_section_table = np.vstack(
+                (self.total_cross_section_table, new_total_points)
+            )
+        if new_diff_points:
+            self.differential_cross_section_table = np.vstack(
+                (self.differential_cross_section_table, new_diff_points)
+            )
+
         self._redefine_interpolation_objects(total=total, diff=diff)
         return num_added_points
 
@@ -473,8 +476,8 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
 
         # If we have reached this block, we must compute the cross section using DarkNews
         xsec = self.ups_case.total_xsec(energy)
-        self.total_cross_section_table = np.append(
-            self.total_cross_section_table, [[energy, xsec]], axis=0
+        self.total_cross_section_table = np.vstack(
+            (self.total_cross_section_table, [[energy, xsec]])
         )
         self._redefine_interpolation_objects(total=True)
         return xsec
