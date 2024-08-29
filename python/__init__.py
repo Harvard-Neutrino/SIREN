@@ -22,7 +22,7 @@ del metadata
 # set up some public-facing utilities functions
 utilities.get_resource_package_dir = _util.resource_package_dir
 utilities.get_detector_model_path = _util.get_detector_model_path
-utilities.get_cross_section_model_path = _util.get_cross_section_model_path
+utilities.get_processes_model_path = _util.get_processes_model_path
 utilities.get_flux_model_path = _util.get_flux_model_path
 utilities.load_flux = _util.load_flux
 
