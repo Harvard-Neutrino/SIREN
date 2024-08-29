@@ -503,7 +503,7 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
     # Raise an error if no model file is found and we require it to exist
     if len(model_versions) == 0 and must_exist:
         raise ValueError(
-            "No model found for {}\nSearched in ".format(
+            "No model found for {}\nSearched in {}".format(
                 model_name, os.path.join(base_dir, model_name)
             )
         )
