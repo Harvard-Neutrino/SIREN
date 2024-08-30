@@ -207,7 +207,7 @@ def attempt_to_load_cross_section(
                 break
         elif p == "normal":
             try:
-                cross_sections = load_cross_section(
+                cross_section = load_cross_section(
                     models,
                     ups_key,
                     tolerance=tolerance,
@@ -433,6 +433,7 @@ def load_processes(
     table_dir = os.path.join(base_path, "Dipole_M%2.2e_mu%2.2e" % (m4, mu_tr_mu4))
 
     models = ModelContainer(
+        nuclear_targets=nuclear_targets,
         m4=m4,
         mu_tr_mu4=mu_tr_mu4,
         UD4=UD4,
