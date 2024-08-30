@@ -85,4 +85,6 @@ object cylinder  23 0 -0.65          0 0 0      1.12776 0 1.2396   ccm_inner_arg
 detector 23 0 -0.65
 
 # Fiducial volume
+# This represents the "active volume" of liquid argon contained within the reflective TPB-coated film
+# This neglects the volume of the PMTs that should be filled with glass/vacuum
 fiducial detector_coords cylinder 0 0 0         0 0 0      1.03385 0 1.2396
