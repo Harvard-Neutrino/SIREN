@@ -31,6 +31,7 @@ class PyDarkNewsCrossSection(DarkNewsCrossSection):
     ):
         DarkNewsCrossSection.__init__(self)  # C++ constructor
 
+        self.is_configured = False
         self.ups_case = ups_case
         self.tolerance = tolerance
         self.interp_tolerance = interp_tolerance
