@@ -25,6 +25,8 @@ utilities.get_detector_model_path = _util.get_detector_model_path
 utilities.get_processes_model_path = _util.get_processes_model_path
 utilities.get_flux_model_path = _util.get_flux_model_path
 utilities.load_flux = _util.load_flux
+utilities.load_detector = _util.load_detector
+utilities.load_processes = _util.load_processes
 
 def darknews_version():
     try:
