@@ -75,7 +75,7 @@ object cylinder  23 0 -0.65          0 0 0      1.25 0 2.40    ccm_inner_cryogen
 object cylinder  23 0 -0.65          0 0 0      1.20 0 2.30    ccm_outer_argon     ARGON    constant    1.3954
 # Aluminum PMT frame
 # note -- the aluminum frame is actually struts (not a continuous cylinder)
-# approximating a continuous cyclinder frame as a thin cylinder with approximately same total mass as the struts
+# approximating the frame as a continuous thin cylinder with approximately same total mass as the struts
 object cylinder  23 0 -0.65          0 0 0      1.130076 0 1.24261    ccm_pmt_frame       ALUMINUM constant    2.70
 # Inner argon
 object cylinder  23 0 -0.65          0 0 0      1.12776 0 1.2396   ccm_inner_argon     ARGON    constant    1.3954
