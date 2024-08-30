@@ -3,7 +3,7 @@
 # Version: v2
 # Material model file: CCM-v2.dat
 # Date: 2024-08-30
-# Authors: Darcy Newmark
+# Authors: Darcy Newmark, Nicholas Kamp
 # Notes:
 #   Uses PREM model of the Earth, assumes a single far detector with the liquid argon embedded directly in the roc
 #   Updating detector dimensions -- active volume dimensions from Edward's simulation are ~10% too small in radius (aka 17% too small in volume)
