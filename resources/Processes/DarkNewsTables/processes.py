@@ -1,6 +1,7 @@
 import os
 from typing import Tuple, List, Any, Optional
 import siren
+import collections
 
 base_path = os.path.dirname(os.path.abspath(__file__))
 logger_file = os.path.join(base_path, "logger.py")
@@ -370,6 +371,17 @@ def load_decays(
 
     return decays
 
+# This class is a hacky workaround for an issue with the python reference counting of classes derived
+# from a pybind11 trampoline class i.e. python cross-section classes and python decay classes that
+# inherit from siren.interactions.CrossSection or siren.interactions.Decay. If these python classes
+# are passed to the InteractionCollection constructor, but a python-side reference to them is not
+# maintained, then their python side state/memory will be destroyed/deallocated. This class maintains
+# a python-side reference to all PyDarkNewsCrossSection and PyDarkNewsDecay instances created by
+# load_processes(...) to avoid this issue
+class Holder:
+    holders = []
+    def __init__(self):
+        Holder.holders.append(self)
 
 def load_processes(
     primary_type: Optional[Any] = None,
@@ -468,5 +480,26 @@ def load_processes(
             for cross_section in cross_sections:
                 cross_section.FillInterpolationTables(Emax=Emax)
 
-    return cross_sections + decays
+    primary_processes = collections.defaultdict(list)
+    # Loop over available cross sections and save those which match primary type
+    for cross_section in cross_sections:
+        if primary_type == siren.dataclasses.Particle.ParticleType(
+            cross_section.ups_case.nu_projectile.pdgid
+        ):
+            primary_processes[primary_type].append(cross_section)
+
+    secondary_processes = collections.defaultdict(list)
+    # Loop over available decays, group by parent type
+    for decay in decays:
+        secondary_type = siren.dataclasses.Particle.ParticleType(
+            decay.dec_case.nu_parent.pdgid
+        )
+        secondary_processes[secondary_type].append(decay)
+
+
+    holder = Holder()
+    holder.primary_processes = primary_processes
+    holder.secondary_processes = secondary_processes
+
+    return dict(primary_processes), dict(secondary_processes)
 
