@@ -662,17 +662,17 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
 
 
 def get_detector_model_file_path(model_name, must_exist=True):
-    return _get_model_path(model_name, prefix="Detectors/densities", suffix=".dat", is_file=True, must_exist=must_exist)
+    return _get_model_path(model_name, prefix="detectors/densities", suffix=".dat", is_file=True, must_exist=must_exist)
 
 
 def get_material_model_file_path(model_name, must_exist=True):
-    return _get_model_path(model_name, prefix="Detectors/materials", suffix=".dat", is_file=True, must_exist=must_exist)
+    return _get_model_path(model_name, prefix="detectors/materials", suffix=".dat", is_file=True, must_exist=must_exist)
 
 
 _resource_folder_by_name = {
-    "flux": "Fluxes",
-    "detector": "Detectors",
-    "processes": "Processes",
+    "flux": "fluxes",
+    "detector": "detectors",
+    "processes": "processes",
 }
 
 
