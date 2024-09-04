@@ -401,7 +401,12 @@ double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
       //   SetGammaHadrons(GammaHadronsCC(mixing_element, hnl_mass, m_alpha),"CC");
       // }
       // width = _GammaHadronsCC;
-      width = GammaHadronsCC(mixing_element, hnl_mass, m_alpha) - CCMesonDecayWidth(record);
+      double cc_meson = CCMesonDecayWidth(record);
+      if (nature==ChiralNature::Majorana) cc_meson *= 0.5; // make sure this is the dirac decay width for now
+      width = GammaHadronsCC(mixing_element, hnl_mass, m_alpha);// - CCMesonDecayWidth(record);
+      width -= cc_meson;
+      // TODO: this correction should come in different a la the NC case
+      // However, this treatment matches the results from 2007.03701
       width *= (1 + DeltaQCD()); // loop correction
     }
     else if (!charged && record.signature.secondary_types[1]==siren::dataclasses::ParticleType::Hadrons) {
@@ -411,8 +416,11 @@ double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
       //   SetGammaHadrons(GammaHadronsNC(mixing_element, hnl_mass),"NC");
       // }
       // width = _GammaHadronsNC;
-      width = GammaHadronsNC(mixing_element, hnl_mass) - NCMesonDecayWidth(record);
-      width *= (1 + DeltaQCD()); // loop correction
+      double nc_meson = NCMesonDecayWidth(record);
+      if (nature==ChiralNature::Majorana) nc_meson *= 0.5; // make sure this is the dirac decay width for now
+      width = (1 + DeltaQCD())*GammaHadronsNC(mixing_element, hnl_mass);// - NCMesonDecayWidth(record);
+      width -= nc_meson;
+      //width *= (1 + DeltaQCD()); // loop correction
     }
     // Weak Bosons
     // https://arxiv.org/abs/0901.3589v2
@@ -489,8 +497,8 @@ double HNLTwoBodyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
     exit(0);
   }
 
-  if(nature==ChiralNature::Majorana) return 2*width;
-  else if(nature==ChiralNature::Dirac) return width;
+  if(nature==ChiralNature::Majorana) return std::max(0.,2*width);
+  else if(nature==ChiralNature::Dirac) return std::max(0.,width);
   return 0;
 }
 
