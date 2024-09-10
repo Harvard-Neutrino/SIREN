@@ -1,0 +1,44 @@
+# Material model file
+# Detector: KM3NeT-ORCA
+# Version: v1
+# Date: 2024-09-10
+# Authors: Nick Kamp
+# Notes:
+#   all compositions from table 1 of https://arxiv.org/abs/2003.14040
+
+WATER   5     # H20 with impurities
+1000080160    0.8884        # O, 88.8% in weight
+1000010010    0.1082        # 2H, 10.82% in weight
+1000170350    0.0194        # Cl35
+1000110230    0.0108        # Na23
+1000120240    0.001292      # Mg24
+
+ROCK  10     # SiO2 with larger impurities
+1000080160    0.463         # O16
+1000140280    0.282         # Si28
+1000130270    0.0823        # Al27
+1000260560    0.0563        # Fe56
+1000200400    0.0415        # Ca40
+1000110230    0.0236        # Na23
+1000120240    0.0233        # Mg24
+1000190390    0.0209        # K39
+1000220480    0.0057        # Ti48
+1000010010    0.0014        # H1
+
+MANTLE  6   # SiO2 with larger impurities
+1000080160    0.4522        # O16
+1000120240    0.2283        # Mg24
+1000140280    0.2149        # Si28
+1000260560    0.0597        # Fe56
+1000130270    0.0225        # Al27
+1000200400    0.0224        # Ca40
+
+INNERCORE 1 # Fe
+1000260560    1.0000000     # Fe56 100%
+
+OUTERCORE 1 # Fe
+1000260560    1.0000000     # Fe56 100%
+
+AIR 2       # N2 + O2
+1000070140    0.7562326     # N2 78% in volume
+1000080160    0.2437674     # O2 22% in volume
