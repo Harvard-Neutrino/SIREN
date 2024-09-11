@@ -434,7 +434,7 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
     if len(model_names) == 0 and must_exist:
         # Whoops, we didn't find the model folder!
         raise ValueError(
-            "No model folders found for {}\nSearched in ".format(model_name, base_dir)
+            "No model folders found for {}\nSearched in {}".format(model_name, base_dir)
         )
     elif len(model_names) == 0 and not must_exist:
         # Let's use the provided model name as the folder name
@@ -470,13 +470,13 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
                 model_versions.append(normalize_version(d.groupdict()["version"]))
             else:
                 print(ValueError(
-                    "Input model file has no version: {}\nSearched in ".format(
+                    "Input model file has no version: {}\nSearched in {}".format(
                         f, os.path.join(base_dir, model_name)
                     )
                 ))
         elif f.lower().startswith(model_name.lower()):
             print(ValueError(
-                "Unable to parse version from {}\nFound in ".format(
+                "Unable to parse version from {}\nFound in {}".format(
                     f, os.path.join(base_dir, model_name)
                 )
             ))
@@ -484,7 +484,7 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
     # Raise an error if no model file is found and we require it to exist
     if len(model_versions) == 0 and must_exist:
         raise ValueError(
-            "No model found for {}\nSearched in ".format(
+            "No model found for {}\nSearched in {}".format(
                 model_name, os.path.join(base_dir, model_name)
             )
         )
@@ -539,8 +539,8 @@ def get_cross_section_model_path(model_name, must_exist=True):
 
 def get_tabulated_flux_model_path(model_name, must_exist=True):
     return _get_model_path(model_name,prefix="Fluxes", is_file=False, must_exist=must_exist)
- 
- 
+
+
 def get_tabulated_flux_file(model_name, tag, must_exist=True):
         abs_flux_dir = get_tabulated_flux_model_path(model_name,must_exist=must_exist)
         # require existence of FluxCalculator.py
