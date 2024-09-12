@@ -44,20 +44,23 @@ PYBIND11_MODULE(injection,m) {
   class_<PhysicalProcess, std::shared_ptr<PhysicalProcess>, Process>(m, "PhysicalProcess")
     .def(init<>())
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
-    .def("AddPhysicalDistribution",&PhysicalProcess::AddPhysicalDistribution)
-    .def("GetPhysicalDistributions",&PhysicalProcess::GetPhysicalDistributions);
+    .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
+    .def_property("distributions", &PhysicalProcess::GetPhysicalDistributions, &PhysicalProcess::SetPhysicalDistributions)
+    .def("AddPhysicalDistribution",&PhysicalProcess::AddPhysicalDistribution);
 
   class_<PrimaryInjectionProcess, std::shared_ptr<PrimaryInjectionProcess>, Process>(m, "PrimaryInjectionProcess")
     .def(init<>())
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
-    .def("AddPrimaryInjectionDistribution",&PrimaryInjectionProcess::AddPrimaryInjectionDistribution)
-    .def("GetPrimaryInjectionDistributions",&PrimaryInjectionProcess::GetPrimaryInjectionDistributions);
+    .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
+    .def_property("distributions", &PrimaryInjectionProcess::GetPrimaryInjectionDistributions, &PrimaryInjectionProcess::SetPrimaryInjectionDistributions)
+    .def("AddPrimaryInjectionDistribution",&PrimaryInjectionProcess::AddPrimaryInjectionDistribution);
 
   class_<SecondaryInjectionProcess, std::shared_ptr<SecondaryInjectionProcess>, Process>(m, "SecondaryInjectionProcess")
     .def(init<>())
-    .def_property("secondary_type", &Process::GetSecondaryType, &Process::SetSecondaryType)
-    .def("AddSecondaryInjectionDistribution",&SecondaryInjectionProcess::AddSecondaryInjectionDistribution)
-    .def("GetSecondaryInjectionDistributions",&SecondaryInjectionProcess::GetSecondaryInjectionDistributions);
+    .def_property("secondary_type", &SecondaryInjectionProcess::GetSecondaryType, &SecondaryInjectionProcess::SetSecondaryType)
+    .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
+    .def_property("distributions", &SecondaryInjectionProcess::GetSecondaryInjectionDistributions, &SecondaryInjectionProcess::SetSecondaryInjectionDistributions)
+    .def("AddSecondaryInjectionDistribution",&SecondaryInjectionProcess::AddSecondaryInjectionDistribution);
 
 
   // Injection

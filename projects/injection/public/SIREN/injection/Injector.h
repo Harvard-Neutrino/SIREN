@@ -103,6 +103,7 @@ public:
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> SecondaryInjectionBounds(siren::dataclasses::InteractionRecord const & interaction) const;
     virtual std::vector<std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>> GetPrimaryInjectionDistributions() const;
     virtual std::shared_ptr<siren::detector::DetectorModel> GetDetectorModel() const;
+    virtual void SetDetectorModel(std::shared_ptr<siren::detector::DetectorModel> detector_model);
     virtual std::shared_ptr<siren::interactions::InteractionCollection> GetInteractions() const;
     unsigned int InjectedEvents() const;
     unsigned int EventsToInject() const;
