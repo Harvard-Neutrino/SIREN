@@ -25,6 +25,7 @@ Process & Process::operator=(Process && other) {
 
 void Process::SetInteractions(std::shared_ptr<interactions::InteractionCollection> _interactions) {
     interactions = _interactions;
+    primary_type = interactions->GetPrimaryType();
 }
 
 std::shared_ptr<interactions::InteractionCollection> Process::GetInteractions() const {
@@ -33,6 +34,8 @@ std::shared_ptr<interactions::InteractionCollection> Process::GetInteractions() 
 
 void Process::SetPrimaryType(siren::dataclasses::ParticleType _primary_type) {
     primary_type = _primary_type;
+    if(interactions)
+        interactions->SetPrimaryType(_primary_type);
 }
 
 siren::dataclasses::ParticleType Process::GetPrimaryType() const {
