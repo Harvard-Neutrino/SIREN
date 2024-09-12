@@ -31,56 +31,40 @@ SecondaryInjectionProcess = _injection.SecondaryInjectionProcess
 class Injector:
     def __init__(
         self,
-        number_of_events: int,
-        detector_model: "DetectorModel",
-        random: "SIREN_random",
+        number_of_events: Optional[int] = None,
+        detector_model: Optional["DetectorModel"] = None,
+        seed: Optional[int] = None,
         primary_interactions: Dict["ParticleType", List[Union["CrossSection", "Decay", "Interaction"]]],
         primary_injection_distributions: List["PrimaryInjectionDistribution"],
         secondary_interactions: Optional[Dict["ParticleType", List[Union["CrossSection", "Decay", "Interaction"]]]] = None,
         secondary_injection_distributions: Optional[Dict["ParticleType", List["SecondaryInjectionDistribution"]]] = None,
     ):
-        self.number_of_events = number_of_events
+        self.__seed = None
+        self.__number_of_events = 0
+        self.__detector_model = None
 
-        self.detector_model = detector_model
+        self.__primary_type = None
+        self.__primary_interactions = []
+        self.__primary_injection_distributions = []
+
+        self.__secondary_interactions = []
+        self.__secondary_injection_distributions = []
+        self.__stopping_condition = None
+
+        self.__injector = None
 
         if len(primary_interactions) != 1:
             raise ValueError(f"len(primary_interactions) != 1")
 
         if (secondary_interactions is None) != (secondary_injection_distributions is None):
-            raise ValueError("Neither or both of secondary_interactions and secondary_injection_distributions must be provided")
+            raise ValueError("Both or neither secondary_interactions and secondary_injection_distributions must be provided")
 
         if secondary_interactions is None:
             secondary_interactions = dict()
             secondary_injection_distributions = dict()
 
-        self.primary_interactions = primary_interactions
-        self.primary_injection_distributions = primary_injection_distributions
 
-        primary_type, primary_interactions = list(primary_interactions.items())[0]
-
-        self.primary_interaction_collection = _interactions.InteractionCollection(
-            primary_type, primary_interactions
-        )
-        self.primary_process = _injection.PrimaryInjectionProcess(
-            primary_type, self.primary_interaction_collection
-        )
-        for dist in primary_injection_distributions:
-            self.primary_process.AddPrimaryInjectionDistribution(dist)
-
-
-        self.secondary_interactions = secondary_interactions
-        self.secondary_injection_distributions = secondary_injection_distributions
-
-        self.secondary_interaction_collections = []
-        self.secondary_processes = []
-        for secondary_type, secondary_interactions in secondary_interactions.items():
-            secondary_distributions = self.secondary_injection_distributions[secondary_type]
-            secondary_process = SecondaryInjectionProcess(secondary_type, secondary_interactions)
-            for dist in secondary_distributions:
-                secondary_process.AddSecondaryInjectionDistribution(dist)
-            self.secondary_processes.append(secondary_process)
-
-        self.injector = _injection.Injector(
+        self.__injector = _injection.Injector(
             self.number_of_events,
             self.detector_model,
             self.primary_process,
@@ -88,116 +72,235 @@ class Injector:
             self.random,
         )
 
-    # TODO define wrapper functions that modify the internal state of the python object
-    @wraps(_Injector.SetPrimaryProcess)
-    def SetPrimaryProcess(self, primary_process):
-        # Get the internals first
-        primary_injection_distributions = primary_process.GetPrimaryInjectionDistributions()
-        primary_interaction_collection = primary_process.GetInteractionCollection()
-        primary_interactions = list(primary_interaction_collection.GetCrossSections()) + list(primary_interaction_collection.GetDecays())
+    def __initialize_injector(self):
+        if self.__seed is None:
+            random = _utilities.SIREN_random()
+            self.__seed = random.get_seed()
+        else:
+            random = _utilities.SIREN_random(self.__seed)
 
-        # Now we can overwite things
-        self.injector.SetPrimaryProcess(primary_process)
-        self.primary_process = primary_process
-        self.primary_injection_distributions = primary_injection_distributions
-        self.primary_interaction_collection = primary_interaction_collection
-        self.primary_interactions = {primary_process.primary_type: primary_interactions}
+        if self.__number_of_events is None:
+            raise ValueError("number_of_events must be provided")
+        elif self.__number_of_events <= 0:
+            raise ValueError("number_of_events must be positive")
 
-    @wraps(_Injector.SetStoppingCondition)
-    def SetStoppingCondition(self, stopping_condition):
-        self.stopping_condition = stopping_condition
-        self.injector.SetStoppingCondition(stopping_condition)
+        if self.__detector_model is None:
+            raise ValueError("detector_model must be provided")
 
-    @wraps(_Injector.AddSecondaryProcess)
-    def AddSecondaryProcess(self, secondary_process):
-        # Update internal state
-        secondary_type = secondary_process.secondary_type
-        secondary_distributions = secondary_process.GetSecondaryInjectionDistributions()
-        secondary_interaction_collection = secondary_process.GetInteractionCollection()
-        secondary_interactions = list(secondary_interaction_collection.GetCrossSections()) + list(secondary_interaction_collection.GetDecays())
+        if self.__primary_type is None:
+            raise ValueError("primary_type must be provided")
 
-        # Update class attributes
-        self.secondary_processes.append(secondary_process)
-        if secondary_type not in self.secondary_interactions:
-            self.secondary_interactions[secondary_type] = []
-        self.secondary_interactions[secondary_type].extend(secondary_interactions)
-        if secondary_type not in self.secondary_injection_distributions:
-            self.secondary_injection_distributions[secondary_type] = []
-        self.secondary_injection_distributions[secondary_type].extend(secondary_distributions)
+        if len(self.__primary_interactions) == 0:
+            raise ValueError("primary_interactions must be provided")
 
-        # Update the underlying C++ object
-        self.injector.AddSecondaryProcess(secondary_process)
-    
-    @wraps(_Injector.GetPrimaryProcess)
-    def GetPrimaryProcess(self):
-        return self.primary_process
+        if len(self.__primary_injection_distributions) == 0:
+            raise ValueError("primary_injection_distributions must be provided")
 
-    @wraps(_Injector.GetSecondaryProcessMap)
-    def GetSecondaryProcesses(self):
-        return self.secondary_processes
+        if len(self.__secondary_interactions) == 0:
+            raise ValueError("secondary_interactions must be provided")
+
+        if len(self.__secondary_injection_distributions) == 0:
+            raise ValueError("secondary_injection_distributions must be provided")
+
+        if list(sorted(self.__secondary_interactions.keys())) != list(sorted(self.__secondary_injection_distributions.keys())):
+            raise ValueError("secondary_interactions and secondary_injection_distributions must have the same keys")
+
+        primary_type = self.primary_type
+        primary_interaction_collection = _interactions.InteractionCollection(
+            primary_type, self.primary_interactions
+        )
+        primary_process = _injection.PrimaryInjectionProcess(
+            primary_type, primary_interaction_collection
+        )
+        primary_process.distributions = self.primary_injection_distributions
+
+        secondary_interactions = self.secondary_interactions
+        secondary_injection_distributions = self.secondary_injection_distributions
+
+        secondary_interaction_collections = []
+        secondary_processes = []
+        for secondary_type, secondary_interactions in secondary_interactions.items():
+            secondary_interaction_collection = _interactions.InteractionCollection(
+                secondary_type, secondary_interactions
+            )
+            secondary_process = SecondaryInjectionProcess(
+                secondary_type, secondary_interaction_collection
+            )
+            secondary_process.distributions = secondary_injection_distributions[secondary_type]
+            secondary_processes.append(secondary_process)
+
+        self.__injector = _Injector(
+            self.number_of_events,
+            self.detector_model,
+            primary_process,
+            secondary_processes,
+            random,
+        )
+
+        if self.__stopping_condition is not None:
+            self.__injector.SetStoppingCondition(self.__stopping_condition)
+
+    @property
+    def seed(self):
+        return self.__seed
+
+    @property.setter
+    def seed(self, seed):
+        self.__seed = seed
+        if self.__injector is not None:
+            self.__injector.GetRandom().set_seed(seed)
+
+    @property
+    def number_of_events(self):
+        if self.__injector is not None:
+            return self.__injector.EventsToInject()
+        return self.__number_of_events
+
+    @property
+    def detector_model(self):
+        if self.__injector is not None:
+            return self.__injector.GetDetectorModel()
+        return self.__detector_model
+
+    @property.setter
+    def detector_model(self, detector_model):
+        if self.__injector is not None:
+            self.__injector.SetDetectorModel(detector_model)
+        self.__detector_model = detector_model
+
+    @property
+    def primary_type(self):
+        return self.__primary_type
+
+    @property.setter
+    def primary_type(self, primary_type):
+        if self.__injector is not None:
+            primary_process = self.__injector.GetPrimaryProcess()
+            primary_process.primary_type = primary_type
+        self.__primary_type = primary_type
+
+    @property
+    def primary_interactions(self):
+        return self.__primary_interactions
+
+    @property.setter
+    def primary_interactions(self, primary_interactions):
+        if self.__injector is not None:
+            primary_process = self.__injector.GetPrimaryProcess()
+            primary_interaction_collection = _interactions.InteractionCollection(
+                self.primary_type, primary_interactions
+            )
+            primary_process.interactions = primary_interaction_collection
+        self.__primary_interactions = primary_interactions
+
+    @property
+    def primary_injection_distributions(self):
+        return self.__primary_injection_distributions
+
+    @property.setter
+    def primary_injection_distributions(self, primary_injection_distributions):
+        if self.__injector is not None:
+            primary_process = self.__injector.GetPrimaryProcess()
+            primary_process.distributions = primary_injection_distributions
+        self.__primary_injection_distributions = primary_injection_distributions
+
+    @property
+    def secondary_interactions(self):
+        return self.__secondary_interactions
+
+    @property.setter
+    def secondary_interactions(self, secondary_interactions):
+        if self.__injector is not None:
+            secondary_processes = self.__injector.GetSecondaryProcessMap()
+            current_secondary_types = sorted(list(secondary_processes.keys()))
+            new_secondary_types = sorted(list(secondary_interactions.keys()))
+            if current_secondary_types != new_secondary_types:
+                raise ValueError("Cannot change the secondary types after initialization")
+            for secondary_type, secondary_process in secondary_processes.items():
+                secondary_process.interactions = secondary_interactions[secondary_type]
+        self.__secondary_interactions = secondary_interactions
+
+    @property
+    def secondary_injection_distributions(self):
+        return self.__secondary_injection_distributions
+
+    @property.setter
+    def secondary_injection_distributions(self, secondary_injection_distributions):
+        if self.__injector is not None:
+            secondary_processes = self.__injector.GetSecondaryProcesses()
+            current_secondary_types = sorted(list(secondary_processes.keys()))
+            new_secondary_types = sorted(list(secondary_injection_distributions.keys()))
+            if current_secondary_types != new_secondary_types:
+                raise ValueError("Cannot change the secondary types after initialization")
+            for secondary_type, secondary_process in secondary_injection_distributions.items():
+                secondary_process.distributions = secondary_distributions[secondary_type]
+        self.__secondary_injection_distributions = secondary_injection_distributions
+
+    @property
+    def stopping_condition(self):
+        return self.__stopping_condition
+
+    @property.setter
+    def stopping_condition(self, stopping_condition):
+        if self.__injector is not None:
+            self.__injector.SetStoppingCondition(stopping_condition)
+        self.__stopping_condition = stopping_condition
 
     @wraps(_Injector.NewRecord)
-    def NewRecord(self):
-        return self.injector.NewRecord()
-
-    @wraps(_Injector.SetRandom)
-    def SetRandom(self, random):
-        self.injector.SetRandom(random)
+    def new_record(self):
+        return self.__injector.NewRecord()
+    self.new_record.__name__ = "new_record"
+    self.new_record.__doc__ = _Injector.NewRecord.__doc__.replace("NewRecord", "new_record")
 
     @wraps(_Injector.GenerateEvent)
-    def GenerateEvent(self):
-        return self.injector.GenerateEvent()
+    def generate_event(self):
+        if self.__injector is None:
+            self.__initialize_injector()
+        return self.__injector.GenerateEvent()
+    self.generate_event.__name__ = "generate_event"
+    self.generate_event.__doc__ = _Injector.GenerateEvent.__doc__.replace("GenerateEvent", "generate_event")
 
-    @wraps(_Injector.DensityVariables)
-    def DensityVariables(self):
-        return self.injector.DensityVariables()
+    @property
+    def density_variables(self):
+        if self.__injector is not None:
+            return self.__injector.DensityVariables()
+        return None
 
-    @wraps(_Injector.Name)
-    def Name(self):
-        return self.injector.Name()
-    
-    @wraps(_Injector.GetPrimaryInjectionDistributions)
-    def GetPrimaryInjectionDistributions(self):
-        return self.primary_injection_distributions
-
-    @wraps(_Injector.GetDetectorModel)
-    def GetDetectorModel(self):
-        return self.detector_model
-
-    @wraps(_Injector.GetInteractions)
-    def GetInteractions(self):
-        return self.injector.GetInteractions()
-
-    @wraps(_Injector.InjectedEvents)
-    def InjectedEvents(self):
-        return self.injector.InjectedEvents()
-
-    @wraps(_Injector.EventsToInject)
-    def EventsToInject(self):
-        return self.injector.EventsToInject()
+    @property
+    def injected_events(self):
+        if self.__injector is not None:
+            return self.__injector.InjectedEvents()
+        return 0
 
     @wraps(_Injector.ResetInjectedEvents)
-    def ResetInjectedEvents(self):
-        self.injector.ResetInjectedEvents()
+    def reset_injected_events(self):
+        if self.__injector is not None:
+            self.__injector.ResetInjectedEvents()
+    self.reset_injected_events.__name__ = "reset_injected_events"
+    self.reset_injected_events.__doc__ = _Injector.ResetInjectedEvents.__doc__.replace("ResetInjectedEvents", "reset_injected_events")
 
     @wraps(_Injector.SaveInjector)
-    def SaveInjector(self, filename):
-        self.injector.SaveInjector(filename)
+    def save(self, filename):
+        self.__injector.SaveInjector(filename)
+    self.save.__name__ = "save"
+    self.save.__doc__ = _Injector.SaveInjector.__doc__.replace("SaveInjector", "save")
 
     @wraps(_Injector.LoadInjector)
-    def LoadInjector(self, filename):
-        self.injector.LoadInjector(filename)
+    def load(self, filename):
+        self.__injector.LoadInjector(filename)
         # Update Python object state after loading
-        self.primary_process = self.injector.GetPrimaryProcess()
-        self.secondary_processes = self.injector.GetSecondaryProcesses()
-        self.primary_injection_distributions = self.primary_process.GetPrimaryInjectionDistributions()
-        self.primary_interaction_collection = self.primary_process.GetInteractionCollection()
-        self.primary_interactions = {self.primary_process.primary_type: list(self.primary_interaction_collection.GetCrossSections()) + list(self.primary_interaction_collection.GetDecays())}
-        # Update secondary interactions and distributions
-        self.secondary_interactions = {}
-        self.secondary_injection_distributions = {}
-        for process in self.secondary_processes:
-            secondary_type = process.secondary_type
-            self.secondary_interactions[secondary_type] = list(process.GetInteractionCollection().GetCrossSections()) + list(process.GetInteractionCollection().GetDecays())
-            self.secondary_injection_distributions[secondary_type] = process.GetSecondaryInjectionDistributions()
+        self.__number_of_events = self.__injector.EventsToInject()
+        self.__detector_model = self.__injector.GetDetectorModel()
+        primary_process = self.__injector.GetPrimaryProcess()
+        self.__primary_type = primary_process.primary_type
+        self.__primary_interactions = list(primary_process.interactions.GetCrossSections()) + list(primary_process.interactions.GetDecays())
+        self.__primary_injection_distributions = list(primary_process.distributions)
+
+        self.__secondary_interactions = {}
+        self.__secondary_injection_distributions = {}
+        for secondary_type, secondary_process in self.__injector.GetSecondaryProcessMap():
+            self.__secondary_interactions[secondary_type] = list(secondary_process.interactions.GetCrossSections()) + list(secondary_process.interactions.GetDecays())
+            self.__secondary_injection_distributions[secondary_type] = list(secondary_process.distributions)
+
+        self.__stopping_condition = self.__injector.GetStoppingCondition()
 
