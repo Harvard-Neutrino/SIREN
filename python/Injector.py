@@ -90,17 +90,11 @@ class Injector:
         if self.__primary_type is None:
             raise ValueError("primary_type must be provided")
 
-        if len(self.__primary_interactions) != 1:
-            raise ValueError("primary_interactions must have exactly one key")
+        if len(self.__primary_interactions) == 0:
+            raise ValueError("primary_interactions must be provided")
 
         if len(self.__primary_injection_distributions) == 0:
             raise ValueError("primary_injection_distributions must be provided")
-
-        if len(self.__secondary_interactions) == 0:
-            raise ValueError("secondary_interactions must be provided")
-
-        if len(self.__secondary_injection_distributions) == 0:
-            raise ValueError("secondary_injection_distributions must be provided")
 
         if list(sorted(self.__secondary_interactions.keys())) != list(sorted(self.__secondary_injection_distributions.keys())):
             raise ValueError("secondary_interactions and secondary_injection_distributions must have the same keys")
@@ -155,6 +149,12 @@ class Injector:
         if self.__injector is not None:
             return self.__injector.EventsToInject()
         return self.__number_of_events
+
+    @number_of_events.setter
+    def number_of_events(self, number_of_events):
+        if self.__injector is not None:
+            raise ValueError("Cannot change the number of events after initialization")
+        self.__number_of_events = number_of_events
 
     @property
     def detector_model(self):
