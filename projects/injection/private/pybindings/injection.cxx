@@ -43,16 +43,19 @@ PYBIND11_MODULE(injection,m) {
 
   class_<PhysicalProcess, std::shared_ptr<PhysicalProcess>, Process>(m, "PhysicalProcess")
     .def(init<>())
+    .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
     .def("AddPhysicalDistribution",&PhysicalProcess::AddPhysicalDistribution)
     .def("GetPhysicalDistributions",&PhysicalProcess::GetPhysicalDistributions);
 
   class_<PrimaryInjectionProcess, std::shared_ptr<PrimaryInjectionProcess>, Process>(m, "PrimaryInjectionProcess")
     .def(init<>())
+    .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
     .def("AddPrimaryInjectionDistribution",&PrimaryInjectionProcess::AddPrimaryInjectionDistribution)
     .def("GetPrimaryInjectionDistributions",&PrimaryInjectionProcess::GetPrimaryInjectionDistributions);
 
   class_<SecondaryInjectionProcess, std::shared_ptr<SecondaryInjectionProcess>, Process>(m, "SecondaryInjectionProcess")
     .def(init<>())
+    .def_property("secondary_type", &Process::GetSecondaryType, &Process::SetSecondaryType)
     .def("AddSecondaryInjectionDistribution",&SecondaryInjectionProcess::AddSecondaryInjectionDistribution)
     .def("GetSecondaryInjectionDistributions",&SecondaryInjectionProcess::GetSecondaryInjectionDistributions);
 
