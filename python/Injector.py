@@ -10,7 +10,7 @@ from . import injection as _injection
 import collections
 from functools import wraps
 
-from typing import Tuple, List, Dict, Optional, Union
+from typing import Tuple, List, Dict, Optional, Union, Callable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -21,23 +21,24 @@ _Injector = _injection.Injector
 ParticleType = _dataclasses.Particle.ParticleType
 CrossSection = _interactions.CrossSection
 Decay = _interactions.Decay
-Interaction = _interactions.Interaction
 DetectorModel = _detector.DetectorModel
 SIREN_random = _utilities.SIREN_random
 PrimaryInjectionDistribution = _distributions.PrimaryInjectionDistribution
 SecondaryInjectionDistribution = _distributions.SecondaryInjectionDistribution
 SecondaryInjectionProcess = _injection.SecondaryInjectionProcess
+InteractionTreeDatum = _dataclasses.InteractionTreeDatum
 
 class Injector:
     def __init__(
         self,
         number_of_events: Optional[int] = None,
-        detector_model: Optional["DetectorModel"] = None,
+        detector_model: Optional[_detector.DetectorModel] = None,
         seed: Optional[int] = None,
-        primary_interactions: Dict["ParticleType", List[Union["CrossSection", "Decay", "Interaction"]]],
-        primary_injection_distributions: List["PrimaryInjectionDistribution"],
-        secondary_interactions: Optional[Dict["ParticleType", List[Union["CrossSection", "Decay", "Interaction"]]]] = None,
-        secondary_injection_distributions: Optional[Dict["ParticleType", List["SecondaryInjectionDistribution"]]] = None,
+        primary_interactions: Dict[_dataclasses.Particle.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]] = None,
+        primary_injection_distributions: List[_distributions.PrimaryInjectionDistribution] = None,
+        secondary_interactions: Optional[Dict[_dataclasses.Particle.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]]] = None,
+        secondary_injection_distributions: Optional[Dict[_dataclasses.Particle.ParticleType, List[_distributions.SecondaryInjectionDistribution]]] = None,
+        stopping_condition: Optional[Callable[[_dataclasses.InteractionTreeDatum, int], bool]] = None,
     ):
         self.__seed = None
         self.__number_of_events = 0
@@ -47,30 +48,29 @@ class Injector:
         self.__primary_interactions = []
         self.__primary_injection_distributions = []
 
-        self.__secondary_interactions = []
-        self.__secondary_injection_distributions = []
+        self.__secondary_interactions = {}
+        self.__secondary_injection_distributions = {}
         self.__stopping_condition = None
 
         self.__injector = None
 
-        if len(primary_interactions) != 1:
-            raise ValueError(f"len(primary_interactions) != 1")
+        if seed is not None:
+            self.__seed = seed
+        if number_of_events is not None:
+            self.__number_of_events = number_of_events
+        if detector_model is not None:
+            self.__detector_model = detector_model
+        if primary_interactions is not None:
+            self.__primary_interactions = primary_interactions
+        if primary_injection_distributions is not None:
+            self.__primary_injection_distributions = primary_injection_distributions
+        if secondary_interactions is not None:
+            self.__secondary_interactions = secondary_interactions
+        if secondary_injection_distributions is not None:
+            self.__secondary_injection_distributions = secondary_injection_distributions
+        if stopping_condition is not None:
+            self.__stopping_condition = stopping_condition
 
-        if (secondary_interactions is None) != (secondary_injection_distributions is None):
-            raise ValueError("Both or neither secondary_interactions and secondary_injection_distributions must be provided")
-
-        if secondary_interactions is None:
-            secondary_interactions = dict()
-            secondary_injection_distributions = dict()
-
-
-        self.__injector = _injection.Injector(
-            self.number_of_events,
-            self.detector_model,
-            self.primary_process,
-            self.secondary_processes,
-            self.random,
-        )
 
     def __initialize_injector(self):
         if self.__seed is None:
@@ -90,8 +90,8 @@ class Injector:
         if self.__primary_type is None:
             raise ValueError("primary_type must be provided")
 
-        if len(self.__primary_interactions) == 0:
-            raise ValueError("primary_interactions must be provided")
+        if len(self.__primary_interactions) != 1:
+            raise ValueError("primary_interactions must have exactly one key")
 
         if len(self.__primary_injection_distributions) == 0:
             raise ValueError("primary_injection_distributions must be provided")
@@ -144,7 +144,7 @@ class Injector:
     def seed(self):
         return self.__seed
 
-    @property.setter
+    @seed.setter
     def seed(self, seed):
         self.__seed = seed
         if self.__injector is not None:
@@ -162,7 +162,7 @@ class Injector:
             return self.__injector.GetDetectorModel()
         return self.__detector_model
 
-    @property.setter
+    @detector_model.setter
     def detector_model(self, detector_model):
         if self.__injector is not None:
             self.__injector.SetDetectorModel(detector_model)
@@ -172,7 +172,7 @@ class Injector:
     def primary_type(self):
         return self.__primary_type
 
-    @property.setter
+    @primary_type.setter
     def primary_type(self, primary_type):
         if self.__injector is not None:
             primary_process = self.__injector.GetPrimaryProcess()
@@ -183,7 +183,7 @@ class Injector:
     def primary_interactions(self):
         return self.__primary_interactions
 
-    @property.setter
+    @primary_interactions.setter
     def primary_interactions(self, primary_interactions):
         if self.__injector is not None:
             primary_process = self.__injector.GetPrimaryProcess()
@@ -197,7 +197,7 @@ class Injector:
     def primary_injection_distributions(self):
         return self.__primary_injection_distributions
 
-    @property.setter
+    @primary_injection_distributions.setter
     def primary_injection_distributions(self, primary_injection_distributions):
         if self.__injector is not None:
             primary_process = self.__injector.GetPrimaryProcess()
@@ -208,7 +208,7 @@ class Injector:
     def secondary_interactions(self):
         return self.__secondary_interactions
 
-    @property.setter
+    @secondary_interactions.setter
     def secondary_interactions(self, secondary_interactions):
         if self.__injector is not None:
             secondary_processes = self.__injector.GetSecondaryProcessMap()
@@ -224,7 +224,7 @@ class Injector:
     def secondary_injection_distributions(self):
         return self.__secondary_injection_distributions
 
-    @property.setter
+    @secondary_injection_distributions.setter
     def secondary_injection_distributions(self, secondary_injection_distributions):
         if self.__injector is not None:
             secondary_processes = self.__injector.GetSecondaryProcesses()
@@ -240,7 +240,7 @@ class Injector:
     def stopping_condition(self):
         return self.__stopping_condition
 
-    @property.setter
+    @stopping_condition.setter
     def stopping_condition(self, stopping_condition):
         if self.__injector is not None:
             self.__injector.SetStoppingCondition(stopping_condition)
@@ -249,16 +249,16 @@ class Injector:
     @wraps(_Injector.NewRecord)
     def new_record(self):
         return self.__injector.NewRecord()
-    self.new_record.__name__ = "new_record"
-    self.new_record.__doc__ = _Injector.NewRecord.__doc__.replace("NewRecord", "new_record")
+    new_record.__name__ = "new_record"
+    new_record.__doc__ = _Injector.NewRecord.__doc__.replace("NewRecord", "new_record")
 
     @wraps(_Injector.GenerateEvent)
     def generate_event(self):
         if self.__injector is None:
             self.__initialize_injector()
         return self.__injector.GenerateEvent()
-    self.generate_event.__name__ = "generate_event"
-    self.generate_event.__doc__ = _Injector.GenerateEvent.__doc__.replace("GenerateEvent", "generate_event")
+    generate_event.__name__ = "generate_event"
+    generate_event.__doc__ = _Injector.GenerateEvent.__doc__.replace("GenerateEvent", "generate_event")
 
     @property
     def density_variables(self):
@@ -276,14 +276,14 @@ class Injector:
     def reset_injected_events(self):
         if self.__injector is not None:
             self.__injector.ResetInjectedEvents()
-    self.reset_injected_events.__name__ = "reset_injected_events"
-    self.reset_injected_events.__doc__ = _Injector.ResetInjectedEvents.__doc__.replace("ResetInjectedEvents", "reset_injected_events")
+    reset_injected_events.__name__ = "reset_injected_events"
+    reset_injected_events.__doc__ = _Injector.ResetInjectedEvents.__doc__.replace("ResetInjectedEvents", "reset_injected_events")
 
     @wraps(_Injector.SaveInjector)
     def save(self, filename):
         self.__injector.SaveInjector(filename)
-    self.save.__name__ = "save"
-    self.save.__doc__ = _Injector.SaveInjector.__doc__.replace("SaveInjector", "save")
+    save.__name__ = "save"
+    save.__doc__ = _Injector.SaveInjector.__doc__.replace("SaveInjector", "save")
 
     @wraps(_Injector.LoadInjector)
     def load(self, filename):
