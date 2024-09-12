@@ -28,6 +28,7 @@ utilities.get_flux_model_path = _util.get_flux_model_path
 utilities.load_flux = _util.load_flux
 utilities.load_detector = _util.load_detector
 utilities.load_processes = _util.load_processes
+utilities.get_fiducial_volume = _util.get_fiducial_volume
 
 # Override the Injector with the python wrapper
 injection._Injector = injection.Injector

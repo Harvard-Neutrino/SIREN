@@ -737,3 +737,25 @@ def load_detector(model_name, *args, **kwargs):
 
 def load_processes(model_name, *args, **kwargs):
     return load_resource("processes", model_name, *args, **kwargs)
+
+def get_fiducial_volume(experiment):
+    """
+    :return: identified fiducial volume for the experiment, None if not found
+    """
+    detector_model_file = get_detector_model_path(experiment) + "/densities.dat"
+    with open(detector_model_file) as file:
+        fiducial_line = None
+        detector_line = None
+        for line in file:
+            data = line.split()
+            if len(data) <= 0:
+                continue
+            elif data[0] == "fiducial":
+                fiducial_line = line
+            elif data[0] == "detector":
+                detector_line = line
+        if fiducial_line is None or detector_line is None:
+            return None
+        from . import detector as _detector
+        return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
+    return None
