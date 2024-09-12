@@ -68,6 +68,7 @@ public:
     virtual ~PhysicalProcess() = default;
     virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist);
     std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & GetPhysicalDistributions() const;
+    virtual void SetPhysicalDistributions(std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & distributions);
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
@@ -116,6 +117,9 @@ public:
     SecondaryInjectionProcess(SecondaryInjectionProcess && other);
     SecondaryInjectionProcess & operator=(SecondaryInjectionProcess const & other);
     SecondaryInjectionProcess & operator=(SecondaryInjectionProcess && other);
+    void SetSecondaryType(siren::dataclasses::ParticleType _primary_type);
+    siren::dataclasses::ParticleType GetSecondaryType() const;
+
     virtual ~SecondaryInjectionProcess() = default;
     virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) override;
     virtual void AddSecondaryInjectionDistribution(std::shared_ptr<distributions::SecondaryInjectionDistribution> dist);

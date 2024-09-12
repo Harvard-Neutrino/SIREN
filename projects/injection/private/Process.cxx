@@ -90,6 +90,16 @@ std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & Phys
     return physical_distributions;
 }
 
+void SetPhysicalDistributions(std::vector<std::shared_ptr<distributions::WeightableDistribution>> const & distributions) {
+    for(std::vector<std::shared_ptr<distributions::WeightableDistribution>>::const_iterator it_1 = distributions.begin(); it_1 != distributions.end(); ++it_1) {
+        for(std::vector<std::shared_ptr<distributions::WeightableDistribution>>::const_iterator it_2 = it_1 + 1; it_2 != distributions.end(); ++it_2) {
+            if((*it_1) == (*it_2))
+                throw std::runtime_error("Cannot add duplicate WeightableDistributions");
+        }
+    }
+    physical_distributions = distributions;
+}
+
 PrimaryInjectionProcess::PrimaryInjectionProcess(siren::dataclasses::ParticleType _primary_type, std::shared_ptr<interactions::InteractionCollection> _interactions) : PhysicalProcess(_primary_type, _interactions) {};
 
 PrimaryInjectionProcess::PrimaryInjectionProcess(PrimaryInjectionProcess const & other) : PhysicalProcess(other), primary_injection_distributions(other.primary_injection_distributions) {};
@@ -143,6 +153,14 @@ SecondaryInjectionProcess & SecondaryInjectionProcess::operator=(SecondaryInject
     secondary_injection_distributions = other.secondary_injection_distributions;
     return *this;
 };
+
+void SecondaryInjectionProcess::SetSecondaryType(siren::dataclasses::ParticleType _primary_type) {
+    primary_type = _primary_type;
+}
+
+siren::dataclasses::ParticleType SecondaryInjectionProcess::GetSecondaryType() const {
+    return primary_type;
+}
 
 void SecondaryInjectionProcess::AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) {
     throw std::runtime_error("Cannot add a physical distribution to an SecondaryInjectionProcess");
