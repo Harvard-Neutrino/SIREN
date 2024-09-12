@@ -461,6 +461,10 @@ std::shared_ptr<siren::detector::DetectorModel> Injector::GetDetectorModel() con
     return detector_model;
 }
 
+void Injector::SetDetectorModel(std::shared_ptr<siren::detector::DetectorModel> detector_model) {
+    this->detector_model = detector_model;
+}
+
 std::shared_ptr<siren::interactions::InteractionCollection> Injector::GetInteractions() const {
     return primary_process->GetInteractions();
 }

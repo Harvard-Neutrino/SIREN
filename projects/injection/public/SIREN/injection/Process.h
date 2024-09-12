@@ -94,6 +94,7 @@ public:
     virtual ~PrimaryInjectionProcess() = default;
     virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) override;
     virtual void AddPrimaryInjectionDistribution(std::shared_ptr<distributions::PrimaryInjectionDistribution> dist);
+    void SetPrimaryInjectionDistributions(std::vector<std::shared_ptr<distributions::PrimaryInjectionDistribution>> const & distributions);
     std::vector<std::shared_ptr<distributions::PrimaryInjectionDistribution>> const & GetPrimaryInjectionDistributions() const;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
@@ -123,6 +124,7 @@ public:
     virtual ~SecondaryInjectionProcess() = default;
     virtual void AddPhysicalDistribution(std::shared_ptr<distributions::WeightableDistribution> dist) override;
     virtual void AddSecondaryInjectionDistribution(std::shared_ptr<distributions::SecondaryInjectionDistribution> dist);
+    void SetSecondaryInjectionDistributions(std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> const & distributions);
     std::vector<std::shared_ptr<distributions::SecondaryInjectionDistribution>> const & GetSecondaryInjectionDistributions() const;
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
