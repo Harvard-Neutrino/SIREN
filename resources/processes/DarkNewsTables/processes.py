@@ -497,9 +497,9 @@ def load_processes(
         secondary_processes[secondary_type].append(decay)
 
 
-    holder = Holder()
-    holder.primary_processes = primary_processes
-    holder.secondary_processes = secondary_processes
+    #holder = Holder()
+    #holder.primary_processes = primary_processes
+    #holder.secondary_processes = secondary_processes
 
     return dict(primary_processes), dict(secondary_processes)
 
