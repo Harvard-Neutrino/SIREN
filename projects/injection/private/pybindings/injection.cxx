@@ -43,6 +43,7 @@ PYBIND11_MODULE(injection,m) {
 
   class_<PhysicalProcess, std::shared_ptr<PhysicalProcess>, Process>(m, "PhysicalProcess")
     .def(init<>())
+    .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>())
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
     .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
     .def_property("distributions", &PhysicalProcess::GetPhysicalDistributions, &PhysicalProcess::SetPhysicalDistributions)
@@ -50,6 +51,7 @@ PYBIND11_MODULE(injection,m) {
 
   class_<PrimaryInjectionProcess, std::shared_ptr<PrimaryInjectionProcess>, Process>(m, "PrimaryInjectionProcess")
     .def(init<>())
+    .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>())
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
     .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
     .def_property("distributions", &PrimaryInjectionProcess::GetPrimaryInjectionDistributions, &PrimaryInjectionProcess::SetPrimaryInjectionDistributions)
@@ -57,6 +59,7 @@ PYBIND11_MODULE(injection,m) {
 
   class_<SecondaryInjectionProcess, std::shared_ptr<SecondaryInjectionProcess>, Process>(m, "SecondaryInjectionProcess")
     .def(init<>())
+    .def(init<siren::dataclasses::ParticleType, std::shared_ptr<siren::interactions::InteractionCollection>>())
     .def_property("secondary_type", &SecondaryInjectionProcess::GetSecondaryType, &SecondaryInjectionProcess::SetSecondaryType)
     .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
     .def_property("distributions", &SecondaryInjectionProcess::GetSecondaryInjectionDistributions, &SecondaryInjectionProcess::SetSecondaryInjectionDistributions)
