@@ -63,6 +63,8 @@ public:
     };
     double TotalDecayWidth(siren::dataclasses::InteractionRecord const & record) const;
     double TotalDecayLength(siren::dataclasses::InteractionRecord const & record) const;
+    siren::dataclasses::ParticleType GetPrimaryType() const;
+    void SetPrimaryType(siren::dataclasses::ParticleType primary_type);
     virtual bool MatchesPrimary(dataclasses::InteractionRecord const & record) const;
     std::map<siren::dataclasses::ParticleType, double> TotalCrossSectionByTarget(siren::dataclasses::InteractionRecord const & record) const;
     std::map<siren::dataclasses::ParticleType, double> TotalCrossSectionByTargetAllFinalStates(siren::dataclasses::InteractionRecord const & record) const;

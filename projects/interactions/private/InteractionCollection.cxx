@@ -116,6 +116,14 @@ bool InteractionCollection::MatchesPrimary(dataclasses::InteractionRecord const 
     return primary_type == record.signature.primary_type;
 }
 
+siren::dataclasses::ParticleType InteractionCollection::GetPrimaryType() const {
+    return primary_type;
+}
+
+void InteractionCollection::SetPrimaryType(siren::dataclasses::ParticleType primary_type) {
+    this->primary_type = primary_type;
+}
+
 std::map<siren::dataclasses::ParticleType, double> InteractionCollection::TotalCrossSectionByTarget(siren::dataclasses::InteractionRecord const & record) const {
     std::map<siren::dataclasses::ParticleType, double> result;
     for(siren::dataclasses::ParticleType target : target_types) {
