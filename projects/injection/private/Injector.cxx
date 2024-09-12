@@ -135,6 +135,16 @@ void Injector::AddSecondaryProcess(std::shared_ptr<siren::injection::SecondaryIn
     secondary_position_distribution_map.insert({secondary->GetPrimaryType(), vtx_dist});
 }
 
+void Injector::SetSecondaryProcesses(std::vector<std::shared_ptr<siren::injection::SecondaryInjectionProcess>> secondaries) {
+    secondary_processes.clear();
+    secondary_position_distributions.clear();
+    secondary_process_map.clear();
+    secondary_position_distribution_map.clear();
+    for(auto secondary : secondaries) {
+        AddSecondaryProcess(secondary);
+    }
+}
+
 siren::dataclasses::InteractionRecord Injector::NewRecord() const {
     siren::dataclasses::InteractionRecord record;
     record.signature.primary_type = primary_process->GetPrimaryType();
