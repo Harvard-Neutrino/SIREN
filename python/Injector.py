@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 _Injector = _injection.Injector
 
-ParticleType = _dataclasses.Particle.ParticleType
+ParticleType = _dataclasses.ParticleType
 CrossSection = _interactions.CrossSection
 Decay = _interactions.Decay
 DetectorModel = _detector.DetectorModel
@@ -34,10 +34,10 @@ class Injector:
         number_of_events: Optional[int] = None,
         detector_model: Optional[_detector.DetectorModel] = None,
         seed: Optional[int] = None,
-        primary_interactions: Dict[_dataclasses.Particle.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]] = None,
+        primary_interactions: Dict[_dataclasses.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]] = None,
         primary_injection_distributions: List[_distributions.PrimaryInjectionDistribution] = None,
-        secondary_interactions: Optional[Dict[_dataclasses.Particle.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]]] = None,
-        secondary_injection_distributions: Optional[Dict[_dataclasses.Particle.ParticleType, List[_distributions.SecondaryInjectionDistribution]]] = None,
+        secondary_interactions: Optional[Dict[_dataclasses.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]]] = None,
+        secondary_injection_distributions: Optional[Dict[_dataclasses.ParticleType, List[_distributions.SecondaryInjectionDistribution]]] = None,
         stopping_condition: Optional[Callable[[_dataclasses.InteractionTreeDatum, int], bool]] = None,
     ):
         self.__seed = None
