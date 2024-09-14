@@ -10,45 +10,80 @@
 #include "../../public/SIREN/dataclasses/InteractionTree.h"
 
 #include <pybind11/pybind11.h>
+#include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-using namespace pybind11;
 
-PYBIND11_MODULE(dataclasses,m) {
-  using namespace siren::dataclasses;
+PYBIND11_MODULE(dataclasses, m) {
+    namespace py = pybind11;
+    using namespace siren::dataclasses;
 
-  class_<Particle, std::shared_ptr<Particle>> particle(m, "Particle");
+    // Create a Python class binding for siren::dataclasses::ParticleID
+    py::class_<siren::dataclasses::ParticleID> particle_id(m, "ParticleID");
 
-  particle.def(init<>())
-          .def(init<Particle const &>())
-          .def(init<ParticleID, ParticleType, double, std::array<double, 4>, std::array<double, 3>, double, double>())
-          .def(init<ParticleType, double, std::array<double, 4>, std::array<double, 3>, double, double>())
-          .def("__str__", [](Particle const & p) { std::stringstream ss; ss << p; return ss.str(); })
-          .def_readwrite("id",&Particle::id)
-          .def_readwrite("type",&Particle::type)
-          .def_readwrite("mass",&Particle::mass)
-          .def_readwrite("momentum",&Particle::momentum)
-          .def_readwrite("position",&Particle::position)
-          .def_readwrite("length",&Particle::length)
-          .def_readwrite("helicity",&Particle::helicity)
-          .def("generate_id",&Particle::GenerateID);
+    particle_id
+        .def(py::init<>())
+        .def(py::init<uint64_t, int32_t>(), py::arg("major"), py::arg("minor"))
+        .def(py::init<const siren::dataclasses::ParticleID &>(), py::arg("other"))
+        .def(py::init<siren::dataclasses::ParticleID>(), py::arg("other"))
+        .def_static("generate_id", &siren::dataclasses::ParticleID::GenerateID)
+        .def("is_set", &siren::dataclasses::ParticleID::IsSet)
+        //.def_property("major_id", &siren::dataclasses::ParticleID::GetMajorID, &siren::dataclasses::ParticleID::SetMajorID)
+        // Getters for major and minor IDs
+        .def_property_readonly("major_id", &siren::dataclasses::ParticleID::GetMajorID)
+        .def_property_readonly("minor_id", &siren::dataclasses::ParticleID::GetMinorID)
+        // Method to set the ID
+        .def("set", &siren::dataclasses::ParticleID::SetID, py::arg("major"), py::arg("minor"))
+        // Overload the bool operator
+        .def("__bool__", &siren::dataclasses::ParticleID::operator bool)
+        // Comparison operators
+        .def(py::self == py::self)
+        .def(py::self != py::self)
+        .def(py::self < py::self)
+        // String representation
+        .def("__repr__",
+            [](const siren::dataclasses::ParticleID &id) {
+                std::ostringstream oss;
+                oss << id;
+                return oss.str();
+            }
+        )
+        // Optional: Serialize method if needed in Python
+        // .def("serialize", &siren::dataclasses::ParticleID::serialize)
+        ;
 
-    enum_<ParticleType>(m, "ParticleType", arithmetic())
+    py::class_<Particle, std::shared_ptr<Particle>> particle(m, "Particle");
+
+    particle.def(py::init<>())
+        .def(py::init<Particle const &>())
+        .def(py::init<ParticleID, ParticleType, double, std::array<double, 4>, std::array<double, 3>, double, double>())
+        .def(py::init<ParticleType, double, std::array<double, 4>, std::array<double, 3>, double, double>())
+        .def("__str__", [](Particle const & p) { std::stringstream ss; ss << p; return ss.str(); })
+        .def_readwrite("id",&Particle::id)
+        .def_readwrite("type",&Particle::type)
+        .def_readwrite("mass",&Particle::mass)
+        .def_readwrite("momentum",&Particle::momentum)
+        .def_readwrite("position",&Particle::position)
+        .def_readwrite("length",&Particle::length)
+        .def_readwrite("helicity",&Particle::helicity)
+        .def("generate_id",&Particle::GenerateID);
+
+    py::enum_<ParticleType>(m, "ParticleType", py::arithmetic())
 #define X(a, b) .value( #a , ParticleType:: a )
 #include "../../public/SIREN/dataclasses/ParticleTypes.def"
 #undef X
         .export_values();
 
-    class_<InteractionSignature, std::shared_ptr<InteractionSignature>>(m, "InteractionSignature")
-        .def(init<>())
+    py::class_<InteractionSignature, std::shared_ptr<InteractionSignature>>(m, "InteractionSignature")
+        .def(py::init<>())
         .def("__str__", [](InteractionSignature const & s) { return to_str(s); })
         .def("__repr__", [](InteractionSignature const & s) { return to_repr(s); })
         .def_readwrite("primary_type",&InteractionSignature::primary_type)
         .def_readwrite("target_type",&InteractionSignature::target_type)
         .def_readwrite("secondary_types",&InteractionSignature::secondary_types);
 
-    class_<PrimaryDistributionRecord, std::shared_ptr<PrimaryDistributionRecord>>(m, "PrimaryDistributionRecord")
-        .def(init<ParticleType>())
+    py::class_<PrimaryDistributionRecord, std::shared_ptr<PrimaryDistributionRecord>>(m, "PrimaryDistributionRecord")
+        .def(py::init<ParticleType>())
         .def_property_readonly("id",
             [](siren::dataclasses::PrimaryDistributionRecord const & pdr) {siren::dataclasses::ParticleID id = pdr.id; return id;})
         .def_property_readonly("type",
@@ -67,8 +102,8 @@ PYBIND11_MODULE(dataclasses,m) {
         .def_property("helicity", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetHelicity)), &PrimaryDistributionRecord::SetHelicity)
         .def("finalize", &PrimaryDistributionRecord::Finalize);
 
-    class_<SecondaryParticleRecord, std::shared_ptr<SecondaryParticleRecord>>(m, "SecondaryParticleRecord")
-        .def(init<InteractionRecord const &, size_t>())
+    py::class_<SecondaryParticleRecord, std::shared_ptr<SecondaryParticleRecord>>(m, "SecondaryParticleRecord")
+        .def(py::init<InteractionRecord const &, size_t>())
         .def_property_readonly("id",
             [](siren::dataclasses::SecondaryParticleRecord const & spr) {siren::dataclasses::ParticleID id = spr.id; return id;})
         .def_property_readonly("type",
@@ -86,8 +121,8 @@ PYBIND11_MODULE(dataclasses,m) {
         .def_property("helicity", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetHelicity)), &SecondaryParticleRecord::SetHelicity)
         .def("finalize", &SecondaryParticleRecord::Finalize);
 
-    class_<CrossSectionDistributionRecord, std::shared_ptr<CrossSectionDistributionRecord>>(m, "CrossSectionDistributionRecord")
-        .def(init<InteractionRecord const &>())
+    py::class_<CrossSectionDistributionRecord, std::shared_ptr<CrossSectionDistributionRecord>>(m, "CrossSectionDistributionRecord")
+        .def(py::init<InteractionRecord const &>())
         .def_property_readonly("record",
             [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {siren::dataclasses::InteractionRecord ir = cdr.record; return ir;})
         .def_property_readonly("signature",
@@ -115,45 +150,45 @@ PYBIND11_MODULE(dataclasses,m) {
         .def_property("interaction_parameters", ((std::map<std::string, double> const & (siren::dataclasses::CrossSectionDistributionRecord::*)())(&siren::dataclasses::CrossSectionDistributionRecord::GetInteractionParameters)), &siren::dataclasses::CrossSectionDistributionRecord::SetInteractionParameters)
         .def_property_readonly("secondary_particle_records",
                 [](siren::dataclasses::CrossSectionDistributionRecord & cdr) -> std::vector<siren::dataclasses::SecondaryParticleRecord> & {return cdr.GetSecondaryParticleRecords();},
-            return_value_policy::reference_internal)
+            py::return_value_policy::reference_internal)
         .def("get_econdary_particle_record",
                 [](siren::dataclasses::CrossSectionDistributionRecord & cdr, size_t i) -> siren::dataclasses::SecondaryParticleRecord & {return cdr.GetSecondaryParticleRecord(i);},
-                return_value_policy::reference_internal)
+                py::return_value_policy::reference_internal)
         .def("get_econdary_particle_records",
                 [](siren::dataclasses::CrossSectionDistributionRecord & cdr) -> std::vector<siren::dataclasses::SecondaryParticleRecord> & {return cdr.GetSecondaryParticleRecords();},
-                return_value_policy::reference_internal)
+                py::return_value_policy::reference_internal)
         .def("finalize", &CrossSectionDistributionRecord::Finalize);
 
 
-  class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
-          .def(init<>())
-          .def("__str__", [](InteractionRecord const & r) { std::stringstream ss; ss << r; return ss.str(); })
-          .def_readwrite("signature",&InteractionRecord::signature)
-          .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
-          .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
-          .def_readwrite("primary_helicity",&InteractionRecord::primary_helicity)
-          .def_readwrite("target_mass",&InteractionRecord::target_mass)
-          .def_readwrite("target_helicity",&InteractionRecord::target_helicity)
-          .def_readwrite("interaction_vertex",&InteractionRecord::interaction_vertex)
-          .def_readwrite("secondary_masses",&InteractionRecord::secondary_masses)
-          .def_readwrite("secondary_momenta",&InteractionRecord::secondary_momenta)
-          .def_readwrite("secondary_helicities",&InteractionRecord::secondary_helicities)
-          .def_readwrite("interaction_parameters",&InteractionRecord::interaction_parameters);
+    py::class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
+        .def(py::init<>())
+        .def("__str__", [](InteractionRecord const & r) { std::stringstream ss; ss << r; return ss.str(); })
+        .def_readwrite("signature",&InteractionRecord::signature)
+        .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
+        .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
+        .def_readwrite("primary_helicity",&InteractionRecord::primary_helicity)
+        .def_readwrite("target_mass",&InteractionRecord::target_mass)
+        .def_readwrite("target_helicity",&InteractionRecord::target_helicity)
+        .def_readwrite("interaction_vertex",&InteractionRecord::interaction_vertex)
+        .def_readwrite("secondary_masses",&InteractionRecord::secondary_masses)
+        .def_readwrite("secondary_momenta",&InteractionRecord::secondary_momenta)
+        .def_readwrite("secondary_helicities",&InteractionRecord::secondary_helicities)
+        .def_readwrite("interaction_parameters",&InteractionRecord::interaction_parameters);
 
-  class_<InteractionTreeDatum, std::shared_ptr<InteractionTreeDatum>>(m, "InteractionTreeDatum")
-          .def(init<InteractionRecord&>())
-          .def_readwrite("record",&InteractionTreeDatum::record)
-          .def_readwrite("parent",&InteractionTreeDatum::parent)
-          .def_readwrite("daughters",&InteractionTreeDatum::daughters)
-          .def("depth",&InteractionTreeDatum::depth);
+    py::class_<InteractionTreeDatum, std::shared_ptr<InteractionTreeDatum>>(m, "InteractionTreeDatum")
+        .def(py::init<InteractionRecord&>())
+        .def_readwrite("record",&InteractionTreeDatum::record)
+        .def_readwrite("parent",&InteractionTreeDatum::parent)
+        .def_readwrite("daughters",&InteractionTreeDatum::daughters)
+        .def("depth",&InteractionTreeDatum::depth);
 
-  class_<InteractionTree, std::shared_ptr<InteractionTree>>(m, "InteractionTree")
-          .def(init<>())
-          .def_readwrite("tree",&InteractionTree::tree)
-          .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionTreeDatum&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry))
-          .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionRecord&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry));
+    py::class_<InteractionTree, std::shared_ptr<InteractionTree>>(m, "InteractionTree")
+        .def(py::init<>())
+        .def_readwrite("tree",&InteractionTree::tree)
+        .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionTreeDatum&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry))
+        .def("add_entry",static_cast<std::shared_ptr<InteractionTreeDatum> (InteractionTree::*)(InteractionRecord&,std::shared_ptr<InteractionTreeDatum>)>(&InteractionTree::add_entry));
 
-  m.def("SaveInteractionTrees",&SaveInteractionTrees);
-  m.def("LoadInteractionTrees",&LoadInteractionTrees,pybind11::return_value_policy::reference);
+    m.def("SaveInteractionTrees",&SaveInteractionTrees);
+    m.def("LoadInteractionTrees",&LoadInteractionTrees, py::return_value_policy::reference);
 
 }
