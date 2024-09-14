@@ -151,7 +151,7 @@ PYBIND11_MODULE(dataclasses, m) {
     py::class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")
         .def(py::init<>())
         .def("__str__", [](InteractionRecord const & r) { return to_str(r); })
-        .def("__repr__", [](InteractionRecord const & r) { return to_str(r); })
+        .def("__repr__", [](InteractionRecord const & r) { return to_repr(r); })
         .def_readwrite("signature",&InteractionRecord::signature)
         .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
         .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
