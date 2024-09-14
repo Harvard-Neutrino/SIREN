@@ -70,6 +70,8 @@ PYBIND11_MODULE(dataclasses, m) {
 
     py::class_<PrimaryDistributionRecord, std::shared_ptr<PrimaryDistributionRecord>>(m, "PrimaryDistributionRecord")
         .def(py::init<ParticleType>())
+        .def("__str__", [](PrimaryDistributionRecord const & pdr) { return to_str(pdr); })
+        .def("__repr__", [](PrimaryDistributionRecord const & pdr) { return to_repr(pdr); })
         .def_property_readonly("id",
             [](siren::dataclasses::PrimaryDistributionRecord const & pdr) {siren::dataclasses::ParticleID id = pdr.id; return id;})
         .def_property_readonly("type",

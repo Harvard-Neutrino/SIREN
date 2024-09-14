@@ -853,80 +853,106 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
 } // namespace siren
 
 std::ostream & operator<<(std::ostream & os, siren::dataclasses::PrimaryDistributionRecord const & record) {
-    std::stringstream ss;
-    ss << "PrimaryDistributionRecord (" << &record << ") ";
-    os << ss.str() << '\n';
-
-    ss.str(std::string());
-    std::string id_str;
-    ss << record.GetID();
-    id_str = ss.str();
-    std::string from = "\n";
-    std::string to = "\n    ";
-    size_t start_pos = 0;
-    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
-        id_str.replace(start_pos, from.length(), to);
-        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
-    }
-    os << "ID: " << id_str << "\n";
-
-    os << "Type: " << record.GetType() << "\n";
-
-    if(record.mass_set) {
-        os << "Mass: " << record.GetMass() << "\n";
-    } else {
-        os << "Mass: " << "None" << "\n";
-    }
-
-    if(record.energy_set) {
-        os << "Energy: " << record.GetEnergy() << "\n";
-    } else {
-        os << "Energy: " << "None" << "\n";
-    }
-
-    if(record.kinetic_energy_set) {
-        os << "KineticEnergy: " << record.GetKineticEnergy() << "\n";
-    } else {
-        os << "KineticEnergy: " << "None" << "\n";
-    }
-
-    if(record.direction_set) {
-        os << "Direction: " << record.GetDirection().at(0) << " " << record.GetDirection().at(1) << " " << record.GetDirection().at(2) << "\n";
-    } else {
-        os << "Direction: " << "None" << "\n";
-    }
-
-    if(record.momentum_set) {
-        os << "Momentum: " << record.GetThreeMomentum().at(0) << " " << record.GetThreeMomentum().at(1) << " " << record.GetThreeMomentum().at(2) << "\n";
-    } else {
-        os << "Momentum: " << "None" << "\n";
-    }
-
-    if(record.length_set) {
-        os << "Length: " << record.GetLength() << "\n";
-    } else {
-        os << "Length: " << "None" << "\n";
-    }
-
-    if(record.initial_position_set) {
-        os << "InitialPosition: " << record.GetInitialPosition().at(0) << " " << record.GetInitialPosition().at(1) << " " << record.GetInitialPosition().at(2) << "\n";
-    } else {
-        os << "InitialPosition: " << "None" << "\n";
-    }
-
-    if(record.interaction_vertex_set) {
-        os << "InteractionVertex: " << record.GetInteractionVertex().at(0) << " " << record.GetInteractionVertex().at(1) << " " << record.GetInteractionVertex().at(2) << "\n";
-    } else {
-        os << "InteractionVertex: " << "None" << "\n";
-    }
-
-    if(record.helicity_set) {
-        os << "Helicity: " << record.GetHelicity() << "\n";
-    } else {
-        os << "Helicity: " << "None" << "\n";
-    }
-
+    os << to_repr(record);
     return os;
+}
+
+std::string to_str(siren::dataclasses::PrimaryDistributionRecord const & record) {
+    using siren::utilities::tab;
+    std::stringstream ss;
+    ss << "[ PrimaryDistributionRecord (" << &record << ")\n";
+
+    ss << tab << "ID: " << to_repr(record.id) << "\n";
+    ss << tab << "Type: " << record.type << "\n";
+
+    ss << tab << "Mass: ";
+    if(record.mass_set)
+        ss << record.mass << '\n';
+    else
+        ss << "unset\n";
+
+    ss << tab << "Energy: ";
+    if(record.energy_set)
+        ss << record.energy << '\n';
+    else
+        ss << "unset\n";
+
+    ss << tab << "KineticEnergy: ";
+    if(record.kinetic_energy_set)
+        ss << record.kinetic_energy << '\n';
+    else
+        ss << "unset\n";
+
+    ss << tab << "Direction: ";
+    if(record.direction_set)
+        ss << record.direction.at(0) << " " << record.direction.at(1) << " " << record.direction.at(2) << '\n';
+    else
+        ss << "unset\n";
+
+    ss << tab << "Momentum: ";
+    if(record.momentum_set)
+        ss << record.momentum.at(0) << " " << record.momentum.at(1) << " " << record.momentum.at(2) << '\n';
+    else
+        ss << "unset\n";
+
+    ss << tab << "Length: ";
+    if(record.length_set)
+        ss << record.length << '\n';
+    else
+        ss << "unset\n";
+
+    ss << tab << "InitialPosition: ";
+    if(record.initial_position_set)
+        ss << record.initial_position.at(0) << " " << record.initial_position.at(1) << " " << record.initial_position.at(2) << '\n';
+    else
+        ss << "unset\n";
+
+    ss << tab << "InteractionVertex: ";
+    if(record.interaction_vertex_set)
+        ss << record.interaction_vertex.at(0) << " " << record.interaction_vertex.at(1) << " " << record.interaction_vertex.at(2) << '\n';
+    else
+        ss << "unset\n";
+
+    ss << tab << "Helicity: ";
+    if(record.helicity_set)
+        ss << record.helicity << '\n';
+    else
+        ss << "unset\n";
+
+    ss << "]";
+
+    return ss.str();
+}
+
+std::string to_repr(siren::dataclasses::PrimaryDistributionRecord const & record) {
+    std::stringstream ss;
+    ss << "PrimaryDistributionRecord(";
+
+    ss << "id=" << to_repr(record.GetID()) << ", ";
+    ss << "type=" << record.GetType();
+
+    if(record.mass_set)
+        ss << ", mass=" << record.mass;
+    if(record.energy_set)
+        ss << ", energy=" << record.energy;
+    if(record.kinetic_energy_set)
+        ss << ", kinetic_energy=" << record.kinetic_energy;
+    if(record.direction_set)
+        ss << ", direction=(" << record.direction.at(0) << ", " << record.direction.at(1) << ", " << record.direction.at(2) << ")";
+    if(record.momentum_set)
+        ss << ", momentum=(" << record.momentum.at(0) << ", " << record.momentum.at(1) << ", " << record.momentum.at(2) << ")";
+    if(record.length_set)
+        ss << ", length=" << record.length;
+    if(record.initial_position_set)
+        ss << ", initial_position=(" << record.initial_position.at(0) << ", " << record.initial_position.at(1) << ", " << record.initial_position.at(2) << ")";
+    if(record.interaction_vertex_set)
+        ss << ", interaction_vertex=(" << record.interaction_vertex.at(0) << ", " << record.interaction_vertex.at(1) << ", " << record.interaction_vertex.at(2) << ")";
+    if(record.helicity_set)
+        ss << ", helicity=" << record.helicity;
+
+    ss << ")";
+
+    return ss.str();
 }
 
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::CrossSectionDistributionRecord const& record) {
