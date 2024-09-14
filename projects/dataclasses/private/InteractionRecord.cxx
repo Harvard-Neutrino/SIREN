@@ -860,7 +860,7 @@ std::ostream & operator<<(std::ostream & os, siren::dataclasses::PrimaryDistribu
 std::string to_str(siren::dataclasses::PrimaryDistributionRecord const & record) {
     using siren::utilities::tab;
     std::stringstream ss;
-    ss << "[ PrimaryDistributionRecord (" << &record << ")\n";
+    ss << "[ PrimaryDistributionRecord (" << &record << "):\n";
 
     ss << tab << "ID: " << to_repr(record.id) << "\n";
     ss << tab << "Type: " << record.type << "\n";
