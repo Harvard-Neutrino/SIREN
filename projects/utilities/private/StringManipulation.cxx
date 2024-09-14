@@ -15,26 +15,32 @@ std::string add_prefix(std::string const & input, std::string const & prefix) {
     size_t line_number = 0;
 
     // Read each line and track the last non-empty line
-    while (std::getline(iss, line)) {
+    while(std::getline(iss, line)) {
         lines.push_back(line);
-        if (!line.empty()) {
+        if (not line.empty()) {
             last_non_empty_line = line_number;
         }
-        line_number++;
+        ++line_number;
     }
 
     std::ostringstream oss;
 
     // Add prefix to each line up to the last non-empty line
-    if (last_non_empty_line >= 0) {
-        for (size_t i = 0; i <= static_cast<size_t>(last_non_empty_line); ++i) {
+    if(last_non_empty_line >= 0) {
+        for (size_t i = 0; i < static_cast<size_t>(last_non_empty_line); ++i) {
             oss << prefix << lines[i] << '\n';
         }
-        // Ensure the string ends with an empty newline
-        oss << '\n';
+        oss << prefix << lines[last_non_empty_line];
     }
 
     return oss.str();
+}
+
+std::string indent(std::string const & input, size_t n_indent) {
+    std::stringstream ss;
+    for(size_t i = 0; i < n_indent; ++i)
+        ss << tab;
+    return add_prefix(input, ss.str());
 }
 
 } // namespace utilities

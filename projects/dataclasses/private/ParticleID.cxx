@@ -8,7 +8,7 @@
 
 #include "SIREN/utilities/StringManipulation.h"
 
-std::ostream& operator<<(std::ostream& os, siren::dataclasses::ParticleID const& id) {
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::ParticleID const & id) {
     os << to_repr(id);
     return os;
 }
