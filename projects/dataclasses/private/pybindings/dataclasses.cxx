@@ -90,6 +90,8 @@ PYBIND11_MODULE(dataclasses, m) {
 
     py::class_<SecondaryParticleRecord, std::shared_ptr<SecondaryParticleRecord>>(m, "SecondaryParticleRecord")
         .def(py::init<InteractionRecord const &, size_t>())
+        .def("__str__", [](SecondaryParticleRecord const & spr) { return to_str(spr); })
+        .def("__repr__", [](SecondaryParticleRecord const & spr) { return to_repr(spr); })
         .def_property_readonly("id",
             [](siren::dataclasses::SecondaryParticleRecord const & spr) {siren::dataclasses::ParticleID id = spr.id; return id;})
         .def_property_readonly("type",
@@ -110,6 +112,8 @@ PYBIND11_MODULE(dataclasses, m) {
 
     py::class_<CrossSectionDistributionRecord, std::shared_ptr<CrossSectionDistributionRecord>>(m, "CrossSectionDistributionRecord")
         .def(py::init<InteractionRecord const &>())
+        .def("__str__", [](CrossSectionDistributionRecord const & cdr) { return to_str(cdr); })
+        .def("__repr__", [](CrossSectionDistributionRecord const & cdr) { return to_repr(cdr); })
         .def_property_readonly("record",
             [](siren::dataclasses::CrossSectionDistributionRecord const & cdr) {siren::dataclasses::InteractionRecord ir = cdr.record; return ir;})
         .def_property_readonly("signature",

@@ -153,6 +153,10 @@ private:
     mutable double helicity = 0;
 public:
     friend std::ostream& ::operator<<(std::ostream& os, SecondaryParticleRecord const& record);
+    friend std::string (::to_str)(SecondaryParticleRecord const & record);
+    friend std::string (::to_repr)(SecondaryParticleRecord const & record);
+    friend std::string (::to_str)(CrossSectionDistributionRecord const & record);
+    friend std::string (::to_repr)(CrossSectionDistributionRecord const & record);
 
     SecondaryParticleRecord(SecondaryParticleRecord const & other) = delete;
     SecondaryParticleRecord(SecondaryParticleRecord && other) = default;
@@ -217,6 +221,8 @@ private:
     std::vector<SecondaryParticleRecord> secondary_particles;
 public:
     friend std::ostream& ::operator<<(std::ostream& os, CrossSectionDistributionRecord const& record);
+    friend std::string (::to_str)(CrossSectionDistributionRecord const & record);
+    friend std::string (::to_repr)(CrossSectionDistributionRecord const & record);
 
     CrossSectionDistributionRecord(CrossSectionDistributionRecord const & other) = delete;
     CrossSectionDistributionRecord(CrossSectionDistributionRecord && other) = default;

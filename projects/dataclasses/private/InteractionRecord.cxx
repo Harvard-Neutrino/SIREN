@@ -929,137 +929,217 @@ std::ostream & operator<<(std::ostream & os, siren::dataclasses::PrimaryDistribu
     return os;
 }
 
-std::ostream & operator<<(std::ostream & os, siren::dataclasses::CrossSectionDistributionRecord const & record) {
-    std::stringstream ss;
-    ss << "CrossSectionDistributionRecord (" << &record << ") ";
-    os << ss.str() << '\n';
-
-    ss.str(std::string());
-    std::string id_str;
-    ss << record.GetPrimaryID();
-    id_str = ss.str();
-    std::string from = "\n";
-    std::string to = "\n    ";
-    size_t start_pos = 0;
-    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
-        id_str.replace(start_pos, from.length(), to);
-        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
-    }
-    os << "PrimaryID: " << id_str << "\n";
-
-    os << "PrimaryType: " << record.primary_type << "\n";
-
-    os << "PrimaryInitialPosition: " << record.primary_initial_position.at(0) << " " << record.primary_initial_position.at(1) << " " << record.primary_initial_position.at(2) << "\n";
-
-    os << "PrimaryMass: " << record.primary_mass << "\n";
-
-    os << "PrimaryMomentum: " << record.primary_momentum.at(0) << " " << record.primary_momentum.at(1) << " " << record.primary_momentum.at(2) << " " << record.primary_momentum.at(3) << "\n";
-
-    os << "PrimaryHelicity: " << record.primary_helicity << "\n";
-
-    os << "InteractionVertex: " << record.interaction_vertex.at(0) << " " << record.interaction_vertex.at(1) << " " << record.interaction_vertex.at(2) << "\n";
-
-    ss.str(std::string());
-    ss << record.GetTargetID();
-    id_str = ss.str();
-    start_pos = 0;
-    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
-        id_str.replace(start_pos, from.length(), to);
-        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
-    }
-    os << "TargetID: " << id_str << "\n";
-
-    os << "TargetType: " << record.target_type << "\n";
-
-    os << "TargetMass: " << record.target_mass << "\n";
-
-    os << "TargetHelicity: " << record.target_helicity << "\n";
-
-    if(record.interaction_parameters.size() > 0) {
-        os << "InteractionParameters:\n";
-        for(auto const & parameter: record.interaction_parameters) {
-            os << "\t" << parameter.first << ": " << parameter.second << "\n";
-        }
-    } else {
-        os << "InteractionParameters: " << "None" << "\n";
-    }
-
-    os << "SecondaryParticles:\n";
-    std::string secondary_str;
-    for(size_t i = 0; i < record.signature.secondary_types.size(); ++i) {
-        ss.str(std::string());
-        ss << record.GetSecondaryParticleRecord(i);
-        secondary_str = ss.str();
-        start_pos = 0;
-        while((start_pos = secondary_str.find(from, start_pos)) != std::string::npos) {
-            secondary_str.replace(start_pos, from.length(), to);
-            start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
-        }
-        os << secondary_str << "\n";
-    }
-
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::CrossSectionDistributionRecord const& record) {
+    os << to_repr(record);
     return os;
 }
 
-std::ostream & operator<<(std::ostream & os, siren::dataclasses::SecondaryParticleRecord const & record) {
+std::string to_str(siren::dataclasses::CrossSectionDistributionRecord const & record) {
+    using siren::utilities::tab;
+    using siren::utilities::indent;
     std::stringstream ss;
-    ss << "SecondaryParticleRecord (" << &record << ") ";
-    os << ss.str() << '\n';
 
-    ss.str(std::string());
-    std::string id_str;
-    ss << record.GetID();
-    id_str = ss.str();
-    std::string from = "\n";
-    std::string to = "\n    ";
-    size_t start_pos = 0;
-    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
-        id_str.replace(start_pos, from.length(), to);
-        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
-    }
-    os << "ID: " << id_str << "\n";
+    ss << "[ CrossSectionDistributionRecord (" << &record << "):\n";
+    ss << tab << "PrimaryID: " << to_repr(record.GetPrimaryID()) << '\n';
+    ss << tab << "PrimaryType: " << record.primary_type << '\n';
+    ss << tab << "PrimaryInitialPosition: "
+       << record.primary_initial_position.at(0) << " "
+       << record.primary_initial_position.at(1) << " "
+       << record.primary_initial_position.at(2) << '\n';
+    ss << tab << "PrimaryMass: " << record.primary_mass << '\n';
+    ss << tab << "PrimaryMomentum: "
+       << record.primary_momentum.at(0) << " "
+       << record.primary_momentum.at(1) << " "
+       << record.primary_momentum.at(2) << " "
+       << record.primary_momentum.at(3) << '\n';
+    ss << tab << "PrimaryHelicity: " << record.primary_helicity << '\n';
+    ss << tab << "InteractionVertex: "
+       << record.interaction_vertex.at(0) << " "
+       << record.interaction_vertex.at(1) << " "
+       << record.interaction_vertex.at(2) << '\n';
+    ss << tab << "TargetID: " << to_repr(record.GetTargetID()) << '\n';
+    ss << tab << "TargetType: " << record.target_type << '\n';
+    ss << tab << "TargetMass: " << record.target_mass << '\n';
+    ss << tab << "TargetHelicity: " << record.target_helicity << '\n';
 
-    os << "Type: " << record.GetType() << "\n";
-
-    if(record.mass_set) {
-        os << "Mass: " << record.mass << "\n";
-    } else {
-        os << "Mass: " << "None" << "\n";
-    }
-
-    if(record.energy_set) {
-        os << "Energy: " << record.energy << "\n";
-    } else {
-        os << "Energy: " << "None" << "\n";
-    }
-
-    if(record.kinetic_energy_set) {
-        os << "KineticEnergy: " << record.kinetic_energy << "\n";
-    } else {
-        os << "KineticEnergy: " << "None" << "\n";
+    ss << tab << "InteractionParameters:\n";
+    if (!record.interaction_parameters.empty()) {
+        for (const auto& parameter : record.interaction_parameters) {
+            ss << tab << tab << parameter.first << ": " << parameter.second << '\n';
+        }
     }
 
-    if(record.direction_set) {
-        os << "Direction: " << record.direction.at(0) << " " << record.direction.at(1) << " " << record.direction.at(2) << "\n";
-    } else {
-        os << "Direction: " << "None" << "\n";
+    ss << tab << "SecondaryParticles:\n";
+    for(size_t i=0; i<record.signature.secondary_types.size(); ++i) {
+        siren::dataclasses::SecondaryParticleRecord const & secondary = record.secondary_particles[i];
+        ss << indent(to_str(secondary), 2) << '\n';
     }
 
-    if(record.momentum_set) {
-        os << "Momentum: " << record.momentum.at(0) << " " << record.momentum.at(1) << " " << record.momentum.at(2) << "\n";
-    } else {
-        os << "Momentum: " << "None" << "\n";
+    ss << ']';
+
+    return ss.str();
+}
+
+std::string to_repr(siren::dataclasses::CrossSectionDistributionRecord const& record) {
+    std::stringstream ss;
+
+    ss << "CrossSectionDistributionRecord(";
+    ss << "primary_id=" << to_repr(record.GetPrimaryID()) << ", ";
+    ss << "primary_type=" << record.primary_type << ", ";
+    ss << "primary_initial_position=("
+       << record.primary_initial_position.at(0) << ", "
+       << record.primary_initial_position.at(1) << ", "
+       << record.primary_initial_position.at(2) << "), ";
+    ss << "primary_mass=" << record.primary_mass << ", ";
+    ss << "primary_momentum=("
+       << record.primary_momentum.at(0) << ", "
+       << record.primary_momentum.at(1) << ", "
+       << record.primary_momentum.at(2) << ", "
+       << record.primary_momentum.at(3) << "), ";
+    ss << "primary_helicity=" << record.primary_helicity << ", ";
+    ss << "interaction_vertex=("
+       << record.interaction_vertex.at(0) << ", "
+       << record.interaction_vertex.at(1) << ", "
+       << record.interaction_vertex.at(2) << "), ";
+    ss << "target_id=" << to_repr(record.GetTargetID()) << ", ";
+    ss << "target_type=" << record.target_type << ", ";
+    ss << "target_mass=" << record.target_mass << ", ";
+    ss << "target_helicity=" << record.target_helicity << ", ";
+
+    // Interaction Parameters
+    ss << "interaction_parameters={";
+    if (!record.interaction_parameters.empty()) {
+        auto it = record.interaction_parameters.begin();
+        ss << '"' << it->first << "\": " << it->second;
+        for (++it; it != record.interaction_parameters.end(); ++it) {
+            ss << ", \"" << it->first << "\": " << it->second;
+        }
     }
+    ss << "}, ";
 
-    os << "InitialPosition: " << record.initial_position.at(0) << " " << record.initial_position.at(1) << " " << record.initial_position.at(2) << "\n";
-
-    if(record.helicity_set) {
-        os << "Helicity: " << record.helicity << "\n";
-    } else {
-        os << "Helicity: " << "None" << "\n";
+    // Secondary Particles
+    ss << "secondary_particles=[";
+    for (size_t i = 0; i < record.signature.secondary_types.size(); ++i) {
+        siren::dataclasses::SecondaryParticleRecord const & secondary = record.secondary_particles[i];
+        if (i > 0) ss << ", ";
+        ss << "{";
+        ss << "index=" << secondary.secondary_index << ", ";
+        ss << "id=" << to_repr(secondary.id) << ", ";
+        ss << "type=" << secondary.type << ", ";
+        ss << "initial_position=("
+           << secondary.initial_position.at(0) << ", "
+           << secondary.initial_position.at(1) << ", "
+           << secondary.initial_position.at(2) << ")";
+        if (secondary.mass_set)
+            ss << ", mass=" << secondary.mass;
+        if (secondary.energy_set)
+            ss << ", energy=" << secondary.energy;
+        if (secondary.kinetic_energy_set)
+            ss << ", kinetic_energy=" << secondary.kinetic_energy;
+        if (secondary.direction_set)
+            ss << ", direction=("
+               << secondary.direction.at(0) << ", "
+               << secondary.direction.at(1) << ", "
+               << secondary.direction.at(2) << ")";
+        if (secondary.momentum_set)
+            ss << ", momentum=("
+               << secondary.momentum.at(0) << ", "
+               << secondary.momentum.at(1) << ", "
+               << secondary.momentum.at(2) << ")";
+        if (secondary.helicity_set)
+            ss << ", helicity=" << secondary.helicity;
+        ss << "}";
     }
+    ss << "]";
 
+    ss << ")";
+
+    return ss.str();
+}
+
+
+std::ostream & operator<<(std::ostream & os, siren::dataclasses::SecondaryParticleRecord const & record) {
+    os << to_repr(record);
     return os;
+}
+
+std::string to_str(siren::dataclasses::SecondaryParticleRecord const& record) {
+    using siren::utilities::tab;
+    using siren::utilities::indent;
+    std::stringstream ss;
+    ss << "[ SecondaryParticleRecord (" << &record << "):\n";
+    ss << tab << "Index: " << record.secondary_index << '\n';
+    ss << tab << "ID: " << to_repr(record.id) << '\n';
+    ss << tab << "Type: " << record.type << '\n';
+    ss << tab << "InitialPosition: "
+       << record.initial_position.at(0) << " "
+       << record.initial_position.at(1) << " "
+       << record.initial_position.at(2) << '\n';
+    ss << tab << "Mass: ";
+    if (record.mass_set)
+        ss << record.mass << '\n';
+    else
+        ss << "unset\n";
+    ss << tab << "Energy: ";
+    if (record.energy_set)
+        ss << record.energy << '\n';
+    else
+        ss << "unset\n";
+    ss << tab << "KineticEnergy: ";
+    if (record.kinetic_energy_set)
+        ss << record.kinetic_energy << '\n';
+    else
+        ss << "unset\n";
+    ss << tab << "Direction: ";
+    if (record.direction_set)
+        ss << record.direction.at(0) << " " << record.direction.at(1) << " " << record.direction.at(2) << '\n';
+    else
+        ss << "unset\n";
+    ss << tab << "Momentum: ";
+    if (record.momentum_set)
+        ss << record.momentum.at(0) << " " << record.momentum.at(1) << " " << record.momentum.at(2) << '\n';
+    else
+        ss << "unset\n";
+    ss << tab << "Helicity: ";
+    if (record.helicity_set)
+        ss << record.helicity << '\n';
+    else
+        ss << "unset\n";
+    ss << ']';
+
+    return ss.str();
+}
+
+std::string to_repr(siren::dataclasses::SecondaryParticleRecord const& record) {
+    std::stringstream ss;
+    ss << "SecondaryParticleRecord(";
+    ss << "index=" << record.secondary_index << ", ";
+    ss << "id=" << to_repr(record.id) << ", ";
+    ss << "type=" << record.type << ", ";
+    ss << "initial_position=("
+       << record.initial_position.at(0) << ", "
+       << record.initial_position.at(1) << ", "
+       << record.initial_position.at(2) << ")";
+    if (record.mass_set)
+        ss << ", mass=" << record.mass;
+    if (record.energy_set)
+        ss << ", energy=" << record.energy;
+    if (record.kinetic_energy_set)
+        ss << ", kinetic_energy=" << record.kinetic_energy;
+    if (record.direction_set)
+        ss << ", direction=("
+           << record.direction.at(0) << ", "
+           << record.direction.at(1) << ", "
+           << record.direction.at(2) << ")";
+    if (record.momentum_set)
+        ss << ", momentum=("
+           << record.momentum.at(0) << ", "
+           << record.momentum.at(1) << ", "
+           << record.momentum.at(2) << ")";
+    if (record.helicity_set)
+        ss << ", helicity=" << record.helicity;
+    ss << ")";
+    return ss.str();
 }
 
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryDistributionRecord const& record) {
