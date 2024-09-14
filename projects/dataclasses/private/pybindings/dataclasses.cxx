@@ -31,9 +31,9 @@ PYBIND11_MODULE(dataclasses,m) {
           .def_readwrite("position",&Particle::position)
           .def_readwrite("length",&Particle::length)
           .def_readwrite("helicity",&Particle::helicity)
-          .def("GenerateID",&Particle::GenerateID);
+          .def("generate_id",&Particle::GenerateID);
 
-    enum_<ParticleType>(particle, "ParticleType", arithmetic())
+    enum_<ParticleType>(m, "ParticleType", arithmetic())
 #define X(a, b) .value( #a , ParticleType:: a )
 #include "../../public/SIREN/dataclasses/ParticleTypes.def"
 #undef X
@@ -41,21 +41,8 @@ PYBIND11_MODULE(dataclasses,m) {
 
     class_<InteractionSignature, std::shared_ptr<InteractionSignature>>(m, "InteractionSignature")
         .def(init<>())
-        .def("__str__", [](InteractionSignature const & p) { std::stringstream ss; ss << p; return ss.str(); })
-        .def("__repr__", [](InteractionSignature const & s) {
-            std::stringstream ss;
-            ss << "InteractionSignature( ";
-            ss << s.primary_type << " ";
-            if(s.primary_type == ParticleType::unknown or s.target_type != ParticleType::unknown) {
-                ss << s.target_type << " ";
-            }
-            ss << "-> ";
-            for(auto const & secondary : s.secondary_types) {
-                ss << secondary << " ";
-            }
-            ss << ")";
-            return ss.str();
-        })
+        .def("__str__", [](InteractionSignature const & s) { return to_str(s); })
+        .def("__repr__", [](InteractionSignature const & s) { return to_repr(s); })
         .def_readwrite("primary_type",&InteractionSignature::primary_type)
         .def_readwrite("target_type",&InteractionSignature::target_type)
         .def_readwrite("secondary_types",&InteractionSignature::secondary_types);
@@ -66,8 +53,8 @@ PYBIND11_MODULE(dataclasses,m) {
             [](siren::dataclasses::PrimaryDistributionRecord const & pdr) {siren::dataclasses::ParticleID id = pdr.id; return id;})
         .def_property_readonly("type",
             [](siren::dataclasses::PrimaryDistributionRecord const & pdr) {siren::dataclasses::ParticleType pt = pdr.type; return pt;})
-        .def("GetParticle", &PrimaryDistributionRecord::GetParticle)
-        .def("SetParticle", &PrimaryDistributionRecord::SetParticle)
+        //.def("GetParticle", &PrimaryDistributionRecord::GetParticle)
+        //.def("SetParticle", &PrimaryDistributionRecord::SetParticle)
         .def_property("mass", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetMass)), &PrimaryDistributionRecord::SetMass)
         .def_property("energy", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetEnergy)), &PrimaryDistributionRecord::SetEnergy)
         .def_property("kinetic_energy", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetKineticEnergy)), &PrimaryDistributionRecord::SetKineticEnergy)
@@ -78,7 +65,7 @@ PYBIND11_MODULE(dataclasses,m) {
         .def_property("initial_position", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInitialPosition)), &PrimaryDistributionRecord::SetInitialPosition)
         .def_property("interaction_vertex", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInteractionVertex)), &PrimaryDistributionRecord::SetInteractionVertex)
         .def_property("helicity", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetHelicity)), &PrimaryDistributionRecord::SetHelicity)
-        .def("Finalize", &PrimaryDistributionRecord::Finalize);
+        .def("finalize", &PrimaryDistributionRecord::Finalize);
 
     class_<SecondaryParticleRecord, std::shared_ptr<SecondaryParticleRecord>>(m, "SecondaryParticleRecord")
         .def(init<InteractionRecord const &, size_t>())
@@ -88,8 +75,8 @@ PYBIND11_MODULE(dataclasses,m) {
             [](siren::dataclasses::SecondaryParticleRecord const & spr) {siren::dataclasses::ParticleType pt = spr.type; return pt;})
         .def_property_readonly("initial_position",
             [](siren::dataclasses::SecondaryParticleRecord const & spr) {std::array<double, 3> ip = spr.initial_position; return ip;})
-        .def("GetParticle", &SecondaryParticleRecord::GetParticle)
-        .def("SetParticle", &SecondaryParticleRecord::SetParticle)
+        //.def("GetParticle", &SecondaryParticleRecord::GetParticle)
+        //.def("SetParticle", &SecondaryParticleRecord::SetParticle)
         .def_property("mass", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetMass)), &SecondaryParticleRecord::SetMass)
         .def_property("energy", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetEnergy)), &SecondaryParticleRecord::SetEnergy)
         .def_property("kinetic_energy", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetKineticEnergy)), &SecondaryParticleRecord::SetKineticEnergy)
@@ -97,7 +84,7 @@ PYBIND11_MODULE(dataclasses,m) {
         .def_property("three_momentum", ((std::array<double, 3> const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetThreeMomentum)), &SecondaryParticleRecord::SetThreeMomentum)
         .def_property("four_momentum", ((std::array<double, 4> (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetFourMomentum)), &SecondaryParticleRecord::SetFourMomentum)
         .def_property("helicity", ((double const & (SecondaryParticleRecord::*)())(&SecondaryParticleRecord::GetHelicity)), &SecondaryParticleRecord::SetHelicity)
-        .def("Finalize", &SecondaryParticleRecord::Finalize);
+        .def("finalize", &SecondaryParticleRecord::Finalize);
 
     class_<CrossSectionDistributionRecord, std::shared_ptr<CrossSectionDistributionRecord>>(m, "CrossSectionDistributionRecord")
         .def(init<InteractionRecord const &>())
@@ -126,13 +113,16 @@ PYBIND11_MODULE(dataclasses,m) {
         .def_property("target_mass", ((double const & (siren::dataclasses::CrossSectionDistributionRecord::*)() const)(&siren::dataclasses::CrossSectionDistributionRecord::GetTargetMass)), &siren::dataclasses::CrossSectionDistributionRecord::SetTargetMass)
         .def_property("target_helicity", ((double const & (siren::dataclasses::CrossSectionDistributionRecord::*)() const)(&siren::dataclasses::CrossSectionDistributionRecord::GetTargetHelicity)), &siren::dataclasses::CrossSectionDistributionRecord::SetTargetHelicity)
         .def_property("interaction_parameters", ((std::map<std::string, double> const & (siren::dataclasses::CrossSectionDistributionRecord::*)())(&siren::dataclasses::CrossSectionDistributionRecord::GetInteractionParameters)), &siren::dataclasses::CrossSectionDistributionRecord::SetInteractionParameters)
-        .def("GetSecondaryParticleRecord",
+        .def_property_readonly("secondary_particle_records",
+                [](siren::dataclasses::CrossSectionDistributionRecord & cdr) -> std::vector<siren::dataclasses::SecondaryParticleRecord> & {return cdr.GetSecondaryParticleRecords();},
+            return_value_policy::reference_internal)
+        .def("get_econdary_particle_record",
                 [](siren::dataclasses::CrossSectionDistributionRecord & cdr, size_t i) -> siren::dataclasses::SecondaryParticleRecord & {return cdr.GetSecondaryParticleRecord(i);},
                 return_value_policy::reference_internal)
-        .def("GetSecondaryParticleRecords",
+        .def("get_econdary_particle_records",
                 [](siren::dataclasses::CrossSectionDistributionRecord & cdr) -> std::vector<siren::dataclasses::SecondaryParticleRecord> & {return cdr.GetSecondaryParticleRecords();},
                 return_value_policy::reference_internal)
-        .def("Finalize", &CrossSectionDistributionRecord::Finalize);
+        .def("finalize", &CrossSectionDistributionRecord::Finalize);
 
 
   class_<InteractionRecord, std::shared_ptr<InteractionRecord>>(m, "InteractionRecord")

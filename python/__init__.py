@@ -35,6 +35,8 @@ injection._Injector = injection.Injector
 injection.Injector = Injector.Injector
 del Injector
 
+dataclasses.Particle.ParticleType = dataclasses.ParticleType
+
 def darknews_version():
     try:
         import DarkNews
