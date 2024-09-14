@@ -4,6 +4,7 @@
 #include <math.h>
 #include <string>
 #include <cstdint>
+#include <sstream>
 #include <stdint.h>
 #include <assert.h>
 #include <stdexcept>
@@ -11,30 +12,42 @@
 #include <cereal/cereal.hpp>
 
 #include "SIREN/utilities/Constants.h"
+#include "SIREN/utilities/StringManipulation.h"
 
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::Particle const& p) {
-    os << "Particle (" << &p << ")\n";
-
-    std::stringstream ss;
-    ss << p.id;
-    std::string id_str = ss.str();
-    std::string from = "\n";
-    std::string to = "\n    ";
-    size_t start_pos = 0;
-    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
-        id_str.replace(start_pos, from.length(), to);
-        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
-    }
-
-    os << "ID: " << id_str << "\n";
-    os << "Type: " << p.type << "\n";
-    os << "Mass: " << p.mass << "\n";
-    os << "Momentum: " << p.momentum.at(0) << " " << p.momentum.at(1) << " " << p.momentum.at(2) << " " << p.momentum.at(3) << "\n";
-    os << "Position: " << p.position.at(0) << " " << p.position.at(1) << " " << p.position.at(2) << "\n";
-    os << "Length: " << p.length << "\n";
-    os << "Helicity: " << p.helicity;
-
+    os << to_repr(p);
     return os;
+}
+
+std::string to_str(siren::dataclasses::Particle const& p) {
+    using siren::utilities::tab;
+    std::stringstream ss;
+    ss << "[ Particle (" << &p << "):\n";
+    ss << tab << "ID: " << to_repr(p.id) << '\n';
+    ss << tab << "Type: " << p.type << '\n';
+    ss << tab << "Mass: " << p.mass << '\n';
+    ss << tab << "Momentum: " << p.momentum.at(0) << ' ' << p.momentum.at(1) << ' ' << p.momentum.at(2) << ' ' << p.momentum.at(3) << '\n';
+    ss << tab << "Position: " << p.position.at(0) << ' ' << p.position.at(1) << ' ' << p.position.at(2) << '\n';
+    ss << tab << "Length: " << p.length << '\n';
+    ss << tab << "Helicity: " << p.helicity << '\n';
+    ss << ']';
+
+    return ss.str();
+}
+
+std::string to_repr(siren::dataclasses::Particle const& p) {
+    std::stringstream ss;
+    ss << "Particle(";
+    ss << "id=" << to_repr(p.id) << ", ";
+    ss << "type=" << p.type << ", ";
+    ss << "mass=" << p.mass << ", ";
+    ss << "momentum=(" << p.momentum.at(0) << ", " << p.momentum.at(1) << ", " << p.momentum.at(2) << ", " << p.momentum.at(3) << "), ";
+    ss << "position=(" << p.position.at(0) << ", " << p.position.at(1) << ", " << p.position.at(2) << "), ";
+    ss << "length=" << p.length << ", ";
+    ss << "helicity=" << p.helicity;
+    ss << ')';
+
+    return ss.str();
 }
 
 namespace siren {
