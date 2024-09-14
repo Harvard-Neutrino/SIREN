@@ -26,30 +26,17 @@ PYBIND11_MODULE(dataclasses, m) {
         .def(py::init<uint64_t, int32_t>(), py::arg("major"), py::arg("minor"))
         .def(py::init<const siren::dataclasses::ParticleID &>(), py::arg("other"))
         .def(py::init<siren::dataclasses::ParticleID>(), py::arg("other"))
-        .def_static("generate_id", &siren::dataclasses::ParticleID::GenerateID)
-        .def("is_set", &siren::dataclasses::ParticleID::IsSet)
-        //.def_property("major_id", &siren::dataclasses::ParticleID::GetMajorID, &siren::dataclasses::ParticleID::SetMajorID)
-        // Getters for major and minor IDs
         .def_property_readonly("major_id", &siren::dataclasses::ParticleID::GetMajorID)
         .def_property_readonly("minor_id", &siren::dataclasses::ParticleID::GetMinorID)
-        // Method to set the ID
-        .def("set", &siren::dataclasses::ParticleID::SetID, py::arg("major"), py::arg("minor"))
-        // Overload the bool operator
         .def("__bool__", &siren::dataclasses::ParticleID::operator bool)
-        // Comparison operators
+        .def("__repr__", [](siren::dataclasses::ParticleID const & id) { return to_repr(id); })
+        .def("__str__", [](siren::dataclasses::ParticleID const & id) { return to_str(id); })
+        .def("is_set", &siren::dataclasses::ParticleID::IsSet)
+        .def("set", &siren::dataclasses::ParticleID::SetID, py::arg("major"), py::arg("minor"))
         .def(py::self == py::self)
         .def(py::self != py::self)
         .def(py::self < py::self)
-        // String representation
-        .def("__repr__",
-            [](const siren::dataclasses::ParticleID &id) {
-                std::ostringstream oss;
-                oss << id;
-                return oss.str();
-            }
-        )
-        // Optional: Serialize method if needed in Python
-        // .def("serialize", &siren::dataclasses::ParticleID::serialize)
+        .def_static("generate_id", &siren::dataclasses::ParticleID::GenerateID)
         ;
 
     py::class_<Particle, std::shared_ptr<Particle>> particle(m, "Particle");

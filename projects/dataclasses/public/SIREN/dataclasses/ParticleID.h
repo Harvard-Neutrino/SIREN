@@ -16,6 +16,8 @@
 namespace siren { namespace dataclasses { class ParticleID; } }
 
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::ParticleID const& record);
+std::string to_str(siren::dataclasses::ParticleID const & record);
+std::string to_repr(siren::dataclasses::ParticleID const & record);
 
 namespace siren {
 namespace dataclasses {
@@ -45,7 +47,10 @@ public:
     bool operator<(ParticleID const & other) const;
 
     bool operator==(ParticleID const & other) const;
+    bool operator!=(ParticleID const & other) const;
     friend std::ostream& ::operator<<(std::ostream& os, ParticleID const& record);
+    friend std::string (::to_str)(ParticleID const & record);
+    friend std::string (::to_repr)(ParticleID const & record);
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
