@@ -4,6 +4,8 @@
 #include <tuple>    // for tie, operator==, tuple
 #include <cassert>
 #include <ostream>  // for operator<<, basic_ostream, char_traits, endl, ost...
+                    //
+#include "SIREN/utilities/StringManipulation.h"  // for tab
 
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::InteractionRecord const& record);
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::PrimaryDistributionRecord const& record);
@@ -1099,61 +1101,101 @@ std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryDistribu
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, siren::dataclasses::InteractionRecord const& record) {
-    std::stringstream ss;
-    ss << "InteractionRecord (" << &record << ") ";
-    os << ss.str() << '\n';
-    os << "Signature(" << &record.signature << "): " << record.signature.primary_type << " + " << record.signature.target_type << " ->";
-    for(auto secondary: record.signature.secondary_types) {
-        os << " " << secondary;
-    }
-    os << "\n";
-
-    ss.str(std::string());
-    std::string id_str;
-    ss << record.primary_id;
-    id_str = ss.str();
-    std::string from = "\n";
-    std::string to = "\n    ";
-    size_t start_pos = 0;
-    while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
-        id_str.replace(start_pos, from.length(), to);
-        start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
-    }
-    ss << "PrimaryID: " << id_str << "\n";
-    os << "PrimaryInitialPosition: " << record.primary_initial_position.at(0) << " " << record.primary_initial_position.at(1) << " " << record.primary_initial_position.at(2) << "\n";
-    os << "InteractionVertex: " << record.interaction_vertex.at(0) << " " << record.interaction_vertex.at(1) << " " << record.interaction_vertex.at(2) << "\n";
-    os << "PrimaryMass: " << record.primary_mass << "\n";
-    os << "PrimaryMomentum: " << record.primary_momentum.at(0) << " " << record.primary_momentum.at(1) << " " << record.primary_momentum.at(2) << " " << record.primary_momentum.at(3) << "\n";
-    os << "TargetID: " << record.target_id << "\n";
-    os << "TargetMass: " << record.target_mass << "\n";
-    os << "SecondaryIDs:\n";
-    for(auto const & secondary: record.secondary_ids) {
-        ss.str(std::string());
-        id_str.clear();
-        ss << secondary;
-        id_str = ss.str();
-        start_pos = 0;
-        while((start_pos = id_str.find(from, start_pos)) != std::string::npos) {
-            id_str.replace(start_pos, from.length(), to);
-            start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
-        }
-        os << "\t" << id_str << "\n";
-    }
-    os << "SecondaryMomenta:\n";
-    for(auto const & secondary: record.secondary_momenta) {
-        os << "\t" << secondary.at(0) << " " << secondary.at(1) << " " << secondary.at(2) << " " << secondary.at(3) << "\n";
-    }
-    os << "SecondaryMasses:\n";
-    for(auto const & secondary: record.secondary_masses) {
-        os << "\t" << secondary << "\n";
-    }
-    os << "InteractionParameters:\n";
-    for(std::pair<std::string const, double> const & param : record.interaction_parameters) {
-        os << "\t\"" << param.first << "\": " << param.second << "\n";
-    }
-    os << std::endl;
-
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::InteractionRecord const & record) {
+    os << to_repr(record);
     return os;
+}
+
+std::string to_str(siren::dataclasses::InteractionRecord const & record) {
+    using siren::utilities::tab;
+    std::stringstream ss;
+    ss << "[ InteractionRecord (" << &record << "):\n";
+    ss << tab << "InteractionSignature: " << record.signature.primary_type << " + " << record.signature.target_type << " ->";
+    if(record.signature.secondary_types.size() > 3) {
+        ss << '\n';
+        ss << tab << tab;
+    }
+    for(auto secondary: record.signature.secondary_types)
+        ss << " " << secondary;
+    ss << '\n';
+
+    ss << tab << "PrimaryID: " << to_repr(record.primary_id) << '\n';
+    ss << tab << "PrimaryInitialPosition: " << record.primary_initial_position.at(0) << " " << record.primary_initial_position.at(1) << " " << record.primary_initial_position.at(2) << '\n';
+    ss << tab << "InteractionVertex: " << record.interaction_vertex.at(0) << " " << record.interaction_vertex.at(1) << " " << record.interaction_vertex.at(2) << '\n';
+    ss << tab << "PrimaryMass: " << record.primary_mass << '\n';
+    ss << tab << "PrimaryMomentum: " << record.primary_momentum.at(0) << " " << record.primary_momentum.at(1) << " " << record.primary_momentum.at(2) << " " << record.primary_momentum.at(3) << '\n';
+    ss << tab << "TargetID: " << to_repr(record.target_id) << '\n';
+    ss << tab << "TargetMass: " << record.target_mass << '\n';
+    ss << tab << "SecondaryIDs:\n";
+    for(auto const & secondary: record.secondary_ids) {
+        ss << tab << tab << to_repr(secondary) << '\n';
+    }
+    ss << tab << "SecondaryMomenta:\n";
+    for(auto const & secondary: record.secondary_momenta) {
+        ss << tab << tab << secondary.at(0) << " " << secondary.at(1) << " " << secondary.at(2) << " " << secondary.at(3) << '\n';
+    }
+    ss << tab << "SecondaryMasses:\n";
+    for(auto const & secondary: record.secondary_masses) {
+        ss << tab << tab << secondary << '\n';
+    }
+    ss << tab << "InteractionParameters:\n";
+    for(std::pair<std::string const, double> const & param : record.interaction_parameters) {
+        ss << tab << tab << '\"' << param.first << "\": " << param.second << '\n';
+    }
+    ss << ']';
+
+    return ss.str();
+}
+
+std::string to_repr(siren::dataclasses::InteractionRecord const & record) {
+    using siren::utilities::tab;
+    std::stringstream ss;
+    ss << "InteractionRecord(";
+    ss << record.signature.primary_type << " + " << record.signature.target_type << " ->";
+    for(auto secondary: record.signature.secondary_types)
+        ss << " " << secondary;
+    ss << ", ";
+    ss << "primary_id=" << to_repr(record.primary_id) << ", ";
+    ss << "primary_initial_position=(" << record.primary_initial_position.at(0) << ", " << record.primary_initial_position.at(1) << ", " << record.primary_initial_position.at(2) << "), ";
+    ss << "interaction_vertex=(" << record.interaction_vertex.at(0) << ", " << record.interaction_vertex.at(1) << ", " << record.interaction_vertex.at(2) << "), ";
+    ss << "primary_mass=" << record.primary_mass << ", ";
+    ss << "primary_momentum=(" << record.primary_momentum.at(0) << ", " << record.primary_momentum.at(1) << ", " << record.primary_momentum.at(2) << ", " << record.primary_momentum.at(3) << "), ";
+    ss << "target_id=" << to_repr(record.target_id) << ", ";
+    ss << "target_mass=" << record.target_mass << ", ";
+    ss << "secondary_ids=[";
+    if(record.secondary_ids.size() > 0) {
+        ss << to_repr(record.secondary_ids.at(0));
+        for(size_t i=1; i<record.secondary_ids.size(); ++i) {
+            ss << ", " << to_repr(record.secondary_ids.at(i));
+        }
+    }
+    ss << "], ";
+    ss << "secondary_momenta=[";
+    if(record.secondary_momenta.size() > 0) {
+        ss << "(" << record.secondary_momenta.at(0).at(0) << ", " << record.secondary_momenta.at(0).at(1) << ", " << record.secondary_momenta.at(0).at(2) << ", " << record.secondary_momenta.at(0).at(3) << ")";
+        for(size_t i=1; i<record.secondary_momenta.size(); ++i) {
+            ss << ", (" << record.secondary_momenta.at(i).at(0) << ", " << record.secondary_momenta.at(i).at(1) << ", " << record.secondary_momenta.at(i).at(2) << ", " << record.secondary_momenta.at(i).at(3) << ")";
+        }
+    }
+    ss << "], ";
+    ss << "secondary_masses=[";
+    if(record.secondary_masses.size() > 0) {
+        ss << record.secondary_masses.at(0);
+        for(size_t i=1; i<record.secondary_masses.size(); ++i) {
+            ss << ", " << record.secondary_masses.at(i);
+        }
+    }
+    ss << "], ";
+    ss << "interaction_parameters={";
+    if(record.interaction_parameters.size() > 0) {
+        auto it = record.interaction_parameters.begin();
+        ss << '\"' << it->first << "\": " << it->second;
+        for(++it; it != record.interaction_parameters.end(); ++it) {
+            ss << ", \"" << it->first << "\": " << it->second;
+        }
+    }
+    ss << "}";
+    ss << ")";
+    return ss.str();
 }
 

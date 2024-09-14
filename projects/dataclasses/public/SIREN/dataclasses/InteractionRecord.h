@@ -37,6 +37,18 @@ std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryParticle
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::CrossSectionDistributionRecord const & record);
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryDistributionRecord const & record);
 
+std::string to_str(siren::dataclasses::InteractionRecord const & record);
+std::string to_str(siren::dataclasses::PrimaryDistributionRecord const & record);
+std::string to_str(siren::dataclasses::SecondaryParticleRecord const & record);
+std::string to_str(siren::dataclasses::CrossSectionDistributionRecord const & record);
+std::string to_str(siren::dataclasses::SecondaryDistributionRecord const & record);
+
+std::string to_repr(siren::dataclasses::InteractionRecord const & record);
+std::string to_repr(siren::dataclasses::PrimaryDistributionRecord const & record);
+std::string to_repr(siren::dataclasses::SecondaryParticleRecord const & record);
+std::string to_repr(siren::dataclasses::CrossSectionDistributionRecord const & record);
+std::string to_repr(siren::dataclasses::SecondaryDistributionRecord const & record);
+
 namespace siren {
 namespace dataclasses {
 
@@ -265,6 +277,8 @@ public:
     bool operator==(InteractionRecord const & other) const;
     bool operator<(InteractionRecord const & other) const;
     friend std::ostream& ::operator<<(std::ostream& os, InteractionRecord const& record);
+    friend std::string (::to_str)(InteractionRecord const & record);
+    friend std::string (::to_repr)(InteractionRecord const & record);
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
