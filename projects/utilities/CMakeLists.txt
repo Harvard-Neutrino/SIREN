@@ -3,6 +3,7 @@
 LIST (APPEND utilities_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/utilities/private/Interpolator.cxx
     ${PROJECT_SOURCE_DIR}/projects/utilities/private/Random.cxx
+    ${PROJECT_SOURCE_DIR}/projects/utilities/private/StringManipulation.cxx
 )
 add_library(SIREN_utilities OBJECT ${utilities_SOURCES})
 set_property(TARGET SIREN_utilities PROPERTY POSITION_INDEPENDENT_CODE ON)
