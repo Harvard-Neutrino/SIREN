@@ -1,7 +1,12 @@
 import os
-
 import siren
-from siren.SIREN_Controller import SIREN_Controller
+try:
+    from tqdm import tqdm as tqdm
+except ImportError:
+    print("Importing tqdm failed, using default range")
+    tqdm = lambda x: x
+
+seed = 99
 
 # Number of events to inject
 events_to_inject = int(1e5)
@@ -9,62 +14,97 @@ events_to_inject = int(1e5)
 # Expeirment to run
 experiment = "ATLAS"
 
-# Define the controller
-controller = SIREN_Controller(events_to_inject, experiment, seed=99)
+# Load the detector model
+detector_model = siren.utilities.load_detector(experiment)
 
 # Particle to inject
 primary_type = siren.dataclasses.Particle.ParticleType.NuMu
 
 cross_section_model = "CSMSDISSplines"
 
-xsfiledir = siren.utilities.get_cross_section_model_path(cross_section_model)
-
 # Cross Section Model
 target_type = siren.dataclasses.Particle.ParticleType.Nucleon
 
-DIS_xs = siren.interactions.DISFromSpline(
-    os.path.join(xsfiledir, "dsdxdy_nu_CC_iso.fits"),
-    os.path.join(xsfiledir, "sigma_nu_CC_iso.fits"),
-    [primary_type],
-    [target_type], "m"
+primary_processes, secondary_processes = siren.utilities.load_processes(
+    cross_section_model,
+    primary_types = [primary_type],
+    target_types = [target_type],
+    isoscalar = True,
+    process_types = ["CC"],
 )
 
-primary_xs = siren.interactions.InteractionCollection(primary_type, [DIS_xs])
-controller.SetInteractions(primary_xs)
-
-# Primary distributions
-primary_injection_distributions = {}
-primary_physical_distributions = {}
-
-# energy distribution
-# HE SN flux from ATLAS paper
-edist = siren.utilities.load_flux("HE_SN", tag="numu", min_energy=100, max_energy=1e6, physically_normalized=True)
-edist_gen = siren.utilities.load_flux("HE_SN", tag="numu", min_energy=100, max_energy=1e6, physically_normalized=False)
-
-primary_injection_distributions["energy"] = edist_gen
-primary_physical_distributions["energy"] = edist
-
-# direction distribution
+# Choose the direction we will inject from
 # let's just inject upwards
 injection_dir = siren.math.Vector3D(0, 0, 1)
 injection_dir.normalize()
-direction_distribution = siren.distributions.FixedDirection(injection_dir)
-primary_injection_distributions["direction"] = direction_distribution
-primary_physical_distributions["direction"] = direction_distribution
 
-# position distribution
-position_distribution = controller.GetCylinderVolumePositionDistributionFromSector("tilecal")
-primary_injection_distributions["position"] = position_distribution
+# Build the position distribution using properties of the geometry
+fiducial_volume_name = "tilecal"
+geo = None
+for sector in detector_model.Sectors:
+    if sector.name == fiducial_volume_name:
+        geo = sector.geo
+        break
 
-# SetProcesses
-controller.SetProcesses(
-    primary_type, primary_injection_distributions, primary_physical_distributions
-)
+det_position = detector_model.GeoPositionToDetPosition(siren.detector.GeometryPosition(geo.placement.Position))
+det_rotation = geo.placement.Quaternion
+det_placement = siren.geometry.Placement(det_position.get(), det_rotation)
+cylinder = siren.geometry.Cylinder(det_placement, geo.Radius, geo.InnerRadius, geo.Z)
 
-controller.Initialize()
+position_distribution = siren.distributions.CylinderVolumePositionDistribution(cylinder)
 
-events = controller.GenerateEvents()
+primary_injection_distributions = [
+    siren.distributions.PrimaryMass(0),
+    # energy distribution
+    # HE SN flux from ATLAS paper
+    siren.utilities.load_flux(
+        "HE_SN",
+        tag="numu",
+        min_energy=100,
+        max_energy=1e6,
+        physically_normalized=True),
+    siren.distributions.FixedDirection(injection_dir),
+    position_distribution,
+]
+
+primary_physical_distributions = [
+    # energy distribution
+    # HE SN flux from ATLAS paper
+    siren.utilities.load_flux(
+        "HE_SN",
+        tag="numu",
+        min_energy=100,
+        max_energy=1e6,
+        physically_normalized=False),
+    siren.distributions.FixedDirection(injection_dir),
+]
+
+injector = siren.injection.Injector()
+injector.seed = seed
+injector.number_of_events = events_to_inject
+injector.detector_model = detector_model
+injector.primary_type = primary_type
+injector.primary_interactions = primary_processes[primary_type]
+injector.primary_injection_distributions = primary_injection_distributions
+injector.secondary_interactions = {}
+injector.secondary_injection_distributions = {}
+
+print("Generating events")
+events = [injector.generate_event() for _ in tqdm(range(events_to_inject))]
+
+weighter = siren.injection.Weighter()
+weighter.injectors = [injector]
+weighter.detector_model = detector_model
+weighter.primary_type = primary_type
+weighter.primary_interactions = primary_processes[primary_type]
+weighter.primary_physical_distributions = primary_physical_distributions
+weighter.secondary_interactions = {}
+weighter.secondary_physical_distributions = {}
+
+print("Weighting events")
+weights = [weighter(event) for event in tqdm(events)]
 
 os.makedirs("output", exist_ok=True)
 
-controller.SaveEvents("output/ATLAS_DIS")
+#TODO save the events and weights
+
