@@ -34,6 +34,7 @@ class Injector:
         number_of_events: Optional[int] = None,
         detector_model: Optional[_detector.DetectorModel] = None,
         seed: Optional[int] = None,
+        primary_type: Optional[_dataclasses.ParticleType] = None,
         primary_interactions: Dict[_dataclasses.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]] = None,
         primary_injection_distributions: List[_distributions.PrimaryInjectionDistribution] = None,
         secondary_interactions: Optional[Dict[_dataclasses.ParticleType, List[Union[_interactions.CrossSection, _interactions.Decay]]]] = None,
@@ -60,6 +61,8 @@ class Injector:
             self.__number_of_events = number_of_events
         if detector_model is not None:
             self.__detector_model = detector_model
+        if primary_type is not None:
+            self.__primary_type = primary_type
         if primary_interactions is not None:
             self.__primary_interactions = primary_interactions
         if primary_injection_distributions is not None:
