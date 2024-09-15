@@ -9,6 +9,7 @@ from . import injection
 
 from . import _util
 from . import Injector
+from . import Weighter
 
 # Intropspect package version
 import sys
@@ -34,6 +35,11 @@ utilities.get_fiducial_volume = _util.get_fiducial_volume
 injection._Injector = injection.Injector
 injection.Injector = Injector.Injector
 del Injector
+
+# Override the Weighter with the python wrapper
+injection._Weighter = injection.Weighter
+injection.Weighter = Weighter.Weighter
+del Weighter
 
 dataclasses.Particle.ParticleType = dataclasses.ParticleType
 
