@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import uuid
+import pydoc
 import pathlib
 import importlib
 
@@ -257,6 +258,11 @@ _MODEL_PATTERN = (
         (?P<version>"""
     + _VERSION_PATTERN
     + r"))?"
+)
+
+_model_regex = re.compile(
+    r"^\s*" + _MODEL_PATTERN + r"\s*$",
+    re.VERBOSE | re.IGNORECASE,
 )
 
 def decompose_version(version):
@@ -521,7 +527,7 @@ def _get_model_file_name(version, model_versions, model_files, model_name, suffi
                 return f"{model_name}-v{version}{suffix}"
 
 def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exist=True, specific_file=None):
-    _model_regex = re.compile(
+    model_regex = re.compile(
         r"^\s*" + _MODEL_PATTERN + ("" if suffix is None else r"(?:" + suffix + r")?") + r"\s*$",
         re.VERBOSE | re.IGNORECASE,
     )
@@ -530,7 +536,7 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
     resources_dir = resource_package_dir()
     base_dir = _get_base_directory(resources_dir, prefix)
 
-    d = _model_regex.match(model_name)
+    d = model_regex.match(model_name)
     if d is None:
         raise ValueError(f"Invalid model name: {model_name}")
     d = d.groupdict()
@@ -542,7 +548,7 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
         return os.path.dirname(specific_file_path)
 
     model_files = _get_model_files(base_dir, model_name, is_file, folder_exists, version)
-    model_versions = _extract_model_versions(model_files, _model_regex, model_name)
+    model_versions = _extract_model_versions(model_files, model_regex, model_name)
 
     if len(model_versions) == 0 and must_exist:
         if specific_file_path:
@@ -591,7 +597,7 @@ def _get_model_subfolders(base_dir, model_regex):
 
 
 def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exist=True, specific_file=None):
-    _model_regex = re.compile(
+    model_regex = re.compile(
         r"^\s*" + _MODEL_PATTERN + ("" if suffix is None else r"(?:" + suffix + r")?") + r"\s*$",
         re.VERBOSE | re.IGNORECASE,
     )
@@ -600,7 +606,7 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
     resources_dir = resource_package_dir()
     base_dir = _get_base_directory(resources_dir, prefix)
 
-    d = _model_regex.match(model_name)
+    d = model_regex.match(model_name)
     if d is None:
         raise ValueError(f"Invalid model name: {model_name}")
     d = d.groupdict()
@@ -621,7 +627,7 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
         return model_dir
 
 
-    model_subfolders = _get_model_subfolders(model_dir, _model_regex)
+    model_subfolders = _get_model_subfolders(model_dir, model_regex)
 
     if len(model_subfolders) == 0:
         if must_exist:
@@ -635,7 +641,7 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
 
     models_and_versions = []
     for f in model_subfolders:
-        d = _model_regex.match(f).groupdict()
+        d = model_regex.match(f).groupdict()
         if d["version"] is not None:
             models_and_versions.append((f, normalize_version(d["version"])))
 
@@ -687,18 +693,29 @@ def get_detector_model_path(model_name, must_exist=True):
 def get_processes_model_path(model_name, must_exist=True):
     return _get_model_path(model_name, prefix=_resource_folder_by_name["processes"], is_file=False, must_exist=must_exist, specific_file="processes.py")
 
-
-def load_resource(resource_type, resource_name, *args, **kwargs):
+def import_resource(resource_type, resource_name):
     folder = _resource_folder_by_name[resource_type]
     specific_file = f"{resource_type}.py"
 
     abs_dir = _get_model_path(resource_name, prefix=folder, is_file=False, must_exist=True, specific_file=specific_file)
 
     fname = os.path.join(abs_dir, f"{resource_type}.py")
-    print(fname)
-    assert(os.path.isfile(fname))
-    resource_module = load_module(f"siren-{resource_type}-{resource_name}", fname, persist=False)
-    loader = getattr(resource_module, f"load_{resource_type}")
+    if not os.path.isfile(fname):
+        return None
+    return load_module(f"siren-{resource_type}-{resource_name}", fname, persist=False)
+
+
+def get_resource_loader(resource_type, resource_name):
+    resource_module = import_resource(resource_type, resource_name)
+    if resource_module is None:
+        return None
+    return getattr(resource_module, f"load_{resource_type}")
+
+
+def load_resource(resource_type, resource_name, *args, **kwargs):
+    loader = get_resource_loader(resource_type, resource_name)
+    if loader is None:
+        return None
     resource = loader(*args, **kwargs)
     return resource
 
@@ -708,19 +725,15 @@ def load_flux(model_name, *args, **kwargs):
 
 
 def load_detector(model_name, *args, **kwargs):
+    resource = load_resource("flux", model_name, *args, **kwargs)
+    if resource is not None:
+        return resource
+
     resource_type = "detector"
     resource_name = model_name
     folder = _resource_folder_by_name[resource_type]
-    specific_file = f"{resource_type}.py"
 
-    abs_dir = _get_model_path(resource_name, prefix=folder, is_file=False, must_exist=True, specific_file=specific_file)
-
-    script_fname = os.path.join(abs_dir, f"{resource_type}.py")
-    if os.path.isfile(script_fname):
-        resource_module = load_module(f"siren-{resource_type}-{resource_name}", script_fname, persist=False)
-        loader = getattr(resource_module, f"load_{resource_type}")
-        resource = loader(*args, **kwargs)
-        return resource
+    abs_dir = _get_model_path(resource_name, prefix=folder, is_file=False, must_exist=True, specific_file=None)
 
     densities_fname = os.path.join(abs_dir, "densities.dat")
     materials_fname = os.path.join(abs_dir, "materials.dat")
@@ -759,3 +772,84 @@ def get_fiducial_volume(experiment):
         from . import detector as _detector
         return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
     return None
+
+def list_fluxes():
+    return sorted(_get_model_subfolders(_get_base_directory(resource_package_dir(), "fluxes"), _model_regex))
+
+def list_detectors():
+    dirs = sorted(_get_model_subfolders(_get_base_directory(resource_package_dir(), "detectors"), _model_regex))
+    dirs = [d for d in dirs if d != "visuals"]
+    return dirs
+
+def list_processes():
+    return sorted(_get_model_subfolders(_get_base_directory(resource_package_dir(), "processes"), _model_regex))
+
+def flux_docs(flux_name):
+    loader = get_resource_loader("flux", flux_name)
+    if loader is None:
+        raise ValueError(f"Could not find documentation for flux {flux_name}")
+    return loader.__doc__
+
+def detector_docs(detector_name):
+    loader = get_resource_loader("detector", detector_name)
+    if loader is not None:
+        return loader.__doc__
+
+    resource_name = detector_name
+    folder = _resource_folder_by_name["detector"]
+
+    abs_dir = _get_model_path(resource_name, prefix=folder, is_file=False, must_exist=True, specific_file=None)
+
+    densities_fname = os.path.join(abs_dir, "densities.dat")
+    materials_fname = os.path.join(abs_dir, "materials.dat")
+
+    lines = []
+    if os.path.isfile(densities_fname):
+        with open(densities_fname) as file:
+            new_lines = []
+            for l in file.readlines():
+                l = l.strip()
+                if l.startswith("#"):
+                    new_lines.append(l)
+                else:
+                    break
+            lines.extend(new_lines)
+
+    if os.path.isfile(materials_fname):
+        with open(materials_fname) as file:
+            new_lines = []
+            for l in file.readlines():
+                l = l.strip()
+                if l.startswith("#"):
+                    new_lines.append(l)
+                else:
+                    break
+            if len(lines) > 0 and len(new_lines) > 0:
+                lines.append("")
+            lines.extend(new_lines)
+
+    doc = "\n".join(lines)
+
+    if len(doc) == 0:
+        raise ValueError(f"Could not find documentation for detector {detector_name}")
+
+    return doc
+
+
+def process_docs(process_name):
+    loader = get_resource_loader("processes", process_name)
+    if loader is None:
+        raise ValueError(f"Could not find documentation for process {process_name}")
+    return loader.__doc__
+
+def flux_help(flux_name):
+    doc = flux_docs(flux_name)
+    pydoc.pager(doc)
+
+def detector_help(detector_name):
+    doc = detector_docs(detector_name)
+    pydoc.pager(doc)
+
+def process_help(process_name):
+    doc = process_docs(process_name)
+    pydoc.pager(doc)
