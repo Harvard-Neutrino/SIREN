@@ -6,10 +6,10 @@ Visuals::usage = "Visuals[Experiment, Modules] displays the experiment as a 3D m
 
 Begin["`Private`"];
 
-Visuals[Experiment_, Modules_] :=
+Visuals[Experiment_, Version_, Modules_] :=
 Module[{exp = Experiment, mods = Modules, dimensionFile, materialFile, keysDim, materials, color, boxes, polygons, cylinders, spheres,numd,visual},
-  dimensionFile = Import[FileNames[All, FileNameJoin[{NotebookDirectory[], "/../densities", exp}]][[-1]]];
-  materialFile = Import[FileNames[All, FileNameJoin[{NotebookDirectory[], "/../materials", exp}]][[-1]]];
+  dimensionFile = Import[FileNames[FileNameJoin[{NotebookDirectory[], "../", exp, StringJoin[exp,"-",Version], StringJoin["/*densities*.dat"]}]][[-1]]];
+  materialFile = Import[FileNames[FileNameJoin[{NotebookDirectory[], "../", exp, StringJoin[exp,"-",Version], StringJoin["/*materials_*.dat"]}]][[-1]]];
 
   dimensionFile = Delete[dimensionFile, Position[dimensionFile, _?(#[[1]] == "#" &)]];
   dimensionFile = Delete[dimensionFile, Position[dimensionFile, {}]];
