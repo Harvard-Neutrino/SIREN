@@ -124,6 +124,7 @@ PYBIND11_MODULE(dataclasses,m) {
           .def(init<>())
           .def("__str__", [](InteractionRecord const & r) { std::stringstream ss; ss << r; return ss.str(); })
           .def_readwrite("signature",&InteractionRecord::signature)
+          .def_readwrite("primary_initial_position",&InteractionRecord::primary_initial_position)
           .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
           .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
           .def_readwrite("primary_helicity",&InteractionRecord::primary_helicity)

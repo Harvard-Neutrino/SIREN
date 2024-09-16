@@ -8,7 +8,7 @@
 #   Uses PREM model of the Earth
 #   Assumes water is a spherical cap on the earth
 #   Uses default values from gSeaGen (https://arxiv.org/abs/2003.14040)
-#   depth: 2475 m, height: 659.862 m, radius: 309.450 m
+#   depth: 2475 m, height: 220 m, radius: 120 m
 
 object sphere    0 0 0   0 0 0    6478000    atmo_radius           AIR         radial_polynomial 0 0 0    1    0.000811   # 0.673atm x 1.205e-3(g/cm3 for 1atm)
 object sphere    0 0 0   0 0 0    6373799    waterair_boundary     WATER       radial_polynomial 0 0 0    1    1.04       # surface of water,
@@ -23,10 +23,10 @@ object sphere    0 0 0   0 0 0    3480000    coremantle_boundary   OUTERCORE   r
 object sphere    0 0 0   0 0 0    1221500    innercore_boundary    INNERCORE   radial_polynomial 0 0 0    3    13.0885   0   -2.17742748697875934e-13
 
 # ORCA detector: cylinder of water
-object cylinder  0 0 6374129  0 0 0  309.45 0 659.86  orca        WATER        radial_polynomial 0 0 0    1    1.04  # same as water
+object cylinder  0 0 6371434  0 0 0  120 0 220  orca        WATER        radial_polynomial 0 0 0    1    1.04  # same as water
 
 # center of detector at ORCA
-detector      0 0 6374129
+detector      0 0 6371434
 
 # Fiducial volume
-fiducial cylinder    0 0 0     0 0 0    309.45 0 659.86
+fiducial cylinder    0 0 0     0 0 0    120 0 220

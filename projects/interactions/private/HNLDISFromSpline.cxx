@@ -345,8 +345,10 @@ double HNLDISFromSpline::DifferentialCrossSection(siren::dataclasses::Particle::
 }
 
 double HNLDISFromSpline::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
-    // Consider implementing HNL thershold at some point
-    return 0;
+    // Using center of mass frame
+    // See
+    double M_iso = siren::utilities::Constants::isoscalarMass;
+    return (std::pow(hnl_mass_ + M_iso,2) - M_iso*M_iso)/(2*M_iso);
 }
 
 void HNLDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {

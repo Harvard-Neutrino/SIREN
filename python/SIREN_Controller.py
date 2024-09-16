@@ -537,7 +537,8 @@ class SIREN_Controller:
             "event_weight_time":[], # weight calculation time of each event
             "event_global_time":[], # global time of each event
             "num_interactions":[], # number of interactions per event
-            "vertex":[], # vertex of each interaction in an event
+            "vertex":[], # vertex of each interaction of an event
+            "primary_initial_position":[], # initial position of primary in each interaction of an event
             "in_fiducial":[], # whether or not each vertex is in the fiducial volume
             "primary_type":[], # primary type of each interaction
             "target_type":[], # target type of each interaction
@@ -546,6 +547,7 @@ class SIREN_Controller:
             "primary_momentum":[], # primary momentum of each interaction
             "secondary_momenta":[], # secondary momentum of each interaction
             "parent_idx":[], # index of the parent interaction
+            "num_daughters":[], # number of daughter interactions
         }
         if save_int_probs: datasets["int_probs"] = []
         for ie, event in enumerate(self.events):
@@ -559,6 +561,7 @@ class SIREN_Controller:
             datasets["event_global_time"].append(self.global_times[ie])
             # add empty lists for each per interaction dataset
             for k in ["vertex",
+                      "primary_initial_position",
                       "in_fiducial",
                       "primary_type",
                       "target_type",
@@ -566,7 +569,8 @@ class SIREN_Controller:
                       "secondary_types",
                       "primary_momentum",
                       "secondary_momenta",
-                      "parent_idx"]:
+                      "parent_idx",
+                      "num_daughters"]:
                 datasets[k].append([])
             # loop over interactions
             for id, datum in enumerate(event.tree):
@@ -575,10 +579,12 @@ class SIREN_Controller:
                         if ie==0: datasets[param_name] = []
                         datasets[param_name].append(param_value)
                 datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
+                datasets["primary_initial_position"][-1].append(np.array(datum.record.primary_initial_position,dtype=float))
 
                  # primary particle stuff
                 datasets["primary_type"][-1].append(int(datum.record.signature.primary_type))
                 datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
+                datasets["num_daughters"][-1].append(len(datum.daughters))
 
                 # check parent idx; match on secondary momenta
                 if datum.depth()==0:
