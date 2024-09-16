@@ -667,14 +667,6 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
     return os.path.join(model_dir, found_model_subfolder)
 
 
-def get_detector_model_file_path(model_name, must_exist=True):
-    return _get_model_path(model_name, prefix="detectors/densities", suffix=".dat", is_file=True, must_exist=must_exist)
-
-
-def get_material_model_file_path(model_name, must_exist=True):
-    return _get_model_path(model_name, prefix="detectors/materials", suffix=".dat", is_file=True, must_exist=must_exist)
-
-
 _resource_folder_by_name = {
     "flux": "fluxes",
     "detector": "detectors",
@@ -815,6 +807,8 @@ def detector_docs(detector_name):
                     new_lines.append(l)
                 else:
                     break
+            if len(new_lines) > 0:
+                lines.append(f"Detector definition: {densities_fname}")
             lines.extend(new_lines)
 
     if os.path.isfile(materials_fname):
@@ -828,11 +822,12 @@ def detector_docs(detector_name):
                     break
             if len(lines) > 0 and len(new_lines) > 0:
                 lines.append("")
+                lines.append(f"Material definitions: {materials_fname}")
             lines.extend(new_lines)
 
     doc = "\n".join(lines)
 
-    if len(doc) == 0:
+    if len(lines) == 0:
         raise ValueError(f"Could not find documentation for detector {detector_name}")
 
     return doc
