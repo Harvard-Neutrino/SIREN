@@ -724,14 +724,9 @@ def load_flux(model_name, *args, **kwargs):
     return load_resource("flux", model_name, *args, **kwargs)
 
 
-def load_detector(model_name, *args, **kwargs):
-    resource = load_resource("flux", model_name, *args, **kwargs)
-    if resource is not None:
-        return resource
-
-    resource_type = "detector"
+def _detector_file_loader(model_name):
     resource_name = model_name
-    folder = _resource_folder_by_name[resource_type]
+    folder = _resource_folder_by_name["detector"]
 
     abs_dir = _get_model_path(resource_name, prefix=folder, is_file=False, must_exist=True, specific_file=None)
 
@@ -746,6 +741,13 @@ def load_detector(model_name, *args, **kwargs):
         return detector_model
 
     raise ValueError("Could not find detector loading script \"{script_fname}\" or densities and materials files \"{densities_fname}\", \"materials_fname\"")
+
+
+def load_detector(model_name, *args, **kwargs):
+    resource = load_resource("flux", model_name, *args, **kwargs)
+    if resource is not None:
+        return resource
+    return _detector_file_loader
 
 
 def load_processes(model_name, *args, **kwargs):
@@ -853,3 +855,21 @@ def detector_help(detector_name):
 def process_help(process_name):
     doc = process_docs(process_name)
     pydoc.pager(doc)
+
+def _get_process_loader(process_name):
+    return get_resource_loader("processes", process_name)
+
+def _get_flux_loader(flux_name):
+    return get_resource_loader("flux", flux_name)
+
+def _get_detector_loader(detector_name):
+    loader = get_resource_loader("detector", detector_name)
+    if loader is not None:
+        return loader
+
+    def load_detector():
+        return _detector_file_loader(detector_name)
+
+    load_detector.__doc__ = detector_docs(detector_name)
+
+    return load_detector

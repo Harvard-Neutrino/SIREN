@@ -10,6 +10,7 @@ from . import injection
 from . import _util
 from . import Injector
 from . import Weighter
+from . import resources
 
 # Intropspect package version
 import sys
