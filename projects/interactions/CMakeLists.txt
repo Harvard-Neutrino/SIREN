@@ -14,6 +14,7 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDISFromSpline.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDipoleDISFromSpline.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLTwoBodyDecay.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElectroweakDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElasticScattering.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx

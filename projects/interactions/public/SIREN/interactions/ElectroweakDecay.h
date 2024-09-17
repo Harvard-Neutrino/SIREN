@@ -26,6 +26,8 @@
 
 #include "SIREN/interactions/Decay.h"
 
+#include "SIREN/utilities/Constants.h"
+
 #include <CRunDec3.1/CRunDec.h>
 
 namespace siren {
@@ -34,7 +36,9 @@ namespace interactions {
 class ElectroweakDecay : public Decay {
 friend cereal::access;
 protected:
-ElectroweakDecay() {};
+    ElectroweakDecay() {SetCKMMap();};
+    void SetCKMMap();
+    double ZDecayWidth(double& cL, double& cR) const;
 private:
     const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::WPlus,
                                                                       siren::dataclasses::ParticleType::WMinus,
@@ -64,9 +68,13 @@ private:
                                                                       siren::dataclasses::ParticleType::sBar,
                                                                       siren::dataclasses::ParticleType::bBar};
 
+    std::map<std::pair<siren::dataclasses::Particle::ParticleType,siren::dataclasses::Particle::ParticleType>,double> V_CKM;
+    double GammaW = std::pow(siren::utilities::Constants::gweak,2) * siren::utilities::Constants::wMass / (48 * siren::utilities::Constants::pi);
+
+
 
 public:
-    ElectroweakDecay(std::set<siren::dataclasses::ParticleType> const & primary_types) :  primary_types(primary_types) {};
+    ElectroweakDecay(std::set<siren::dataclasses::ParticleType> const & primary_types) :  primary_types(primary_types) {SetCKMMap();};
     virtual bool equal(Decay const & other) const override;
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
@@ -76,12 +84,6 @@ public:
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::ParticleType primary) const override;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
-    double DeltaQCD(int nloops=5) const;
-    double GetAlpha(dataclasses::ParticleType const & secondary) const;
-    double GetMass(dataclasses::ParticleType const & secondary) const;
-    void SetGammaHadrons(double Gamma, std::string mode);
-    double CCMesonDecayWidth(dataclasses::InteractionRecord const &) const;
-    double NCMesonDecayWidth(dataclasses::InteractionRecord const &) const;
 public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
