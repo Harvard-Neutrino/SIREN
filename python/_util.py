@@ -621,15 +621,22 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
 
     if not must_exist and not folder_exists:
         if version is None:
-            version = "v1"
+            model_dir = os.path.join(model_dir, f"{found_model_name}-v1")
+        else:
+            model_dir = os.path.join(model_dir, f"{found_model_name}-v{version}")
 
-        model_dir = os.path.join(model_dir, f"{found_model_name}-v{version}")
         return model_dir
 
+    top_level_has_specific_file = specific_file is not None and os.path.isfile(os.path.join(model_dir, specific_file))
+
+    if version is None and top_level_has_specific_file:
+        return model_dir
 
     model_subfolders = _get_model_subfolders(model_dir, model_regex)
 
     if len(model_subfolders) == 0:
+        if top_level_has_specific_file:
+            return model_dir
         if must_exist:
             raise ValueError(f"No model folders found for {model_search_name}\nSearched in {model_dir}")
         else:
@@ -652,8 +659,6 @@ def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exi
         return model_dir
     elif len(matching_models) > 1:
         raise ValueError(f"Multiple directories found for {model_search_name} with version {version}\nSearched in {model_dir}")
-
-    top_level_has_specific_file = specific_file is not None and os.path.isfile(os.path.join(model_dir, specific_file))
 
     if top_level_has_specific_file:
         return model_dir
