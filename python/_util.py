@@ -526,44 +526,6 @@ def _get_model_file_name(version, model_versions, model_files, model_name, suffi
             else:
                 return f"{model_name}-v{version}{suffix}"
 
-def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exist=True, specific_file=None):
-    model_regex = re.compile(
-        r"^\s*" + _MODEL_PATTERN + ("" if suffix is None else r"(?:" + suffix + r")?") + r"\s*$",
-        re.VERBOSE | re.IGNORECASE,
-    )
-    suffix = "" if suffix is None else suffix
-
-    resources_dir = resource_package_dir()
-    base_dir = _get_base_directory(resources_dir, prefix)
-
-    d = model_regex.match(model_name)
-    if d is None:
-        raise ValueError(f"Invalid model name: {model_name}")
-    d = d.groupdict()
-    model_name, version = d["model_name"], d["version"]
-
-    model_name, folder_exists, specific_file_path = _find_model_folder_and_file(base_dir, model_name, must_exist, specific_file)
-
-    if specific_file_path and not version:
-        return os.path.dirname(specific_file_path)
-
-    model_files = _get_model_files(base_dir, model_name, is_file, folder_exists, version)
-    model_versions = _extract_model_versions(model_files, model_regex, model_name)
-
-    if len(model_versions) == 0 and must_exist:
-        if specific_file_path:
-            return os.path.dirname(specific_file_path)
-        raise ValueError(f"No model found for {model_name}\nSearched in {os.path.join(base_dir, model_name)}")
-
-    model_file_name = _get_model_file_name(version, model_versions, model_files, model_name, suffix, must_exist)
-
-    if version:
-        version_dir = os.path.join(base_dir, model_name, f"v{version}")
-        if os.path.isdir(version_dir):
-            return os.path.join(version_dir, model_file_name)
-
-    return os.path.join(base_dir, model_name, model_file_name)
-
 
 def _get_model_folder(base_dir, model_name, must_exist):
     model_names = [
@@ -741,10 +703,10 @@ def _detector_file_loader(model_name):
 
 
 def load_detector(model_name, *args, **kwargs):
-    resource = load_resource("flux", model_name, *args, **kwargs)
+    resource = load_resource("detector", model_name, *args, **kwargs)
     if resource is not None:
         return resource
-    return _detector_file_loader
+    return _detector_file_loader(model_name)
 
 
 def load_processes(model_name, *args, **kwargs):
