@@ -145,10 +145,10 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_property_readonly("secondary_particle_records",
                 [](siren::dataclasses::CrossSectionDistributionRecord & cdr) -> std::vector<siren::dataclasses::SecondaryParticleRecord> & {return cdr.GetSecondaryParticleRecords();},
             py::return_value_policy::reference_internal)
-        .def("get_econdary_particle_record",
+        .def("get_secondary_particle_record",
                 [](siren::dataclasses::CrossSectionDistributionRecord & cdr, size_t i) -> siren::dataclasses::SecondaryParticleRecord & {return cdr.GetSecondaryParticleRecord(i);},
                 py::return_value_policy::reference_internal)
-        .def("get_econdary_particle_records",
+        .def("get_secondary_particle_records",
                 [](siren::dataclasses::CrossSectionDistributionRecord & cdr) -> std::vector<siren::dataclasses::SecondaryParticleRecord> & {return cdr.GetSecondaryParticleRecords();},
                 py::return_value_policy::reference_internal)
         .def("finalize", &CrossSectionDistributionRecord::Finalize)
