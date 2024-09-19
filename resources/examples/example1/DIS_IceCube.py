@@ -1,71 +1,69 @@
 import os
-
 import siren
-from siren.SIREN_Controller import SIREN_Controller
+from siren import utilities
 
 # Number of events to inject
 events_to_inject = int(1e5)
 
-# Expeirment to run
+# Experiment to run
 experiment = "IceCube"
-
-# Define the controller
-controller = SIREN_Controller(events_to_inject, experiment)
+detector_model = utilities.load_detector(experiment)
 
 # Particle to inject
 primary_type = siren.dataclasses.Particle.ParticleType.NuMu
 
+# Cross-section model to use
 cross_section_model = "CSMSDISSplines"
 
-xsfiledir = siren.utilities.get_cross_section_model_path(cross_section_model)
-
-# Cross Section Model
-target_type = siren.dataclasses.Particle.ParticleType.Nucleon
-
-DIS_xs = siren.interactions.DISFromSpline(
-    os.path.join(xsfiledir, "dsdxdy_nu_CC_iso.fits"),
-    os.path.join(xsfiledir, "sigma_nu_CC_iso.fits"),
-    [primary_type],
-    [target_type], "m"
+# Load the cross-section model
+primary_processes, _ = utilities.load_processes(
+    cross_section_model,
+    primary_types=[primary_type],
+    target_types=[siren.dataclasses.Particle.ParticleType.Nucleon],
+    isoscalar=True,
+    process_types=["CC"]
 )
 
-primary_xs = siren.interactions.InteractionCollection(primary_type, [DIS_xs])
-controller.SetInteractions(primary_xs)
+# Extract the primary cross-sections for the primary type
+primary_cross_sections = primary_processes[primary_type]
 
-# Primary distributions
-primary_injection_distributions = {}
-primary_physical_distributions = {}
+# Set up the Injector
+injector = siren.injection.Injector()
+injector.number_of_events = events_to_inject
+injector.detector_model = detector_model
+injector.primary_type = primary_type
+injector.primary_interactions = primary_cross_sections
 
-mass_dist = siren.distributions.PrimaryMass(0)
-primary_injection_distributions["mass"] = mass_dist
-primary_physical_distributions["mass"] = mass_dist
+# Directly set the distributions
+injector.primary_injection_distributions = [
+    siren.distributions.PrimaryMass(0),  # Mass distribution
+    siren.distributions.PowerLaw(2, 1e3, 1e6),  # Energy distribution
+    siren.distributions.IsotropicDirection(),  # Direction distribution
+    siren.distributions.ColumnDepthPositionDistribution(600, 600.0, siren.distributions.LeptonDepthFunction())  # Position distribution
+]
 
-# energy distribution
-edist = siren.distributions.PowerLaw(2, 1e3, 1e6)
-primary_injection_distributions["energy"] = edist
-primary_physical_distributions["energy"] = edist
+# Generate events
+event = injector.generate_event()
 
-# direction distribution
-direction_distribution = siren.distributions.IsotropicDirection()
-primary_injection_distributions["direction"] = direction_distribution
-primary_physical_distributions["direction"] = direction_distribution
+# Set up the Weighter for event weighting (without position distribution)
+weighter = siren.injection.Weighter()
+weighter.injectors = [injector]
+weighter.detector_model = detector_model
+weighter.primary_type = primary_type
+weighter.primary_interactions = primary_cross_sections
+weighter.primary_physical_distributions = [
+    siren.distributions.PowerLaw(2, 1e3, 1e6),  # Energy distribution
+    siren.distributions.IsotropicDirection()  # Direction distribution
+]
 
-# position distribution
-muon_range_func = siren.distributions.LeptonDepthFunction()
-position_distribution = siren.distributions.ColumnDepthPositionDistribution(
-    600, 600.0, muon_range_func, set(controller.GetDetectorModelTargets()[0])
-)
-primary_injection_distributions["position"] = position_distribution
+# Compute weight
+weight = weighter(event)
 
-# SetProcesses
-controller.SetProcesses(
-    primary_type, primary_injection_distributions, primary_physical_distributions
-)
-
-controller.Initialize()
-
-events = controller.GenerateEvents()
-
+# Output events and weights
 os.makedirs("output", exist_ok=True)
+print(str(event))
+print(f"Event weight: {weight}")
 
-controller.SaveEvents("output/IceCube_DIS")
+# Save events
+# injector.SaveEvents("output/IceCube_DIS")
+
