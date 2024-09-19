@@ -64,7 +64,6 @@ weighter.primary_interactions = primary_processes[primary_type]
 weighter.primary_physical_distributions = [
     edist,
     direction_distribution,
-    position_distribution
 ]
 
 # Compute weight
