@@ -69,6 +69,7 @@ include(CFITSIO)
 include(photospline)
 include(googletest)
 include(NamedType)
+include(MARLEY)
 
 # load macros for googletest
 include(testing)
