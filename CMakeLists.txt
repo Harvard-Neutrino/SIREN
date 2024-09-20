@@ -149,6 +149,7 @@ include(NamedType)
 if(TARGET NamedType)
     apply_siren_compile_options(NamedType)
 endif()
+include(MARLEY)
 
 # load macros for googletest
 include(testing)
