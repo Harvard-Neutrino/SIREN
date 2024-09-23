@@ -48,6 +48,33 @@ void ElectroweakDecay::SetCKMMap() {
                        siren::dataclasses::Particle::ParticleType::b)] = siren::utilities::Constants::Vtb;
 }
 
+void ElectroweakDecay::SetSecondaryMassMap() {
+  secondary_masses[siren::dataclasses::ParticleType::NuE] = siren::utilities::Constants::nuEMass;
+  secondary_masses[siren::dataclasses::ParticleType::NuMu] = siren::utilities::Constants::nuMuMass;
+  secondary_masses[siren::dataclasses::ParticleType::NuTau] = siren::utilities::Constants::nuTauMass;
+  secondary_masses[siren::dataclasses::ParticleType::NuEBar] = siren::utilities::Constants::nuEMass;
+  secondary_masses[siren::dataclasses::ParticleType::NuMuBar] = siren::utilities::Constants::nuMuMass;
+  secondary_masses[siren::dataclasses::ParticleType::NuTauBar] = siren::utilities::Constants::nuTauMass;
+  secondary_masses[siren::dataclasses::ParticleType::EMinus] = siren::utilities::Constants::electronMass;
+  secondary_masses[siren::dataclasses::ParticleType::MuMinus] = siren::utilities::Constants::muonMass;
+  secondary_masses[siren::dataclasses::ParticleType::TauMinus] = siren::utilities::Constants::tauMass;
+  secondary_masses[siren::dataclasses::ParticleType::EPlus] = siren::utilities::Constants::electronMass;
+  secondary_masses[siren::dataclasses::ParticleType::MuPlus] = siren::utilities::Constants::muonMass;
+  secondary_masses[siren::dataclasses::ParticleType::TauPlus] = siren::utilities::Constants::tauMass;
+  secondary_masses[siren::dataclasses::ParticleType::u] = siren::utilities::Constants::upMass;
+  secondary_masses[siren::dataclasses::ParticleType::c] = siren::utilities::Constants::charmMass;
+  secondary_masses[siren::dataclasses::ParticleType::t] = siren::utilities::Constants::topMass;
+  secondary_masses[siren::dataclasses::ParticleType::uBar] = siren::utilities::Constants::upMass;
+  secondary_masses[siren::dataclasses::ParticleType::cBar] = siren::utilities::Constants::charmMass;
+  secondary_masses[siren::dataclasses::ParticleType::tBar] = siren::utilities::Constants::topMass;
+  secondary_masses[siren::dataclasses::ParticleType::d] = siren::utilities::Constants::downMass;
+  secondary_masses[siren::dataclasses::ParticleType::s] = siren::utilities::Constants::strangeMass;
+  secondary_masses[siren::dataclasses::ParticleType::b] = siren::utilities::Constants::bottomMass;
+  secondary_masses[siren::dataclasses::ParticleType::dBar] = siren::utilities::Constants::downMass;
+  secondary_masses[siren::dataclasses::ParticleType::sBar] = siren::utilities::Constants::strangeMass;
+  secondary_masses[siren::dataclasses::ParticleType::bBar] = siren::utilities::Constants::bottomMass;
+}
+
 bool ElectroweakDecay::equal(Decay const & other) const {
     const ElectroweakDecay* x = dynamic_cast<const ElectroweakDecay*>(&other);
 
@@ -74,6 +101,10 @@ double ElectroweakDecay::TotalDecayWidth(siren::dataclasses::ParticleType primar
 }
 
 double ElectroweakDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
+    double m1 = secondary_masses.at(record.signature.secondary_types[0]);
+    double m2 = secondary_masses.at(record.signature.secondary_types[1]);
+    if (m1+m2>=record.primary_mass) return 0;
+
     if (record.signature.primary_type == siren::dataclasses::ParticleType::WMinus) {
         for(auto l : Leptons) {
           for(auto nubar : AntiNus) {
@@ -148,12 +179,57 @@ std::vector<std::string> ElectroweakDecay::DensityVariables() const {
     return std::vector<std::string>{"CosTheta"};
 }
 
-double ElectroweakDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const &) const {
+double ElectroweakDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
+    // For now assume isotropic
+    // dGamma / dCosTheta = Gamma/2
+    return 1./2.*TotalDecayWidthForFinalState(record);
 
 }
 
-void ElectroweakDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const {
+void ElectroweakDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
 
+    double mX = secondary_masses.at(record.signature.secondary_types[0]);
+    double mY = secondary_masses.at(record.signature.secondary_types[1]);
+
+    // For now assume isotropic
+    // this is not true for polarized W
+    double CosTheta = random->Uniform(-1,1);
+    double SinTheta = std::sin(std::acos(CosTheta));
+
+    rk::P4 pBoson(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+    rk::Boost boost_to_lab = pBoson.labBoost();
+
+    geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
+    geom3::Vector3 pBoson_mom = pBoson.momentum();
+    geom3::UnitVector3 pBoson_dir = pBoson_mom.direction();
+    geom3::Rotation3 x_to_pBoson_rot = geom3::rotationBetween(x_dir, pBoson_dir);
+
+    double phi = random->Uniform(0, 2.0 * M_PI);
+    geom3::Rotation3 rand_rot(pBoson_dir, phi);
+
+    double M = record.primary_mass;
+    double EX_Bosonrest = (M*M - mY*mY + mX*mX)/(2*M);
+    double X_mom_Bosonrest = sqrt(EX_Bosonrest*EX_Bosonrest - mX*mX);
+    //double EY = (M*M - mX*mX + mY*mY)/(2*M);
+
+    rk::P4 pX_Bosonrest(X_mom_Bosonrest*geom3::Vector3(CosTheta,SinTheta,0),mX);
+    pX_Bosonrest.rotate(x_to_pBoson_rot);
+    pX_Bosonrest.rotate(rand_rot);
+
+    rk::P4 pX = pX_Bosonrest.boost(boost_to_lab);
+    rk::P4 pY = pBoson - pX;
+    assert(abs(pY.m()-mY)<1e-6);
+
+    siren::dataclasses::SecondaryParticleRecord & X = record.GetSecondaryParticleRecord(0);
+    siren::dataclasses::SecondaryParticleRecord & Y = record.GetSecondaryParticleRecord(1);
+
+    X.SetFourMomentum({pX.e(), pX.px(), pX.py(), pX.pz()});
+    X.SetMass(pX.m());
+    X.SetHelicity(std::copysign(1.0, record.primary_helicity)); // TODO: treat helicity correctly
+
+    Y.SetFourMomentum({pY.e(), pY.px(), pY.py(), pY.pz()});
+    Y.SetMass(pY.m());
+    Y.SetHelicity(std::copysign(1.0, record.primary_helicity)); // TODO: treat helicity correctly
 }
 
 double ElectroweakDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
