@@ -233,7 +233,11 @@ void ElectroweakDecay::SampleFinalState(dataclasses::CrossSectionDistributionRec
 }
 
 double ElectroweakDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
-
+    double dd = DifferentialDecayWidth(record);
+    double td = TotalDecayWidthForFinalState(record);
+    if (dd == 0) return 0.;
+    else if (td == 0) return 0.;
+    else return dd/td;
 }
 
 
