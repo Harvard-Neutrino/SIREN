@@ -36,8 +36,9 @@ namespace interactions {
 class ElectroweakDecay : public Decay {
 friend cereal::access;
 protected:
-    ElectroweakDecay() {SetCKMMap();};
+    ElectroweakDecay() {SetCKMMap(); SetSecondaryMassMap();};
     void SetCKMMap();
+    void SetSecondaryMassMap();
     double ZDecayWidth(double& cL, double& cR) const;
 private:
     const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::WPlus,
@@ -56,11 +57,9 @@ private:
                                                                       siren::dataclasses::ParticleType::MuPlus,
                                                                       siren::dataclasses::ParticleType::TauPlus};
     std::vector<siren::dataclasses::ParticleType> UpQuarks =         {siren::dataclasses::ParticleType::u,
-                                                                      siren::dataclasses::ParticleType::c,
-                                                                      siren::dataclasses::ParticleType::t};
+                                                                      siren::dataclasses::ParticleType::c};
     std::vector<siren::dataclasses::ParticleType> UpAntiQuarks =     {siren::dataclasses::ParticleType::uBar,
-                                                                      siren::dataclasses::ParticleType::cBar,
-                                                                      siren::dataclasses::ParticleType::tBar};
+                                                                      siren::dataclasses::ParticleType::cBar};
     std::vector<siren::dataclasses::ParticleType> DownQuarks =       {siren::dataclasses::ParticleType::d,
                                                                       siren::dataclasses::ParticleType::s,
                                                                       siren::dataclasses::ParticleType::b};
@@ -69,12 +68,13 @@ private:
                                                                       siren::dataclasses::ParticleType::bBar};
 
     std::map<std::pair<siren::dataclasses::Particle::ParticleType,siren::dataclasses::Particle::ParticleType>,double> V_CKM;
+    std::map<siren::dataclasses::Particle::ParticleType,double> secondary_masses;
     double GammaW = std::pow(siren::utilities::Constants::gweak,2) * siren::utilities::Constants::wMass / (48 * siren::utilities::Constants::pi);
 
 
 
 public:
-    ElectroweakDecay(std::set<siren::dataclasses::ParticleType> const & primary_types) :  primary_types(primary_types) {SetCKMMap();};
+    ElectroweakDecay(std::set<siren::dataclasses::ParticleType> const & primary_types) :  primary_types(primary_types) {SetCKMMap(); SetSecondaryMassMap();};
     virtual bool equal(Decay const & other) const override;
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
