@@ -1,9 +1,12 @@
 #include "SIREN/interactions/MarleyCrossSection.h"
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/Particle.h"
+#include "SIREN/utilities/Constants.h"
+#include "SIREN/detector/MaterialModel.h"
+
 #include "marley/Generator.hh"  // MARLEY generator
 #include "marley/JSON.hh"  // For handling MARLEY JSON configuration
-
+#include "marley/JSONConfig.hh"
 
 namespace siren {
 namespace interactions {
@@ -19,15 +22,15 @@ void MarleyCrossSection::InitializeMarley(const std::string& marley_config) {
     marley_generator_ = config.create_generator();
     marley_config_ = marley_config;
 
-    std::vector<std::unique_ptr<marley::Reaction>> & reactions = marley_generator_.get_reactions();
+    std::vector<std::unique_ptr<marley::Reaction>> const & reactions = marley_generator_.get_reactions();
 
     has_nu_cc = false;
     has_nubar_cc = false;
     has_nc = false;
     has_elastic = false;
 
-    for(std::unique_ptr<Reaction> & reaction : reactions) {
-        marley::Reaction::ProcessType process = reactions->process_type();
+    for(std::unique_ptr<marley::Reaction> const & reaction : reactions) {
+        marley::Reaction::ProcessType process = reaction->process_type();
         switch (process) {
             case marley::Reaction::ProcessType::NeutrinoCC:
                 has_nu_cc = true;
@@ -55,14 +58,99 @@ double MarleyCrossSection::TotalCrossSection(siren::dataclasses::InteractionReco
     double px = record.primary_momentum[1];  // x component of the primary particle momentum
     double py = record.primary_momentum[2];  // y component of the primary particle momentum
     double pz = record.primary_momentum[3];  // z component of the primary particle momentum
-
-    int pdg_a = record.signature.primary_type;  // PDG code of the primary particle
+    int pdg_a = static_cast<int32_t>(record.signature.primary_type); // PDG code of the primary particle
     double KEa = std::sqrt(px*px + py*py + pz*pz);  // Kinetic energy of the primary particle
-    int pdg_atom = record.signature.target_type;  // PDG code of the target atom
-
+    int pdg_atom = static_cast<int32_t>(record.signature.target_type);  // PDG code of the target atom
     double KEa_MeV = KEa * 1e3;  // Convert kinetic energy to MeV
 
-    double total_xs_in_MeV2 = marley_generator_.total_xs(pdg_a, KEa, pdg_atom); //in MeV^(-2)
+    std::vector<std::unique_ptr<marley::Reaction>> const & reactions = marley_generator_.get_reactions();
+    std::vector<marley::Reaction const *> the_reactions;
+
+    marley::Reaction::ProcessType desired_process_type;
+
+    size_t lepton_index;
+
+    if(isLepton(record.signature.secondary_types[0])) {
+        lepton_index = 0;
+    } else {
+        lepton_index = 1;
+    }
+
+    siren::dataclasses::ParticleType lepton_type = record.signature.secondary_types[lepton_index];
+
+    if(isNeutrino(lepton_type)) {
+        // NC or elastic
+        siren::dataclasses::ParticleType target_type = record.signature.target_type;
+        if(target_type == siren::dataclasses::ParticleType::EMinus) {
+            desired_process_type = marley::Reaction::ProcessType::NuElectronElastic;
+        } else {
+            desired_process_type = marley::Reaction::ProcessType::NC;
+        }
+    } else {
+        // CC
+        siren::dataclasses::ParticleType primary_type = record.signature.primary_type;
+        int32_t primary_pdg_code = static_cast<int32_t>(primary_type);
+        if(primary_pdg_code > 0) {
+            desired_process_type = marley::Reaction::ProcessType::NeutrinoCC;
+        } else {
+            desired_process_type = marley::Reaction::ProcessType::AntiNeutrinoCC;
+        }
+    }
+
+    for(std::unique_ptr<marley::Reaction> const & reaction : reactions) {
+        marley::Reaction::ProcessType process = reaction->process_type();
+        // Skip reactions which involve a different target atom
+        if(pdg_atom != reaction->atomic_target().pdg())
+            continue;
+        // Skip reactions which involve a different projectile
+        if(pdg_a != reaction->pdg_a())
+            continue;
+        // Skip reactions which involve a different final state (determined by the process type)
+        if(process != desired_process_type)
+            continue;
+        the_reactions.push_back(reaction.get());
+    }
+
+    double total_xs_in_MeV2 = 0.0;
+
+    for(marley::Reaction const * reaction : the_reactions) {
+        total_xs_in_MeV2 += reaction->total_xs(pdg_a, KEa_MeV); //in MeV^(-2)
+    }
+
+    double conversion_factor = 3.893793721718594e-22;  // MeV^(-2) to cm^2
+    double total_xs_in_cm2 = total_xs_in_MeV2 * conversion_factor;  // in cm^2
+    return total_xs_in_cm2;
+}
+
+double MarleyCrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const {
+
+    double px = record.primary_momentum[1];  // x component of the primary particle momentum
+    double py = record.primary_momentum[2];  // y component of the primary particle momentum
+    double pz = record.primary_momentum[3];  // z component of the primary particle momentum
+    int pdg_a = static_cast<int32_t>(record.signature.primary_type); // PDG code of the primary particle
+    double KEa = std::sqrt(px*px + py*py + pz*pz);  // Kinetic energy of the primary particle
+    int pdg_atom = static_cast<int32_t>(record.signature.target_type);  // PDG code of the target atom
+    double KEa_MeV = KEa * 1e3;  // Convert kinetic energy to MeV
+
+    std::vector<std::unique_ptr<marley::Reaction>> const & reactions = marley_generator_.get_reactions();
+    std::vector<marley::Reaction const *> the_reactions;
+
+    for(std::unique_ptr<marley::Reaction> const & reaction : reactions) {
+        marley::Reaction::ProcessType process = reaction->process_type();
+        // Skip reactions which involve a different target atom
+        if(pdg_atom != reaction->atomic_target().pdg())
+            continue;
+        // Skip reactions which involve a different projectile
+        if(pdg_a != reaction->pdg_a())
+            continue;
+        the_reactions.push_back(reaction.get());
+        }
+
+    double total_xs_in_MeV2 = 0.0;
+
+    for(marley::Reaction const * reaction : the_reactions) {
+        total_xs_in_MeV2 += reaction->total_xs(pdg_a, KEa_MeV); //in MeV^(-2)
+    }
 
     double conversion_factor = 3.893793721718594e-22;  // MeV^(-2) to cm^2
     double total_xs_in_cm2 = total_xs_in_MeV2 * conversion_factor;  // in cm^2
@@ -79,7 +167,7 @@ double MarleyCrossSection::InteractionThreshold(dataclasses::InteractionRecord c
 }
 
 void MarleyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord &csdr, std::shared_ptr<siren::utilities::SIREN_random> rand) const {
-    std::vector<SecondaryParticleRecord> & secondary_particles = csdr.GetSecondaryParticleRecords();
+    std::vector<siren::dataclasses::SecondaryParticleRecord> & secondary_particles = csdr.GetSecondaryParticleRecords();
     size_t lepton_index;
 
     if(isLepton(secondary_particles[0].type)) {
@@ -87,7 +175,7 @@ void MarleyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionR
     } else {
         lepton_index = 1;
     }
-    SecondaryParticleRecord & lepton = secondary_particles[lepton_index];
+    siren::dataclasses::SecondaryParticleRecord & lepton = secondary_particles[lepton_index];
     std::array<double,3>lepton_direction = {csdr.primary_momentum[1], csdr.primary_momentum[2], csdr.primary_momentum[3]};
     double norm = std::sqrt(lepton_direction[0]*lepton_direction[0] + lepton_direction[1]*lepton_direction[1] + lepton_direction[2]*lepton_direction[2]);
     lepton_direction[0] /= norm;
@@ -96,8 +184,8 @@ void MarleyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionR
     lepton.SetDirection(lepton_direction);
     lepton.SetEnergy(csdr.primary_momentum[0]);
     double mass = 0.0;
-    if(not isNeutrino(csdr.signature.primary_type)) {
-        int32_t abs_pdg_code = std::abs(static_cast<int32_t>(csdr.signature.primary_type));
+    if(not isNeutrino(lepton.type)) {
+        int32_t abs_pdg_code = std::abs(static_cast<int32_t>(lepton.type));
         switch(abs_pdg_code) {
             case 11:
                 mass = siren::utilities::Constants::electronMass;
@@ -118,7 +206,7 @@ void MarleyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionR
     double molar_mass = siren::detector::MaterialModel::GetMolarMass(csdr.signature.target_type);
     double target_mass = molar_mass * siren::utilities::Constants::GeV_per_amu;
 
-    SecondaryParticleRecord & nucleus = secondary_particles[1 - lepton_index];
+    siren::dataclasses::SecondaryParticleRecord & nucleus = secondary_particles[1 - lepton_index];
     std::array<double,3> nucleus_direction = {-lepton_direction[0], -lepton_direction[1], -lepton_direction[2]};
     nucleus.SetDirection(nucleus_direction);
     double nucleus_energy = csdr.primary_momentum[0] - lepton.GetEnergy();
@@ -129,8 +217,13 @@ void MarleyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionR
 
 
 
-bool MarleyCrossSection::equal(MarleyCrossSection const & other) const {
-    return marley_config_ == other.marley_config_;
+bool MarleyCrossSection::equal(CrossSection const & other) const {
+    const MarleyCrossSection* x = dynamic_cast<const MarleyCrossSection*>(&other);
+
+    if(!x)
+        return false;
+    else
+        return marley_config_ == x->marley_config_;
 }
 
 std::vector<siren::dataclasses::ParticleType> MarleyCrossSection::GetPossibleTargets() const {
@@ -183,7 +276,7 @@ std::vector<dataclasses::InteractionSignature> MarleyCrossSection::GetPossibleSi
         dataclasses::InteractionSignature cc_interaction_positron;
         cc_interaction_positron.primary_type = siren::dataclasses::ParticleType::NuEBar;
         cc_interaction_positron.target_type = siren::dataclasses::ParticleType::Ar40Nucleus;
-        cc_interaction_positron.secondary_types = {siren::dataclasses::ParticleType::EPlus, static_cast<int>(siren::dataclasses::ParticleType::1000170390)};
+        cc_interaction_positron.secondary_types = {siren::dataclasses::ParticleType::EPlus, static_cast<siren::dataclasses::ParticleType>(1000170390)};
         for(size_t i=0; i<3; ++i) {
             signatures.push_back(cc_interaction_positron);
             cc_interaction_positron.primary_type = static_cast<siren::dataclasses::ParticleType>(static_cast<int32_t>(cc_interaction_positron.primary_type) - 2);
