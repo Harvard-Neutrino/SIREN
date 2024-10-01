@@ -20,6 +20,8 @@
 #include "SIREN/interactions/Interaction.h" // for Interaction
 #include "SIREN/interactions/CrossSection.h"
 
+#include "marley/Generator.hh"
+
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
 namespace siren { namespace dataclasses { struct InteractionSignature; } }
@@ -43,7 +45,7 @@ private:
 public:
     MarleyCrossSection(const std::string& marley_config);
     virtual ~MarleyCrossSection() {};
-    virtual bool equal(MarleyCrossSection const & other) const override;
+    virtual bool equal(CrossSection const & other) const override;
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     virtual double TotalCrossSectionAllFinalStates(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
@@ -54,14 +56,29 @@ public:
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override;
     virtual std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const override;
     virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
-
     virtual std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override;
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const override;
-    template<class Archive>
-    void save(Archive & archive, std::uint32_t const version) const {};
-    template<class Archive>
-    void load(Archive & archive, std::uint32_t const version) {};
+    template<typename Archive>
+    void save(Archive & archive, std::uint32_t const version) const {
+        if(version == 0) {
+            archive(::cereal::make_nvp("MarleyConfig", marley_config_));
+            archive(cereal::virtual_base_class<CrossSection>(this));
+        } else {
+            throw std::runtime_error("MarleyCrossSection only supports version <= 0!");
+        }
+    }
+    template<typename Archive>
+    static void load_and_construct(Archive & archive, cereal::construct<MarleyCrossSection> & construct, std::uint32_t const version) {
+        if(version == 0) {
+            std::string marley_config;
+            archive(::cereal::make_nvp("MarleyConfig", marley_config));
+            construct(marley_config);
+            archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
+        } else {
+            throw std::runtime_error("MarleyCrossSection only supports version <= 0!");
+        }
+    }
 }; // class MarleyCrossSection
 
 } // namespace interactions
