@@ -43,7 +43,7 @@ private:
     bool has_elastic;
 
 public:
-    MarleyCrossSection(const std::string& marley_config);
+    MarleyCrossSection(std::string marley_config, std::string search_path);
     virtual ~MarleyCrossSection() {};
     virtual bool equal(CrossSection const & other) const override;
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
@@ -72,8 +72,9 @@ public:
     static void load_and_construct(Archive & archive, cereal::construct<MarleyCrossSection> & construct, std::uint32_t const version) {
         if(version == 0) {
             std::string marley_config;
+            std::string search_path;
             archive(::cereal::make_nvp("MarleyConfig", marley_config));
-            construct(marley_config);
+            construct(marley_config, search_path);
             archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
         } else {
             throw std::runtime_error("MarleyCrossSection only supports version <= 0!");
