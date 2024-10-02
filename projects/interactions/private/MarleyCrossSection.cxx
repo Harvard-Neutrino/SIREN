@@ -12,7 +12,9 @@ namespace siren {
 namespace interactions {
 
 //MarleyCrossSection::MarleyCrossSection() {}
-MarleyCrossSection::MarleyCrossSection(const std::string& marley_config) {
+MarleyCrossSection::MarleyCrossSection(std::string marley_config, std::string search_path) {
+    setenv("MARLEY", "", 0);
+    setenv("MARLEY_SEARCH_PATH", search_path.c_str(), 0);
     InitializeMarley(marley_config);
 }
 
