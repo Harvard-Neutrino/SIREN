@@ -3,7 +3,7 @@ from typing import Tuple, List, Any, Optional
 import siren
 import collections
 
-
+#basepath and search path for marley reaction files
 basepath = os.environ['PREFIX']
 basepath = os.path.join(basepath, 'share/marley')
 default_marley_search_path = ':'.join([
@@ -12,6 +12,7 @@ default_marley_search_path = ':'.join([
     os.path.join(basepath, 'structure')
     ])
 
+#lists of neutrinos and antineutrinos
 neutrinos = [
         siren.dataclasses.Particle.ParticleType.NuE,
         siren.dataclasses.Particle.ParticleType.NuMu,
@@ -23,6 +24,7 @@ antineutrinos = [
         siren.dataclasses.Particle.ParticleType.NuTauBar,
 ]
 
+#list of processes and mapping of reaction files to processes
 processes = ["CC", "CEvNS", "ES"]
 process_by_reaction = {
     "ve40ArCC_Bhattacharya1998.react": "CC",
@@ -32,12 +34,14 @@ process_by_reaction = {
     "ES.react": "ES",
 }
 
+#mapping of processes to primary particles
 primaries_by_process = {
     "CC": [siren.dataclasses.Particle.ParticleType.NuE, siren.dataclasses.Particle.ParticleType.NuEBar],
     "ES": neutrinos + antineutrinos,
     "CEvNS": neutrinos + antineutrinos,
 }
 
+#Get primary particles, setting default to NuE if none are provided, only supports NuE and NuEBar
 def _get_primary_types(primary_types):
     if primary_types is None:
         primary_types = [
@@ -47,13 +51,14 @@ def _get_primary_types(primary_types):
     supported_primaries = [siren.dataclasses.Particle.ParticleType.NuE, siren.dataclasses.Particle.ParticleType.NuEBar]
     for i, p in enumerate(primary_types):
         if p not in supported_primaries:
-            raise ValueError(f"primary_types[{i}] \"{p}\" not supported")
+            raise ValueError(f"primary_types[{i}] \"{p}\" not supported. Allowed primary_types are: {supported_primaries}")
 
     if len(primary_types) == 0:
         print("Warning: len(primary_types) == 0")
 
     return primary_types
 
+#Get process types, setting default to CC, CEvNS, and ES if none are provided
 def _get_process_types(process_types):
     if process_types is None:
         process_types = ["CC", "CEvNS", "ES"]
@@ -67,6 +72,7 @@ def _get_process_types(process_types):
 
     return process_types
 
+#Load processes based on primary particles and process types
 def load_processes(
     primary_types: Optional[List[siren.dataclasses.Particle.ParticleType]] = None,
     process_types: Optional[List[str]] = None,
@@ -94,11 +100,12 @@ def load_processes(
     primary_processes_dict = collections.defaultdict(list)
 
     for reaction_name in reaction_names:
-
+        #Load cross section from marley reaction file
         xs = siren.interactions.MarleyCrossSection(f"{{reactions: [\"{reaction_name}\"]}}", marley_search_path)
         reaction_primary_types = set(primaries_by_process[process_by_reaction[reaction_name]])
         reaction_primary_types = reaction_primary_types & set(primary_types)
 
+        #Add cross section to primary_processes_dict
         for primary_type in reaction_primary_types:
             primary_processes_dict[primary_type].append(xs)
 
