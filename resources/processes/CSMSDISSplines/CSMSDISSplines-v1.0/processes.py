@@ -67,7 +67,7 @@ def _get_process_types(process_types):
 
     for i, p in enumerate(process_types):
         if p not in processes:
-            raise ValueError(f"process_types[{i}] \"{p}\" not supported")
+            raise ValueError(f"process_types[{i}] \"{p}\" not supported. Allowed proccesses are {processes}")
 
     if len(process_types) == 0:
         print("Warning: len(process_types) == 0")
