@@ -6,7 +6,7 @@ import collections
 
 basepath = os.environ['PREFIX']
 basepath = os.path.join(basepath, 'share/marley')
-marley_search_path = ':'.join([
+default_marley_search_path = ':'.join([
     basepath,
     os.path.join(basepath, 'react'),
     os.path.join(basepath, 'structure')
@@ -73,6 +73,9 @@ def load_processes(
     marley_search_path: Optional[str] = None,
     reaction_name: Optional[str] = None,
     ):
+
+    if marley_search_path is None:
+        marley_search_path = default_marley_search_path
 
     primary_types = _get_primary_types(primary_types)
     process_types = _get_process_types(process_types)
