@@ -1,0 +1,25 @@
+# Material model file
+# Detector: SurfaceGeneva
+# Version: v1
+# Date: 2024-07-31
+# Authors: Nicholas Kamp
+# Notes:
+#
+
+SCINTILLATOR 4 # MINERvA Scintillator
+1000010010    0.0760000     # H1 7.6%
+1000060120    0.9220000     # C12 92.2%
+1000070140    0.0006000     # N14 0.06%
+1000080160    0.0008000     # O16 0.07%
+
+WATER 2 # H20
+1000010010    0.1150000     # H1 11.5%
+1000080160    0.8850000     # 016 88.5%
+
+AIR 2       # N2 + O2
+1000070140    0.7562326     # N2 78% in volume
+1000080160    0.2437674     # O2 22% in volume
+
+ROCK  2     # SiO2
+1000140280    0.4674349     # Si, 33%
+1000080160    0.5325651     # 20, 66%
