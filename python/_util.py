@@ -208,7 +208,7 @@ _MODEL_PATTERN = (
     r"""
     (?P<model_name>
         (?:
-            [a-zA-Z0-9]+
+            [a-zA-Z0-9_]+
         )
         |
         (?:
