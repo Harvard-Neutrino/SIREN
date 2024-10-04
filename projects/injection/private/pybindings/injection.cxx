@@ -90,6 +90,7 @@ PYBIND11_MODULE(injection,m) {
     .def("SetDetectorModel",&Injector::SetDetectorModel)
     .def("GetInteractions",&Injector::GetInteractions)
     .def("InjectedEvents",&Injector::InjectedEvents)
+    .def("InjectionAttempts",&Injector::InjectionAttempts)
     .def("EventsToInject",&Injector::EventsToInject)
     .def("ResetInjectedEvents",&Injector::ResetInjectedEvents)
     .def("SaveInjector",&Injector::SaveInjector)
