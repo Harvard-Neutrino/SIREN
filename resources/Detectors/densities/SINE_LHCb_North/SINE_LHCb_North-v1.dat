@@ -11,10 +11,10 @@
 #   surface exit angle: 0.011734558581939947
 
 # Air
-object box       0 -500 0            0 0 0      100000 100000 100000    surr_air           AIR         constant     0.001225
+object box       0 -5000 0            0 0 0      100000 100000 100000    surr_air           AIR         constant     0.001225
 
 # Dirt
-object box       0 -500 0            0 0 0      100000 1000 100000    surr_earth           ROCK         constant    2.700
+object box       0 -5000 0            0 0 0      100000 10000 100000    surr_earth           ROCK         constant    2.700
 
 # Albrecht's proposal
 # 3 tall x 2 wide shipping containers
