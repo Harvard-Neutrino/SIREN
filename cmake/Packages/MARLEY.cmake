@@ -4,7 +4,7 @@
 # or environment variables such as CMAKE_PREFIX_PATH and MARLEY_ROOT.
 
 # Specify the names of the MARLEY targets
-set(MARLEY_TARGETS marley MARLEY)
+set(MARLEY_TARGETS MARLEY)
 
 # Search for the MARLEY installation prefix
 # If MARLEY_ROOT is set, prefer it, otherwise use CMAKE_PREFIX_PATH or default system locations
@@ -67,11 +67,6 @@ foreach(target ${MARLEY_TARGETS})
 endforeach()
 
 # Set properties for the MARLEY targets
-set_target_properties(marley PROPERTIES
-    IMPORTED_LOCATION "${MARLEY_PREFIX}/bin/marley"
-    INTERFACE_INCLUDE_DIRECTORIES "${MARLEY_INCLUDE_DIR}"
-)
-
 set_target_properties(MARLEY PROPERTIES
     IMPORTED_LOCATION "${MARLEY_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${MARLEY_INCLUDE_DIR}"
