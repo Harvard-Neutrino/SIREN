@@ -459,6 +459,10 @@ unsigned int Injector::InjectedEvents() const {
     return injected_events;
 }
 
+unsigned int Injector::InjectionAttempts() const {
+    return injection_attempts;
+}
+
 unsigned int Injector::EventsToInject() const {
     return events_to_inject;
 }
