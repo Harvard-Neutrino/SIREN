@@ -57,11 +57,10 @@ void MarleyCrossSection::InitializeMarley(const std::string& marley_config) {
 
 double MarleyCrossSection::TotalCrossSection(siren::dataclasses::InteractionRecord const & record) const {
 
-    double px = record.primary_momentum[1];  // x component of the primary particle momentum
-    double py = record.primary_momentum[2];  // y component of the primary particle momentum
-    double pz = record.primary_momentum[3];  // z component of the primary particle momentum
+    double energy = record.primary_momentum[0];  // Energy of the primary particle
+    double mass = record.primary_mass;  // Mass of the primary particle
     int pdg_a = static_cast<int32_t>(record.signature.primary_type); // PDG code of the primary particle
-    double KEa = std::sqrt(px*px + py*py + pz*pz);  // Kinetic energy of the primary particle
+    double KEa = std::sqrt(energy*energy - mass*mass);  // Kinetic energy of the primary particle
     int pdg_atom = static_cast<int32_t>(record.signature.target_type);  // PDG code of the target atom
     double KEa_MeV = KEa * 1e3;  // Convert kinetic energy to MeV
 
@@ -126,11 +125,10 @@ double MarleyCrossSection::TotalCrossSection(siren::dataclasses::InteractionReco
 
 double MarleyCrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::InteractionRecord const & record) const {
 
-    double px = record.primary_momentum[1];  // x component of the primary particle momentum
-    double py = record.primary_momentum[2];  // y component of the primary particle momentum
-    double pz = record.primary_momentum[3];  // z component of the primary particle momentum
+    double energy = record.primary_momentum[0];  // Energy of the primary particle
+    double mass = record.primary_mass;  // Mass of the primary particle
     int pdg_a = static_cast<int32_t>(record.signature.primary_type); // PDG code of the primary particle
-    double KEa = std::sqrt(px*px + py*py + pz*pz);  // Kinetic energy of the primary particle
+    double KEa = std::sqrt(energy*energy - mass*mass);  // Kinetic energy of the primary particle
     int pdg_atom = static_cast<int32_t>(record.signature.target_type);  // PDG code of the target atom
     double KEa_MeV = KEa * 1e3;  // Convert kinetic energy to MeV
 
@@ -139,6 +137,7 @@ double MarleyCrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::I
 
     for(std::unique_ptr<marley::Reaction> const & reaction : reactions) {
         marley::Reaction::ProcessType process = reaction->process_type();
+
         // Skip reactions which involve a different target atom
         if(pdg_atom != reaction->atomic_target().pdg())
             continue;
@@ -146,9 +145,9 @@ double MarleyCrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::I
         if(pdg_a != reaction->pdg_a())
             continue;
         the_reactions.push_back(reaction.get());
-        }
-
+    }
     double total_xs_in_MeV2 = 0.0;
+
 
     for(marley::Reaction const * reaction : the_reactions) {
         total_xs_in_MeV2 += reaction->total_xs(pdg_a, KEa_MeV); //in MeV^(-2)
