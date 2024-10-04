@@ -83,6 +83,7 @@ private:
     void Initialize();
 public:
     double EventWeight(siren::dataclasses::InteractionTree const & tree) const;
+    std::vector<double> GetInteractionProbabilities(siren::dataclasses::InteractionTree const & tree, int i_inj = 0) const;
     Weighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes);
     Weighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process);
     Weighter(std::vector<std::shared_ptr<Injector>> injectors, std::string filename);

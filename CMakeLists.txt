@@ -63,6 +63,7 @@ include(pybind11)
 
 # load project dependencies
 include(rk)
+include(crundec3)
 include(cereal)
 include(delabella)
 include(CFITSIO)

@@ -49,6 +49,7 @@ public:
     InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays);
     InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays);
     bool operator==(InteractionCollection const & other) const;
+    siren::dataclasses::ParticleType const & GetPrimaryType() const {return primary_type;}
     std::vector<std::shared_ptr<CrossSection>> const & GetCrossSections() const {return cross_sections;}
     std::vector<std::shared_ptr<Decay>> const & GetDecays() const {return decays;}
     bool const HasCrossSections() const {return cross_sections.size() > 0;}

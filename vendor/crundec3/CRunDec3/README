@@ -1,0 +1,21 @@
+
+This directory contains the source files form
+RunDec (RunDec.m) and CRunDec (CRunDec.cpp and CRunDec.h).
+
+The folder 'examples' contains the Mathematica and C++
+source code of the examples discussed in the paper
+  
+  "Version 3 of {\tt RunDec} and {\tt CRunDec}",
+  Florian Herren and Matthias Steinhauser,
+  TTP17-011, arXiv1703.03751
+
+and a soft link of CRunDec.h and RunDec.m.
+
+The C++ examples can be compiled using 'compile'.
+The executables are generated in bin/.
+
+The Mathematica examples can be loaded into
+a Mathematica session.
+
+
+
