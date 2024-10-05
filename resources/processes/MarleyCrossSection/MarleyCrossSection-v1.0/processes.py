@@ -41,6 +41,13 @@ primaries_by_process = {
     "CEvNS": neutrinos + antineutrinos,
 }
 
+def _find_file(search_path, fname):
+    for path in search_path.split(':'):
+        full_path = os.path.join(path, fname)
+        if os.path.exists(full_path):
+            return full_path
+    raise FileNotFoundError(f"Could not find file {fname} in search path {search_path}")
+
 #Get primary particles, setting default to NuE if none are provided, only supports NuE and NuEBar
 def _get_primary_types(primary_types):
     if primary_types is None:
@@ -101,7 +108,13 @@ def load_processes(
 
     for reaction_name in reaction_names:
         #Load cross section from marley reaction file
-        xs = siren.interactions.MarleyCrossSection(f"{{reactions: [\"{reaction_name}\"]}}", marley_search_path)
+        react_fname = _find_file(marley_search_path, reaction_name)
+        nuclide_index_fname = _find_file(marley_search_path, "nuclide_index.txt")
+        nuclide_fname = _find_file(marley_search_path, "K.dat")
+        masses_fname = _find_file(marley_search_path, "mass_table.js")
+        gs_parity_fname = _find_file(marley_search_path, "gs_spin_parity_table.txt")
+
+        xs = siren.interactions.MarleyCrossSection(react_fname, nuclide_index_fname, nuclide_fname, masses_fname, gs_parity_fname)
         reaction_primary_types = set(primaries_by_process[process_by_reaction[reaction_name]])
         reaction_primary_types = reaction_primary_types & set(primary_types)
 

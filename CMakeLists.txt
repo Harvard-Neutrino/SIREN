@@ -37,7 +37,7 @@ option(SIREN_PYTHON_PACKAGE
 include(GNUInstallDirs)
 include(ExternalProject)
 
-SET(CMAKE_CXX_STANDARD 14)
+SET(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_C_STANDARD 99)
 
 # set the build type and appropriate flags
