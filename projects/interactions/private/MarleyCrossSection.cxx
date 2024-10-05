@@ -1,3 +1,5 @@
+#include <filesystem>  // for path, create_directories
+
 #include "SIREN/interactions/MarleyCrossSection.h"
 #include "SIREN/dataclasses/InteractionRecord.h"
 #include "SIREN/dataclasses/Particle.h"
@@ -11,20 +13,92 @@
 namespace siren {
 namespace interactions {
 
-//MarleyCrossSection::MarleyCrossSection() {}
-MarleyCrossSection::MarleyCrossSection(std::string marley_config, std::string search_path) {
+MarleyCrossSection::MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::string marley_nuclide_file, std::string marley_masses_file, std::string marley_gs_parity_file) {
+    std::filesystem::path tmp_dir_path {std::filesystem::temp_directory_path() /= std::tmpnam(nullptr)};
+    std::filesystem::create_directories(tmp_dir_path);
+
+    marley_react_fname_ = marley_react_file;
+    marley_nuclide_index_fname_ = marley_nuclide_index_file;
+    marley_nuclide_fname_ = marley_nuclide_file;
+    marley_masses_fname_ = marley_masses_file;
+    marley_gs_parity_fname_ = marley_gs_parity_file;
+
+    std::vector<std::tuple<std::string, std::vector<char> *> > files = {
+        {marley_react_file, &marley_react_data_},
+        {marley_nuclide_index_file, &marley_nuclide_index_data_},
+        {marley_nuclide_file, &marley_nuclide_data_},
+        {marley_masses_file, &marley_masses_data_},
+        {marley_gs_parity_file, &marley_gs_parity_data_}
+    };
+
+    for(auto const & file : files) {
+        std::string filename = std::get<0>(file);
+        std::vector<char> & data = *std::get<1>(file);
+
+        std::string basename = std::filesystem::path(filename).filename();
+        std::string dest_file = (tmp_dir_path / basename).string();
+
+        std::ifstream ifs(filename, std::ios::binary);
+        std::stringstream ss;
+        ss << ifs.rdbuf();
+        ifs.close();
+        data.resize(ss.str().size());
+        std::string string_data = ss.str();
+        std::copy(string_data.begin(), string_data.end(), data.begin());
+
+        std::ofstream ofs(dest_file, std::ios::binary);
+        ofs << ss.str();
+    }
+
+    std::string search_path = tmp_dir_path.string();
+    std::string react_file = (tmp_dir_path / std::filesystem::path(marley_react_file).filename()).string();
+
     setenv("MARLEY", "", 0);
     setenv("MARLEY_SEARCH_PATH", search_path.c_str(), 0);
-    InitializeMarley(marley_config);
+    marley::FileManager::Instance();
+    siren::interactions::marley_::FileManager_::set_search_path(search_path);
+    InitializeMarley(react_file);
 }
 
-void MarleyCrossSection::InitializeMarley(const std::string& marley_config) {
-    marley::JSON marley_json = marley::JSON::load(marley_config);
-    marley::JSONConfig config(marley_json);
-    marley_generator_ = config.create_generator();
-    marley_config_ = marley_config;
+MarleyCrossSection::MarleyCrossSection(std::array<std::vector<char>, 5> const & data, std::array<std::string, 5> const & fnames) {
+    marley_react_data_ = data[0];
+    marley_nuclide_index_data_ = data[1];
+    marley_nuclide_data_ = data[2];
+    marley_masses_data_ = data[3];
+    marley_gs_parity_data_ = data[4];
+    marley_react_fname_ = fnames[0];
+    marley_nuclide_index_fname_ = fnames[1];
+    marley_nuclide_fname_ = fnames[2];
+    marley_masses_fname_ = fnames[3];
+    marley_gs_parity_fname_ = fnames[4];
 
-    std::vector<std::unique_ptr<marley::Reaction>> const & reactions = marley_generator_.get_reactions();
+    std::filesystem::path tmp_dir_path {std::filesystem::temp_directory_path() /= std::tmpnam(nullptr)};
+    std::filesystem::create_directories(tmp_dir_path);
+
+    for(size_t i=0; i<5; ++i) {
+        std::vector<char> const & d = data[i];
+        std::string const & filename = fnames[i];
+        std::string dest_file = (tmp_dir_path / filename).string();
+        std::string string_data(d.begin(), d.end());
+        std::ofstream ofs(dest_file, std::ios::binary);
+        ofs << string_data;
+    }
+
+    std::string search_path = tmp_dir_path.string();
+    std::string react_file = (tmp_dir_path / marley_react_fname_).string();
+
+    setenv("MARLEY", "", 0);
+    setenv("MARLEY_SEARCH_PATH", search_path.c_str(), 0);
+    marley::FileManager::Instance();
+    siren::interactions::marley_::FileManager_::set_search_path(search_path);
+    InitializeMarley(react_file);
+}
+
+void MarleyCrossSection::InitializeMarley(std::string const & marley_react_file) {
+    structure_database_ = std::make_unique<marley::StructureDatabase>();
+    reactions_ = marley::Reaction::load_from_file(marley_react_file, *structure_database_);
+
+    std::vector<std::unique_ptr<marley::Reaction>> const & reactions = reactions_;
 
     has_nu_cc = false;
     has_nubar_cc = false;
@@ -54,7 +128,6 @@ void MarleyCrossSection::InitializeMarley(const std::string& marley_config) {
 }
 
 
-
 double MarleyCrossSection::TotalCrossSection(siren::dataclasses::InteractionRecord const & record) const {
 
     double energy = record.primary_momentum[0];  // Energy of the primary particle
@@ -64,7 +137,7 @@ double MarleyCrossSection::TotalCrossSection(siren::dataclasses::InteractionReco
     int pdg_atom = static_cast<int32_t>(record.signature.target_type);  // PDG code of the target atom
     double KEa_MeV = KEa * 1e3;  // Convert kinetic energy to MeV
 
-    std::vector<std::unique_ptr<marley::Reaction>> const & reactions = marley_generator_.get_reactions();
+    std::vector<std::unique_ptr<marley::Reaction>> const & reactions = reactions_;
     std::vector<marley::Reaction const *> the_reactions;
 
     marley::Reaction::ProcessType desired_process_type;
@@ -132,12 +205,10 @@ double MarleyCrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::I
     int pdg_atom = static_cast<int32_t>(record.signature.target_type);  // PDG code of the target atom
     double KEa_MeV = KEa * 1e3;  // Convert kinetic energy to MeV
 
-    std::vector<std::unique_ptr<marley::Reaction>> const & reactions = marley_generator_.get_reactions();
+    std::vector<std::unique_ptr<marley::Reaction>> const & reactions = reactions_;
     std::vector<marley::Reaction const *> the_reactions;
 
     for(std::unique_ptr<marley::Reaction> const & reaction : reactions) {
-        marley::Reaction::ProcessType process = reaction->process_type();
-
         // Skip reactions which involve a different target atom
         if(pdg_atom != reaction->atomic_target().pdg())
             continue;
@@ -224,7 +295,7 @@ bool MarleyCrossSection::equal(CrossSection const & other) const {
     if(!x)
         return false;
     else
-        return marley_config_ == x->marley_config_;
+        return std::tie(marley_react_data_, marley_nuclide_index_data_, marley_nuclide_data_, marley_masses_data_, marley_gs_parity_data_, marley_react_fname_, marley_nuclide_index_fname_, marley_nuclide_fname_, marley_masses_fname_, marley_gs_parity_fname_) == std::tie(x->marley_react_data_, x->marley_nuclide_index_data_, x->marley_nuclide_data_, x->marley_masses_data_, x->marley_gs_parity_data_, x->marley_react_fname_, x->marley_nuclide_index_fname_, x->marley_nuclide_fname_, x->marley_masses_fname_, x->marley_gs_parity_fname_);
 }
 
 std::vector<siren::dataclasses::ParticleType> MarleyCrossSection::GetPossibleTargets() const {
