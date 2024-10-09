@@ -83,5 +83,16 @@ bool isCharged(ParticleType p){
            p==ParticleType::Hadrons);
 }
 
+bool isQuark(Particle::ParticleType p){
+		return(p==Particle::ParticleType::Charm || p==Particle::ParticleType::CharmBar);
+	}
+
+bool isHadron(Particle::ParticleType p){
+		return(p==Particle::ParticleType::Hadrons ||
+				p==Particle::ParticleType::D0 || p==Particle::ParticleType::D0Bar ||
+				p==Particle::ParticleType::DPlus || p==Particle::ParticleType::DMinus);
+	}
+
+
 } // namespace utilities
 } // namespace siren

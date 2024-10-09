@@ -56,6 +56,12 @@ X(TauPlus, -15)
 X(TauMinus, 15)
 X(NuTau, 16)
 X(NuTauBar, -16)
+X(Charm, 4)
+X(CharmBar, -4)
+X(K0, 311)
+X(K0Bar, -311)
+
+
 
 /* Nuclei */
 X(HNucleus, 1000010010)
@@ -188,6 +194,7 @@ X(NuclInt, -2000001004)
 X(MuPair, -2000001005)
 X(Hadrons, -2000001006)
 X(Decay, -2000001007)
+X(Hadronization, 99)
 X(ContinuousEnergyLoss, -2000001111)
 X(FiberLaser, -2000002100)
 X(N2Laser, -2000002101)
