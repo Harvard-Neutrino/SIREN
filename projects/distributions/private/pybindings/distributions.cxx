@@ -9,6 +9,7 @@
 #include "../../public/SIREN/distributions/primary/direction/IsotropicDirection.h"
 #include "../../public/SIREN/distributions/primary/energy/Monoenergetic.h"
 #include "../../public/SIREN/distributions/primary/energy/PowerLaw.h"
+#include "../../public/SIREN/distributions/primary/energy/PiDARNuEDistribution.h"
 #include "../../public/SIREN/distributions/primary/energy/TabulatedFluxDistribution.h"
 #include "../../public/SIREN/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
 #include "../../public/SIREN/distributions/primary/mass/PrimaryMass.h"
@@ -115,8 +116,17 @@ PYBIND11_MODULE(distributions,m) {
     .def("ComputeCDF",&TabulatedFluxDistribution::ComputeCDF)
     .def("GetCDF",&TabulatedFluxDistribution::GetCDF)
     .def("GetCDFEnergyNodes",&TabulatedFluxDistribution::GetCDFEnergyNodes)
-    .def("GetEnergyNodes",&TabulatedFluxDistribution::GetEnergyNodes); 
-    
+    .def("GetEnergyNodes",&TabulatedFluxDistribution::GetEnergyNodes);
+
+  class_<PiDARNuEDistribution, std::shared_ptr<PiDARNuEDistribution>, PrimaryEnergyDistribution>(m, "PiDARNuEDistribution")
+    .def(init<>())
+    .def("pdf",&PiDARNuEDistribution::pdf)
+    .def("cdf",&PiDARNuEDistribution::cdf)
+    .def("inv_cdf",&PiDARNuEDistribution::inv_cdf)
+    .def("SampleEnergy",&PiDARNuEDistribution::SampleEnergy)
+    .def("GenerationProbability",&PiDARNuEDistribution::GenerationProbability)
+    .def("Name",&PiDARNuEDistribution::Name);
+
   // Helicity distributions
 
   class_<PrimaryNeutrinoHelicityDistribution, std::shared_ptr<PrimaryNeutrinoHelicityDistribution>, PrimaryInjectionDistribution>(m, "PrimaryNeutrinoHelicityDistribution")
