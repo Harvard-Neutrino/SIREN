@@ -200,7 +200,7 @@ double FixedTargetPositionDistribution::GenerationProbability(std::shared_ptr<si
     }
 
     const double outer_radius = cylinder.GetRadius();
-    const double inner_radius = cylinder.GetRadius();
+    const double inner_radius = cylinder.GetInnerRadius();
     const double height = cylinder.GetZ();
     double target_volume = M_PI * ((outer_radius * outer_radius) - (inner_radius * inner_radius)) * height;
 
