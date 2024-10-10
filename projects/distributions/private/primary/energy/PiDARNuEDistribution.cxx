@@ -48,32 +48,55 @@ double PiDARNuEDistribution::cdf(double energy) const {
     return phi_0 * (A * (std::pow(energy, 3) /3.0) - B * (std::pow(energy, 4) /4.0));
 }
 
+////analytical inverse cdf function
+//double PiDARNuEDistribution::inv_cdf(double x) const {
+//    const double m = mu_mass;
+//    return (2*m - sqrt(4*(m * m) + (6*pow(m, 4)*x)/
+//        pow(pow(m, 6)*x - sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),1./3.)
+//         + 6*pow(pow(m, 6)*x - sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),
+//         1./3.)) - sqrt(2)*
+//      sqrt(4*(m * m) - (3*pow(m, 4)*x)/
+//         pow(pow(m, 6)*x - sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),
+//          1./3.) - 3*pow(pow(m, 6)*x -
+//           sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),1./3.) -
+//        (4*(m * m * m))/
+//         sqrt((m * m) + (3*pow(m, 4)*x)/
+//            (2.*pow(pow(m, 6)*x - sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),
+//               1./3.)) +
+//           (3*pow(pow(m, 6)*x - sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),
+//               1./3.))/2.)))/12.;
+//}
 
-//analytical inverse cdf function
+//obtain inverse cdf function using binary search
 double PiDARNuEDistribution::inv_cdf(double x) const {
-    const double m = mu_mass;
-    return (2*m - sqrt(4*(m * m) + (6*pow(m, 4)*x)/
-        pow(pow(m, 6)*x - sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),1./3.)
-         + 6*pow(pow(m, 6)*x - sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),
-         1./3.)) - sqrt(2)*
-      sqrt(4*(m * m) - (3*pow(m, 4)*x)/
-         pow(pow(m, 6)*x - sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),
-          1./3.) - 3*pow(pow(m, 6)*x -
-           sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),1./3.) -
-        (4*(m * m * m))/
-         sqrt((m * m) + (3*pow(m, 4)*x)/
-            (2.*pow(pow(m, 6)*x - sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),
-               1./3.)) +
-           (3*pow(pow(m, 6)*x - sqrt(-(pow(m, 12)*(-1 + x)*(x * x))),
-               1./3.))/2.)))/12.;
+    double energyMin = 0.0;
+    double energyMax = mu_mass/2.0;
+    double energy = 0.0;
+    double tol = 1e-6;
+    double cdf_val = 0.0;
+    double cdf_target = x;
+
+    while (energyMax - energyMin > tol) {
+        energy = (energyMax + energyMin) / 2.0;
+        cdf_val = cdf(energy);
+
+        if (cdf_val < cdf_target) {
+            energyMin = energy;
+        } else {
+            energyMax = energy;
+        }
+    }
+
+    return energy;
 }
+
+
 
 //Use inverse cdf
 double PiDARNuEDistribution::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
 
     double u = rand->Uniform();
     double energy = inv_cdf(u);
-
     return energy;
 }
 
@@ -81,17 +104,18 @@ double PiDARNuEDistribution::GenerationProbability(std::shared_ptr<siren::detect
     double const & energy = record.primary_momentum[0];
     double const energyMin = 0.0;
     double const energyMax = mu_mass/2.0;
-
+    double prob;
     if(energy < energyMin or energy > energyMax)
-        return 0.0;
+        prob = 0.0;
     else
-        return pdf(energy);
+        prob = pdf(energy);
+    return prob;
 }
 
 std::string PiDARNuEDistribution::Name() const {
     return "PiDARNuEDistribution";
 }
-//clone, equal , less???
+
 std::shared_ptr<PrimaryInjectionDistribution> PiDARNuEDistribution::clone() const {
     return std::shared_ptr<PrimaryInjectionDistribution>(new PiDARNuEDistribution(*this));
 }
