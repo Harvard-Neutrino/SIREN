@@ -11,7 +11,6 @@ build-backend = "scikit_build_core.build"
 [tool.scikit-build]
 wheel.packages = []
 cmake.build-type = "Release"
-#wheel.install-dir = "siren"
 
 [tool.scikit-build.cmake.define]
 CMAKE_PREFIX_PATH="/tmp/downloads/local"
@@ -44,7 +43,7 @@ description = "Sampling and Injection for Rare EveNts: A neutrino and rare-proce
 readme = "README.md"
 requires-python = ">=3.8"
 license = {file = "LICENSE"}
-keywords = ["physics", "hep", "netrino", "bsm", "simulation", "injection", "weighting"]
+keywords = ["physics", "hep", "neutrino", "bsm", "simulation", "injection", "weighting"]
 authors = [
     {name = "Austin Schneider", email = "aschn@mit.edu"},
     {name = "Nicholas Kamp", email = "nkamp@fas.harvard.edu"}
@@ -85,7 +84,7 @@ DarkNews = ["DarkNews>=0.4.2"]
 Homepage = "https://github.com/Harvard-Neutrino/SIREN"
 Documentation = "https://readthedocs.org"
 Repository = "https://github.com/Harvard-Neutrino/SIREN.git"
-Issues = "https://github.com/Harvard-Neutrino/LeptonInjector/issues"
+Issues = "https://github.com/Harvard-Neutrino/SIREN/issues"
 
 [wheel]
 no-clean = true
