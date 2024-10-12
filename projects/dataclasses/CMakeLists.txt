@@ -16,7 +16,10 @@ target_include_directories(SIREN_dataclasses PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/dataclasses/>
 )
 
-target_link_libraries(SIREN_dataclasses PUBLIC
+target_link_libraries(SIREN_dataclasses
+    INTERFACE
+    siren_compile_options
+    PUBLIC
     photospline
     SIREN_serialization
     SIREN_utilities

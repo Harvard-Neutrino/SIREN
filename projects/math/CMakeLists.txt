@@ -17,6 +17,8 @@ target_include_directories(SIREN_math PUBLIC
 
 if(${MACOSX})
 target_link_libraries(SIREN_math
+    INTERFACE
+        siren_compile_options
     PUBLIC
         photospline
         delabella_shared
@@ -26,6 +28,8 @@ target_link_libraries(SIREN_math
 )
 else()
 target_link_libraries(SIREN_math
+    INTERFACE
+        siren_compile_options
     PUBLIC
         photospline
         delabella_shared
