@@ -275,8 +275,9 @@ void MarleyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionR
     lepton_direction[0] /= norm;
     lepton_direction[1] /= norm;
     lepton_direction[2] /= norm;
+
+
     lepton.SetDirection(lepton_direction);
-    lepton.SetEnergy(csdr.primary_momentum[0]);
     double mass = 0.0;
     if(not isNeutrino(lepton.type)) {
         int32_t abs_pdg_code = std::abs(static_cast<int32_t>(lepton.type));
@@ -297,14 +298,17 @@ void MarleyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionR
     lepton.SetMass(mass);
     lepton.SetHelicity(1.0);
 
+    double kinetic_energy = norm;
+    double energy = sqrt(kinetic_energy*kinetic_energy + mass*mass);
+    lepton.SetEnergy(energy);
+
     double molar_mass = siren::detector::MaterialModel::GetMolarMass(csdr.signature.target_type);
     double target_mass = molar_mass * siren::utilities::Constants::GeV_per_amu;
 
     siren::dataclasses::SecondaryParticleRecord & nucleus = secondary_particles[1 - lepton_index];
     std::array<double,3> nucleus_direction = {-lepton_direction[0], -lepton_direction[1], -lepton_direction[2]};
     nucleus.SetDirection(nucleus_direction);
-    double nucleus_energy = csdr.primary_momentum[0] - lepton.GetEnergy();
-    nucleus.SetEnergy(nucleus_energy);
+    nucleus.SetEnergy(target_mass);
     nucleus.SetMass(target_mass);
     nucleus.SetHelicity(1.0);
 }
