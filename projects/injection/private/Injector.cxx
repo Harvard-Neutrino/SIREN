@@ -399,7 +399,8 @@ double Injector::GenerationProbability(std::shared_ptr<siren::dataclasses::Inter
     double probability = 1.0;
     if(!process) { // assume we are dealing with the primary process
         process = primary_process;
-        probability *= events_to_inject; // only do this for the primary process
+        unsigned int stat_weight = (events_to_inject > 0) ? events_to_inject : 1;
+        probability *= stat_weight; // only do this for the primary process
     }
     for(auto const & dist : process->GetPrimaryInjectionDistributions()) {
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
@@ -415,7 +416,8 @@ double Injector::GenerationProbability(siren::dataclasses::InteractionRecord con
     double probability = 1.0;
     if(!process) { // assume we are dealing with the primary process
         process = primary_process;
-        probability *= events_to_inject; // only do this for the primary process
+        unsigned int stat_weight = (events_to_inject > 0) ? events_to_inject : 1;
+        probability *= stat_weight; // only do this for the primary process
     }
     for(auto const & dist : process->GetPrimaryInjectionDistributions()) {
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), record);
@@ -492,7 +494,7 @@ void Injector::ResetInjectedEvents() {
 }
 
 Injector::operator bool() const {
-    return injected_events < events_to_inject;
+    return events_to_inject == 0 or injected_events < events_to_inject;
 }
 
 void Injector::SaveInjector(std::string const & filename) const {
