@@ -1,4 +1,5 @@
 import os
+import glob
 from typing import Tuple, List, Any, Optional
 import siren
 import collections
@@ -110,11 +111,12 @@ def load_processes(
         #Load cross section from marley reaction file
         react_fname = _find_file(marley_search_path, reaction_name)
         nuclide_index_fname = _find_file(marley_search_path, "nuclide_index.txt")
-        nuclide_fname = _find_file(marley_search_path, "K.dat")
+        nuclide_path = os.path.dirname(nuclide_index_fname)
+        nuclide_fnames = glob.glob(os.path.join(nuclide_path, "*.dat"))
         masses_fname = _find_file(marley_search_path, "mass_table.js")
         gs_parity_fname = _find_file(marley_search_path, "gs_spin_parity_table.txt")
 
-        xs = siren.interactions.MarleyCrossSection(react_fname, nuclide_index_fname, nuclide_fname, masses_fname, gs_parity_fname)
+        xs = siren.interactions.MarleyCrossSection(react_fname, nuclide_index_fname, nuclide_fnames, masses_fname, gs_parity_fname)
         reaction_primary_types = set(primaries_by_process[process_by_reaction[reaction_name]])
         reaction_primary_types = reaction_primary_types & set(primary_types)
 

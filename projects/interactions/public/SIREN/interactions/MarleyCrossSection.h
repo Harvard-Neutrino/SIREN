@@ -55,12 +55,12 @@ friend cereal::access;
 private:
     std::vector<char> marley_react_data_;
     std::vector<char> marley_nuclide_index_data_;
-    std::vector<char> marley_nuclide_data_;
+    std::vector<std::vector<char>> marley_nuclide_data_;
     std::vector<char> marley_masses_data_;
     std::vector<char> marley_gs_parity_data_;
     std::string marley_react_fname_;
     std::string marley_nuclide_index_fname_;
-    std::string marley_nuclide_fname_;
+    std::vector<std::string> marley_nuclide_fnames_;
     std::string marley_masses_fname_;
     std::string marley_gs_parity_fname_;
     std::vector<std::unique_ptr<marley::Reaction>> reactions_;
@@ -72,8 +72,8 @@ private:
     bool has_elastic;
 
 public:
-    MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::string marley_nuclide_file, std::string marley_masses_file, std::string marley_gs_parity_file);
-    MarleyCrossSection(std::array<std::vector<char>, 5> const & data, std::array<std::string, 5> const & fnames);
+    MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file);
+    MarleyCrossSection(std::array<std::vector<char>, 4> const & data, std::vector<std::vector<char>> const & nuclide_data, std::array<std::string, 4> const & fnames, std::vector<std::string> const & nuclide_fnames);
     virtual ~MarleyCrossSection() {};
     virtual bool equal(CrossSection const & other) const override;
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
@@ -99,7 +99,7 @@ public:
             archive(::cereal::make_nvp("MarleyGSParityData", marley_gs_parity_data_));
             archive(::cereal::make_nvp("MarleyReactFname", marley_react_fname_));
             archive(::cereal::make_nvp("MarleyNuclideIndexFname", marley_nuclide_index_fname_));
-            archive(::cereal::make_nvp("MarleyNuclideFname", marley_nuclide_fname_));
+            archive(::cereal::make_nvp("MarleyNuclideFnames", marley_nuclide_fnames_));
             archive(::cereal::make_nvp("MarleyMassesFname", marley_masses_fname_));
             archive(::cereal::make_nvp("MarleyGSParityFname", marley_gs_parity_fname_));
             archive(cereal::virtual_base_class<CrossSection>(this));
@@ -110,19 +110,21 @@ public:
     template<typename Archive>
     static void load_and_construct(Archive & archive, cereal::construct<MarleyCrossSection> & construct, std::uint32_t const version) {
         if(version == 0) {
-            std::array<std::vector<char>, 5> data;
-            std::array<std::string, 5> fnames;
+            std::array<std::vector<char>, 4> data;
+            std::array<std::string, 4> fnames;
+            std::vector<std::string> nuclide_fnames;
+            std::vector<std::vector<char>> nuclide_data;
             archive(::cereal::make_nvp("MarleyReactData", data[0]));
             archive(::cereal::make_nvp("MarleyNuclideIndexData", data[1]));
-            archive(::cereal::make_nvp("MarleyNuclideData", data[2]));
-            archive(::cereal::make_nvp("MarleyMassesData", data[3]));
-            archive(::cereal::make_nvp("MarleyGSParityData", data[4]));
+            archive(::cereal::make_nvp("MarleyNuclideData", nuclide_data));
+            archive(::cereal::make_nvp("MarleyMassesData", data[2]));
+            archive(::cereal::make_nvp("MarleyGSParityData", data[3]));
             archive(::cereal::make_nvp("MarleyReactFname", fnames[0]));
             archive(::cereal::make_nvp("MarleyNuclideIndexFname", fnames[1]));
-            archive(::cereal::make_nvp("MarleyNuclideFname", fnames[2]));
-            archive(::cereal::make_nvp("MarleyMassesFname", fnames[3]));
-            archive(::cereal::make_nvp("MarleyGSParityFname", fnames[4]));
-            construct(data, fnames);
+            archive(::cereal::make_nvp("MarleyNuclideFnames", nuclide_fnames));
+            archive(::cereal::make_nvp("MarleyMassesFname", fnames[2]));
+            archive(::cereal::make_nvp("MarleyGSParityFname", fnames[3]));
+            construct(data, nuclide_data, fnames, nuclide_fnames);
             archive(cereal::virtual_base_class<CrossSection>(construct.ptr()));
         } else {
             throw std::runtime_error("MarleyCrossSection only supports version <= 0!");
