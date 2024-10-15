@@ -496,13 +496,13 @@ Injector::operator bool() const {
 }
 
 void Injector::SaveInjector(std::string const & filename) const {
-    std::ofstream os(filename+".siren_injector", std::ios::binary);
+    std::ofstream os(filename, std::ios::binary);
     ::cereal::BinaryOutputArchive archive(os);
     this->save(archive,0);
 }
 
 void Injector::LoadInjector(std::string const & filename) {
-    std::ifstream is(filename+".siren_injector", std::ios::binary);
+    std::ifstream is(filename, std::ios::binary);
     ::cereal::BinaryInputArchive archive(is);
     this->load(archive,0);
 }
