@@ -13,23 +13,30 @@
 namespace siren {
 namespace interactions {
 
-MarleyCrossSection::MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::string marley_nuclide_file, std::string marley_masses_file, std::string marley_gs_parity_file) {
+MarleyCrossSection::MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file) {
     std::filesystem::path tmp_dir_path {std::filesystem::temp_directory_path() /= std::tmpnam(nullptr)};
     std::filesystem::create_directories(tmp_dir_path);
 
-    marley_react_fname_ = marley_react_file;
-    marley_nuclide_index_fname_ = marley_nuclide_index_file;
-    marley_nuclide_fname_ = marley_nuclide_file;
-    marley_masses_fname_ = marley_masses_file;
-    marley_gs_parity_fname_ = marley_gs_parity_file;
+    marley_react_fname_ = std::filesystem::path(marley_react_file).filename();
+    marley_nuclide_index_fname_ = std::filesystem::path(marley_nuclide_index_file).filename();
+    marley_nuclide_fnames_.resize(marley_nuclide_files.size());
+    for(size_t i=0; i<marley_nuclide_files.size(); ++i) {
+        marley_nuclide_fnames_[i] = std::filesystem::path(marley_nuclide_files[i]).filename();
+    }
+    marley_masses_fname_ = std::filesystem::path(marley_masses_file).filename();
+    marley_gs_parity_fname_ = std::filesystem::path(marley_gs_parity_file).filename();
 
     std::vector<std::tuple<std::string, std::vector<char> *> > files = {
         {marley_react_file, &marley_react_data_},
         {marley_nuclide_index_file, &marley_nuclide_index_data_},
-        {marley_nuclide_file, &marley_nuclide_data_},
         {marley_masses_file, &marley_masses_data_},
         {marley_gs_parity_file, &marley_gs_parity_data_}
     };
+
+    marley_nuclide_data_.resize(marley_nuclide_files.size());
+    for(size_t i=0; i<marley_nuclide_files.size(); ++i) {
+        files.push_back({marley_nuclide_files[i], &marley_nuclide_data_[i]});
+    }
 
     for(auto const & file : files) {
         std::string filename = std::get<0>(file);
@@ -60,32 +67,47 @@ MarleyCrossSection::MarleyCrossSection(std::string marley_react_file, std::strin
     InitializeMarley(react_file);
 }
 
-MarleyCrossSection::MarleyCrossSection(std::array<std::vector<char>, 5> const & data, std::array<std::string, 5> const & fnames) {
+MarleyCrossSection::MarleyCrossSection(std::array<std::vector<char>, 4> const & data, std::vector<std::vector<char>> const & nuclide_data, std::array<std::string, 4> const & fnames, std::vector<std::string> const & nuclide_fnames) {
     marley_react_data_ = data[0];
     marley_nuclide_index_data_ = data[1];
-    marley_nuclide_data_ = data[2];
-    marley_masses_data_ = data[3];
-    marley_gs_parity_data_ = data[4];
+    marley_nuclide_data_ = nuclide_data;
+    marley_masses_data_ = data[2];
+    marley_gs_parity_data_ = data[3];
     marley_react_fname_ = fnames[0];
     marley_nuclide_index_fname_ = fnames[1];
-    marley_nuclide_fname_ = fnames[2];
-    marley_masses_fname_ = fnames[3];
-    marley_gs_parity_fname_ = fnames[4];
+    marley_nuclide_fnames_ = nuclide_fnames;
+    marley_masses_fname_ = fnames[2];
+    marley_gs_parity_fname_ = fnames[3];
 
     std::filesystem::path tmp_dir_path {std::filesystem::temp_directory_path() /= std::tmpnam(nullptr)};
     std::filesystem::create_directories(tmp_dir_path);
 
-    for(size_t i=0; i<5; ++i) {
-        std::vector<char> const & d = data[i];
-        std::string const & filename = fnames[i];
-        std::string dest_file = (tmp_dir_path / filename).string();
-        std::string string_data(d.begin(), d.end());
+    std::vector<std::tuple<std::string, std::vector<char> *> > files = {
+        {marley_react_fname_, &marley_react_data_},
+        {marley_nuclide_index_fname_, &marley_nuclide_index_data_},
+        {marley_masses_fname_, &marley_masses_data_},
+        {marley_gs_parity_fname_, &marley_gs_parity_data_}
+    };
+
+    for(size_t i=0; i<marley_nuclide_fnames_.size(); ++i) {
+        files.push_back({marley_nuclide_fnames_[i], &marley_nuclide_data_[i]});
+    }
+
+    for(auto const & file : files) {
+        std::string filename = std::get<0>(file);
+        std::vector<char> & data = *std::get<1>(file);
+
+        std::string basename = std::filesystem::path(filename).filename();
+        std::string dest_file = (tmp_dir_path / basename).string();
+
+        std::string string_data(data.begin(), data.end());
         std::ofstream ofs(dest_file, std::ios::binary);
         ofs << string_data;
     }
 
+    std::string react_basename = std::filesystem::path(marley_react_fname_).filename();
     std::string search_path = tmp_dir_path.string();
-    std::string react_file = (tmp_dir_path / marley_react_fname_).string();
+    std::string react_file = (tmp_dir_path / react_basename).string();
 
     setenv("MARLEY", "", 0);
     setenv("MARLEY_SEARCH_PATH", search_path.c_str(), 0);
@@ -295,7 +317,7 @@ bool MarleyCrossSection::equal(CrossSection const & other) const {
     if(!x)
         return false;
     else
-        return std::tie(marley_react_data_, marley_nuclide_index_data_, marley_nuclide_data_, marley_masses_data_, marley_gs_parity_data_, marley_react_fname_, marley_nuclide_index_fname_, marley_nuclide_fname_, marley_masses_fname_, marley_gs_parity_fname_) == std::tie(x->marley_react_data_, x->marley_nuclide_index_data_, x->marley_nuclide_data_, x->marley_masses_data_, x->marley_gs_parity_data_, x->marley_react_fname_, x->marley_nuclide_index_fname_, x->marley_nuclide_fname_, x->marley_masses_fname_, x->marley_gs_parity_fname_);
+        return std::tie(marley_react_data_, marley_nuclide_index_data_, marley_nuclide_data_, marley_masses_data_, marley_gs_parity_data_, marley_react_fname_, marley_nuclide_index_fname_, marley_nuclide_fnames_, marley_masses_fname_, marley_gs_parity_fname_) == std::tie(x->marley_react_data_, x->marley_nuclide_index_data_, x->marley_nuclide_data_, x->marley_masses_data_, x->marley_gs_parity_data_, x->marley_react_fname_, x->marley_nuclide_index_fname_, x->marley_nuclide_fnames_, x->marley_masses_fname_, x->marley_gs_parity_fname_);
 }
 
 std::vector<siren::dataclasses::ParticleType> MarleyCrossSection::GetPossibleTargets() const {

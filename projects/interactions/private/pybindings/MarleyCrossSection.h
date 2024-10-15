@@ -21,7 +21,7 @@ void register_MarleyCrossSection(pybind11::module_ & m) {
 
     marleycrosssection
 
-        .def(init<std::string, std::string, std::string, std::string, std::string>())
+        .def(init<std::string, std::string, std::vector<std::string>, std::string, std::string>())
         .def(self == self)
         .def("TotalCrossSection",&MarleyCrossSection::TotalCrossSection)
         .def("TotalCrossSectionAllFinalStates",&MarleyCrossSection::TotalCrossSectionAllFinalStates)
