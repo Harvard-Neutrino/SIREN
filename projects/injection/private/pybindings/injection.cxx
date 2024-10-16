@@ -39,7 +39,8 @@ PYBIND11_MODULE(injection,m) {
 
   class_<Process, std::shared_ptr<Process>>(m, "Process")
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
-    .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions);
+    .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
+    ;
 
   class_<PhysicalProcess, std::shared_ptr<PhysicalProcess>, Process>(m, "PhysicalProcess")
     .def(init<>())
@@ -47,6 +48,7 @@ PYBIND11_MODULE(injection,m) {
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
     .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
     .def_property("distributions", &PhysicalProcess::GetPhysicalDistributions, &PhysicalProcess::SetPhysicalDistributions)
+    ;
 
   class_<PrimaryInjectionProcess, std::shared_ptr<PrimaryInjectionProcess>, Process>(m, "PrimaryInjectionProcess")
     .def(init<>())
@@ -54,6 +56,7 @@ PYBIND11_MODULE(injection,m) {
     .def_property("primary_type", &Process::GetPrimaryType, &Process::SetPrimaryType)
     .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
     .def_property("distributions", &PrimaryInjectionProcess::GetPrimaryInjectionDistributions, &PrimaryInjectionProcess::SetPrimaryInjectionDistributions)
+    ;
 
   class_<SecondaryInjectionProcess, std::shared_ptr<SecondaryInjectionProcess>, Process>(m, "SecondaryInjectionProcess")
     .def(init<>())
@@ -61,6 +64,7 @@ PYBIND11_MODULE(injection,m) {
     .def_property("secondary_type", &SecondaryInjectionProcess::GetSecondaryType, &SecondaryInjectionProcess::SetSecondaryType)
     .def_property("interactions", &Process::GetInteractions, &Process::SetInteractions)
     .def_property("distributions", &SecondaryInjectionProcess::GetSecondaryInjectionDistributions, &SecondaryInjectionProcess::SetSecondaryInjectionDistributions)
+    ;
 
   // Injection
 
@@ -118,7 +122,8 @@ PYBIND11_MODULE(injection,m) {
     .def("NormalizedPositionProbability",&PrimaryProcessWeighter::NormalizedPositionProbability)
     .def("PhysicalProbability",&PrimaryProcessWeighter::PhysicalProbability)
     .def("GenerationProbability",&PrimaryProcessWeighter::GenerationProbability)
-    .def("EventWeight",&PrimaryProcessWeighter::EventWeight);
+    .def("EventWeight",&PrimaryProcessWeighter::EventWeight)
+    ;
 
   class_<SecondaryProcessWeighter, std::shared_ptr<SecondaryProcessWeighter>>(m, "SecondaryProcessWeighter")
     .def(init<std::shared_ptr<PhysicalProcess>, std::shared_ptr<SecondaryInjectionProcess>, std::shared_ptr<siren::detector::DetectorModel>>())
@@ -126,7 +131,8 @@ PYBIND11_MODULE(injection,m) {
     .def("NormalizedPositionProbability",&SecondaryProcessWeighter::NormalizedPositionProbability)
     .def("PhysicalProbability",&SecondaryProcessWeighter::PhysicalProbability)
     .def("GenerationProbability",&SecondaryProcessWeighter::GenerationProbability)
-    .def("EventWeight",&SecondaryProcessWeighter::EventWeight);
+    .def("EventWeight",&SecondaryProcessWeighter::EventWeight)
+    ;
 
   class_<Weighter, std::shared_ptr<Weighter>>(m, "Weighter")
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>())
