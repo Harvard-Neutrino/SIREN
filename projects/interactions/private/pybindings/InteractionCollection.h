@@ -35,5 +35,7 @@ void register_InteractionCollection(pybind11::module_ & m) {
         .def("TotalDecayWidth",&InteractionCollection::TotalDecayWidth)
         .def("TotalDecayLength",&InteractionCollection::TotalDecayLength)
         .def("MatchesPrimary",&InteractionCollection::MatchesPrimary)
+        .def("GetPrimaryType",&InteractionCollection::GetPrimaryType)
+        .def("SetPrimaryType",&InteractionCollection::SetPrimaryType)
         ;
 }

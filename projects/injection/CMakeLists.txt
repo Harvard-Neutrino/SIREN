@@ -14,6 +14,8 @@ target_include_directories(SIREN_injection PUBLIC
 )
 
 target_link_libraries(SIREN_injection
+    INTERFACE
+        siren_compile_options
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
         pybind11::embed

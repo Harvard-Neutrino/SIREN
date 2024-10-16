@@ -25,6 +25,8 @@ target_include_directories(SIREN_detector PUBLIC
 )
 
 target_link_libraries(SIREN_detector
+    INTERFACE
+        siren_compile_options
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
     PUBLIC

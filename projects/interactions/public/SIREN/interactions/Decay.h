@@ -17,6 +17,7 @@
 #include "SIREN/dataclasses/Particle.h"  // for Particle
 #include "SIREN/dataclasses/InteractionSignature.h" // for InteractionSignature
 #include "SIREN/utilities/Random.h" // for SIREN_random
+#include "SIREN/interactions/Interaction.h" // for Interaction
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
@@ -26,7 +27,7 @@ namespace siren { namespace utilities { class SIREN_random; } }
 namespace siren {
 namespace interactions {
 
-class Decay {
+class Decay : public Interaction {
 friend cereal::access;
 private:
 public:
@@ -56,5 +57,7 @@ public:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::interactions::Decay, 0);
+CEREAL_REGISTER_TYPE(siren::interactions::Decay);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::Interaction, siren::interactions::Decay);
 
 #endif // SIREN_Decay_H

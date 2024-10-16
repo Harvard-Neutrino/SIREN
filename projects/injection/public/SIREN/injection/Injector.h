@@ -78,6 +78,7 @@ public:
     Injector(unsigned int events_to_inject, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<injection::PrimaryInjectionProcess> primary_process, std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> secondary_processes, std::shared_ptr<siren::utilities::SIREN_random> random);
 
     void SetStoppingCondition(std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> f_in) {stopping_condition = f_in;}
+    std::function<bool(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, size_t)> GetStoppingCondition() {return stopping_condition;}
     std::shared_ptr<distributions::VertexPositionDistribution> FindPrimaryVertexDistribution(std::shared_ptr<siren::injection::PrimaryInjectionProcess> process);
     std::shared_ptr<distributions::SecondaryVertexPositionDistribution> FindSecondaryVertexDistribution(std::shared_ptr<siren::injection::SecondaryInjectionProcess> process);
     void SetPrimaryProcess(std::shared_ptr<siren::injection::PrimaryInjectionProcess> primary);
@@ -85,6 +86,7 @@ public:
     std::vector<std::shared_ptr<siren::injection::SecondaryInjectionProcess>> GetSecondaryProcesses() {return secondary_processes;}
     std::map<siren::dataclasses::ParticleType,std::shared_ptr<siren::injection::SecondaryInjectionProcess>> GetSecondaryProcessMap() {return secondary_process_map;}
     void AddSecondaryProcess(std::shared_ptr<siren::injection::SecondaryInjectionProcess> secondary);
+    void SetSecondaryProcesses(std::vector<std::shared_ptr<siren::injection::SecondaryInjectionProcess>> secondary_processes);
     virtual siren::dataclasses::InteractionRecord NewRecord() const; // set primary type from primary process;
     void SetRandom(std::shared_ptr<siren::utilities::SIREN_random> random);
     virtual void SampleCrossSection(siren::dataclasses::InteractionRecord & record) const;
@@ -103,6 +105,7 @@ public:
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> SecondaryInjectionBounds(siren::dataclasses::InteractionRecord const & interaction) const;
     virtual std::vector<std::shared_ptr<siren::distributions::PrimaryInjectionDistribution>> GetPrimaryInjectionDistributions() const;
     virtual std::shared_ptr<siren::detector::DetectorModel> GetDetectorModel() const;
+    virtual void SetDetectorModel(std::shared_ptr<siren::detector::DetectorModel> detector_model);
     virtual std::shared_ptr<siren::interactions::InteractionCollection> GetInteractions() const;
     unsigned int InjectedEvents() const;
     unsigned int EventsToInject() const;

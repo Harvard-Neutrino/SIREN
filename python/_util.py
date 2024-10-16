@@ -1,6 +1,9 @@
 import os
 import re
 import sys
+import uuid
+import pydoc
+import pathlib
 import importlib
 
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -131,6 +134,7 @@ def get_platform():
     sys.platform does. The result can be: linux32, linux64, win32,
     win64, osx32, osx64. Other platforms may be added in the future.
     """
+    import struct
     # Get platform
     if sys.platform.startswith("linux"):
         plat = "linux%i"
@@ -166,6 +170,22 @@ def has_module(module_name):
         except ImportError:
             return False
         return True
+
+
+def load_module(name, path, persist=True):
+    """Load a module with a specific name and path"""
+    url = pathlib.Path(os.path.abspath(path)).as_uri()
+    module_name = f"{name}-{str(uuid.uuid5(uuid.NAMESPACE_URL, url))}"
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    module = sys.modules[module_name]
+    if not persist:
+        del sys.modules[module_name]
+    return module
 
 
 _VERSION_PATTERN = r"""
@@ -204,6 +224,24 @@ _version_regex = re.compile(
     re.VERBOSE | re.IGNORECASE,
 )
 
+_UNVERSIONED_MODEL_PATTERN = (
+    r"""
+    (?P<model_name>
+        (?:
+            [a-zA-Z0-9]+
+        )
+        |
+        (?:
+            (?:[a-zA-Z0-9]+(?:[-_\.][a-zA-Z0-9]+)*(?:[-_\.][a-zA-Z]+[a-zA-Z0-9]*))?
+        )
+    )
+    (?:
+        -
+        (?P<version>"""
+    + _VERSION_PATTERN
+    + r"))?"
+)
+
 _MODEL_PATTERN = (
     r"""
     (?P<model_name>
@@ -220,6 +258,11 @@ _MODEL_PATTERN = (
         (?P<version>"""
     + _VERSION_PATTERN
     + r"))?"
+)
+
+_model_regex = re.compile(
+    r"^\s*" + _MODEL_PATTERN + r"\s*$",
+    re.VERBOSE | re.IGNORECASE,
 )
 
 def decompose_version(version):
@@ -399,157 +442,396 @@ def tokenize_version(version):
     return tuple(token_list)
 
 
-def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exist=True):
-    # Get the path to the model file
-    _model_regex = re.compile(
-        r"^\s*" + _MODEL_PATTERN + ("" if suffix is None else r"(?:" + suffix + r")?") + r"\s*$",
-        re.VERBOSE | re.IGNORECASE,
-    )
-    if suffix is None:
-        suffix = ""
-    # Get the path to the resources directory
-    resources_dir = resource_package_dir()
+def _get_base_directory(resources_dir, prefix):
     base_dir = resources_dir
-
-    # Add prefix if present
     if prefix is not None:
         base_dir = os.path.join(base_dir, prefix)
+    return base_dir
 
-    # Get the model name and version
-    d = _model_regex.match(model_name)
-    if d is None:
-        raise ValueError("Invalid model name: {}".format(model_name))
-    d = d.groupdict()
-    model_name = d["model_name"]
-    version = d["version"]
-
-    # Search for the model folder in the resources directory
+def _find_model_folder_and_file(base_dir, model_name, must_exist, specific_file=None):
     model_names = [
         f for f in os.listdir(base_dir) if not os.path.isfile(os.path.join(base_dir, f))
     ]
-    model_names = [f for f in model_names if f.lower().startswith(model_name.lower())]
 
-    folder_exists = False
+    exact_model_names = [f for f in model_names if f.lower() == model_name.lower()]
+
+    if len(exact_model_names) == 0:
+        model_names = [f for f in model_names if f.lower().startswith(model_name.lower())]
+    else:
+        model_names = exact_model_names
 
     if len(model_names) == 0 and must_exist:
-        # Whoops, we didn't find the model folder!
-        raise ValueError(
-            "No model folders found for {}\nSearched in ".format(model_name, base_dir)
-        )
+        raise ValueError(f"No model folders found for {model_name}\nSearched in {base_dir}")
     elif len(model_names) == 0 and not must_exist:
-        # Let's use the provided model name as the folder name
-        model_name = model_name
+        return model_name, False, None
     elif len(model_names) == 1:
-        # We found the model folder!
-        folder_exists = True
-        model_name = model_names[0]
+        name = model_names[0]
+        if specific_file is not None:
+            specific_file_path = os.path.join(base_dir, name, specific_file)
+            if os.path.isfile(specific_file_path):
+                return name, True, specific_file_path
+            else:
+                return name, True, None
+        else:
+            return name, True, None
     else:
-        # Multiple model folders found, we cannot decide which one to use
-        raise ValueError(
-            "Multiple directories found for {}\nSearched in ".format(
-                model_name, base_dir
-            )
-        )
+        raise ValueError(f"Multiple directories found for {model_name}\nSearched in {base_dir}")
 
+def _get_model_files(base_dir, model_name, is_file, folder_exists, version=None):
     if folder_exists:
-        # Search for the model file in the model folder
-        model_files = [
-            f
-            for f in os.listdir(os.path.join(base_dir, model_name))
+        if version:
+            version_dir = os.path.join(base_dir, model_name, f"v{version}")
+            if os.path.isdir(version_dir):
+                return [
+                    f for f in os.listdir(version_dir)
+                    if is_file == os.path.isfile(os.path.join(version_dir, f))
+                ]
+        return [
+            f for f in os.listdir(os.path.join(base_dir, model_name))
             if is_file == os.path.isfile(os.path.join(base_dir, model_name, f))
         ]
-    else:
-        model_files = []
+    return []
 
-    # From the found model files, extract the model versions
+def _extract_model_versions(model_files, model_regex, model_name):
     model_versions = []
     for f in model_files:
-        d = _model_regex.match(f)
+        d = model_regex.match(f)
         if d is not None:
             if d.groupdict()["version"] is not None:
                 model_versions.append(normalize_version(d.groupdict()["version"]))
             else:
-                print(ValueError(
-                    "Input model file has no version: {}\nSearched in ".format(
-                        f, os.path.join(base_dir, model_name)
-                    )
-                ))
+                print(f"Warning: Input model file has no version: {f}")
         elif f.lower().startswith(model_name.lower()):
-            print(ValueError(
-                "Unable to parse version from {}\nFound in ".format(
-                    f, os.path.join(base_dir, model_name)
-                )
-            ))
+            print(f"Warning: Unable to parse version from {f}")
+    return model_versions
 
-    # Raise an error if no model file is found and we require it to exist
-    if len(model_versions) == 0 and must_exist:
-        raise ValueError(
-            "No model found for {}\nSearched in ".format(
-                model_name, os.path.join(base_dir, model_name)
-            )
-        )
-
+def _get_model_file_name(version, model_versions, model_files, model_name, suffix, must_exist):
     if version is None and must_exist:
-        # If no version is provided, use the latest version
-        version_idx, version = max(
-            enumerate(model_versions), key=lambda x: tokenize_version(x[1])
-        )
-        model_file_name = model_files[version_idx]
+        version_idx, version = max(enumerate(model_versions), key=lambda x: tokenize_version(x[1]))
+        return model_files[version_idx]
     elif version is None and not must_exist:
-        # If no version is provided and we don't require it to exist, default to v1
         version = "v1"
-        model_file_name = "{}-v{}{}".format(model_name, version, suffix)
+        return f"{model_name}-v{version}{suffix}"
     else:
-        # A version is provided
         version = normalize_version(version)
         if must_exist:
-            # If the version must exist, raise an error if it doesn't
             if version not in model_versions:
-                raise ValueError(
-                    "No model found for {}-{}\nSearched in ".format(
-                        model_name, version, os.path.join(base_dir, model_name)
-                    )
-                )
+                raise ValueError(f"No model found for {model_name}-{version}")
             version_idx = model_versions.index(version)
-            model_file_name = model_files[version_idx]
+            return model_files[version_idx]
         else:
-            # The version doesn't have to exist
             if version in model_versions:
-                # If the version exists, use it
                 version_idx = model_versions.index(version)
-                model_file_name = model_files[version_idx]
+                return model_files[version_idx]
             else:
-                # Otherwise use the provided version
-                model_file_name = "{}-v{}{}".format(model_name, version, suffix)
+                return f"{model_name}-v{version}{suffix}"
 
-    return os.path.join(base_dir, model_name, model_file_name)
+
+def _get_model_folder(base_dir, model_name, must_exist):
+    model_names = [
+        f for f in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, f))
+    ]
+
+    exact_model_names = [f for f in model_names if f.lower() == model_name.lower()]
+
+    if len(exact_model_names) == 0:
+        model_names = [f for f in model_names if f.lower().startswith(model_name.lower())]
+    else:
+        model_names = exact_model_names
+
+    if len(model_names) == 0 and must_exist:
+        raise ValueError(f"No model folders found for {model_name}\nSearched in {base_dir}")
+    elif len(model_names) == 0 and not must_exist:
+        return model_name, False
+    elif len(model_names) == 1:
+        return model_names[0], True
+    else:
+        raise ValueError(f"Multiple directories found for {model_name}\nSearched in {base_dir}")
+
+def _get_model_subfolders(base_dir, model_regex):
+    model_subfolders = [
+        f for f in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, f))
+    ]
+    model_subfolders = [
+        f for f in model_subfolders if model_regex.match(f) is not None
+    ]
+    return model_subfolders
+
+
+def _get_model_path(model_name, prefix=None, suffix=None, is_file=True, must_exist=True, specific_file=None):
+    model_regex = re.compile(
+        r"^\s*" + _MODEL_PATTERN + ("" if suffix is None else r"(?:" + suffix + r")?") + r"\s*$",
+        re.VERBOSE | re.IGNORECASE,
+    )
+    suffix = "" if suffix is None else suffix
+
+    resources_dir = resource_package_dir()
+    base_dir = _get_base_directory(resources_dir, prefix)
+
+    d = model_regex.match(model_name)
+    if d is None:
+        raise ValueError(f"Invalid model name: {model_name}")
+    d = d.groupdict()
+    model_search_name, version = d["model_name"], d["version"]
+
+    if version is not None:
+        version = normalize_version(version)
+
+    found_model_name, folder_exists = _get_model_folder(base_dir, model_search_name, must_exist)
+
+    model_dir = os.path.join(base_dir, found_model_name)
+
+    if not must_exist and not folder_exists:
+        if version is None:
+            model_dir = os.path.join(model_dir, f"{found_model_name}-v1")
+        else:
+            model_dir = os.path.join(model_dir, f"{found_model_name}-v{version}")
+
+        return model_dir
+
+    top_level_has_specific_file = specific_file is not None and os.path.isfile(os.path.join(model_dir, specific_file))
+
+    if version is None and top_level_has_specific_file:
+        return model_dir
+
+    model_subfolders = _get_model_subfolders(model_dir, model_regex)
+
+    if len(model_subfolders) == 0:
+        if top_level_has_specific_file:
+            return model_dir
+        if must_exist:
+            raise ValueError(f"No model folders found for {model_search_name}\nSearched in {model_dir}")
+        else:
+            if version is None:
+                version = "v1"
+
+            model_dir = os.path.join(model_dir, f"{found_model_name}-v{version}")
+            return model_dir
+
+    models_and_versions = []
+    for f in model_subfolders:
+        d = model_regex.match(f).groupdict()
+        if d["version"] is not None:
+            models_and_versions.append((f, normalize_version(d["version"])))
+
+    matching_models = [(m, v) for m, v in models_and_versions if v == version]
+
+    if len(matching_models) == 1:
+        model_dir = os.path.join(model_dir, matching_models[0][0])
+        return model_dir
+    elif len(matching_models) > 1:
+        raise ValueError(f"Multiple directories found for {model_search_name} with version {version}\nSearched in {model_dir}")
+
+    if top_level_has_specific_file:
+        return model_dir
+
+    if len(matching_models) == 0:
+        if must_exist and version is not None:
+            raise ValueError(f"No model folders found for {model_search_name} with version {version}\nSearched in {model_dir}")
+
+    found_model_subfolder, subfolder_version = max(models_and_versions, key=lambda x: tokenize_version(x[1]))
+
+    return os.path.join(model_dir, found_model_subfolder)
+
+
+_resource_folder_by_name = {
+    "flux": "fluxes",
+    "detector": "detectors",
+    "processes": "processes",
+}
+
+
+def get_flux_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix=_resource_folder_by_name["flux"], is_file=False, must_exist=must_exist, specific_file=f"flux.py")
 
 
 def get_detector_model_path(model_name, must_exist=True):
-    return _get_model_path(model_name, prefix="Detectors/densities", suffix=".dat", is_file=True, must_exist=must_exist)
+    return _get_model_path(model_name, prefix=_resource_folder_by_name["detector"], is_file=False, must_exist=must_exist, specific_file=f"detector.py")
 
 
-def get_material_model_path(model_name, must_exist=True):
-    return _get_model_path(model_name, prefix="Detectors/materials", suffix=".dat", is_file=True, must_exist=must_exist)
+def get_processes_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix=_resource_folder_by_name["processes"], is_file=False, must_exist=must_exist, specific_file="processes.py")
+
+def import_resource(resource_type, resource_name):
+    folder = _resource_folder_by_name[resource_type]
+    specific_file = f"{resource_type}.py"
+
+    abs_dir = _get_model_path(resource_name, prefix=folder, is_file=False, must_exist=True, specific_file=specific_file)
+
+    fname = os.path.join(abs_dir, f"{resource_type}.py")
+    if not os.path.isfile(fname):
+        return None
+    return load_module(f"siren-{resource_type}-{resource_name}", fname, persist=False)
 
 
-def get_cross_section_model_path(model_name, must_exist=True):
-    return _get_model_path(model_name, prefix="CrossSections", is_file=False, must_exist=must_exist)
+def get_resource_loader(resource_type, resource_name):
+    resource_module = import_resource(resource_type, resource_name)
+    if resource_module is None:
+        return None
+    return getattr(resource_module, f"load_{resource_type}")
 
 
-def get_tabulated_flux_model_path(model_name, must_exist=True):
-    return _get_model_path(model_name,prefix="Fluxes", is_file=False, must_exist=must_exist)
- 
- 
-def get_tabulated_flux_file(model_name, tag, must_exist=True):
-        abs_flux_dir = get_tabulated_flux_model_path(model_name,must_exist=must_exist)
-        # require existence of FluxCalculator.py
-        FluxCalculatorFile = os.path.join(abs_flux_dir,"FluxCalculator.py")
-        assert(os.path.isfile(FluxCalculatorFile))
-        spec = importlib.util.spec_from_file_location("FluxCalculator", FluxCalculatorFile)
-        FluxCalculator = importlib.util.module_from_spec(spec)
-        sys.modules["FluxCalculator"] = FluxCalculator
-        spec.loader.exec_module(FluxCalculator)
-        flux_file = FluxCalculator.MakeFluxFile(tag,abs_flux_dir)
-        del sys.modules["FluxCalculator"] # remove flux directory from the system
-        return flux_file
+def load_resource(resource_type, resource_name, *args, **kwargs):
+    loader = get_resource_loader(resource_type, resource_name)
+    if loader is None:
+        return None
+    resource = loader(*args, **kwargs)
+    return resource
+
+
+def load_flux(model_name, *args, **kwargs):
+    return load_resource("flux", model_name, *args, **kwargs)
+
+
+def _detector_file_loader(model_name):
+    resource_name = model_name
+    folder = _resource_folder_by_name["detector"]
+
+    abs_dir = _get_model_path(resource_name, prefix=folder, is_file=False, must_exist=True, specific_file=None)
+
+    densities_fname = os.path.join(abs_dir, "densities.dat")
+    materials_fname = os.path.join(abs_dir, "materials.dat")
+
+    if os.path.isfile(densities_fname) and os.path.isfile(materials_fname):
+        from . import detector as _detector
+        detector_model = _detector.DetectorModel()
+        detector_model.LoadMaterialModel(materials_fname)
+        detector_model.LoadDetectorModel(densities_fname)
+        return detector_model
+
+    raise ValueError("Could not find detector loading script \"{script_fname}\" or densities and materials files \"{densities_fname}\", \"materials_fname\"")
+
+
+def load_detector(model_name, *args, **kwargs):
+    resource = load_resource("detector", model_name, *args, **kwargs)
+    if resource is not None:
+        return resource
+    return _detector_file_loader(model_name)
+
+
+def load_processes(model_name, *args, **kwargs):
+    return load_resource("processes", model_name, *args, **kwargs)
+
+def get_fiducial_volume(experiment):
+    """
+    :return: identified fiducial volume for the experiment, None if not found
+    """
+    detector_model_file = get_detector_model_path(experiment) + "/densities.dat"
+    with open(detector_model_file) as file:
+        fiducial_line = None
+        detector_line = None
+        for line in file:
+            data = line.split()
+            if len(data) <= 0:
+                continue
+            elif data[0] == "fiducial":
+                fiducial_line = line
+            elif data[0] == "detector":
+                detector_line = line
+        if fiducial_line is None or detector_line is None:
+            return None
+        from . import detector as _detector
+        return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
+    return None
+
+def list_fluxes():
+    return sorted(_get_model_subfolders(_get_base_directory(resource_package_dir(), "fluxes"), _model_regex))
+
+def list_detectors():
+    dirs = sorted(_get_model_subfolders(_get_base_directory(resource_package_dir(), "detectors"), _model_regex))
+    dirs = [d for d in dirs if d != "visuals"]
+    return dirs
+
+def list_processes():
+    return sorted(_get_model_subfolders(_get_base_directory(resource_package_dir(), "processes"), _model_regex))
+
+def flux_docs(flux_name):
+    loader = get_resource_loader("flux", flux_name)
+    if loader is None:
+        raise ValueError(f"Could not find documentation for flux {flux_name}")
+    return loader.__doc__
+
+def detector_docs(detector_name):
+    loader = get_resource_loader("detector", detector_name)
+    if loader is not None:
+        return loader.__doc__
+
+    resource_name = detector_name
+    folder = _resource_folder_by_name["detector"]
+
+    abs_dir = _get_model_path(resource_name, prefix=folder, is_file=False, must_exist=True, specific_file=None)
+
+    densities_fname = os.path.join(abs_dir, "densities.dat")
+    materials_fname = os.path.join(abs_dir, "materials.dat")
+
+    lines = []
+    if os.path.isfile(densities_fname):
+        with open(densities_fname) as file:
+            new_lines = []
+            for l in file.readlines():
+                l = l.strip()
+                if l.startswith("#"):
+                    new_lines.append(l)
+                else:
+                    break
+            if len(new_lines) > 0:
+                lines.append(f"Detector definition: {densities_fname}")
+            lines.extend(new_lines)
+
+    if os.path.isfile(materials_fname):
+        with open(materials_fname) as file:
+            new_lines = []
+            for l in file.readlines():
+                l = l.strip()
+                if l.startswith("#"):
+                    new_lines.append(l)
+                else:
+                    break
+            if len(lines) > 0 and len(new_lines) > 0:
+                lines.append("")
+                lines.append(f"Material definitions: {materials_fname}")
+            lines.extend(new_lines)
+
+    doc = "\n".join(lines)
+
+    if len(lines) == 0:
+        raise ValueError(f"Could not find documentation for detector {detector_name}")
+
+    return doc
+
+
+def process_docs(process_name):
+    loader = get_resource_loader("processes", process_name)
+    if loader is None:
+        raise ValueError(f"Could not find documentation for process {process_name}")
+    return loader.__doc__
+
+def flux_help(flux_name):
+    doc = flux_docs(flux_name)
+    pydoc.pager(doc)
+
+def detector_help(detector_name):
+    doc = detector_docs(detector_name)
+    pydoc.pager(doc)
+
+def process_help(process_name):
+    doc = process_docs(process_name)
+    pydoc.pager(doc)
+
+def _get_process_loader(process_name):
+    return get_resource_loader("processes", process_name)
+
+def _get_flux_loader(flux_name):
+    return get_resource_loader("flux", flux_name)
+
+def _get_detector_loader(detector_name):
+    loader = get_resource_loader("detector", detector_name)
+    if loader is not None:
+        return loader
+
+    def load_detector():
+        return _detector_file_loader(detector_name)
+
+    load_detector.__doc__ = detector_docs(detector_name)
+
+    return load_detector
