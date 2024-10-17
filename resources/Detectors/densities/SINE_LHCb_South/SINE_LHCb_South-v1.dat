@@ -7,28 +7,28 @@
 # Notes:
 #   Represents a panel-based SINE detector
 #   Looking at the LHCb_South surface exit point
-#   surface exit distance: 24509.26563965175
-#   surface exit angle: 0.007459548447066755
+#   surface exit distance: 24509.496689539923
+#   surface exit angle: 0.009495278085225767
 
 # Air
-object box       0 -5000 0            0 0 0      100000 100000 100000    surr_air           AIR         constant     0.001225
+object box       0 -5000 0            0 0 0      100000 100000 1000000    surr_air           AIR         constant     0.001225
 
 # Dirt
-object box       0 -5000 0            0 0 0      100000 10000 100000    surr_earth           ROCK         constant    2.700
+object box       0 -5000 0            0 0 0      100000 10000 1000000    surr_earth           ROCK         constant    2.700
 
 # Albrecht's proposal
 # 3 tall x 2 wide shipping containers
 # each is 12.2 m wide x 2.44 m deep x 2.59 m tall
 # spaced 1km apart for now
-object box        0 3.885 24529.383079699215    0 0 0      24.4 7.77 2.44    panel_1     SCINTILLATOR    constant    1.043
-object box        0 3.885 25029.383079699215    0 0 0      24.4 7.77 2.44    panel_2     SCINTILLATOR    constant    1.043
-object box        0 3.885 25529.383079699215    0 0 0      24.4 7.77 2.44    panel_3     SCINTILLATOR    constant    1.043
-detector          0 3.885 25029.383079699215
-fiducial box      0 3.885 23029.383079699215    0 0 0      50 50 5000
+object box        0 3.885 24417.530243722285    0 0 0      24.4 7.77 2.44    panel_1     SCINTILLATOR    constant    1.043
+object box        0 3.885 24917.530243722285    0 0 0      24.4 7.77 2.44    panel_2     SCINTILLATOR    constant    1.043
+object box        0 3.885 25417.530243722285    0 0 0      24.4 7.77 2.44    panel_3     SCINTILLATOR    constant    1.043
+detector          0 3.885 24917.530243722285
+fiducial box      0 3.885 22917.530243722285    0 0 0      50 50 5000
 
 # Prototype detector: single shipping container
 # each is 12.2 m wide x 2.44 m deep x 2.59 m tall
 # spaced 1km apart for now
-# object box        0 1.295 24682.18351686574    0 0 0      12.2 2.59 2.44    prototype     SCINTILLATOR    constant    1.043
-# detector          0 1.295 24682.18351686574
-# fiducial box      0 1.295 22182.18351686574    0 0 0      50 50 5000
+# object box        0 1.295 24644.771285228537    0 0 0      12.2 2.59 2.44    prototype     SCINTILLATOR    constant    1.043
+# detector          0 1.295 24644.771285228537
+# fiducial box      0 1.295 22144.771285228537    0 0 0      50 50 5000
