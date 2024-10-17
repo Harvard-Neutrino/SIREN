@@ -11,16 +11,16 @@
 #   lake intersection distance 2: 11905.95
 
 # Air
-object box       0 -5000 0            0 0 0      100000 100000 100000    surr_air           AIR         constant     0.001225
+object box       0 -5000 0            0 0 0      100000 100000 1000000    surr_air           AIR         constant     0.001225
 
 # Dirt
-object box       0 -5000 0            0 0 0      100000 10000 100000    surr_earth           ROCK         constant    2.700
+object box       0 -5000 0            0 0 0      100000 10000 1000000    surr_earth           ROCK         constant    2.700
 
 # Lake
-object box       0 -5000 9704.009089753159            0 0 0      100000 10000 4401.81855617669    lake_geneva           WATER         constant    1.0
+object box       0 -5000 9703.969753421832            0 0 0      100000 10000 4401.800712892378    lake_geneva           WATER         constant    1.0
 
 # CHIPS detector proposal
 # 25 m diameter, 12.5 m tall
-object cylinder   0 -2041.7951738378745 9704.009089753159    0 0 0      12.5 0 12.5    chips     WATER    constant    1.0
-detector          0 -2041.7951738378745 9704.009089753159
-fiducial cylinder 0 -2041.7951738378745 9704.009089753159    0 0 0      12.5 0 12.5
+object cylinder   0 -2088.994613919584 9703.969753421832    0 0 0      12.5 0 12.5    chips     WATER    constant    1.0
+detector          0 -2088.994613919584 9703.969753421832
+fiducial cylinder 0 -2088.994613919584 9703.969753421832    0 0 0      12.5 0 12.5

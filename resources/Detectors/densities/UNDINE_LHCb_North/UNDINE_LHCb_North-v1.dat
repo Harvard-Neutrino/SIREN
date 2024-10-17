@@ -7,20 +7,20 @@
 # Notes:
 #   Represents a water Cherenkov-based UNDINE detector
 #   Looking at the LHCb_North lake intersections
-#   lake intersection distance 1: 25960.99
-#   lake intersection distance 2: 52669.7
+#   lake intersection distance 1: 25960.762
+#   lake intersection distance 2: 52669.495
 
 # Air
-object box       0 -5000 0            0 0 0      100000 100000 100000    surr_air           AIR         constant     0.001225
+object box       0 -5000 0            0 0 0      100000 100000 1000000    surr_air           AIR         constant     0.001225
 
 # Dirt
-object box       0 -5000 0            0 0 0      100000 10000 100000    surr_earth           ROCK         constant    2.700
+object box       0 -5000 0            0 0 0      100000 10000 1000000    surr_earth           ROCK         constant    2.700
 
 # Lake
-object box       0 -5000 39312.63817220934            0 0 0      100000 10000 26706.871128219    lake_geneva           WATER         constant    1.0
+object box       0 -5000 39312.188506278966            0 0 0      100000 10000 26706.735715231705    lake_geneva           WATER         constant    1.0
 
 # CHIPS detector proposal
 # 25 m diameter, 12.5 m tall
-object cylinder   0 -721.4289971349081 39312.63817220934    0 0 0      12.5 0 12.5    chips     WATER    constant    1.0
-detector          0 -721.4289971349081 39312.63817220934
-fiducial cylinder 0 -721.4289971349081 39312.63817220934    0 0 0      12.5 0 12.5
+object cylinder   0 -751.8603993563411 39312.188506278966    0 0 0      12.5 0 12.5    chips     WATER    constant    1.0
+detector          0 -751.8603993563411 39312.188506278966
+fiducial cylinder 0 -751.8603993563411 39312.188506278966    0 0 0      12.5 0 12.5
