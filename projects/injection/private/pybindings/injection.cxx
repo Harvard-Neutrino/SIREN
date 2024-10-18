@@ -158,6 +158,3 @@ PYBIND11_MODULE(injection,m) {
     ;
 }
 
-//CEREAL_REGISTER_DYNAMIC_INIT(siren)
-//CEREAL_REGISTER_DYNAMIC_INIT(siren_Sphere);
-CEREAL_REGISTER_DYNAMIC_INIT(siren_DensityDistribution);
