@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
-#include <math>
+#include <cmath>
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>

@@ -49,8 +49,8 @@ target_link_libraries(SIREN_distributions
         pybind11::embed
     PUBLIC
         photospline
-        SIREN_serialization
         SIREN_utilities
+        SIREN_serialization
         SIREN_math
         SIREN_dataclasses
         SIREN_geometry

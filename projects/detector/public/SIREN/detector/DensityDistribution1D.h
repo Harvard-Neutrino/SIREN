@@ -7,25 +7,27 @@
 #include <functional>
 
 #include <cereal/cereal.hpp>
+#include <cereal/types/polymorphic.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
-#include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/math/Polynomial.h"
 
 #include "SIREN/detector/Axis1D.h"
+#include "SIREN/detector/CartesianAxis1D.h"
 #include "SIREN/detector/Distribution1D.h"
 #include "SIREN/detector/DensityDistribution.h"
+#include "SIREN/detector/ConstantDistribution1D.h"
 
 #include "SIREN/utilities/Integration.h"
 
 namespace siren {
 namespace detector {
 
-template <typename AxisT, typename DistributionT, class E = typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value && std::is_base_of<Distribution1D, DistributionT>::value>::type>
-class DensityDistribution1D
+template <typename AxisT, typename DistributionT, class E = typename std::enable_if<std::is_base_of<Axis1D, AxisT>::value && std::is_base_of<Distribution1D, DistributionT>::value && not (std::is_same<Distribution1D, ConstantDistribution1D>::value && std::is_same<AxisT, CartesianAxis1D>::value)>::type>
+class __attribute__((visibility("default"))) DensityDistribution1D
     : public DensityDistribution {
     using T = DensityDistribution1D<AxisT,DistributionT>;
 private:
@@ -149,5 +151,7 @@ public:
 
 } // namespace detector
 } // namespace siren
+
+CEREAL_FORCE_DYNAMIC_INIT(siren_DensityDistribution1D);
 
 #endif // SIREN_DensityDistribution1D.h

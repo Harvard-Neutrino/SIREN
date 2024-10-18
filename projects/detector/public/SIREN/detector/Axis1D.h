@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SIREN_Axis1D_H
-#define SIREN_Axis1D_H
+#ifndef SIREN_detector_Axis1D_H
+#define SIREN_detector_Axis1D_H
 
 #include <memory>                          // for shared_ptr
 #include <cstdint>                         // for uint32_t
@@ -57,5 +57,8 @@ protected:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::detector::Axis1D, 0);
+CEREAL_REGISTER_TYPE(siren::detector::Axis1D);
 
-#endif // SIREN_Axis1D_H
+CEREAL_FORCE_DYNAMIC_INIT(siren_Axis1D);
+
+#endif // SIREN_detector_Axis1D_H

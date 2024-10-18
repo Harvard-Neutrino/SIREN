@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import siren
 
-_Injector = _injection.Injector
+_Injector = _injection._Injector
 
 ParticleType = _dataclasses.ParticleType
 CrossSection = _interactions.CrossSection
@@ -136,6 +136,37 @@ class Injector:
 
         if self.__stopping_condition is not None:
             self.__injector.SetStoppingCondition(self.__stopping_condition)
+
+    # Custom method to retrieve the internal state for pickling
+    def __getstate__(self):
+        # The seed and stopping condition are the only things we cannot serialize
+        state = (self.__seed, self.__stopping_condition, self.__injector.__getstate__())
+        return state
+
+    # Custom method to restore the state from a pickle
+    def __setstate__(self, state):
+
+        self.__seed, self.__stopping_condition, injector_state = state
+
+        # Create a new instance of the C++ class and restore its state
+        self.__injector = _Injector.__new__(_Injector)  # Create an empty instance
+        if self.__injector is None:
+            raise TypeError("Failed to create C++ Injector object")
+        print(self.__injector)
+        self.__injector.__setstate__(injector_state)
+        print(self.__injector)
+        self.__number_of_events = self.__injector.EventsToInject()
+        self.__detector_model = self.__injector.GetDetectorModel()
+        primary_process = self.__injector.GetPrimaryProcess()
+        self.__primary_type = primary_process.primary_type
+        self.__primary_interactions = list(primary_process.interactions.GetCrossSections()) + list(primary_process.interactions.GetDecays())
+        self.__primary_injection_distributions = list(primary_process.distributions)
+
+        self.__secondary_interactions = {}
+        self.__secondary_injection_distributions = {}
+        for secondary_type, secondary_process in self.__injector.GetSecondaryProcessMap():
+            self.__secondary_interactions[secondary_type] = list(secondary_process.interactions.GetCrossSections()) + list(secondary_process.interactions.GetDecays())
+            self.__secondary_injection_distributions[secondary_type] = list(secondary_process.distributions)
 
     @property
     def seed(self):
