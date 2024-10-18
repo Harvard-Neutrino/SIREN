@@ -15,9 +15,9 @@ target_include_directories(SIREN_injection PUBLIC
 
 target_link_libraries(SIREN_injection
     PUBLIC
-        SIREN_serialization
         photospline
         SIREN_utilities
+        SIREN_serialization
         SIREN_math
         SIREN_dataclasses
         SIREN_geometry

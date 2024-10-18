@@ -19,8 +19,8 @@ target_include_directories(SIREN_geometry PUBLIC
 
 target_link_libraries(SIREN_geometry
     PUBLIC
-        SIREN_serialization
         photospline
+        SIREN_serialization
         SIREN_math
     INTERFACE
         siren_compile_options

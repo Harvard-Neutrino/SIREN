@@ -21,8 +21,8 @@ target_link_libraries(SIREN_dataclasses
     siren_compile_options
     PUBLIC
     photospline
-    SIREN_serialization
     SIREN_utilities
+    SIREN_serialization
     SIREN_math
 )
 

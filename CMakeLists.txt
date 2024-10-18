@@ -142,10 +142,10 @@ endif()
 target_link_libraries(SIREN
     PRIVATE
     PUBLIC
-        SIREN_serialization
         delabella_shared
         photospline
         SIREN_utilities
+        SIREN_serialization
         SIREN_math
         SIREN_dataclasses
         SIREN_geometry
@@ -158,10 +158,10 @@ else()
 target_link_libraries(SIREN
     PRIVATE
     PUBLIC
-        SIREN_serialization
         photospline
         delabella_shared
         SIREN_utilities
+        SIREN_serialization
         SIREN_math
         SIREN_dataclasses
         SIREN_geometry
@@ -184,9 +184,9 @@ if(DEFINED SKBUILD_PLATLIB_DIR)
         message(STATUS "Setting SIREN install lib dir to: ${CI_INSTALL_PREFIX}/lib")
         message(STATUS "Setting SIREN install include dir to: ${CI_INSTALL_PREFIX}/include")
         install(TARGETS SIREN
-            SIREN_serialization
             delabella_shared
             SIREN_utilities
+            SIREN_serialization
             SIREN_math
             SIREN_dataclasses
             SIREN_geometry
@@ -199,9 +199,9 @@ if(DEFINED SKBUILD_PLATLIB_DIR)
             PUBLIC_HEADER DESTINATION "${CI_INSTALL_PREFIX}/include")
     else()
         install(TARGETS SIREN
-            SIREN_serialization
             delabella_shared
             SIREN_utilities
+            SIREN_serialization
             SIREN_math
             SIREN_dataclasses
             SIREN_geometry
@@ -215,9 +215,9 @@ if(DEFINED SKBUILD_PLATLIB_DIR)
     endif()
 else()
     install(TARGETS SIREN
-        SIREN_serialization
         delabella_shared
         SIREN_utilities
+        SIREN_serialization
         SIREN_math
         SIREN_dataclasses
         SIREN_geometry
