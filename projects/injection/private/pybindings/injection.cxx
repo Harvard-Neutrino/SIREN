@@ -25,8 +25,6 @@
 
 #include "../../../serialization/public/SIREN/serialization/ByteString.h"
 
-#include "SIREN/detector/ConstantDensityDistribution.h"
-
 #include "SIREN/dataclasses/serializable.h"
 #include "SIREN/detector/serializable.h"
 #include "SIREN/distributions/serializable.h"
@@ -36,12 +34,7 @@
 #include "SIREN/math/serializable.h"
 #include "SIREN/utilities/serializable.h"
 
-//#include "SIREN/geometry/Geometry.h"
-//#include "SIREN/geometry/Sphere.h"
-
-
 PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>);
-//CEREAL_FORCE_DYNAMIC_INIT(pyDarkNewsCrossSection);
 
 using namespace pybind11;
 
