@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 cmake_policy(VERSION 3.20)
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-add_compile_options(-Winstantiation-after-specialization)
-
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOSX TRUE)
 endif()
