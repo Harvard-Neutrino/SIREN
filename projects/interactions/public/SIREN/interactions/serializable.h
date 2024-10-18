@@ -1,7 +1,6 @@
 #ifndef SIREN_serializable_H
 #define SIREN_serializable_H
 
-//#include "SIREN/interactions/HNLDecay.h"
 #include "SIREN/interactions/DarkNewsCrossSection.h"
 #include "SIREN/interactions/NeutrissimoDecay.h"
 #include "SIREN/interactions/DarkNewsDecay.h"

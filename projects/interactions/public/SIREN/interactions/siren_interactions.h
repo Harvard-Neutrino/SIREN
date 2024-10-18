@@ -9,7 +9,6 @@
 #include "SIREN/interactions/DipoleFromTable.h"
 #include "SIREN/interactions/DummyCrossSection.h"
 #include "SIREN/interactions/ElasticScattering.h"
-//#include "SIREN/interactions/HNLDecay.h"
 #include "SIREN/interactions/HNLFromSpline.h"
 #include "SIREN/interactions/Interaction.h"
 #include "SIREN/interactions/InteractionCollection.h"
