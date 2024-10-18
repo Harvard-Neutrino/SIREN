@@ -40,6 +40,5 @@ struct DecaySignature {
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::dataclasses::DecaySignature, 0);
-//CEREAL_REGISTER_TYPE_WITH_NAME(siren::dataclasses::DecaySignature, "siren::dataclasses:DecaySignature");
 
 #endif // SIREN_DecaySignature_H
