@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import siren
 
-_Injector = _injection.Injector
-_Weighter = _injection.Weighter
+_Injector = _injection._Injector
+_Weighter = _injection._Weighter
 
 _PyInjector = _Injector_module.Injector
 

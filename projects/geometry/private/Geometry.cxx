@@ -206,3 +206,6 @@ std::vector<Geometry::Intersection> Geometry::Intersections(siren::math::Vector3
 
 } // namespace geometry
 } // namespace siren
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_Geometry);
+

@@ -116,6 +116,8 @@ public:
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {
+        std::cout << "Saving Injector" << std::endl;
+        std::cout << "Version: " << version << std::endl;
         if(version == 0) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
@@ -131,6 +133,8 @@ public:
 
     template<typename Archive>
     void load(Archive & archive, std::uint32_t const version) {
+        std::cout << "Loading Injector" << std::endl;
+        std::cout << "Version: " << version << std::endl;
         if(version == 0) {
             std::shared_ptr<injection::PrimaryInjectionProcess> _primary_process;
             std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> _secondary_processes;

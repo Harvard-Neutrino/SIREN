@@ -1,5 +1,10 @@
-add_library(SIREN_serialization INTERFACE)
-target_include_directories(SIREN_serialization INTERFACE
+
+LIST (APPEND serialization_SOURCES
+    ${PROJECT_SOURCE_DIR}/projects/serialization/private/serialization.cxx
+)
+
+add_library(SIREN_serialization OBJECT ${serialization_SOURCES})
+target_include_directories(SIREN_serialization PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/serialization/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/serialization/>
 )

@@ -49,6 +49,11 @@ struct DetectorSector {
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
+            std::cout << "Name: " << name << std::endl;
+            std::cout << "MaterialID: " << material_id << std::endl;
+            std::cout << "Level: " << level << std::endl;
+            std::cout << "Geometry: " << geo << std::endl;
+            std::cout << "Density: " << density << std::endl;
             archive(cereal::make_nvp("Name", name));
             archive(cereal::make_nvp("MaterialID", material_id));
             archive(cereal::make_nvp("Level", level));
@@ -295,5 +300,7 @@ std::ostream& operator<<(std::ostream& oss, siren::detector::DetectorSector & bc
 #include "SIREN/detector/DetectorModel.tcc"
 
 CEREAL_CLASS_VERSION(siren::detector::DetectorModel, 0);
+
+CEREAL_FORCE_DYNAMIC_INIT(siren_DetectorModel);
 
 #endif // SIREN_DetectorModel_H

@@ -1757,3 +1757,6 @@ double DetectorModel::GetTargetMass(siren::dataclasses::ParticleType target) con
     double molar_mass = materials_.GetMolarMass(target); // grams per mole
     return molar_mass * siren::utilities::Constants::GeV_per_amu;
 }
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_DetectorModel);
+

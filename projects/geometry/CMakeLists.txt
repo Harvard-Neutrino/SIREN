@@ -18,14 +18,14 @@ target_include_directories(SIREN_geometry PUBLIC
 )
 
 target_link_libraries(SIREN_geometry
+    PUBLIC
+        SIREN_serialization
+        photospline
+        SIREN_math
     INTERFACE
         siren_compile_options
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
-    PUBLIC
-        photospline
-        SIREN_serialization
-        SIREN_math
 )
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/geometry/public/"

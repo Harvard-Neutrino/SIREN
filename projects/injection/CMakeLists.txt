@@ -14,14 +14,9 @@ target_include_directories(SIREN_injection PUBLIC
 )
 
 target_link_libraries(SIREN_injection
-    INTERFACE
-        siren_compile_options
-    PRIVATE
-        $<BUILD_INTERFACE:rk_static>
-        pybind11::embed
     PUBLIC
-        photospline
         SIREN_serialization
+        photospline
         SIREN_utilities
         SIREN_math
         SIREN_dataclasses
@@ -29,6 +24,11 @@ target_link_libraries(SIREN_injection
         SIREN_detector
         SIREN_interactions
         SIREN_distributions
+    INTERFACE
+        siren_compile_options
+    PRIVATE
+        $<BUILD_INTERFACE:rk_static>
+        pybind11::embed
 )
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/injection/public/"
