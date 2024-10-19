@@ -36,24 +36,43 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-# Create an interface library for SIREN compile options
-add_library(siren_compile_options INTERFACE)
+function(apply_siren_compile_options target)
+    # Check if the target is an INTERFACE target
+    get_target_property(target_type ${target} TYPE)
 
-# Specify the compile options
-target_compile_options(siren_compile_options INTERFACE
-    -O2
-    -Wall
-    -fPIC
-    $<$<CONFIG:Debug>:-g>
-    $<$<CONFIG:Debug>:-O0>
-    $<$<CONFIG:Release>:-O2>
-    $<$<CONFIG:Release>:-s>
-)
+    if("${target_type}" STREQUAL "INTERFACE_LIBRARY")
+        # Apply compile options to INTERFACE target
+        target_compile_options(${target} INTERFACE
+            -O2
+            -Wall
+            -fPIC
+            $<$<CONFIG:Debug>:-g>
+            $<$<CONFIG:Debug>:-O0>
+            $<$<CONFIG:Release>:-O2>
+            $<$<CONFIG:Release>:-s>
+        )
+		# Conditionally add -stdlib=libc++ for Clang
+		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+			target_compile_options(${target} INTERFACE -stdlib=libc++)
+		endif()
+    else()
+        # Apply compile options to non-INTERFACE target (PRIVATE or PUBLIC)
+        target_compile_options(${target} PRIVATE
+            -O2
+            -Wall
+            -fPIC
+            $<$<CONFIG:Debug>:-g>
+            $<$<CONFIG:Debug>:-O0>
+            $<$<CONFIG:Release>:-O2>
+            $<$<CONFIG:Release>:-s>
+        )
+		# Conditionally add -stdlib=libc++ for Clang
+		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+			target_compile_options(${target} PRIVATE -stdlib=libc++)
+		endif()
+    endif()
+endfunction()
 
-# Conditionally add -stdlib=libc++ for Clang
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    target_compile_options(siren_compile_options INTERFACE -stdlib=libc++)
-endif()
 
 # override install locations when building python extensions
 if(DEFINED SKBUILD_PLATLIB_DIR)
@@ -75,40 +94,40 @@ include(pybind11)
 # load project dependencies
 include(rk)
 if(TARGET rk_static)
-    target_link_libraries(rk_static INTERFACE siren_compile_options)
+    apply_siren_compile_options(rk_static)
 endif()
 if(TARGET rk_shared)
-    target_link_libraries(rk_shared INTERFACE siren_compile_options)
+    apply_siren_compile_options(rk_shared)
 endif()
 include(cereal)
 if(TARGET cereal)
-    target_link_libraries(cereal INTERFACE siren_compile_options)
+    apply_siren_compile_options(cereal)
 endif()
 include(delabella)
 if(TARGET delabella_static)
-    target_link_libraries(delabella_static INTERFACE siren_compile_options)
+    apply_siren_compile_options(delabella_static)
 endif()
 if(TARGET delabella_shared)
-    target_link_libraries(delabella_shared INTERFACE siren_compile_options)
+    apply_siren_compile_options(delabella_shared)
 endif()
 include(CFITSIO)
 include(photospline)
 if(TARGET photospline)
-    target_link_libraries(photospline INTERFACE siren_compile_options)
+    apply_siren_compile_options(photospline)
 endif()
 include(googletest)
 if(TARGET gtest)
-    target_link_libraries(gtest INTERFACE siren_compile_options)
+    apply_siren_compile_options(gtest)
 endif()
 if(TARGET gtest_main)
-    target_link_libraries(gtest_main INTERFACE siren_compile_options)
+    apply_siren_compile_options(gtest_main)
 endif()
 if(TARGET gmock)
-    target_link_libraries(gmock INTERFACE siren_compile_options)
+    apply_siren_compile_options(gmock)
 endif()
 include(NamedType)
 if(TARGET NamedType)
-    target_link_libraries(NamedType INTERFACE siren_compile_options)
+    apply_siren_compile_options(NamedType)
 endif()
 
 # load macros for googletest
@@ -128,7 +147,7 @@ add_subdirectory(projects/injection)
 # define the target library
 add_library(SIREN SHARED)
 set_property(TARGET SIREN PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_link_libraries(SIREN INTERFACE siren_compile_options)
+apply_siren_compile_options(SIREN)
 
 if(DEFINED MACOSX AND MACOSX)
 if(CMAKE_VERSION VERSION_LESS 3.13)
@@ -168,9 +187,6 @@ target_link_libraries(SIREN
         SIREN_injection
 )
 endif()
-
-# Export siren_compile_options
-install(TARGETS siren_compile_options EXPORT ${PROJECT_NAME}Config)
 
 # define the install path normally or for python package
 if(DEFINED SKBUILD_PLATLIB_DIR)

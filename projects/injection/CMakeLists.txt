@@ -24,12 +24,11 @@ target_link_libraries(SIREN_injection
         SIREN_detector
         SIREN_interactions
         SIREN_distributions
-    INTERFACE
-        siren_compile_options
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
         pybind11::embed
 )
+apply_siren_compile_options(SIREN_injection)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/injection/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

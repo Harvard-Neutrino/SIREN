@@ -42,8 +42,6 @@ target_include_directories(SIREN_distributions PUBLIC
 )
 
 target_link_libraries(SIREN_distributions
-    INTERFACE
-        siren_compile_options
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
         pybind11::embed
@@ -57,6 +55,7 @@ target_link_libraries(SIREN_distributions
         SIREN_detector
         SIREN_interactions
 )
+apply_siren_compile_options(SIREN_distributions)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/distributions/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

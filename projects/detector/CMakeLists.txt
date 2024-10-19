@@ -39,11 +39,10 @@ target_link_libraries(SIREN_detector
         SIREN_math
         SIREN_dataclasses
         SIREN_geometry
-    INTERFACE
-        siren_compile_options
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
 )
+apply_siren_compile_options(SIREN_detector)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/detector/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

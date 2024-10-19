@@ -9,10 +9,7 @@ target_include_directories(SIREN_serialization PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/serialization/>
 )
 
-target_link_libraries(SIREN_serialization
-    INTERFACE
-        siren_compile_options
-)
+apply_siren_compile_options(SIREN_serialization)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/serialization/public/"
     EXPORT ${PROJECT_NAME}Config
