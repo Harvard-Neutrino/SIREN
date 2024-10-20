@@ -39,6 +39,10 @@ endif()
 function(apply_siren_compile_options target)
     # Check if the target is an INTERFACE target
     get_target_property(target_type ${target} TYPE)
+    get_target_property(target_imported ${target} IMPORTED)
+
+    message("${target} is of type ${target_type}")
+    message("${target} imported? ${target_imported}")
 
     if("${target_type}" STREQUAL "INTERFACE_LIBRARY")
         # Apply compile options to INTERFACE target
@@ -54,6 +58,21 @@ function(apply_siren_compile_options target)
 		# Conditionally add -stdlib=libc++ for Clang
 		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 			target_compile_options(${target} INTERFACE -stdlib=libc++)
+		endif()
+    elseif(target_imported)
+        # Apply compile options to non-INTERFACE target (PRIVATE or PUBLIC)
+        target_compile_options(${target} INTERFACE
+            -O2
+            -Wall
+            -fPIC
+            $<$<CONFIG:Debug>:-g>
+            $<$<CONFIG:Debug>:-O0>
+            $<$<CONFIG:Release>:-O2>
+            $<$<CONFIG:Release>:-s>
+        )
+		# Conditionally add -stdlib=libc++ for Clang
+		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+            target_compile_options(${target} INTERFACE -stdlib=libc++)
 		endif()
     else()
         # Apply compile options to non-INTERFACE target (PRIVATE or PUBLIC)
@@ -111,6 +130,9 @@ if(TARGET delabella_shared)
     apply_siren_compile_options(delabella_shared)
 endif()
 include(CFITSIO)
+if(TARGET CFITSIO)
+    apply_siren_compile_options(CFITSIO)
+endif()
 include(photospline)
 if(TARGET photospline)
     apply_siren_compile_options(photospline)
