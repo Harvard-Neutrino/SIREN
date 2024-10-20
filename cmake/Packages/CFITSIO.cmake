@@ -20,35 +20,42 @@ set(CFITSIO_FIND_REQUIRED TRUE)
 if (NOT CFITSIO_FOUND)
     # Manually parse CPLUS_INCLUDE_PATH to add paths to search
     if (DEFINED ENV{CPLUS_INCLUDE_PATH})
-        string(REPLACE ":" ";" CPLUS_INCLUDE_PATH_LIST "$ENV{CPLUS_INCLUDE_PATH}")
+        string(REPLACE ":" ";" CFITSIO_INCLUDE_SEARCH_PATH_LIST "$ENV{CPLUS_INCLUDE_PATH}")
     else()
-        set(CPLUS_INCLUDE_PATH_LIST "")
+        set(CFITSIO_INCLUDE_SEARCH_PATH_LIST "")
     endif()
 
-    # Search user environment for headers, then default paths; extract version
-    find_path(CFITSIO_INCLUDE_DIR
-        NAMES fitsio.h
-        PATHS
+    list(PREPEND CFITSIO_INCLUDE_SEARCH_PATH_LIST
         $ENV{CFITSIOROOT}/include
-        ${CPLUS_INCLUDE_PATH_LIST}
-        ${CMAKE_INSTALL_PREFIX}/include
-        ${CMAKE_PREFIX_PATH}/include
-        /usr/include
-        /usr/local/include
-        /opt/local/include
+    )
+
+    # Search user environment for headers, then default paths; extract version
+    find_path(CFITSIO_INCLUDE_DIR fitsio.h
+        PATHS ${CFITSIO_INCLUDE_SEARCH_PATH_LIST}
         NO_DEFAULT_PATH
     )
     if(NOT CFITSIO_INCLUDE_DIR)
-        find_path(CFITSIO_INCLUDE_DIR fitsio.h
-            PATHS $ENV{CFITSIOROOT}/include
-            NO_DEFAULT_PATH)
+        unset(CFITSIO_INCLUDE_DIR)
         find_path(CFITSIO_INCLUDE_DIR fitsio.h)
     endif()
 
-    if (NOT CFITSIO_INCLUDE_DIR)
+    if(NOT CFITSIO_INCLUDE_DIR)
+        unset(CFITSIO_INCLUDE_DIR)
         find_path(CFITSIO_INCLUDE_DIR cfitsio/fitsio.h
-            PATHS $ENV{CFITSIOROOT}/include)
-        set(CFITSIO_INCLUDE_DIR "${CFITSIO_INCLUDE_DIR}/cfitsio" CACHE PATH "Path to cfitsio headers" FORCE)
+            PATHS $ENV{CFITSIOROOT}/include
+            NO_DEFAULT_PATH
+        )
+        if(CFITSIO_INCLUDE_DIR)
+            set(CFITSIO_INCLUDE_DIR "${CFITSIO_INCLUDE_DIR}/cfitsio" CACHE PATH "Path to cfitsio headers" FORCE)
+        endif()
+    endif()
+
+    if(NOT CFITSIO_INCLUDE_DIR)
+        unset(CFITSIO_INCLUDE_DIR)
+        find_path(CFITSIO_INCLUDE_DIR cfitsio/fitsio.h)
+        if(CFITSIO_INCLUDE_DIR)
+            set(CFITSIO_INCLUDE_DIR "${CFITSIO_INCLUDE_DIR}/cfitsio" CACHE PATH "Path to cfitsio headers" FORCE)
+        endif()
     endif()
 
     if (CFITSIO_INCLUDE_DIR AND EXISTS "${CFITSIO_INCLUDE_DIR}/fitsio.h")
@@ -61,28 +68,25 @@ if (NOT CFITSIO_FOUND)
     endif()
 
     if (DEFINED ENV{LD_LIBRARY_PATH})
-        string(REPLACE ":" ";" LIBRARY_PATH_LIST "$ENV{LD_LIBRARY_PATH}")
+        string(REPLACE ":" ";" CFITSIO_LIBRARY_SEARCH_PATH_LIST "$ENV{LD_LIBRARY_PATH}")
     else()
-        set(LIBRARY_PATH_LIST "")
+        set(CFITSIO_LIBRARY_SEARCH_PATH_LIST "")
     endif()
 
-    # Search user environment for libraries, then default paths
-    find_library(CFITSIO_LIBRARIES
-        NAMES cfitsio
-        PATHS
+    list(PREPEND CFITSIO_LIBRARY_SEARCH_PATH_LIST
         $ENV{CFITSIOROOT}/lib
-        ${LIBRARY_PATH_LIST}
-        ${CMAKE_INSTALL_PREFIX}/lib
-        ${CMAKE_PREFIX_PATH}/lib
-        /usr/lib
-        /usr/local/lib
-        /opt/local/lib
+        $ENV{CFITSIOROOT}/lib64
+    )
+
+    # Search user environment for libraries, then default paths
+    find_library(CFITSIO_LIBRARIES cfitsio
+        PATHS ${LIBRARY_PATH_LIST}
         NO_DEFAULT_PATH
     )
 
     if(NOT CFITSIO_LIBRARIES)
         find_library(CFITSIO_LIBRARIES NAMES cfitsio
-            PATHS $ENV{CFITSIOROOT}/lib
+            PATHS ${LIBRARY_PATH_LIST}
             NO_DEFAULT_PATH)
         find_library(CFITSIO_LIBRARIES NAMES cfitsio)
     endif()
