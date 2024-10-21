@@ -73,11 +73,6 @@ if (NOT CFITSIO_FOUND)
         set(CFITSIO_LIBRARY_SEARCH_PATH_LIST "")
     endif()
 
-    list(PREPEND CFITSIO_LIBRARY_SEARCH_PATH_LIST
-        $ENV{CFITSIOROOT}/lib
-        $ENV{CFITSIOROOT}/lib64
-    )
-
     # Search user environment for libraries, then default paths
     find_library(CFITSIO_LIBRARIES cfitsio
         PATHS ${CFITSIO_LIBRARY_SEARCH_PATH_LIST}
