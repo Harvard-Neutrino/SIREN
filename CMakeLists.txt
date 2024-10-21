@@ -50,12 +50,9 @@ function(apply_siren_compile_options target)
             $<$<CONFIG:Debug>:-g>
             $<$<CONFIG:Debug>:-O0>
             $<$<CONFIG:Release>:-O2>
-            $<$<CONFIG:Release>:-s>
+            $<$<AND:$<COMPILE_LANG_AND_ID:CXX,GNU>,$<CONFIG:Release>>:-s>
+            $<$<COMPILE_LANG_AND_ID:CXX,Clang>:-stdlib=libc++>
         )
-		# Conditionally add -stdlib=libc++ for Clang
-		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-			target_compile_options(${target} INTERFACE -stdlib=libc++)
-		endif()
     elseif(target_imported)
         # Apply compile options to non-INTERFACE target (PRIVATE or PUBLIC)
         target_compile_options(${target} INTERFACE
@@ -65,12 +62,9 @@ function(apply_siren_compile_options target)
             $<$<CONFIG:Debug>:-g>
             $<$<CONFIG:Debug>:-O0>
             $<$<CONFIG:Release>:-O2>
-            $<$<CONFIG:Release>:-s>
+            $<$<AND:$<COMPILE_LANG_AND_ID:CXX,GNU>,$<CONFIG:Release>>:-s>
+            $<$<COMPILE_LANG_AND_ID:CXX,Clang>:-stdlib=libc++>
         )
-		# Conditionally add -stdlib=libc++ for Clang
-		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-            target_compile_options(${target} INTERFACE -stdlib=libc++)
-		endif()
     else()
         # Apply compile options to non-INTERFACE target (PRIVATE or PUBLIC)
         target_compile_options(${target} PRIVATE
@@ -80,12 +74,9 @@ function(apply_siren_compile_options target)
             $<$<CONFIG:Debug>:-g>
             $<$<CONFIG:Debug>:-O0>
             $<$<CONFIG:Release>:-O2>
-            $<$<CONFIG:Release>:-s>
+            $<$<AND:$<COMPILE_LANG_AND_ID:CXX,GNU>,$<CONFIG:Release>>:-s>
+            $<$<COMPILE_LANG_AND_ID:CXX,Clang>:-stdlib=libc++>
         )
-		# Conditionally add -stdlib=libc++ for Clang
-		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-			target_compile_options(${target} PRIVATE -stdlib=libc++)
-		endif()
     endif()
 endfunction()
 
@@ -133,6 +124,7 @@ endif()
 include(photospline)
 if(TARGET photospline)
     apply_siren_compile_options(photospline)
+    target_link_libraries(photospline PUBLIC CFITSIO)
 endif()
 include(googletest)
 if(TARGET gtest)
