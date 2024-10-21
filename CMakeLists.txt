@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 cmake_policy(VERSION 3.20)
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
+    cmake_policy(SET CMP0042 NEW)
+    set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
+    cmake_policy(SET CMP0068 NEW)
     set(MACOSX TRUE)
 endif()
 
