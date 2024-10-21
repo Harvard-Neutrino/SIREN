@@ -152,9 +152,7 @@ class Injector:
         self.__injector = _Injector.__new__(_Injector)  # Create an empty instance
         if self.__injector is None:
             raise TypeError("Failed to create C++ Injector object")
-        print(self.__injector)
         self.__injector.__setstate__(injector_state)
-        print(self.__injector)
         self.__number_of_events = self.__injector.EventsToInject()
         self.__detector_model = self.__injector.GetDetectorModel()
         primary_process = self.__injector.GetPrimaryProcess()
