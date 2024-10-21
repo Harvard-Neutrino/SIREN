@@ -42,7 +42,7 @@ if (NOT CFITSIO_FOUND)
     if(NOT CFITSIO_INCLUDE_DIR)
         unset(CFITSIO_INCLUDE_DIR)
         find_path(CFITSIO_INCLUDE_DIR cfitsio/fitsio.h
-            PATHS $ENV{CFITSIOROOT}/include
+            PATHS ${CFITSIO_INCLUDE_SEARCH_PATH_LIST}
             NO_DEFAULT_PATH
         )
         if(CFITSIO_INCLUDE_DIR)
@@ -80,14 +80,11 @@ if (NOT CFITSIO_FOUND)
 
     # Search user environment for libraries, then default paths
     find_library(CFITSIO_LIBRARIES cfitsio
-        PATHS ${LIBRARY_PATH_LIST}
+        PATHS ${CFITSIO_LIBRARY_SEARCH_PATH_LIST}
         NO_DEFAULT_PATH
     )
 
     if(NOT CFITSIO_LIBRARIES)
-        find_library(CFITSIO_LIBRARIES NAMES cfitsio
-            PATHS ${LIBRARY_PATH_LIST}
-            NO_DEFAULT_PATH)
         find_library(CFITSIO_LIBRARIES NAMES cfitsio)
     endif()
 
