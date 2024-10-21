@@ -19,3 +19,6 @@ bool Distribution1D::operator!=(const Distribution1D& dist) const {
 
 } // namespace siren
 } // namespace detector
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_Distribution1D);
+

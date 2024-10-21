@@ -158,7 +158,10 @@ class DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D>
 };
 */
 
-typedef DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D> RadialAxisPolynomialDensityDistribution;
+// Declare the explicit specialization (but do not instantiate)
+extern template class DensityDistribution1D<RadialAxis1D, PolynomialDistribution1D>;
+
+typedef DensityDistribution1D<RadialAxis1D, PolynomialDistribution1D> RadialAxisPolynomialDensityDistribution;
 
 } // namespace detector
 } // namespace siren
@@ -166,5 +169,7 @@ typedef DensityDistribution1D<RadialAxis1D,PolynomialDistribution1D> RadialAxisP
 CEREAL_CLASS_VERSION(siren::detector::RadialAxisPolynomialDensityDistribution, 0);
 CEREAL_REGISTER_TYPE(siren::detector::RadialAxisPolynomialDensityDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::RadialAxisPolynomialDensityDistribution);
+
+CEREAL_FORCE_DYNAMIC_INIT(siren_RadialAxisPolynomialDensityDistribution);
 
 #endif // SIREN_RadialAxisPolynomialDensityDistribution.h

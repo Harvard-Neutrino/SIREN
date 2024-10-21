@@ -213,7 +213,10 @@ const std::array<std::string, 5>  Geometry_Name = { "sphere", "box", "cylinder",
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::geometry::Geometry, 0);
+CEREAL_REGISTER_TYPE(siren::geometry::Geometry)
 CEREAL_CLASS_VERSION(siren::geometry::Geometry::Intersection, 0);
 CEREAL_CLASS_VERSION(siren::geometry::Geometry::IntersectionList, 0);
+
+CEREAL_FORCE_DYNAMIC_INIT(siren_Geometry);
 
 #endif // SIREN_Geometry_H

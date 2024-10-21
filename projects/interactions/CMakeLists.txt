@@ -26,19 +26,18 @@ target_include_directories(SIREN_interactions PUBLIC
 )
 
 target_link_libraries(SIREN_interactions
-    INTERFACE
-        siren_compile_options
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
         pybind11::embed
     PUBLIC
         photospline
-        SIREN_serialization
         SIREN_utilities
+        SIREN_serialization
         SIREN_math
         SIREN_dataclasses
         SIREN_detector
 )
+apply_siren_compile_options(SIREN_interactions)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/interactions/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

@@ -326,3 +326,6 @@ std::pair<double, double> Sphere::ComputeDistanceToBorder(const siren::math::Vec
 
 } // namespace geometry
 } // namespace siren
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_Sphere);
+

@@ -12,10 +12,7 @@ target_include_directories(SIREN_utilities PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/utilities/>
 )
 
-target_link_libraries(SIREN_utilities
-    INTERFACE
-        siren_compile_options
-)
+apply_siren_compile_options(SIREN_utilities)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/utilities/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

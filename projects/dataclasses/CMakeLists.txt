@@ -17,14 +17,13 @@ target_include_directories(SIREN_dataclasses PUBLIC
 )
 
 target_link_libraries(SIREN_dataclasses
-    INTERFACE
-    siren_compile_options
     PUBLIC
     photospline
-    SIREN_serialization
     SIREN_utilities
+    SIREN_serialization
     SIREN_math
 )
+apply_siren_compile_options(SIREN_dataclasses)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/dataclasses/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

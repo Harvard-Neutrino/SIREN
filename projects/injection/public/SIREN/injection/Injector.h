@@ -121,7 +121,6 @@ public:
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             // archive(::cereal::make_nvp("SIRENRandom", random));
-            // std::cout << "saved SIRENRandom\n";
             archive(::cereal::make_nvp("PrimaryProcess", primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", secondary_processes));
         } else {
@@ -139,7 +138,6 @@ public:
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             // archive(::cereal::make_nvp("SIRENRandom", random));
-            // std::cout << "loaded SIRENRandom\n";
             archive(::cereal::make_nvp("PrimaryProcess", _primary_process));
             archive(::cereal::make_nvp("SecondaryProcesses", _secondary_processes));
             SetPrimaryProcess(_primary_process);

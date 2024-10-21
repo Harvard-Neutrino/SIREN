@@ -18,15 +18,14 @@ target_include_directories(SIREN_geometry PUBLIC
 )
 
 target_link_libraries(SIREN_geometry
-    INTERFACE
-        siren_compile_options
-    PRIVATE
-        $<BUILD_INTERFACE:rk_static>
     PUBLIC
         photospline
         SIREN_serialization
         SIREN_math
+    PRIVATE
+        $<BUILD_INTERFACE:rk_static>
 )
+apply_siren_compile_options(SIREN_geometry)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/geometry/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
