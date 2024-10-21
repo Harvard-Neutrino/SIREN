@@ -41,9 +41,6 @@ function(apply_siren_compile_options target)
     get_target_property(target_type ${target} TYPE)
     get_target_property(target_imported ${target} IMPORTED)
 
-    message("${target} is of type ${target_type}")
-    message("${target} imported? ${target_imported}")
-
     if("${target_type}" STREQUAL "INTERFACE_LIBRARY")
         # Apply compile options to INTERFACE target
         target_compile_options(${target} INTERFACE
