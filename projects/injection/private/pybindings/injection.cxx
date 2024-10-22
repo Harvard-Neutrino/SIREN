@@ -155,6 +155,10 @@ PYBIND11_MODULE(injection,m) {
     .def("EventWeight",&Weighter::EventWeight)
     .def("SaveWeighter",&Weighter::SaveWeighter)
     .def("LoadWeighter",&Weighter::LoadWeighter)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<Weighter>),
+        &(siren::serialization::pickle_load<Weighter>)
+    ))
     ;
 }
 
