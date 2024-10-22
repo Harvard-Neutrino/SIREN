@@ -17,7 +17,7 @@ namespace siren {
 namespace serialization {
 
 template<typename T>
-std::vector<char> to_byte_string(T const & obj) {
+std::vector<char> to_byte_string(std::shared_ptr<T const> obj) {
     std::ostringstream oss(std::ios::binary);
     {
         cereal::BinaryOutputArchive oarchive(oss);
@@ -48,20 +48,20 @@ std::string bytes_to_hex_string(std::vector<char> const & bytes) {
 }
 
 template<typename T>
-T from_byte_string(std::vector<char> const & byte_string) {
+std::shared_ptr<T> from_byte_string(std::vector<char> const & byte_string) {
     std::string str(byte_string.begin(), byte_string.end());
     if(not (str.size() == byte_string.size()))
         throw std::runtime_error("str.size() != byte_string.size()");
     std::istringstream iss(str, std::ios::binary);
-    std::shared_ptr<T> obj(cereal::access::construct<T>());
+    std::shared_ptr<T> obj;
     {
         cereal::BinaryInputArchive iarchive(iss);
-        iarchive(*obj);
+        iarchive(obj);
     }
     size_t n_bytes = iss.tellg();
     if(not (n_bytes == str.size()))
         throw std::runtime_error("n_bytes != str.size()");
-    return *obj;
+    return obj;
 }
 
 std::vector<char> hex_string_to_bytes(std::string const & hex_string) {
@@ -77,20 +77,20 @@ std::vector<char> hex_string_to_bytes(std::string const & hex_string) {
 }
 
 template<typename T>
-pybind11::tuple pickle_save(T const & cpp_obj) {
+pybind11::tuple pickle_save(std::shared_ptr<T const> cpp_obj) {
     std::vector<char> byte_string = to_byte_string(cpp_obj);
     std::string hex_string = bytes_to_hex_string(byte_string);
     return pybind11::make_tuple(hex_string);
 }
 
 template<typename T>
-T pickle_load(pybind11::tuple t) {
+std::shared_ptr<T> pickle_load(pybind11::tuple t) {
     if (t.size() != 1) {
         throw std::runtime_error("Invalid state!");
     }
     std::string hex_string = t[0].cast<std::string>();
     std::vector<char> byte_string = hex_string_to_bytes(hex_string);
-    T res = from_byte_string<T>(byte_string);
+    std::shared_ptr<T> res = from_byte_string<T>(byte_string);
     return res;
 }
 
