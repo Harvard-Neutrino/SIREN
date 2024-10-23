@@ -702,15 +702,18 @@ public:
     }
 };
 
+// Declare the explicit specialization (but do not instantiate)
+extern template struct TableData1D<double>;
+extern template struct TableData2D<double>;
+extern template struct IndexFinderRegular<double>;
+extern template struct IndexFinderIrregular<double>;
+extern template struct Indexer1D<double>;
+extern template struct Interpolator1D<double>;
+extern template struct Interpolator2D<double>;
+
 } // namespace utilities
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::utilities::TableData1D<double>, 0);
-CEREAL_CLASS_VERSION(siren::utilities::TableData2D<double>, 0);
-CEREAL_CLASS_VERSION(siren::utilities::IndexFinderRegular<double>, 0);
-CEREAL_CLASS_VERSION(siren::utilities::IndexFinderIrregular<double>, 0);
-CEREAL_CLASS_VERSION(siren::utilities::Indexer1D<double>, 0);
-CEREAL_CLASS_VERSION(siren::utilities::Interpolator1D<double>, 0);
-CEREAL_CLASS_VERSION(siren::utilities::Interpolator2D<double>, 0);
+CEREAL_FORCE_DYNAMIC_INIT(siren_Interpolator);
 
 #endif // SIREN_Interpolator_H

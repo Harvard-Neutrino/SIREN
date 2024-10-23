@@ -8,8 +8,6 @@ from . import distributions
 from . import injection
 
 from . import _util
-from . import Injector
-from . import Weighter
 from . import resources
 
 # Intropspect package version
@@ -34,11 +32,15 @@ utilities.get_fiducial_volume = _util.get_fiducial_volume
 
 # Override the Injector with the python wrapper
 injection._Injector = injection.Injector
+del injection.Injector
+from . import Injector
 injection.Injector = Injector.Injector
 del Injector
 
 # Override the Weighter with the python wrapper
 injection._Weighter = injection.Weighter
+del injection.Weighter
+from . import Weighter
 injection.Weighter = Weighter.Weighter
 del Weighter
 

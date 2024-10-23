@@ -1,6 +1,15 @@
 
 #include <vector>
 
+#include <cereal/cereal.hpp>
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/polymorphic.hpp>
+
+#include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
+#include <pybind11/stl.h>
+
 #include "../../public/SIREN/injection/Process.h"
 #include "../../public/SIREN/injection/Injector.h"
 #include "../../public/SIREN/injection/Weighter.h"
@@ -14,17 +23,18 @@
 #include "../../../interactions/public/SIREN/interactions/pyDarkNewsCrossSection.h"
 #include "../../../interactions/public/SIREN/interactions/pyDarkNewsDecay.h"
 
-#include <cereal/cereal.hpp>
-#include <cereal/archives/json.hpp>
-#include <cereal/archives/binary.hpp>
-#include <cereal/types/polymorphic.hpp>
+#include "../../../serialization/public/SIREN/serialization/ByteString.h"
 
-#include <pybind11/pybind11.h>
-#include <pybind11/functional.h>
-#include <pybind11/stl.h>
+#include "SIREN/dataclasses/serializable.h"
+#include "SIREN/detector/serializable.h"
+#include "SIREN/distributions/serializable.h"
+#include "SIREN/geometry/serializable.h"
+#include "SIREN/injection/serializable.h"
+#include "SIREN/interactions/serializable.h"
+#include "SIREN/math/serializable.h"
+#include "SIREN/utilities/serializable.h"
 
 PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>);
-//CEREAL_FORCE_DYNAMIC_INIT(pyDarkNewsCrossSection);
 
 using namespace pybind11;
 
@@ -94,6 +104,10 @@ PYBIND11_MODULE(injection,m) {
     .def("ResetInjectedEvents",&Injector::ResetInjectedEvents)
     .def("SaveInjector",&Injector::SaveInjector)
     .def("LoadInjector",&Injector::LoadInjector)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<Injector>),
+        &(siren::serialization::pickle_load<Injector>)
+    ))
     ;
 
 //  class_<RangedSIREN, std::shared_ptr<RangedSIREN>, Injector>(m, "RangedSIREN")
@@ -141,5 +155,10 @@ PYBIND11_MODULE(injection,m) {
     .def("EventWeight",&Weighter::EventWeight)
     .def("SaveWeighter",&Weighter::SaveWeighter)
     .def("LoadWeighter",&Weighter::LoadWeighter)
+    .def(pybind11::pickle(
+        &(siren::serialization::pickle_save<Weighter>),
+        &(siren::serialization::pickle_load<Weighter>)
+    ))
     ;
 }
+

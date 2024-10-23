@@ -18,6 +18,7 @@
 #include "SIREN/detector/CartesianAxis1D.h"
 #include "SIREN/detector/DensityDistribution.h"
 #include "SIREN/detector/DensityDistribution1D.h"
+#include "SIREN/detector/ConstantDistribution1D.h"
 
 namespace siren {
 namespace detector {
@@ -46,8 +47,8 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
     };
 
     DensityDistribution* clone() const override { return new T(*this); };
-    std::shared_ptr<DensityDistribution> create() override {
-        return std::shared_ptr<const DensityDistribution>(new T(*this));
+    std::shared_ptr<DensityDistribution> create() const override {
+        return std::shared_ptr<DensityDistribution>(new T(*this));
     };
 
     double Derivative(const math::Vector3D& xi,
@@ -156,5 +157,7 @@ class DensityDistribution1D<CartesianAxis1D, DistributionT, typename std::enable
 
 } // namespace detector
 } // namespace siren
+
+CEREAL_FORCE_DYNAMIC_INIT(siren_CartesianAxisDensityDistribution);
 
 #endif // SIREN_CartesianAxisDensityDistribution.h
