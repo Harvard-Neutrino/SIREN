@@ -58,18 +58,21 @@ DISFromSpline::DISFromSpline() {}
 DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
+    SetMinimiumW2();
     SetUnits(units);
 }
 
 DISFromSpline::DISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
+    SetMinimiumW2();
     SetUnits(units);
 }
 
 DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
+    SetMinimiumW2();
     SetUnits(units);
 }
 
@@ -77,12 +80,14 @@ DISFromSpline::DISFromSpline(std::string differential_filename, std::string tota
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
+    SetMinimiumW2();
     SetUnits(units);
 }
 
 DISFromSpline::DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
+    SetMinimiumW2();
     SetUnits(units);
 }
 
@@ -90,6 +95,7 @@ DISFromSpline::DISFromSpline(std::string differential_filename, std::string tota
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
+    SetMinimiumW2();
     SetUnits(units);
 }
 
@@ -270,6 +276,14 @@ void DISFromSpline::InitializeSignatures() {
     }
 }
 
+void DISFromSpline::SetMinimiumW2() {
+    if (target_mass_ <=0) {
+        std::cerr << "Trying to set minimum W2 with non positive target mass\n";
+        exit(0);
+    }
+    minimum_W2_ = pow(target_mass_ + siren::utilities::Constants::Pi0Mass,2);
+}
+
 double DISFromSpline::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
     siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
@@ -344,6 +358,10 @@ double DISFromSpline::DifferentialCrossSection(double energy, double x, double y
         Q2 = 2.0 * energy * target_mass_ * x * y;
     }
     if(Q2 < minimum_Q2_) // cross section not calculated, assumed to be zero
+        return 0;
+
+    double W2 = pow(target_mass_, 2) + Q2/x * (1-x); // calculate invariant hardonic mass
+    if (W2 < minimum_W2_) // cross section not calculated, assumed to be zero
         return 0;
 
     // cross section should be zero, but this check is missing from the original
@@ -434,12 +452,13 @@ void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord
     // sample an intial point
     do {
         // rejection sample a point which is kinematically allowed by calculation limits
-        double trialQ;
+        double trialQ,trialW;
         do {
             kin_vars[1] = random->Uniform(logXMin,0);
             kin_vars[2] = random->Uniform(logYMin,logYMax);
             trialQ = (2 * E1_lab * E2_lab) * pow(10., kin_vars[1] + kin_vars[2]);
-        } while(trialQ<minimum_Q2_ || !kinematicallyAllowed(pow(10., kin_vars[1]), pow(10., kin_vars[2]), primary_energy, target_mass_, m));
+            trialW = pow(target_mass_, 2) + trialQ/pow(10,kin_vars[1]) * (1-pow(10,kin_vars[1]));
+        } while(trialQ<minimum_Q2_ || trialW<minimum_W2_ || !kinematicallyAllowed(pow(10., kin_vars[1]), pow(10., kin_vars[2]), primary_energy, target_mass_, m));
 
         accept = true;
         //sanity check: demand that the sampled point be within the table extents
@@ -472,12 +491,13 @@ void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord
     // big number means more accurate, but slower
     for(size_t j = 0; j <= burnin; j++) {
         // repeat the sampling from above to get a new valid point
-        double trialQ;
+        double trialQ,trialW;
         do {
             test_kin_vars[1] = random->Uniform(logXMin, 0);
             test_kin_vars[2] = random->Uniform(logYMin, logYMax);
             trialQ = (2 * E1_lab * E2_lab) * pow(10., test_kin_vars[1] + test_kin_vars[2]);
-        } while(trialQ < minimum_Q2_ || !kinematicallyAllowed(pow(10., test_kin_vars[1]), pow(10., test_kin_vars[2]), primary_energy, target_mass_, m));
+            trialW = pow(target_mass_, 2) + trialQ/pow(10,test_kin_vars[1]) * (1-pow(10,test_kin_vars[1]));
+        } while(trialQ < minimum_Q2_ || trialW < minimum_W2_ || !kinematicallyAllowed(pow(10., test_kin_vars[1]), pow(10., test_kin_vars[2]), primary_energy, target_mass_, m));
 
         accept = true;
         if(test_kin_vars[1] < differential_cross_section_.lower_extent(1)
