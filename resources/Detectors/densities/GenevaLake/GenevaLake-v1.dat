@@ -1,0 +1,29 @@
+# Detector model file
+# Detector: Lake Geneva
+# Version: v1
+# Material model file: GenevaLake-v1.dat
+# Date: 2024-7-31
+# Authors: Nicholas Kamp
+# Notes:
+#   Represents a water-based detector in the lake and panel-based detector on the surface
+#
+
+# Air
+object box       0 -500 0            0 0 0      100000 100000 100000    surr_air           AIR         constant     0.001225
+
+# Dirt
+object box       0 -500 0            0 0 0      100000 1000 100000    surr_earth           ROCK         constant    2.700
+
+# Lake
+object box       0 -25  10745.36     0 0 0      100000 50   7743.86   lake_geneva          WATER        constant    1.0
+
+# Lake water-based detector
+# set up as a cylinder for now,
+# could be modular CHIPS-like cylinders a la Jenny's proposal
+
+# Neutrino2024 setup
+# 5 m radius, 100 m long cylinder
+# place in center of lake
+object cylinder   0 -14.335 10745.36    0 -0.00192 0    5 0 100     lake_detector     WATER    constant    1.0
+detector          0 -14.335 10745.36
+fiducial cylinder 0 -14.335 10745.36    0 -0.00192 0    5 0 100
