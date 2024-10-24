@@ -8,6 +8,7 @@ logger_file = os.path.join(base_path, "logger.py")
 siren._util.load_module("logger", logger_file)
 
 from siren.DNModelContainer import ModelContainer
+from DarkNews.nuclear_tools import NuclearTarget
 
 # Import PyDarkNewsDecay and PyDarkNewsCrossSection
 decay_file = os.path.join(base_path, "DarkNewsDecay.py")
@@ -99,8 +100,8 @@ def load_cross_section_from_table(
     interp_tolerance=5e-2,
     always_interpolate=True,
 ):
-    subdir = "_".join(["CrossSection"] + [str(x) for x in upscattering_key])
-    table_subdir = os.path.join(table_dir, subdir)
+    # subdir = "_".join(["CrossSection"] + [str(x) if type(x)!=NuclearTarget else str(x.name)  for x in upscattering_key])
+    # table_subdir = os.path.join(table_dir, subdir)
 
     cross_section = load_cross_section(
         model_container,
@@ -109,7 +110,7 @@ def load_cross_section_from_table(
         interp_tolerance=interp_tolerance,
         always_interpolate=always_interpolate,
     )
-    cross_section.load_from_table(table_subdir)
+    cross_section.load_from_table(table_dir)
     return cross_section
 
 
@@ -121,8 +122,8 @@ def load_cross_section_from_pickle(
     always_interpolate=True,
 ):
     import pickle
-    subdir = "_".join(["CrossSection"] + [str(x) for x in upscattering_key])
-    table_subdir = os.path.join(table_dir, subdir)
+    # subdir = "_".join(["CrossSection"] + [str(x) if type(x)!=NuclearTarget else str(x.name)  for x in upscattering_key])
+    # table_subdir = os.path.join(table_dir, subdir)
     fname = os.path.join(table_dir, "xs_object.pkl")
     with open(fname, "rb") as f:
         xs_obj = pickle.load(f)
@@ -165,7 +166,7 @@ def attempt_to_load_cross_section(
     if len(preferences) == 0:
         raise ValueError("preferences must have at least one entry")
 
-    subdir = "_".join(["CrossSection"] + [str(x) for x in ups_key])
+    subdir = "_".join(["CrossSection"] + [str(x) if type(x)!=NuclearTarget else str(x.name)  for x in ups_key])
     loaded = False
     cross_section = None
     for p in preferences:
@@ -240,9 +241,9 @@ def load_cross_sections(
     if table_dir is None:
         table_dir = ""
 
-    cross_sections = []
+    cross_sections = {}
     for ups_key, ups_case in models.ups_cases.items():
-        cross_sections.append(
+        cross_sections[ups_key] = (
             attempt_to_load_cross_section(models, ups_key,
                                           table_dir,
                                           preferences,
@@ -365,9 +366,9 @@ def load_decays(
     if table_dir is None:
         table_dir = ""
 
-    decays = []
+    decays = {}
     for decay_key, dec_case in models.dec_cases.items():
-        decays.append(attempt_to_load_decay(models, decay_key, table_dir, preferences))
+        decays[decay_key] = attempt_to_load_decay(models, decay_key, table_dir, preferences)
 
     return decays
 
@@ -435,6 +436,8 @@ def load_processes(
 
     if nuclear_targets is None:
         nuclear_targets = GetDetectorModelTargets(detector_model)[1]
+    model_kwargs["nuclear_targets"] = list(nuclear_targets)
+    if target_types: model_kwargs["nuclear_targets"]+=list(target_types)
 
     base_path = os.path.dirname(os.path.abspath(__file__))
     table_dir = os.path.join(base_path, table_name)
@@ -456,7 +459,7 @@ def load_processes(
         table_dir=table_dir,
     )
 
-    cross_sections = [xs for xs in cross_sections if len([s for s in xs.GetPossibleSignatures() if s.primary_type == primary_type])>0]
+    cross_sections = {k:xs for k,xs in cross_sections.items() if len([s for s in xs.GetPossibleSignatures() if s.primary_type == primary_type])>0}
 
     if fill_tables_at_start:
         if Emax is None:
@@ -468,25 +471,29 @@ def load_processes(
                 cross_section.FillInterpolationTables(Emax=Emax)
 
     primary_processes = collections.defaultdict(list)
+    primary_ups_keys = collections.defaultdict(list)
     # Loop over available cross sections and save those which match primary type
-    for cross_section in cross_sections:
+    for ups_key,cross_section in cross_sections.items():
         if primary_type == siren.dataclasses.Particle.ParticleType(
             cross_section.ups_case.nu_projectile.pdgid
         ):
             primary_processes[primary_type].append(cross_section)
+            primary_ups_keys[primary_type].append(ups_key)
 
     secondary_processes = collections.defaultdict(list)
+    secondary_dec_keys = collections.defaultdict(list)
     # Loop over available decays, group by parent type
-    for decay in decays:
+    for dec_key,decay in decays.items():
         secondary_type = siren.dataclasses.Particle.ParticleType(
             decay.dec_case.nu_parent.pdgid
         )
         secondary_processes[secondary_type].append(decay)
+        secondary_dec_keys[secondary_type].append(dec_key)
 
 
     #holder = Holder()
     #holder.primary_processes = primary_processes
     #holder.secondary_processes = secondary_processes
 
-    return dict(primary_processes), dict(secondary_processes)
+    return dict(primary_processes), dict(secondary_processes), dict(primary_ups_keys), dict(secondary_dec_keys)
 

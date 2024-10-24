@@ -195,11 +195,11 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 self.decay_norm, self.decay_integrator = pickle.load(f)
 
     def save_to_table(self, table_dir):
-        with open(os.path.join(table_dir, "decay.pkl")) as f:
-            pickle.dump(f, {
+        with open(os.path.join(table_dir, "decay.pkl"),'wb') as f:
+            pickle.dump({
                 "decay_integrator": self.decay_integrator,
                 "decay_norm": self.decay_norm
-            })
+            }, f)
 
     # serialization method
     def get_representation(self):

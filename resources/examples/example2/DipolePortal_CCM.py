@@ -2,7 +2,7 @@ import os
 import numpy as np
 import siren
 from siren import utilities
-from siren._util import GenerateEvents,SaveEvents
+from siren._util import GenerateEvents,SaveEvents,get_processes_model_path,SaveDarkNewsProcesses
 
 # Define a DarkNews model
 model_kwargs = {
@@ -18,7 +18,7 @@ model_kwargs = {
 }
 
 # Number of events to inject
-events_to_inject = 100
+events_to_inject = 1
 
 # Experiment to run
 experiment = "CCM"
@@ -27,12 +27,14 @@ detector_model = utilities.load_detector(experiment)
 # Particle to inject
 primary_type = siren.dataclasses.Particle.ParticleType.NuMu
 
-table_name = f"DarkNewsTables-v{siren.utilities.darknews_version()}"
+table_name = f"DarkNewsTables-v{siren.utilities.darknews_version()}/"
 table_name += "Dipole_M%2.2e_mu%2.2e"%(model_kwargs["m4"],model_kwargs["mu_tr_mu4"])
+table_dir = os.path.join(get_processes_model_path("DarkNewsTables"),table_name)
+os.makedirs(table_dir,exist_ok=True)
 
 
 # Load DarkNews processes
-primary_processes, secondary_processes = utilities.load_processes(
+primary_processes, secondary_processes, primary_ups_keys, secondary_dec_keys = utilities.load_processes(
     "DarkNewsTables",
     primary_type=primary_type,
     detector_model = detector_model,
@@ -117,6 +119,13 @@ weighter.primary_physical_distributions = primary_physical_distributions
 weighter.secondary_physical_distributions = {}
 
 SaveEvents(events,weighter,gen_times,output_filename="output/CCM_Dipole")
+
+# save cross section tables
+SaveDarkNewsProcesses(table_dir,
+                      primary_processes,
+                      primary_ups_keys,
+                      secondary_processes,
+                      secondary_dec_keys)
 
 
 
