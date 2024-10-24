@@ -13,6 +13,13 @@ LIST (APPEND detector_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/detector/private/ExponentialDistribution1D.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/detector/private/DensityDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/DensityDistribution1D.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/ConstantDensityDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/CartesianAxisDensityDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/CartesianAxisPolynomialDensityDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/CartesianAxisExponentialDensityDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/RadialAxisPolynomialDensityDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/detector/private/RadialAxisExponentialDensityDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/DetectorModel.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/MaterialModel.cxx
     ${PROJECT_SOURCE_DIR}/projects/detector/private/Path.cxx
@@ -25,16 +32,17 @@ target_include_directories(SIREN_detector PUBLIC
 )
 
 target_link_libraries(SIREN_detector
-    PRIVATE
-        $<BUILD_INTERFACE:rk_static>
     PUBLIC
         photospline
-        SIREN_serialization
         SIREN_utilities
+        SIREN_serialization
         SIREN_math
         SIREN_dataclasses
         SIREN_geometry
+    PRIVATE
+        $<BUILD_INTERFACE:rk_static>
 )
+apply_siren_compile_options(SIREN_detector)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/detector/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

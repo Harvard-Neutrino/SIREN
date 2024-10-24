@@ -3,6 +3,7 @@
 LIST (APPEND utilities_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/utilities/private/Interpolator.cxx
     ${PROJECT_SOURCE_DIR}/projects/utilities/private/Random.cxx
+    ${PROJECT_SOURCE_DIR}/projects/utilities/private/StringManipulation.cxx
 )
 add_library(SIREN_utilities OBJECT ${utilities_SOURCES})
 set_property(TARGET SIREN_utilities PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -10,6 +11,8 @@ target_include_directories(SIREN_utilities PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/projects/utilities/public/>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/utilities/>
 )
+
+apply_siren_compile_options(SIREN_utilities)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/utilities/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

@@ -27,3 +27,6 @@ bool Axis1D::operator!=(const Axis1D& axis) const {
 
 } // namespace siren
 } // namespace detector
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_Axis1D);
+

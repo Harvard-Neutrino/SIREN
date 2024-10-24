@@ -47,14 +47,15 @@ target_link_libraries(SIREN_distributions
         pybind11::embed
     PUBLIC
         photospline
-        SIREN_serialization
         SIREN_utilities
+        SIREN_serialization
         SIREN_math
         SIREN_dataclasses
         SIREN_geometry
         SIREN_detector
         SIREN_interactions
 )
+apply_siren_compile_options(SIREN_distributions)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/distributions/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

@@ -6,13 +6,33 @@
 #include <ostream>
 #include <unistd.h>
 
-std::ostream& operator<<(std::ostream& os, siren::dataclasses::ParticleID const& record) {
-    os << "ParticleID (" << &record << ")\n";
-    os << "IDSet: " << record.id_set << "\n";
-    os << "MajorID: " << record.major_id << "\n";
-    os << "MinorID: " << record.minor_id;
+#include "SIREN/utilities/StringManipulation.h"
 
+std::ostream& operator<<(std::ostream& os, siren::dataclasses::ParticleID const & id) {
+    os << to_repr(id);
     return os;
+}
+
+std::string to_str(siren::dataclasses::ParticleID const & id) {
+    using siren::utilities::tab;
+    std::stringstream ss;
+    ss << "[ ParticleID (" << &id << ")\n";
+    ss << tab << "IDSet: " << id.IsSet() << '\n';
+    ss << tab << "MajorID: " << id.GetMajorID() << '\n';
+    ss << tab << "MinorID: " << id.GetMinorID() << '\n';
+    ss << ']';
+    return ss.str();
+}
+
+std::string to_repr(siren::dataclasses::ParticleID const & id) {
+    std::stringstream ss;
+    ss << "ParticleID(";
+    if(id.IsSet())
+        ss << id.GetMajorID() << ", " << id.GetMinorID();
+    else
+        ss << "unset";
+    ss << ")";
+    return ss.str();
 }
 
 namespace siren {
@@ -58,6 +78,10 @@ bool ParticleID::operator<(ParticleID const & other) const {
 
 bool ParticleID::operator==(ParticleID const & other) const {
     return std::tie(id_set, major_id, minor_id) == std::tie(id_set, other.major_id, other.minor_id);
+}
+
+bool ParticleID::operator!=(ParticleID const & other) const {
+    return not (*this == other);
 }
 
 // Adapted from https://github.com/icecube/icetray-public/blob/4436c3e10c23f95a8965c98fecccb7775a361fab/dataclasses/private/dataclasses/physics/I3Particle.cxx#L42-L93

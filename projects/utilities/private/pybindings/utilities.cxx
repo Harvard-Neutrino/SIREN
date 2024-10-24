@@ -16,5 +16,7 @@ PYBIND11_MODULE(utilities,m) {
     .def(init<>())
     .def(init<unsigned int>())
     .def("Uniform",&SIREN_random::Uniform)
-    .def("set_seed",&SIREN_random::set_seed);
+    .def("set_seed",&SIREN_random::set_seed)
+    .def("get_seed",&SIREN_random::get_seed)
+    .def_static("generate_seed",&SIREN_random::generate_seed);
 }
