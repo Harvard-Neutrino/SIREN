@@ -6,6 +6,12 @@ import pydoc
 import pathlib
 import importlib
 
+import time
+from siren import dataclasses as _dataclasses
+import numpy as np
+import awkward as ak
+import h5py
+
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
@@ -661,6 +667,7 @@ def import_resource(resource_type, resource_name):
     fname = os.path.join(abs_dir, f"{resource_type}.py")
     if not os.path.isfile(fname):
         return None
+    print(fname)
     return load_module(f"siren-{resource_type}-{resource_name}", fname, persist=False)
 
 
@@ -835,3 +842,127 @@ def _get_detector_loader(detector_name):
     load_detector.__doc__ = detector_docs(detector_name)
 
     return load_detector
+
+
+
+###### Injector helper functions #######
+
+# Generate events using an injector object
+# Optionally save events to hdf5, parquet, and/or custom SIREN filetypes
+# If the weighter exists, calculate the event weight too
+def GenerateEvents(injector, N=None):
+    if N is None:
+        N = injector.number_of_events
+    count = 0
+    gen_times = []
+    prev_time = time.time()
+    events = []
+    while (injector.injected_events < injector.number_of_events) and (count < N):
+        print("Injecting Event %d/%d  " % (count, N), end="\r")
+        event = injector.generate_event()
+        events.append(event)
+        t = time.time()
+        gen_times.append(t-prev_time)
+        prev_time = t
+        count += 1
+    return events,gen_times
+
+def SaveEvents(events,
+               weighter=None,
+               gen_times=None,
+               save_hdf5=True,
+               save_parquet=True,
+               save_siren_events=True,
+               fid_vol=None,
+               output_filename=None):
+
+
+    # Optionally save things
+    if save_siren_events: _dataclasses.SaveInteractionTrees(events, output_filename)
+    # A dictionary containing each dataset we'd like to save
+    datasets = {
+        "event_weight":[], # weight of entire event
+        "event_gen_time":[], # generation time of each event
+        "event_weight_time":[], # generation time of each event
+        "num_interactions":[], # number of interactions per event
+        "vertex":[], # vertex of each interaction in an event
+        "in_fiducial":[], # whether or not each vertex is in the fiducial volume
+        "primary_type":[], # primary type of each interaction
+        "target_type":[], # target type of each interaction
+        "num_secondaries":[], # number of secondary particles of each interaction
+        "secondary_types":[], # secondary type of each interaction
+        "primary_momentum":[], # primary momentum of each interaction
+        "secondary_momenta":[], # secondary momentum of each interaction
+        "parent_idx":[], # index of the parent interaction
+    }
+    for ie, event in enumerate(events):
+        print("Saving Event %d/%d  " % (ie, len(events)), end="\r")
+        t0 = time.time()
+        datasets["event_weight"].append(weighter(event) if weighter is not None else 0)
+        datasets["event_weight_time"].append(time.time()-t0)
+        datasets["event_gen_time"].append(gen_times[ie])
+        # add empty lists for each per interaction dataset
+        for k in ["vertex",
+                  "in_fiducial",
+                  "primary_type",
+                  "target_type",
+                  "num_secondaries",
+                  "secondary_types",
+                  "primary_momentum",
+                  "secondary_momenta",
+                  "parent_idx"]:
+            datasets[k].append([])
+        # loop over interactions
+        for id, datum in enumerate(event.tree):
+            datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
+
+             # primary particle stuff
+            datasets["primary_type"][-1].append(int(datum.record.signature.primary_type))
+            datasets["primary_momentum"][-1].append(np.array(datum.record.primary_momentum, dtype=float))
+
+            # check parent idx; match on secondary momenta
+            if datum.depth()==0:
+                datasets["parent_idx"][-1].append(-1)
+            else:
+                for _id in range(len(datasets["secondary_momenta"][-1])):
+                    for secondary_momentum in datasets["secondary_momenta"][-1][_id]:
+                        if (datasets["primary_momentum"][-1][-1] == secondary_momentum).all():
+                            datasets["parent_idx"][-1].append(_id)
+                            break
+
+            if fid_vol is not None:
+                pos = _math.Vector3D(datasets["vertex"][-1][-1])
+                dir = _math.Vector3D(datasets["primary_momentum"][-1][-1][1:])
+                dir.normalize()
+                datasets["in_fiducial"][-1].append(fid_vol.IsInside(pos,dir))
+            else:
+                datasets["in_fiducial"][-1].append(False)
+
+            # target particle stuff
+            datasets["target_type"][-1].append(int(datum.record.signature.target_type))
+
+            # secondary particle stuff
+            datasets["secondary_types"][-1].append([])
+            datasets["secondary_momenta"][-1].append([])
+            for isec, (sec_type, sec_momenta) in enumerate(zip(datum.record.signature.secondary_types,
+                                                               datum.record.secondary_momenta)):
+                datasets["secondary_types"][-1][-1].append(int(sec_type))
+                datasets["secondary_momenta"][-1][-1].append(np.array(sec_momenta,dtype=float))
+            datasets["num_secondaries"][-1].append(isec+1)
+        datasets["num_interactions"].append(id+1)
+
+    # save events
+    ak_array = ak.Array(datasets)
+    if save_hdf5:
+        fout = h5py.File(output_filename+".hdf5", "w")
+        group = fout.create_group("Events")
+        form, length, container = ak.to_buffers(ak.to_packed(ak_array), container=group)
+        group.attrs["form"] = form.to_json()
+        group.attrs["length"] = length
+        fout.close()
+    if save_parquet:
+        ak.to_parquet(ak_array,output_filename+".parquet")
+
+# Load events from the custom SIREN event format
+def LoadEvents(filename):
+    return _dataclasses.LoadInteractionTrees(filename)

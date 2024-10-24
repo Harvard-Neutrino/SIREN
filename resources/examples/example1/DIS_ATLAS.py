@@ -1,10 +1,6 @@
 import os
 import siren
-try:
-    from tqdm import tqdm as tqdm
-except ImportError:
-    print("Importing tqdm failed, using default range")
-    tqdm = lambda x: x
+from siren._util import GenerateEvents,SaveEvents
 
 seed = 99
 
@@ -86,11 +82,8 @@ injector.detector_model = detector_model
 injector.primary_type = primary_type
 injector.primary_interactions = primary_processes[primary_type]
 injector.primary_injection_distributions = primary_injection_distributions
-injector.secondary_interactions = {}
-injector.secondary_injection_distributions = {}
 
-print("Generating events")
-events = [injector.generate_event() for _ in tqdm(range(events_to_inject))]
+events,gen_times = GenerateEvents(injector)
 
 weighter = siren.injection.Weighter()
 weighter.injectors = [injector]
@@ -98,13 +91,9 @@ weighter.detector_model = detector_model
 weighter.primary_type = primary_type
 weighter.primary_interactions = primary_processes[primary_type]
 weighter.primary_physical_distributions = primary_physical_distributions
-weighter.secondary_interactions = {}
-weighter.secondary_physical_distributions = {}
 
-print("Weighting events")
-weights = [weighter(event) for event in tqdm(events)]
-
+# Output events and weights
 os.makedirs("output", exist_ok=True)
-
-#TODO save the events and weights
+print("Saving events")
+SaveEvents(events,weighter,gen_times,output_filename="output/ATLAS")
 

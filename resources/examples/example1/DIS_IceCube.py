@@ -1,13 +1,13 @@
 import os
 import siren
-from siren import utilities
+from siren._util import GenerateEvents,SaveEvents
 
 # Number of events to inject
 events_to_inject = int(1e5)
 
 # Experiment to run
 experiment = "IceCube"
-detector_model = utilities.load_detector(experiment)
+detector_model = siren.utilities.load_detector(experiment)
 
 # Particle to inject
 primary_type = siren.dataclasses.Particle.ParticleType.NuMu
@@ -16,7 +16,7 @@ primary_type = siren.dataclasses.Particle.ParticleType.NuMu
 cross_section_model = "CSMSDISSplines"
 
 # Load the cross-section model
-primary_processes, _ = utilities.load_processes(
+primary_processes, _ = siren.utilities.load_processes(
     cross_section_model,
     primary_types=[primary_type],
     target_types=[siren.dataclasses.Particle.ParticleType.Nucleon],
@@ -43,7 +43,7 @@ injector.primary_injection_distributions = [
 ]
 
 # Generate events
-event = injector.generate_event()
+events,gen_times = GenerateEvents(injector)
 
 # Set up the Weighter for event weighting (without position distribution)
 weighter = siren.injection.Weighter()
@@ -56,14 +56,7 @@ weighter.primary_physical_distributions = [
     siren.distributions.IsotropicDirection()  # Direction distribution
 ]
 
-# Compute weight
-weight = weighter(event)
 
 # Output events and weights
 os.makedirs("output", exist_ok=True)
-print(str(event))
-print(f"Event weight: {weight}")
-
-# Save events
-# injector.SaveEvents("output/IceCube_DIS")
-
+SaveEvents(events,weighter,gen_times,output_filename="output/IceCube")

@@ -2,6 +2,7 @@ import os
 import numpy as np
 import siren
 from siren import utilities
+from siren._util import GenerateEvents,SaveEvents
 
 # Define a DarkNews model
 model_kwargs = {
@@ -17,7 +18,7 @@ model_kwargs = {
 }
 
 # Number of events to inject
-events_to_inject = 1
+events_to_inject = 100
 
 # Experiment to run
 experiment = "CCM"
@@ -26,13 +27,23 @@ detector_model = utilities.load_detector(experiment)
 # Particle to inject
 primary_type = siren.dataclasses.Particle.ParticleType.NuMu
 
+table_name = f"DarkNewsTables-v{siren.utilities.darknews_version()}"
+table_name += "Dipole_M%2.2e_mu%2.2e"%(model_kwargs["m4"],model_kwargs["mu_tr_mu4"])
+
+
 # Load DarkNews processes
 primary_processes, secondary_processes = utilities.load_processes(
-    f"DarkNewsTables-v{siren.utilities.darknews_version()}",
+    "DarkNewsTables",
     primary_type=primary_type,
     detector_model = detector_model,
+    table_name = table_name,
     **model_kwargs,
 )
+
+print(primary_processes)
+
+# for cross_section in primary_processes[primary_type].CrossSections:
+#     print(cross_section)
 
 # Mass distribution
 mass_ddist = siren.distributions.PrimaryMass(0)
@@ -82,18 +93,16 @@ def stop(datum, i):
     return secondary_type != siren.dataclasses.Particle.ParticleType.N4
 
 injector = siren.injection.Injector()
-injector.number_of_events = 1
+injector.number_of_events = events_to_inject
 injector.detector_model = detector_model
 injector.primary_type = primary_type
 injector.primary_interactions = primary_processes[primary_type]
 injector.primary_injection_distributions = primary_injection_distributions
 injector.secondary_interactions = secondary_processes
 injector.secondary_injection_distributions = secondary_injection_distributions
-injector.stopping_condition = stop
 
+events,gen_times = GenerateEvents(injector)
 
-# Generate events
-events = [injector.generate_event() for _ in range(events_to_inject)]
 
 # Output the events
 os.makedirs("output", exist_ok=True)
@@ -107,4 +116,10 @@ weighter.secondary_interactions = secondary_processes
 weighter.primary_physical_distributions = primary_physical_distributions
 weighter.secondary_physical_distributions = {}
 
+SaveEvents(events,weighter,gen_times,output_filename="output/CCM_Dipole")
+
+
+
 weights = [weighter(event) for event in events]
+
+

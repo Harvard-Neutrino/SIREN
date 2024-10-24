@@ -388,20 +388,23 @@ def load_processes(
     target_types: Optional[List[Any]] = None,
     fill_tables_at_start: bool = False,
     Emax: Optional[float] = None,
-    m4: Optional[float] = None,
-    mu_tr_mu4: Optional[float] = None,
-    UD4: float = 0,
-    Umu4: float = 0,
-    epsilon: float = 0.0,
-    gD: float = 0.0,
-    decay_product: str = "photon",
-    noHC: bool = True,
-    HNLtype: str = "dirac",
     nuclear_targets: Optional[List[str]] = None,
     detector_model: Optional[Any] = None,
     tolerance: float = 1e-6,
     interp_tolerance: float = 5e-2,
     always_interpolate: bool = True,
+    table_name: Optional[str] = None,
+    **model_kwargs,
+    # m4: Optional[float] = None,
+    # mu_tr_mu4: Optional[float] = None,
+    # UD4: float = 0,
+    # Umu4: float = 0,
+    # epsilon: float = 0.0,
+    # gD: float = 0.0,
+    # decay_product: str = "photon",
+    # noHC: bool = True,
+    # HNLtype: str = "dirac",
+
 ) -> List[Any]:
     """
     Loads and returns a list of cross-section and decay objects based on the given parameters.
@@ -411,20 +414,12 @@ def load_processes(
         target_types (Optional[List[Any]]): List of target particle types.
         fill_tables_at_start (bool): Whether to fill interpolation tables at start.
         Emax (Optional[float]): Maximum energy for table filling.
-        m4 (Optional[float]): Mass parameter.
-        mu_tr_mu4 (Optional[float]): Transition magnetic moment parameter.
-        UD4 (float): UD4 parameter.
-        Umu4 (float): Umu4 parameter.
-        epsilon (float): Epsilon parameter.
-        gD (float): gD parameter.
-        decay_product (str): Type of decay product.
-        noHC (bool): noHC parameter.
-        HNLtype (str): Type of HNL (e.g., "dirac").
-        nuclear_targets (Optional[List[str]]): List of nuclear targets.
         detector_model (Optional[Any]): Detector model object.
         tolerance (float): Tolerance for calculations.
         interp_tolerance (float): Interpolation tolerance.
         always_interpolate (bool): Whether to always interpolate.
+        table_name: Optional[str] = None,
+        **model_kwargs: dictionary of DarkNews model arguments
 
     Returns:
         List[Any]: A list of loaded cross-section and decay objects.
@@ -442,18 +437,10 @@ def load_processes(
         nuclear_targets = GetDetectorModelTargets(detector_model)[1]
 
     base_path = os.path.dirname(os.path.abspath(__file__))
-    table_dir = os.path.join(base_path, "Dipole_M%2.2e_mu%2.2e" % (m4, mu_tr_mu4))
+    table_dir = os.path.join(base_path, table_name)
 
     models = ModelContainer(
-        nuclear_targets=nuclear_targets,
-        m4=m4,
-        mu_tr_mu4=mu_tr_mu4,
-        UD4=UD4,
-        Umu4=Umu4,
-        epsilon=epsilon,
-        gD=gD,
-        decay_product=decay_product,
-        noHC=noHC,
+        **model_kwargs
     )
 
     cross_sections = load_cross_sections(
