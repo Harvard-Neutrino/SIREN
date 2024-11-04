@@ -150,6 +150,63 @@ double rombergIntegrate(const FuncType& func, double a, double b, double tol=1e-
   throw(std::runtime_error("Integral failed to converge"));
 }
 
+/**
+* @brief Performs a 2D simpson integration of a function
+*
+* This routine is rather simplistic and not suitable for complicated functions,
+* particularly not ones with discontinuities, but it is very fast for smooth functions.
+*
+* @param func the function to integrate
+* @param a the lower bound of integration for the first dimension
+* @param b the upper bound of integration for the first dimension
+* @param c the lower bound of integration for the second dimension
+* @param d the upper bound of integration for the second dimension
+* @param tol the (absolute) tolerance on the error of the integral per dimension
+*/
+template<typename FuncType>
+double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2, double b2, double tol=1e-6){
+
+  const unsigned int N1=10;
+  const unsigned int N2=10;
+  if(tol<0)
+     throw(std::runtime_error("Integration tolerance must be positive"));
+
+
+  std::vector<double> stepSizes, estimates, c(order), d(order);
+  stepSizes.push_back(1);
+
+  double prev_estimate = 0;
+  double estimate;
+  unsigned int N1i,N2i;
+  double h1i,h2i,c1,c2;
+
+  for(unsigned int i=0; i<maxIter; i++){
+     N1i = N1*(i+1);
+     N2i = N2*(i+1);
+     h1i = (b1-a1)/N1i;
+     h2i = (b2-a2)/N2i;
+     estimate = 0;
+     for(unsigned int j = 0; j < N1i+1; j++) {
+       if (j==0 || j==N1i) c1 = 1;
+       else if (j%2==0) c1 = 2;
+       else if (j%2==1) c1 = 4;
+       for(unsigned int k = 0; k < N2i+1; k++) {
+         if (k==0 || k==N2i) c2 = 1;
+         else if (k%2==0) c2 = 2;
+         else if (k%2==1) c2 = 4;
+         double x = a1 + j*h1i;
+         double y = a2 + k*h2i;
+         estimate += c1*c2*func(x, y);
+       }
+     }
+     estimate *= h1i*h2i/9;
+     if(std::abs(estimate-prev_estimate) < estimate*tol) {
+      return estimate;
+     }
+  }
+  throw(std::runtime_error("Simpson 2D integral failed to converge"));
+}
+
 }
 }
 
