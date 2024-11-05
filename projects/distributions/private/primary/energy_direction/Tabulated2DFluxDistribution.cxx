@@ -1,9 +1,10 @@
-#include "SIREN/distributions/primary/energy/Tabulated2DFluxDistribution.h"
+#include "SIREN/distributions/primary/energy_direction/Tabulated2DFluxDistribution.h"
 #include <array>                                           // for array
 #include <tuple>                                           // for tie, opera...
 #include <vector>                                          // for vector
 #include <fstream>                                         // for basic_istream
 #include <functional>                                      // for function
+#include <math.h>                                        // for M_PI, cos, sin
 
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
 #include "SIREN/distributions/Distributions.h"    // for InjectionD...
@@ -31,9 +32,9 @@ Tabulated2DFluxDistribution::Tabulated2DFluxDistribution() {}
 
 void Tabulated2DFluxDistribution::ComputeIntegral() {
     std::function<double(double, double)> integrand = [&] (double x, double y) -> double {
-        return unnormed_pdf(x,y);
+        return x*unnormed_pdf(pow(10,x),y);
     };
-    integral = siren::utilities::rombergIntegrate2D(integrand, energyMin, energyMax, zenithMin, zenithMax);
+    integral = siren::utilities::simpsonIntegrate2D(integrand, log10(energyMin), log10(energyMax), zenithMin, zenithMax);
 }
 
 void Tabulated2DFluxDistribution::LoadFluxTable() {
@@ -121,6 +122,10 @@ std::vector<double> Tabulated2DFluxDistribution::GetEnergyNodes() const {
     return energy_nodes;
 }
 
+std::vector<double> Tabulated2DFluxDistribution::GetZenithNodes() const {
+    return zenith_nodes;
+}
+
 double Tabulated2DFluxDistribution::pdf(double energy, double zenith) const {
     return unnormed_pdf(energy,zenith) / integral;
 }
@@ -132,17 +137,15 @@ double Tabulated2DFluxDistribution::SamplePDF(double energy, double zenith) cons
 void Tabulated2DFluxDistribution::SetEnergyBounds(double eMin, double eMax) {
     energyMin = eMin;
     energyMax = eMax;
-    bounds_set = true;
+    energy_bounds_set = true;
     ComputeIntegral();
-    ComputeCDF();
 }
 
 void Tabulated2DFluxDistribution::SetZenithBounds(double zMin, double zMax) {
     zenithMin = zMin;
     zenithMax = zMax;
-    bounds_set = true;
+    zenith_bounds_set = true;
     ComputeIntegral();
-    ComputeCDF();
 }
 
 Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization)
@@ -209,7 +212,7 @@ Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, doubl
 Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, double energyMax, double zenithMin, double zenithMax, std::vector<double> energies, std::vector<double> zeniths, std::vector<double> flux, bool has_physical_normalization)
     : energyMin(energyMin)
     , energyMax(energyMax)
-    : zenithMin(zenithMin)
+    , zenithMin(zenithMin)
     , zenithMax(zenithMax)
     , energy_bounds_set(true)
     , zenith_bounds_set(true)
@@ -220,21 +223,88 @@ Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, doubl
         SetNormalization(integral);
 }
 
-double Tabulated2DFluxDistribution::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
-    // TODO: Use metropolis hastings
-    return 0;
+std::pair<double, double> Tabulated2DFluxDistribution::SampleTablePoint(std::shared_ptr<siren::utilities::SIREN_random> rand) const {
+    // sample uniformly in linear or log space depending on the table
+    double u1 = rand->Uniform();
+    double u2 = rand->Uniform();
+    double energy, zenith;
+    if (fluxTable.IsLogX()) {
+        double logEnergyMin = log10(energyMin);
+        double logEnergyMax = log10(energyMax);
+        energy = pow(10,logEnergyMin + u1 * (logEnergyMax - logEnergyMin));
+    }
+    else {
+        energy = energyMin + u1 * (energyMax - energyMin);
+    }
+    if (fluxTable.IsLogY()) {
+        double logZenithMin = log10(zenithMin);
+        double logZenithMax = log10(zenithMax);
+        zenith = pow(10,logZenithMin + u2 * (logZenithMax - logZenithMin));
+    }
+    else {
+        zenith = zenithMin + u2 * (zenithMax - zenithMin);
+    }
+    return std::make_pair(energy,zenith);
+}
+
+std::pair<double,siren::math::Vector3D> Tabulated2DFluxDistribution::SampleEnergyAndDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
+
+    // Use metropolis hastings
+    double energy, zenith, test_density, odds;
+    bool accept;
+    std::pair<double,double> energy_zenith;
+
+    // Metropolis-Hastings algorithm
+
+    // ensure burn in has completed
+    while (MH_sampled_points <= burnin) {
+        energy_zenith = SampleTablePoint(rand);
+        energy = energy_zenith.first;
+        zenith = energy_zenith.second;
+        test_density = pdf(energy, zenith);
+        odds = test_density / MH_density;
+        accept = (MH_density == 0 || (odds > 1.) || rand->Uniform() < odds);
+        if(accept) {
+            MH_density = test_density;
+            MH_sampled_points++;
+        }
+    }
+    // now sample one more point
+    accept = false;
+    while(!accept) {
+        energy_zenith = SampleTablePoint(rand);
+        energy = energy_zenith.first;
+        zenith = energy_zenith.second;
+        test_density = pdf(energy, zenith);
+        odds = test_density / MH_density;
+        accept = (MH_density == 0 || (odds > 1.) || rand->Uniform() < odds);
+        if(accept) {
+            MH_density = test_density;
+            MH_sampled_points++;
+        }
+    }
+    // Now compute the direction given the sampled zenith
+    double nr = sqrt(1.0 - zenith*zenith);
+    double phi = rand->Uniform(-M_PI, M_PI);
+    double nx = nr * cos(phi);
+    double ny = nr * sin(phi);
+    siren::math::Vector3D dir(nx, ny, zenith);
+    dir.normalize();
+    return std::make_pair(energy,dir);
+
 }
 
 
 double Tabulated2DFluxDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
+    double zenith = record.primary_momentum[3] / sqrt(pow(record.primary_momentum[1], 2) + pow(record.primary_momentum[2],2) + pow(record.primary_momentum[3],2));
     if(energy < energyMin or energy > energyMax)
         return 0.0;
     // TODO: check zenith
-    else if(energy < energyMin or energy > energyMax)
+    else if(zenith < zenithMin or zenith > zenithMax)
         return 0.0;
     else
-        return pdf(energy);
+        return pdf(energy,zenith);
 }
 
 std::string Tabulated2DFluxDistribution::Name() const {

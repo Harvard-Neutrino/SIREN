@@ -151,10 +151,25 @@ double rombergIntegrate(const FuncType& func, double a, double b, double tol=1e-
 }
 
 /**
+* @brief Performs a 2D trapezoidal integration of a function
+*
+*
+* @param func the function to integrate
+* @param a the lower bound of integration for the first dimension
+* @param b the upper bound of integration for the first dimension
+* @param c the lower bound of integration for the second dimension
+* @param d the upper bound of integration for the second dimension
+* @param tol the (absolute) tolerance on the error of the integral per dimension
+*/
+template<typename FuncType>
+double trapezoidIntegrate2D(const FuncType& func, double a1, double b1, double a2, double b2, unsigned int order=5){
+
+  return 0;
+}
+
+/**
 * @brief Performs a 2D simpson integration of a function
 *
-* This routine is rather simplistic and not suitable for complicated functions,
-* particularly not ones with discontinuities, but it is very fast for smooth functions.
 *
 * @param func the function to integrate
 * @param a the lower bound of integration for the first dimension
@@ -168,21 +183,21 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
 
   const unsigned int N1=10;
   const unsigned int N2=10;
+  const unsigned int maxIter=10;
   if(tol<0)
      throw(std::runtime_error("Integration tolerance must be positive"));
 
-
-  std::vector<double> stepSizes, estimates, c(order), d(order);
-  stepSizes.push_back(1);
 
   double prev_estimate = 0;
   double estimate;
   unsigned int N1i,N2i;
   double h1i,h2i,c1,c2;
 
+  std::cout << a1 << " " << b1 << " " << a2 << " " << b2 << std::endl;
+
   for(unsigned int i=0; i<maxIter; i++){
-     N1i = N1*(i+1);
-     N2i = N2*(i+1);
+     N1i = pow(2,i)*N1;
+     N2i = pow(2,i)*N2;
      h1i = (b1-a1)/N1i;
      h2i = (b2-a2)/N2i;
      estimate = 0;
@@ -200,9 +215,11 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
        }
      }
      estimate *= h1i*h2i/9;
-     if(std::abs(estimate-prev_estimate) < estimate*tol) {
+     std::cout << estimate << " " << std::abs((estimate-prev_estimate)/estimate) << std::endl;
+     if(std::abs((estimate-prev_estimate)/estimate) < tol) {
       return estimate;
      }
+     prev_estimate = estimate;
   }
   throw(std::runtime_error("Simpson 2D integral failed to converge"));
 }

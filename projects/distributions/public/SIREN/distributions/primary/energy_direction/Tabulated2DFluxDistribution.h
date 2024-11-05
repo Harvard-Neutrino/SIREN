@@ -28,11 +28,12 @@ namespace siren {
 namespace distributions {
 
 class Tabulated2DFluxDistribution : virtual public PrimaryEnergyDirectionDistribution {
-// Assumes table is in units of nu cm^-2 GeV^-1 Livetime^-1
+// Assumes table is in units of nu cm^-2 GeV^-1 Livetime^-1 sr^-1
 friend cereal::access;
 protected:
     Tabulated2DFluxDistribution();
     void ComputeIntegral();
+    std::pair<double, double> SampleTablePoint(std::shared_ptr<siren::utilities::SIREN_random> rand) const;
 private:
     double energyMin;
     double energyMax;
@@ -45,16 +46,21 @@ private:
     double integral;
     std::vector<double> energy_nodes;
     std::vector<double> zenith_nodes;
+    // metropolis hastings variables
     const size_t burnin = 40; // burnin parameter for MH sampling
+    mutable size_t MH_sampled_points = 0; // to track the number of samples
+    mutable double MH_density;
+
     double unnormed_pdf(double energy, double zenith) const;
-    double pdf(double energy) const;
+    double pdf(double energy, double zenith) const;
     void LoadFluxTable();
-    void LoadFluxTable(std::vector<double> & energies, std::vector<double> & flux);
+    void LoadFluxTable(std::vector<double> & energies, std::vector<double> & zeniths, std::vector<double> & flux);
 public:
-    double SamplePDF(double energy) const;
-    double SampleUnnormedPDF(double energy) const;
+    double SamplePDF(double energy, double zenith) const;
+    double SampleUnnormedPDF(double energy, double zenith) const;
     double GetIntegral() const;
     std::vector<double> GetEnergyNodes() const;
+    std::vector<double> GetZenithNodes() const;
     std::pair<double,siren::math::Vector3D> SampleEnergyAndDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);
@@ -62,9 +68,9 @@ public:
     Tabulated2DFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
     Tabulated2DFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false);
     Tabulated2DFluxDistribution(double energyMin, double energyMax, double zenithMin, double zenithMax, std::string fluxTableFilename, bool has_physical_normalization=false);
-    Tabulated2DFluxDistribution(std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization=false);
-    Tabulated2DFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization=false);
-    Tabulated2DFluxDistribution(double energyMin, double energyMax, double zenithMin, double zenithMax, std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization=false);
+    Tabulated2DFluxDistribution(std::vector<double> energies, std::vector<double> zeniths, std::vector<double> flux, bool has_physical_normalization=false);
+    Tabulated2DFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> zeniths, std::vector<double> flux, bool has_physical_normalization=false);
+    Tabulated2DFluxDistribution(double energyMin, double energyMax, double zenithMin, double zenithMax, std::vector<double> energies, std::vector<double> zeniths, std::vector<double> flux, bool has_physical_normalization=false);
     std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     template<typename Archive>
@@ -89,9 +95,9 @@ public:
             archive(::cereal::make_nvp("ZenithMax", zenithMax));
             archive(::cereal::make_nvp("FluxTable", fluxTable));
             archive(cereal::virtual_base_class<PrimaryEnergyDirectionDistribution>(this));
-            bounds_set = true;
+            energy_bounds_set = true;
+            zenith_bounds_set = true;
             ComputeIntegral();
-            ComputeCDF();
         } else {
             throw std::runtime_error("Tabulated2DFluxDistribution only supports version <= 0!");
         }
