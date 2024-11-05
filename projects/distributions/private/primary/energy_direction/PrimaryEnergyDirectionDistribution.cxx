@@ -1,4 +1,4 @@
-#include "SIREN/distributions/primary/energy/PrimaryEnergyDirectionDistribution.h"
+#include "SIREN/distributions/primary/energy_direction/PrimaryEnergyDirectionDistribution.h"
 
 #include <array>                                           // for array
 #include <string>                                          // for basic_string
@@ -20,7 +20,6 @@ void PrimaryEnergyDirectionDistribution::Sample(
     std::pair<double,siren::math::Vector3D> energy_and_direction = SampleEnergyAndDirection(rand, detector_model, interactions, record);
     record.SetEnergy(energy_and_direction.first);
     record.SetDirection(energy_and_direction.second);
-}
 }
 
 std::vector<std::string> PrimaryEnergyDirectionDistribution::DensityVariables() const {

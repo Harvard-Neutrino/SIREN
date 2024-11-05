@@ -16,6 +16,9 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/PowerLaw.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/Monoenergetic.cxx
 
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy_direction/PrimaryEnergyDirectionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy_direction/Tabulated2DFluxDistribution.cxx
+
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/helicity/PrimaryNeutrinoHelicityDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/mass/PrimaryMass.cxx
