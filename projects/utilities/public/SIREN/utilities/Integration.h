@@ -205,11 +205,11 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
        if (j==0 || j==N1i) c1 = 1;
        else if (j%2==0) c1 = 2;
        else if (j%2==1) c1 = 4;
+       double x = a1 + j*h1i;
        for(unsigned int k = 0; k < N2i+1; k++) {
          if (k==0 || k==N2i) c2 = 1;
          else if (k%2==0) c2 = 2;
          else if (k%2==1) c2 = 4;
-         double x = a1 + j*h1i;
          double y = a2 + k*h2i;
          estimate += c1*c2*func(x, y);
        }

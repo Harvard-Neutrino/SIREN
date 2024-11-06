@@ -32,7 +32,8 @@ Tabulated2DFluxDistribution::Tabulated2DFluxDistribution() {}
 
 void Tabulated2DFluxDistribution::ComputeIntegral() {
     std::function<double(double, double)> integrand = [&] (double x, double y) -> double {
-        return x*unnormed_pdf(pow(10,x),y);
+        //std::cout << "x " << x << " y " << y << " z " << pow(10,x)*unnormed_pdf(pow(10,x),y) << std::endl;
+        return pow(10,x)*unnormed_pdf(pow(10,x),y)/log(10);
     };
     integral = siren::utilities::simpsonIntegrate2D(integrand, log10(energyMin), log10(energyMax), zenithMin, zenithMax);
 }
@@ -92,7 +93,7 @@ void Tabulated2DFluxDistribution::LoadFluxTable(std::vector<double> & energies, 
     table_data.y = zeniths;
     table_data.f = flux;
     energy_nodes = energies;
-    zenith_nodes = energies;
+    zenith_nodes = zeniths;
 
     // If no physical are manually set, use first/last entry of table
     if(not energy_bounds_set) {
