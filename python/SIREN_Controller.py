@@ -480,6 +480,8 @@ class SIREN_Controller:
         prev_time = time.time()
         while (self.injector.InjectedEvents() < self.events_to_inject) and (count < N):
             print("Injecting Event %d/%d  " % (count, N), end="\r")
+            # print("Injecting Event %d/%d  " % (count, N)) # for debugging purposes
+
             event = self.injector.GenerateEvent()
             self.events.append(event)
             t = time.time()
@@ -513,6 +515,7 @@ class SIREN_Controller:
             "event_global_time":[], # global time of each event
             "num_interactions":[], # number of interactions per event
             "vertex":[], # vertex of each interaction in an event
+            "primary_initial_position":[], # initial position of primary in each interaction of an event
             "in_fiducial":[], # whether or not each vertex is in the fiducial volume
             "primary_type":[], # primary type of each interaction
             "target_type":[], # target type of each interaction
@@ -524,6 +527,8 @@ class SIREN_Controller:
         }
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
+            # print("Saving Event %d/%d  " % (ie, len(self.events))) # for debugging purposes
+
             t0 = time.time()
             datasets["event_weight"].append(self.weighter.EventWeight(event) if hasattr(self,"weighter") else 0)
             datasets["event_weight_time"].append(time.time()-t0)
@@ -531,6 +536,7 @@ class SIREN_Controller:
             datasets["event_global_time"].append(self.global_times[ie])
             # add empty lists for each per interaction dataset
             for k in ["vertex",
+                      "primary_initial_position",
                       "in_fiducial",
                       "primary_type",
                       "target_type",
@@ -543,6 +549,7 @@ class SIREN_Controller:
             # loop over interactions
             for id, datum in enumerate(event.tree):
                 datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
+                datasets["primary_initial_position"][-1].append(np.array(datum.record.primary_initial_position,dtype=float))
 
                  # primary particle stuff
                 datasets["primary_type"][-1].append(int(datum.record.signature.primary_type))

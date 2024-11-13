@@ -159,6 +159,8 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
         throw(siren::utilities::InjectionFailure("No particle interaction!"));
     }
 
+    //std::cout << "in sample cross section" << std::endl;
+
     std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
     siren::math::Vector3D interaction_vertex(
@@ -285,6 +287,7 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
         record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
         siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
         if(r <= xsec_prob) {
+            //std::cout << "going into sampel final state" << std::endl;
             matching_cross_sections[index]->SampleFinalState(xsec_record, random);
         } else {
             matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
@@ -339,6 +342,7 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     while(true) {
         tries += 1;
         try {
+            //std::cout << "generating primary process" << std::endl;
             siren::dataclasses::PrimaryDistributionRecord primary_record(primary_process->GetPrimaryType());
             for(auto & distribution : primary_process->GetPrimaryInjectionDistributions()) {
                 distribution->Sample(random, detector_model, primary_process->GetInteractions(), primary_record);

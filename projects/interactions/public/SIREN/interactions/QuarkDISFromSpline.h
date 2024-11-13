@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SIREN_CharmDISFromSpline_H
-#define SIREN_CharmDISFromSpline_H
+#ifndef SIREN_QuarkDISFromSpline_H
+#define SIREN_QuarkDISFromSpline_H
 
 #include <set>                                                // for set
 #include <map>                                                // for map
@@ -34,7 +34,7 @@ namespace siren { namespace utilities { class SIREN_random; } }
 namespace siren {
 namespace interactions {
 
-class CharmDISFromSpline : public CrossSection {
+class QuarkDISFromSpline : public CrossSection {
 friend cereal::access;
 private:
     photospline::splinetable<> differential_cross_section_;
@@ -53,13 +53,13 @@ private:
     double unit;
 
 public:
-    CharmDISFromSpline();
-    CharmDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    CharmDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    CharmDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    CharmDISFromSpline(std::string differential_filename, std::string total_filename, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    CharmDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    CharmDISFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    QuarkDISFromSpline();
+    QuarkDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    QuarkDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    QuarkDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    QuarkDISFromSpline(std::string differential_filename, std::string total_filename, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    QuarkDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    QuarkDISFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
     
     void SetUnits(std::string units);
     // this might be integrated later? could also make another initialization method
@@ -128,7 +128,7 @@ public:
             archive(::cereal::make_nvp("Unit", unit));
             archive(cereal::virtual_base_class<CrossSection>(this));
         } else {
-            throw std::runtime_error("CharmDISFromSpline only supports version <= 0!");
+            throw std::runtime_error("QuarkDISFromSpline only supports version <= 0!");
         }
     }
     template<typename Archive>
@@ -148,7 +148,7 @@ public:
             LoadFromMemory(differential_data, total_data);
             InitializeSignatures();
         } else {
-            throw std::runtime_error("CharmDISFromSpline only supports version <= 0!");
+            throw std::runtime_error("QuarkDISFromSpline only supports version <= 0!");
         }
     }
 private:
@@ -159,8 +159,8 @@ private:
 } // namespace interactions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::interactions::CharmDISFromSpline, 0);
-CEREAL_REGISTER_TYPE(siren::interactions::CharmDISFromSpline);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::CharmDISFromSpline);
+CEREAL_CLASS_VERSION(siren::interactions::QuarkDISFromSpline, 0);
+CEREAL_REGISTER_TYPE(siren::interactions::QuarkDISFromSpline);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::QuarkDISFromSpline);
 
-#endif // SIREN_CharmDISFromSpline_H
+#endif // SIREN_QuarkDISFromSpline_H

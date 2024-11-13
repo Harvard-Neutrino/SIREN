@@ -115,6 +115,10 @@ double DMesonELoss::TotalCrossSection(siren::dataclasses::Particle::ParticleType
     // current implementation uses only > 1PeV data
     double xsec = exp(1.891 + 0.205 * log_energy) - 2.157 + 1.264 * log_energy;
 
+    if (xsec == 0) {
+        std::cout << "DMesonELoss total xsec gives 0 prob!" << std::endl;
+    }
+
     return xsec * mb_to_cm2;
 }
 

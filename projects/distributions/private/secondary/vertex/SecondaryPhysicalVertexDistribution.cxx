@@ -148,6 +148,11 @@ double SecondaryPhysicalVertexDistribution::GenerationProbability(std::shared_pt
         prob_density = interaction_density * exp(-log_one_minus_exp_of_negative(total_interaction_depth) - traversed_interaction_depth);
     }
 
+    if (prob_density == 0) {
+        std::cout << "observed prob density 0 in physical vertex under process " << record.signature.primary_type << " to " 
+        << record.signature.secondary_types[0] << " with total depth " << total_interaction_depth << std::endl;
+    }
+
     return prob_density;
 }
 

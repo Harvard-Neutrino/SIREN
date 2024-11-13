@@ -173,8 +173,19 @@ void CharmHadronization::SampleFinalState(dataclasses::CrossSectionDistributionR
     double z;
     double ECH;
 
+    // add a maximum number of trials in the while loop
+    int max_sampling = 100;
+    int sampling = 0;
+
     // sample again if this eenrgy is not kinematically allowed
     do {
+        sampling += 1;
+        if (sampling > max_sampling) {
+            std::cout << "energy of the charm is " << Ec << " and momentum is " << p3c << std::endl;
+            std::cout << "desired mass of hadron is " << mCH << std::endl;
+            throw(siren::utilities::InjectionFailure("Failed to sample hadronization!"));
+            break;
+        }
         randValue = random->Uniform(0,1);
         z = inverseCdfTable(randValue);
         ECH = z * Ec;

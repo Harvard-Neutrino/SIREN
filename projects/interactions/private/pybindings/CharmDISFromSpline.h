@@ -72,6 +72,7 @@ void register_CharmDISFromSpline(pybind11::module_ & m) {
                 arg("target_types"),
                 arg("units") = std::string("cm"))
         .def(self == self)
+        .def("SetInteractionType",&CharmDISFromSpline::SetInteractionType)
         .def("TotalCrossSection",overload_cast<siren::dataclasses::InteractionRecord const &>(&CharmDISFromSpline::TotalCrossSection, const_))
         .def("TotalCrossSection",overload_cast<siren::dataclasses::ParticleType, double>(&CharmDISFromSpline::TotalCrossSection, const_))
         .def("DifferentialCrossSection",overload_cast<siren::dataclasses::InteractionRecord const &>(&CharmDISFromSpline::DifferentialCrossSection, const_))

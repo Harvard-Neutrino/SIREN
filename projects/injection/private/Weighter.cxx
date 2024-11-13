@@ -110,9 +110,11 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
 
     double inv_weight = 0;
     for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
+        // std::cout << "New Event" << std::endl;
         double physical_probability = 1.0;
         double generation_probability = injectors[idx]->EventsToInject();//GenerationProbability(tree);
         for(auto const & datum : tree.tree) {
+            // std::cout << "new depth " << datum->depth() << std::endl;
             // skip weighting if record contains hadronization
             if (datum->record.signature.target_type == siren::dataclasses::Particle::ParticleType::Hadronization) {
                 continue;
@@ -122,6 +124,17 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
                 bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
                 physical_probability *= primary_process_weighters[idx]->PhysicalProbability(bounds, datum->record);
                 generation_probability *= primary_process_weighters[idx]->GenerationProbability(*datum);
+                // for debugging purposes: nan weights are frequnetly detected
+                if (physical_probability == 0) {
+                    std::cout << "zero physics depth 0: " << datum->record.signature.primary_type << std::endl;
+                } else if (std::isinf(physical_probability)) {
+                    std::cout << "inf physics depth 0: " << datum->record.signature.primary_type << std::endl;
+                }
+                if (generation_probability == 0) {
+                    std::cout << "zero gen depth 0: " << datum->record.signature.primary_type << std::endl;
+                } else if (std::isinf(generation_probability)) {
+                    std::cout << "inf gen depth 0: " << datum->record.signature.primary_type << std::endl;
+                }
             }
             else {
                 try {
@@ -130,6 +143,16 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
                     double gen_prob = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->GenerationProbability(*datum);
                     physical_probability *= phys_prob;
                     generation_probability *= gen_prob;
+                    // if (phys_prob == 0) {
+                    //     std::cout << "zero physics: " << datum->record.signature.primary_type << std::endl;
+                    // } else if (std::isinf(phys_prob)) {
+                    //     std::cout << "inf physics: " << datum->record.signature.primary_type << std::endl;
+                    // }
+                    // if (gen_prob == 0) {
+                    //     std::cout << "zero gen: " << datum->record.signature.primary_type << std::endl;
+                    // } else if (std::isinf(gen_prob)) {
+                    //     std::cout << "inf gen: " << datum->record.signature.primary_type << std::endl;
+                    // }
                 } catch(const std::out_of_range& oor) {
                     std::cout << "Out of Range error: " << oor.what() << '\n';
                     return 0;
@@ -137,6 +160,19 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
             }
         }
         inv_weight += generation_probability / physical_probability;
+
+        // if (physical_probability == 0) {
+        //     std::cout << "Event has 0 physical probability, leading to: " << inv_weight << " " << 1./inv_weight << std::endl;
+        // } else if (physical_probability != physical_probability) {
+        //     std::cout << "Event has inf physical probability, leading to: " << inv_weight << " " << 1./inv_weight << std::endl;
+        // }
+        // if (generation_probability == 0) {
+        //     std::cout << "Event has 0 generation probability, leading to: " << inv_weight << " " << 1./inv_weight << std::endl;
+        // } else if (generation_probability != generation_probability) {
+        //     std::cout << "Event has inf generation probability, leading to: " << inv_weight << " " << 1./inv_weight << std::endl;
+        // }
+        // std::cout << "gen and physics prob is " << generation_probability << " " << physical_probability << std::endl;
+        // std::cout << "inverse weight and final weight is " << inv_weight << " " << 1./inv_weight << std::endl;
     }
     return 1./inv_weight;
 }
