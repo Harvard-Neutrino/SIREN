@@ -28,6 +28,7 @@ namespace interactions {
 namespace {
 ///Check whether a given point in phase space is physically realizable.
 ///Based on equation 5 of https://arxiv.org/pdf/1707.08573.pdf
+///Also eq 6-8 of https://arxiv.org/pdf/hep-ph/0208187
 ///\param x Bjorken x of the interaction
 ///\param y Bjorken y of the interaction
 ///\param E Incoming neutrino in energy in the lab frame ($E_\nu$)
@@ -38,7 +39,18 @@ bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
     double W2 = M*M + Q2/x * (1-x);
     double Er = E*y;
     double term = m*m - W2 - 2*x*E*M - x*x*M*M + 2*Er*(x*M + E);
-    return Er*Er - W2 - term*term/(4*E*E) > 0; // equation 5
+    if (Er*Er - W2 - term*term/(4*E*E) <= 0) return false; // equation 5
+    double x_low = m*m / (2*M*(E-m));
+    if (x < x_low || x > 1) return false; // equation 6 of 0208187
+    double a_num = 1 - m*m*(1/(2*M*E*x) + 1/(2*E*E));
+    double a_denom = 2*(1 + M*x/(2*E));
+    double b_num = std::sqrt(pow(1 - m*m/(2*M*E*x),2) - m*m/(E*E));
+    double b_denom = 2*(1 + M*x/(2*E));
+    double a = a_num/a_denom;
+    double b = b_num/b_denom;
+    if (y < a-b || y > a+b) return false; // equation 8 of 0208187
+    return true;
+
 }
 }
 
@@ -326,8 +338,10 @@ double HNLDipoleDISFromSpline::DifferentialCrossSection(siren::dataclasses::Part
 }
 
 double HNLDipoleDISFromSpline::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
-    // Consider implementing thershold at some point
-    return 0;
+    // Using center of mass frame
+    // require E_cm > m_HNL
+    double M_iso = siren::utilities::Constants::isoscalarMass;
+    return (std::pow(hnl_mass_ + M_iso,2) - M_iso*M_iso)/(2*M_iso);
 }
 
 void HNLDipoleDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord& interaction, std::shared_ptr<siren::utilities::SIREN_random> random) const {
@@ -485,10 +499,13 @@ void HNLDipoleDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistribut
     double Q2 = 2 * E1_lab * E2_lab * pow(10.0, kin_vars[1] + kin_vars[2]);
     double p1x_lab = std::sqrt(p1_lab.px() * p1_lab.px() + p1_lab.py() * p1_lab.py() + p1_lab.pz() * p1_lab.pz());
     double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
-    double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
+    //double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
+    double momq_lab = std::sqrt(Q2 + E1_lab*E1_lab*final_y*final_y);
     double pqy_lab;
     if (pqx_lab>momq_lab){
-        assert(((pqx_lab-momq_lab)/momq_lab)<1e-3);
+        std::cout << "WARNING: DIS sampling resulted in an x component of the momentum transfer larger than the total momentum transfer by ";
+        std::cout << ((pqx_lab-momq_lab)/momq_lab)*100 << "%" << std::endl;
+        std::cout << "Setting y component to zero" << std::endl;
         pqy_lab = 0;
     }
     else pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);

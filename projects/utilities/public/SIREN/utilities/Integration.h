@@ -151,23 +151,6 @@ double rombergIntegrate(const FuncType& func, double a, double b, double tol=1e-
 }
 
 /**
-* @brief Performs a 2D trapezoidal integration of a function
-*
-*
-* @param func the function to integrate
-* @param a the lower bound of integration for the first dimension
-* @param b the upper bound of integration for the first dimension
-* @param c the lower bound of integration for the second dimension
-* @param d the upper bound of integration for the second dimension
-* @param tol the (absolute) tolerance on the error of the integral per dimension
-*/
-template<typename FuncType>
-double trapezoidIntegrate2D(const FuncType& func, double a1, double b1, double a2, double b2, unsigned int order=5){
-
-  return 0;
-}
-
-/**
 * @brief Performs a 2D simpson integration of a function
 *
 *
@@ -179,11 +162,9 @@ double trapezoidIntegrate2D(const FuncType& func, double a1, double b1, double a
 * @param tol the (absolute) tolerance on the error of the integral per dimension
 */
 template<typename FuncType>
-double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2, double b2, double tol=1e-6){
+double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2, double b2,
+                          double tol=1e-3, const unsigned int N1 = 10, const unsigned int N2=10, const unsigned int maxIter=15){
 
-  const unsigned int N1=10;
-  const unsigned int N2=10;
-  const unsigned int maxIter=10;
   if(tol<0)
      throw(std::runtime_error("Integration tolerance must be positive"));
 
@@ -215,7 +196,6 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
        }
      }
      estimate *= h1i*h2i/9;
-     std::cout << estimate << " " << std::abs((estimate-prev_estimate)/estimate) << std::endl;
      if(std::abs((estimate-prev_estimate)/estimate) < tol) {
       return estimate;
      }
