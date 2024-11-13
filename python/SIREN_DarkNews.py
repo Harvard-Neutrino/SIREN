@@ -669,6 +669,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
 
         # Some variables for storing the decay phase space integrator
         self.decay_integrator = None
+        self.decay_dict = None
         self.decay_norm = None
         self.PS_samples = None
         self.PS_weights = None
@@ -702,6 +703,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
     # serialization method
     def get_representation(self):
         return {"decay_integrator":self.decay_integrator,
+                "decay_dict":self.decay_dict,
                 "decay_norm":self.decay_norm,
                 "dec_case":self.dec_case,
                 "PS_samples":self.PS_samples,
@@ -716,7 +718,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         int_file = os.path.join(self.table_dir, "decay_integrator.pkl")
         if os.path.isfile(int_file):
             with open(int_file, "rb") as ifile:
-                _, self.decay_integrator = pickle.load(ifile)
+                self.decay_dict, self.decay_integrator = pickle.load(ifile)
         # Try to find the normalization information
         norm_file = os.path.join(self.table_dir, "decay_norm.json")
         if os.path.isfile(norm_file):
@@ -832,7 +834,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                     self.SetIntegratorAndNorm()
                 else:
                     self.total_width = (
-                        self.decay_integrator["diff_decay_rate_0"].mean
+                        self.decay_dict["diff_decay_rate_0"].mean
                         * self.decay_norm["diff_decay_rate_0"]
                     )
             else:

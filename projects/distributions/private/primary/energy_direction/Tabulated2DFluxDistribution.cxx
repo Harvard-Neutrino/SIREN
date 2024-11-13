@@ -31,11 +31,22 @@ namespace {
 Tabulated2DFluxDistribution::Tabulated2DFluxDistribution() {}
 
 void Tabulated2DFluxDistribution::ComputeIntegral() {
+    // Check if the table is log in x (energy). If so, compute the integral in log space
+    // assuing we are never log in y (zenith)
+    double eMin = energyMin;
+    double eMax = energyMax;
     std::function<double(double, double)> integrand = [&] (double x, double y) -> double {
-        //std::cout << "x " << x << " y " << y << " z " << pow(10,x)*unnormed_pdf(pow(10,x),y) << std::endl;
-        return pow(10,x)*unnormed_pdf(pow(10,x),y)/log(10);
+       return unnormed_pdf(x,y);
     };
-    integral = siren::utilities::simpsonIntegrate2D(integrand, log10(energyMin), log10(energyMax), zenithMin, zenithMax);
+    if (fluxTable.IsLogX()) {
+        eMin = log10(energyMin);
+        eMax = log10(energyMax);
+        integrand =  [&] (double x, double y) -> double {
+            return log(10)*pow(10,x)*unnormed_pdf(pow(10,x),y);
+        };
+    }
+
+    integral = siren::utilities::simpsonIntegrate2D(integrand, eMin, eMax, zenithMin, zenithMax);
 }
 
 void Tabulated2DFluxDistribution::LoadFluxTable() {

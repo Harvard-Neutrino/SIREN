@@ -346,7 +346,7 @@ double HNLDISFromSpline::DifferentialCrossSection(siren::dataclasses::Particle::
 
 double HNLDISFromSpline::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
     // Using center of mass frame
-    // See
+    // require E_cm > m_HNL
     double M_iso = siren::utilities::Constants::isoscalarMass;
     return (std::pow(hnl_mass_ + M_iso,2) - M_iso*M_iso)/(2*M_iso);
 }

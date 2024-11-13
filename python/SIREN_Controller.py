@@ -497,14 +497,14 @@ class SIREN_Controller:
         self.InitializeWeighter(filename=weighter_filename)
 
     # Generate events using the self.injector object
-    def GenerateEvents(self, N=None, fill_tables_at_exit=True):
+    def GenerateEvents(self, N=None, fill_tables_at_exit=True, verbose=True):
         if N is None:
             N = self.events_to_inject
         count = 0
         self.gen_times,self.global_times = [],[]
         prev_time = time.time()
         while (self.injector.InjectedEvents() < self.events_to_inject) and (count < N):
-            print("Injecting Event %d/%d  " % (count, N), end="\r")
+            if verbose: print("Injecting Event %d/%d  " % (count, N), end="\r")
             event = self.injector.GenerateEvent()
             self.events.append(event)
             t = time.time()

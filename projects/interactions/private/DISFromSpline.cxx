@@ -538,9 +538,7 @@ void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord
     double Q2 = 2 * E1_lab * E2_lab * pow(10.0, kin_vars[1] + kin_vars[2]);
     double p1x_lab = std::sqrt(p1_lab.px() * p1_lab.px() + p1_lab.py() * p1_lab.py() + p1_lab.pz() * p1_lab.pz());
     double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
-    //double pqx_lab_prime = (Q2 + m3*m3 + 2*E1_lab*E1_lab*final_y)/(2*E1_lab);
     double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
-    //double momq_lab_prime = std::sqrt(Q2 + pow(E1_lab*final_y,2));
     // rounding error check
     double pqy_lab;
     if (pqx_lab>momq_lab){
@@ -549,7 +547,6 @@ void DISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord
     }
     else pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);
     double Eq_lab = E1_lab * final_y;
-    //double Eq_lab_prime = std::sqrt(momq_lab*momq_lab - Q2);
 
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
     geom3::Vector3 p1_mom = p1_lab.momentum();
