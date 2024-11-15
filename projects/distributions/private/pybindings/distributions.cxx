@@ -68,6 +68,7 @@ PYBIND11_MODULE(distributions,m) {
   // External distribution
   class_<PrimaryExternalDistribution, std::shared_ptr<PrimaryExternalDistribution>, PrimaryInjectionDistribution>(m,"PrimaryExternalDistribution")
     .def(init<std::string>())
+    .def(init<std::string, double>())
     .def("Sample",&PrimaryExternalDistribution::Sample)
     .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
     .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability);

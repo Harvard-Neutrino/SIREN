@@ -28,6 +28,7 @@ class PrimaryExternalDistribution : virtual public PrimaryInjectionDistribution 
 friend cereal::access;
 protected:
     PrimaryExternalDistribution() {};
+    void LoadInputFile(std::string _filename);
 public:
     ~PrimaryExternalDistribution() {
         input_file.close();
@@ -40,8 +41,10 @@ private:
     std::vector<std::string> possible_keys = {"x0","y0","z0","m","E","px","py","pz"};
     bool init_pos_set;
     bool mom_set;
+    double emin;
 public:
     PrimaryExternalDistribution(std::string _filename);
+    PrimaryExternalDistribution(std::string _filename, double emin);
     PrimaryExternalDistribution(PrimaryExternalDistribution const & other);
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;

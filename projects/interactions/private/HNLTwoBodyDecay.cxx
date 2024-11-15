@@ -696,6 +696,7 @@ double HNLTwoBodyDecay::GetMass(dataclasses::ParticleType const & secondary) con
   else if (secondary == dataclasses::ParticleType::KPrime0) {
     return siren::utilities::Constants::KPrime0Mass;
   }
+
   return 0;
 }
 
@@ -746,14 +747,20 @@ double HNLTwoBodyDecay::DifferentialDecayWidth(dataclasses::InteractionRecord co
                                                           record.primary_momentum[1],
                                                           record.primary_momentum[2]);
     hnl_dir.normalize();
-    unsigned int nu_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuE ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMu ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTau ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuEBar ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMuBar ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTauBar ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLight) ? 0 : 1;
-    unsigned int X_index = 1 - nu_index;
+    unsigned int lep_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuE ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMu ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTau ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuEBar ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMuBar ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTauBar ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLight ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::EMinus ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::MuMinus ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::TauMinus ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::EPlus ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::MuPlus ||
+                               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::TauPlus) ? 0 : 1;
+    unsigned int X_index = 1 - lep_index;
     rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     rk::P4 pX(geom3::Vector3(record.secondary_momenta[X_index][1], record.secondary_momenta[X_index][2], record.secondary_momenta[X_index][3]), record.secondary_masses[X_index]);
     rk::Boost boost_to_HNL_rest = pHNL.restBoost();
@@ -774,63 +781,96 @@ void HNLTwoBodyDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
 
     siren::dataclasses::InteractionSignature const & signature = record.GetSignature();
 
-     unsigned int nu_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuE ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMu ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTau ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuEBar ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMuBar ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTauBar ||
-                             record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLight) ? 0 : 1;
-    unsigned int X_index = 1 - nu_index;
+    if(signature.secondary_types.size() == 2) {
 
-    double CosTheta;
-    double alpha = GetAlpha(record.signature.secondary_types[X_index]);
-    alpha = std::copysign(alpha,record.primary_helicity); // 1 for RH, -1 for LH
-    alpha = (record.signature.primary_type == siren::dataclasses::ParticleType::N4) ? -1*alpha : alpha;
-    if(nature==ChiralNature::Majorana) {
-      CosTheta = random->Uniform(-1,1);
+      unsigned int lep_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuE ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMu ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTau ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuEBar ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMuBar ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuTauBar ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::EMinus ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::MuMinus ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::TauMinus ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::EPlus ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::MuPlus ||
+                                record.signature.secondary_types[0] == siren::dataclasses::ParticleType::TauPlus) ? 0 : 1;
+      unsigned int X_index = 1 - lep_index;
+
+      double CosTheta;
+      double alpha = GetAlpha(record.signature.secondary_types[X_index]);
+      alpha = std::copysign(alpha,record.primary_helicity); // 1 for RH, -1 for LH
+      alpha = (record.signature.primary_type == siren::dataclasses::ParticleType::N4) ? -1*alpha : alpha;
+      if(nature==ChiralNature::Majorana) {
+        CosTheta = random->Uniform(-1,1);
+      }
+      else {
+        double C = random->Uniform(0,1);
+        CosTheta = (std::sqrt(1  - 2*alpha*(1 - alpha/2. - 2*C)) - 1)/alpha;
+      }
+      double SinTheta = std::sin(std::acos(CosTheta));
+
+      rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+      rk::Boost boost_to_lab = pHNL.labBoost();
+
+      geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
+      geom3::Vector3 pHNL_mom = pHNL.momentum();
+      geom3::UnitVector3 pHNL_dir = pHNL_mom.direction();
+      geom3::Rotation3 x_to_pHNL_rot = geom3::rotationBetween(x_dir, pHNL_dir);
+
+      double phi = random->Uniform(0, 2.0 * M_PI);
+      geom3::Rotation3 rand_rot(pHNL_dir, phi);
+
+      rk::P4 pX_HNLrest(hnl_mass/2.*geom3::Vector3(CosTheta,SinTheta,0),0);
+      pX_HNLrest.rotate(x_to_pHNL_rot);
+      pX_HNLrest.rotate(rand_rot);
+
+      rk::P4 pX = pX_HNLrest.boost(boost_to_lab);
+      rk::P4 pLep(pHNL.momentum() - pX.momentum(),0); // ensures the neutrino has zero mass, avoids rounding errors
+
+      siren::dataclasses::SecondaryParticleRecord & X = record.GetSecondaryParticleRecord(X_index);
+      siren::dataclasses::SecondaryParticleRecord & lep = record.GetSecondaryParticleRecord(lep_index);
+
+      assert(lep.type == siren::dataclasses::ParticleType::NuE ||
+            lep.type == siren::dataclasses::ParticleType::NuMu ||
+            lep.type == siren::dataclasses::ParticleType::NuTau ||
+            lep.type == siren::dataclasses::ParticleType::NuEBar ||
+            lep.type == siren::dataclasses::ParticleType::NuMuBar ||
+            lep.type == siren::dataclasses::ParticleType::NuTauBar ||
+            lep.type == siren::dataclasses::ParticleType::EMinus ||
+            lep.type == siren::dataclasses::ParticleType::MuMinus ||
+            lep.type == siren::dataclasses::ParticleType::TauMinus ||
+            lep.type == siren::dataclasses::ParticleType::EPlus ||
+            lep.type == siren::dataclasses::ParticleType::MuPlus ||
+            lep.type == siren::dataclasses::ParticleType::TauPlus);
+
+      X.SetFourMomentum({pX.e(), pX.px(), pX.py(), pX.pz()});
+      X.SetMass(pX.m());
+      X.SetHelicity(std::copysign(1.0, record.primary_helicity));
+
+      std::cout << lep.type << std::endl;
+      lep.SetFourMomentum({pLep.e(), pLep.px(), pLep.py(), pLep.pz()});
+      lep.SetMass(pLep.m());
+      lep.SetHelicity(-1*record.primary_helicity);
     }
-    else {
-      double C = random->Uniform(0,1);
-      CosTheta = (std::sqrt(1  - 2*alpha*(1 - alpha/2. - 2*C)) - 1)/alpha;
+    else if(signature.secondary_types.size() == 3) {
+      // three body decays
+      // for now, be stupid and let all neutrinos have 1/3 of the HNL energy and be colinear
+      rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+      siren::dataclasses::SecondaryParticleRecord & nu1 = record.GetSecondaryParticleRecord(0);
+      siren::dataclasses::SecondaryParticleRecord & nu2 = record.GetSecondaryParticleRecord(1);
+      siren::dataclasses::SecondaryParticleRecord & nu3 = record.GetSecondaryParticleRecord(2);
+      nu1.SetThreeMomentum({1./3.*pHNL.px(), 1./3.*pHNL.py(), 1./3.*pHNL.pz()});
+      nu1.SetMass(0);
+      nu1.SetHelicity(std::copysign(1.0, record.primary_helicity));
+      nu2.SetThreeMomentum({1./3.*pHNL.px(), 1./3.*pHNL.py(), 1./3.*pHNL.pz()});
+      nu2.SetMass(0);
+      nu2.SetHelicity(std::copysign(1.0, record.primary_helicity));
+      nu3.SetThreeMomentum({1./3.*pHNL.px(), 1./3.*pHNL.py(), 1./3.*pHNL.pz()});
+      nu3.SetMass(0);
+      nu3.SetHelicity(std::copysign(1.0, record.primary_helicity));
+
     }
-    double SinTheta = std::sin(std::acos(CosTheta));
-
-    rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
-    rk::Boost boost_to_lab = pHNL.labBoost();
-
-    geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
-    geom3::Vector3 pHNL_mom = pHNL.momentum();
-    geom3::UnitVector3 pHNL_dir = pHNL_mom.direction();
-    geom3::Rotation3 x_to_pHNL_rot = geom3::rotationBetween(x_dir, pHNL_dir);
-
-    double phi = random->Uniform(0, 2.0 * M_PI);
-    geom3::Rotation3 rand_rot(pHNL_dir, phi);
-
-    rk::P4 pX_HNLrest(hnl_mass/2.*geom3::Vector3(CosTheta,SinTheta,0),0);
-    pX_HNLrest.rotate(x_to_pHNL_rot);
-    pX_HNLrest.rotate(rand_rot);
-
-    rk::P4 pX = pX_HNLrest.boost(boost_to_lab);
-    rk::P4 pNu(pHNL.momentum() - pX.momentum(),0); // ensures the neutrino has zero mass, avoids rounding errors
-
-    siren::dataclasses::SecondaryParticleRecord & X = record.GetSecondaryParticleRecord(X_index);
-    siren::dataclasses::SecondaryParticleRecord & nu = record.GetSecondaryParticleRecord(nu_index);
-
-    assert(nu.type == siren::dataclasses::ParticleType::NuE ||
-           nu.type == siren::dataclasses::ParticleType::NuMu ||
-           nu.type == siren::dataclasses::ParticleType::NuTau ||
-           nu.type == siren::dataclasses::ParticleType::NuEBar ||
-           nu.type == siren::dataclasses::ParticleType::NuMuBar ||
-           nu.type == siren::dataclasses::ParticleType::NuTauBar);
-
-    X.SetFourMomentum({pX.e(), pX.px(), pX.py(), pX.pz()});
-    X.SetMass(pX.m());
-    X.SetHelicity(std::copysign(1.0, record.primary_helicity));
-
-    nu.SetFourMomentum({pNu.e(), pNu.px(), pNu.py(), pNu.pz()});
-    nu.SetMass(pNu.m());
-    nu.SetHelicity(-1*record.primary_helicity);
 
 }
 
