@@ -6,6 +6,7 @@
 #include "../../public/SIREN/interactions/InteractionCollection.h"
 #include "../../public/SIREN/interactions/DISFromSpline.h"
 #include "../../public/SIREN/interactions/CharmDISFromSpline.h"
+#include "../../public/SIREN/interactions/QuarkDISFromSpline.h"
 #include "../../public/SIREN/interactions/HNLFromSpline.h"
 #include "../../public/SIREN/interactions/DipoleFromTable.h"
 #include "../../public/SIREN/interactions/DarkNewsCrossSection.h"
@@ -21,6 +22,7 @@
 #include "./DarkNewsDecay.h"
 #include "./DISFromSpline.h"
 #include "./CharmDISFromSpline.h"
+#include "./QuarkDISFromSpline.h"
 #include "./HNLFromSpline.h"
 #include "./Decay.h"
 #include "./NeutrissimoDecay.h"
@@ -55,6 +57,7 @@ PYBIND11_MODULE(interactions,m) {
     register_DarkNewsDecay(m);
     register_DISFromSpline(m);
     register_CharmDISFromSpline(m);
+    register_QuarkDISFromSpline(m);
     register_HNLFromSpline(m);
     register_NeutrissimoDecay(m);
     register_InteractionCollection(m);

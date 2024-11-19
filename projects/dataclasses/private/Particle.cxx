@@ -93,6 +93,10 @@ bool isHadron(Particle::ParticleType p){
 				p==Particle::ParticleType::DPlus || p==Particle::ParticleType::DMinus);
 	}
 
-
+bool isD(Particle::ParticleType p){
+		return(p==Particle::ParticleType::D0 || p==Particle::ParticleType::D0Bar ||
+				p==Particle::ParticleType::DPlus || p==Particle::ParticleType::DMinus);
+	}
+    
 } // namespace utilities
 } // namespace siren

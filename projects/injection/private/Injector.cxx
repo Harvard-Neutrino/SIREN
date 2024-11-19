@@ -159,7 +159,7 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
         throw(siren::utilities::InjectionFailure("No particle interaction!"));
     }
 
-    //std::cout << "in sample cross section" << std::endl;
+    ////std::cout << "in sample cross section" << std::endl;
 
     std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
@@ -267,6 +267,7 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
                 }
             }
         }
+        //std::cout << "injector :: sample cross sections: after obtaining signatures" << std::endl;
         if(total_prob == 0)
             throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
         // Throw a random number
@@ -287,12 +288,17 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
         record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
         siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
         if(r <= xsec_prob) {
-            //std::cout << "going into sampel final state" << std::endl;
+            //std::cout << "injector::sample cross section: going into sampel final state" << std::endl;
             matching_cross_sections[index]->SampleFinalState(xsec_record, random);
+            //std::cout << "injector::sample cross section: finished sampling" << std::endl;
+
         } else {
             matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
         }
+        ////std::cout << "injector::sample cross section: calling finalizing" << std::endl;
         xsec_record.Finalize(record);
+        ////std::cout << "injector::sample cross section: finished finalizing" << std::endl;
+
     }
 }
 
@@ -341,13 +347,15 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     // Initial Process
     while(true) {
         tries += 1;
+        ////std::cout << "injector::GenerateEvent : trying to generate with trial number " << tries << std::endl;
         try {
-            //std::cout << "generating primary process" << std::endl;
+            ////std::cout << "injector::GenerateEvent : generating primary process" << std::endl;
             siren::dataclasses::PrimaryDistributionRecord primary_record(primary_process->GetPrimaryType());
             for(auto & distribution : primary_process->GetPrimaryInjectionDistributions()) {
                 distribution->Sample(random, detector_model, primary_process->GetInteractions(), primary_record);
             }
             primary_record.Finalize(record);
+            //std::cout << "injector::GenerateEvent : sampling cross section" << std::endl;
             SampleCrossSection(record);
             break;
         } catch(siren::utilities::InjectionFailure const & e) {
@@ -367,6 +375,7 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
 
     // Secondary Processes
+    //std::cout << "injector::GenerateEvent : sampling secondary process" << std::endl;
     std::deque<std::tuple<std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord>>> secondaries;
     std::function<void(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>)> add_secondaries = [&](std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent) {
         for(size_t i=0; i<parent->record.signature.secondary_types.size(); ++i) {
@@ -399,6 +408,7 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
 
         }
     }
+    //std::cout << "finished sampling secondary process" << std::endl;
     injected_events += 1;
     return tree;
 }

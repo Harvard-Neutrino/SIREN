@@ -27,6 +27,8 @@
 #include "SIREN/interactions/CrossSection.h"        // for CrossSe...
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
+#include "SIREN/utilities/Interpolator.h"
+#include "SIREN/utilities/Integration.h"
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace utilities { class SIREN_random; } }
@@ -45,10 +47,18 @@ private:
     std::set<siren::dataclasses::ParticleType> target_types_;
     std::map<siren::dataclasses::ParticleType, std::vector<siren::dataclasses::ParticleType>> targets_by_primary_types_;
     std::map<std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
-
+    std::set<siren::dataclasses::ParticleType> D_types_;
+    
+    // used by the DIS process
     int interaction_type_;
+    int quark_type_;
     double target_mass_;
     double minimum_Q2_;
+
+    // used by the hadronization process
+    double fragmentation_integral = 0; // for storing the integrated unnormed pdf
+    void normalize_pdf(); // for normalizing pdf and integral, to be called at initialization
+    siren::utilities::Interpolator1D<double> inverseCdfTable; // for storing the CDF-1 table for the hadronization
     
     double unit;
 
@@ -62,36 +72,44 @@ public:
     QuarkDISFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
     
     void SetUnits(std::string units);
-    // this might be integrated later? could also make another initialization method
-    // problem with current implementation is that EM is not supported b/c at initialization we assume int = 1
-    // this sets the isoscalar target mass
     void SetInteractionType(int interaction);
+    void SetQuarkType(int q_type);
 
     virtual bool equal(CrossSection const & other) const override;
 
+    // function definitions needed to compute the DIS vertex
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
     double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2=std::numeric_limits<double>::quiet_NaN()) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
-    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
 
+    // function definitions needed to compute the hadronization vertex
+    double FragmentationFraction(siren::dataclasses::Particle::ParticleType secondary) const;
+    double sample_pdf(double z) const;
+    void compute_cdf();
+    static double getHadronMass(siren::dataclasses::ParticleType hadron_type);
+
+    // used for both processes
+    void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override;
     std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override;
     std::vector<siren::dataclasses::ParticleType> GetPossiblePrimaries() const override;
     std::vector<dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     std::vector<dataclasses::InteractionSignature> GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const override;
-
     virtual double FinalStateProbability(dataclasses::InteractionRecord const & record) const override;
 
+    // other utility functions
     void LoadFromFile(std::string differential_filename, std::string total_filename);
     void LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data);
 
+    // utilities for DIS parametrs
     double GetMinimumQ2() const {return minimum_Q2_;};
     double GetTargetMass() const {return target_mass_;};
     int GetInteractionType() const {return interaction_type_;};
-
     static double GetLeptonMass(siren::dataclasses::ParticleType lepton_type);
+    static std::map<std::string, int> getIndices(siren::dataclasses::InteractionSignature signature);
+
 
 public:
     virtual std::vector<std::string> DensityVariables() const override;

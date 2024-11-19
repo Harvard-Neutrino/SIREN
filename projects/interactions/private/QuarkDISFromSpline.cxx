@@ -1,4 +1,4 @@
-#include "SIREN/interactions/CharmDISFromSpline.h"
+#include "SIREN/interactions/QuarkDISFromSpline.h"
 
 #include <map>                                             // for map, opera...
 #include <set>                                             // for set, opera...
@@ -27,6 +27,8 @@
 #include "SIREN/dataclasses/Particle.h"           // for Particle
 #include "SIREN/utilities/Random.h"               // for SIREN_random
 #include "SIREN/utilities/Constants.h"            // for electronMass
+#include "SIREN/utilities/Errors.h"                  // for PythonImplementationError
+
 
 namespace siren {
 namespace interactions {
@@ -47,6 +49,8 @@ bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
         return false;
     if(x < ((m * m) / (2 * M * (E - m)))) //Eq. 6 left inequality
         return false;
+    if (x < 1e-6 || y < 1e-6) return false;
+
     //denominator of a and b
     double d = 2 * (1 + (M * x) / (2 * E));
     //the numerator of a (or a*d)
@@ -62,47 +66,63 @@ bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
 }
 }
 
-CharmDISFromSpline::CharmDISFromSpline() {}
+QuarkDISFromSpline::QuarkDISFromSpline() {
+    // initialize the pdf normalization and cdf table for the hadronization process
+    normalize_pdf();
+    compute_cdf();
+}
 
-CharmDISFromSpline::CharmDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+QuarkDISFromSpline::QuarkDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+    normalize_pdf();
+    compute_cdf();
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
     SetUnits(units);
 }
 
-CharmDISFromSpline::CharmDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+QuarkDISFromSpline::QuarkDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+    normalize_pdf();
+    compute_cdf();
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
     SetUnits(units);
 }
 
-CharmDISFromSpline::CharmDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+QuarkDISFromSpline::QuarkDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+    normalize_pdf();
+    compute_cdf();
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
     SetUnits(units);
 }
 
-CharmDISFromSpline::CharmDISFromSpline(std::string differential_filename, std::string total_filename, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types) {
+QuarkDISFromSpline::QuarkDISFromSpline(std::string differential_filename, std::string total_filename, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types) {
+    normalize_pdf();
+    compute_cdf();
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
     SetUnits(units);
 }
 
-CharmDISFromSpline::CharmDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+QuarkDISFromSpline::QuarkDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+    normalize_pdf();
+    compute_cdf();
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
     SetUnits(units);
 }
 
-CharmDISFromSpline::CharmDISFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()) {
+QuarkDISFromSpline::QuarkDISFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()) {
+    normalize_pdf();
+    compute_cdf();
     LoadFromFile(differential_filename, total_filename);
     ReadParamsFromSplineTable();
     InitializeSignatures();
     SetUnits(units);
 }
     
-void CharmDISFromSpline::SetUnits(std::string units) {
+void QuarkDISFromSpline::SetUnits(std::string units) {
     std::transform(units.begin(), units.end(), units.begin(),
         [](unsigned char c){ return std::tolower(c); });
     if(units == "cm") {
@@ -114,13 +134,17 @@ void CharmDISFromSpline::SetUnits(std::string units) {
     }
 }
 
-void CharmDISFromSpline::SetInteractionType(int interaction) {
+void QuarkDISFromSpline::SetInteractionType(int interaction) {
     interaction_type_ = interaction;
 }
 
-bool CharmDISFromSpline::equal(CrossSection const & other) const {
-    const CharmDISFromSpline* x = dynamic_cast<const CharmDISFromSpline*>(&other);
+void QuarkDISFromSpline::SetQuarkType(int q_type) {
+    quark_type_ = q_type;
+}
 
+bool QuarkDISFromSpline::equal(CrossSection const & other) const {
+    const QuarkDISFromSpline* x = dynamic_cast<const QuarkDISFromSpline*>(&other);
+    // to do: include more features in the hadronization side to check equivalence
     if(!x)
         return false;
     else
@@ -146,7 +170,7 @@ bool CharmDISFromSpline::equal(CrossSection const & other) const {
             x->total_cross_section_);
 }
 
-void CharmDISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::string total_crossSectionFile) {
+void QuarkDISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::string total_crossSectionFile) {
 
     differential_cross_section_ = photospline::splinetable<>(dd_crossSectionFile.c_str());
 
@@ -161,12 +185,12 @@ void CharmDISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::stri
                 + " dimensions, should have 1, log10(E)");
 }
 
-void CharmDISFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data) {
+void QuarkDISFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data) {
     differential_cross_section_.read_fits_mem(differential_data.data(), differential_data.size());
     total_cross_section_.read_fits_mem(total_data.data(), total_data.size());
 }
 
-double CharmDISFromSpline::GetLeptonMass(siren::dataclasses::ParticleType lepton_type) {
+double QuarkDISFromSpline::GetLeptonMass(siren::dataclasses::ParticleType lepton_type) {
     int32_t lepton_number = std::abs(static_cast<int32_t>(lepton_type));
     double lepton_mass;
     switch(lepton_number) {
@@ -192,7 +216,45 @@ double CharmDISFromSpline::GetLeptonMass(siren::dataclasses::ParticleType lepton
     return lepton_mass;
 }
 
-void CharmDISFromSpline::ReadParamsFromSplineTable() {
+double QuarkDISFromSpline::getHadronMass(siren::dataclasses::ParticleType hadron_type) {
+    switch(hadron_type){
+			case siren::dataclasses::ParticleType::D0:
+				return( siren::utilities::Constants::D0Mass);
+			case siren::dataclasses::ParticleType::D0Bar:
+				return( siren::utilities::Constants::D0Mass);
+			case siren::dataclasses::ParticleType::DPlus:
+				return( siren::utilities::Constants::DPlusMass);
+			case siren::dataclasses::ParticleType::DMinus:
+				return( siren::utilities::Constants::DPlusMass);	
+			case siren::dataclasses::ParticleType::Charm:
+				return( siren::utilities::Constants::CharmMass);
+			case siren::dataclasses::ParticleType::CharmBar:
+				return( siren::utilities::Constants::CharmMass);	
+            default:
+                return(0.0);
+        }
+}
+
+
+std::map<std::string, int> QuarkDISFromSpline::getIndices(siren::dataclasses::InteractionSignature signature) {
+    int lepton_id, hadron_id, meson_id;
+    for (size_t i = 0; i < signature.secondary_types.size(); i++){
+        if (isLepton(signature.secondary_types[i])) {
+            lepton_id = i;
+            continue;
+        } else if (isD(signature.secondary_types[i])) {
+            meson_id = i;
+            continue;
+        } else {
+            hadron_id = i;
+            continue;
+        }
+    }
+    return {{"lepton", lepton_id}, {"hadron", hadron_id}, {"meson", meson_id}};
+}
+
+
+void QuarkDISFromSpline::ReadParamsFromSplineTable() {
     // returns true if successfully read target mass
     bool mass_good = differential_cross_section_.read_key("TARGETMASS", target_mass_);
     if (mass_good) {std::cout << "read target mass!!" << std::endl;} // for debugging purposes
@@ -200,18 +262,23 @@ void CharmDISFromSpline::ReadParamsFromSplineTable() {
     bool int_good = differential_cross_section_.read_key("INTERACTION", interaction_type_);
     // returns true if successfully read minimum Q2
     bool q2_good = differential_cross_section_.read_key("Q2MIN", minimum_Q2_);
+    // returns true if successfully read quark type
+    bool qtype_good = differential_cross_section_.read_key("QUARKTYPE", quark_type_);
+
 
     if(!int_good) {
         // assume DIS to preserve compatability with previous versions
         interaction_type_ = 1;
     }
 
+    if (!qtype_good) {
+        quark_type_ = 1; // assume quark is produced
+    }
+
     if(!q2_good) {
         // assume 1 GeV^2
         minimum_Q2_ = 1;
     }
-
-    std::cout << "Q2 good status is "  << q2_good << "and is set to " << minimum_Q2_;
 
     if(!mass_good) {
         if(int_good) {
@@ -235,23 +302,19 @@ void CharmDISFromSpline::ReadParamsFromSplineTable() {
             }
         }
     }
-    std::cout << "target mass is " << target_mass_ << std::endl;
-
 }
 
-void CharmDISFromSpline::InitializeSignatures() {
+void QuarkDISFromSpline::InitializeSignatures() {
     signatures_.clear();
     for(auto primary_type : primary_types_) {
         dataclasses::InteractionSignature signature;
         signature.primary_type = primary_type;
-
         if(not isNeutrino(primary_type)) {
             throw std::runtime_error("This DIS implementation only supports neutrinos as primaries!");
         }
-
+        // first push back the charged lepton product
         siren::dataclasses::ParticleType charged_lepton_product = siren::dataclasses::ParticleType::unknown;
         siren::dataclasses::ParticleType neutral_lepton_product = primary_type;
-
         if(primary_type == siren::dataclasses::ParticleType::NuE) {
             charged_lepton_product = siren::dataclasses::ParticleType::EMinus;
         } else if(primary_type == siren::dataclasses::ParticleType::NuEBar) {
@@ -267,7 +330,6 @@ void CharmDISFromSpline::InitializeSignatures() {
         } else {
             throw std::runtime_error("InitializeSignatures: Unkown parent neutrino type!");
         }
-
         if(interaction_type_ == 1) {
             signature.secondary_types.push_back(charged_lepton_product);
         } else if(interaction_type_ == 2) {
@@ -277,20 +339,100 @@ void CharmDISFromSpline::InitializeSignatures() {
         } else {
             throw std::runtime_error("InitializeSignatures: Unkown interaction type!");
         }
-
-        signature.secondary_types.push_back(siren::dataclasses::ParticleType::Charm);
-        for(auto target_type : target_types_) {
-            signature.target_type = target_type;
-
-            signatures_.push_back(signature);
-
-            std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType> key(primary_type, target_type);
-            signatures_by_parent_types_[key].push_back(signature);
+        // now push back the hadron product
+        signature.secondary_types.push_back(siren::dataclasses::ParticleType::Hadrons);
+        // define the charmed meson types based on the quark type, now considering only D0 and D+
+        if (quark_type_ == 1) {
+            D_types_ = {siren::dataclasses::Particle::ParticleType::D0, 
+                        siren::dataclasses::Particle::ParticleType::DPlus};
+        } else {
+            D_types_ = {siren::dataclasses::Particle::ParticleType::D0Bar, 
+                        siren::dataclasses::Particle::ParticleType::DMinus};
         }
+        // push back the meson type
+        for (auto meson_type : D_types_) {
+            dataclasses::InteractionSignature full_signature = signature;
+            full_signature.secondary_types.push_back(meson_type);
+            // and finally set the target type and push back the entire signature as well as sig by target
+            for(auto target_type : target_types_) {
+                full_signature.target_type = target_type;
+
+                signatures_.push_back(full_signature);
+
+                std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType> key(primary_type, target_type);
+                signatures_by_parent_types_[key].push_back(full_signature);
+            }
+        }       
     }
 }
 
-double CharmDISFromSpline::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
+void QuarkDISFromSpline::normalize_pdf() {
+    if (fragmentation_integral == 0){
+         std::function<double(double)> integrand = [&] (double x) -> double {
+            return (0.8 / x ) / (std::pow(1 - (1 / x) - (0.2 / (1 - x)), 2));
+        };
+        fragmentation_integral = siren::utilities::rombergIntegrate(integrand, 0.001, 0.999);
+    } else {
+        std::cout << "Something is wrong... you already computed the normalization" << std::endl;
+        return;
+    }
+}
+
+void QuarkDISFromSpline::compute_cdf() {
+    // first set the z nodes
+    std::vector<double> zspline;
+    for (int i = 0; i < 100; ++i) {
+        zspline.push_back(0.01 + i * (0.99-0.01) / 100 );
+    }
+
+    // declare the cdf vectors
+    std::vector<double> cdf_vector;
+    std::vector<double> cdf_z_nodes;
+    std::vector<double> pdf_vector;
+
+    cdf_z_nodes.push_back(0);
+    cdf_vector.push_back(0);
+    pdf_vector.push_back(0);
+
+    // compute the spline table
+    for (int i = 0; i < zspline.size(); ++i) {
+        if (i == 0) {
+            double cur_z = zspline[i];
+            double cur_pdf = sample_pdf(cur_z);
+            double area = cur_z * cur_pdf * 0.5;
+            pdf_vector.push_back(cur_pdf);
+            cdf_vector.push_back(area);
+            cdf_z_nodes.push_back(cur_z);
+            continue;
+        }
+        double cur_z = zspline[i];
+        double cur_pdf = sample_pdf(cur_z);
+        double area = 0.5 * (pdf_vector[i - 1] + cur_pdf) * (zspline[i] - zspline[i - 1]);
+        pdf_vector.push_back(cur_pdf);
+        cdf_z_nodes.push_back(cur_z);
+        cdf_vector.push_back(area + cdf_vector.back());
+    }
+
+    cdf_z_nodes.push_back(1);
+    cdf_vector.push_back(1);
+    pdf_vector.push_back(0);
+
+
+    // set the spline table 
+    siren::utilities::TableData1D<double> inverse_cdf_data;
+    inverse_cdf_data.x = cdf_vector;
+    inverse_cdf_data.f = cdf_z_nodes;
+
+    inverseCdfTable = siren::utilities::Interpolator1D<double>(inverse_cdf_data);
+
+    return;
+}
+
+double QuarkDISFromSpline::sample_pdf(double x) const {
+    return (0.8 / x ) / (std::pow(1 - (1 / x) - (0.2 / (1 - x)), 2)) / fragmentation_integral;
+}
+
+double QuarkDISFromSpline::TotalCrossSection(dataclasses::InteractionRecord const & interaction) const {
     siren::dataclasses::ParticleType primary_type = interaction.signature.primary_type;
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     double primary_energy;
@@ -303,7 +445,7 @@ double CharmDISFromSpline::TotalCrossSection(dataclasses::InteractionRecord cons
     return TotalCrossSection(primary_type, primary_energy);
 }
 
-double CharmDISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy) const {
+double QuarkDISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy) const {
     if(not primary_types_.count(primary_type)) {
         throw std::runtime_error("Supplied primary not supported by cross section!");
     }
@@ -328,33 +470,37 @@ double CharmDISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType pr
     return unit * std::pow(10.0, log_xs);
 }
 
-double CharmDISFromSpline::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
+double QuarkDISFromSpline::DifferentialCrossSection(dataclasses::InteractionRecord const & interaction) const {
     rk::P4 p1(geom3::Vector3(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]), interaction.primary_mass);
     rk::P4 p2(geom3::Vector3(0, 0, 0), interaction.target_mass);
     double primary_energy;
     primary_energy = interaction.primary_momentum[0];
-    assert(interaction.signature.secondary_types.size() == 2);
-    unsigned int lepton_index = (isLepton(interaction.signature.secondary_types[0])) ? 0 : 1;
-    unsigned int other_index = 1 - lepton_index;
+    assert(interaction.signature.secondary_types.size() == 3);
+    std::map<std::string, int> secondaries = getIndices(interaction.signature);
+    unsigned int lepton_index = secondaries["lepton"];
+    unsigned int hadron_index = secondaries["hadron"];
+    unsigned int meson_index = secondaries["meson"];
 
     std::array<double, 4> const & mom3 = interaction.secondary_momenta[lepton_index];
-    std::array<double, 4> const & mom4 = interaction.secondary_momenta[other_index];
-    rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses[lepton_index]);
-    rk::P4 p4(geom3::Vector3(mom4[1], mom4[2], mom4[3]), interaction.secondary_masses[other_index]);
+    std::array<double, 4> const & mom_x = interaction.secondary_momenta[hadron_index];
+    std::array<double, 4> const & mom_d = interaction.secondary_momenta[meson_index];
 
+    rk::P4 p3(geom3::Vector3(mom3[1], mom3[2], mom3[3]), interaction.secondary_masses[lepton_index]);
+    rk::P4 p_x(geom3::Vector3(mom_x[1], mom_x[2], mom_x[3]), interaction.secondary_masses[hadron_index]);
+    rk::P4 p_d(geom3::Vector3(mom_d[1], mom_d[2], mom_d[3]), interaction.secondary_masses[meson_index]);
+    rk::P4 p4 = p_x + p_d; // this assume that we are working in a good frame where the hadronization vertex has 4-momentum conserved
     rk::P4 q = p1 - p3;
+    // however p4 is not used in computation here so we should be fine...
 
     double Q2 = -q.dot(q);
     double x, y;
     double lepton_mass = GetLeptonMass(interaction.signature.secondary_types[lepton_index]);
-
 
     y = 1.0 - p2.dot(p3) / p2.dot(p1);
     x = Q2 / (2.0 * p2.dot(q));
     double log_energy = log10(primary_energy);
     std::array<double,3> coordinates{{log_energy, log10(x), log10(y)}};
     std::array<int,3> centers;
-
 
     if (Q2 < minimum_Q2_ || !kinematicallyAllowed(x, y, primary_energy, target_mass_, lepton_mass)
         || !differential_cross_section_.searchcenters(coordinates.data(), centers.data())) {
@@ -366,11 +512,9 @@ double CharmDISFromSpline::DifferentialCrossSection(dataclasses::InteractionReco
             Q2 = 2. * E1_lab * E2_lab * x * y;
     }
     return DifferentialCrossSection(primary_energy, x, y, lepton_mass, Q2);
-
-
 }
 
-double CharmDISFromSpline::DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2) const {
+double QuarkDISFromSpline::DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2) const {
     double log_energy = log10(energy);
     // check preconditions
     if(log_energy < differential_cross_section_.lower_extent(0)
@@ -386,9 +530,6 @@ double CharmDISFromSpline::DifferentialCrossSection(double energy, double x, dou
         return 0.0;
     }
 
-    // we assume that:
-    // the target is stationary so its energy is just its mass
-    // the incoming neutrino is massless, so its kinetic energy is its total energy
     if(std::isnan(Q2)) {
         Q2 = 2.0 * energy * target_mass_ * x * y;
     }
@@ -413,22 +554,29 @@ double CharmDISFromSpline::DifferentialCrossSection(double energy, double x, dou
         std::cout << "energy, x, y, Q2 are " << energy << " " << x << " " << y << " " << Q2 << " " << std::endl;
         std::cout << "spline value read is " << differential_cross_section_.ndsplineeval(coordinates.data(), centers.data(), 0) << std::endl;
     }
-
     return unit * result;
 }
 
-double CharmDISFromSpline::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
+double QuarkDISFromSpline::InteractionThreshold(dataclasses::InteractionRecord const & interaction) const {
     // Consider implementing DIS thershold at some point
     return 0;
 }
 
-void CharmDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+    // first obtain the indices from secondaries
+    // std::cout << "in sample final state" << std::endl;
+    std::map<std::string, int> secondary_indices = getIndices(record.signature);
+    unsigned int lepton_index = secondary_indices["lepton"];
+    unsigned int hadron_index = secondary_indices["hadron"];
+    unsigned int meson_index = secondary_indices["meson"];
+
     // Uses Metropolis-Hastings Algorithm!
     // useful for cases where we don't know the supremum of our distribution, and the distribution is multi-dimensional
     if (differential_cross_section_.get_ndim() != 3) {
         throw std::runtime_error("I expected 3 dimensions in the cross section spline, but got " + std::to_string(differential_cross_section_.get_ndim()) +". Maybe your fits file doesn't have the right 'INTERACTION' key?");
     }
     rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+    // std::cout << "quark::sampleFinalState : primary momentum is read to be " << p1 << std::endl;
     rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
 
     // we assume that:
@@ -444,8 +592,7 @@ void CharmDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     p2_lab = p2;
     primary_energy = p1_lab.e();
 
-    unsigned int lepton_index = (isLepton(record.signature.secondary_types[0])) ? 0 : 1;
-    unsigned int other_index = 1 - lepton_index;
+    // correctly assign lepton, hadron and meson index
     double m = GetLeptonMass(record.signature.secondary_types[lepton_index]);
 
     double m1 = record.primary_mass;
@@ -566,9 +713,8 @@ void CharmDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
             // std::cout << "trial Q is" << trialQ << std::endl;
         }
     }
-    ////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////////////////
+
+    // scaling down to handle numerical issues
     double final_x = pow(10., kin_vars[1]);
     double final_y = pow(10., kin_vars[2]);
     record.interaction_parameters.clear();
@@ -646,53 +792,132 @@ void CharmDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
 
     rk::P4 p3;
     rk::P4 p4;
-    p3 = p3_lab;
-    p4 = p4_lab;
+    p3 = p3_lab; // now we have our lepton momentum set, which should not be modified from here on
+    p4 = p4_lab; // momentum of the virtual charm
+    // std::cout << "charm momentum is " << p4 << std::endl;
 
+    // compute the energy and 3-momentum of the virtual charm
+    // std::cout << "the virtual charm off-shell mass is " << p4.m() << std::endl;
+    double p3c = std::sqrt(std::pow(p4.px(), 2) + std::pow(p4.py(), 2) + std::pow(p4.pz(), 2));
+    double Ec = p4.e(); //energy of primary charm
+    double mCH = getHadronMass(record.signature.secondary_types[meson_index]); // obtain charmed hadron mass
+
+    // accept-reject sampling for a valid momentum fragmentation
+    bool frag_accept;
+    double randValue;
+    double z;
+    double ECH;
+
+    // add a maximum number of trials in the while loop
+    int max_sampling = 500;
+    int sampling = 0;
+
+    // sample again if this eenrgy is not kinematically allowed
+    do {
+        sampling += 1;
+        if (sampling > max_sampling) {
+            std::cout << "energy of the charm is " << Ec << " and momentum is " << p3c << std::endl;
+            std::cout << "desired mass of hadron is " << mCH << std::endl;
+            // throw(siren::utilities::InjectionFailure("Failed to sample hadronization!"));
+            break;
+        }
+        randValue = random->Uniform(0,1);
+        z = inverseCdfTable(randValue);
+        ECH = z * Ec;
+        if (std::pow(ECH, 2) - std::pow(mCH, 2) <= 0) {
+            frag_accept = false;
+        } else {
+            frag_accept = true;
+        }
+        double test_ED = ECH;
+        double test_EX = (1-z) * Ec;
+        double test_p3D = std::sqrt(std::pow(test_ED, 2) - std::pow(mCH, 2));
+        double test_rD = test_p3D / p3c; 
+        double test_p3X = std::pow((1 - test_rD), 2) * std::pow(p3c, 2);
+        if (std::pow(test_EX, 2) - std::pow(test_p3X, 2) <= 0) {frag_accept = false;} else {frag_accept = true;}
+    } while (!frag_accept);
+
+    // set the 3-momentum of the charmed meson and subsequently the 4-momentum
+    double p3CH = std::sqrt(std::pow(ECH, 2) - std::pow(mCH, 2)); //obtain charmed hadron 3-momentum
+    double rCH = p3CH/p3c; // ratio of momentum carried away by the charmed hadron, assume collinearity
+    rk::P4 p4CH(geom3::Vector3(rCH * record.primary_momentum[1], rCH * record.primary_momentum[2], rCH * record.primary_momentum[3]), mCH);
+
+    // the 4 momentum (and the mass) of the resulting hadronic vertex is determined solely via 4-momentum conservation
+    rk::P4 p4X = p4 - p4CH;
+    // let's first assume massless hadron final state
+    // double EX = (1 - z) * Ec; // energy of the hadronic shower
+    // double p3X = EX; // assume no hadronic mass
+    // double rX = p3X/p3c; // assume collinear
+    // rk::P4 p4X(geom3::Vector3(rX * record.primary_momentum[1], rX * record.primary_momentum[2], rX * record.primary_momentum[3]), 0);
+
+    // now we proceed to saving the final state kinematics
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
     siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
-    siren::dataclasses::SecondaryParticleRecord & other = secondaries[other_index];
+    siren::dataclasses::SecondaryParticleRecord & hadron = secondaries[hadron_index];
+    siren::dataclasses::SecondaryParticleRecord & meson = secondaries[meson_index];
+    // std::cout << "QuarkDIS::SampleFInalState : the indices are: " << lepton_index << hadron_index<< meson_index << std::endl;
 
     lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
+    // std::cout << "setting lepton mass with lepton momentum " << p3 << std::endl;
     lepton.SetMass(p3.m());
     lepton.SetHelicity(record.primary_helicity);
-    other.SetFourMomentum({p4.e(), p4.px(), p4.py(), p4.pz()});
-    other.SetMass(p4.m());
-    other.SetHelicity(record.target_helicity);
+    hadron.SetFourMomentum({p4X.e(), p4X.px(), p4X.py(), p4X.pz()});
+    // std::cout << "setting hadron mass with hadron momentum " << p4X << std::endl;
+    hadron.SetMass(p4X.m());
+    hadron.SetHelicity(record.target_helicity);
+    meson.SetFourMomentum({p4CH.e(), p4CH.px(), p4CH.py(), p4CH.pz()});
+    // std::cout << "setting meson mass with meson momentum " << p4CH << std::endl;
+    meson.SetMass(p4CH.m());
+    meson.SetHelicity(record.target_helicity); // this needs working on
+    // std::cout << "finished sampling final state" << std::endl;
 }
 
-double CharmDISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
+double QuarkDISFromSpline::FragmentationFraction(siren::dataclasses::Particle::ParticleType secondary) const {
+    if (secondary == siren::dataclasses::Particle::ParticleType::D0 || secondary == siren::dataclasses::Particle::ParticleType::D0Bar) {
+        return 0.6;
+    } else if (secondary == siren::dataclasses::Particle::ParticleType::DPlus || secondary == siren::dataclasses::Particle::ParticleType::DMinus) {
+        return 0.23;
+    } // D_s and Lambda^+ not yet implemented
+    return 0;
+}
+
+double QuarkDISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
+    // first compute the differential and total cross section
     double dxs = DifferentialCrossSection(interaction);
     // if (dxs == 0) {
     //     std::cout << "diff xsec gives 0" << std::endl;
     // }
     double txs = TotalCrossSection(interaction);
+    //then compute the fragmentation probability
+    std::map<std::string, int> secondaries = getIndices(interaction.signature);
+    unsigned int meson_index = secondaries["meson"];
+    double fragfrac = FragmentationFraction(interaction.signature.secondary_types[meson_index]);
     if(dxs == 0) {
         return 0.0;
     } else {
         // if (txs == 0) {std::cout << "wtf??? txs is 0 in final state prob" << txs << std::endl;}
         // if (std::isinf(dxs)) {std::cout << "dxs is inf in final state prob" << std::endl;}
-        return dxs / txs;
+        return dxs / txs * fragfrac;
     }
 }
 
-std::vector<siren::dataclasses::ParticleType> CharmDISFromSpline::GetPossiblePrimaries() const {
+std::vector<siren::dataclasses::ParticleType> QuarkDISFromSpline::GetPossiblePrimaries() const {
     return std::vector<siren::dataclasses::ParticleType>(primary_types_.begin(), primary_types_.end());
 }
 
-std::vector<siren::dataclasses::ParticleType> CharmDISFromSpline::GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const {
+std::vector<siren::dataclasses::ParticleType> QuarkDISFromSpline::GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const {
     return std::vector<siren::dataclasses::ParticleType>(target_types_.begin(), target_types_.end());
 }
 
-std::vector<dataclasses::InteractionSignature> CharmDISFromSpline::GetPossibleSignatures() const {
+std::vector<dataclasses::InteractionSignature> QuarkDISFromSpline::GetPossibleSignatures() const {
     return std::vector<dataclasses::InteractionSignature>(signatures_.begin(), signatures_.end());
 }
 
-std::vector<siren::dataclasses::ParticleType> CharmDISFromSpline::GetPossibleTargets() const {
+std::vector<siren::dataclasses::ParticleType> QuarkDISFromSpline::GetPossibleTargets() const {
     return std::vector<siren::dataclasses::ParticleType>(target_types_.begin(), target_types_.end());
 }
 
-std::vector<dataclasses::InteractionSignature> CharmDISFromSpline::GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const {
+std::vector<dataclasses::InteractionSignature> QuarkDISFromSpline::GetPossibleSignaturesFromParents(siren::dataclasses::ParticleType primary_type, siren::dataclasses::ParticleType target_type) const {
     std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType> key(primary_type, target_type);
     if(signatures_by_parent_types_.find(key) != signatures_by_parent_types_.end()) {
         return signatures_by_parent_types_.at(key);
@@ -701,7 +926,7 @@ std::vector<dataclasses::InteractionSignature> CharmDISFromSpline::GetPossibleSi
     }
 }
 
-std::vector<std::string> CharmDISFromSpline::DensityVariables() const {
+std::vector<std::string> QuarkDISFromSpline::DensityVariables() const {
     return std::vector<std::string>{"Bjorken x", "Bjorken y"};
 }
 

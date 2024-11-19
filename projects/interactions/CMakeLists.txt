@@ -21,6 +21,8 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmHadronization.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DMesonELoss.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/QuarkDISFromSpline.cxx
+
 )
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
 set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)

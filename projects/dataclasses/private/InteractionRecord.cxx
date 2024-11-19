@@ -327,13 +327,22 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) co
 }
 
 void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
+    //std::cout << "starting finalize" << std::endl;
+    //std::cout << record.signature << std::endl;
+    //std::cout << record.primary_momentum[0] << std::endl;
+
     record.signature.primary_type = type;
     record.primary_id = GetID();
     record.interaction_vertex = GetInteractionVertex();
     record.primary_initial_position = GetInitialPosition();
+    //std::cout << "in primary record finalize" << std::endl;
     record.primary_mass = GetMass();
     record.primary_momentum = GetFourMomentum();
     record.primary_helicity = GetHelicity();
+    //std::cout << "finished primary record finalize" << std::endl;
+
+    //std::cout << record.signature << std::endl;
+    //std::cout << record.primary_momentum[0] << std::endl;
 }
 
 /////////////////////////////////////////
@@ -553,11 +562,16 @@ void SecondaryParticleRecord::UpdateMomentum() const {
 }
 
 void SecondaryParticleRecord::Finalize(InteractionRecord & record) const {
+    ////std::cout << "SecPartRecord::Finalize : starting for " << type << std::endl;
+
     assert(record.signature.secondary_types.at(secondary_index) == type);
     record.secondary_ids.at(secondary_index) = GetID();
     record.secondary_masses.at(secondary_index) = GetMass();
     record.secondary_momenta.at(secondary_index) = GetFourMomentum();
     record.secondary_helicities.at(secondary_index) = GetHelicity();
+    ////std::cout << "SecPartRecord::Finalize : finished for " << type << " with" << std::endl;
+    ////std::cout << record << std::endl;
+
 }
 
 /////////////////////////////////////////
@@ -676,6 +690,11 @@ SecondaryParticleRecord const & CrossSectionDistributionRecord::GetSecondaryPart
 }
 
 void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const {
+    //std::cout << "XsecDistRecord::Finalize : starting" << std::endl;
+    //std::cout << record.signature << std::endl;
+    //std::cout << signature << std::endl;
+    //std::cout << primary_momentum[0] << std::endl;
+
     record.target_id = target_id;
     record.target_mass = target_mass;
     record.target_helicity = target_helicity;
@@ -688,6 +707,7 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const 
     record.secondary_helicities.resize(secondary_particles.size());
 
     for(SecondaryParticleRecord const & secondary : secondary_particles) {
+        //std::cout << "XsecDistRecord::Finalize : going to secondaries: " << secondary << std::endl;
         secondary.Finalize(record);
     }
 }

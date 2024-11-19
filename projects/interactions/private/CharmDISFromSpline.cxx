@@ -45,6 +45,8 @@ namespace {
 bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
     if(x > 1) //Eq. 6 right inequality
         return false;
+    // this is to get rid of the infinities as a temporary solution
+    if (x < 1e-6 or y < 1e-6) return false;
     if(x < ((m * m) / (2 * M * (E - m)))) //Eq. 6 left inequality
         return false;
     //denominator of a and b

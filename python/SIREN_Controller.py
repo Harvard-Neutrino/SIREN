@@ -489,6 +489,7 @@ class SIREN_Controller:
             self.global_times.append(t-self.global_start)
             prev_time = t
             count += 1
+            # print("finished generating one events")
         if hasattr(self, "DN_processes"):
             self.DN_processes.SaveCrossSectionTables(fill_tables_at_exit=fill_tables_at_exit)
         return self.events
