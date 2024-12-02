@@ -7,13 +7,15 @@ base_path = os.path.dirname(os.path.abspath(__file__))
 logger_file = os.path.join(base_path, "logger.py")
 siren._util.load_module("logger", logger_file)
 
-from siren.DNModelContainer import ModelContainer
-
 # Import PyDarkNewsDecay and PyDarkNewsCrossSection
 decay_file = os.path.join(base_path, "DarkNewsDecay.py")
 cross_section_file = os.path.join(base_path, "DarkNewsCrossSection.py")
+model_container_file = os.path.join(base_path, "DNModelContainer.py")
+DN_processes_patch_file = os.path.join(base_path, "DN_processes_patch.py")
 DarkNewsDecay = siren._util.load_module("DarkNewsDecay", decay_file)
 DarkNewsCrossSection = siren._util.load_module("DarkNewsCrossSection", cross_section_file)
+ModelContainer = siren._util.load_module("DNModelContainer", model_container_file).ModelContainer
+DN_processes_patch = siren._util.load_module("DN_processes_patch", DN_processes_patch_file)
 
 PyDarkNewsCrossSection = DarkNewsCrossSection.PyDarkNewsCrossSection
 PyDarkNewsDecay = DarkNewsDecay.PyDarkNewsDecay
