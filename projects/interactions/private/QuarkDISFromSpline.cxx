@@ -62,7 +62,7 @@ bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
     double s = 2 * M * E;
     double Q2 = s * x * y;
     double Mc = siren::utilities::Constants::D0Mass;
-    return ((ad - bd) <= d * y and d * y <= (ad + bd)) && (Q2 / (1 - x) + pow(M, 2) >= pow(M + Mc, 2)); //Eq. 7
+    return ((ad - bd) <= d * y and d * y <= (ad + bd)) && (Q2 * (1 - x) / x + pow(M, 2) >= pow(M + Mc, 2)); //Eq. 7
 }
 }
 
@@ -577,7 +577,7 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     }
     rk::P4 p1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
     // std::cout << "quark::sampleFinalState : primary momentum is read to be " << p1 << std::endl;
-    rk::P4 p2(geom3::Vector3(0, 0, 0), record.target_mass);
+    rk::P4 p2(geom3::Vector3(0, 0, 0), target_mass_);
 
     // we assume that:
     // the target is stationary so its energy is just its mass
@@ -813,6 +813,7 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     int sampling = 0;
 
     // sample again if this eenrgy is not kinematically allowed
+    // this samples in the lab frame the energy of the D-meson such that mass is real
     do {
         sampling += 1;
         if (sampling > max_sampling) {
@@ -829,27 +830,55 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
         } else {
             frag_accept = true;
         }
-        double test_ED = ECH;
-        double test_EX = (1-z) * Ec;
-        double test_p3D = std::sqrt(std::pow(test_ED, 2) - std::pow(mCH, 2));
-        double test_rD = test_p3D / p3c; 
-        double test_p3X = std::pow((1 - test_rD), 2) * std::pow(p3c, 2);
-        if (std::pow(test_EX, 2) - std::pow(test_p3X, 2) <= 0) {frag_accept = false;} else {frag_accept = true;}
     } while (!frag_accept);
+    // new attempt of using the isoscalar mass as the remnant hadronic shower mass
+    double mX = target_mass_;
+    double Mc = p4.m();
+    // std::cout << "using remnant mass " << mX << std::endl;
+    // std::cout << "invariant charm mass and its energy is " << Mc << ", " << p4.e() << std::endl;
+    // std::cout << "target sampled D meson energy is " << ECH << std::endl;
+    // std::cout << "and the fraction of momentum is sampled to be " << z << std::endl;
+    //compute the energies in the charm rest frame
+    double E_CH_c = (std::pow(Mc, 2) - std::pow(mX, 2) + std::pow(mCH, 2)) / (2 * Mc);
+    // std::cout << "energy of charm in rest frame is " << E_CH_c << std::endl;
+    double p_c = std::sqrt((std::pow(Mc, 2) - std::pow(mCH + mX, 2)) * (std::pow(Mc, 2) - std::pow(mCH - mX, 2))) / (2 * Mc);
+    // std::cout << "momentum in charm rest frame is " << p_c << std::endl;
+    // compute the lorentz boost parameters
+    double gamma = p4.gamma();
+    double beta = p4.beta();
+    // std::cout << "beta and gamma parameters are " << beta << ", " << gamma << std::endl;
+    // using the lab frame fragmented energy and the 
+    double cosTheta = std::max(std::min(((ECH - gamma * E_CH_c)/(gamma * beta * p_c)), 1.), -1.);
+    // std::cout << "cosine of theta in charm frame is " << cosTheta << std::endl;
+    // std::cout << "without cutting, the number is " << (ECH - gamma * E_CH_c)/(gamma * beta * p_c) << std::endl;
+    // now compute the momentum vectors in the rest frame
+    double sinTheta = std::sin(std::acos(cosTheta));
+    // std::cout << "and sine of theta is computed to be " << sinTheta << std::endl;
+    rk::P4 p4CH_c(p_c * geom3::Vector3(cosTheta, sinTheta, 0), mCH);
+    rk::P4 p4X_c(p_c * geom3::Vector3(-cosTheta, -sinTheta, 0), mX);
+    // these all assume boost direction is charm direction. Now we should rotate back to charm lab momentum direction
+    geom3::Vector3 pc_lab_momentum = p4.momentum();
+    geom3::UnitVector3 pc_lab_dir = pc_lab_momentum.direction();
+    geom3::Rotation3 x_to_pc_lab_rot = geom3::rotationBetween(x_dir, pc_lab_dir);
+    p4X_c.rotate(x_to_pc_lab_rot);
+    p4CH_c.rotate(x_to_pc_lab_rot);
+    
+    // finally, we perform a random azimuthal rotation
+    double c_phi = random->Uniform(0, 2 * M_PI);
+    geom3::Rotation3 azimuth_rand_rot(pc_lab_dir, c_phi);
+    p4X_c.rotate(azimuth_rand_rot);
+    p4CH_c.rotate(azimuth_rand_rot);
 
-    // set the 3-momentum of the charmed meson and subsequently the 4-momentum
-    double p3CH = std::sqrt(std::pow(ECH, 2) - std::pow(mCH, 2)); //obtain charmed hadron 3-momentum
-    double rCH = p3CH/p3c; // ratio of momentum carried away by the charmed hadron, assume collinearity
-    rk::P4 p4CH(geom3::Vector3(rCH * record.primary_momentum[1], rCH * record.primary_momentum[2], rCH * record.primary_momentum[3]), mCH);
+    // and boost them back to the lab frame
+    rk::Boost boost_from_crest_to_lab = p4.labBoost();
+    rk::P4 p4X = p4X_c.boost(boost_from_crest_to_lab);
+    rk::P4 p4CH = p4CH_c.boost(boost_from_crest_to_lab);
 
-    // the 4 momentum (and the mass) of the resulting hadronic vertex is determined solely via 4-momentum conservation
-    rk::P4 p4X = p4 - p4CH;
-    // let's first assume massless hadron final state
-    // double EX = (1 - z) * Ec; // energy of the hadronic shower
-    // double p3X = EX; // assume no hadronic mass
-    // double rX = p3X/p3c; // assume collinear
-    // rk::P4 p4X(geom3::Vector3(rX * record.primary_momentum[1], rX * record.primary_momentum[2], rX * record.primary_momentum[3]), 0);
+    // std::cout << "computed remnant mass and energy is " << p4X.m() << ", " << p4X.e() << std::endl;
+    // std::cout << "and computed D mass and energy is " << p4CH.m() << ", " << p4CH.e() << std::endl;
+    // std::cout << "target sampled D meson energy is " << ECH << std::endl;
 
+    
     // now we proceed to saving the final state kinematics
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
     siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];

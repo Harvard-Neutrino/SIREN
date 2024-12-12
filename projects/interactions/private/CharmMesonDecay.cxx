@@ -367,8 +367,11 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     // now finally perform the last aximuthal rotation
     double W_phi = random->Uniform(0, 2 * M_PI);
     geom3::Rotation3 W_azimuth_rand_rot(p3W_lab_dir, W_phi);
-    rk::P4 p4l_lab = p4l_Wrest.rotate(W_azimuth_rand_rot);
-    rk::P4 p4nu_lab = p4nu_Wrest.rotate(W_azimuth_rand_rot);
+    p4l_Wrest.rotate(W_azimuth_rand_rot);
+    p4nu_Wrest.rotate(W_azimuth_rand_rot);
+    rk::Boost boost_from_Wrest_to_lab = p4W_lab.labBoost();
+    rk::P4 p4l_lab = p4l_Wrest.boost(boost_from_Wrest_to_lab);
+    rk::P4 p4nu_lab = p4nu_Wrest.boost(boost_from_Wrest_to_lab);
 
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
     siren::dataclasses::SecondaryParticleRecord & kpi = secondaries[0];
