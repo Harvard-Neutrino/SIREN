@@ -126,6 +126,27 @@ std::array<double, 3> const & PrimaryDistributionRecord::GetInteractionVertex() 
     return interaction_vertex;
 }
 
+std::array<double, 3> const & PrimaryDistributionRecord::GetPointOfClosestApproach() const {
+    if(not point_of_closest_approach_set) {
+        UpdatePointOfClosestApproach();
+    }
+    return point_of_closest_approach;
+}
+
+double const & PrimaryDistributionRecord::GetVertexDistanceFromClosestApproach() const {
+    if(not vertex_distance_from_closest_approach_set) {
+        UpdateVertexDistanceFromClosestApproach();
+    }
+    return vertex_distance_from_closest_approach;
+}
+
+double const & PrimaryDistributionRecord::GetInitialDistanceFromClosestApproach() const {
+    if(not initial_distance_from_closest_approach_set) {
+        UpdateInitialDistanceFromClosestApproach();
+    }
+    return initial_distance_from_closest_approach;
+}
+
 double const & PrimaryDistributionRecord::GetHelicity() const {
     return helicity;
 }
@@ -202,6 +223,21 @@ void PrimaryDistributionRecord::SetInitialPosition(std::array<double, 3> initial
 void PrimaryDistributionRecord::SetInteractionVertex(std::array<double, 3> interaction_vertex) {
     interaction_vertex_set = true;
     this->interaction_vertex = interaction_vertex;
+}
+
+void PrimaryDistributionRecord::SetPointOfClosestApproach(std::array<double, 3> point_of_closest_approach) {
+    point_of_closest_approach_set = true;
+    this->point_of_closest_approach = point_of_closest_approach;
+}
+
+void PrimaryDistributionRecord::SetVertexDistanceFromClosestApproach(double vertex_distance_from_closest_approach) {
+    vertex_distance_from_closest_approach_set = true;
+    this->vertex_distance_from_closest_approach = vertex_distance_from_closest_approach;
+}
+
+void PrimaryDistributionRecord::SetInitialDistanceFromClosestApproach(double initial_distance_from_closest_approach) {
+    initial_distance_from_closest_approach_set = true;
+    this->initial_distance_from_closest_approach = initial_distance_from_closest_approach;
 }
 
 void PrimaryDistributionRecord::SetHelicity(double helicity) {
@@ -283,6 +319,8 @@ void PrimaryDistributionRecord::UpdateLength() const {
             (interaction_vertex.at(1) - initial_position.at(1))*(interaction_vertex.at(1) - initial_position.at(1)) +
             (interaction_vertex.at(2) - initial_position.at(2))*(interaction_vertex.at(2) - initial_position.at(2))
         );
+    } else if(initial_distance_from_closest_approach_set and vertex_distance_from_closest_approach_set) {
+        length = vertex_distance_from_closest_approach - initial_distance_from_closest_approach;
     } else {
         throw std::runtime_error("Cannot calculate length without initial position and interaction vertex!");
     }
@@ -292,7 +330,21 @@ void PrimaryDistributionRecord::UpdateInitialPosition() const {
     if(initial_position_set)
         return;
     if(interaction_vertex_set and direction_set and length_set) {
-        initial_position = {interaction_vertex.at(0) - length*direction.at(0), interaction_vertex.at(1) - length*direction.at(1), interaction_vertex.at(2) - length*direction.at(2)};
+        initial_position = {
+            interaction_vertex.at(0) - length * direction.at(0),
+            interaction_vertex.at(1) - length * direction.at(1),
+            interaction_vertex.at(2) - length * direction.at(2)};
+    } else if(interaction_vertex_set and direction_set and initial_distance_from_closest_approach_set and vertex_distance_from_closest_approach_set) {
+        double length = vertex_distance_from_closest_approach_set - initial_distance_from_closest_approach_set;
+        initial_position = {
+            interaction_vertex.at(0) - length * direction.at(0),
+            interaction_vertex.at(1) - length * direction.at(1),
+            interaction_vertex.at(2) - length * direction.at(2)};
+    } else if(initial_distance_from_closest_approach_set and direction_set and point_of_closest_approach_set) {
+        initial_position = {
+            point_of_closest_approach.at(0) + initial_distance_from_closest_approach * direction.at(0),
+            point_of_closest_approach.at(1) + initial_distance_from_closest_approach * direction.at(1),
+            point_of_closest_approach.at(2) + initial_distance_from_closest_approach * direction.at(2)};
     } else {
         throw std::runtime_error("Cannot calculate initial position without interaction vertex and direction and length!");
     }
@@ -302,9 +354,221 @@ void PrimaryDistributionRecord::UpdateInteractionVertex() const {
     if(interaction_vertex_set)
         return;
     if(initial_position_set and direction_set and length_set) {
-        interaction_vertex = {initial_position.at(0) + length*direction.at(0), initial_position.at(1) + length*direction.at(1), initial_position.at(2) + length*direction.at(2)};
+        interaction_vertex = {
+            initial_position.at(0) + length * direction.at(0),
+            initial_position.at(1) + length * direction.at(1),
+            initial_position.at(2) + length * direction.at(2)};
+    } else if(initial_position_set and direction_set and initial_distance_from_closest_approach_set and vertex_distance_from_closest_approach_set) {
+        double length = vertex_distance_from_closest_approach_set - initial_distance_from_closest_approach_set;
+        interaction_vertex = {
+            initial_position.at(0) + length * direction.at(0),
+            initial_position.at(1) + length * direction.at(1),
+            initial_position.at(2) + length * direction.at(2)};
+    } else if(vertex_distance_from_closest_approach_set and direction_set and point_of_closest_approach_set) {
+        interaction_vertex = {
+            point_of_closest_approach.at(0) + vertex_distance_from_closest_approach * direction.at(0),
+            point_of_closest_approach.at(1) + vertex_distance_from_closest_approach * direction.at(1),
+            point_of_closest_approach.at(2) + vertex_distance_from_closest_approach * direction.at(2)};
     } else {
         throw std::runtime_error("Cannot calculate interaction vertex without initial position and direction and length!");
+    }
+}
+
+void PrimaryDistributionRecord::UpdatePointOfClosestApproach() const {
+    if(point_of_closest_approach_set)
+        return;
+    if(initial_position_set and direction_set and initial_distance_from_closest_approach_set) {
+        point_of_closest_approach = {
+            initial_position.at(0) + initial_distance_from_closest_approach * direction.at(0),
+            initial_position.at(1) + initial_distance_from_closest_approach * direction.at(1),
+            initial_position.at(2) + initial_distance_from_closest_approach * direction.at(2)};
+    } else if(interaction_vertex_set and direction_set and vertex_distance_from_closest_approach_set) {
+        point_of_closest_approach = {
+            interaction_vertex.at(0) - vertex_distance_from_closest_approach * direction.at(0),
+            interaction_vertex.at(1) - vertex_distance_from_closest_approach * direction.at(1),
+            interaction_vertex.at(2) - vertex_distance_from_closest_approach * direction.at(2)};
+    } else {
+        throw std::runtime_error("Cannot calculate point of closest approach without initial position and direction and initial distance from closest approach!");
+    }
+}
+
+void PrimaryDistributionRecord::UpdateVertexDistanceFromClosestApproach() const {
+    if(vertex_distance_from_closest_approach_set)
+        return;
+    if(initial_distance_from_closest_approach_set and length_set) {
+        vertex_distance_from_closest_approach = initial_distance_from_closest_approach + length;
+    } else if(interaction_vertex_set and direction_set) {
+        double p_dot_d = (
+            (interaction_vertex.at(0) * direction.at(0)) +
+            (interaction_vertex.at(1) * direction.at(1)) +
+            (interaction_vertex.at(2) * direction.at(2))
+        );
+        std::array<double, 3> point_of_closest_approach = {
+            interaction_vertex.at(0) - p_dot_d * direction.at(0),
+            interaction_vertex.at(1) - p_dot_d * direction.at(1),
+            interaction_vertex.at(2) - p_dot_d * direction.at(2)
+        };
+        std::array<double, 3> difference = {
+            interaction_vertex.at(0) - point_of_closest_approach.at(0),
+            interaction_vertex.at(1) - point_of_closest_approach.at(1),
+            interaction_vertex.at(2) - point_of_closest_approach.at(2)
+        };
+        double sign = (
+            (difference.at(0) * direction.at(0)) +
+            (difference.at(1) * direction.at(1)) +
+            (difference.at(2) * direction.at(2))
+        );
+        sign = (sign > 0) ? (1) : (-1);
+        double magnitude = std::sqrt(difference.at(0)*difference.at(0) + difference.at(1)*difference.at(1) + difference.at(2)*difference.at(2));
+        vertex_distance_from_closest_approach = magnitude * sign;
+    } else if(interaction_vertex_set and initial_position_set) {
+        std::array<double, 3> direction = {
+            interaction_vertex.at(0) - initial_position.at(0),
+            interaction_vertex.at(1) - initial_position.at(1),
+            interaction_vertex.at(2) - initial_position.at(2)
+        };
+        double magnitude = std::sqrt(direction.at(0)*direction.at(0) + direction.at(1)*direction.at(1) + direction.at(2)*direction.at(2));
+        direction = {direction.at(0)/magnitude, direction.at(1)/magnitude, direction.at(2)/magnitude};
+        double p_dot_d = (
+            (interaction_vertex.at(0) * direction.at(0)) +
+            (interaction_vertex.at(1) * direction.at(1)) +
+            (interaction_vertex.at(2) * direction.at(2))
+        );
+        std::array<double, 3> point_of_closest_approach = {
+            interaction_vertex.at(0) - p_dot_d * direction.at(0),
+            interaction_vertex.at(1) - p_dot_d * direction.at(1),
+            interaction_vertex.at(2) - p_dot_d * direction.at(2)
+        };
+        std::array<double, 3> difference = {
+            interaction_vertex.at(0) - point_of_closest_approach.at(0),
+            interaction_vertex.at(1) - point_of_closest_approach.at(1),
+            interaction_vertex.at(2) - point_of_closest_approach.at(2)
+        };
+        double sign = (
+            (difference.at(0) * direction.at(0)) +
+            (difference.at(1) * direction.at(1)) +
+            (difference.at(2) * direction.at(2))
+        );
+        sign = (sign > 0) ? (1) : (-1);
+        magnitude = std::sqrt(difference.at(0)*difference.at(0) + difference.at(1)*difference.at(1) + difference.at(2)*difference.at(2));
+        vertex_distance_from_closest_approach = magnitude * sign;
+    } else if(point_of_closest_approach_set and initial_position_set and length_set) {
+        double p_dot_d = (
+            (initial_position.at(0) * direction.at(0)) +
+            (initial_position.at(1) * direction.at(1)) +
+            (initial_position.at(2) * direction.at(2))
+        );
+        std::array<double, 3> point_of_closest_approach = {
+            initial_position.at(0) - p_dot_d * direction.at(0),
+            initial_position.at(1) - p_dot_d * direction.at(1),
+            initial_position.at(2) - p_dot_d * direction.at(2)
+        };
+        std::array<double, 3> difference = {
+            initial_position.at(0) - point_of_closest_approach.at(0),
+            initial_position.at(1) - point_of_closest_approach.at(1),
+            initial_position.at(2) - point_of_closest_approach.at(2)
+        };
+        double sign = (
+            (difference.at(0) * direction.at(0)) +
+            (difference.at(1) * direction.at(1)) +
+            (difference.at(2) * direction.at(2))
+        );
+        sign = (sign > 0) ? (1) : (-1);
+        double magnitude = std::sqrt(difference.at(0)*difference.at(0) + difference.at(1)*difference.at(1) + difference.at(2)*difference.at(2));
+        double initial_distance_from_closest_approach = magnitude * sign;
+        vertex_distance_from_closest_approach = initial_distance_from_closest_approach + length;
+    } else {
+        throw std::runtime_error("Cannot calculate vertex distance from closest approach without initial position and direction and point of closest approach!");
+    }
+}
+
+void PrimaryDistributionRecord::UpdateInitialDistanceFromClosestApproach() const {
+    if(initial_distance_from_closest_approach_set)
+        return;
+    if(vertex_distance_from_closest_approach_set and length_set) {
+        initial_distance_from_closest_approach = vertex_distance_from_closest_approach - length;
+    } else if(initial_position_set and direction_set) {
+        double p_dot_d = (
+            (initial_position.at(0) * direction.at(0)) +
+            (initial_position.at(1) * direction.at(1)) +
+            (initial_position.at(2) * direction.at(2))
+        );
+        std::array<double, 3> point_of_closest_approach = {
+            initial_position.at(0) - p_dot_d * direction.at(0),
+            initial_position.at(1) - p_dot_d * direction.at(1),
+            initial_position.at(2) - p_dot_d * direction.at(2)
+        };
+        std::array<double, 3> difference = {
+            initial_position.at(0) - point_of_closest_approach.at(0),
+            initial_position.at(1) - point_of_closest_approach.at(1),
+            initial_position.at(2) - point_of_closest_approach.at(2)
+        };
+        double sign = (
+            (difference.at(0) * direction.at(0)) +
+            (difference.at(1) * direction.at(1)) +
+            (difference.at(2) * direction.at(2))
+        );
+        sign = (sign > 0) ? (1) : (-1);
+        double magnitude = std::sqrt(difference.at(0)*difference.at(0) + difference.at(1)*difference.at(1) + difference.at(2)*difference.at(2));
+        initial_distance_from_closest_approach = magnitude * sign;
+    } else if(initial_position_set and interaction_vertex_set) {
+        std::array<double, 3> direction = {
+            interaction_vertex.at(0) - initial_position.at(0),
+            interaction_vertex.at(1) - initial_position.at(1),
+            interaction_vertex.at(2) - initial_position.at(2)
+        };
+        double magnitude = std::sqrt(direction.at(0)*direction.at(0) + direction.at(1)*direction.at(1) + direction.at(2)*direction.at(2));
+        direction = {direction.at(0)/magnitude, direction.at(1)/magnitude, direction.at(2)/magnitude};
+        double p_dot_d = (
+            (initial_position.at(0) * direction.at(0)) +
+            (initial_position.at(1) * direction.at(1)) +
+            (initial_position.at(2) * direction.at(2))
+        );
+        std::array<double, 3> point_of_closest_approach = {
+            initial_position.at(0) - p_dot_d * direction.at(0),
+            initial_position.at(1) - p_dot_d * direction.at(1),
+            initial_position.at(2) - p_dot_d * direction.at(2)
+        };
+        std::array<double, 3> difference = {
+            initial_position.at(0) - point_of_closest_approach.at(0),
+            initial_position.at(1) - point_of_closest_approach.at(1),
+            initial_position.at(2) - point_of_closest_approach.at(2)
+        };
+        double sign = (
+            (difference.at(0) * direction.at(0)) +
+            (difference.at(1) * direction.at(1)) +
+            (difference.at(2) * direction.at(2))
+        );
+        sign = (sign > 0) ? (1) : (-1);
+        magnitude = std::sqrt(difference.at(0)*difference.at(0) + difference.at(1)*difference.at(1) + difference.at(2)*difference.at(2));
+        initial_distance_from_closest_approach = magnitude * sign;
+    } else if(point_of_closest_approach_set and interaction_vertex_set and length_set) {
+        double p_dot_d = (
+            (interaction_vertex.at(0) * direction.at(0)) +
+            (interaction_vertex.at(1) * direction.at(1)) +
+            (interaction_vertex.at(2) * direction.at(2))
+        );
+        std::array<double, 3> point_of_closest_approach = {
+            interaction_vertex.at(0) - p_dot_d * direction.at(0),
+            interaction_vertex.at(1) - p_dot_d * direction.at(1),
+            interaction_vertex.at(2) - p_dot_d * direction.at(2)
+        };
+        std::array<double, 3> difference = {
+            interaction_vertex.at(0) - point_of_closest_approach.at(0),
+            interaction_vertex.at(1) - point_of_closest_approach.at(1),
+            interaction_vertex.at(2) - point_of_closest_approach.at(2)
+        };
+        double sign = (
+            (difference.at(0) * direction.at(0)) +
+            (difference.at(1) * direction.at(1)) +
+            (difference.at(2) * direction.at(2))
+        );
+        sign = (sign > 0) ? (1) : (-1);
+        double magnitude = std::sqrt(difference.at(0)*difference.at(0) + difference.at(1)*difference.at(1) + difference.at(2)*difference.at(2));
+        double vertex_distance_from_closest_approach = magnitude * sign;
+        initial_distance_from_closest_approach = vertex_distance_from_closest_approach - length;
+    } else {
+        throw std::runtime_error("Cannot calculate vertex distance from closest approach without initial position and direction and point of closest approach!");
     }
 }
 
