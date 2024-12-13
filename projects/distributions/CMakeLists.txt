@@ -32,6 +32,9 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/ColumnDepthPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/FixedTargetPositionDistribution.cxx
 
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/PrimaryAreaDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/FixedTargetAreaDistribution.cxx
+
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryVertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryPhysicalVertexDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryBoundedVertexDistribution.cxx
