@@ -24,6 +24,8 @@
 #include "../../public/SIREN/distributions/primary/vertex/PointSourcePositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/RangeFunction.h"
 #include "../../public/SIREN/distributions/primary/vertex/RangePositionDistribution.h"
+#include "../../public/SIREN/distributions/primary/area/PrimaryAreaDistribution.h"
+#include "../../public/SIREN/distributions/primary/area/FixedTargetAreaDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
 
@@ -234,6 +236,15 @@ PYBIND11_MODULE(distributions,m) {
     .def("InjectionBounds",&FixedTargetPositionDistribution::InjectionBounds)
     .def("Name",&FixedTargetPositionDistribution::Name);
 
+  class_<PrimaryAreaDistribution, std::shared_ptr<PrimaryAreaDistribution>, PrimaryInjectionDistribution>(m, "PrimaryAreaDistribution")
+    .def("DensityVariables",&PrimaryAreaDistribution::DensityVariables)
+    .def("AreEquivalent",&PrimaryAreaDistribution::AreEquivalent);
+
+  class_<FixedTargetAreaDistribution, std::shared_ptr<FixedTargetAreaDistribution>, PrimaryAreaDistribution>(m, "FixedTargetAreaDistribution")
+    .def(init<>())
+    .def(init<siren::geometry::Cylinder>())
+    .def("GenerationProbability",&FixedTargetAreaDistribution::GenerationProbability)
+    .def("Name",&FixedTargetAreaDistribution::Name);
 
   class_<SecondaryInjectionDistribution, std::shared_ptr<SecondaryInjectionDistribution>, WeightableDistribution>(m, "SecondaryInjectionDistribution")
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::SecondaryDistributionRecord &>(&SecondaryInjectionDistribution::Sample, const_));
