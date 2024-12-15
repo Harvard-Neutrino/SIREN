@@ -414,22 +414,20 @@ Quaternion Quaternion::lerp(Quaternion const & q1, Quaternion const & q2, double
     return (q1 * s) + (q2 * t);
 }
 
-Quaternion Quaternion::slerp(Quaternion const & q1, Quaternion const & q2, double t)
-{
-    double alpha = q1.DotProduct(q2);
-    unsigned int sign = 1;
+Quaternion Quaternion::slerp(Quaternion const & q1, Quaternion const & q2, double t) {
+    double dotproduct = q1.DotProduct(q2);
+	double theta, st, sut, sout, coeff1, coeff2;
 
-    if(alpha < 0) {
-        //q1 *= -1;
-        sign = -1;
-        alpha *= -1;
-    }
+	theta = (double) acos(dotproduct);
+	if (theta<0.0) theta = -theta;
 
-    double theta = acos(alpha);
-    double istheta = 1.0 / sin(theta);
-    double S = sin(theta * (1.0 - t)) * istheta * sign;
-    double T = sin(theta * t) * istheta;
-    return (q1 * S) + (q2 * T);
+	st = (double) sin(theta);
+	sut = (double) sin(t*theta);
+	sout = (double) sin((1.0 - t)*theta);
+	coeff1 = sout/st;
+	coeff2 = sut/st;
+
+    return (q1 * coeff1 + q2 * coeff2).normalized();
 }
 
 void Quaternion::SetAxisAngle(Vector3D const & axis, double angle)
