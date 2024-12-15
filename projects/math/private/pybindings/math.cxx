@@ -44,7 +44,10 @@ PYBIND11_MODULE(math,m) {
         .def("GetZ",&Vector3D::GetZ)
         .def("GetRadius",&Vector3D::GetRadius)
         .def("GetPhi",&Vector3D::GetPhi)
-        .def("GetTheta",&Vector3D::GetTheta);
+        .def("GetTheta",&Vector3D::GetTheta)
+        .def_static("scalar_product", [](Vector3D const & a, Vector3D const & b)->double{return scalar_product(a, b);})
+        .def_static("vector_product", [](Vector3D const & a, Vector3D const & b)->Vector3D{return vector_product(a, b);})
+        .def_static("cross_product", [](Vector3D const & a, Vector3D const & b)->Vector3D{return cross_product(a, b);});
 
     class_<Quaternion, std::shared_ptr<Quaternion>>(m, "Quaternion")
         .def(init<>())
@@ -79,8 +82,6 @@ PYBIND11_MODULE(math,m) {
         .def("magnitude", &Quaternion::magnitude)
         .def("magnitudesq", &Quaternion::magnitudesq)
         .def("DotProduct", &Quaternion::DotProduct)
-        .def("lerp", &Quaternion::lerp)
-        .def("slerp", &Quaternion::slerp)
         .def("SetAxisAngle", &Quaternion::SetAxisAngle)
         .def("GetAxisAngle", (void (Quaternion::*)(Vector3D &, double &) const)(&Quaternion::GetAxisAngle))
         .def("GetAxisAngle", (std::tuple<Vector3D, double> (Quaternion::*)()const)(&Quaternion::GetAxisAngle))
@@ -96,5 +97,7 @@ PYBIND11_MODULE(math,m) {
         .def_property("Y", &Quaternion::GetY, &Quaternion::SetY)
         .def_property("Z", &Quaternion::GetZ, &Quaternion::SetZ)
         .def_property("W", &Quaternion::GetW, &Quaternion::SetW)
-        .def_static("rotation_between", [](object, Vector3D const & a, Vector3D const & b)->Quaternion{return rotation_between(a, b);});
+        .def_static("lerp", &Quaternion::lerp)
+        .def_static("slerp", &Quaternion::slerp)
+        .def_static("rotation_between", [](Vector3D const & a, Vector3D const & b)->Quaternion{return rotation_between(a, b);});
 }
