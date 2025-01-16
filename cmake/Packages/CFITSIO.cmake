@@ -12,55 +12,105 @@
 #   CFITSIO_LDFLAGS                                                            #
 ################################################################################
 
-SET (CFITSIO_FIND_QUIETLY TRUE)
-SET (CFITSIO_FIND_REQUIRED TRUE)
+include(FindPackageHandleStandardArgs)
 
-IF (NOT CFITSIO_FOUND)
+set(CFITSIO_FIND_QUIETLY TRUE)
+set(CFITSIO_FIND_REQUIRED TRUE)
 
-  # Search user environment for headers, then default paths; extract version
-  FIND_PATH (CFITSIO_INCLUDE_DIR fitsio.h
-    PATHS $ENV{CFITSIOROOT}/include
-    NO_DEFAULT_PATH)
-  FIND_PATH (CFITSIO_INCLUDE_DIR fitsio.h)
-  if(CFITSIO_INCLUDE_DIR)
-    GET_FILENAME_COMPONENT (CFITSIOROOT ${CFITSIO_INCLUDE_DIR} PATH)
-  else()
-    FIND_PATH (CFITSIO_INCLUDE_DIR cfitsio/fitsio.h
-      PATHS $ENV{CFITSIOROOT}/include
-      )
-    SET(CFITSIO_INCLUDE_DIR "${CFITSIO_INCLUDE_DIR}/cfitsio" CACHE PATH "Path to cfitsio headers" FORCE)
-  endif()
+if (NOT CFITSIO_FOUND)
+    # Manually parse CPLUS_INCLUDE_PATH to add paths to search
+    if (DEFINED ENV{CPLUS_INCLUDE_PATH})
+        string(REPLACE ":" ";" CFITSIO_INCLUDE_SEARCH_PATH_LIST "$ENV{CPLUS_INCLUDE_PATH}")
+    else()
+        set(CFITSIO_INCLUDE_SEARCH_PATH_LIST "")
+    endif()
 
-  SET (CFITSIO_VERSION 0)
-  IF (CFITSIO_INCLUDE_DIR)
-    FILE (READ "${CFITSIO_INCLUDE_DIR}/fitsio.h" _cfitsio_VERSION)
-    STRING (REGEX REPLACE ".*define CFITSIO_VERSION ([0-9]+\\.[0-9]+).*" "\\1"
-            CFITSIO_VERSION "${_cfitsio_VERSION}")
-  ENDIF (CFITSIO_INCLUDE_DIR)
+    list(PREPEND CFITSIO_INCLUDE_SEARCH_PATH_LIST
+        $ENV{CFITSIOROOT}/include
+    )
 
-  # Search user environment for libraries, then default paths
-  FIND_LIBRARY (CFITSIO_LIBRARIES NAMES cfitsio
-    PATHS $ENV{CFITSIOROOT}/lib
-    NO_DEFAULT_PATH)
-  FIND_LIBRARY (CFITSIO_LIBRARIES NAMES cfitsio)
-  GET_FILENAME_COMPONENT (CFITSIO_LIB_DIR ${CFITSIO_LIBRARIES} PATH)
+    # Search user environment for headers, then default paths; extract version
+    find_path(CFITSIO_INCLUDE_DIR fitsio.h
+        PATHS ${CFITSIO_INCLUDE_SEARCH_PATH_LIST}
+        NO_DEFAULT_PATH
+    )
+    if(NOT CFITSIO_INCLUDE_DIR)
+        unset(CFITSIO_INCLUDE_DIR)
+        find_path(CFITSIO_INCLUDE_DIR fitsio.h)
+    endif()
 
-  # Set CFITSIO_FOUND and error out if cfitsio is not found
-  INCLUDE (FindPackageHandleStandardArgs)
-  FIND_PACKAGE_HANDLE_STANDARD_ARGS (CFITSIO
-    DEFAULT_MSG CFITSIO_LIBRARIES CFITSIO_INCLUDE_DIR)
-  ADD_DEFINITIONS ("-I${CFITSIO_INCLUDE_DIR}")
+    if(NOT CFITSIO_INCLUDE_DIR)
+        unset(CFITSIO_INCLUDE_DIR)
+        find_path(CFITSIO_INCLUDE_DIR cfitsio/fitsio.h
+            PATHS ${CFITSIO_INCLUDE_SEARCH_PATH_LIST}
+            NO_DEFAULT_PATH
+        )
+        if(CFITSIO_INCLUDE_DIR)
+            set(CFITSIO_INCLUDE_DIR "${CFITSIO_INCLUDE_DIR}/cfitsio" CACHE PATH "Path to cfitsio headers" FORCE)
+        endif()
+    endif()
 
-  IF (CFITSIO_FOUND)
-    # Set flags and print a status message
-    MESSAGE (STATUS "CFITSIO version ${CFITSIO_VERSION} found:")
+    if(NOT CFITSIO_INCLUDE_DIR)
+        unset(CFITSIO_INCLUDE_DIR)
+        find_path(CFITSIO_INCLUDE_DIR cfitsio/fitsio.h)
+        if(CFITSIO_INCLUDE_DIR)
+            set(CFITSIO_INCLUDE_DIR "${CFITSIO_INCLUDE_DIR}/cfitsio" CACHE PATH "Path to cfitsio headers" FORCE)
+        endif()
+    endif()
 
-    SET (CFITSIO_CPPFLAGS "-I${CFITSIO_INCLUDE_DIR}")
-    SET (CFITSIO_LDFLAGS "${CFITSIO_LIBRARIES}")
-    
-    MESSAGE (STATUS "  * includes: ${CFITSIO_INCLUDE_DIR}")
-    MESSAGE (STATUS "  * libs:     ${CFITSIO_LIBRARIES}")
-  ENDIF (CFITSIO_FOUND)
+    if (CFITSIO_INCLUDE_DIR AND EXISTS "${CFITSIO_INCLUDE_DIR}/fitsio.h")
+        get_filename_component(CFITSIOROOT ${CFITSIO_INCLUDE_DIR} PATH)
+        set(CFITSIO_VERSION 0)
+        file(STRINGS "${CFITSIO_INCLUDE_DIR}/fitsio.h" _cfitsio_VERSION REGEX "#define CFITSIO_VERSION[ \t]+([0-9]+\.[0-9]+)")
+        string(REGEX REPLACE ".*#define CFITSIO_VERSION[ \t]+([0-9]+\.[0-9]+).*" "\\1" CFITSIO_VERSION "${_cfitsio_VERSION}")
+    else()
+        set(CFITSIO_INCLUDE_DIR "CFITSIO_INCLUDE_DIR-NOTFOUND")
+    endif()
 
-ENDIF (NOT CFITSIO_FOUND)
+    if (DEFINED ENV{LD_LIBRARY_PATH})
+        string(REPLACE ":" ";" CFITSIO_LIBRARY_SEARCH_PATH_LIST "$ENV{LD_LIBRARY_PATH}")
+    else()
+        set(CFITSIO_LIBRARY_SEARCH_PATH_LIST "")
+    endif()
+
+    # Search user environment for libraries, then default paths
+    find_library(CFITSIO_LIBRARIES cfitsio
+        PATHS ${CFITSIO_LIBRARY_SEARCH_PATH_LIST}
+        NO_DEFAULT_PATH
+    )
+
+    if(NOT CFITSIO_LIBRARIES)
+        find_library(CFITSIO_LIBRARIES NAMES cfitsio)
+    endif()
+
+    if (CFITSIO_LIBRARIES)
+        get_filename_component(CFITSIO_LIB_DIR ${CFITSIO_LIBRARIES} PATH)
+    else()
+        set(CFITSIO_LIBRARIES "CFITSIO_LIBRARIES-NOTFOUND")
+    endif()
+
+    # Set CFITSIO_FOUND and error out if cfitsio is not found
+    find_package_handle_standard_args(CFITSIO
+        REQUIRED_VARS CFITSIO_LIBRARIES CFITSIO_INCLUDE_DIR
+        VERSION_VAR CFITSIO_VERSION
+    )
+
+    if (CFITSIO_FOUND)
+        # Set flags and print a status message
+        message(STATUS "CFITSIO version ${CFITSIO_VERSION} found:")
+
+        set(CFITSIO_CPPFLAGS "-I${CFITSIO_INCLUDE_DIR}")
+        set(CFITSIO_LDFLAGS "${CFITSIO_LIBRARIES}")
+
+        message(STATUS "  * includes: ${CFITSIO_INCLUDE_DIR}")
+        message(STATUS "  * libs:     ${CFITSIO_LIBRARIES}")
+
+        add_library(CFITSIO SHARED IMPORTED)
+        target_include_directories(CFITSIO INTERFACE ${CFITSIO_INCLUDE_DIR})
+        set_target_properties(CFITSIO PROPERTIES
+            IMPORTED_LOCATION ${CFITSIO_LIBRARIES})
+    else()
+        message(WARNING "CFITSIO not found. Please ensure CFITSIO is installed and the environment variables CFITSIOROOT, CPLUS_INCLUDE_PATH, LIBRARY_PATH, and LD_LIBRARY_PATH are set correctly.")
+    endif()
+endif()
 
