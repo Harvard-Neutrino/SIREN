@@ -102,7 +102,6 @@ class _SIRENResourcesMetaPathImporter(object):
             return self.known_modules[fullname]
         except KeyError:
             if not fullname.startswith(self.name + "."):
-                raise Exception("This loader does not know module " + fullname)
                 raise ImportError("This loader does not know module " + fullname)
 
             subname = fullname[len(self.name) + 1:]
@@ -144,7 +143,6 @@ class _SIRENResourcesMetaPathImporter(object):
                 else:
                     print(f"{name} not in known_modules")
             if mod is None:
-                raise Exception("This loader does not know module " + fullname)
                 raise ImportError("This loader does not know module " + fullname)
 
             return mod

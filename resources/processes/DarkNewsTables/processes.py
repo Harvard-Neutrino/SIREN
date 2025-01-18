@@ -14,8 +14,8 @@ from DarkNews.nuclear_tools import NuclearTarget
 # Import PyDarkNewsDecay and PyDarkNewsCrossSection
 decay_file = os.path.join(base_path, "DarkNewsDecay.py")
 cross_section_file = os.path.join(base_path, "DarkNewsCrossSection.py")
-DarkNewsDecay = siren._util.load_module("DarkNewsDecay", decay_file)
-DarkNewsCrossSection = siren._util.load_module("DarkNewsCrossSection", cross_section_file)
+DarkNewsDecay = siren._util.load_module("siren.resources.processes.DarkNewsTables.DarkNewsDecay", decay_file)
+DarkNewsCrossSection = siren._util.load_module("siren.resources.processes.DarkNewsTables.DarkNewsCrossSection", cross_section_file)
 
 PyDarkNewsCrossSection = DarkNewsCrossSection.PyDarkNewsCrossSection
 PyDarkNewsDecay = DarkNewsDecay.PyDarkNewsDecay
