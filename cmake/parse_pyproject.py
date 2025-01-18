@@ -57,7 +57,7 @@ def main():
         "setuptools": {
             "include-package-data": True,
             "package-data": {
-                "siren": ["*.so", "*.dylib"],
+                "siren": ["*.so", "*.dylib", "resources/**/*"],
             },
         }
     }

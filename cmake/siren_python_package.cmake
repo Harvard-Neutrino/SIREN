@@ -113,8 +113,7 @@ add_custom_command(
         ${CMAKE_SOURCE_DIR}/pyproject.toml
         ${CMAKE_SOURCE_DIR}/cmake/parse_pyproject.py
         ${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean
-    COMMAND ${CMAKE_COMMAND} -E touch ${PACKAGE_STAGING_DIR}/pyproject.toml
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.stamp_clean
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.pyproject
     COMMENT "Parsing top-level pyproject.toml and generating new pyproject.toml for package staging area"
     VERBATIM
 )
@@ -146,9 +145,21 @@ add_custom_command(
             --no-deps
             --wheel-dir ${CMAKE_CURRENT_BINARY_DIR}/dist_wheels
             ${PACKAGE_STAGING_DIR}
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/.python_package_configured
+    DEPENDS
+        ${CMAKE_CURRENT_BINARY_DIR}/.python_package_configured
+        ${PACKAGE_STAGING_DIR}/pyproject.toml
+        ${CMAKE_CURRENT_BINARY_DIR}/configure_python_package.cmake
+        ${PROJECT_SOURCE_DIR}/package/configure_python_package.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_resources
+        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_python
+        ${CMAKE_CURRENT_BINARY_DIR}/.stamp_copy_extensions
     COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/.build_wheel
     COMMENT "Building wheel from the staged package"
+)
+
+add_custom_target(
+    python_package ALL
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/.build_wheel
 )
 
 set(WHEELS_DIR "${CMAKE_CURRENT_BINARY_DIR}/dist_wheels")
