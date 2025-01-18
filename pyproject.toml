@@ -13,7 +13,8 @@ wheel.packages = []
 cmake.build-type = "Release"
 
 [tool.scikit-build.cmake.define]
-CMAKE_PREFIX_PATH="/tmp/downloads/local"
+CMAKE_PREFIX_PATH= {env=CMAKE_PREFIX_PATH, default="/tmp/downloads/local"}
+SIREN_PYTHON_PACKAGE = {env="SIREN_PYTHON_PACKAGE", default="OFF"}
 
 [tool.cibuildwheel]
 before-all = "bash {project}/tools/wheels/cibw_before_all.sh {project}"
