@@ -71,7 +71,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-    "numpy",
+    "numpy<2.0.0",
     "scipy",
     "awkward",
     "pyarrow",
