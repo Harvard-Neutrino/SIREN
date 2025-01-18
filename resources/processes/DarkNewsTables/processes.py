@@ -2,6 +2,7 @@ import os
 from typing import Tuple, List, Any, Optional
 import siren
 import collections
+import pickle
 
 base_path = os.path.dirname(os.path.abspath(__file__))
 logger_file = os.path.join(base_path, "logger.py")
@@ -497,3 +498,30 @@ def load_processes(
 
     return dict(primary_processes), dict(secondary_processes), dict(primary_ups_keys), dict(secondary_dec_keys)
 
+def SaveDarkNewsProcesses(table_dir,
+                          primary_processes,
+                          primary_ups_keys,
+                          secondary_processes,
+                          secondary_dec_keys,
+                          pickles=True):
+    for primary in primary_processes.keys():
+        for xs, ups_key in zip(primary_processes[primary], primary_ups_keys[primary]):
+            subdir = "_".join(["CrossSection"] + [str(x) if type(x)!=NuclearTarget else str(x.name) for x in ups_key])
+            table_subdir = os.path.join(table_dir, subdir)
+            os.makedirs(table_subdir,exist_ok=True)
+            print("Saving cross section table at %s" % table_subdir)
+            xs.FillInterpolationTables()
+            xs.save_to_table(table_subdir)
+            # if pickles:
+            #     with open(os.path.join(table_subdir, "xs_object.pkl"),"wb") as f:
+            #         pickle.dump(xs,f)
+    for secondary in secondary_processes.keys():
+        for dec, dec_key in zip(secondary_processes[secondary],secondary_dec_keys[secondary]):
+            subdir = "_".join(["Decay"] + [str(x) if type(x)!=NuclearTarget else str(x.name) for x in dec_key])
+            table_subdir = os.path.join(table_dir, subdir)
+            os.makedirs(table_subdir,exist_ok=True)
+            print("Saving decay object at %s" % table_subdir)
+            dec.save_to_table(table_subdir)
+            if pickles:
+                with open(os.path.join(table_subdir, "dec_object.pkl"),"wb") as f:
+                    pickle.dump(dec,f)

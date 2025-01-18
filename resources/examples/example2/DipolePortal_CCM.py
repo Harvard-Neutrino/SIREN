@@ -2,7 +2,9 @@ import os
 import numpy as np
 import siren
 from siren import utilities
-from siren._util import GenerateEvents,SaveEvents,get_processes_model_path,SaveDarkNewsProcesses
+from siren._util import GenerateEvents, SaveEvents, get_processes_model_path
+
+SaveDarkNewsProcesses = siren.resources.processes.DarkNewsTables.SaveDarkNewsProcesses
 
 # Define a DarkNews model
 model_kwargs = {

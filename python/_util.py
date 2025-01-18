@@ -5,6 +5,7 @@ import uuid
 import pydoc
 import pathlib
 import importlib
+import functools
 
 import time
 from siren import dataclasses as _dataclasses
@@ -188,7 +189,8 @@ def has_module(module_name):
 def load_module(name, path, persist=True):
     """Load a module with a specific name and path"""
     url = pathlib.Path(os.path.abspath(path)).as_uri()
-    module_name = f"{name}-{str(uuid.uuid5(uuid.NAMESPACE_URL, url))}"
+    #module_name = f"{name}-{str(uuid.uuid5(uuid.NAMESPACE_URL, url))}"
+    module_name = name
     if module_name in sys.modules:
         return sys.modules[module_name]
     spec = importlib.util.spec_from_file_location(name, path)
@@ -682,7 +684,22 @@ def get_resource_loader(resource_type, resource_name):
     resource_module = import_resource(resource_type, resource_name)
     if resource_module is None:
         return None
-    return getattr(resource_module, f"load_{resource_type}")
+    loader = getattr(resource_module, f"load_{resource_type}")
+    class Functor:
+        def __init__(self, func):
+            self.func = func
+        def __call__(self, *args, **kwargs):
+            return self.func(*args, **kwargs)
+        def _repr_pretty_(self, p, cycle):
+            p.pretty(self.func)
+    functor = Functor(loader)
+    for key in dir(resource_module):
+        if key.startswith("__"):
+            continue
+        if key == f"load_{resource_type}":
+            continue
+        setattr(functor, key, getattr(resource_module, key))
+    return functools.update_wrapper(functor, loader)
 
 
 def load_resource(resource_type, resource_name, *args, **kwargs):
@@ -974,30 +991,3 @@ def SaveEvents(events,
 def LoadEvents(filename):
     return _dataclasses.LoadInteractionTrees(filename)
 
-def SaveDarkNewsProcesses(table_dir,
-                          primary_processes,
-                          primary_ups_keys,
-                          secondary_processes,
-                          secondary_dec_keys,
-                          pickles=True):
-    for primary in primary_processes.keys():
-        for xs,ups_key in zip(primary_processes[primary],primary_ups_keys[primary]):
-            subdir = "_".join(["CrossSection"] + [str(x) if type(x)!=NuclearTarget else str(x.name) for x in ups_key])
-            table_subdir = os.path.join(table_dir, subdir)
-            os.makedirs(table_subdir,exist_ok=True)
-            print("Saving cross section table at %s" % table_subdir)
-            xs.FillInterpolationTables()
-            xs.save_to_table(table_subdir)
-            # if pickles:
-            #     with open(os.path.join(table_subdir, "xs_object.pkl"),"wb") as f:
-            #         pickle.dump(xs,f)
-    for secondary in secondary_processes.keys():
-        for dec,dec_key in zip(secondary_processes[secondary],secondary_dec_keys[secondary]):
-            subdir = "_".join(["Decay"] + [str(x) if type(x)!=NuclearTarget else str(x.name) for x in dec_key])
-            table_subdir = os.path.join(table_dir, subdir)
-            os.makedirs(table_subdir,exist_ok=True)
-            print("Saving decay object at %s" % table_subdir)
-            dec.save_to_table(table_subdir)
-            if pickles:
-                with open(os.path.join(table_subdir, "dec_object.pkl"),"wb") as f:
-                    pickle.dump(dec,f)
