@@ -215,7 +215,7 @@ void PrimaryDistributionRecord::UpdateMass() const {
     if(energy_set and momentum_set) {
         mass = std::sqrt(energy*energy - momentum.at(0)*momentum.at(0) - momentum.at(1)*momentum.at(1) - momentum.at(2)*momentum.at(2));
     } else if(energy_set and kinetic_energy_set) {
-        mass = std::sqrt(energy*energy - kinetic_energy*kinetic_energy);
+        mass = energy - kinetic_energy;
     } else {
         throw std::runtime_error("Cannot calculate mass without energy and momentum or energy and kinetic energy!");
     }
@@ -227,7 +227,7 @@ void PrimaryDistributionRecord::UpdateEnergy() const {
     if(mass_set and momentum_set) {
         energy = std::sqrt(mass*mass + momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2));
     } else if(mass_set and kinetic_energy_set) {
-        energy = std::sqrt(mass*mass + kinetic_energy*kinetic_energy);
+        energy = mass + kinetic_energy;
     } else {
         throw std::runtime_error("Cannot calculate energy without mass and momentum or mass and kinetic energy!");
     }
@@ -237,11 +237,11 @@ void PrimaryDistributionRecord::UpdateKineticEnergy() const {
     if(kinetic_energy_set)
         return;
     if(mass_set and energy_set) {
-        kinetic_energy = std::sqrt(energy*energy - mass*mass);
-    } else if(momentum_set) {
-        kinetic_energy = std::sqrt(momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2));
+        kinetic_energy = energy - mass;
+    } else if(momentum_set and mass_set) {
+        kinetic_energy = std::sqrt(momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2) + mass*mass) - mass;
     } else {
-        throw std::runtime_error("Cannot calculate kinetic energy without mass and energy or momentum!");
+        throw std::runtime_error("Cannot calculate kinetic energy without mass and energy or mass and momentum!");
     }
 }
 
@@ -266,11 +266,11 @@ void PrimaryDistributionRecord::UpdateMomentum() const {
     if(energy_set and mass_set and direction_set) {
         double magnitude = std::sqrt(energy*energy - mass*mass);
         momentum = {magnitude*direction.at(0), magnitude*direction.at(1), magnitude*direction.at(2)};
-    } else if(kinetic_energy_set and direction_set) {
-        double magnitude = kinetic_energy;
+    } else if(mass_set and kinetic_energy_set and direction_set) {
+        double magnitude = std::sqrt((kinetic_energy + mass) * (kinetic_energy + mass) - mass*mass);
         momentum = {magnitude*direction.at(0), magnitude*direction.at(1), magnitude*direction.at(2)};
     } else {
-        throw std::runtime_error("Cannot calculate momentum without energy and mass and direction or kinetic energy and direction!");
+        throw std::runtime_error("Cannot calculate momentum without energy and mass and direction or mass and kinetic energy and direction!");
     }
 }
 
@@ -499,7 +499,7 @@ void SecondaryParticleRecord::UpdateMass() const {
     if(energy_set and momentum_set) {
         mass = std::sqrt(energy*energy - momentum.at(0)*momentum.at(0) - momentum.at(1)*momentum.at(1) - momentum.at(2)*momentum.at(2));
     } else if(energy_set and kinetic_energy_set) {
-        mass = std::sqrt(energy*energy - kinetic_energy*kinetic_energy);
+        mass = energy - kinetic_energy;
     } else {
         throw std::runtime_error("Cannot calculate mass without energy and momentum or energy and kinetic energy!");
     }
@@ -511,7 +511,7 @@ void SecondaryParticleRecord::UpdateEnergy() const {
     if(mass_set and momentum_set) {
         energy = std::sqrt(mass*mass + momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2));
     } else if(mass_set and kinetic_energy_set) {
-        energy = std::sqrt(mass*mass + kinetic_energy*kinetic_energy);
+        energy = kinetic_energy + mass;
     } else {
         throw std::runtime_error("Cannot calculate energy without mass and momentum or mass and kinetic energy!");
     }
@@ -522,10 +522,10 @@ void SecondaryParticleRecord::UpdateKineticEnergy() const {
         return;
     if(mass_set and energy_set) {
         kinetic_energy = std::sqrt(energy*energy - mass*mass);
-    } else if(momentum_set) {
-        kinetic_energy = std::sqrt(momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2));
+    } else if(mass_set and momentum_set) {
+        kinetic_energy = std::sqrt(momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2) + mass*mass) - mass;
     } else {
-        throw std::runtime_error("Cannot calculate kinetic energy without mass and energy or momentum!");
+        throw std::runtime_error("Cannot calculate kinetic energy without mass and energy or mass and momentum!");
     }
 }
 
@@ -546,11 +546,11 @@ void SecondaryParticleRecord::UpdateMomentum() const {
     if(energy_set and mass_set and direction_set) {
         double magnitude = std::sqrt(energy*energy - mass*mass);
         momentum = {magnitude*direction.at(0), magnitude*direction.at(1), magnitude*direction.at(2)};
-    } else if(kinetic_energy_set and direction_set) {
-        double magnitude = kinetic_energy;
+    } else if(mass_set and kinetic_energy_set and direction_set) {
+        double magnitude = std::sqrt((kinetic_energy + mass) * (kinetic_energy + mass) - mass*mass);
         momentum = {magnitude*direction.at(0), magnitude*direction.at(1), magnitude*direction.at(2)};
     } else {
-        throw std::runtime_error("Cannot calculate momentum without energy and mass and direction or kinetic energy and direction!");
+        throw std::runtime_error("Cannot calculate momentum without energy and mass and direction or mass and kinetic energy and direction!");
     }
 }
 
