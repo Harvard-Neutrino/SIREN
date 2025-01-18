@@ -7,6 +7,7 @@ then generate a minimal pyproject.toml using setuptools for the staging area.
 
 import sys
 import os
+import subprocess
 
 # If you're on Python < 3.11, you can 'pip install tomli' and do `import tomli`.
 # On Python >= 3.11, tomllib is in the standard library.
@@ -18,8 +19,11 @@ except ImportError:
 try:
     import tomli_w as toml  # Use tomli_w to *write* TOML back out
 except ModuleNotFoundError as e:
-    print(f"[Error] Please install the 'tomli-w' package: `pip install toml-w`", file=sys.stderr)
-    raise
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "tomli-w"])
+    except:
+        print(f"[Error] Please install the 'tomli-w' package: `pip install toml-w`", file=sys.stderr)
+        raise
 
 def main():
     if len(sys.argv) < 3:
