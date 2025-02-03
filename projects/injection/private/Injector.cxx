@@ -375,11 +375,13 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
 
     // Secondary Processes
-    //std::cout << "injector::GenerateEvent : sampling secondary process" << std::endl;
+    // std::cout << "injector::GenerateEvent : sampling secondary process" << std::endl;
     std::deque<std::tuple<std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord>>> secondaries;
     std::function<void(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>)> add_secondaries = [&](std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent) {
         for(size_t i=0; i<parent->record.signature.secondary_types.size(); ++i) {
             siren::dataclasses::ParticleType const & type = parent->record.signature.secondary_types[i];
+        // std::cout << "parent type" << parent->record.signature.secondary_types[i] << std::endl;
+
             std::map<siren::dataclasses::ParticleType, std::shared_ptr<siren::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
             if(it == secondary_process_map.end()) {
                 continue;

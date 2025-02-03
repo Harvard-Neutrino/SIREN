@@ -72,26 +72,32 @@ QuarkDISFromSpline::QuarkDISFromSpline() {
     compute_cdf();
 }
 
-QuarkDISFromSpline::QuarkDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+QuarkDISFromSpline::QuarkDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, int quark_type, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), quark_type_(quark_type), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     normalize_pdf();
     compute_cdf();
     LoadFromMemory(differential_data, total_data);
+    SetInteractionType(interaction);
+    SetQuarkType(quark_type);
     InitializeSignatures();
     SetUnits(units);
 }
 
-QuarkDISFromSpline::QuarkDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+QuarkDISFromSpline::QuarkDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, int quark_type, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction),quark_type_(quark_type), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     normalize_pdf();
     compute_cdf();
     LoadFromMemory(differential_data, total_data);
+    SetInteractionType(interaction);
+    SetQuarkType(quark_type);
     InitializeSignatures();
     SetUnits(units);
 }
 
-QuarkDISFromSpline::QuarkDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+QuarkDISFromSpline::QuarkDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, int quark_type, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), interaction_type_(interaction), quark_type_(quark_type), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     normalize_pdf();
     compute_cdf();
     LoadFromFile(differential_filename, total_filename);
+    SetInteractionType(interaction);
+    SetQuarkType(quark_type);
     InitializeSignatures();
     SetUnits(units);
 }
@@ -105,10 +111,12 @@ QuarkDISFromSpline::QuarkDISFromSpline(std::string differential_filename, std::s
     SetUnits(units);
 }
 
-QuarkDISFromSpline::QuarkDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
+QuarkDISFromSpline::QuarkDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, int quark_type, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), interaction_type_(interaction), quark_type_(quark_type), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     normalize_pdf();
     compute_cdf();
     LoadFromFile(differential_filename, total_filename);
+    SetInteractionType(interaction);
+    SetQuarkType(quark_type);
     InitializeSignatures();
     SetUnits(units);
 }

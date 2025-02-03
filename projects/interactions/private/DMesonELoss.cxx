@@ -77,8 +77,9 @@ std::vector<dataclasses::InteractionSignature> DMesonELoss::GetPossibleSignature
     signature.target_type = target_type;
 
     // first we deal with semileptonic decays where there are 3 final state particles
-    signature.secondary_types.resize(1);
+    signature.secondary_types.resize(2);
     signature.secondary_types[0] = primary_type; // same particle comes out
+    signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::Hadrons; // there also is a hadronic vertex
     signatures.push_back(signature);
     return signatures;
 }
@@ -204,15 +205,22 @@ void DMesonELoss::SampleFinalState(dataclasses::CrossSectionDistributionRecord& 
     double p3i = std::sqrt(std::pow(p1.px(), 2) + std::pow(p1.py(), 2) + std::pow(p1.pz(), 2));
     double p_ratio = p3f / p3i;
     rk::P4 pf(p_ratio * geom3::Vector3(p1.px(), p1.py(), p1.pz()), Dmass);
+    double E_H = primary_energy - pf.e(); // rest of the energy go into the nucleus
+    double p_H = E_H; // assume collinearity, energy conservation and not momentum conservation ie massless (for now)
+    double H_ratio = p_H / p3i;
+    rk::P4 p4_H(H_ratio * geom3::Vector3(p1.px(), p1.py(), p1.pz()), 0);
 
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = interaction.GetSecondaryParticleRecords();
     siren::dataclasses::SecondaryParticleRecord & dmeson = secondaries[0];
-
+    siren::dataclasses::SecondaryParticleRecord & hadron = secondaries[1];
 
     dmeson.SetFourMomentum({pf.e(), pf.px(), pf.py(), pf.pz()});
     dmeson.SetMass(pf.m());
     dmeson.SetHelicity(interaction.primary_helicity);
 
+    hadron.SetFourMomentum({p4_H.e(), p4_H.px(), p4_H.py(), p4_H.pz()});
+    hadron.SetMass(p4_H.m());
+    hadron.SetHelicity(interaction.primary_helicity);
 }
 
 double DMesonELoss::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
