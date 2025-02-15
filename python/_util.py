@@ -15,6 +15,54 @@ import numpy as np
 import awkward as ak
 import h5py
 import pickle
+import logging
+
+# Set up logging configuration
+logger = logging.getLogger(__name__)
+
+class CustomFormatter(logging.Formatter):
+
+    grey = "\x1b[38;20m"
+    yellow = "\x1b[33;20m"
+    red = "\x1b[31;20m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(pathname)s:%(lineno)d)"
+
+    FORMATS = {
+        logging.DEBUG: grey + format + reset,
+        logging.INFO: grey + format + reset,
+        logging.WARNING: yellow + format + reset,
+        logging.ERROR: red + format + reset,
+        logging.CRITICAL: bold_red + format + reset
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
+if not logger.handlers:
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    #console_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+    console_handler.setFormatter(CustomFormatter())
+    logger.addHandler(console_handler)
+    logger.setLevel(logging.WARN)
+
+def log_newline(n=1):
+    blank_fmt = logging.Formatter('')
+    formatters = []
+    for handler in logger.handlers:
+        formatters.append(handler.formatter)
+        handler.setFormatter(blank_fmt)
+
+    for i in range(n):
+        logger.warning(" \n")
+
+    for handler, formatter in zip(logger.handlers, formatters):
+        handler.setFormatter(formatter)
+
 try:
     from DarkNews.nuclear_tools import NuclearTarget
 except:
@@ -196,7 +244,11 @@ def load_module(name, path, persist=True):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
-    spec.loader.exec_module(module)
+    try:
+        spec.loader.exec_module(module)
+    except Exception as e:
+        del sys.modules[module_name]
+        raise
     module = sys.modules[module_name]
     if not persist:
         del sys.modules[module_name]
@@ -515,9 +567,9 @@ def _extract_model_versions(model_files, model_regex, model_name):
             if d.groupdict()["version"] is not None:
                 model_versions.append(normalize_version(d.groupdict()["version"]))
             else:
-                print(f"Warning: Input model file has no version: {f}")
+                logging.warning(f"Input model file has no version: {f}")
         elif f.lower().startswith(model_name.lower()):
-            print(f"Warning: Unable to parse version from {f}")
+            logging.warning(f"Unable to parse version from {f}")
     return model_versions
 
 def _get_model_file_name(version, model_versions, model_files, model_name, suffix, must_exist):
@@ -675,16 +727,26 @@ def import_resource(resource_type, resource_name):
 
     fname = os.path.join(abs_dir, f"{resource_type}.py")
     if not os.path.isfile(fname):
+        logging.warning(f"Could not find file '{fname}' when loading resource '{resource_type}' '{resource_name}'")
         return None
-    print(fname)
-    return load_module(f"siren-{resource_type}-{resource_name}", fname, persist=False)
+    try:
+        mod = load_module(f"siren-{resource_type}-{resource_name}", fname, persist=False)
+    except Exception as e:
+        log_newline()
+        logger.warning(f"Encountered exception while loading '{resource_type}' '{resource_name}' from '{fname}':\n\t{e}")
+        raise e
+    return mod
 
 
 def get_resource_loader(resource_type, resource_name):
     resource_module = import_resource(resource_type, resource_name)
     if resource_module is None:
         return None
-    loader = getattr(resource_module, f"load_{resource_type}")
+    loader_name = f"load_{resource_type}"
+    if not hasattr(resource_module, loader_name):
+        logger.warning(f"from '{resource_module.__file__}' module '{resource_module.__name__}' has no attribute '{loader_name}'")
+        raise AttributeError(f"from '{resource_module.__file__}' module '{resource_module.__name__}' has no attribute '{loader_name}'")
+    loader = getattr(resource_module, loader_name)
     class Functor:
         def __init__(self, func):
             self.func = func
