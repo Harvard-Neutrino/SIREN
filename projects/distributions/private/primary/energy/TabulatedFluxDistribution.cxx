@@ -261,6 +261,10 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     ComputeCDF();
 }
 
+double TabulatedFluxDistribution::InverseCDF(double cdf) const {
+    return inverseCdfTable(cdf);
+}
+
 double TabulatedFluxDistribution::SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
     // inverse CDF algorithm to sample from PDF.
     double randomValue = rand->Uniform(0,1);

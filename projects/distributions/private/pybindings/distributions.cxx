@@ -103,6 +103,7 @@ PYBIND11_MODULE(distributions,m) {
     .def(init<double, double, std::string, bool>())
     .def(init<std::vector<double>, std::vector<double>, bool>())
     .def(init<double, double, std::vector<double>, std::vector<double>, bool>())
+    .def("InverseCDF",&TabulatedFluxDistribution::InverseCDF)
     .def("SampleEnergy",&TabulatedFluxDistribution::SampleEnergy)
     .def("GenerationProbability",&TabulatedFluxDistribution::GenerationProbability)
     .def("SetEnergyBounds",&TabulatedFluxDistribution::SetEnergyBounds)
