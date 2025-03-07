@@ -22,7 +22,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/utilities/public/"
 )
 
 pybind11_add_module(utilities ${PROJECT_SOURCE_DIR}/projects/utilities/private/pybindings/utilities.cxx)
-target_link_libraries(utilities PRIVATE SIREN)
+target_link_libraries(utilities PRIVATE SIREN rk_static)
 if(DEFINED SKBUILD)
 set_target_properties(utilities PROPERTIES
         BUILD_WITH_INSTALL_RPATH FALSE
