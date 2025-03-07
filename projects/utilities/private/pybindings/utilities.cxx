@@ -34,11 +34,6 @@ PYBIND11_MODULE(utilities,m) {
 
     py_geom3.doc() = "Python bindings for the geom3 library";
 
-    // Expose enum constants X, Y, and Z
-    py_geom3.attr("X") = geom3::X;
-    py_geom3.attr("Y") = geom3::Y;
-    py_geom3.attr("Z") = geom3::Z;
-
     // =============================
     // Bindings for UnitVector3
     // =============================
