@@ -46,6 +46,7 @@ public:
     double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
     double DifferentialDecayWidth(std::vector<double> constants, double Q2, double mD, double mK) const;
+    void SampleFinalStateHadronic(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignaturesFromParent(siren::dataclasses::Particle::ParticleType primary) const override;

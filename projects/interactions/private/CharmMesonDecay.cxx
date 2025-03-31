@@ -147,12 +147,23 @@ double CharmMesonDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
     std::set<siren::dataclasses::Particle::ParticleType> kminus_eplus_nue = {siren::dataclasses::Particle::ParticleType::KMinus,
                                                                             siren::dataclasses::Particle::ParticleType::EPlus,
                                                                             siren::dataclasses::Particle::ParticleType::NuE};
-    if (primary == siren::dataclasses::Particle::ParticleType::DPlus && secondaries == k0_eplus_nue) {
-        branching_ratio = 1;
-        tau = 1040 * (1e-15);
-    } else if (primary == siren::dataclasses::Particle::ParticleType::D0 && secondaries == kminus_eplus_nue) {
-        branching_ratio = 1;
-        tau = 410.1 * (1e-15);
+    std::set<siren::dataclasses::Particle::ParticleType> k0_muplus_numu = {siren::dataclasses::Particle::ParticleType::K0Bar,
+                                                                            siren::dataclasses::Particle::ParticleType::MuPlus,
+                                                                            siren::dataclasses::Particle::ParticleType::NuMu};
+    std::set<siren::dataclasses::Particle::ParticleType> kminus_muplus_numu = {siren::dataclasses::Particle::ParticleType::KMinus,
+                                                                            siren::dataclasses::Particle::ParticleType::MuPlus,
+                                                                            siren::dataclasses::Particle::ParticleType::NuMu};
+    std::set<siren::dataclasses::Particle::ParticleType> hadrons = {siren::dataclasses::Particle::ParticleType::Hadrons};                                                                        
+    if (primary == siren::dataclasses::Particle::ParticleType::DPlus) {
+      tau = 1040 * (1e-15);
+      if (secondaries == k0_eplus_nue) {branching_ratio = .1607;} // e+ semileptonic mode according to pdg
+      else if (secondaries == k0_muplus_numu) {branching_ratio = .176;} // mu+ anything according to pdg
+      else if (secondaries == hadrons) {branching_ratio = (1 - .1607 - .176);} // everything else
+    } else if (primary == siren::dataclasses::Particle::ParticleType::D0) {
+      tau = 410.1 * (1e-15);
+      if (secondaries == kminus_eplus_nue) {branching_ratio = .0649;} // e+ semileptonic mode according to pdg
+      else if (secondaries == kminus_muplus_numu) {branching_ratio = .067;} // mu+ anything according to pdg
+      else if (secondaries == hadrons) {branching_ratio = (1 - .0649 - .067);} // everything else
     }
     else {
         std::cout << "this decay mode is not yet implemented!" << std::endl;
@@ -172,22 +183,41 @@ std::vector<dataclasses::InteractionSignature> CharmMesonDecay::GetPossibleSigna
 
 std::vector<dataclasses::InteractionSignature> CharmMesonDecay::GetPossibleSignaturesFromParent(siren::dataclasses::Particle::ParticleType primary) const {
     std::vector<dataclasses::InteractionSignature> signatures;
-    dataclasses::InteractionSignature signature;
-    signature.primary_type = primary;
-    signature.target_type = siren::dataclasses::Particle::ParticleType::Decay;
+    // initialize semileptonic signatures
+    dataclasses::InteractionSignature semilep_signature;
+    semilep_signature.primary_type = primary;
+    semilep_signature.target_type = siren::dataclasses::Particle::ParticleType::Decay;
+    semilep_signature.secondary_types.resize(3);
+    // initialize other signatures
+    dataclasses::InteractionSignature hadron_signature;
+    hadron_signature.primary_type = primary;
+    hadron_signature.target_type = siren::dataclasses::Particle::ParticleType::Decay;
+    hadron_signature.secondary_types.resize(1);
 
-    // first we deal with semileptonic decays where there are 3 final state particles
-    signature.secondary_types.resize(3);
-    if(primary==siren::dataclasses::Particle::ParticleType::DPlus) {
-      signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::K0Bar;
-      signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::EPlus;
-      signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuE;
-      signatures.push_back(signature);
+    if (primary==siren::dataclasses::Particle::ParticleType::DPlus) {
+      // semi-leptonic modes with muon and electron
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::K0Bar;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::EPlus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuE;
+      signatures.push_back(semilep_signature);
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::K0Bar;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::MuPlus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuMu;
+      signatures.push_back(semilep_signature);
+      // all other modes implemented as one big bang
+      hadron_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
+      signatures.push_back(hadron_signature);
     } else if (primary==siren::dataclasses::Particle::ParticleType::D0) {
-      signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::KMinus;
-      signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::EPlus;
-      signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuE;
-      signatures.push_back(signature);
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::KMinus;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::EPlus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuE;
+      signatures.push_back(semilep_signature);
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::KMinus;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::MuPlus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuMu;
+      signatures.push_back(semilep_signature);
+      hadron_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
+      signatures.push_back(hadron_signature);
     }
     else {
       std::cout << "this D meson decay has not been implemented yet" << std::endl;
@@ -213,6 +243,11 @@ std::vector<double> CharmMesonDecay::FormFactorFromRecord(dataclasses::CrossSect
 }
 
 double CharmMesonDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
+    // first let the fully hadronic state be handled separately
+    dataclasses::InteractionSignature signature = record.signature;
+    if (signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
+      return TotalDecayWidthForFinalState(record);
+    }
     // get the form factor constants
     std::vector<double> constants = FormFactorFromRecord(record);
     // calculate the q^2
@@ -300,14 +335,27 @@ void CharmMesonDecay::computeDiffGammaCDF(std::vector<double> constants, double 
   inverse_cdf_data.f = cdf_Q2_nodes;
 
   inverseCdf = siren::utilities::Interpolator1D<double>(inverse_cdf_data);
-
   return;
 
 }
 
-
+// this is temporary implementation
+void CharmMesonDecay::SampleFinalStateHadronic(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+    std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
+    siren::dataclasses::SecondaryParticleRecord & hadrons = secondaries[0];
+    rk::P4 p4D_lab(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+    hadrons.SetFourMomentum({p4D_lab.e(), p4D_lab.px(), p4D_lab.py(), p4D_lab.pz()});
+    hadrons.SetMass(p4D_lab.m());
+    hadrons.SetHelicity(record.primary_helicity);
+}
 
 void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+    // first handle hadronic decay separately, in the end we want to handle all decays in separate functions
+    dataclasses::InteractionSignature signature = record.signature;
+    if (signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
+      SampleFinalStateHadronic(record, random);
+      return;
+    }
     // first obtain the constants needed for further computation from the signature
     std::vector<double> constants = FormFactorFromRecord(record);
     double mD = particleMass(record.signature.primary_type);
@@ -328,14 +376,14 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     geom3::UnitVector3 p3D_lab_dir = p3D_lab.direction();
     geom3::Rotation3 x_to_p3D_lab_rot = geom3::rotationBetween(x_dir, p3D_lab_dir);
     // compute the momentum magnitude of the W and the K/pi
-    double EK = 0.5 * (Q2 - pow(mD, 2) + pow(mK, 2)) / mD; // energy of Kaon
-    double PK = pow(pow(EK, 2) - pow(mK, 2), 1/2); // momentum magnitude of kaon in D rest frame
+    double EK = 0.5 * (pow(mD, 2) + pow(mK, 2) - Q2) / mD; // energy of Kaon
+    double PK = pow(pow(EK, 2) - pow(mK, 2), .5); // momentum magnitude of kaon in D rest frame
     double PW = sqrt(Q2); // momentum magnitude of virtual W in D rest frame
     // compute the 3 vectors of the W and the K/pi in the D rest frame, defined wrt x axis
     rk::P4 p4K_Drest(PK * geom3::Vector3(cosTheta, sinTheta, 0), mK);
-    rk::P4 p4W_Drest(PW * geom3::Vector3(-cosTheta, -sinTheta, 0), PW); // invariant mass assigned to virtual W boson
-    // rotate the momentum vectors so they are defined wrt to the D lab frame direction
+    rk::P4 p4W_Drest(PK * geom3::Vector3(-cosTheta, -sinTheta, 0), PW); // invariant mass assigned to virtual W boson
 
+    // rotate the momentum vectors so they are defined wrt to the D lab frame direction
     p4K_Drest.rotate(x_to_p3D_lab_rot);
     p4W_Drest.rotate(x_to_p3D_lab_rot);
     // perform the random "azimuth" rotation
@@ -347,6 +395,7 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     rk::Boost boost_from_Drest_to_lab = p4D_lab.labBoost();
     rk::P4 p4K_lab = p4K_Drest.boost(boost_from_Drest_to_lab);
     rk::P4 p4W_lab = p4W_Drest.boost(boost_from_Drest_to_lab);
+
     // this ends the computation of D->W+K/Pi decay, now treat the W->l+nu decay
     double ml = particleMass(record.signature.secondary_types[1]);
     double mnu = 0;

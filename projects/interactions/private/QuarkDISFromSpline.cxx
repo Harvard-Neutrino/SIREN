@@ -930,10 +930,11 @@ double QuarkDISFromSpline::FinalStateProbability(dataclasses::InteractionRecord 
     unsigned int meson_index = secondaries["meson"];
     double fragfrac = FragmentationFraction(interaction.signature.secondary_types[meson_index]);
     if(dxs == 0) {
+        std::cout << "diff xsec gives 0" << std::endl;
         return 0.0;
     } else {
         // if (txs == 0) {std::cout << "wtf??? txs is 0 in final state prob" << txs << std::endl;}
-        // if (std::isinf(dxs)) {std::cout << "dxs is inf in final state prob" << std::endl;}
+        if (std::isinf(dxs)) {std::cout << "dxs is inf in final state prob" << std::endl;}
         return dxs / txs * fragfrac;
     }
 }
