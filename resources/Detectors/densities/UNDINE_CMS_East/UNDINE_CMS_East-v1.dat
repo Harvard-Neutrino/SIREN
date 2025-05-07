@@ -21,6 +21,6 @@ object box       0 -5000 9703.969753421832            0 0 0      100000 10000 44
 
 # CHIPS detector proposal
 # 25 m diameter, 12.5 m tall
-object cylinder   0 -2088.994613919584 9703.969753421832    0 0 0      12.5 0 12.5    chips     WATER    constant    1.0
-detector          0 -2088.994613919584 9703.969753421832
-fiducial cylinder 0 -2088.994613919584 9703.969753421832    0 0 0      12.5 0 12.5
+object cylinder   0 -2112.710680980228 7943.249468264881    0 0 0      12.5 0 12.5    chips     WATER    constant    1.0
+detector          0 -2112.710680980228 7943.249468264881
+fiducial cylinder 0 -2112.710680980228 7943.249468264881    0 0 0      12.5 0 12.5
