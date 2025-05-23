@@ -29,7 +29,7 @@ bool ScalarDecay::equal(Decay const & other) const {
             std::tie(
                     primary_types,
                     mass,
-                    dipole_coupling)
+                    coupling)
             ==
             std::tie(
                     x->primary_types,
@@ -93,8 +93,6 @@ double ScalarDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const 
 }
 
 void ScalarDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
-
-    siren::dataclasses::InteractionSignature const & signature = record.GetSignature();
 
 
     double CosTheta = random->Uniform(-1,1);

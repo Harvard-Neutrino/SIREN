@@ -35,10 +35,10 @@ protected:
 ScalarDecay() {};
 private:
     double mass;
-    double g; // coupling
+    double coupling; // coupling
     const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::Scalar};
 public:
-    ScalarDecay(double mass, double coupling, ChiralNature nature) : mass(mass), coupling(coupling) {};
+    ScalarDecay(double mass, double coupling) : mass(mass), coupling(coupling) {};
     virtual bool equal(Decay const & other) const override;
     double GetMass() const {return mass;};
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;

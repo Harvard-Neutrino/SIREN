@@ -21,7 +21,7 @@ void register_ScalarDecay(pybind11::module_ & m) {
     class_<ScalarDecay, std::shared_ptr<ScalarDecay>, Decay> scalardecay(m, "ScalarDecay");
 
     scalardecay
-        .def(init<double, double)
+        .def(init<double, double>())
         .def(self == self)
         .def("GetMass",&ScalarDecay::GetMass)
         .def("TotalDecayWidth",overload_cast<siren::dataclasses::InteractionRecord const &>(&ScalarDecay::TotalDecayWidth, const_))
