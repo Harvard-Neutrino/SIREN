@@ -16,6 +16,7 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsDecay.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/ScalarDecay.cxx
 )
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
 set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
