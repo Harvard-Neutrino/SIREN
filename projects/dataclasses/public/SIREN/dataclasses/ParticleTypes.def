@@ -176,6 +176,7 @@ X(Qball, 10000000)
    PDGID  =  59(particle spin code: 0-scalar 1-fermion 2-vector)(generation number)
 */
 X(NuLight, 5910)
+X(NuLightBar, -5910)
 X(Nu1, 5911)
 X(Nu2, 5912)
 X(Nu3, 5913)
