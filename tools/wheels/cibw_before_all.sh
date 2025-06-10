@@ -57,7 +57,7 @@ pip install scikit-build-core
 if [[ $RUNNER_OS == "Linux" || $RUNNER_OS == "macOS" ]]; then
     mkdir -p $CI_DOWNLOAD_PATH
     cd $CI_DOWNLOAD_PATH
-    curl --retry 5 --retry-delay 5 https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-$CFITSIO_VERSION.tar.gz --output cfitsio-$CFITSIO_VERSION.tar.gz
+    curl --retry 5 --retry-delay 5 --retry-all-errors https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-$CFITSIO_VERSION.tar.gz --output cfitsio-$CFITSIO_VERSION.tar.gz
     tar -xvf cfitsio-$CFITSIO_VERSION.tar.gz
     cd cfitsio-$CFITSIO_VERSION
     mkdir -p build
@@ -68,7 +68,7 @@ if [[ $RUNNER_OS == "Linux" || $RUNNER_OS == "macOS" ]]; then
 elif [[ $RUNNER_OS == "Windows" ]]; then
     mkdir -p $CI_DOWNLOAD_PATH
     cd $CI_DOWNLOAD_PATH
-    curl --retry 5 --retry-delay 5 https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-$CFITSIO_VERSION.tar.gz --output cfitsio-$CFITSIO_VERSION.tar.gz
+    curl --retry 5 --retry-delay 5 --retry-all-errors https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-$CFITSIO_VERSION.tar.gz --output cfitsio-$CFITSIO_VERSION.tar.gz
     tar -xvf cfitsio-$CFITSIO_VERSION.tar.gz
     mkdir -p cfitsio-$CFITSIO_VERSION.build
     cd cfitsio-$CFITSIO_VERSION.build
