@@ -12,7 +12,7 @@
 #include "../../public/SIREN/interactions/HNLDipoleFromTable.h"
 #include "../../public/SIREN/interactions/HNLDipoleDISFromSpline.h"
 #include "../../public/SIREN/interactions/HNLDISFromSpline.h"
-#include "../../public/SIREN/interactions/HNLTwoBodyDecay.h"
+#include "../../public/SIREN/interactions/HNLDecay.h"
 #include "../../public/SIREN/interactions/InteractionCollection.h"
 
 
@@ -27,7 +27,7 @@
 #include "./HNLDipoleFromTable.h"
 #include "./HNLDipoleDISFromSpline.h"
 #include "./HNLDISFromSpline.h"
-#include "./HNLTwoBodyDecay.h"
+#include "./HNLDecay.h"
 #include "./InteractionCollection.h"
 
 #include <pybind11/pybind11.h>
@@ -52,6 +52,6 @@ PYBIND11_MODULE(interactions,m) {
     register_HNLDipoleFromTable(m);
     register_HNLDipoleDISFromSpline(m);
     register_HNLDISFromSpline(m);
-    register_HNLTwoBodyDecay(m);
+    register_HNLDecay(m);
     register_InteractionCollection(m);
 }
