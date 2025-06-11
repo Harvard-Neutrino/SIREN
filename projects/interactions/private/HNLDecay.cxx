@@ -541,40 +541,43 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
              record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLightBar);
       // Find charged lepton masses
       int alpha,beta;
-      if(record.signature.secondary_types[0] == siren::dataclasses::ParticleType::EMinus)
+      if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::EMinus)
         {m_alpha = siren::utilities::Constants::electronMass; alpha = 0;}
-      else if(record.signature.secondary_types[0] == siren::dataclasses::ParticleType::MuMinus)
+      else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::MuMinus)
         {m_alpha = siren::utilities::Constants::muonMass; alpha = 1;}
-      else if(record.signature.secondary_types[0] == siren::dataclasses::ParticleType::TauMinus)
+      else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::TauMinus)
         {m_alpha = siren::utilities::Constants::tauMass; alpha = 2;}
       else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
-      if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::EPlus)
+      if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::EPlus)
         {m_beta = siren::utilities::Constants::electronMass; beta = 0;}
-      else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::MuPlus)
+      else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::MuPlus)
         {m_beta = siren::utilities::Constants::muonMass; beta = 1;}
-      else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::TauPlus)
+      else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::TauPlus)
         {m_beta = siren::utilities::Constants::tauMass; beta = 2;}
       else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
       double x_alpha = m_alpha/hnl_mass;
       double x_beta = m_beta/hnl_mass;
       // N -> nu l- l+ (l same flavor)
       if(int(record.signature.secondary_types[1]) == -int(record.signature.secondary_types[2])) {
+        if (2*x_alpha>=1) return 0;
         charged = false; // even though there is a CC contribution, the dirac is factor of 2 larger
         double prefactor = pow(siren::utilities::Constants::FermiConstant,2) * pow(hnl_mass,5) / (192*pow(siren::utilities::Constants::pi,3));
         width = 0;
         double gL = -1./2 + siren::utilities::Constants::thetaWeinberg;
         double gR = siren::utilities::Constants::thetaWeinberg;
         for(int gamma = 0; gamma < 3; ++gamma) {
-          width += pow(mixing[gamma],2) * (gL*gR + (gamma==alpha)*gR)*I2(0,x_alpha*x_alpha,x_alpha*x_alpha) + (gL*gL + gR*gR + (gamma==alpha)*(1+2*gL))*I1(0,x_alpha*x_alpha,x_alpha*x_alpha);
+          width += pow(mixing[gamma],2) * ((gL*gR + (gamma==alpha)*gR)*I2(0,x_alpha*x_alpha,x_alpha*x_alpha) +
+                                           (gL*gL + gR*gR + (gamma==alpha)*(1+2*gL))*I1(0,x_alpha*x_alpha,x_alpha*x_alpha));
         }
         width *= prefactor;
       }
       // N -> nu l- l+ (l differnt flavor)
       else {
         charged = true;
-        double prefactor = pow(siren::utilities::Constants::FermiConstant,2) * pow(hnl_mass,5) / (192*pow(siren::utilities::Constants::pi,3));
+        if ((x_alpha+x_beta)>=1) return 0;
+        double prefactor = pow(siren::utilities::Constants::FermiConstant,2) * pow(hnl_mass,5) / (384*pow(siren::utilities::Constants::pi,3));
         if(nature==ChiralNature::Majorana) {
-          return prefactor * (pow(mixing[alpha],2) * I1(0,x_alpha*x_alpha,x_beta*x_beta)) + (pow(mixing[beta],2) * I1(0,x_beta*x_beta,x_alpha*x_alpha));
+          return prefactor * ((pow(mixing[alpha],2) * I1(0,x_alpha*x_alpha,x_beta*x_beta)) + (pow(mixing[beta],2) * I1(0,x_beta*x_beta,x_alpha*x_alpha)));
         }
         else if(nature==ChiralNature::Dirac) {
           if(record.signature.primary_type==siren::dataclasses::ParticleType::N4) {
