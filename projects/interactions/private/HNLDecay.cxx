@@ -32,7 +32,7 @@ double integrand1(double s, void * params) {
   double x = ((double*)params)[0];
   double y = ((double*)params)[1];
   double z = ((double*)params)[2];
-  return 12 * (1./s) * (s - x - y) * (1 + z - s) * sqrt(lambda(1,x,y)*lambda(1,s,z));
+  return 12 * (1./s) * (s - x - y) * (1 + z - s) * sqrt(lambda(s,x,y)*lambda(1,s,z));
 }
 
 double integrand2(double s, void * params) {
@@ -90,7 +90,8 @@ double integrand(double x, void * params){
   double xu = ((double*)params)[0];
   double xd = ((double*)params)[1];
   double xl = ((double*)params)[2];
-  return 1./x * (x - xl*xl - xd*xd) * (1 + xu*xu - x) * sqrt(lambda(x,xl*xl,xd*xd)*lambda(1,x,xu*xu));
+  //return (x - xl*xl - xd*xd) * (1 + xu*xu - x) * sqrt(lambda(x,xl*xl,xd*xd)*lambda(1,x,xu*xu));
+  return 12 * 1./x * (x - xl*xl - xd*xd) * (1 + xu*xu - x) * sqrt(lambda(x,xl*xl,xd*xd)*lambda(1,x,xu*xu));
 }
 
 double I(double xu, double xd, double xl) {
@@ -104,7 +105,7 @@ double I(double xu, double xd, double xl) {
   gsl_integration_qags (&F, pow(xd+xl,2), pow(1-xu,2), 0, 1e-5, 1000,
                         workspace, &result, &error);
   assert(error/result < 1e-3);
-  return 12 * result;
+  return result;
 }
 
 double GammaQuarksCC(double U, double m_N, double mu, double md, double ml, double Nw=1) {
@@ -112,7 +113,7 @@ double GammaQuarksCC(double U, double m_N, double mu, double md, double ml, doub
   double xd = md/m_N;
   double xl = ml/m_N;
   if(xu+xd+xl>1) return 0;
-  return Nw * pow(siren::utilities::Constants::FermiConstant,2) * pow(m_N,5) / (192*pow(siren::utilities::Constants::pi,3)) * U*U * I(xu,xd,xl);
+  return Nw * pow(siren::utilities::Constants::FermiConstant,2) * pow(m_N,5) / (192*pow(siren::utilities::Constants::pi,3)) * U*U * I1(xu*xu,xd*xd,xl*xl);
 }
 
 double GammaQuarksNC(double U, double m_N, double mq, double Nz = 1, std::string fs = "qup") {
@@ -597,8 +598,8 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
     exit(0);
   }
 
-  if(nature==ChiralNature::Majorana && !charged) return std::max(0.,2*width);
-  else if(nature==ChiralNature::Dirac || charged) return std::max(0.,width);
+  if(nature==ChiralNature::Majorana) return std::max(0.,2*width);
+  else if(nature==ChiralNature::Dirac) return std::max(0.,width);
   return 0;
 }
 
