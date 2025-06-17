@@ -604,7 +604,7 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
 }
 
 std::vector<std::string> HNLDecay::DensityVariables() const {
-    return std::vector<std::string>{"CosTheta"};
+    return std::vector<std::string>{"CosTheta"}; // This is only true for two-body decays, may need some restructuring...
 }
 
 
@@ -788,8 +788,9 @@ double HNLDecay::GetAlpha(dataclasses::ParticleType const & secondary) const {
   return 0;
 }
 
-// TODO: this function should follow from arXiv:1905.00284v2
-// For now, follow https://arxiv.org/abs/1805.07523v1 for NC decays and assume isotropy otherwise
+// Two body decays follow https://arxiv.org/abs/1805.07523v1 for NC decays and assume isotropy otherwise
+// Three body decays follow arXiv:1905.00284v2
+// TODO: update two-body decays to arXiv:1905.00284v2
 double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
     double DecayWidth = TotalDecayWidthForFinalState(record);
     // Check for isotropic decay
@@ -798,6 +799,8 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
     }
     if(record.secondary_momenta.size() ==2)
     {
+      // Check for isotropic decay
+      if (nature==ChiralNature::Majorana) return DecayWidth/2.; // This factor of 2 is for the cosTheta phase space, not the majorana nature :-)
       siren::math::Vector3D hnl_dir = siren::math::Vector3D(record.primary_momentum[0],
                                                             record.primary_momentum[1],
                                                             record.primary_momentum[2]);
@@ -833,7 +836,60 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
     } // end 2 body decays
     else if (record.secondary_momenta.size()==3)
     {
-      /* code */
+      // three neutrino final state
+      if(record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLight &&
+         record.signature.secondary_types[1] == siren::dataclasses::ParticleType::NuLightBar &&
+         record.signature.secondary_types[2] == siren::dataclasses::ParticleType::NuLight)
+      {
+        return DecayWidth; // who cares about the outgoing neutrinos
+      }
+      else {
+        // N (k1) -> nu (k2) l- (k3) l+ (k4)
+        // follow eq 3.13 of arXiv:1905.00284v2
+        // make sure the first entry is a neutrino
+        assert(record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLight ||
+               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLightBar);
+        // Find charged lepton masses
+
+        int alpha,beta;
+
+        if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::EMinus)
+          {m_alpha = siren::utilities::Constants::electronMass; alpha = 0;}
+        else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::MuMinus)
+          {m_alpha = siren::utilities::Constants::muonMass; alpha = 1;}
+        else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::TauMinus)
+          {m_alpha = siren::utilities::Constants::tauMass; alpha = 2;}
+        else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
+        if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::EPlus)
+          {m_beta = siren::utilities::Constants::electronMass; beta = 0;}
+        else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::MuPlus)
+          {m_beta = siren::utilities::Constants::muonMass; beta = 1;}
+        else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::TauPlus)
+          {m_beta = siren::utilities::Constants::tauMass; beta = 2;}
+        else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
+
+        double x_alpha = m_alpha/hnl_mass;
+        double x_beta = m_beta/hnl_mass;
+
+        rk::P4 k1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), hnl_mass);
+        rk::P4 k2(geom3::Vector3(record.secondary_momenta[0][1], record.secondary_momenta[0][2], record.secondary_momenta[0][3]), 0);
+        rk::P4 k3(geom3::Vector3(record.secondary_momenta[1][1], record.secondary_momenta[1][2], record.secondary_momenta[1][3]), m_alpha);
+        rk::P4 k4(geom3::Vector3(record.secondary_momenta[2][1], record.secondary_momenta[2][2], record.secondary_momenta[2][3]), m_beta);
+
+        double s1 = (k2+k3)*(k2+k3) / pow(hnl_mass,2);
+        double s2 = (k2+k4)*(k2+k4) / pow(hnl_mass,2);
+
+        geom3::UnitVector3 z_dir = geom3::UnitVector3::zAxis();
+        geom3::Vector3 pHNL_mom = k1.momentum();
+        geom3::UnitVector3 pHNL_dir = pHNL_mom.direction();
+        geom3::Rotation3 pHNL_to_z_rot = geom3::rotationBetween(pHNL_dir, z_dir);
+
+
+
+
+
+
+      }
     }
     else
     {
