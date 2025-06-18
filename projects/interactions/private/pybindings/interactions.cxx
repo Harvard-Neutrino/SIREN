@@ -9,6 +9,7 @@
 #include "../../public/SIREN/interactions/DipoleFromTable.h"
 #include "../../public/SIREN/interactions/DarkNewsCrossSection.h"
 #include "../../public/SIREN/interactions/DarkNewsDecay.h"
+#include "../../public/SIREN/interactions/ScalarDecay.h"
 
 #include "./CrossSection.h"
 #include "./DipoleFromTable.h"
@@ -20,6 +21,7 @@
 #include "./NeutrissimoDecay.h"
 #include "./InteractionCollection.h"
 #include "./DummyCrossSection.h"
+#include "./ScalarDecay.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
@@ -42,4 +44,5 @@ PYBIND11_MODULE(interactions,m) {
     register_NeutrissimoDecay(m);
     register_InteractionCollection(m);
     register_DummyCrossSection(m);
+    register_ScalarDecay(m);
 }

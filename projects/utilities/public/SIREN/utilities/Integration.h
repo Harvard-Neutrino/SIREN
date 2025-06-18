@@ -106,7 +106,7 @@ public:
 template<typename FuncType>
 double rombergIntegrate(const FuncType& func, double a, double b, double tol=1e-6){
   const unsigned int order=5;
-  const unsigned int maxIter=20;
+  const unsigned int maxIter=100;
   if(tol<0)
      throw(std::runtime_error("Integration tolerance must be positive"));
 

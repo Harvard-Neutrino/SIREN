@@ -22,9 +22,10 @@ bool Decay::operator==(Decay const & other) const {
 
 double Decay::TotalDecayLength(dataclasses::InteractionRecord const & interaction) const {
     double tau = 1./TotalDecayWidth(interaction); // in inverse GeV
-    std::array<double, 4> const & p4 = interaction.primary_momentum;
+    std::array<double, 4> const & p4 = interaction.primary_momentum; // only energy is gauranteed to be set here!
     double const & mass = interaction.primary_mass;
-    rk::P4 p1(geom3::Vector3(p4[1], p4[2], p4[3]), mass);
+    double momentum = sqrt(p4[0]*p4[0] - mass*mass); // three-momentum
+    rk::P4 p1(geom3::Vector3(0, 0, momentum), mass); // just assume along z direction for now
     return p1.beta() * p1.gamma() * tau * siren::utilities::Constants::hbarc;
 }
 
