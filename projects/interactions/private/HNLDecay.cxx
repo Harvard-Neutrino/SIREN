@@ -852,6 +852,7 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
         // Find charged lepton masses
 
         int alpha,beta;
+        double m_alpha,m_beta;
 
         if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::EMinus)
           {m_alpha = siren::utilities::Constants::electronMass; alpha = 0;}
@@ -876,19 +877,15 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
         rk::P4 k3(geom3::Vector3(record.secondary_momenta[1][1], record.secondary_momenta[1][2], record.secondary_momenta[1][3]), m_alpha);
         rk::P4 k4(geom3::Vector3(record.secondary_momenta[2][1], record.secondary_momenta[2][2], record.secondary_momenta[2][3]), m_beta);
 
-        double s1 = (k2+k3)*(k2+k3) / pow(hnl_mass,2);
-        double s2 = (k2+k4)*(k2+k4) / pow(hnl_mass,2);
+        // let's get the phase space variables
+        double s1 = (k2+k3).dot(k2+k3) / pow(hnl_mass,2);
+        double s2 = (k2+k4).dot(k2+k4) / pow(hnl_mass,2);
+        double theta3 = k3.momentum().theta() - k1.momentum().theta(); // relative to the HNL theta
+        double phi3 = k3.momentum().phi() - k1.momentum().phi(); // relative to the HNL phi
+        double phi43 = k4.momentum().phi() - k3.momentum().phi(); // relative between k4 and k3
+        double theta4 = k4.momentum().theta() - k1.momentum().theta(); // relative to the HNL theta
 
-        geom3::UnitVector3 z_dir = geom3::UnitVector3::zAxis();
-        geom3::Vector3 pHNL_mom = k1.momentum();
-        geom3::UnitVector3 pHNL_dir = pHNL_mom.direction();
-        geom3::Rotation3 pHNL_to_z_rot = geom3::rotationBetween(pHNL_dir, z_dir);
-
-
-
-
-
-
+        return ThreeBodyDifferentialDecayWidth(record, alpha, beta, m_alpha, m_beta, s1, s2, theta3, phi3, phi43, theta4);
       }
     }
     else
@@ -897,6 +894,76 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
       exit(0);
     }
 
+
+}
+
+// follows 3.13 of 1905.00284v2 and subsequent sections
+double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record,
+                                                 int & alpha, int & beta,
+                                                 double & m_alpha, double & m_beta,
+                                                 double & s1, double & s2, double & theta3, double & phi3, double & phi43, double & theta4) const {
+
+  // appendix b
+
+  double gL = -1./2 + siren::utilities::Constants::thetaWeinberg;
+  double gR = siren::utilities::Constants::thetaWeinberg;
+
+  double C1nu,C2nu,C3nu,C4nu,C5nu,C6nu = 0;
+  double C1nubar,C2nubar,C3nubar,C4nubar,C5nubar,C6nubar = 0;
+
+  for(int gamma = 0; gamma < 3; ++gamma) {
+    C1nu += pow(mixing[gamma],2)*((alpha==beta)*pow(gL,2) + (gamma==alpha)*(1 + (alpha==beta)*gL));
+    C2nu += (alpha==beta)*pow(gR,2)*pow(mixing[gamma],2);
+    C3nu += (alpha==beta)*gR*pow(mixing[gamma],2)*((gamma==beta)+gL);
+    C1nubar += (alpha==beta)*pow(gR,2)*pow(mixing[gamma],2);
+    C2nubar += pow(mixing[gamma],2)*((alpha==beta)*pow(gL,2) + (gamma==beta)*(1 + (alpha==beta)*gL));
+    C3nubar += (alpha==beta)*gR*pow(mixing[gamma],2)*((gamma==alpha)+gL);
+  }
+  C4nu = C1nu;
+  C5nu = C2nu;
+  C6nu = C3nu;
+  C4nubar = -C1nubar;
+  C5nubar = -C2nubar;
+  C6nubar = -C3nubar;
+
+  double C1,C2,C3,C4,C5,C6;
+
+  if(nature==ChiralNature::Dirac) {
+    if(record.signature.primary_type==siren::dataclasses::ParticleType::N4) {
+      C1 = C1nu;
+      C2 = C2nu;
+      C3 = C3nu;
+      C4 = C4nu;
+      C5 = C5nu;
+      C6 = C6nu;
+    }
+    else if(record.signature.primary_type==siren::dataclasses::ParticleType::N4Bar) {
+      C1 = C1nubar;
+      C2 = C2nubar;
+      C3 = C3nubar;
+      C4 = C4nubar;
+      C5 = C5nubar;
+      C6 = C6nubar;
+    }
+  }
+  else if (nature==ChiralNature::Majorana) {
+    C1 = C1nu+C1nubar;
+    C2 = C2nu+C2nubar;
+    C3 = C3nu+C3nubar;
+    C4 = C4nu+C4nubar;
+    C5 = C5nu+C5nubar;
+    C6 = C6nu+C6nubar;
+  }
+  double x3 = m_alpha/hnl_mass;
+  double x4 = m_beta/hnl_mass;
+  double A0sq = C1*(s2 - x3*x3) * (1 + x4*x4 - s2) + C2*(s1 - x4*x4)*(1 + x3*x3 - s1) + 2*C3*x3*x4*(s1 + s2 - x3*x3 - x4*x4);
+  double A1sq = (C4*(s2-x3*x3) - 2*C6*x3*x4)*sqrt(lambda(1,s2,x4*x4))*cos(theta4) + (C5*(s1-x4*x4) - 2*C6*x3*x4)*sqrt(lambda(1,s1,x3*x3))*cos(theta3);
+  double prefactor = pow(siren::utilities::Constants::FermiConstant,2)*pow(hnl_mass,5) / (128*pow(siren::utilities::Constants::pi,5));
+  double GammaPlus = prefactor*(A0sq+A1sq);
+  double GammaMinus = prefactor*(A0sq-A1sq);
+  if (record.primary_helicity>0) return GammaPlus;
+  else if (record.primary_helicity<0) return GammaMinus;
+  return 0; // no such thing is scalar HNLs!
 
 }
 
@@ -977,20 +1044,55 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
     }
     else if(signature.secondary_types.size() == 3) {
       // three body decays
-      // for now, be stupid and let all neutrinos have 1/3 of the HNL energy and be colinear
-      rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
-      siren::dataclasses::SecondaryParticleRecord & nu1 = record.GetSecondaryParticleRecord(0);
-      siren::dataclasses::SecondaryParticleRecord & nu2 = record.GetSecondaryParticleRecord(1);
-      siren::dataclasses::SecondaryParticleRecord & nu3 = record.GetSecondaryParticleRecord(2);
-      nu1.SetThreeMomentum({1./3.*pHNL.px(), 1./3.*pHNL.py(), 1./3.*pHNL.pz()});
-      nu1.SetMass(0);
-      nu1.SetHelicity(std::copysign(1.0, record.primary_helicity));
-      nu2.SetThreeMomentum({1./3.*pHNL.px(), 1./3.*pHNL.py(), 1./3.*pHNL.pz()});
-      nu2.SetMass(0);
-      nu2.SetHelicity(std::copysign(1.0, record.primary_helicity));
-      nu3.SetThreeMomentum({1./3.*pHNL.px(), 1./3.*pHNL.py(), 1./3.*pHNL.pz()});
-      nu3.SetMass(0);
-      nu3.SetHelicity(std::copysign(1.0, record.primary_helicity));
+
+      if(record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLight &&
+         record.signature.secondary_types[1] == siren::dataclasses::ParticleType::NuLightBar &&
+         record.signature.secondary_types[2] == siren::dataclasses::ParticleType::NuLight)
+      {
+        // N -> nu nubar nu
+        // for now, be stupid and let all neutrinos have 1/3 of the HNL energy and be colinear
+        // this never matters so it's probably ok to be stupid forever
+        rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+        siren::dataclasses::SecondaryParticleRecord & nu1 = record.GetSecondaryParticleRecord(0);
+        siren::dataclasses::SecondaryParticleRecord & nu2 = record.GetSecondaryParticleRecord(1);
+        siren::dataclasses::SecondaryParticleRecord & nu3 = record.GetSecondaryParticleRecord(2);
+        nu1.SetThreeMomentum({1./3.*pHNL.px(), 1./3.*pHNL.py(), 1./3.*pHNL.pz()});
+        nu1.SetMass(0);
+        nu1.SetHelicity(std::copysign(1.0, record.primary_helicity));
+        nu2.SetThreeMomentum({1./3.*pHNL.px(), 1./3.*pHNL.py(), 1./3.*pHNL.pz()});
+        nu2.SetMass(0);
+        nu2.SetHelicity(std::copysign(1.0, record.primary_helicity));
+        nu3.SetThreeMomentum({1./3.*pHNL.px(), 1./3.*pHNL.py(), 1./3.*pHNL.pz()});
+        nu3.SetMass(0);
+        nu3.SetHelicity(std::copysign(1.0, record.primary_helicity));
+      }
+      else {
+        // N (k1) -> nu (k2) l- (k3) l+ (k4)
+
+        // make sure the first entry is a neutrino
+        assert(record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLight ||
+               record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuLightBar);
+        // Find charged lepton masses
+
+        int alpha,beta;
+        double m_alpha,m_beta;
+
+        if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::EMinus)
+          {m_alpha = siren::utilities::Constants::electronMass; alpha = 0;}
+        else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::MuMinus)
+          {m_alpha = siren::utilities::Constants::muonMass; alpha = 1;}
+        else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::TauMinus)
+          {m_alpha = siren::utilities::Constants::tauMass; alpha = 2;}
+        else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
+        if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::EPlus)
+          {m_beta = siren::utilities::Constants::electronMass; beta = 0;}
+        else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::MuPlus)
+          {m_beta = siren::utilities::Constants::muonMass; beta = 1;}
+        else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::TauPlus)
+          {m_beta = siren::utilities::Constants::tauMass; beta = 2;}
+        else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
+
+      }
 
     }
 
