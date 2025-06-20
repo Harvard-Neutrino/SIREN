@@ -91,6 +91,7 @@ public:
     void SetGammaHadrons(double Gamma, std::string mode);
     double CCMesonDecayWidth(dataclasses::InteractionRecord const &) const;
     double NCMesonDecayWidth(dataclasses::InteractionRecord const &) const;
+    double ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record, int & alpha, int & beta, double & m_alpha, double & m_beta, double & s1, double & s2, double & theta3, double & phi3, double & phi43, double & theta4) const;
 public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
