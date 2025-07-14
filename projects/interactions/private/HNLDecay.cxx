@@ -1092,6 +1092,23 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
           {m_beta = siren::utilities::Constants::tauMass; beta = 2;}
         else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
 
+        double s1_min = pow(m_alpha,2)/pow(hnl_mass,2);
+        double s1_max = pow(hnl_mass-m_beta,2)/pow(hnl_mass,2);
+
+        // sample s1 uniformly first
+        double s1 = random->Uniform(s1_min,s1_max);
+        double m23_2 = s1*pow(hnl_mass,2);
+
+        // Now follow section 3 of https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
+        // to get s2 * mN^2 = m24_2 = (k2 + k4)^2
+        // considering m2 = mnu = 0
+        double denom_term = sqrt((pow(hnl_mass,4) + pow((pow(m_beta,2) - m23_2),2) - 2*pow(hnl_mass,2)*(pow(m_beta,2) + m23_2)) * \
+                               (pow(m23_2 - pow(m_alpha,2),2)));
+        double num_term = m23_2*(pow(m_alpha,2) - m23_2) + pow(m_beta,2)*(m23_2 - pow(m_alpha,2)) + pow(hnl_mass,2)*(pow(m_alpha,2) + m23_2);
+        double m24_2_min = num_term - denom_term / (2*m23_2);
+        double m24_2_max = num_term + denom_term / (2*m23_2);
+        double s2 = random->Uniform(m24_2_min/pow(hnl_mass,2),m24_2_max/pow(hnl_mass,2));
+
       }
 
     }
