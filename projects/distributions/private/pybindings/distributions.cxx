@@ -1,4 +1,3 @@
-
 #include <vector>
 #include <string>
 
@@ -24,6 +23,8 @@
 #include "../../public/SIREN/distributions/primary/vertex/RangePositionDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
+#include "../../public/SIREN/distributions/primary/vertex/SamplePrimaryPositionDistribution.h"  // Updated include for the position class (removed 'd')
+#include "../../public/SIREN/distributions/primary/energy/SamplePrimaryEnergyDistribution.h"  // Added this include for the new SamplePrimaryEnergyDistribution class
 
 #include "../../../utilities/public/SIREN/utilities/Random.h"
 #include "../../../detector/public/SIREN/detector/DetectorModel.h"
@@ -33,7 +34,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
+PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 
 using namespace pybind11;
 
@@ -59,7 +60,7 @@ PYBIND11_MODULE(distributions,m) {
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::PrimaryDistributionRecord &>(&PrimaryInjectionDistribution::Sample, const_))
     ;
 
-  // Direciton distributions
+  // Direction distributions
 
   class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, PrimaryInjectionDistribution>(m, "PrimaryDirectionDistribution")
     .def("Sample",&PrimaryDirectionDistribution::Sample)
@@ -240,6 +241,19 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::GenerationProbability, const_))
     .def("InjectionBounds",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::InjectionBounds, const_))
     .def("Name",&SecondaryBoundedVertexDistribution::Name);
+
+  // Binding for the SamplePrimaryPositionDistribution class (updated name)
+  class_<SamplePrimaryPositionDistribution, std::shared_ptr<SamplePrimaryPositionDistribution>, VertexPositionDistribution>(m, "SamplePrimaryPositionDistribution")
+    .def(init<std::vector<siren::math::Vector3D>, std::vector<double>>(), arg("positions"), arg("weights") = std::vector<double>())
+    .def("GenerationProbability", &SamplePrimaryPositionDistribution::GenerationProbability)
+    .def("InjectionBounds", &SamplePrimaryPositionDistribution::InjectionBounds)
+    .def("Name", &SamplePrimaryPositionDistribution::Name);
+
+  // Added binding for the new SamplePrimaryEnergyDistribution class
+  class_<SamplePrimaryEnergyDistribution, std::shared_ptr<SamplePrimaryEnergyDistribution>, PrimaryEnergyDistribution>(m, "SamplePrimaryEnergyDistribution")
+    .def(init<std::vector<double>, std::vector<double>>(), arg("energies"), arg("weights") = std::vector<double>())
+    .def("pdf", &SamplePrimaryEnergyDistribution::pdf)
+    .def("SampleEnergy", &SamplePrimaryEnergyDistribution::SampleEnergy)
+    .def("GenerationProbability", &SamplePrimaryEnergyDistribution::GenerationProbability)
+    .def("Name", &SamplePrimaryEnergyDistribution::Name);
 }
-
-

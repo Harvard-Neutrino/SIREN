@@ -40,6 +40,9 @@ include(ExternalProject)
 SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_C_STANDARD 99)
 
+set(CMAKE_BUILD_TYPE Debug)
+add_definitions(-DPYBIND11_DETAILED_ERROR_MESSAGES)
+
 # set the build type and appropriate flags
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
