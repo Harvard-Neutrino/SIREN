@@ -55,3 +55,5 @@ def darknews_version():
         return None
 utilities.darknews_version = darknews_version
 
+import builtins
+print(">>> siren successfully imported")
