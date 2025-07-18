@@ -16,6 +16,7 @@
 #include "SIREN/utilities/Errors.h"
 #include "SIREN/utilities/Random.h"
 #include "SIREN/utilities/Constants.h"
+#include "SIREN/utilities/Sampling.h"
 
 #include "SIREN/detector/MaterialModel.h"
 
@@ -881,11 +882,11 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
         double s1 = (k2+k3).dot(k2+k3) / pow(hnl_mass,2);
         double s2 = (k2+k4).dot(k2+k4) / pow(hnl_mass,2);
         double theta3 = k3.momentum().theta() - k1.momentum().theta(); // relative to the HNL theta
-        double phi3 = k3.momentum().phi() - k1.momentum().phi(); // relative to the HNL phi
-        double phi43 = k4.momentum().phi() - k3.momentum().phi(); // relative between k4 and k3
+        //double phi3 = k3.momentum().phi() - k1.momentum().phi(); // relative to the HNL phi
+        //double phi43 = k4.momentum().phi() - k3.momentum().phi(); // relative between k4 and k3
         double theta4 = k4.momentum().theta() - k1.momentum().theta(); // relative to the HNL theta
 
-        return ThreeBodyDifferentialDecayWidth(record, alpha, beta, m_alpha, m_beta, s1, s2, theta3, phi3, phi43, theta4);
+        return ThreeBodyDifferentialDecayWidth(record, alpha, beta, m_alpha, m_beta, s1, s2, theta3, theta4);
       }
     }
     else
@@ -897,11 +898,50 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
 
 }
 
+// Jacobian to go between phi43 and CosTheta4 in the differnetial decay width
+double HNLDecay::ThreeBodyJacobian(double & theta3, double & theta4) const {
+
+  // Small epsilon to prevent division by (almost) zero
+  const double eps = 1e-12;
+
+  double sin_t3 = sin(theta3);
+  double sin_t4 = sin(theta4);
+  if (abs(sin_t3) < eps || abs(sin_t4) < eps) {
+      throw std::invalid_argument("sin(theta3) or sin(theta4) too close to zero");
+  }
+
+  double cos_t3 = cos(theta3);
+  double cos_t4 = cos(theta4);
+  double cot_t4 = cos_t4 / sin_t4;
+  double csc_t3 = 1.0 / sin_t3;
+  double csc_t4 = 1.0 / sin_t4;
+
+  double cos_diff = cos(theta3 - theta4);
+  double sin_diff = sin(theta3 - theta4);
+
+  // Numerator parts
+  double A = (cos_diff - cos_t3 * cos_t4) * cot_t4 * csc_t3 * csc_t4;
+  double B = csc_t3 * csc_t4 * (sin_diff + cos_t3 * sin_t4);
+  double numerator = -(A - B);
+  numerator *= -csc_t4; // Jacobian for theta4 -> CosTheta4
+
+  // Denominator
+  double inner_denom = 1.0 - pow((cos_diff - cos_t3 * cos_t4) * csc_t3 * csc_t4, 2.0);
+  if (inner_denom < 0.0) inner_denom = 0.0; // to prevent NaN from negative rounding
+  double denominator = sqrt(inner_denom);
+
+  if (denominator < eps)
+      throw std::runtime_error("Jacobian denominator too close to zero");
+
+  return numerator / denominator;
+}
+
 // follows 3.13 of 1905.00284v2 and subsequent sections
+// change dPhi43 to dCosTheta4 using the Jacobian
 double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record,
                                                  int & alpha, int & beta,
                                                  double & m_alpha, double & m_beta,
-                                                 double & s1, double & s2, double & theta3, double & phi3, double & phi43, double & theta4) const {
+                                                 double & s1, double & s2, double & theta3, double & theta4) const {
 
   // appendix b
 
@@ -958,7 +998,7 @@ double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord 
   double x4 = m_beta/hnl_mass;
   double A0sq = C1*(s2 - x3*x3) * (1 + x4*x4 - s2) + C2*(s1 - x4*x4)*(1 + x3*x3 - s1) + 2*C3*x3*x4*(s1 + s2 - x3*x3 - x4*x4);
   double A1sq = (C4*(s2-x3*x3) - 2*C6*x3*x4)*sqrt(lambda(1,s2,x4*x4))*cos(theta4) + (C5*(s1-x4*x4) - 2*C6*x3*x4)*sqrt(lambda(1,s1,x3*x3))*cos(theta3);
-  double prefactor = pow(siren::utilities::Constants::FermiConstant,2)*pow(hnl_mass,5) / (128*pow(siren::utilities::Constants::pi,5));
+  double prefactor = pow(siren::utilities::Constants::FermiConstant,2)*pow(hnl_mass,5) / (128*pow(siren::utilities::Constants::pi,5))*ThreeBodyJacobian(theta3,theta4);
   double GammaPlus = prefactor*(A0sq+A1sq);
   double GammaMinus = prefactor*(A0sq-A1sq);
   if (record.primary_helicity>0) return GammaPlus;
@@ -1092,27 +1132,36 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
           {m_beta = siren::utilities::Constants::tauMass; beta = 2;}
         else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
 
-        double s1_min = pow(m_alpha,2)/pow(hnl_mass,2);
-        double s1_max = pow(hnl_mass-m_beta,2)/pow(hnl_mass,2);
-
-        // sample s1 uniformly first
-        double s1 = random->Uniform(s1_min,s1_max);
-        double m23_2 = s1*pow(hnl_mass,2);
-
-        // Now follow section 3 of https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
-        // to get s2 * mN^2 = m24_2 = (k2 + k4)^2
-        // considering m2 = mnu = 0
-        double denom_term = sqrt((pow(hnl_mass,4) + pow((pow(m_beta,2) - m23_2),2) - 2*pow(hnl_mass,2)*(pow(m_beta,2) + m23_2)) * \
-                               (pow(m23_2 - pow(m_alpha,2),2)));
-        double num_term = m23_2*(pow(m_alpha,2) - m23_2) + pow(m_beta,2)*(m23_2 - pow(m_alpha,2)) + pow(hnl_mass,2)*(pow(m_alpha,2) + m23_2);
-        double m24_2_min = num_term - denom_term / (2*m23_2);
-        double m24_2_max = num_term + denom_term / (2*m23_2);
-        double s2 = random->Uniform(m24_2_min/pow(hnl_mass,2),m24_2_max/pow(hnl_mass,2));
 
       }
 
     }
 
+}
+
+std::array<double,5> HNLDecay::ThreeBodyPhaseSpaceProposalDistribution(double & m_alpha, double & m_beta, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+  double s1_min = pow(m_alpha,2)/pow(hnl_mass,2);
+  double s1_max = pow(hnl_mass-m_beta,2)/pow(hnl_mass,2);
+
+  // sample s1 uniformly first
+  double s1 = random->Uniform(s1_min,s1_max);
+  double m23_2 = s1*pow(hnl_mass,2);
+
+  // Now follow section 3 of https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
+  // to get s2 * mN^2 = m24_2 = (k2 + k4)^2
+  // considering m2 = mnu = 0
+  double denom_term = sqrt((pow(hnl_mass,4) + pow((pow(m_beta,2) - m23_2),2) - 2*pow(hnl_mass,2)*(pow(m_beta,2) + m23_2)) * \
+                          (pow(m23_2 - pow(m_alpha,2),2)));
+  double num_term = m23_2*(pow(m_alpha,2) - m23_2) + pow(m_beta,2)*(m23_2 - pow(m_alpha,2)) + pow(hnl_mass,2)*(pow(m_alpha,2) + m23_2);
+  double m24_2_min = num_term - denom_term / (2*m23_2);
+  double m24_2_max = num_term + denom_term / (2*m23_2);
+  double s2 = random->Uniform(m24_2_min/pow(hnl_mass,2),m24_2_max/pow(hnl_mass,2));
+
+  // Now sample lab frame angles
+  double CosTheta3 = random->Uniform(-1,1);
+  double CosTheta4 = random->Uniform(-1,1);
+  double Phi3 = random->Uniform(0,2*siren::utilities::Constants::pi);
+  return {s1,s2,Phi3,CosTheta3,CosTheta4};
 }
 
 double HNLDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
