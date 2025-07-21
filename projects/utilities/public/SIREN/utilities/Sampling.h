@@ -22,6 +22,7 @@ template<typename FuncTypeProposal, typename FuncTypeLikelihood>
 std::vector<double> MetropolisHasting_Sample(const FuncTypeProposal& func_proposal, const FuncTypeLikelihood& func_likelihood, std::shared_ptr<siren::utilities::SIREN_random> random, const size_t burnin = 40) {
 
     std::vector<double> vars, test_vars;
+    bool accept;
 
     // sample an initial point
     vars = func_proposal();
@@ -30,7 +31,7 @@ std::vector<double> MetropolisHasting_Sample(const FuncTypeProposal& func_propos
     llh = func_likelihood(vars);
 
     for (size_t j = 0; j <= burnin; j++) {
-        test_vars = func_proposal;
+        test_vars = func_proposal();
         test_llh = func_likelihood(test_vars);
         double odds = test_llh / llh;
         accept = (llh==0 || odds>1. || random->Uniform(0,1) < odds);

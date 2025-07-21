@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include <gsl/gsl_integration.h>
+#include <gsl/gsl_multiroots.h>
 
 #include <rk/rk.hh>
 #include <rk/geom3.hh>
@@ -21,6 +22,10 @@
 #include "SIREN/detector/MaterialModel.h"
 
 #include "SIREN/interactions/Decay.h"
+
+///////////////////
+// HELPER FUNCTIONS
+///////////////////
 
 double lambda(double a, double b, double c){
   return a*a + b*b + c*c - 2*a*b - 2*a*c - 2*b*c;
@@ -207,6 +212,77 @@ double GammaHadronsNC(double U, double m_N) {
     Gamma_qq += sqrt(x) * GammaQuarksNC(U, m_N, quark_masses[dnquark], 3, "qdown");
   }
   return Gamma_qq;
+}
+
+// Functions to properly sample the three body dilepton decays
+
+struct ThreeBodyParams {
+  double E1;
+  double m1;
+  double m3;
+  double m4;
+  double s1;
+  double s2;
+  double phi3;
+  double CosTheta3;
+  double CosTheta4;
+};
+
+// Derived sort of following this:
+// https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
+int ThreeBodySystem(const gsl_vector *x, void *p, gsl_vector *f) {
+    auto *par = static_cast<ThreeBodyParams*>(p);
+
+    // Assign variables
+    double E3 = gsl_vector_get(x, 0);
+    double E4 = gsl_vector_get(x, 1);
+    double phi4 = gsl_vector_get(x, 2);
+
+    // All other parameters
+    double E1 = par->E1;
+    double m1 = par->m1;
+    double m3 = par->m3;
+    double m4 = par->m4;
+    double s1 = par->s1;
+    double s2 = par->s2;
+    double phi3 = par->phi3;
+    double CosTheta3 = par->CosTheta3;
+    double CosTheta4 = par->CosTheta4;
+
+    // Derived quantities
+    double p1 = std::sqrt(E1*E1 - m1*m1);
+    double p3 = std::sqrt(E3*E3 - m3*m3);
+    double p4 = std::sqrt(E4*E4 - m4*m4);
+    double CosTheta43 = sin(acos(CosTheta3))*sin(acos(CosTheta4))*cos(phi4 - phi3) + CosTheta3*CosTheta4;
+
+    // F1, F2, F3 as in Mathematica
+    double F1 = 2 * (E3*(E1-E4) + p3*(p4*CosTheta43 - p1*CosTheta3)) - m4*m4;
+    double F2 = 2 * (E4*(E1-E3) + p4*(p3*CosTheta43 - p1*CosTheta4)) - m3*m3;
+    double F3 = 2 * (m3*m3 + m4*m4 + E3*E4 - p3*p4*CosTheta43);
+
+    // Residuals
+    double f1 = s1 - F1/pow(m1,2);
+    double f2 = s2 - F2/pow(m1,2);
+    double f3 = (1 - s1 - s2) - F3/pow(m1,2);
+
+    gsl_vector_set(f, 0, f1);
+    gsl_vector_set(f, 1, f2);
+    gsl_vector_set(f, 2, f3);
+
+    return GSL_SUCCESS;
+}
+
+int print_state (size_t iter, gsl_multiroot_fsolver * s) {
+  printf ("iter = %3u x = % .3f % .3f "
+          "f(x) = % .3e % .3e\n",
+          iter,
+          gsl_vector_get (s->x, 0),
+          gsl_vector_get (s->x, 1),
+          gsl_vector_get (s->x, 2),
+          gsl_vector_get (s->x, 1),
+          gsl_vector_get (s->f, 0),
+          gsl_vector_get (s->f, 1),
+          gsl_vector_get (s->f, 2));
 }
 
 namespace siren {
@@ -899,10 +975,13 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
 }
 
 // Jacobian to go between phi43 and CosTheta4 in the differnetial decay width
-double HNLDecay::ThreeBodyJacobian(double & theta3, double & theta4) const {
+double HNLDecay::ThreeBodyJacobian(double & CosTheta3, double & CosTheta4) const {
 
   // Small epsilon to prevent division by (almost) zero
   const double eps = 1e-12;
+
+  double theta3 = acos(CosTheta3);
+  double theta4 = acos(CosTheta4);
 
   double sin_t3 = sin(theta3);
   double sin_t4 = sin(theta4);
@@ -910,8 +989,8 @@ double HNLDecay::ThreeBodyJacobian(double & theta3, double & theta4) const {
       throw std::invalid_argument("sin(theta3) or sin(theta4) too close to zero");
   }
 
-  double cos_t3 = cos(theta3);
-  double cos_t4 = cos(theta4);
+  double cos_t3 = CosTheta3;
+  double cos_t4 = CosTheta4;
   double cot_t4 = cos_t4 / sin_t4;
   double csc_t3 = 1.0 / sin_t3;
   double csc_t4 = 1.0 / sin_t4;
@@ -941,7 +1020,7 @@ double HNLDecay::ThreeBodyJacobian(double & theta3, double & theta4) const {
 double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record,
                                                  int & alpha, int & beta,
                                                  double & m_alpha, double & m_beta,
-                                                 double & s1, double & s2, double & theta3, double & theta4) const {
+                                                 double & s1, double & s2, double & CosTheta3, double & CosTheta4) const {
 
   // appendix b
 
@@ -997,8 +1076,8 @@ double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord 
   double x3 = m_alpha/hnl_mass;
   double x4 = m_beta/hnl_mass;
   double A0sq = C1*(s2 - x3*x3) * (1 + x4*x4 - s2) + C2*(s1 - x4*x4)*(1 + x3*x3 - s1) + 2*C3*x3*x4*(s1 + s2 - x3*x3 - x4*x4);
-  double A1sq = (C4*(s2-x3*x3) - 2*C6*x3*x4)*sqrt(lambda(1,s2,x4*x4))*cos(theta4) + (C5*(s1-x4*x4) - 2*C6*x3*x4)*sqrt(lambda(1,s1,x3*x3))*cos(theta3);
-  double prefactor = pow(siren::utilities::Constants::FermiConstant,2)*pow(hnl_mass,5) / (128*pow(siren::utilities::Constants::pi,5))*ThreeBodyJacobian(theta3,theta4);
+  double A1sq = (C4*(s2-x3*x3) - 2*C6*x3*x4)*sqrt(lambda(1,s2,x4*x4))*CosTheta4 + (C5*(s1-x4*x4) - 2*C6*x3*x4)*sqrt(lambda(1,s1,x3*x3))*CosTheta3;
+  double prefactor = pow(siren::utilities::Constants::FermiConstant,2)*pow(hnl_mass,5) / (128*pow(siren::utilities::Constants::pi,5))*ThreeBodyJacobian(CosTheta3,CosTheta4);
   double GammaPlus = prefactor*(A0sq+A1sq);
   double GammaMinus = prefactor*(A0sq-A1sq);
   if (record.primary_helicity>0) return GammaPlus;
@@ -1133,13 +1212,85 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
         else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
 
 
+        // Make proposal function
+        auto proposal_func = [&] () {
+          return ThreeBodyPhaseSpaceProposalDistribution(m_alpha,m_beta,random);
+        };
+
+        // Make likelihood funciton
+        auto likelihood_func = [&] (std::vector<double> input) {
+          // assumes input = {s1,s2,Phi3,CosTheta3,CosTheta4}
+          return ThreeBodyDifferentialDecayWidth(record.record,alpha,beta,m_alpha,m_beta,input[0],input[1],input[3],input[4]);
+        };
+
+        std::vector<double> sampled_params = siren::utilities::MetropolisHasting_Sample(proposal_func,likelihood_func,random);
+
+        // For these events, we need to do a root solver to get E3, E4, and phi4
+        // We follow https://www.gnu.org/software/gsl/doc/html/multiroots.html
+
+        gsl_multiroot_function F;
+        ThreeBodyParams params = {
+          record.primary_momentum[0], // E1
+          hnl_mass, // m1
+          m_alpha, // m3
+          m_beta, // m4
+          sampled_params[0], // s1
+          sampled_params[1], // s2
+          sampled_params[2], // phi3
+          sampled_params[3], // CosTheta3
+          sampled_params[4], // CosTheta4
+        };
+        F.f = &ThreeBodySystem;
+        F.n = 3;
+        F.params = &params;
+
+        const gsl_multiroot_fsolver_type *T;
+        gsl_multiroot_fsolver *s;
+
+        int status;
+        size_t iter = 0;
+
+        gsl_vector *x = gsl_vector_alloc (F.n);
+
+        gsl_vector_set (x, 0, record.primary_momentum[0] / 2); // E3 guess
+        gsl_vector_set (x, 1, record.primary_momentum[0] / 2); // E4 guess
+        gsl_vector_set (x, 2, siren::utilities::Constants::pi/2); // phi guess
+
+        T = gsl_multiroot_fsolver_hybrids;
+        s = gsl_multiroot_fsolver_alloc (T, 3);
+        gsl_multiroot_fsolver_set (s, &F, x);
+
+        print_state (iter, s);
+
+        do
+          {
+            iter++;
+            status = gsl_multiroot_fsolver_iterate (s);
+
+            print_state (iter, s);
+
+            if (status)   /* check if solver is stuck */
+              break;
+
+            status =
+              gsl_multiroot_test_residual (s->f, 1e-7);
+          }
+        while (status == GSL_CONTINUE && iter < 1000);
+
+        printf ("status = %s\n", gsl_strerror (status));
+
+        gsl_multiroot_fsolver_free (s);
+        gsl_vector_free (x);
+
+
+
       }
 
     }
 
 }
 
-std::array<double,5> HNLDecay::ThreeBodyPhaseSpaceProposalDistribution(double & m_alpha, double & m_beta, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+std::vector<double> HNLDecay::ThreeBodyPhaseSpaceProposalDistribution(double & m_alpha, double & m_beta, std::shared_ptr<siren::utilities::SIREN_random> random) const {
   double s1_min = pow(m_alpha,2)/pow(hnl_mass,2);
   double s1_max = pow(hnl_mass-m_beta,2)/pow(hnl_mass,2);
 
