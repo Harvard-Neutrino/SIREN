@@ -34,6 +34,7 @@ void register_HNLDecay(pybind11::module_ & m) {
         .def("GetPossibleSignatures",&HNLDecay::GetPossibleSignatures)
         .def("GetPossibleSignaturesFromParent",&HNLDecay::GetPossibleSignaturesFromParent)
         .def("FinalStateProbability",&HNLDecay::FinalStateProbability)
+        .def("SampleFinalState",&HNLDecay::SampleFinalState);
         ;
 
     enum_<HNLDecay::ChiralNature>(HNLDecay, "ChiralNature")
