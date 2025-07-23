@@ -12,6 +12,9 @@
 
 #include <gsl/gsl_integration.h>
 
+#include <rk/rk.hh>
+#include <rk/geom3.hh>
+
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
@@ -92,9 +95,10 @@ public:
     double CCMesonDecayWidth(dataclasses::InteractionRecord const &) const;
     double NCMesonDecayWidth(dataclasses::InteractionRecord const &) const;
     // Helper functions for three body decays
-    double ThreeBodyJacobian(double & CosTheta3, double & CosTheta4) const;
+    double ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record, int & alpha, int & beta, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & Phi4_HNLRest) const;
     double ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record, int & alpha, int & beta, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3, double & CosTheta4) const;
     std::vector<double> ThreeBodyPhaseSpaceProposalDistribution(double & m_alpha, double & m_beta, std::shared_ptr<siren::utilities::SIREN_random> random) const;
+    std::tuple<rk::P4,rk::P4> ThreeBodyPhaseSpaceConversion(dataclasses::InteractionRecord const & record, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & Phi4_HNLRest) const;
 public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
