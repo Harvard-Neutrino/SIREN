@@ -3,7 +3,6 @@
 #include <cmath>
 
 #include <gsl/gsl_integration.h>
-#include <gsl/gsl_multiroots.h>
 
 #include <rk/rk.hh>
 #include <rk/geom3.hh>
@@ -212,77 +211,6 @@ double GammaHadronsNC(double U, double m_N) {
     Gamma_qq += sqrt(x) * GammaQuarksNC(U, m_N, quark_masses[dnquark], 3, "qdown");
   }
   return Gamma_qq;
-}
-
-// Functions to properly sample the three body dilepton decays
-
-struct ThreeBodyParams {
-  double E1;
-  double m1;
-  double m3;
-  double m4;
-  double s1;
-  double s2;
-  double phi3;
-  double CosTheta3;
-  double CosTheta4;
-};
-
-// Derived sort of following this:
-// https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
-int ThreeBodySystem(const gsl_vector *x, void *p, gsl_vector *f) {
-    auto *par = static_cast<ThreeBodyParams*>(p);
-
-    // Assign variables
-    double E3 = gsl_vector_get(x, 0);
-    double E4 = gsl_vector_get(x, 1);
-    double phi4 = gsl_vector_get(x, 2);
-
-    // All other parameters
-    double E1 = par->E1;
-    double m1 = par->m1;
-    double m3 = par->m3;
-    double m4 = par->m4;
-    double s1 = par->s1;
-    double s2 = par->s2;
-    double phi3 = par->phi3;
-    double CosTheta3 = par->CosTheta3;
-    double CosTheta4 = par->CosTheta4;
-
-    // Derived quantities
-    double p1 = std::sqrt(E1*E1 - m1*m1);
-    double p3 = std::sqrt(E3*E3 - m3*m3);
-    double p4 = std::sqrt(E4*E4 - m4*m4);
-    double CosTheta43 = sin(acos(CosTheta3))*sin(acos(CosTheta4))*cos(phi4 - phi3) + CosTheta3*CosTheta4;
-
-    // F1, F2, F3 as in Mathematica
-    double F1 = 2 * (E3*(E1-E4) + p3*(p4*CosTheta43 - p1*CosTheta3)) - m4*m4;
-    double F2 = 2 * (E4*(E1-E3) + p4*(p3*CosTheta43 - p1*CosTheta4)) - m3*m3;
-    double F3 = 2 * (m3*m3 + m4*m4 + E3*E4 - p3*p4*CosTheta43);
-
-    // Residuals
-    double f1 = s1 - F1/pow(m1,2);
-    double f2 = s2 - F2/pow(m1,2);
-    double f3 = (1 - s1 - s2) - F3/pow(m1,2);
-
-    gsl_vector_set(f, 0, f1);
-    gsl_vector_set(f, 1, f2);
-    gsl_vector_set(f, 2, f3);
-
-    return GSL_SUCCESS;
-}
-
-int print_state (size_t iter, gsl_multiroot_fsolver * s) {
-  printf ("iter = %3u x = % .3f % .3f "
-          "f(x) = % .3e % .3e\n",
-          iter,
-          gsl_vector_get (s->x, 0),
-          gsl_vector_get (s->x, 1),
-          gsl_vector_get (s->x, 2),
-          gsl_vector_get (s->x, 1),
-          gsl_vector_get (s->f, 0),
-          gsl_vector_get (s->f, 1),
-          gsl_vector_get (s->f, 2));
 }
 
 namespace siren {
@@ -957,12 +885,10 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
         // let's get the phase space variables
         double s1 = (k2+k3).dot(k2+k3) / pow(hnl_mass,2);
         double s2 = (k2+k4).dot(k2+k4) / pow(hnl_mass,2);
-        double theta3 = k3.momentum().theta() - k1.momentum().theta(); // relative to the HNL theta
-        //double phi3 = k3.momentum().phi() - k1.momentum().phi(); // relative to the HNL phi
-        //double phi43 = k4.momentum().phi() - k3.momentum().phi(); // relative between k4 and k3
-        double theta4 = k4.momentum().theta() - k1.momentum().theta(); // relative to the HNL theta
+        double CosTheta3 = k1.momentum().direction().dot(k3.momentum().direction()); // Angle between HNL and k3 in lab frame
+        double CosTheta4 = k1.momentum().direction().dot(k4.momentum().direction()); // Angle between HNL and k4 in lab frame
 
-        return ThreeBodyDifferentialDecayWidth(record, alpha, beta, m_alpha, m_beta, s1, s2, theta3, theta4);
+        return ThreeBodyDifferentialDecayWidth(record, alpha, beta, m_alpha, m_beta, s1, s2, CosTheta3, CosTheta4);
       }
     }
     else
@@ -970,119 +896,6 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
       std::cerr << "Too many final state particles in HNL decay\n";
       exit(0);
     }
-
-
-}
-
-// Jacobian to go between phi43 and CosTheta4 in the differnetial decay width
-double HNLDecay::ThreeBodyJacobian(double & CosTheta3, double & CosTheta4) const {
-
-  // Small epsilon to prevent division by (almost) zero
-  const double eps = 1e-12;
-
-  double theta3 = acos(CosTheta3);
-  double theta4 = acos(CosTheta4);
-
-  double sin_t3 = sin(theta3);
-  double sin_t4 = sin(theta4);
-  if (abs(sin_t3) < eps || abs(sin_t4) < eps) {
-      throw std::invalid_argument("sin(theta3) or sin(theta4) too close to zero");
-  }
-
-  double cos_t3 = CosTheta3;
-  double cos_t4 = CosTheta4;
-  double cot_t4 = cos_t4 / sin_t4;
-  double csc_t3 = 1.0 / sin_t3;
-  double csc_t4 = 1.0 / sin_t4;
-
-  double cos_diff = cos(theta3 - theta4);
-  double sin_diff = sin(theta3 - theta4);
-
-  // Numerator parts
-  double A = (cos_diff - cos_t3 * cos_t4) * cot_t4 * csc_t3 * csc_t4;
-  double B = csc_t3 * csc_t4 * (sin_diff + cos_t3 * sin_t4);
-  double numerator = -(A - B);
-  numerator *= -csc_t4; // Jacobian for theta4 -> CosTheta4
-
-  // Denominator
-  double inner_denom = 1.0 - pow((cos_diff - cos_t3 * cos_t4) * csc_t3 * csc_t4, 2.0);
-  if (inner_denom < 0.0) inner_denom = 0.0; // to prevent NaN from negative rounding
-  double denominator = sqrt(inner_denom);
-
-  if (denominator < eps)
-      throw std::runtime_error("Jacobian denominator too close to zero");
-
-  return numerator / denominator;
-}
-
-// follows 3.13 of 1905.00284v2 and subsequent sections
-// change dPhi43 to dCosTheta4 using the Jacobian
-double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record,
-                                                 int & alpha, int & beta,
-                                                 double & m_alpha, double & m_beta,
-                                                 double & s1, double & s2, double & CosTheta3, double & CosTheta4) const {
-
-  // appendix b
-
-  double gL = -1./2 + siren::utilities::Constants::thetaWeinberg;
-  double gR = siren::utilities::Constants::thetaWeinberg;
-
-  double C1nu,C2nu,C3nu,C4nu,C5nu,C6nu = 0;
-  double C1nubar,C2nubar,C3nubar,C4nubar,C5nubar,C6nubar = 0;
-
-  for(int gamma = 0; gamma < 3; ++gamma) {
-    C1nu += pow(mixing[gamma],2)*((alpha==beta)*pow(gL,2) + (gamma==alpha)*(1 + (alpha==beta)*gL));
-    C2nu += (alpha==beta)*pow(gR,2)*pow(mixing[gamma],2);
-    C3nu += (alpha==beta)*gR*pow(mixing[gamma],2)*((gamma==beta)+gL);
-    C1nubar += (alpha==beta)*pow(gR,2)*pow(mixing[gamma],2);
-    C2nubar += pow(mixing[gamma],2)*((alpha==beta)*pow(gL,2) + (gamma==beta)*(1 + (alpha==beta)*gL));
-    C3nubar += (alpha==beta)*gR*pow(mixing[gamma],2)*((gamma==alpha)+gL);
-  }
-  C4nu = C1nu;
-  C5nu = C2nu;
-  C6nu = C3nu;
-  C4nubar = -C1nubar;
-  C5nubar = -C2nubar;
-  C6nubar = -C3nubar;
-
-  double C1,C2,C3,C4,C5,C6;
-
-  if(nature==ChiralNature::Dirac) {
-    if(record.signature.primary_type==siren::dataclasses::ParticleType::N4) {
-      C1 = C1nu;
-      C2 = C2nu;
-      C3 = C3nu;
-      C4 = C4nu;
-      C5 = C5nu;
-      C6 = C6nu;
-    }
-    else if(record.signature.primary_type==siren::dataclasses::ParticleType::N4Bar) {
-      C1 = C1nubar;
-      C2 = C2nubar;
-      C3 = C3nubar;
-      C4 = C4nubar;
-      C5 = C5nubar;
-      C6 = C6nubar;
-    }
-  }
-  else if (nature==ChiralNature::Majorana) {
-    C1 = C1nu+C1nubar;
-    C2 = C2nu+C2nubar;
-    C3 = C3nu+C3nubar;
-    C4 = C4nu+C4nubar;
-    C5 = C5nu+C5nubar;
-    C6 = C6nu+C6nubar;
-  }
-  double x3 = m_alpha/hnl_mass;
-  double x4 = m_beta/hnl_mass;
-  double A0sq = C1*(s2 - x3*x3) * (1 + x4*x4 - s2) + C2*(s1 - x4*x4)*(1 + x3*x3 - s1) + 2*C3*x3*x4*(s1 + s2 - x3*x3 - x4*x4);
-  double A1sq = (C4*(s2-x3*x3) - 2*C6*x3*x4)*sqrt(lambda(1,s2,x4*x4))*CosTheta4 + (C5*(s1-x4*x4) - 2*C6*x3*x4)*sqrt(lambda(1,s1,x3*x3))*CosTheta3;
-  double prefactor = pow(siren::utilities::Constants::FermiConstant,2)*pow(hnl_mass,5) / (128*pow(siren::utilities::Constants::pi,5))*ThreeBodyJacobian(CosTheta3,CosTheta4);
-  double GammaPlus = prefactor*(A0sq+A1sq);
-  double GammaMinus = prefactor*(A0sq-A1sq);
-  if (record.primary_helicity>0) return GammaPlus;
-  else if (record.primary_helicity<0) return GammaMinus;
-  return 0; // no such thing is scalar HNLs!
 
 }
 
@@ -1211,6 +1024,10 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
           {m_beta = siren::utilities::Constants::tauMass; beta = 2;}
         else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
 
+        siren::dataclasses::SecondaryParticleRecord & nu = record.GetSecondaryParticleRecord(0);
+        siren::dataclasses::SecondaryParticleRecord & lep_alpha = record.GetSecondaryParticleRecord(1);
+        siren::dataclasses::SecondaryParticleRecord & lep_beta = record.GetSecondaryParticleRecord(2);
+
 
         // Make proposal function
         auto proposal_func = [&] () {
@@ -1219,68 +1036,30 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
 
         // Make likelihood funciton
         auto likelihood_func = [&] (std::vector<double> input) {
-          // assumes input = {s1,s2,Phi3,CosTheta3,CosTheta4}
-          return ThreeBodyDifferentialDecayWidth(record.record,alpha,beta,m_alpha,m_beta,input[0],input[1],input[3],input[4]);
+          // assumes input = {s1,s2,CosTheta3_HNLRest,Phi3_HNLRest,Phi4_HNLRest}
+          return ThreeBodyDifferentialDecayWidth(record.record,alpha,beta,m_alpha,m_beta,input[0],input[1],input[2],input[3],input[4]);
         };
 
         std::vector<double> sampled_params = siren::utilities::MetropolisHasting_Sample(proposal_func,likelihood_func,random);
 
-        // For these events, we need to do a root solver to get E3, E4, and phi4
-        // We follow https://www.gnu.org/software/gsl/doc/html/multiroots.html
+        // TODO: go from sampled rest frame angles to lab frame. follow logic above
+        auto k3k4 = ThreeBodyPhaseSpaceConversion(record,m_alpha,m_beta,sampled_params[0],sampled_params[1],sampled_params[2],sampled_params[3],sampled_params[4]);
+        rk::P4 k3 = k3k4.first();
+        rk::P4 k4 = k3k4.second();
+        rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+        rk::P4 k2 = pHNL - k3 - k4;
 
-        gsl_multiroot_function F;
-        ThreeBodyParams params = {
-          record.primary_momentum[0], // E1
-          hnl_mass, // m1
-          m_alpha, // m3
-          m_beta, // m4
-          sampled_params[0], // s1
-          sampled_params[1], // s2
-          sampled_params[2], // phi3
-          sampled_params[3], // CosTheta3
-          sampled_params[4], // CosTheta4
-        };
-        F.f = &ThreeBodySystem;
-        F.n = 3;
-        F.params = &params;
+        nu.SetFourMomentum({k2.e(), k2.px(), k2.py(), k2.pz()});
+        nu.SetMass(0); // set manually
+        nu.SetHelicity(record.primary_helicity);
 
-        const gsl_multiroot_fsolver_type *T;
-        gsl_multiroot_fsolver *s;
+        lep_alpha.SetFourMomentum({k3.e(), k3.px(), k3.py(), k3.pz()});
+        lep_alpha.SetMass(k3.m());
+        lep_alpha.SetHelicity(record.primary_helicity); // I don't think this matters...
 
-        int status;
-        size_t iter = 0;
-
-        gsl_vector *x = gsl_vector_alloc (F.n);
-
-        gsl_vector_set (x, 0, record.primary_momentum[0] / 2); // E3 guess
-        gsl_vector_set (x, 1, record.primary_momentum[0] / 2); // E4 guess
-        gsl_vector_set (x, 2, siren::utilities::Constants::pi/2); // phi guess
-
-        T = gsl_multiroot_fsolver_hybrids;
-        s = gsl_multiroot_fsolver_alloc (T, 3);
-        gsl_multiroot_fsolver_set (s, &F, x);
-
-        print_state (iter, s);
-
-        do
-          {
-            iter++;
-            status = gsl_multiroot_fsolver_iterate (s);
-
-            print_state (iter, s);
-
-            if (status)   /* check if solver is stuck */
-              break;
-
-            status =
-              gsl_multiroot_test_residual (s->f, 1e-7);
-          }
-        while (status == GSL_CONTINUE && iter < 1000);
-
-        printf ("status = %s\n", gsl_strerror (status));
-
-        gsl_multiroot_fsolver_free (s);
-        gsl_vector_free (x);
+        lep_beta.SetFourMomentum({k4.e(), k4.px(), k4.py(), k4.pz()});
+        lep_beta.SetMass(k4.m());
+        lep_beta.SetHelicity(-1*record.primary_helicity); // I don't think this matters...
 
 
 
@@ -1288,31 +1067,6 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
 
     }
 
-}
-
-std::vector<double> HNLDecay::ThreeBodyPhaseSpaceProposalDistribution(double & m_alpha, double & m_beta, std::shared_ptr<siren::utilities::SIREN_random> random) const {
-  double s1_min = pow(m_alpha,2)/pow(hnl_mass,2);
-  double s1_max = pow(hnl_mass-m_beta,2)/pow(hnl_mass,2);
-
-  // sample s1 uniformly first
-  double s1 = random->Uniform(s1_min,s1_max);
-  double m23_2 = s1*pow(hnl_mass,2);
-
-  // Now follow section 3 of https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
-  // to get s2 * mN^2 = m24_2 = (k2 + k4)^2
-  // considering m2 = mnu = 0
-  double denom_term = sqrt((pow(hnl_mass,4) + pow((pow(m_beta,2) - m23_2),2) - 2*pow(hnl_mass,2)*(pow(m_beta,2) + m23_2)) * \
-                          (pow(m23_2 - pow(m_alpha,2),2)));
-  double num_term = m23_2*(pow(m_alpha,2) - m23_2) + pow(m_beta,2)*(m23_2 - pow(m_alpha,2)) + pow(hnl_mass,2)*(pow(m_alpha,2) + m23_2);
-  double m24_2_min = num_term - denom_term / (2*m23_2);
-  double m24_2_max = num_term + denom_term / (2*m23_2);
-  double s2 = random->Uniform(m24_2_min/pow(hnl_mass,2),m24_2_max/pow(hnl_mass,2));
-
-  // Now sample lab frame angles
-  double CosTheta3 = random->Uniform(-1,1);
-  double CosTheta4 = random->Uniform(-1,1);
-  double Phi3 = random->Uniform(0,2*siren::utilities::Constants::pi);
-  return {s1,s2,Phi3,CosTheta3,CosTheta4};
 }
 
 double HNLDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
@@ -1363,6 +1117,160 @@ void HNLDecay::SetGammaHadrons(double Gamma, std::string mode) {
   else {
     std::cerr << "Invalid Gamma Hadron mode " << mode << std::endl;
   }
+}
+
+//////////////////////////////
+// Three body decay class functions
+//////////////////////////////
+
+// follows 3.13 of 1905.00284v2 and subsequent sections
+// Takes as input lab frame angles
+// Process: N (k1) -> nu (k2) l_alpha- (k3) l_beta+ (k4)
+double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record,
+                                                 int & alpha, int & beta,
+                                                 double & m_alpha, double & m_beta,
+                                                 double & s1, double & s2,
+                                                 double & CosTheta3, double & CosTheta4) const {
+  // follow appendix b of 1905.00284v2
+  double gL = -1./2 + siren::utilities::Constants::thetaWeinberg;
+  double gR = siren::utilities::Constants::thetaWeinberg;
+
+  double C1nu,C2nu,C3nu,C4nu,C5nu,C6nu = 0;
+  double C1nubar,C2nubar,C3nubar,C4nubar,C5nubar,C6nubar = 0;
+
+  for(int gamma = 0; gamma < 3; ++gamma) {
+    C1nu += pow(mixing[gamma],2)*((alpha==beta)*pow(gL,2) + (gamma==alpha)*(1 + (alpha==beta)*gL));
+    C2nu += (alpha==beta)*pow(gR,2)*pow(mixing[gamma],2);
+    C3nu += (alpha==beta)*gR*pow(mixing[gamma],2)*((gamma==beta)+gL);
+    C1nubar += (alpha==beta)*pow(gR,2)*pow(mixing[gamma],2);
+    C2nubar += pow(mixing[gamma],2)*((alpha==beta)*pow(gL,2) + (gamma==beta)*(1 + (alpha==beta)*gL));
+    C3nubar += (alpha==beta)*gR*pow(mixing[gamma],2)*((gamma==alpha)+gL);
+  }
+  C4nu = C1nu;
+  C5nu = C2nu;
+  C6nu = C3nu;
+  C4nubar = -C1nubar;
+  C5nubar = -C2nubar;
+  C6nubar = -C3nubar;
+
+  double C1,C2,C3,C4,C5,C6;
+
+  if(nature==ChiralNature::Dirac) {
+    if(record.signature.primary_type==siren::dataclasses::ParticleType::N4) {
+      C1 = C1nu;
+      C2 = C2nu;
+      C3 = C3nu;
+      C4 = C4nu;
+      C5 = C5nu;
+      C6 = C6nu;
+    }
+    else if(record.signature.primary_type==siren::dataclasses::ParticleType::N4Bar) {
+      C1 = C1nubar;
+      C2 = C2nubar;
+      C3 = C3nubar;
+      C4 = C4nubar;
+      C5 = C5nubar;
+      C6 = C6nubar;
+    }
+  }
+  else if (nature==ChiralNature::Majorana) {
+    C1 = C1nu+C1nubar;
+    C2 = C2nu+C2nubar;
+    C3 = C3nu+C3nubar;
+    C4 = C4nu+C4nubar;
+    C5 = C5nu+C5nubar;
+    C6 = C6nu+C6nubar;
+  }
+  double x3 = m_alpha/hnl_mass;
+  double x4 = m_beta/hnl_mass;
+  double A0sq = C1*(s2 - x3*x3) * (1 + x4*x4 - s2) + C2*(s1 - x4*x4)*(1 + x3*x3 - s1) + 2*C3*x3*x4*(s1 + s2 - x3*x3 - x4*x4);
+  double A1sq = (C4*(s2-x3*x3) - 2*C6*x3*x4)*sqrt(lambda(1,s2,x4*x4))*CosTheta4 + (C5*(s1-x4*x4) - 2*C6*x3*x4)*sqrt(lambda(1,s1,x3*x3))*CosTheta3;
+  double prefactor = pow(siren::utilities::Constants::FermiConstant,2)*pow(hnl_mass,5) / (128*pow(siren::utilities::Constants::pi,5));
+  double GammaPlus = prefactor*(A0sq+A1sq);
+  double GammaMinus = prefactor*(A0sq-A1sq);
+  if (record.primary_helicity>0) return GammaPlus;
+  else if (record.primary_helicity<0) return GammaMinus;
+  return 0; // no such thing is scalar HNLs!
+}
+
+// Takes as input the sampled phase space variables in the rest frame
+// Returns k3 and k4 in the lab frame
+// Process: N (k1) -> nu (k2) l_alpha- (k3) l_beta+ (k4)
+std::tuple<rk::P4,rk::P4> HNLDecay::ThreeBodyPhaseSpaceConversion(dataclasses::InteractionRecord const & record, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & Phi4_HNLRest) const {
+
+
+  // Step 1: compute CosTheta4_HNLRest
+  double E3_HNLRest = (pow(hnl_mass,2) * (1 - s2) + pow(m_alpha,2)) / (2*hnl_mass);
+  double E4_HNLRest = (pow(hnl_mass,2) * (1 - s1) + pow(m_beta,2)) / (2*hnl_mass);
+  double p3_HNLRest = sqrt(E3_HNLRest*E3_HNLRest - m_alpha*m_alpha);
+  double p4_HNLRest = sqrt(E4_HNLRest*E4_HNLRest - m_beta*m_beta);
+  double s3 = (pow(m_alpha,2) + pow(m_beta,2)/pow(hnl_mass,2)) - s1 - s2;
+  double CosAlpha34_HNLRest = (E3_HNLRest*E4_HNLRest - 0.5 * (s3*pow(hnl_mass,2) - pow(m_alpha,2) - pow(m_beta,2))) / (p3_HNLRest*p4_HNLRest); // angle between k3 and k4 in HNL rest frame
+  // solve a quadratic equation to get x = CosTheta4_HNLRest
+  // A Sqrt(1 - x^2) + Bx - C = 0
+  double A = (1-pow(CosTheta3_HNLRest,2)) * pow(cos(Phi4_HNLRest-Phi3_HNLRest),2);
+  double B = CosTheta3_HNLRest;
+  double C = CosAlpha34_HNLRest;
+  // from mathematica
+  double term1 = B*C/(A*A + B*B);
+  double term2 = sqrt(pow(A,4) + A*A*B*B - A*A*C*C) / (A*A + B*B);
+  double CosTheta4_HNLRest = abs(term1+term2) <= 1 ? term1+term2 : term1-term2; // check for cos bounds
+  assert(abs(CosTheta4_HNLRest)<=1); // double check
+  double SinTheta3_HNLRest = sqrt(1-pow(CosTheta3_HNLRest,2));
+  double SinTheta4_HNLRest = sqrt(1-pow(CosTheta4_HNLRest,2));
+
+
+  // Step 2: boost to lab frame and compute lab-frame angles
+  assert(record.primary_mass==hnl_mass);
+  rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+  rk::Boost boost_to_lab = pHNL.labBoost();
+  rk::P4 k3_HNLRest(p3_HNLRest*geom3::Vector3(SinTheta3_HNLRest*cos(Phi3_HNLRest),SinTheta3_HNLRest*sin(Phi3_HNLRest),CosTheta3_HNLRest),m_alpha);
+  rk::P4 k4_HNLRest(p4_HNLRest*geom3::Vector3(SinTheta4_HNLRest*cos(Phi4_HNLRest),SinTheta4_HNLRest*sin(Phi4_HNLRest),CosTheta4_HNLRest),m_alpha);
+  rk::P4 k3 = k3_HNLRest.boost(boost_to_lab);
+  rk::P4 k4 = k4_HNLRest.boost(boost_to_lab);
+  return std::make_tuple<rk::P4,rk::P4>(k3,k4);
+}
+
+// Takes as input HNL rest frame angles
+// Process: N (k1) -> nu (k2) l_alpha- (k3) l_beta+ (k4)
+double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record, int & alpha, int & beta, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & Phi4_HNLRest) const {
+
+  auto k3k4 = ThreeBodyPhaseSpaceConversion(record,m_alpha,m_beta,s1,s2,CosTheta3_HNLRest,Phi3_HNLRest,Phi4_HNLRest);
+  rk::P4 k3 = k3k4.first();
+  rk::P4 k4 = k3k4.second();
+  double CosTheta3 = pHNL.momentum().direction().dot(k3.momentum().direction()); // Angle between HNL and k3 in lab frame
+  double CosTheta4 = pHNL.momentum().direction().dot(k4.momentum().direction()); // Angle between HNL and k4 in lab frame
+
+  // Call function based on lab frame angles
+  return ThreeBodyDifferentialDecayWidth(record,alpha,beta,m_alpha,m_beta,CosTheta3,CosTheta4);
+
+}
+
+// Samples three body phase space
+// s1, s2, CosTheta3, phi3, phi4 where angles are in HNL rest frame!
+std::vector<double> HNLDecay::ThreeBodyPhaseSpaceProposalDistribution(double & m_alpha, double & m_beta, std::shared_ptr<siren::utilities::SIREN_random> random) const {
+  double s1_min = pow(m_alpha,2)/pow(hnl_mass,2);
+  double s1_max = pow(hnl_mass-m_beta,2)/pow(hnl_mass,2);
+
+  // sample s1 uniformly first
+  double s1 = random->Uniform(s1_min,s1_max);
+  double m23_2 = s1*pow(hnl_mass,2);
+
+  // Now follow section 3 of https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
+  // to get s2 * mN^2 = m24_2 = (k2 + k4)^2
+  // considering m2 = mnu = 0
+  double denom_term = sqrt((pow(hnl_mass,4) + pow((pow(m_beta,2) - m23_2),2) - 2*pow(hnl_mass,2)*(pow(m_beta,2) + m23_2)) * \
+                          (pow(m23_2 - pow(m_alpha,2),2)));
+  double num_term = m23_2*(pow(m_alpha,2) - m23_2) + pow(m_beta,2)*(m23_2 - pow(m_alpha,2)) + pow(hnl_mass,2)*(pow(m_alpha,2) + m23_2);
+  double m24_2_min = num_term - denom_term / (2*m23_2);
+  double m24_2_max = num_term + denom_term / (2*m23_2);
+  double s2 = random->Uniform(m24_2_min/pow(hnl_mass,2),m24_2_max/pow(hnl_mass,2));
+
+  // Now sample lab frame angles
+  double CosTheta3 = random->Uniform(-1,1);
+  double Phi3 = random->Uniform(0,2*siren::utilities::Constants::pi);
+  double Phi4 = random->Uniform(0,2*siren::utilities::Constants::pi);
+  return {s1,s2,CosTheta3,Phi3,Phi4};
 }
 
 
