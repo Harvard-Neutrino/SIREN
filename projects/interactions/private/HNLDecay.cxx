@@ -874,9 +874,6 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
           {m_beta = siren::utilities::Constants::tauMass; beta = 2;}
         else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
 
-        double x_alpha = m_alpha/hnl_mass;
-        double x_beta = m_beta/hnl_mass;
-
         rk::P4 k1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), hnl_mass);
         rk::P4 k2(geom3::Vector3(record.secondary_momenta[0][1], record.secondary_momenta[0][2], record.secondary_momenta[0][3]), 0);
         rk::P4 k3(geom3::Vector3(record.secondary_momenta[1][1], record.secondary_momenta[1][2], record.secondary_momenta[1][3]), m_alpha);
@@ -1042,10 +1039,10 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
 
         std::vector<double> sampled_params = siren::utilities::MetropolisHasting_Sample(proposal_func,likelihood_func,random);
 
-        // TODO: go from sampled rest frame angles to lab frame. follow logic above
-        auto k3k4 = ThreeBodyPhaseSpaceConversion(record,m_alpha,m_beta,sampled_params[0],sampled_params[1],sampled_params[2],sampled_params[3],sampled_params[4]);
-        rk::P4 k3 = k3k4.first();
-        rk::P4 k4 = k3k4.second();
+        // Go from sampled rest frame angles to lab frame
+        std::pair<rk::P4,rk::P4> k3k4 = ThreeBodyPhaseSpaceConversion(record.record,m_alpha,m_beta,sampled_params[0],sampled_params[1],sampled_params[2],sampled_params[3],sampled_params[4]);
+        rk::P4 k3 = k3k4.first;
+        rk::P4 k4 = k3k4.second;
         rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
         rk::P4 k2 = pHNL - k3 - k4;
 
@@ -1135,8 +1132,8 @@ double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord 
   double gL = -1./2 + siren::utilities::Constants::thetaWeinberg;
   double gR = siren::utilities::Constants::thetaWeinberg;
 
-  double C1nu,C2nu,C3nu,C4nu,C5nu,C6nu = 0;
-  double C1nubar,C2nubar,C3nubar,C4nubar,C5nubar,C6nubar = 0;
+  double C1nu = 0,C2nu = 0,C3nu = 0,C4nu = 0,C5nu = 0,C6nu = 0;
+  double C1nubar = 0,C2nubar = 0,C3nubar = 0,C4nubar = 0,C5nubar = 0,C6nubar = 0;
 
   for(int gamma = 0; gamma < 3; ++gamma) {
     C1nu += pow(mixing[gamma],2)*((alpha==beta)*pow(gL,2) + (gamma==alpha)*(1 + (alpha==beta)*gL));
@@ -1153,7 +1150,7 @@ double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord 
   C5nubar = -C2nubar;
   C6nubar = -C3nubar;
 
-  double C1,C2,C3,C4,C5,C6;
+  double C1=0,C2=0,C3=0,C4=0,C5=0,C6=0;
 
   if(nature==ChiralNature::Dirac) {
     if(record.signature.primary_type==siren::dataclasses::ParticleType::N4) {
@@ -1196,7 +1193,7 @@ double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord 
 // Takes as input the sampled phase space variables in the rest frame
 // Returns k3 and k4 in the lab frame
 // Process: N (k1) -> nu (k2) l_alpha- (k3) l_beta+ (k4)
-std::tuple<rk::P4,rk::P4> HNLDecay::ThreeBodyPhaseSpaceConversion(dataclasses::InteractionRecord const & record, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & Phi4_HNLRest) const {
+std::pair<rk::P4,rk::P4> HNLDecay::ThreeBodyPhaseSpaceConversion(dataclasses::InteractionRecord const & record, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & Phi4_HNLRest) const {
 
 
   // Step 1: compute CosTheta4_HNLRest
@@ -1204,11 +1201,11 @@ std::tuple<rk::P4,rk::P4> HNLDecay::ThreeBodyPhaseSpaceConversion(dataclasses::I
   double E4_HNLRest = (pow(hnl_mass,2) * (1 - s1) + pow(m_beta,2)) / (2*hnl_mass);
   double p3_HNLRest = sqrt(E3_HNLRest*E3_HNLRest - m_alpha*m_alpha);
   double p4_HNLRest = sqrt(E4_HNLRest*E4_HNLRest - m_beta*m_beta);
-  double s3 = (pow(m_alpha,2) + pow(m_beta,2)/pow(hnl_mass,2)) - s1 - s2;
+  double s3 = 1 + (pow(m_alpha,2) + pow(m_beta,2))/pow(hnl_mass,2) - s1 - s2;
   double CosAlpha34_HNLRest = (E3_HNLRest*E4_HNLRest - 0.5 * (s3*pow(hnl_mass,2) - pow(m_alpha,2) - pow(m_beta,2))) / (p3_HNLRest*p4_HNLRest); // angle between k3 and k4 in HNL rest frame
   // solve a quadratic equation to get x = CosTheta4_HNLRest
   // A Sqrt(1 - x^2) + Bx - C = 0
-  double A = (1-pow(CosTheta3_HNLRest,2)) * pow(cos(Phi4_HNLRest-Phi3_HNLRest),2);
+  double A = sqrt(1-pow(CosTheta3_HNLRest,2)) * cos(Phi4_HNLRest-Phi3_HNLRest);
   double B = CosTheta3_HNLRest;
   double C = CosAlpha34_HNLRest;
   // from mathematica
@@ -1221,33 +1218,36 @@ std::tuple<rk::P4,rk::P4> HNLDecay::ThreeBodyPhaseSpaceConversion(dataclasses::I
 
 
   // Step 2: boost to lab frame and compute lab-frame angles
-  assert(record.primary_mass==hnl_mass);
+  assert(abs(record.primary_mass-hnl_mass)<1e-6);
   rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
   rk::Boost boost_to_lab = pHNL.labBoost();
   rk::P4 k3_HNLRest(p3_HNLRest*geom3::Vector3(SinTheta3_HNLRest*cos(Phi3_HNLRest),SinTheta3_HNLRest*sin(Phi3_HNLRest),CosTheta3_HNLRest),m_alpha);
   rk::P4 k4_HNLRest(p4_HNLRest*geom3::Vector3(SinTheta4_HNLRest*cos(Phi4_HNLRest),SinTheta4_HNLRest*sin(Phi4_HNLRest),CosTheta4_HNLRest),m_alpha);
   rk::P4 k3 = k3_HNLRest.boost(boost_to_lab);
   rk::P4 k4 = k4_HNLRest.boost(boost_to_lab);
-  return std::make_tuple<rk::P4,rk::P4>(k3,k4);
+  return std::make_pair(k3,k4);
 }
 
 // Takes as input HNL rest frame angles
 // Process: N (k1) -> nu (k2) l_alpha- (k3) l_beta+ (k4)
 double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record, int & alpha, int & beta, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & Phi4_HNLRest) const {
 
-  auto k3k4 = ThreeBodyPhaseSpaceConversion(record,m_alpha,m_beta,s1,s2,CosTheta3_HNLRest,Phi3_HNLRest,Phi4_HNLRest);
-  rk::P4 k3 = k3k4.first();
-  rk::P4 k4 = k3k4.second();
+  rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
+  std::pair<rk::P4,rk::P4> k3k4 = ThreeBodyPhaseSpaceConversion(record,m_alpha,m_beta,s1,s2,CosTheta3_HNLRest,Phi3_HNLRest,Phi4_HNLRest);
+  rk::P4 k3 = k3k4.first;
+  rk::P4 k4 = k3k4.second;
   double CosTheta3 = pHNL.momentum().direction().dot(k3.momentum().direction()); // Angle between HNL and k3 in lab frame
   double CosTheta4 = pHNL.momentum().direction().dot(k4.momentum().direction()); // Angle between HNL and k4 in lab frame
 
   // Call function based on lab frame angles
-  return ThreeBodyDifferentialDecayWidth(record,alpha,beta,m_alpha,m_beta,CosTheta3,CosTheta4);
+  return ThreeBodyDifferentialDecayWidth(record,alpha,beta,m_alpha,m_beta,s1,s2,CosTheta3,CosTheta4);
 
 }
 
 // Samples three body phase space
 // s1, s2, CosTheta3, phi3, phi4 where angles are in HNL rest frame!
+// s1 = (k2 + k3)^2 / mN^2
+// s2 = (k2 + k4)^2 / mN^2
 std::vector<double> HNLDecay::ThreeBodyPhaseSpaceProposalDistribution(double & m_alpha, double & m_beta, std::shared_ptr<siren::utilities::SIREN_random> random) const {
   double s1_min = pow(m_alpha,2)/pow(hnl_mass,2);
   double s1_max = pow(hnl_mass-m_beta,2)/pow(hnl_mass,2);
@@ -1256,20 +1256,49 @@ std::vector<double> HNLDecay::ThreeBodyPhaseSpaceProposalDistribution(double & m
   double s1 = random->Uniform(s1_min,s1_max);
   double m23_2 = s1*pow(hnl_mass,2);
 
-  // Now follow section 3 of https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
+  // Now follow section 3.2 of https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
   // to get s2 * mN^2 = m24_2 = (k2 + k4)^2
   // considering m2 = mnu = 0
-  double denom_term = sqrt((pow(hnl_mass,4) + pow((pow(m_beta,2) - m23_2),2) - 2*pow(hnl_mass,2)*(pow(m_beta,2) + m23_2)) * \
-                          (pow(m23_2 - pow(m_alpha,2),2)));
-  double num_term = m23_2*(pow(m_alpha,2) - m23_2) + pow(m_beta,2)*(m23_2 - pow(m_alpha,2)) + pow(hnl_mass,2)*(pow(m_alpha,2) + m23_2);
-  double m24_2_min = num_term - denom_term / (2*m23_2);
-  double m24_2_max = num_term + denom_term / (2*m23_2);
-  double s2 = random->Uniform(m24_2_min/pow(hnl_mass,2),m24_2_max/pow(hnl_mass,2));
+  // Namely, use eq 18 to find a quadratic eq a s2^s + b s2 + c = 0
+
+  double a = pow(hnl_mass, 6)*s1;
+
+  double b = ( pow(hnl_mass*hnl_mass * s1, 2)
+              + m_alpha*m_alpha * (hnl_mass*hnl_mass - m_beta*m_beta)
+              - hnl_mass*hnl_mass * s1 * (hnl_mass*hnl_mass + m_alpha*m_alpha + m_beta*m_beta)
+            ) * (hnl_mass*hnl_mass);
+
+  double c = (hnl_mass*hnl_mass * s1 * m_beta*m_beta * (hnl_mass*hnl_mass - m_alpha*m_alpha))
+            - (m_alpha*m_alpha * m_beta*m_beta * (hnl_mass*hnl_mass - m_alpha*m_alpha - m_beta*m_beta));
+
+  double s2_min = (-b - sqrt(b*b - 4*a*c))/(2*a);
+  double s2_max = (-b + sqrt(b*b - 4*a*c))/(2*a);
+  double s2 = random->Uniform(s2_min,s2_max);
 
   // Now sample lab frame angles
-  double CosTheta3 = random->Uniform(-1,1);
-  double Phi3 = random->Uniform(0,2*siren::utilities::Constants::pi);
-  double Phi4 = random->Uniform(0,2*siren::utilities::Constants::pi);
+  double discriminant = -1;
+  size_t n_tries = 0;
+  double CosTheta3,Phi3,Phi4;
+  double E3,E4,p3,p4,s3,CosAlpha34,A,B,C;
+  while (discriminant<0) {
+    n_tries++;
+    CosTheta3 = random->Uniform(-1,1);
+    Phi3 = random->Uniform(0,2*siren::utilities::Constants::pi);
+    Phi4 = random->Uniform(0,2*siren::utilities::Constants::pi);
+    E3 = (pow(hnl_mass,2) * (1 - s2) + pow(m_alpha,2)) / (2*hnl_mass);
+    E4 = (pow(hnl_mass,2) * (1 - s1) + pow(m_beta,2)) / (2*hnl_mass);
+    p3 = sqrt(E3*E3 - m_alpha*m_alpha);
+    p4 = sqrt(E4*E4 - m_beta*m_beta);
+    s3 = 1 + (pow(m_alpha,2) + pow(m_beta,2))/pow(hnl_mass,2) - s1 - s2;
+    CosAlpha34 = (E3*E4 - 0.5 * (s3*pow(hnl_mass,2) - pow(m_alpha,2) - pow(m_beta,2))) / (p3*p4); // angle between k3 and k4 in HNL rest frame
+    // solve a quadratic equation to get x = CosTheta4_HNLRest
+    // A Sqrt(1 - x^2) + Bx - C = 0
+    A = sqrt(1-pow(CosTheta3,2)) * cos(Phi4-Phi3);
+    B = CosTheta3;
+    C = CosAlpha34;
+    discriminant = pow(A,4) + A*A*B*B - A*A*C*C;
+  }
+  // std::cout << "Took " << n_tries << " to get a positive disc\n";
   return {s1,s2,CosTheta3,Phi3,Phi4};
 }
 
