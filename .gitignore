@@ -68,3 +68,6 @@ __pycache__/
 
 # output dirs
 output/
+
+# specific flux directory
+resources/Fluxes/T2K_Kaons
