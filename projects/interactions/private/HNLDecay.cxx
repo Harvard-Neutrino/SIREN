@@ -10,6 +10,7 @@
 #include <CRunDec3.1/CRunDec.h>
 
 #include "SIREN/dataclasses/Particle.h"
+#include "SIREN/dataclasses/ParticleMasses.h"
 
 #include "SIREN/math/Vector3D.h"
 
@@ -940,12 +941,15 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
       double phi = random->Uniform(0, 2.0 * M_PI);
       geom3::Rotation3 rand_rot(pHNL_dir, phi);
 
-      rk::P4 pX_HNLrest(hnl_mass/2.*geom3::Vector3(CosTheta,SinTheta,0),0);
+      double mX = siren::dataclasses::GetParticleMass(record.signature.secondary_types[X_index]);
+      double mLep = siren::dataclasses::GetParticleMass(record.signature.secondary_types[lep_index]);
+      double EX_HNLrest = (hnl_mass*hnl_mass + mX*mX - mLep*mLep) / (2.*hnl_mass);
+      rk::P4 pX_HNLrest(EX_HNLrest*geom3::Vector3(CosTheta,SinTheta,0),mX);
       pX_HNLrest.rotate(x_to_pHNL_rot);
       pX_HNLrest.rotate(rand_rot);
 
       rk::P4 pX = pX_HNLrest.boost(boost_to_lab);
-      rk::P4 pLep(pHNL.momentum() - pX.momentum(),0); // ensures the neutrino has zero mass, avoids rounding errors
+      rk::P4 pLep(pHNL.momentum() - pX.momentum(),mLep); // ensures the neutrino has zero mass, avoids rounding errors
 
       siren::dataclasses::SecondaryParticleRecord & X = record.GetSecondaryParticleRecord(X_index);
       siren::dataclasses::SecondaryParticleRecord & lep = record.GetSecondaryParticleRecord(lep_index);
