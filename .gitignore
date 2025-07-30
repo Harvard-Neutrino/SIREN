@@ -68,3 +68,8 @@ __pycache__/
 
 # output dirs
 output/
+
+# specific flux directory
+resources/fluxes/Atmospheric
+
+MoveToSpackPython.sh
