@@ -944,7 +944,7 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
       double mX = siren::dataclasses::GetParticleMass(record.signature.secondary_types[X_index]);
       double mLep = siren::dataclasses::GetParticleMass(record.signature.secondary_types[lep_index]);
       double EX_HNLrest = (hnl_mass*hnl_mass + mX*mX - mLep*mLep) / (2.*hnl_mass);
-      rk::P4 pX_HNLrest(EX_HNLrest*geom3::Vector3(CosTheta,SinTheta,0),mX);
+      rk::P4 pX_HNLrest(sqrt(pow(EX_HNLrest,2)-pow(mX,2))*geom3::Vector3(CosTheta,SinTheta,0),mX);
       pX_HNLrest.rotate(x_to_pHNL_rot);
       pX_HNLrest.rotate(rand_rot);
 
