@@ -323,7 +323,6 @@ endif()
 
 include(siren_python_package)
 
-
 # Export targets for use in downstream CMake projects
 # -----------------------------------------------------------------------------
 include(CMakePackageConfigHelpers)
@@ -346,6 +345,14 @@ install(EXPORT ${PROJECT_NAME}Config
   NAMESPACE ${PROJECT_NAME}::
   DESTINATION "${_config_dir}"
 )
+
+# Ensure the python_staging/siren directory exists before copying files in the python_package target
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/python_staging/siren)
+add_custom_target(create_python_staging_dir
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/python_staging/siren
+    COMMENT "Creating Python staging directory"
+)
+add_dependencies(python_package create_python_staging_dir)
 
 MESSAGE("")
 MESSAGE("Done!")

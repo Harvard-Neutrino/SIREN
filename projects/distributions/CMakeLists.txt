@@ -37,9 +37,12 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/PrimaryAreaDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/FixedTargetAreaDistribution.cxx
 
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/sampled_kinematics/SamplePrimaryKinematicsDistribution.cxx
+
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryVertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryPhysicalVertexDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryBoundedVertexDistribution.cxx
+
 )
 add_library(SIREN_distributions OBJECT ${distributions_SOURCES})
 set_property(TARGET SIREN_distributions PROPERTY POSITION_INDEPENDENT_CODE ON)
