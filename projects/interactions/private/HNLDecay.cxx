@@ -259,7 +259,10 @@ double HNLDecay::CCMesonDecayWidth(dataclasses::InteractionRecord const & record
   double GammaMeson = 0;
   if (proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::EMinus ||
       proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::MuMinus ||
-      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::TauMinus) {
+      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::TauMinus ||
+      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::EPlus ||
+      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::MuPlus ||
+      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::TauPlus) {
     for(auto meson : PlusChargedMesons) {
       proxyRecord.signature.secondary_types[1] = meson;
       GammaMeson += TotalDecayWidthForFinalState(proxyRecord);
@@ -283,7 +286,10 @@ double HNLDecay::NCMesonDecayWidth(dataclasses::InteractionRecord const & record
   dataclasses::InteractionRecord proxyRecord = record;
   assert(proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::NuE ||
          proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::NuMu ||
-         proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::NuTau);
+         proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::NuTau ||
+         proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::NuEBar ||
+         proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::NuMuBar ||
+         proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::NuTauBar);
   double GammaMeson = 0;
   for(auto meson : NeutralMesons) {
     proxyRecord.signature.secondary_types[1] = meson;
