@@ -59,6 +59,7 @@ double I1(double x, double y, double z) {
   gsl_integration_qags (&F, pow(sqrt(x)+sqrt(y),2), pow(1-sqrt(z),2), 0, 1e-5, 1000,
                         workspace, &result, &error);
   assert(error/result < 1e-3);
+  gsl_integration_workspace_free (workspace);
   return result;
 }
 
@@ -73,6 +74,7 @@ double I2(double x, double y, double z) {
   gsl_integration_qags (&F, pow(sqrt(y)+sqrt(z),2), pow(1-sqrt(x),2), 0, 1e-5, 1000,
                         workspace, &result, &error);
   assert(error/result < 1e-3);
+  gsl_integration_workspace_free (workspace);
   return result;
 }
 
@@ -111,6 +113,7 @@ double I(double xu, double xd, double xl) {
   gsl_integration_qags (&F, pow(xd+xl,2), pow(1-xu,2), 0, 1e-5, 1000,
                         workspace, &result, &error);
   assert(error/result < 1e-3);
+  gsl_integration_workspace_free (workspace);
   return result;
 }
 
