@@ -70,6 +70,7 @@ PYBIND11_MODULE(distributions,m) {
     .def(init<std::string>())
     .def(init<std::string, double>())
     .def("Sample",&PrimaryExternalDistribution::Sample)
+    .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
     .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
     .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability);
 
