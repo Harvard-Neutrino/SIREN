@@ -71,6 +71,12 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(PrimaryExternalDistribu
     PrimaryExternalDistribution(other.filename);
 }
 
+// Accounts for events above threshold only!
+int PrimaryExternalDistribution::GetPhysicalNumEvents()
+{
+    return input_data.size();
+}
+
 void PrimaryExternalDistribution::Sample(
         std::shared_ptr<siren::utilities::SIREN_random> rand,
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,
