@@ -49,6 +49,7 @@ void PrimaryExternalDistribution::LoadInputFile(std::string _filename)
             if (keys[ikey]=="E") {
                 if (stod(value) < emin) passed = false;
             }
+            ++ikey;
             tmp_data.push_back(stod(value));
         }
         if (passed) input_data.push_back(tmp_data);
