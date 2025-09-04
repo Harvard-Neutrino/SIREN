@@ -161,6 +161,32 @@ std::vector<double> Weighter::GetInteractionProbabilities(siren::dataclasses::In
     return int_probs;
 }
 
+std::vector<double> Weighter::GetSurvivalProbabilities(siren::dataclasses::InteractionTree const & tree, int i_inj) const {
+    // This allows the user to get the survival probabilities for each interaction
+    // Useful in the case that secondary interactions are restricted to fiducial volumes
+
+    std::vector<double> survival_probs;
+    for(auto const & datum : tree.tree) {
+        std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+        if(datum->depth() == 0) {
+            std::get<0>(bounds) = datum->record.primary_initial_position; // start location
+            std::get<1>(bounds) = std::get<0>(injectors[i_inj]->PrimaryInjectionBounds(datum->record)); // start of injection bounds
+            survival_probs.push_back(1 - primary_process_weighters[i_inj]->InteractionProbability(bounds, datum->record));
+        }
+        else {
+            try {
+                std::get<0>(bounds) = datum->record.primary_initial_position; // start location
+                std::get<1>(bounds) = std::get<0>(injectors[i_inj]->SecondaryInjectionBounds(datum->record)); // start of injection bounds
+                survival_probs.push_back(1 - secondary_process_weighter_maps[i_inj].at(datum->record.signature.primary_type)->InteractionProbability(bounds, datum->record));
+            } catch(const std::out_of_range& oor) {
+                std::cout << "Out of Range error: " << oor.what() << '\n';
+                return {};
+            }
+        }
+    }
+    return survival_probs;
+}
+
 void Weighter::SaveWeighter(std::string const & filename) const {
     std::ofstream os(filename+".siren_weighter", std::ios::binary);
     ::cereal::BinaryOutputArchive archive(os);
