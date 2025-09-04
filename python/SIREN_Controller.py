@@ -204,7 +204,7 @@ class SIREN_Controller:
         self.SetInjectionProcesses(primary_type,primary_injection_distributions,secondary_types,secondary_injection_distributions)
         self.SetPhysicalProcesses(primary_type,primary_physical_distributions,secondary_types,secondary_physical_distributions)
 
-    def InputDarkNewsModel(self, primary_type, table_dir, upscattering=True, decay=True, fill_tables_at_start=False, Emax=None, **kwargs):
+    def InputDarkNewsModel(self, primary_type, table_dir, upscattering=True, decay=True, fill_tables_at_start=False, Emax=None, fid_vol_secondary=True, **kwargs):
         """
         Sets up the relevant processes and cross section/decay objects related to a provided DarkNews model dictionary.
         Will handle the primary cross section collection as well as the entire list of secondary processes
@@ -278,7 +278,7 @@ class SIREN_Controller:
             secondary_physical_process.primary_type = secondary_type
 
             # Add the secondary position distribution
-            if self.fid_vol is not None:
+            if fid_vol_secondary and self.fid_vol is not None:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
                     _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
                 )
@@ -300,6 +300,43 @@ class SIREN_Controller:
         self.SetInteractions(
             primary_interaction_collection=primary_interaction_collection,
             secondary_interaction_collections=secondary_interaction_collections
+        )
+
+    def InputDarkNewsDecay(self, primary_type, table_dir, **kwargs):
+        """
+        Sets up the relevant processes and decay objects related to a provided DarkNews model dictionary.
+        Will handle the primary decay collection
+
+        :param _dataclasses.Particle.ParticleType primary_type: primary particle to be generated
+        :param string table_dir: Directory for storing cross section and decay tables
+        :param dict<str,val> kwargs: The dict of DarkNews model and cross section parameters
+        """
+        # Add nuclear targets to the model arguments
+        kwargs["nuclear_targets"] = self.GetDetectorModelTargets()[1]
+        # Initialize DarkNews cross sections and decays
+        self.DN_processes = PyDarkNewsInteractionCollection(
+            table_dir=table_dir, **kwargs
+        )
+
+        # Initialize primary InteractionCollection
+        # Loop over available cross sections and save those which match primary type
+        primary_decays = []
+        # Also keep track of the minimum decay width for defining the position distribution later
+        self.DN_min_decay_width = np.inf
+        for decay in self.DN_processes.decays:
+            if primary_type == _dataclasses.Particle.ParticleType(
+                decay.dec_case.nu_parent.pdgid
+            ):
+                primary_decays.append(decay)
+            total_decay_width = decay.TotalDecayWidth(primary_type)
+            if total_decay_width < self.DN_min_decay_width:
+                self.DN_min_decay_width = total_decay_width
+        primary_interaction_collection = _interactions.InteractionCollection(
+            primary_type, primary_decays
+        )
+
+        self.SetInteractions(
+            primary_interaction_collection=primary_interaction_collection
         )
 
     def GetFiducialVolume(self):
@@ -526,7 +563,7 @@ class SIREN_Controller:
     # if the weighter exists, calculate the event weight too
     def SaveEvents(self, filename, fill_tables_at_exit=True,
                    hdf5=True, parquet=True, siren_events=True, # filetypes to save events
-                   save_int_probs=False,save_int_params=False):
+                   save_int_probs=False,save_int_params=False,save_survival_probs=False):
 
         if siren_events:
             _dataclasses.SaveInteractionTrees(self.events, filename)
@@ -550,12 +587,15 @@ class SIREN_Controller:
             "num_daughters":[], # number of daughter interactions
         }
         if save_int_probs: datasets["int_probs"] = []
+        if save_survival_probs: datasets["survival_probs"] = []
         for ie, event in enumerate(self.events):
             print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             t0 = time.time()
             datasets["event_weight"].append(self.weighter.EventWeight(event) if hasattr(self,"weighter") else 0)
             if save_int_probs:
                 datasets["int_probs"].append(self.weighter.GetInteractionProbabilities(event)if hasattr(self,"weighter") else [])
+            if save_survival_probs:
+                datasets["survival_probs"].append(self.weighter.GetSurvivalProbabilities(event)if hasattr(self,"weighter") else [])
             datasets["event_weight_time"].append(time.time()-t0)
             datasets["event_gen_time"].append(self.gen_times[ie])
             datasets["event_global_time"].append(self.global_times[ie])

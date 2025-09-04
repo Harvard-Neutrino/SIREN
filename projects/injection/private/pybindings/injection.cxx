@@ -127,6 +127,7 @@ PYBIND11_MODULE(injection,m) {
     .def(init<std::vector<std::shared_ptr<Injector>>, std::string>())
     .def("EventWeight",&Weighter::EventWeight)
     .def("GetInteractionProbabilities",&Weighter::GetInteractionProbabilities, arg("tree"), arg("i_inj")=0)
+    .def("GetSurvivalProbabilities",&Weighter::GetSurvivalProbabilities, arg("tree"), arg("i_inj")=0)
     .def("SaveWeighter",&Weighter::SaveWeighter)
     .def("LoadWeighter",&Weighter::LoadWeighter)
     ;
