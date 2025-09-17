@@ -57,12 +57,12 @@ private:
 
 public:
     HNLDISFromSpline();
-    HNLDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> mixing, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    HNLDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> mixing, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
+    HNLDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> mixing, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+    HNLDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> mixing, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "m");
 
     void SetUnits(std::string units);
 
