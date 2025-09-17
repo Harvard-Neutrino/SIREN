@@ -95,12 +95,15 @@ HNLDipoleDISFromSpline::HNLDipoleDISFromSpline(std::string differential_filename
 }
 
 void HNLDipoleDISFromSpline::SetUnits(std::string units) {
+    // default units are inverse GeV, set by the units of the dipole coupling
     std::transform(units.begin(), units.end(), units.begin(),
         [](unsigned char c){ return std::tolower(c); });
     if(units == "cm") {
         unit = 1.0;
     } else if(units == "m") {
         unit = 10000.0;
+    } else if(units == "invgev") {
+        unit = 1./siren::utilities::Constants::invGeVsq_per_cmsq;
     } else {
         throw std::runtime_error("Cross section units not supported!");
     }
@@ -171,8 +174,8 @@ void HNLDipoleDISFromSpline::ReadParamsFromSplineTable() {
     }
 
     if(!q2_good) {
-        // assume 2 GeV^2 // TODO: fix?
-        minimum_Q2_ = 2;
+        // assume 1 GeV^2 to be compatible with NC DIS
+        minimum_Q2_ = 1;
     }
 
     if(!mass_good) {
@@ -264,7 +267,6 @@ double HNLDipoleDISFromSpline::TotalCrossSection(siren::dataclasses::Particle::P
         norm = std::pow(dipole_coupling_[1],2);
     else if (primary_type==siren::dataclasses::ParticleType::NuTau || primary_type==siren::dataclasses::ParticleType::NuTauBar)
         norm = std::pow(dipole_coupling_[2],2);
-    norm /= siren::utilities::Constants::invGeVsq_per_cmsq;
 
     return norm * unit * std::pow(10.0, log_xs);
 }
@@ -333,7 +335,6 @@ double HNLDipoleDISFromSpline::DifferentialCrossSection(siren::dataclasses::Part
         norm = std::pow(dipole_coupling_[1],2);
     else if (primary_type==siren::dataclasses::ParticleType::NuTau || primary_type==siren::dataclasses::ParticleType::NuTauBar)
         norm = std::pow(dipole_coupling_[2],2);
-    norm /= siren::utilities::Constants::invGeVsq_per_cmsq;
     return norm * unit * result;
 }
 

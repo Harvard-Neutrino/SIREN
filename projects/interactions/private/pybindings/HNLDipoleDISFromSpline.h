@@ -31,7 +31,7 @@ void register_HNLDipoleDISFromSpline(pybind11::module_ & m) {
                 arg("minimum_Q2"),
                 arg("primary_types"),
                 arg("target_types"),
-                arg("units") = std::string("cm"))
+                arg("units") = std::string("invGeV"))
         .def(init<std::vector<char>, std::vector<char>, double, std::vector<double>, double, double, std::vector<siren::dataclasses::ParticleType>, std::vector<siren::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_data"),
                 arg("differential_xs_data"),
@@ -41,7 +41,7 @@ void register_HNLDipoleDISFromSpline(pybind11::module_ & m) {
                 arg("minimum_Q2"),
                 arg("primary_types"),
                 arg("target_types"),
-                arg("units") = std::string("cm"))
+                arg("units") = std::string("invGeV"))
         .def(init<std::string, std::string, double, std::vector<double>, double, double, std::set<siren::dataclasses::ParticleType>, std::set<siren::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_filename"),
                 arg("differential_xs_filename"),
@@ -51,7 +51,7 @@ void register_HNLDipoleDISFromSpline(pybind11::module_ & m) {
                 arg("minimum_Q2"),
                 arg("primary_types"),
                 arg("target_types"),
-                arg("units") = std::string("cm"))
+                arg("units") = std::string("invGeV"))
         .def(init<std::string, std::string, double, std::vector<double>, std::set<siren::dataclasses::ParticleType>, std::set<siren::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_filename"),
                 arg("differential_xs_filename"),
@@ -59,7 +59,7 @@ void register_HNLDipoleDISFromSpline(pybind11::module_ & m) {
                 arg("dipole_coupling"),
                 arg("primary_types"),
                 arg("target_types"),
-                arg("units") = std::string("cm"))
+                arg("units") = std::string("invGeV"))
         .def(init<std::string, std::string, double, std::vector<double>, double, double, std::vector<siren::dataclasses::ParticleType>, std::vector<siren::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_filename"),
                 arg("differential_xs_filename"),
@@ -69,7 +69,7 @@ void register_HNLDipoleDISFromSpline(pybind11::module_ & m) {
                 arg("minimum_Q2"),
                 arg("primary_types"),
                 arg("target_types"),
-                arg("units") = std::string("cm"))
+                arg("units") = std::string("invGeV"))
         .def(init<std::string, std::string, double, std::vector<double>, std::vector<siren::dataclasses::ParticleType>, std::vector<siren::dataclasses::ParticleType>, std::string>(),
                 arg("total_xs_filename"),
                 arg("differential_xs_filename"),
@@ -77,7 +77,7 @@ void register_HNLDipoleDISFromSpline(pybind11::module_ & m) {
                 arg("dipole_coupling"),
                 arg("primary_types"),
                 arg("target_types"),
-                arg("units") = std::string("cm"))
+                arg("units") = std::string("invGeV"))
         .def(self == self)
         .def("TotalCrossSection",overload_cast<siren::dataclasses::InteractionRecord const &>(&HNLDipoleDISFromSpline::TotalCrossSection, const_))
         .def("TotalCrossSection",overload_cast<siren::dataclasses::ParticleType, double>(&HNLDipoleDISFromSpline::TotalCrossSection, const_))

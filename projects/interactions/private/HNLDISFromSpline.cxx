@@ -97,17 +97,17 @@ HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::strin
 }
 
 void HNLDISFromSpline::SetUnits(std::string units) {
-    // std::transform(units.begin(), units.end(), units.begin(),
-    //     [](unsigned char c){ return std::tolower(c); });
-    // if(units == "cm") {
-    //     unit = 1.0;
-    // } else if(units == "m") {
-    //     unit = 10000.0;
-    // } else {
-    //     throw std::runtime_error("Cross section units not supported!");
-    // }
-    // because I (Nick) am stupid and made the cross section splines in eV^-2 somehow...
-    unit = pow(siren::utilities::Constants::hbarc,2) / pow(siren::utilities::Constants::eV,2) / pow(siren::utilities::Constants::cm,2);
+    std::transform(units.begin(), units.end(), units.begin(),
+        [](unsigned char c){ return std::tolower(c); });
+    if(units == "cm") {
+        unit = 1.0;
+    } else if(units == "m") {
+        unit = 10000.0;
+    } else {
+        throw std::runtime_error("Cross section units not supported!");
+    }
+    // below is leftover code from when I (Nick) am stupid and made the cross section splines in eV^-2 somehow...
+    // unit = pow(siren::utilities::Constants::hbarc,2) / pow(siren::utilities::Constants::eV,2) / pow(siren::utilities::Constants::cm,2);
 }
 
 bool HNLDISFromSpline::equal(CrossSection const & other) const {
