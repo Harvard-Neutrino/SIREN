@@ -50,6 +50,11 @@ Particle PrimaryDistributionRecord::GetParticle() const {
     } catch(...) {
         p.helicity = 0;
     }
+    try{
+       p.injection_step_length = GetInjectionStepLength();
+    } catch(...) {
+        p.injection_step_length = 0;
+    }
     return p;
 }
 
@@ -151,6 +156,13 @@ double const & PrimaryDistributionRecord::GetHelicity() const {
     return helicity;
 }
 
+double const & PrimaryDistributionRecord::GetInjectionStepLength() const {
+    if (not injection_step_length_set) {
+        UpdateInjectionStepLength();
+    }
+    return injection_step_length;
+}
+
 void PrimaryDistributionRecord::SetParticle(Particle const & particle) {
     if(particle.id != id) {
         throw std::runtime_error("Cannot set particle with different ID!");
@@ -176,6 +188,9 @@ void PrimaryDistributionRecord::SetParticle(Particle const & particle) {
 
     helicity_set = true;
     helicity = particle.helicity;
+
+    injection_step_length_set = true;
+    injection_step_length = particle.injection_step_length;
 }
 
 void PrimaryDistributionRecord::SetMass(double mass) {
@@ -245,6 +260,10 @@ void PrimaryDistributionRecord::SetHelicity(double helicity) {
     this->helicity = helicity;
 }
 
+void PrimaryDistributionRecord::SetInjectionStepLength(double injection_step_length) {
+    injection_step_length_set = true;
+    this->injection_step_length = injection_step_length;
+}
 void PrimaryDistributionRecord::UpdateMass() const {
     if(mass_set)
         return;
@@ -591,6 +610,16 @@ void PrimaryDistributionRecord::UpdateInitialDistanceFromClosestApproach() const
     }
 }
 
+void PrimaryDistributionRecord::UpdateInjectionStepLength() const {
+    return;
+    // Skipping the actual check for now
+    if(injection_step_length_set) {
+        return;
+    } else {
+        throw std::runtime_error("Cannot calculate injection extent, it must be set!");
+    }
+}
+
 void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) const {
     record.signature.primary_type = type;
     record.primary_id = GetID();
@@ -609,6 +638,9 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) co
     try {
         record.primary_helicity = GetHelicity();
     } catch(std::runtime_error e) {}
+    try {
+        record.primary_injection_step_length = GetInjectionStepLength();
+    } catch(std::runtime_error e) {}
 }
 
 void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
@@ -619,6 +651,7 @@ void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
     record.primary_mass = GetMass();
     record.primary_momentum = GetFourMomentum();
     record.primary_helicity = GetHelicity();
+    record.primary_injection_step_length = GetInjectionStepLength();
 }
 
 /////////////////////////////////////////
@@ -1065,6 +1098,7 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         signature,
         primary_id,
         primary_initial_position,
+        primary_injection_step_length,
         primary_mass,
         primary_momentum,
         primary_helicity,
@@ -1082,6 +1116,7 @@ bool InteractionRecord::operator==(InteractionRecord const & other) const {
         other.signature,
         other.primary_id,
         other.primary_initial_position,
+        other.primary_injection_step_length,
         other.primary_mass,
         other.primary_momentum,
         other.primary_helicity,
@@ -1101,6 +1136,7 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         signature,
         primary_id,
         primary_initial_position,
+        primary_injection_step_length,
         primary_mass,
         primary_momentum,
         primary_helicity,
@@ -1118,6 +1154,7 @@ bool InteractionRecord::operator<(InteractionRecord const & other) const {
         other.signature,
         other.primary_id,
         other.primary_initial_position,
+        other.primary_injection_step_length,
         other.primary_mass,
         other.primary_momentum,
         other.primary_helicity,
@@ -1201,7 +1238,12 @@ std::string to_str(siren::dataclasses::PrimaryDistributionRecord const & record)
         ss << record.helicity << '\n';
     else
         ss << "unset\n";
-
+    
+    ss << tab << "InjectionStepLength: ";
+    if(record.injection_step_length_set)
+        ss << record.injection_step_length << '\n';
+    else
+        ss << "unset\n";
     ss << "]";
 
     return ss.str();
@@ -1232,6 +1274,8 @@ std::string to_repr(siren::dataclasses::PrimaryDistributionRecord const & record
         ss << ", interaction_vertex=(" << record.interaction_vertex.at(0) << ", " << record.interaction_vertex.at(1) << ", " << record.interaction_vertex.at(2) << ")";
     if(record.helicity_set)
         ss << ", helicity=" << record.helicity;
+    if(record.injection_step_length_set)
+        ss << ", injection_step_length=(" << record.injection_step_length;
 
     ss << ")";
 
@@ -1510,6 +1554,7 @@ std::string to_str(siren::dataclasses::InteractionRecord const & record) {
 
     ss << tab << "PrimaryID: " << to_repr(record.primary_id) << '\n';
     ss << tab << "PrimaryInitialPosition: " << record.primary_initial_position.at(0) << " " << record.primary_initial_position.at(1) << " " << record.primary_initial_position.at(2) << '\n';
+    ss << tab << "PrimaryInjectionStepLength " << record.primary_injection_step_length << '\n';
     ss << tab << "InteractionVertex: " << record.interaction_vertex.at(0) << " " << record.interaction_vertex.at(1) << " " << record.interaction_vertex.at(2) << '\n';
     ss << tab << "PrimaryMass: " << record.primary_mass << '\n';
     ss << tab << "PrimaryMomentum: " << record.primary_momentum.at(0) << " " << record.primary_momentum.at(1) << " " << record.primary_momentum.at(2) << " " << record.primary_momentum.at(3) << '\n';
@@ -1546,6 +1591,7 @@ std::string to_repr(siren::dataclasses::InteractionRecord const & record) {
     ss << ", ";
     ss << "primary_id=" << to_repr(record.primary_id) << ", ";
     ss << "primary_initial_position=(" << record.primary_initial_position.at(0) << ", " << record.primary_initial_position.at(1) << ", " << record.primary_initial_position.at(2) << "), ";
+    ss << "primary_injection_step_length=(" << record.primary_injection_step_length << ", ";
     ss << "interaction_vertex=(" << record.interaction_vertex.at(0) << ", " << record.interaction_vertex.at(1) << ", " << record.interaction_vertex.at(2) << "), ";
     ss << "primary_mass=" << record.primary_mass << ", ";
     ss << "primary_momentum=(" << record.primary_momentum.at(0) << ", " << record.primary_momentum.at(1) << ", " << record.primary_momentum.at(2) << ", " << record.primary_momentum.at(3) << "), ";
@@ -1587,4 +1633,3 @@ std::string to_repr(siren::dataclasses::InteractionRecord const & record) {
     ss << ")";
     return ss.str();
 }
-

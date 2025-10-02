@@ -19,7 +19,19 @@ void register_Decay(pybind11::module_ & m) {
     using namespace siren::interactions;
 
     class_<Decay, std::shared_ptr<Decay>, pyDecay, Interaction>(m, "Decay")
+        .def(init<>())
         .def("TotalDecayLength",&Decay::TotalDecayLength)
-        .def("TotalDecayLengthForFinalState",&Decay::TotalDecayLengthForFinalState);
+        .def("TotalDecayLengthForFinalState",&Decay::TotalDecayLengthForFinalState) //;
+
+        .def("TotalDecayWidth",overload_cast<siren::dataclasses::InteractionRecord const &>(&Decay::TotalDecayWidth, const_))
+        .def("TotalDecayWidth",overload_cast<siren::dataclasses::ParticleType>(&Decay::TotalDecayWidth, const_))
+        .def("TotalDecayWidthForFinalState",&Decay::TotalDecayWidthForFinalState)
+        .def("DifferentialDecayWidth",&Decay::DifferentialDecayWidth)
+        .def("GetPossibleSignatures",&Decay::GetPossibleSignatures)
+        .def("GetPossibleSignaturesFromParent",&Decay::GetPossibleSignaturesFromParent)
+        .def("DensityVariables",&Decay::DensityVariables)
+        .def("FinalStateProbability",&Decay::FinalStateProbability)
+        .def("SampleFinalState", (void (Decay::*)(siren::dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const)(&Decay::SampleFinalState))
+        ;
 
 }

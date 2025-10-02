@@ -164,48 +164,26 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
     if(std::isnan(record.interaction_vertex[0]) ||
        std::isnan(record.interaction_vertex[1]) ||
        std::isnan(record.interaction_vertex[2])) {
-        std::cout << "InjectionFailure: Interaction vertex contains NaN: [" 
-                  << record.interaction_vertex[0] << ", " 
-                  << record.interaction_vertex[1] << ", " 
-                  << record.interaction_vertex[2] << "]" << std::endl;
         throw(siren::utilities::InjectionFailure("No particle interaction!"));
     }
 
     std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
-    std::cout << "Possible targets: ";
-    for (auto const & target : possible_targets) {
-        std::cout << target << " ";
-    }
-    std::cout << std::endl;
-
+    
     siren::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
             record.interaction_vertex[2]);
-    std::cout << "Interaction vertex: [" 
-              << interaction_vertex.GetX() << ", " 
-              << interaction_vertex.GetY() << ", " 
-              << interaction_vertex.GetZ() << "]" << std::endl;
 
     siren::math::Vector3D primary_direction(
             record.primary_momentum[1],
             record.primary_momentum[2],
             record.primary_momentum[3]);
     primary_direction.normalize();
-    std::cout << "Primary direction: [" 
-              << primary_direction.GetX() << ", " 
-              << primary_direction.GetY() << ", " 
-              << primary_direction.GetZ() << "]" << std::endl;
+
 
     siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
-    std::cout << "Number of intersections: " << intersections.intersections.size() << std::endl;
 
     std::set<siren::dataclasses::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, DetectorPosition(record.interaction_vertex));
-    std::cout << "Available targets: ";
-    for (auto const & target : available_targets) {
-        std::cout << target << " ";
-    }
-    std::cout << std::endl;
 
     double total_prob = 0.0;
     double xsec_prob = 0.0;
@@ -221,7 +199,6 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
             if(possible_targets.find(target) != possible_targets.end()) {
                 // Get target density
                 double target_density = detector_model->GetParticleDensity(intersections, DetectorPosition(interaction_vertex), target);
-                std::cout << "Target: " << target << ", Density: " << target_density << std::endl;
                 // Loop over cross sections that have this target
                 std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
                 for(auto const & cross_section : target_cross_sections) {
@@ -232,8 +209,6 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
                         fake_record.target_mass = detector_model->GetTargetMass(target);
                         // Add total cross section times density to the total prob
                         fake_prob = target_density * cross_section->TotalCrossSection(fake_record);
-                        std::cout << "Signature: " << signature << ", Cross-section: " << cross_section->TotalCrossSection(fake_record) 
-                                  << ", Density * Cross-section: " << fake_prob << std::endl;
                         total_prob += fake_prob;
                         xsec_prob += fake_prob;
                         // Add total prob to probs
@@ -253,7 +228,6 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
                 fake_record.signature = signature;
                 // fake_prob has units of 1/cm to match cross section probabilities
                 fake_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
-                std::cout << "Decay signature: " << signature << ", Probability: " << fake_prob << std::endl;
                 total_prob += fake_prob;
                 // Add total prob to probs
                 probs.push_back(total_prob);
@@ -265,14 +239,11 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
         }
     }
 
-    std::cout << "Total probability: " << total_prob << std::endl;
     if(total_prob == 0) {
-        std::cout << "InjectionFailure: No valid interactions for this event!" << std::endl;
         throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
     }
     // Throw a random number
     double r = random->Uniform(0, total_prob);
-    std::cout << "Random number: " << r << std::endl;
     // Choose the target and cross section
     unsigned int index = 0;
     for(; (index+1 < probs.size()) and (r > probs[index]); ++index) {}
@@ -284,20 +255,15 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
             selected_prob += (i > 0 ? probs[i] - probs[i - 1] : probs[i]);
         }
     }
-    std::cout << "Selected target: " << record.signature.target_type 
-              << ", Selected signature: " << record.signature 
-              << ", Selected probability: " << selected_prob << std::endl;
+    
     if(selected_prob == 0) {
-        std::cout << "InjectionFailure: No valid interactions for this event!" << std::endl;
         throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
     }
     record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
     siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
     if(r <= xsec_prob) {
-        std::cout << "Sampling cross-section final state" << std::endl;
         matching_cross_sections[index]->SampleFinalState(xsec_record, random);
     } else {
-        std::cout << "Sampling decay final state" << std::endl;
         matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
     }
     xsec_record.Finalize(record);
