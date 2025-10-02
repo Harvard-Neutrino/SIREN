@@ -50,7 +50,6 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePrimaryKinematics
     size_t idx = std::distance(sum_weights_.begin(), it);
     siren::math::Vector3D pos = positions_[idx];
     siren::math::Vector3D dir = directions_[idx];
-    // Do not normalize dir as per user instruction; assume it's already a unit vector
     double step_length = weights_[idx];
     siren::math::Vector3D end = pos + step_length * dir;
     return {pos, end};
@@ -70,6 +69,7 @@ void SamplePrimaryKinematicsDistribution::Sample(
     double u = rand->Uniform(0, total_sum_weights_);
     auto it = std::lower_bound(sum_weights_.begin(), sum_weights_.end(), u);
     size_t idx = std::distance(sum_weights_.begin(), it);
+    double step_length = weights_[idx];
     double energy = energies_[idx];
     siren::math::Vector3D pos = positions_[idx];
     siren::math::Vector3D dir = directions_[idx];
@@ -80,6 +80,7 @@ void SamplePrimaryKinematicsDistribution::Sample(
     record.SetInitialPosition(position_array);
     record.SetInteractionVertex(position_array); // Interaction at spawn point
     record.SetDirection(direction_array);
+    record.SetInjectionStepLength(step_length);
 }
 
 double SamplePrimaryKinematicsDistribution::GenerationProbability(
@@ -106,20 +107,9 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePrimaryKinematics
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & interaction) const {
     siren::math::Vector3D vertex(interaction.interaction_vertex[0], interaction.interaction_vertex[1], interaction.interaction_vertex[2]);
-    // Find the index by matching the vertex position (with tolerance for floating-point comparison)
-    double tolerance = 1e-9;
-    auto it = std::find_if(positions_.begin(), positions_.end(), [&](const siren::math::Vector3D& p) {
-        return (p - vertex).magnitude() < tolerance;
-    });
-    if (it == positions_.end()) {
-        // If no match found, return default (e.g., {vertex, vertex})
-        return {vertex, vertex};
-    }
-    size_t idx = std::distance(positions_.begin(), it);
-    siren::math::Vector3D dir = directions_[idx];
-    // Do not normalize dir as per user instruction
-    double step_length = weights_[idx];
-    siren::math::Vector3D end = vertex + step_length * dir;
+    siren::math::Vector3D dir(interaction.primary_momentum[1], interaction.primary_momentum[2], interaction.primary_momentum[3]);
+    dir.normalize();
+    siren::math::Vector3D end = vertex + interaction.primary_injection_step_length*dir;
     return {vertex, end};
 }
 

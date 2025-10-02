@@ -1229,9 +1229,26 @@ std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(Ge
     return GetAvailableTargets(intersections, vertex);
 }
 
+// std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & vertex) const {
+//     int matID = GetContainingSector(intersections, vertex).material_id;
+//     std::vector<siren::dataclasses::ParticleType> particles = materials_.GetMaterialConstituents(matID);
+//     return std::set<siren::dataclasses::ParticleType>(particles.begin(), particles.end());
+// }
 std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & vertex) const {
-    int matID = GetContainingSector(intersections, vertex).material_id;
-    std::vector<siren::dataclasses::ParticleType> particles = materials_.GetMaterialConstituents(matID);
+    // Check if there are no intersections
+    if (intersections.intersections.empty()) {
+        return {};
+    }
+
+    DetectorSector const & sector = GetContainingSector(intersections, vertex);
+    // For decays or invalid sectors, return Decay as a placeholder
+    // Use GetMaterialConstituents to indirectly validate material_id
+    std::vector<siren::dataclasses::ParticleType> particles = materials_.GetMaterialConstituents(sector.material_id);
+    if (particles.empty()) {
+        std::cerr << "Warning: Invalid or decay-related sector material_id detected; returning Decay." << std::endl;
+        return {siren::dataclasses::ParticleType::Decay};
+    }
+
     return std::set<siren::dataclasses::ParticleType>(particles.begin(), particles.end());
 }
 
@@ -1759,4 +1776,3 @@ double DetectorModel::GetTargetMass(siren::dataclasses::ParticleType target) con
 }
 
 CEREAL_REGISTER_DYNAMIC_INIT(siren_DetectorModel);
-

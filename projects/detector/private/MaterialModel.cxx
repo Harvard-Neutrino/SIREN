@@ -423,6 +423,10 @@ int MaterialModel::GetNucleonContent(int code, int & strange_count, int & neutro
 }
 
 std::vector<siren::dataclasses::ParticleType> MaterialModel::GetMaterialConstituents(int material_id) const {
+    if (material_id < 0 || static_cast<size_t>(material_id) >= material_components_.size()) {
+        std::cerr << "Warning: Invalid material_id " << material_id << " requested in GetMaterialConstituents. Returning empty vector." << std::endl;
+        return {};
+    }
     std::vector<siren::dataclasses::ParticleType> particles;;
     particles.reserve(material_components_[material_id].size());
     for (auto const & component : material_components_[material_id]) {
@@ -497,4 +501,3 @@ double MaterialModel::GetEmpericalNuclearBindingEnergy(int strange_count, int ne
 }
 
 CEREAL_REGISTER_DYNAMIC_INIT(siren_MaterialModel);
-
