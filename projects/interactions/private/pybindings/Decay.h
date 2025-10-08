@@ -20,12 +20,12 @@ void register_Decay(pybind11::module_ & m) {
 
     class_<Decay, std::shared_ptr<Decay>, pyDecay, Interaction>(m, "Decay")
         .def(init<>())
-        .def("TotalDecayLength",&Decay::TotalDecayLength)
-        .def("TotalDecayLengthForFinalState",&Decay::TotalDecayLengthForFinalState) //;
+        .def("TotalDecayLengthAllFinalStates",&Decay::TotalDecayLengthAllFinalStates)
+        .def("TotalDecayLength",&Decay::TotalDecayLength) //;
 
-        .def("TotalDecayWidth",overload_cast<siren::dataclasses::InteractionRecord const &>(&Decay::TotalDecayWidth, const_))
-        .def("TotalDecayWidth",overload_cast<siren::dataclasses::ParticleType>(&Decay::TotalDecayWidth, const_))
-        .def("TotalDecayWidthForFinalState",&Decay::TotalDecayWidthForFinalState)
+        .def("TotalDecayWidthAllFinalStates",overload_cast<siren::dataclasses::InteractionRecord const &>(&Decay::TotalDecayWidthAllFinalStates, const_))
+        .def("TotalDecayWidthAllFinalStates",overload_cast<siren::dataclasses::ParticleType const &>(&Decay::TotalDecayWidthAllFinalStates, const_))
+        .def("TotalDecayWidth",&Decay::TotalDecayWidth)
         .def("DifferentialDecayWidth",&Decay::DifferentialDecayWidth)
         .def("GetPossibleSignatures",&Decay::GetPossibleSignatures)
         .def("GetPossibleSignaturesFromParent",&Decay::GetPossibleSignaturesFromParent)

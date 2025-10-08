@@ -51,7 +51,7 @@ double CrossSectionProbability(std::shared_ptr<siren::detector::DetectorModel co
       for(auto const & signature : signatures) {
         fake_record.signature = signature;
         // fake_prob has units of 1/cm to match cross section probabilities
-        double decay_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
+        double decay_prob = 1./(decay->TotalDecayLength(fake_record)/siren::utilities::Constants::cm);
         total_prob += decay_prob;
         if(signature == record.signature) {
             selected_final_state += decay_prob * decay->FinalStateProbability(record);

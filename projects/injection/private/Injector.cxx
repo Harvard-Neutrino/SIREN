@@ -227,7 +227,7 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
             for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
                 fake_record.signature = signature;
                 // fake_prob has units of 1/cm to match cross section probabilities
-                fake_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
+                fake_prob = 1./(decay->TotalDecayLength(fake_record)/siren::utilities::Constants::cm);
                 total_prob += fake_prob;
                 // Add total prob to probs
                 probs.push_back(total_prob);
