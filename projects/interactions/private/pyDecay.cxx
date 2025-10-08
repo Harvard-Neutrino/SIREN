@@ -45,7 +45,7 @@ double pyDecay::TotalDecayLengthAllFinalStates(dataclasses::InteractionRecord co
 }
 
 double pyDecay::TotalDecayLength(dataclasses::InteractionRecord const & interaction) const {
-    SELF_OVERRIDE_PURE(
+    SELF_OVERRIDE(
         self,
         Decay,
         double,
