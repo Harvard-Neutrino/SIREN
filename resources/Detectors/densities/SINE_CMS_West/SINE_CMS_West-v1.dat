@@ -24,7 +24,7 @@ object box        0 3.885 18369.406215972485    0 0 0      24.4 7.77 2.44    pan
 object box        0 3.885 18869.406215972485    0 0 0      24.4 7.77 2.44    panel_2     SCINTILLATOR    constant    1.043
 object box        0 3.885 19369.406215972485    0 0 0      24.4 7.77 2.44    panel_3     SCINTILLATOR    constant    1.043
 detector          0 3.885 18869.406215972485
-fiducial box      0 3.885 16869.406215972485    0 0 0      50 50 5000
+fiducial box      0 3.885 16869.406215972485    0 0 0      500 500 5000
 
 # Prototype detector: single shipping container
 # each is 12.2 m wide x 2.44 m deep x 2.59 m tall
