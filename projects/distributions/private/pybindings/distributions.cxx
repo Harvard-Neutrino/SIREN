@@ -114,10 +114,10 @@ PYBIND11_MODULE(distributions,m) {
     .def("Name",&PowerLaw::Name);
 
   class_<TabulatedFluxDistribution, std::shared_ptr<TabulatedFluxDistribution>, PrimaryEnergyDistribution>(m, "TabulatedFluxDistribution")
-    .def(init<std::string, bool>())
-    .def(init<double, double, std::string, bool>())
-    .def(init<std::vector<double>, std::vector<double>, bool>())
-    .def(init<double, double, std::vector<double>, std::vector<double>, bool>())
+    .def(init<std::string, bool, bool>())
+    .def(init<double, double, std::string, bool, bool>())
+    .def(init<std::vector<double>, std::vector<double>, bool, bool>())
+    .def(init<double, double, std::vector<double>, std::vector<double>, bool, bool>())
     .def("SampleEnergy",&TabulatedFluxDistribution::SampleEnergy)
     .def("GenerationProbability",&TabulatedFluxDistribution::GenerationProbability)
     .def("SetEnergyBounds",&TabulatedFluxDistribution::SetEnergyBounds)
@@ -223,6 +223,12 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",&CylinderVolumePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&CylinderVolumePositionDistribution::InjectionBounds)
     .def("Name",&CylinderVolumePositionDistribution::Name);
+
+  class_<SphereVolumePositionDistribution, std::shared_ptr<SphereVolumePositionDistribution>, VertexPositionDistribution>(m, "SphereVolumePositionDistribution")
+    .def(init<siren::geometry::Sphere>())
+    .def("GenerationProbability",&SphereVolumePositionDistribution::GenerationProbability)
+    .def("InjectionBounds",&SphereVolumePositionDistribution::InjectionBounds)
+    .def("Name",&SphereVolumePositionDistribution::Name);
 
   class_<ColumnDepthPositionDistribution, std::shared_ptr<ColumnDepthPositionDistribution>, VertexPositionDistribution>(m, "ColumnDepthPositionDistribution")
     .def(init<double, double, std::shared_ptr<DepthFunction>, std::set<siren::dataclasses::ParticleType>>())
