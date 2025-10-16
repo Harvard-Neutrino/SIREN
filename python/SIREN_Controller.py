@@ -38,12 +38,15 @@ def MergeInteractionCollections(primary_type,int_col_list):
 
 # Parent python class for handling event generation and weighting
 class SIREN_Controller:
-    def __init__(self, events_to_inject, experiment, seed=0):
+
+    def __init__(self, events_to_inject, experiment=None, detector_model_file=None, materials_model_file=None, seed=0):
         """
         SIREN controller class constructor.
         :param int event_to_inject: number of events to generate
-        :param str experiment: experiment name in string
-        :param int seed: Optional random number generator seed
+        :param str experiment: experiment name in string (default None)
+        :param str detector_model_file: path to the detector model file (default None)
+        :param str materials_model_file: path to the materials model file (default None)
+        :param int seed: Optional random number generator seed (default 0)
         """
 
         self.global_start = time.time()
@@ -60,12 +63,19 @@ class SIREN_Controller:
         # Empty list for our interaction trees
         self.events = []
 
-        # Find the density and materials files
-        materials_file = _util.get_material_model_path(experiment)
-        detector_model_file = _util.get_detector_model_path(experiment)
+
+        self.detector_model_file = detector_model_file
+        self.materials_model_file = materials_model_file
+        if experiment is not None:
+            # Find the density and materials files
+            self.materials_model_file = _util.get_material_model_path(experiment)
+            self.detector_model_file = _util.get_detector_model_path(experiment)
+        elif (self.detector_model_file is None or self.materials_model_file is None):
+            print("Must provide either an experiment name or both a detector model file and materials model file. Exiting")
+            exit(0)
 
         self.detector_model = _detector.DetectorModel()
-        self.detector_model.LoadMaterialModel(materials_file)
+        self.detector_model.LoadMaterialModel(materials_model_file)
         self.detector_model.LoadDetectorModel(detector_model_file)
 
         # Define the primary injection and physical process
@@ -343,8 +353,7 @@ class SIREN_Controller:
         """
         :return: identified fiducial volume for the experiment, None if not found
         """
-        detector_model_file = _util.get_detector_model_path(self.experiment)
-        with open(detector_model_file) as file:
+        with open(self.detector_model_file) as file:
             fiducial_line = None
             detector_line = None
             for line in file:
@@ -360,18 +369,25 @@ class SIREN_Controller:
             return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
         return None
 
-    def GetCylinderVolumePositionDistributionFromSector(self, sector_name):
+    def GetVolumePositionDistributionFromSector(self, sector_name):
         geo = self.GetDetectorSectorGeometry(sector_name)
         if geo is None:
             print("Sector %s not found. Exiting"%sector_name)
             exit(0)
-        # the position of this cylinder is in geometry coordinates
+        # the position is in geometry coordinates
         # must update to detector coordintes
         det_position = self.detector_model.GeoPositionToDetPosition(_detector.GeometryPosition(geo.placement.Position))
         det_rotation = geo.placement.Quaternion
         det_placement = _geometry.Placement(det_position.get(), det_rotation)
-        cylinder = _geometry.Cylinder(det_placement,geo.Radius,geo.InnerRadius,geo.Z)
-        return _distributions.CylinderVolumePositionDistribution(cylinder)
+        if type(geo)==_geometry.Cylinder:
+            cylinder = _geometry.Cylinder(det_placement,geo.Radius,geo.InnerRadius,geo.Z)
+            return _distributions.CylinderVolumePositionDistribution(cylinder)
+        elif type(geo)==_geometry.Sphere:
+            sphere = _geometry.Sphere(det_placement,geo.Radius,geo.InnerRadius)
+            return _distributions.SphereVolumePositionDistribution(sphere)
+        else:
+            print("Geometry type %s not supported for position distribution. Exiting"%str(type(geo)))
+            exit(0)
 
     def GetDetectorModelTargets(self):
         """
@@ -563,7 +579,8 @@ class SIREN_Controller:
     # if the weighter exists, calculate the event weight too
     def SaveEvents(self, filename, fill_tables_at_exit=True,
                    hdf5=True, parquet=True, siren_events=True, # filetypes to save events
-                   save_int_probs=False,save_int_params=False,save_survival_probs=False):
+                   save_int_probs=False,save_int_params=False,save_survival_probs=False,
+                   verbose=True):
 
         if siren_events:
             _dataclasses.SaveInteractionTrees(self.events, filename)
@@ -589,7 +606,7 @@ class SIREN_Controller:
         if save_int_probs: datasets["int_probs"] = []
         if save_survival_probs: datasets["survival_probs"] = []
         for ie, event in enumerate(self.events):
-            print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
+            if verbose: print("Saving Event %d/%d  " % (ie, len(self.events)), end="\r")
             t0 = time.time()
             datasets["event_weight"].append(self.weighter.EventWeight(event) if hasattr(self,"weighter") else 0)
             if save_int_probs:
