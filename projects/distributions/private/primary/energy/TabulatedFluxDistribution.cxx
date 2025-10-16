@@ -13,6 +13,7 @@
 
 namespace siren { namespace interactions { class InteractionCollection; } }
 namespace siren { namespace detector { class DetectorModel; } }
+namespace siren { namespace utilities { template<typename Function> struct TrapezoidalIntegrator;}}
 
 namespace siren {
 namespace distributions {
@@ -29,11 +30,15 @@ namespace {
 //---------------
 TabulatedFluxDistribution::TabulatedFluxDistribution() {}
 
-void TabulatedFluxDistribution::ComputeIntegral() {
+void TabulatedFluxDistribution::ComputeIntegral(bool romberg) {
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax);
+    if (romberg) {
+        integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax);
+    } else {
+        integral = siren::utilities::trapezoidIntegrate(energy_nodes, pdf_nodes);
+    }
 }
 
 void TabulatedFluxDistribution::LoadFluxTable() {
@@ -62,6 +67,7 @@ void TabulatedFluxDistribution::LoadFluxTable() {
             table_data.f.push_back(f);
 
             energy_nodes.push_back(x);
+            pdf_nodes.push_back(f);
         }
         // If no physical are manually set, use first/last entry of table
         if(not bounds_set) {
@@ -75,7 +81,7 @@ void TabulatedFluxDistribution::LoadFluxTable() {
 }
 
 void TabulatedFluxDistribution::LoadFluxTable(std::vector<double> & energies, std::vector<double> & flux) {
-    
+
     assert(energies.size()==flux.size());
 
     siren::utilities::TableData1D<double> table_data;
@@ -83,6 +89,7 @@ void TabulatedFluxDistribution::LoadFluxTable(std::vector<double> & energies, st
     table_data.x = energies;
     table_data.f = flux;
     energy_nodes = energies;
+    pdf_nodes = flux;
 
     // If no physical are manually set, use first/last entry of table
     if(not bounds_set) {
@@ -95,7 +102,7 @@ void TabulatedFluxDistribution::LoadFluxTable(std::vector<double> & energies, st
 double TabulatedFluxDistribution::unnormed_pdf(double energy) const {
     return fluxTable(energy);
 }
-    
+
 double TabulatedFluxDistribution::SampleUnnormedPDF(double energy) const {
     return unnormed_pdf(energy);
 }
@@ -128,7 +135,7 @@ void TabulatedFluxDistribution::ComputeCDF() {
        }
     );
     energies.push_back(energyMax);
-    
+
     // assign the energies vector so it's accessible outside of the function
     //cdf_energy_nodes = energies;
 
@@ -157,8 +164,8 @@ void TabulatedFluxDistribution::ComputeCDF() {
         double area = 0.5 * (p1 + p2) * (energies[i]-energies[i-1]);
         cdf_vector.push_back(cdf_vector.back() + area);
         cdf_energy_nodes.push_back(energies[i]);
-    } 
-    
+    }
+
 
     // find the max of CDF (should be 1 since we computed from normalized PDF)
     auto max_it = std::max_element(cdf_vector.begin(), cdf_vector.end());
@@ -175,7 +182,7 @@ void TabulatedFluxDistribution::ComputeCDF() {
     cdf = cdf_vector;
 
     siren::utilities::TableData1D<double> inverse_cdf_data;
-    inverse_cdf_data.x = cdf; 
+    inverse_cdf_data.x = cdf;
     inverse_cdf_data.f = cdf_energy_nodes;
 
 
@@ -199,7 +206,7 @@ void TabulatedFluxDistribution::SetEnergyBounds(double eMin, double eMax) {
     ComputeCDF();
 }
 
-TabulatedFluxDistribution::TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization)
+TabulatedFluxDistribution::TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization, bool romberg)
     : bounds_set(false)
     , fluxTableFilename(fluxTableFilename)
 {
@@ -207,14 +214,14 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(std::string fluxTableFilena
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    ComputeIntegral();
+    ComputeIntegral(romberg);
     if(has_physical_normalization)
         SetNormalization(integral);
-    
-    ComputeCDF(); 
+
+    ComputeCDF();
 }
 
-TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization)
+TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization, bool romberg)
     : energyMin(energyMin)
     , energyMax(energyMax)
     , bounds_set(true)
@@ -224,28 +231,28 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    ComputeIntegral();
+    ComputeIntegral(romberg);
     if(has_physical_normalization)
         SetNormalization(integral);
 
     ComputeCDF();
 }
 
-TabulatedFluxDistribution::TabulatedFluxDistribution(std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization)
+TabulatedFluxDistribution::TabulatedFluxDistribution(std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization, bool romberg)
     : bounds_set(false)
 {
     LoadFluxTable(energies,flux);
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    ComputeIntegral();
+    ComputeIntegral(romberg);
     if(has_physical_normalization)
         SetNormalization(integral);
 
     ComputeCDF();
 }
 
-TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization)
+TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization, bool romberg)
     : energyMin(energyMin)
     , energyMax(energyMax)
     , bounds_set(true)
@@ -254,7 +261,7 @@ TabulatedFluxDistribution::TabulatedFluxDistribution(double energyMin, double en
     std::function<double(double)> integrand = [&] (double x) -> double {
         return unnormed_pdf(x);
     };
-    ComputeIntegral();
+    ComputeIntegral(romberg);
     if(has_physical_normalization)
         SetNormalization(integral);
 

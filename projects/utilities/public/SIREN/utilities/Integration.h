@@ -174,7 +174,7 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
   unsigned int N1i,N2i;
   double h1i,h2i,c1,c2;
 
-  std::cout << a1 << " " << b1 << " " << a2 << " " << b2 << std::endl;
+  // std::cout << a1 << " " << b1 << " " << a2 << " " << b2 << std::endl;
 
   for(unsigned int i=0; i<maxIter; i++){
      N1i = pow(2,i)*N1;
@@ -202,6 +202,28 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
      prev_estimate = estimate;
   }
   throw(std::runtime_error("Simpson 2D integral failed to converge"));
+}
+
+/**
+* @brief Performs a simple trapezoid integration given a set of points.
+*
+* This routine is simple and not suitable for complicated functions, and relies on fixed points
+* provided by the user in contrast to the TrapezoidalIntegrator class.
+*
+* @param x the x points of the integration
+* @param y the y points of the integration
+*/
+inline double trapezoidIntegrate(std::vector<double>& x, std::vector<double>& y){
+   if(x.size()!=y.size())
+       throw(std::runtime_error("Integration x and y vectors must be the same size"));
+
+   double integral = 0;
+   for(unsigned int i=1; i<x.size(); i++){
+      double dx = x[i]-x[i-1];
+      double avg = 0.5*(y[i]+y[i-1]);
+      integral += dx*avg;
+   }
+   return integral;
 }
 
 }
