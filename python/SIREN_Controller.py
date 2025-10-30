@@ -75,8 +75,8 @@ class SIREN_Controller:
             exit(0)
 
         self.detector_model = _detector.DetectorModel()
-        self.detector_model.LoadMaterialModel(materials_model_file)
-        self.detector_model.LoadDetectorModel(detector_model_file)
+        self.detector_model.LoadMaterialModel(self.materials_model_file)
+        self.detector_model.LoadDetectorModel(self.detector_model_file)
 
         # Define the primary injection and physical process
         self.primary_injection_process = _injection.PrimaryInjectionProcess()
