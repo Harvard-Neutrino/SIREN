@@ -689,6 +689,10 @@ public:
         return indexer_x.Max();
     }
 
+    bool IsLogX() const {
+        return indexer_x.IsLog();
+    }
+
     T MinY() const {
         return indexer_y.Min();
     }
@@ -699,6 +703,10 @@ public:
 
     T MaxY() const {
         return indexer_y.Max();
+    }
+
+    bool IsLogY() const {
+        return indexer_y.IsLog();
     }
 };
 

@@ -6,7 +6,6 @@ import json
 import ntpath
 import pickle
 import functools
-import logging
 from scipy.interpolate import LinearNDInterpolator,PchipInterpolator
 
 # SIREN methods
@@ -70,7 +69,7 @@ class PyDarkNewsInteractionCollection:
         else:
             try:
                 os.makedirs(self.table_dir, exist_ok=False)
-                print("Directory '%s' created successfully" % self.table_dir)
+                #print("Directory '%s' created successfully" % self.table_dir)
             except OSError as error:
                 print("Directory '%s' cannot be created" % self.table_dir)
                 exit(0)
@@ -670,6 +669,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
 
         # Some variables for storing the decay phase space integrator
         self.decay_integrator = None
+        self.decay_dict = None
         self.decay_norm = None
         self.PS_samples = None
         self.PS_weights = None
@@ -703,6 +703,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
     # serialization method
     def get_representation(self):
         return {"decay_integrator":self.decay_integrator,
+                "decay_dict":self.decay_dict,
                 "decay_norm":self.decay_norm,
                 "dec_case":self.dec_case,
                 "PS_samples":self.PS_samples,
@@ -717,7 +718,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         int_file = os.path.join(self.table_dir, "decay_integrator.pkl")
         if os.path.isfile(int_file):
             with open(int_file, "rb") as ifile:
-                _, self.decay_integrator = pickle.load(ifile)
+                self.decay_dict, self.decay_integrator = pickle.load(ifile)
         # Try to find the normalization information
         norm_file = os.path.join(self.table_dir, "decay_norm.json")
         if os.path.isfile(norm_file):
@@ -833,7 +834,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
                     self.SetIntegratorAndNorm()
                 else:
                     self.total_width = (
-                        self.decay_integrator["diff_decay_rate_0"].mean
+                        self.decay_dict["diff_decay_rate_0"].mean
                         * self.decay_norm["diff_decay_rate_0"]
                     )
             else:
@@ -856,8 +857,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
             )
         ):
             return 0
-        ret = self.dec_case.total_width()
-        return ret
+        return self.TotalDecayWidth(record)
 
     def DensityVariables(self):
         if type(self.dec_case) == FermionSinglePhotonDecay:
@@ -915,7 +915,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         # Find the four-momenta associated with this point
         # Expand dims required to call DarkNews function on signle sample
         four_momenta = get_decay_momenta_from_vegas_samples(
-            np.expand_dims(PS, 0),
+            np.expand_dims(PS, 0).T,
             self.dec_case,
             np.expand_dims(np.array(record.primary_momentum), 0),
         )

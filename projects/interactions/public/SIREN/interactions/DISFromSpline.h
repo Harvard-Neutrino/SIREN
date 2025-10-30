@@ -47,9 +47,9 @@ private:
     std::map<std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
 
     int interaction_type_;
-    double target_mass_;
+    double target_mass_ = 0;
     double minimum_Q2_;
-    
+    double minimum_W2_;
     double unit;
 
 public:
@@ -60,7 +60,7 @@ public:
     DISFromSpline(std::string differential_filename, std::string total_filename, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
     DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
     DISFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    
+
     void SetUnits(std::string units);
 
     virtual bool equal(CrossSection const & other) const override;
@@ -150,6 +150,7 @@ public:
 private:
     void ReadParamsFromSplineTable();
     void InitializeSignatures();
+    void SetMinimiumW2();
 };
 
 } // namespace interactions

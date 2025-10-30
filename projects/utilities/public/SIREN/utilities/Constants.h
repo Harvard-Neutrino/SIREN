@@ -4,9 +4,10 @@
 
 #include <math.h> // pow function
 
-// Ben Smithers
+// Extend from previous LeptonInjector code written by Ben Smithers
 // benjamin.smithers@mavs.uta.edu
 
+// From Ben:
 // This header defines a lot of constants - not all actually used in this code.
 // This was, for the most part, just copied from previous code of mine
 
@@ -47,12 +48,32 @@ static const double Pi0Mass         = 0.1349770; // GeV
 static const double PiPlusMass      = 0.13957039; // GeV
 static const double PiMinusMass     = 0.13957039; // GeV
 static const double K0Mass          = 0.493614; // GeV
-static const double KplusMass       = 0.493677; // GeV
-static const double KminusMass      = 0.493677; // GeV
+static const double KPlusMass       = 0.493677; // GeV
+static const double KMinusMass      = 0.493677; // GeV
+static const double KPrime0Mass     = 0.89555; // GeV
+static const double KPrimePlusMass  = 0.89167; // GeV
+static const double KPrimeMinusMass = 0.89167; // GeV
+static const double D0Mass          = 1.86484; // GeV
+static const double DPlusMass       = 1.86966; // GeV
+static const double DMinusMass      = 1.86966; // GeV
+static const double DsPlusMass      = 1.96835; // GeV
+static const double DsMinusMass     = 1.96835; // GeV
 static const double EtaMass         = 0.547862; // GeV
 static const double EtaPrimeMass    = 0.95778;  // GeV
-static const double RhoMass         = 0.77526; // GeV
+static const double Rho0Mass        = 0.77526; // GeV
+static const double RhoPlusMass     = 0.77511; // GeV
+static const double RhoMinusMass    = 0.77511; // GeV
 static const double OmegaMass       = 0.78266; // GeV
+static const double PhiMass         = 1.019461; // GeV
+static const double BPlusMass       = 5.27932; // GeV
+static const double BMinusMass      = 5.27932; // GeV
+// Quark masses from https://pdg.lbl.gov/2020/reviews/rpp2020-rev-quark-masses.pdf
+static const double upMass          = 0.00232; // GeV
+static const double downMass        = 0.00471; // GeV
+static const double charmMass       = 1.280; // GeV
+static const double strangeMass     = 0.0929; // GeV
+static const double topMass         = 173.3; // GeV
+static const double bottomMass      = 4.198; // GeV
 
 // confusing units
 // static const double second          = 1.523e15; // [eV^-1 sec^-1]
@@ -102,7 +123,19 @@ static const double thetaWeinberg   = 0.2312; // dimensionless
 static const double gravConstant    = 6.6700e-11; // [m^3 kg^-1 s^-2]
 static const double fineStructure   = 1.0/137.0; // dimensionless
 static const double hbarc           = 197.3*(1e-9)*(1e-7)*GeV*cm; // [GeV m]
+static const double gweak           = 0.64; // Pg 588 of Schwartz
 
+// CKM matrix elements
+// from https://pdg.lbl.gov/2020/reviews/rpp2020-rev-ckm-matrix.pdf
+static const double Vud             = 0.9740;
+static const double Vcd             = 0.2263;
+static const double Vtd             = 0.0085;
+static const double Vus             = 0.2265;
+static const double Vcs             = 0.9732;
+static const double Vts             = 0.0397;
+static const double Vub             = 0.0036;
+static const double Vcb             = 0.0405;
+static const double Vtb             = 0.99917;
 
 } // namespace Constants
 } // namespace utilities

@@ -1,0 +1,7 @@
+#!/usr/bin/sh
+
+# compile examples
+# usage:   ./compile <file-name-without-cpp>
+# example: ./compile thr_masses
+
+g++ -std=c++11 -o bin/${1} examples/${1}.cpp CRunDec.cpp

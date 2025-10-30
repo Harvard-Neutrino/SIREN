@@ -6,12 +6,15 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/InteractionCollection.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/DipoleFromTable.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DarkNewsCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DarkNewsDecay.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/NeutrissimoDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DISFromSpline.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDipoleDecay.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDipoleFromTable.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDISFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDipoleDISFromSpline.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/HNLDecay.cxx
+    ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElectroweakDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/ElasticScattering.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
@@ -24,11 +27,14 @@ target_include_directories(SIREN_interactions PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/interactions/>
     ${PYTHON_INCLUDE_DIRS}
 )
-
+find_package(GSL REQUIRED)
 target_link_libraries(SIREN_interactions
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
+        $<BUILD_INTERFACE:crundec_static>
         pybind11::embed
+        GSL::gsl
+        GSL::gslcblas
     PUBLIC
         photospline
         SIREN_serialization
@@ -50,7 +56,7 @@ package_add_test(UnitTest_DipoleFromTable ${PROJECT_SOURCE_DIR}/projects/interac
 #package_add_test(UnitTest_ElasticScattering ${PROJECT_SOURCE_DIR}/projects/interactions/private/test/ElasticScattering_TEST.cxx)
 
 pybind11_add_module(interactions ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/interactions.cxx)
-target_link_libraries(interactions PRIVATE SIREN photospline rk_static pybind11::embed)
+target_link_libraries(interactions PRIVATE SIREN photospline rk_static crundec_static pybind11::embed GSL::gsl GSL::gslcblas)
 #pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
 #target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)
 if(DEFINED SKBUILD)
