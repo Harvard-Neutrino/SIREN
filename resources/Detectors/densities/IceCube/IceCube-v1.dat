@@ -8,6 +8,7 @@
 #   Uses PREM model of the Earth
 #   Assumes ice is a spherical cap on the earth
 #   Assumes IceCube is in clear ice
+#   DeepCore addition by N. Kamp
 
 object sphere    0 0 0   0 0 0    6478000    atmo_radius           AIR         radial_polynomial 0 0 0    1    0.000811   # 0.673atm x 1.205e-3(g/cm3 for 1atm)
 object sphere    0 0 0   0 0 0    6374134    iceair_boundary       ICE         radial_polynomial 0 0 0    1    0.762944   # surface of ice, 0.832 x 0.917
@@ -24,9 +25,19 @@ object sphere    0 0 0   0 0 0    1221500    innercore_boundary    INNERCORE   r
 
 # IceCube detector: 1km^3 cylinder of ice
 object cylinder  0 0 6372184  0 0 0  564.19 0 1000  icecube        ICE         radial_polynomial 0 0 0    1    0.921585  # same as rockice
+object cylinder  0 0 6372184  0 0 0  614.19 0 1100  icecube_shell  ICE         radial_polynomial 0 0 0    1    0.921585  # same as rockice
+
+# DeepCore detector: smaller cylinder in bottom half of the full array
+# rough approximation from https://arxiv.org/pdf/1109.6096 and https://wiki.icecube.wisc.edu/index.php/Surface_coordinates
+object cylinder  50 -50 6371859  0 0 0  150 0 350  deepcore        ICE         radial_polynomial 0 0 0    1    0.921585  # same as rockice
+object cylinder  50 -50 6371859  0 0 0  200 0 450  deepcore_shell  ICE         radial_polynomial 0 0 0    1    0.921585  # same as rockice
+
 
 # center of detector at IceCube
 detector      0 0 6372184
 
 # Fiducial volume
-fiducial cylinder    0 0 0     0 0 0    564.19 0 1000
+# This one is the 1km^3 detector
+# fiducial cylinder    0 0 0     0 0 0    564.19 0 1000
+# This one is a shell enlarged by 50m (effective scattering length)
+fiducial cylinder    0 0 0     0 0 0    664.19 0 1200
