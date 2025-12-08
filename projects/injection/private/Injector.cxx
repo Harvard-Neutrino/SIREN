@@ -12,6 +12,8 @@
 #include "SIREN/interactions/DarkNewsCrossSection.h"
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/interactions/Decay.h"
+#include "SIREN/interactions/Hadronization.h"
+
 #include "SIREN/dataclasses/DecaySignature.h"
 #include "SIREN/dataclasses/InteractionSignature.h"
 #include "SIREN/dataclasses/Particle.h"
@@ -157,6 +159,8 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
         throw(siren::utilities::InjectionFailure("No particle interaction!"));
     }
 
+    ////std::cout << "in sample cross section" << std::endl;
+
     std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
 
     siren::math::Vector3D interaction_vertex(
@@ -180,78 +184,122 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
     std::vector<siren::dataclasses::InteractionSignature> matching_signatures;
     std::vector<std::shared_ptr<siren::interactions::CrossSection>> matching_cross_sections;
     std::vector<std::shared_ptr<siren::interactions::Decay>> matching_decays;
+    std::vector<std::shared_ptr<siren::interactions::Hadronization>> matching_hadronizations;
+
     siren::dataclasses::InteractionRecord fake_record = record;
     double fake_prob;
-    if (interactions->HasCrossSections()) {
-        for(auto const target : available_targets) {
-            if(possible_targets.find(target) != possible_targets.end()) {
-                // Get target density
-                double target_density = detector_model->GetParticleDensity(intersections, DetectorPosition(interaction_vertex), target);
-                // Loop over cross sections that have this target
-                std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
-                for(auto const & cross_section : target_cross_sections) {
-                    // Loop over cross section signatures with the same target
-                    std::vector<siren::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
-                    for(auto const & signature : signatures) {
-                        fake_record.signature = signature;
-                        fake_record.target_mass = detector_model->GetTargetMass(target);
-                        // Add total cross section times density to the total prob
-                        fake_prob = target_density * cross_section->TotalCrossSection(fake_record);
-                        total_prob += fake_prob;
-                        xsec_prob += fake_prob;
-                        // Add total prob to probs
-                        probs.push_back(total_prob);
-                        // Add target and cross section pointer to the lists
-                        matching_targets.push_back(target);
-                        matching_cross_sections.push_back(cross_section);
-                        matching_signatures.push_back(signature);
+    // if contains hadronization, then perform only hadronization
+    if (interactions->HasHadronizations()) {
+      double total_frag_prob = 0;
+      std::vector<double> frag_probs;
+      for(auto const & hadronization : interactions->GetHadronizations() ) {
+        for(auto const & signature : hadronization->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
+          double frag_prob = 0;
+
+          fake_record.signature = signature;
+          for (auto & secondary : fake_record.signature.secondary_types) {
+            frag_prob += hadronization->FragmentationFraction(secondary);
+          }
+          
+          total_frag_prob += frag_prob;
+          frag_probs.push_back(total_frag_prob);
+          // Add target and decay pointer to the lists
+          matching_targets.push_back(siren::dataclasses::Particle::ParticleType::Decay);
+          matching_hadronizations.push_back(hadronization);
+          matching_signatures.push_back(signature);
+        }
+      }
+
+      // now choose the specific charmed hadron to fragment into
+      double r = random->Uniform(0, total_frag_prob);
+      unsigned int index = 0;
+      for(; (index < frag_probs.size()-1) and (r > frag_probs[index]); ++index) {
+      } // fixes the index of the chosen fragmentation
+      record.signature.target_type = matching_targets[index];
+      record.signature = matching_signatures[index];
+      record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
+      siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
+      
+      matching_hadronizations[index]->SampleFinalState(xsec_record, random);
+      xsec_record.Finalize(record);
+    } else {
+        if (interactions->HasCrossSections()) {
+            for(auto const target : available_targets) {
+                if(possible_targets.find(target) != possible_targets.end()) {
+                    // Get target density
+                    double target_density = detector_model->GetParticleDensity(intersections, DetectorPosition(interaction_vertex), target);
+                    // Loop over cross sections that have this target
+                    std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & target_cross_sections = interactions->GetCrossSectionsForTarget(target);
+                    for(auto const & cross_section : target_cross_sections) {
+                        // Loop over cross section signatures with the same target
+                        std::vector<siren::dataclasses::InteractionSignature> signatures = cross_section->GetPossibleSignaturesFromParents(record.signature.primary_type, target);
+                        for(auto const & signature : signatures) {
+                            fake_record.signature = signature;
+                            fake_record.target_mass = detector_model->GetTargetMass(target);
+                            // Add total cross section times density to the total prob
+                            fake_prob = target_density * cross_section->TotalCrossSection(fake_record);
+                            total_prob += fake_prob;
+                            xsec_prob += fake_prob;
+                            // Add total prob to probs
+                            probs.push_back(total_prob);
+                            // Add target and cross section pointer to the lists
+                            matching_targets.push_back(target);
+                            matching_cross_sections.push_back(cross_section);
+                            matching_signatures.push_back(signature);
+                        }
                     }
                 }
             }
         }
-    }
-    if (interactions->HasDecays()) {
-        for(auto const & decay : interactions->GetDecays() ) {
-            for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
-                fake_record.signature = signature;
-                // fake_prob has units of 1/cm to match cross section probabilities
-                fake_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
-                total_prob += fake_prob;
-                // Add total prob to probs
-                probs.push_back(total_prob);
-                // Add target and decay pointer to the lists
-                matching_targets.push_back(siren::dataclasses::ParticleType::Decay);
-                matching_decays.push_back(decay);
-                matching_signatures.push_back(signature);
+        if (interactions->HasDecays()) {
+            for(auto const & decay : interactions->GetDecays() ) {
+                for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
+                    fake_record.signature = signature;
+                    // fake_prob has units of 1/cm to match cross section probabilities
+                    fake_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
+                    total_prob += fake_prob;
+                    // Add total prob to probs
+                    probs.push_back(total_prob);
+                    // Add target and decay pointer to the lists
+                    matching_targets.push_back(siren::dataclasses::ParticleType::Decay);
+                    matching_decays.push_back(decay);
+                    matching_signatures.push_back(signature);
+                }
             }
         }
-    }
-
-    if(total_prob == 0)
-        throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
-    // Throw a random number
-    double r = random->Uniform(0, total_prob);
-    // Choose the target and cross section
-    unsigned int index = 0;
-    for(; (index+1 < probs.size()) and (r > probs[index]); ++index) {}
-    record.signature.target_type = matching_targets[index];
-    record.signature = matching_signatures[index];
-    double selected_prob = 0.0;
-    for(unsigned int i=0; i<probs.size(); ++i) {
-        if(matching_signatures[index] == matching_signatures[i]) {
-            selected_prob += (i > 0 ? probs[i] - probs[i - 1] : probs[i]);
+        //std::cout << "injector :: sample cross sections: after obtaining signatures" << std::endl;
+        if(total_prob == 0)
+            throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
+        // Throw a random number
+        double r = random->Uniform(0, total_prob);
+        // Choose the target and cross section
+        unsigned int index = 0;
+        for(; (index+1 < probs.size()) and (r > probs[index]); ++index) {}
+        record.signature.target_type = matching_targets[index];
+        record.signature = matching_signatures[index];
+        double selected_prob = 0.0;
+        for(unsigned int i=0; i<probs.size(); ++i) {
+            if(matching_signatures[index] == matching_signatures[i]) {
+                selected_prob += (i > 0 ? probs[i] - probs[i - 1] : probs[i]);
+            }
         }
+        if(selected_prob == 0)
+            throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
+        record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
+        siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
+        if(r <= xsec_prob) {
+            //std::cout << "injector::sample cross section: going into sampel final state" << std::endl;
+            matching_cross_sections[index]->SampleFinalState(xsec_record, random);
+            //std::cout << "injector::sample cross section: finished sampling" << std::endl;
+
+        } else {
+            matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
+        }
+        ////std::cout << "injector::sample cross section: calling finalizing" << std::endl;
+        xsec_record.Finalize(record);
+        ////std::cout << "injector::sample cross section: finished finalizing" << std::endl;
+
     }
-    if(selected_prob == 0)
-        throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
-    record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
-    siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
-    if(r <= xsec_prob) {
-        matching_cross_sections[index]->SampleFinalState(xsec_record, random);
-    } else {
-        matching_decays[index - matching_cross_sections.size()]->SampleFinalState(xsec_record, random);
-    }
-    xsec_record.Finalize(record);
 }
 
 // Function to sample secondary processes
@@ -262,10 +310,11 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
     std::shared_ptr<siren::interactions::InteractionCollection> secondary_interactions = secondary_process->GetInteractions();
     std::vector<std::shared_ptr<siren::distributions::SecondaryInjectionDistribution>> secondary_distributions = secondary_process->GetSecondaryInjectionDistributions();
 
-    size_t max_tries = 100;
+    size_t max_tries = 1000;
     size_t tries = 0;
     size_t failed_tries = 0;
     while(true) {
+        tries += 1;
         try {
             for(auto & distribution : secondary_distributions) {
                 distribution->Sample(random, detector_model, secondary_process->GetInteractions(), secondary_record);
@@ -276,7 +325,7 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
             return record;
         } catch(siren::utilities::InjectionFailure const & e) {
             failed_tries += 1;
-            if(tries > max_tries) {
+            if(failed_tries > max_tries) {
                 throw(siren::utilities::InjectionFailure("Failed to generate secondary process!"));
                 break;
             }
@@ -292,30 +341,33 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
 
 siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     siren::dataclasses::InteractionRecord record;
-    size_t max_tries = 100;
+    size_t max_tries = 10;
     size_t tries = 0;
     size_t failed_tries = 0;
     // Initial Process
     while(true) {
         tries += 1;
+        ////std::cout << "injector::GenerateEvent : trying to generate with trial number " << tries << std::endl;
         try {
+            ////std::cout << "injector::GenerateEvent : generating primary process" << std::endl;
             siren::dataclasses::PrimaryDistributionRecord primary_record(primary_process->GetPrimaryType());
             for(auto & distribution : primary_process->GetPrimaryInjectionDistributions()) {
                 distribution->Sample(random, detector_model, primary_process->GetInteractions(), primary_record);
             }
             primary_record.Finalize(record);
+            //std::cout << "injector::GenerateEvent : sampling cross section" << std::endl;
             SampleCrossSection(record);
             break;
         } catch(siren::utilities::InjectionFailure const & e) {
             failed_tries += 1;
-            if(tries > max_tries) {
+            if(failed_tries > max_tries) {
                 throw(siren::utilities::InjectionFailure("Failed to generate primary process!"));
                 break;
             }
             continue;
         }
         if(tries > max_tries) {
-            throw(siren::utilities::InjectionFailure("Failed to generate primary process!"));
+            throw(siren::utilities::InjectionFailure("Failed to generate primary process!!"));
             break;
         }
     }
@@ -323,10 +375,13 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
 
     // Secondary Processes
+    // std::cout << "injector::GenerateEvent : sampling secondary process" << std::endl;
     std::deque<std::tuple<std::shared_ptr<siren::dataclasses::InteractionTreeDatum>, std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord>>> secondaries;
     std::function<void(std::shared_ptr<siren::dataclasses::InteractionTreeDatum>)> add_secondaries = [&](std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent) {
         for(size_t i=0; i<parent->record.signature.secondary_types.size(); ++i) {
             siren::dataclasses::ParticleType const & type = parent->record.signature.secondary_types[i];
+        // std::cout << "parent type" << parent->record.signature.secondary_types[i] << std::endl;
+
             std::map<siren::dataclasses::ParticleType, std::shared_ptr<siren::injection::SecondaryInjectionProcess>>::iterator it = secondary_process_map.find(type);
             if(it == secondary_process_map.end()) {
                 continue;
@@ -346,13 +401,16 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         for(int i = secondaries.size() - 1; i >= 0; --i) {
             std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent = std::get<0>(secondaries[i]);
             std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord> secondary_dist = std::get<1>(secondaries[i]);
+            
             secondaries.erase(secondaries.begin() + i);
-
             siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
             std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
             add_secondaries(secondary_datum);
+        
+
         }
     }
+    //std::cout << "finished sampling secondary process" << std::endl;
     injected_events += 1;
     return tree;
 }
