@@ -1381,27 +1381,40 @@ double DetectorModel::DistanceForInteractionDepthFromPoint(Geometry::Intersectio
             double segment_length = end_point - start_point;
             DetectorSector sector = GetSector(current_intersection->hierarchy);
             double target = interaction_depth - total_interaction_depth;
-            // This next line is because when we evaluate the density integral,
-            // we end up calculating an interaction length in units of m/cm.
-            // This is a correction
-            target /= 100;
-            std::vector<double> interaction_depths = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end());
+            std::vector<double> interaction_depths = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end()); // units = 1 / g
             for(unsigned int i=0; i<targets.size(); ++i) {
                 interaction_depths[i] *= total_cross_sections[i];
             }
             double target_composition = accumulate(interaction_depths.begin(), interaction_depths.end(), 0.0); // cm^2 g^-1
-            target /= target_composition;
             double distance;
-            // total_decay_length now in cm
-            if (total_decay_length < std::numeric_limits<double>::infinity()) {
+            bool valid_interaction = target_composition > 0;
+            bool valid_decay = total_decay_length < std::numeric_limits<double>::infinity();
+            double integral;
+            if (valid_interaction and valid_decay) {
+              target /= 100;
+              target /= target_composition;
               distance = sector.density->InverseIntegral(p0+start_point*direction, direction, 1./(total_decay_length_cm*target_composition), target, segment_length);
+              integral = sector.density->Integral(p0+start_point*direction, direction, segment_length); // g cm^-3 * m
+              integral *= (target_composition*siren::utilities::Constants::m/siren::utilities::Constants::cm); // g cm^-3 * m * cm^2 g^-1 = cm^-1 * m * cm * m^-1 --> dimensionless
+            }
+            else if (valid_interaction and !valid_decay){
+              target /= 100;
+              target /= target_composition;
+              distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
+              integral = sector.density->Integral(p0+start_point*direction, direction, segment_length); // g cm^-3 * m
+              integral *= (target_composition*siren::utilities::Constants::m/siren::utilities::Constants::cm); // g cm^-3 * m * cm^2 g^-1 = cm^-1 * m * cm * m^-1--> dimensionless
+            }
+            else if (!valid_interaction and valid_decay){
+              distance = total_decay_length * target;
+              if (distance > segment_length){
+                distance = -1.0;
+              }
+              integral = segment_length / total_decay_length;
             }
             else {
-              distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
+                throw(std::runtime_error("No valid interactions and no valid decays!"));
             }
             done = distance >= 0;
-            double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length); // g cm^-3 * m
-            integral *= (target_composition*siren::utilities::Constants::m/siren::utilities::Constants::cm); // --> m cm^-1 --> dimensionless
             total_interaction_depth += integral;
             if(done) {
                 total_distance = start_point + distance;
