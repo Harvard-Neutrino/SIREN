@@ -1507,11 +1507,11 @@ double DetectorModel::DistanceForColumnDepthFromPoint(DetectorPosition const & p
 }
 
 double DetectorModel::DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, DetectorPosition const & p0, DetectorDirection const & direction, double column_depth) const {
-    return DistanceForColumnDepthFromPoint(intersections, ToGeo(p0), ToGeo(direction), column_depth);
+    return DistanceForColumnDepthFromPoint(intersections, ToGeo(p0), ToGeo(-direction), column_depth);
 }
 
 double DetectorModel::DistanceForColumnDepthToPoint(DetectorPosition const & p0, DetectorDirection const & direction, double column_depth) const {
-    return DistanceForColumnDepthFromPoint(ToGeo(p0), ToGeo(direction), column_depth);
+    return DistanceForColumnDepthFromPoint(ToGeo(p0), ToGeo(-direction), column_depth);
 }
 
 double DetectorModel::GetMassDensity(Geometry::IntersectionList const & intersections, DetectorPosition const & p0,  std::set<siren::dataclasses::ParticleType> targets) const {
@@ -1591,14 +1591,14 @@ double DetectorModel::DistanceForInteractionDepthToPoint(Geometry::IntersectionL
         std::vector<siren::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
-    return DistanceForInteractionDepthFromPoint(intersections, ToGeo(p0), ToGeo(direction), interaction_depth, targets, total_cross_sections, total_decay_length);
+    return DistanceForInteractionDepthFromPoint(intersections, ToGeo(p0), ToGeo(-direction), interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
 double DetectorModel::DistanceForInteractionDepthToPoint(DetectorPosition const & p0, DetectorDirection const & direction, double interaction_depth,
         std::vector<siren::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
-    return DistanceForInteractionDepthFromPoint(ToGeo(p0), ToGeo(direction), interaction_depth, targets, total_cross_sections, total_decay_length);
+    return DistanceForInteractionDepthFromPoint(ToGeo(p0), ToGeo(-direction), interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
 //////////////////////////////////////////////////////////
