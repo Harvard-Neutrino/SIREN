@@ -68,6 +68,15 @@ void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<siren::uti
         std::vector<siren::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
         // If the path intersects the fiducial volume, restrict position to that volume
         if(!fid_intersections.empty()) {
+            if(fid_intersections.size() != 2) {
+                std::stringstream ss;
+                ss << "Fiducial volume intersection returned " << fid_intersections.size() << " intersections, expected 2!";
+                if(fid_intersections.size() == 1)
+                    ss << "\nHINT: Fiducial volume is entered or exited but not both.\n";
+                else
+                    ss << "\nHINT: Fiducial volume is entered and exited multiple times, make sure the fiducial volume is a convex shape.";
+                throw std::runtime_error(ss.str());
+            }
             // make sure the first intersection happens before the maximum generation length
             // and the last intersection happens in front of the generation point
             bool update_path = (fid_intersections.front().distance < max_length
@@ -133,6 +142,15 @@ double SecondaryBoundedVertexDistribution::GenerationProbability(std::shared_ptr
         std::vector<siren::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
         // If the path intersects the fiducial volume, restrict position to that volume
         if(!fid_intersections.empty()) {
+            if(fid_intersections.size() != 2) {
+                std::stringstream ss;
+                ss << "Fiducial volume intersection returned " << fid_intersections.size() << " intersections, expected 2!";
+                if(fid_intersections.size() == 1)
+                    ss << "\nHINT: Fiducial volume is entered or exited but not both.\n";
+                else
+                    ss << "\nHINT: Fiducial volume is entered and exited multiple times, make sure the fiducial volume is a convex shape.";
+                throw std::runtime_error(ss.str());
+            }
             // make sure the first intersection happens before the maximum generation length
             // and the last intersection happens in front of the generation point
             bool update_path = (fid_intersections.front().distance < max_length
@@ -213,6 +231,15 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> SecondaryBoundedVertexD
         std::vector<siren::geometry::Geometry::Intersection> fid_intersections = fiducial_volume->Intersections(endcap_0, dir);
         // If the path intersects the fiducial volume, restrict position to that volume
         if(!fid_intersections.empty()) {
+            if(fid_intersections.size() != 2) {
+                std::stringstream ss;
+                ss << "Fiducial volume intersection returned " << fid_intersections.size() << " intersections, expected 2!";
+                if(fid_intersections.size() == 1)
+                    ss << "\nHINT: Fiducial volume is entered or exited but not both.\n";
+                else
+                    ss << "\nHINT: Fiducial volume is entered and exited multiple times, make sure the fiducial volume is a convex shape.";
+                throw std::runtime_error(ss.str());
+            }
             // make sure the first intersection happens before the maximum generation length
             // and the last intersection happens in front of the generation point
             bool update_path = (fid_intersections.front().distance < max_length
