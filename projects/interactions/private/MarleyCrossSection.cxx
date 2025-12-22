@@ -155,7 +155,7 @@ double MarleyCrossSection::TotalCrossSection(siren::dataclasses::InteractionReco
     double energy = record.primary_momentum[0];  // Energy of the primary particle
     double mass = record.primary_mass;  // Mass of the primary particle
     int pdg_a = static_cast<int32_t>(record.signature.primary_type); // PDG code of the primary particle
-    double KEa = std::sqrt(energy*energy - mass*mass);  // Kinetic energy of the primary particle
+    double KEa = energy - mass;  // Kinetic energy of the primary particle
     int pdg_atom = static_cast<int32_t>(record.signature.target_type);  // PDG code of the target atom
     double KEa_MeV = KEa * 1e3;  // Convert kinetic energy to MeV
 
@@ -223,7 +223,7 @@ double MarleyCrossSection::TotalCrossSectionAllFinalStates(siren::dataclasses::I
     double energy = record.primary_momentum[0];  // Energy of the primary particle
     double mass = record.primary_mass;  // Mass of the primary particle
     int pdg_a = static_cast<int32_t>(record.signature.primary_type); // PDG code of the primary particle
-    double KEa = std::sqrt(energy*energy - mass*mass);  // Kinetic energy of the primary particle
+    double KEa = energy - mass;  // Kinetic energy of the primary particle
     int pdg_atom = static_cast<int32_t>(record.signature.target_type);  // PDG code of the target atom
     double KEa_MeV = KEa * 1e3;  // Convert kinetic energy to MeV
 
@@ -299,7 +299,7 @@ void MarleyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionR
     lepton.SetHelicity(1.0);
 
     double kinetic_energy = norm;
-    double energy = sqrt(kinetic_energy*kinetic_energy + mass*mass);
+    double energy = kinetic_energy + mass;
     lepton.SetEnergy(energy);
 
     double molar_mass = siren::detector::MaterialModel::GetMolarMass(csdr.signature.target_type);
