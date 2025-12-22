@@ -25,6 +25,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # IMPORTANT: CPython 3.8 on arm64 uses an x86_64 Python under Rosetta by default.
+      # Installing a native arm64 Python 3.8 avoids CMake thinking it's x86_64.
+      - name: Install native Python 3.8 (arm64 runner only)
+        uses: actions/setup-python@v5
+        if: runner.os == 'macOS' && runner.arch == 'ARM64' && matrix.py == 'cp38'
+        with:
+          python-version: '3.8'
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.18.1
         env:
