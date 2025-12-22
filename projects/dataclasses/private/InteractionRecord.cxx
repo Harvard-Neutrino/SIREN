@@ -335,7 +335,7 @@ void PrimaryDistributionRecord::UpdateInitialPosition() const {
             interaction_vertex.at(1) - length * direction.at(1),
             interaction_vertex.at(2) - length * direction.at(2)};
     } else if(interaction_vertex_set and direction_set and initial_distance_from_closest_approach_set and vertex_distance_from_closest_approach_set) {
-        double length = vertex_distance_from_closest_approach_set - initial_distance_from_closest_approach_set;
+        double length = vertex_distance_from_closest_approach - initial_distance_from_closest_approach;
         initial_position = {
             interaction_vertex.at(0) - length * direction.at(0),
             interaction_vertex.at(1) - length * direction.at(1),
@@ -359,7 +359,7 @@ void PrimaryDistributionRecord::UpdateInteractionVertex() const {
             initial_position.at(1) + length * direction.at(1),
             initial_position.at(2) + length * direction.at(2)};
     } else if(initial_position_set and direction_set and initial_distance_from_closest_approach_set and vertex_distance_from_closest_approach_set) {
-        double length = vertex_distance_from_closest_approach_set - initial_distance_from_closest_approach_set;
+        double length = vertex_distance_from_closest_approach - initial_distance_from_closest_approach;
         interaction_vertex = {
             initial_position.at(0) + length * direction.at(0),
             initial_position.at(1) + length * direction.at(1),
