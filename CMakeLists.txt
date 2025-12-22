@@ -1,7 +1,11 @@
-cmake_minimum_required(VERSION 3.3.2 FATAL_ERROR)
-cmake_policy(VERSION 3.3.2)
+cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
+cmake_policy(VERSION 3.20)
 
 if(${CMAKE_HOST_SYSTEM_NAME} MATCHES "Darwin")
+    set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
+    cmake_policy(SET CMP0042 NEW)
+    set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
+    cmake_policy(SET CMP0068 NEW)
     set(MACOSX TRUE)
 endif()
 
@@ -11,17 +15,23 @@ SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake ${CMAKE_CURRENT_LIST_DIR}/
 message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 
-set(CIBUILDWHEEL $ENV{CIBUILDWHEEL})
+set(CIBUILDWHEEL "$ENV{CIBUILDWHEEL}")
 message(STATUS "CIBUILDWHEEL: ${CIBUILDWHEEL}")
-if(${CIBUILDWHEEL})
-    set(CI_INSTALL_PREFIX $ENV{CI_INSTALL_PREFIX})
+if(CIBUILDWHEEL STREQUAL "1")
+    set(CI_INSTALL_PREFIX "$ENV{CI_INSTALL_PREFIX}")
     message(STATUS "CI_INSTALL_PREFIX: ${CI_INSTALL_PREFIX}")
 endif()
 
+
 # parse pyproject.toml for the version
-include(pyproject)
+include(siren_pyproject)
 
 project(siren VERSION ${SIREN_VERSION} LANGUAGES CXX)
+
+option(SIREN_PYTHON_PACKAGE
+    "Build and install the SIREN Python package"
+    ON  # default ON, or OFF if you prefer
+)
 
 # include cmake dependencies
 include(GNUInstallDirs)
@@ -31,21 +41,57 @@ SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_C_STANDARD 99)
 
 # set the build type and appropriate flags
-option(CMAKE_BUILD_TYPE "" "Release")
-set(_FLAGS "-O2 -Wall -fPIC")
-set(_FLAGS_DEBUG "-g -O0 -Wall -fPIC")
-set(_FLAGS_RELEASE "-O2 -Wall -fPIC -s")
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(_FLAGS "${_FLAGS} -stdlib=libc++")
-    set(_FLAGS_DEBUG "${_FLAGS_DEBUG} -stdlib=libc++")
-    set(_FLAGS_RELEASE "${_FLAGS_RELEASE} -stdlib=libc++")
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release")
 endif()
-set(CMAKE_CXX_FLAGS ${_FLAGS})
-set(CMAKE_CXX_FLAGS_DEBUG ${_FLAGS_DEBUG})
-set(CMAKE_CXX_FLAGS_RELEASE ${_FLAGS_RELEASE})
+
+function(apply_siren_compile_options target)
+    # Check if the target is an INTERFACE target
+    get_target_property(target_type ${target} TYPE)
+    get_target_property(target_imported ${target} IMPORTED)
+
+    if("${target_type}" STREQUAL "INTERFACE_LIBRARY")
+        # Apply compile options to INTERFACE target
+        target_compile_options(${target} INTERFACE
+            -O2
+            -Wall
+            -fPIC
+            $<$<CONFIG:Debug>:-g>
+            $<$<CONFIG:Debug>:-O0>
+            $<$<CONFIG:Release>:-O2>
+            $<$<AND:$<COMPILE_LANG_AND_ID:CXX,GNU>,$<CONFIG:Release>>:-s>
+            $<$<COMPILE_LANG_AND_ID:CXX,Clang>:-stdlib=libc++>
+        )
+    elseif(target_imported)
+        # Apply compile options to non-INTERFACE target (PRIVATE or PUBLIC)
+        target_compile_options(${target} INTERFACE
+            -O2
+            -Wall
+            -fPIC
+            $<$<CONFIG:Debug>:-g>
+            $<$<CONFIG:Debug>:-O0>
+            $<$<CONFIG:Release>:-O2>
+            $<$<AND:$<COMPILE_LANG_AND_ID:CXX,GNU>,$<CONFIG:Release>>:-s>
+            $<$<COMPILE_LANG_AND_ID:CXX,Clang>:-stdlib=libc++>
+        )
+    else()
+        # Apply compile options to non-INTERFACE target (PRIVATE or PUBLIC)
+        target_compile_options(${target} PRIVATE
+            -O2
+            -Wall
+            -fPIC
+            $<$<CONFIG:Debug>:-g>
+            $<$<CONFIG:Debug>:-O0>
+            $<$<CONFIG:Release>:-O2>
+            $<$<AND:$<COMPILE_LANG_AND_ID:CXX,GNU>,$<CONFIG:Release>>:-s>
+            $<$<COMPILE_LANG_AND_ID:CXX,Clang>:-stdlib=libc++>
+        )
+    endif()
+endfunction()
+
 
 # override install locations when building python extensions
-if(DEFINED SKBUILD)
+if(DEFINED SKBUILD_PLATLIB_DIR)
     cmake_path(RELATIVE_PATH SKBUILD_HEADERS_DIR BASE_DIRECTORY ${SKBUILD_PLATLIB_DIR} OUTPUT_VARIABLE CMAKE_INSTALL_INCLUDEDIR)
     cmake_path(RELATIVE_PATH SKBUILD_PLATLIB_DIR BASE_DIRECTORY ${SKBUILD_PLATLIB_DIR} OUTPUT_VARIABLE CMAKE_INSTALL_LIBDIR)
     message(STATUS "Setting include dir to: ${CMAKE_INSTALL_INCLUDEDIR}")
@@ -63,12 +109,46 @@ include(pybind11)
 
 # load project dependencies
 include(rk)
+if(TARGET rk_static)
+    apply_siren_compile_options(rk_static)
+endif()
+if(TARGET rk_shared)
+    apply_siren_compile_options(rk_shared)
+endif()
 include(cereal)
+if(TARGET cereal)
+    apply_siren_compile_options(cereal)
+endif()
 include(delabella)
+if(TARGET delabella_static)
+    apply_siren_compile_options(delabella_static)
+endif()
+if(TARGET delabella_shared)
+    apply_siren_compile_options(delabella_shared)
+endif()
 include(CFITSIO)
+if(TARGET CFITSIO)
+    apply_siren_compile_options(CFITSIO)
+endif()
 include(photospline)
+if(TARGET photospline)
+    apply_siren_compile_options(photospline)
+    target_link_libraries(photospline PUBLIC CFITSIO)
+endif()
 include(googletest)
+if(TARGET gtest)
+    apply_siren_compile_options(gtest)
+endif()
+if(TARGET gtest_main)
+    apply_siren_compile_options(gtest_main)
+endif()
+if(TARGET gmock)
+    apply_siren_compile_options(gmock)
+endif()
 include(NamedType)
+if(TARGET NamedType)
+    apply_siren_compile_options(NamedType)
+endif()
 
 # load macros for googletest
 include(testing)
@@ -87,8 +167,9 @@ add_subdirectory(projects/injection)
 # define the target library
 add_library(SIREN SHARED)
 set_property(TARGET SIREN PROPERTY POSITION_INDEPENDENT_CODE ON)
+apply_siren_compile_options(SIREN)
 
-if(${MACOSX})
+if(DEFINED MACOSX AND MACOSX)
 if(CMAKE_VERSION VERSION_LESS 3.13)
     target_link_libraries(SIREN PUBLIC "$<$<PLATFORM_ID:Darwin>:LINKER:-undefined,dynamic_lookup>")
 else()
@@ -128,11 +209,11 @@ target_link_libraries(SIREN
 endif()
 
 # define the install path normally or for python package
-if(DEFINED SKBUILD)
+if(DEFINED SKBUILD_PLATLIB_DIR)
     set_target_properties(SIREN PROPERTIES
             BUILD_WITH_INSTALL_RPATH FALSE
             LINK_FLAGS "-Wl,-rpath,\\\$ORIGIN")
-    if(${CIBUILDWHEEL})
+    if(DEFINED CIBUILDWHEEL AND CIBUILDWHEEL)
         message(STATUS "Setting SIREN install lib dir to: ${CI_INSTALL_PREFIX}/lib")
         message(STATUS "Setting SIREN install include dir to: ${CI_INSTALL_PREFIX}/include")
         install(TARGETS SIREN
@@ -183,7 +264,7 @@ else()
 endif()
 
 # optionally package runtime dependencies
-if((DEFINED SKBUILD) AND (PACKAGE_SHARED_DEPS))
+if((DEFINED SKBUILD_PLATLIB_DIR) AND (PACKAGE_SHARED_DEPS))
     install(CODE "set(SIREN_LIB_FILE \"${PROJECT_BINARY_DIR}/${CMAKE_SHARED_MODULE_PREFIX}SIREN${CMAKE_SHARED_MODULE_SUFFIX}\")")
     install(CODE "set(PYTHON_DEP_LIB_DESTINATION \"${SKBUILD_PLATLIB_DIR}/siren.libs/\")")
     install(CODE [[
@@ -209,7 +290,7 @@ if((DEFINED SKBUILD) AND (PACKAGE_SHARED_DEPS))
 endif()
 
 # install the python extensions
-if(DEFINED SKBUILD)
+if(DEFINED SKBUILD_PLATLIB_DIR)
     install(TARGETS utilities
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
     install(TARGETS math
@@ -232,6 +313,9 @@ if(DEFINED SKBUILD)
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/siren)
 endif()
 
+include(siren_python_package)
+
+
 # Export targets for use in downstream CMake projects
 # -----------------------------------------------------------------------------
 include(CMakePackageConfigHelpers)
@@ -241,7 +325,8 @@ write_basic_package_version_file(
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY AnyNewerVersion
 )
-export(EXPORT ${PROJECT_NAME}Config FILE ${PROJECT_NAME}Config.cmake)
+export(EXPORT ${PROJECT_NAME}Config FILE "${PROJECT_NAME}Config.cmake"
+       NAMESPACE ${PROJECT_NAME}::)
 
 # Make importable from install location
 set(_config_dir share/${PROJECT_NAME}/cmake)
@@ -249,7 +334,9 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
   DESTINATION ${_config_dir}
 )
 install(EXPORT ${PROJECT_NAME}Config
-  DESTINATION ${_config_dir}
+  FILE "${PROJECT_NAME}Config.cmake"
+  NAMESPACE ${PROJECT_NAME}::
+  DESTINATION "${_config_dir}"
 )
 
 MESSAGE("")

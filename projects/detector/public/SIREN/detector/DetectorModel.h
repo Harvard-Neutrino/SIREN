@@ -296,4 +296,6 @@ std::ostream& operator<<(std::ostream& oss, siren::detector::DetectorSector & bc
 
 CEREAL_CLASS_VERSION(siren::detector::DetectorModel, 0);
 
+CEREAL_FORCE_DYNAMIC_INIT(siren_DetectorModel);
+
 #endif // SIREN_DetectorModel_H

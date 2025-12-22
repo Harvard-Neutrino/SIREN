@@ -135,6 +135,16 @@ void Injector::AddSecondaryProcess(std::shared_ptr<siren::injection::SecondaryIn
     secondary_position_distribution_map.insert({secondary->GetPrimaryType(), vtx_dist});
 }
 
+void Injector::SetSecondaryProcesses(std::vector<std::shared_ptr<siren::injection::SecondaryInjectionProcess>> secondaries) {
+    secondary_processes.clear();
+    secondary_position_distributions.clear();
+    secondary_process_map.clear();
+    secondary_position_distribution_map.clear();
+    for(auto secondary : secondaries) {
+        AddSecondaryProcess(secondary);
+    }
+}
+
 siren::dataclasses::InteractionRecord Injector::NewRecord() const {
     siren::dataclasses::InteractionRecord record;
     record.signature.primary_type = primary_process->GetPrimaryType();
@@ -389,7 +399,8 @@ double Injector::GenerationProbability(std::shared_ptr<siren::dataclasses::Inter
     double probability = 1.0;
     if(!process) { // assume we are dealing with the primary process
         process = primary_process;
-        probability *= events_to_inject; // only do this for the primary process
+        unsigned int stat_weight = (events_to_inject > 0) ? events_to_inject : 1;
+        probability *= stat_weight; // only do this for the primary process
     }
     for(auto const & dist : process->GetPrimaryInjectionDistributions()) {
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), datum->record);
@@ -405,7 +416,8 @@ double Injector::GenerationProbability(siren::dataclasses::InteractionRecord con
     double probability = 1.0;
     if(!process) { // assume we are dealing with the primary process
         process = primary_process;
-        probability *= events_to_inject; // only do this for the primary process
+        unsigned int stat_weight = (events_to_inject > 0) ? events_to_inject : 1;
+        probability *= stat_weight; // only do this for the primary process
     }
     for(auto const & dist : process->GetPrimaryInjectionDistributions()) {
         double prob = dist->GenerationProbability(detector_model, process->GetInteractions(), record);
@@ -461,6 +473,10 @@ std::shared_ptr<siren::detector::DetectorModel> Injector::GetDetectorModel() con
     return detector_model;
 }
 
+void Injector::SetDetectorModel(std::shared_ptr<siren::detector::DetectorModel> detector_model) {
+    this->detector_model = detector_model;
+}
+
 std::shared_ptr<siren::interactions::InteractionCollection> Injector::GetInteractions() const {
     return primary_process->GetInteractions();
 }
@@ -478,17 +494,17 @@ void Injector::ResetInjectedEvents() {
 }
 
 Injector::operator bool() const {
-    return injected_events < events_to_inject;
+    return events_to_inject == 0 or injected_events < events_to_inject;
 }
 
 void Injector::SaveInjector(std::string const & filename) const {
-    std::ofstream os(filename+".siren_injector", std::ios::binary);
+    std::ofstream os(filename, std::ios::binary);
     ::cereal::BinaryOutputArchive archive(os);
     this->save(archive,0);
 }
 
 void Injector::LoadInjector(std::string const & filename) {
-    std::ifstream is(filename+".siren_injector", std::ios::binary);
+    std::ifstream is(filename, std::ios::binary);
     ::cereal::BinaryInputArchive archive(is);
     this->load(archive,0);
 }

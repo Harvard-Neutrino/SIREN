@@ -48,6 +48,7 @@ public:
     InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections);
     InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Decay>> decays);
     InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<CrossSection>> cross_sections, std::vector<std::shared_ptr<Decay>> decays);
+    InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Interaction>> interactions);
     bool operator==(InteractionCollection const & other) const;
     std::vector<std::shared_ptr<CrossSection>> const & GetCrossSections() const {return cross_sections;}
     std::vector<std::shared_ptr<Decay>> const & GetDecays() const {return decays;}
@@ -62,6 +63,8 @@ public:
     };
     double TotalDecayWidth(siren::dataclasses::InteractionRecord const & record) const;
     double TotalDecayLength(siren::dataclasses::InteractionRecord const & record) const;
+    siren::dataclasses::ParticleType GetPrimaryType() const;
+    void SetPrimaryType(siren::dataclasses::ParticleType primary_type);
     virtual bool MatchesPrimary(dataclasses::InteractionRecord const & record) const;
     std::map<siren::dataclasses::ParticleType, double> TotalCrossSectionByTarget(siren::dataclasses::InteractionRecord const & record) const;
     std::map<siren::dataclasses::ParticleType, double> TotalCrossSectionByTargetAllFinalStates(siren::dataclasses::InteractionRecord const & record) const;

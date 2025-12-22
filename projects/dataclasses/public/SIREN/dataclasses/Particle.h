@@ -27,6 +27,8 @@
 namespace siren { namespace dataclasses { class Particle; } }
 
 std::ostream & operator<<(std::ostream & os, siren::dataclasses::Particle const & p);
+std::string to_str(siren::dataclasses::Particle const & p);
+std::string to_repr(siren::dataclasses::Particle const & p);
 
 namespace siren {
 namespace dataclasses {
@@ -52,6 +54,8 @@ public:
     ParticleID & GenerateID();
 
     friend std::ostream & ::operator<<(std::ostream & os, siren::dataclasses::Particle const & p);
+    friend std::string (::to_str)(siren::dataclasses::Particle const & p);
+    friend std::string (::to_repr)(siren::dataclasses::Particle const & p);
 
     template<typename Archive>
     void serialize(Archive & archive, std::uint32_t const version) {

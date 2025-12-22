@@ -26,8 +26,8 @@
  ******************************************************************************/
 
 #pragma once
-#ifndef SIREN_DensityDistribution_H
-#define SIREN_DensityDistribution_H
+#ifndef SIREN_detector_DensityDistribution_H
+#define SIREN_detector_DensityDistribution_H
 
 #include <string>                          // for basic_string
 #include <memory>                          // for shared_ptr
@@ -97,6 +97,9 @@ public:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::detector::DensityDistribution, 0);
+CEREAL_REGISTER_TYPE(siren::detector::DensityDistribution)
 
-#endif // SIREN_DensityDistribution_H
+CEREAL_FORCE_DYNAMIC_INIT(siren_DensityDistribution);
+
+#endif // SIREN_detector_DensityDistribution_H
 

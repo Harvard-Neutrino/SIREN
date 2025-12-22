@@ -13,7 +13,7 @@
 	url = https://github.com/austinschneider/delabella.git
 [submodule "vendor/photospline"]
 	path = vendor/photospline
-	url = https://github.com/austinschneider/photospline.git
+	url = https://github.com/icecube/photospline.git
 [submodule "vendor/NamedType"]
 	path = vendor/NamedType
 	url = https://github.com/joboccara/NamedType.git

@@ -103,6 +103,7 @@ PYBIND11_MODULE(distributions,m) {
     .def(init<double, double, std::string, bool>())
     .def(init<std::vector<double>, std::vector<double>, bool>())
     .def(init<double, double, std::vector<double>, std::vector<double>, bool>())
+    .def("InverseCDF",&TabulatedFluxDistribution::InverseCDF)
     .def("SampleEnergy",&TabulatedFluxDistribution::SampleEnergy)
     .def("GenerationProbability",&TabulatedFluxDistribution::GenerationProbability)
     .def("SetEnergyBounds",&TabulatedFluxDistribution::SetEnergyBounds)
@@ -187,7 +188,7 @@ PYBIND11_MODULE(distributions,m) {
     .def("Name",&CylinderVolumePositionDistribution::Name);
 
   class_<ColumnDepthPositionDistribution, std::shared_ptr<ColumnDepthPositionDistribution>, VertexPositionDistribution>(m, "ColumnDepthPositionDistribution")
-    .def(init<double, double, std::shared_ptr<DepthFunction>, std::set<siren::dataclasses::ParticleType>>())
+    .def(init<double, double, std::shared_ptr<DepthFunction>>())
     .def("GenerationProbability",&ColumnDepthPositionDistribution::GenerationProbability)
     .def("InjectionBounds",&ColumnDepthPositionDistribution::InjectionBounds)
     .def("Name",&ColumnDepthPositionDistribution::Name)
@@ -202,7 +203,7 @@ PYBIND11_MODULE(distributions,m) {
 
   class_<PointSourcePositionDistribution, std::shared_ptr<PointSourcePositionDistribution>, VertexPositionDistribution>(m, "PointSourcePositionDistribution")
     .def(init<>())
-    .def(init<siren::math::Vector3D, double, std::set<siren::dataclasses::ParticleType>>())
+    .def(init<siren::math::Vector3D, double>())
     .def("GenerationProbability",&PointSourcePositionDistribution::GenerationProbability)
     .def("InjectionBounds",&PointSourcePositionDistribution::InjectionBounds)
     .def("Name",&PointSourcePositionDistribution::Name);

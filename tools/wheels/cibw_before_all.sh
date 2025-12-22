@@ -54,6 +54,8 @@ fi
 
 pip install scikit-build-core
 
+pip install tomli-w
+
 if [[ $RUNNER_OS == "Linux" || $RUNNER_OS == "macOS" ]]; then
     mkdir -p $CI_DOWNLOAD_PATH
     cd $CI_DOWNLOAD_PATH
