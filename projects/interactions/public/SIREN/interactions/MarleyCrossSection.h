@@ -75,13 +75,12 @@ public:
     MarleyCrossSection(std::string marley_react_file, std::string marley_nuclide_index_file, std::vector<std::string> marley_nuclide_files, std::string marley_masses_file, std::string marley_gs_parity_file);
     MarleyCrossSection(std::array<std::vector<char>, 4> const & data, std::vector<std::vector<char>> const & nuclide_data, std::array<std::string, 4> const & fnames, std::vector<std::string> const & nuclide_fnames);
     virtual ~MarleyCrossSection() {};
-    bool operator==(MarleyCrossSection const & other) const;
-    virtual bool equal(MarleyCrossSection const & other) const = 0;
+    virtual bool equal(CrossSection const & other) const override;
     virtual double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
-    virtual double TotalCrossSectionAllFinalStates(dataclasses::InteractionRecord const &) const = 0;
-    virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const = 0;
-    virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const = 0;
-    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const = 0;
+    virtual double TotalCrossSectionAllFinalStates(dataclasses::InteractionRecord const &) const override;
+    virtual double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
+    virtual double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
+    virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
 
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargets() const override;
     virtual std::vector<siren::dataclasses::ParticleType> GetPossibleTargetsFromPrimary(siren::dataclasses::ParticleType primary_type) const override;
@@ -139,6 +138,6 @@ public:
 
 CEREAL_CLASS_VERSION(siren::interactions::MarleyCrossSection, 0);
 CEREAL_REGISTER_TYPE(siren::interactions::MarleyCrossSection);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::Interaction, siren::interactions::MarleyCrossSection);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::MarleyCrossSection);
 
 #endif // SIREN_MarleyCrossSection_H
