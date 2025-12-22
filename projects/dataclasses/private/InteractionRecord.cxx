@@ -785,7 +785,7 @@ void SecondaryParticleRecord::UpdateKineticEnergy() const {
     if(kinetic_energy_set)
         return;
     if(mass_set and energy_set) {
-        kinetic_energy = std::sqrt(energy*energy - mass*mass);
+        kinetic_energy = energy - mass;
     } else if(mass_set and momentum_set) {
         kinetic_energy = std::sqrt(momentum.at(0)*momentum.at(0) + momentum.at(1)*momentum.at(1) + momentum.at(2)*momentum.at(2) + mass*mass) - mass;
     } else {
