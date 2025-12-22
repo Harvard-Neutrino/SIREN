@@ -387,6 +387,25 @@ void PrimaryDistributionRecord::UpdatePointOfClosestApproach() const {
             interaction_vertex.at(0) - vertex_distance_from_closest_approach * direction.at(0),
             interaction_vertex.at(1) - vertex_distance_from_closest_approach * direction.at(1),
             interaction_vertex.at(2) - vertex_distance_from_closest_approach * direction.at(2)};
+    } else if(initial_position_set and interaction_vertex_set) {
+        // Calculate direction first
+        std::array<double, 3> direction = {
+            interaction_vertex.at(0) - initial_position.at(0),
+            interaction_vertex.at(1) - initial_position.at(1),
+            interaction_vertex.at(2) - initial_position.at(2)
+        };
+        double magnitude = std::sqrt(direction.at(0)*direction.at(0) + direction.at(1)*direction.at(1) + direction.at(2)*direction.at(2));
+        direction = {direction.at(0)/magnitude, direction.at(1)/magnitude, direction.at(2)/magnitude};
+        double p_dot_d = (
+            (initial_position.at(0) * direction.at(0)) +
+            (initial_position.at(1) * direction.at(1)) +
+            (initial_position.at(2) * direction.at(2))
+        );
+        point_of_closest_approach = {
+            initial_position.at(0) - p_dot_d * direction.at(0),
+            initial_position.at(1) - p_dot_d * direction.at(1),
+            initial_position.at(2) - p_dot_d * direction.at(2)
+        };
     } else {
         throw std::runtime_error("Cannot calculate point of closest approach without initial position and direction and initial distance from closest approach!");
     }
