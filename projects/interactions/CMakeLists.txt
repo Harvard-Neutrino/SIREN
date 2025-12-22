@@ -16,8 +16,12 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsDecay.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/MarleyCrossSection.cxx
 )
+if(TARGET MARLEY)
+    LIST (APPEND interactions_SOURCES
+        ${PROJECT_SOURCE_DIR}/projects/interactions/private/MarleyCrossSection.cxx
+    )
+endif()
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
 set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(SIREN_interactions PUBLIC
@@ -32,7 +36,7 @@ target_link_libraries(SIREN_interactions
         pybind11::embed
     PUBLIC
         photospline
-        MARLEY
+        $<$<TARGET_EXISTS:MARLEY>:MARLEY>
         SIREN_utilities
         SIREN_serialization
         SIREN_math
