@@ -7,11 +7,13 @@
 #include <pybind11/stl.h>
 
 #include "../../public/SIREN/interactions/CrossSection.h"
-#include "../../public/SIREN/interactions/MarleyCrossSection.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/Particle.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionRecord.h"
 #include "../../../dataclasses/public/SIREN/dataclasses/InteractionSignature.h"
 #include "../../../utilities/public/SIREN/utilities/Random.h"
+
+#ifdef SIREN_HAS_MARLEY
+#include "../../public/SIREN/interactions/MarleyCrossSection.h"
 
 void register_MarleyCrossSection(pybind11::module_ & m) {
     using namespace pybind11;
@@ -35,3 +37,11 @@ void register_MarleyCrossSection(pybind11::module_ & m) {
         .def("FinalStateProbability",&MarleyCrossSection::FinalStateProbability)
         .def("DensityVariables",&MarleyCrossSection::DensityVariables);
 }
+
+#else
+
+void register_MarleyCrossSection(pybind11::module_ & m) {
+    // Marley is not available, so we do not register the MarleyCrossSection class.
+}
+
+#endif
