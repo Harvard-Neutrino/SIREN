@@ -29,11 +29,25 @@ namespace {
 //---------------
 TabulatedFluxDistribution::TabulatedFluxDistribution() {}
 
+// void TabulatedFluxDistribution::ComputeIntegral() {
+//     std::function<double(double)> integrand = [&] (double x) -> double {
+//         return unnormed_pdf(x);
+//     };
+//     integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax);
+// }
+
 void TabulatedFluxDistribution::ComputeIntegral() {
     std::function<double(double)> integrand = [&] (double x) -> double {
-        return unnormed_pdf(x);
+        double val = unnormed_pdf(x);
+        // std::cout << "Energy: " << x << ", Flux: " << val << std::endl;
+        return val;
     };
-    integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax);
+    try {
+        integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax, 1e-4, 30);
+    } catch (const std::exception& e) {
+        std::cerr << "Integration failed: " << e.what() << std::endl;
+        throw;
+    }
 }
 
 void TabulatedFluxDistribution::LoadFluxTable() {

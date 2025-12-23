@@ -69,6 +69,7 @@ private:
     bool initial_position_set = false;
     bool interaction_vertex_set = false;
     bool helicity_set = false;
+    bool injection_step_length_set = false;
 
     mutable double mass;
     mutable double energy;
@@ -79,6 +80,7 @@ private:
     mutable std::array<double, 3> initial_position;
     mutable std::array<double, 3> interaction_vertex;
     mutable double helicity = 0;
+    mutable double injection_step_length = 0;
 public:
     friend std::ostream& ::operator<<(std::ostream& os, siren::dataclasses::PrimaryDistributionRecord const& record);
     friend std::string (::to_str)(siren::dataclasses::PrimaryDistributionRecord const & record);
@@ -107,6 +109,7 @@ public:
     std::array<double, 3> const & GetInitialPosition() const;
     std::array<double, 3> const & GetInteractionVertex() const;
     double const & GetHelicity() const;
+    double const & GetInjectionStepLength() const;
 
     void SetMass(double mass);
     void SetEnergy(double energy);
@@ -118,6 +121,7 @@ public:
     void SetInitialPosition(std::array<double, 3> initial_position);
     void SetInteractionVertex(std::array<double, 3> interaction_vertex);
     void SetHelicity(double helicity);
+    void SetInjectionStepLength(double injection_step_length);
 
     void UpdateMass() const;
     void UpdateEnergy() const;
@@ -127,6 +131,7 @@ public:
     void UpdateLength() const;
     void UpdateInitialPosition() const;
     void UpdateInteractionVertex() const;
+    void UpdateInjectionStepLength() const;
 
     void FinalizeAvailable(InteractionRecord & record) const;
     void Finalize(InteractionRecord & record) const;
@@ -269,6 +274,7 @@ public:
     InteractionSignature signature;
     ParticleID primary_id;
     std::array<double, 3> primary_initial_position = {0, 0, 0};
+    double primary_injection_step_length = 0;
     double primary_mass = 0;
     std::array<double, 4> primary_momentum = {0, 0, 0, 0};
     double primary_helicity = 0;
@@ -294,6 +300,7 @@ public:
             archive(::cereal::make_nvp("InteractionSignature", signature));
             archive(::cereal::make_nvp("PrimaryID", primary_id));
             archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
+            archive(::cereal::make_nvp("PrimaryInjectionStepLength", primary_injection_step_length));
             archive(::cereal::make_nvp("PrimaryMass", primary_mass));
             archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
             archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));
@@ -316,6 +323,7 @@ public:
             archive(::cereal::make_nvp("InteractionSignature", signature));
             archive(::cereal::make_nvp("PrimaryID", primary_id));
             archive(::cereal::make_nvp("PrimaryInitialPosition", primary_initial_position));
+            archive(::cereal::make_nvp("PrimaryInjectionStepLength", primary_injection_step_length));
             archive(::cereal::make_nvp("PrimaryMass", primary_mass));
             archive(::cereal::make_nvp("PrimaryMomentum", primary_momentum));
             archive(::cereal::make_nvp("PrimaryHelicity", primary_helicity));

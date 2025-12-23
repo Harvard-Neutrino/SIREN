@@ -1,4 +1,3 @@
-
 #include <vector>
 #include <string>
 
@@ -24,6 +23,9 @@
 #include "../../public/SIREN/distributions/primary/vertex/RangePositionDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
+#include "../../public/SIREN/distributions/primary/vertex/SamplePrimaryPositionDistribution.h"
+#include "../../public/SIREN/distributions/primary/energy/SamplePrimaryEnergyDistribution.h"
+#include "../../public/SIREN/distributions/primary/sampled_kinematics/SamplePrimaryKinematicsDistribution.h"
 
 #include "../../../utilities/public/SIREN/utilities/Random.h"
 #include "../../../detector/public/SIREN/detector/DetectorModel.h"
@@ -33,7 +35,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-PYBIND11_DECLARE_HOLDER_TYPE(T__,std::shared_ptr<T__>)
+PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 
 using namespace pybind11;
 
@@ -59,7 +61,7 @@ PYBIND11_MODULE(distributions,m) {
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::PrimaryDistributionRecord &>(&PrimaryInjectionDistribution::Sample, const_))
     ;
 
-  // Direciton distributions
+  // Direction distributions
 
   class_<PrimaryDirectionDistribution, std::shared_ptr<PrimaryDirectionDistribution>, PrimaryInjectionDistribution>(m, "PrimaryDirectionDistribution")
     .def("Sample",&PrimaryDirectionDistribution::Sample)
@@ -68,15 +70,12 @@ PYBIND11_MODULE(distributions,m) {
 
   class_<Cone, std::shared_ptr<Cone>, PrimaryDirectionDistribution>(m, "Cone")
     .def(init<siren::math::Vector3D, double>());
-    //.def("GenerationProbability",&Cone::GenerationProbability);
 
   class_<IsotropicDirection, std::shared_ptr<IsotropicDirection>, PrimaryDirectionDistribution>(m, "IsotropicDirection")
     .def(init<>());
-    //.def("GenerationProbability",&IsotropicDirection::GenerationProbability);
 
   class_<FixedDirection, std::shared_ptr<FixedDirection>, PrimaryDirectionDistribution>(m, "FixedDirection")
     .def(init<siren::math::Vector3D>());
-    //.def("GenerationProbability",&FixedDirection::GenerationProbability);
 
   // Energy distributions
 
@@ -139,18 +138,14 @@ PYBIND11_MODULE(distributions,m) {
 
   class_<VertexPositionDistribution, std::shared_ptr<VertexPositionDistribution>, PrimaryInjectionDistribution>(m, "VertexPositionDistribution")
     .def("DensityVariables",&VertexPositionDistribution::DensityVariables)
-    //.def("InjectionBounds",&VertexPositionDistribution::InjectionBounds)
     .def("AreEquivalent",&VertexPositionDistribution::AreEquivalent);
 
   // First, some range and depth functions
 
   class_<RangeFunction, std::shared_ptr<RangeFunction>>(m, "RangeFunction");
-    //.def(init<>());
-    //.def((siren::dataclasses::InteractionSignature const &, double));
 
   class_<DecayRangeFunction, std::shared_ptr<DecayRangeFunction>, RangeFunction>(m, "DecayRangeFunction")
     .def(init<double, double, double, double>())
-    //.def((siren::dataclasses::InteractionSignature const &, double))
     .def("DecayLength",overload_cast<siren::dataclasses::ParticleType const &, double>(&DecayRangeFunction::DecayLength, const_))
     .def("DecayLength",overload_cast<double, double, double>(&DecayRangeFunction::DecayLength))
     .def("Range",&DecayRangeFunction::Range)
@@ -160,8 +155,6 @@ PYBIND11_MODULE(distributions,m) {
     .def("MaxDistance",&DecayRangeFunction::MaxDistance);
 
   class_<DepthFunction, std::shared_ptr<DepthFunction>>(m, "DepthFunction");
-    //.def(init<>());
-    //.def((siren::dataclasses::InteractionSignature const &, double));
 
   class_<LeptonDepthFunction, std::shared_ptr<LeptonDepthFunction>, DepthFunction>(m, "LeptonDepthFunction")
     .def(init<>())
@@ -177,7 +170,6 @@ PYBIND11_MODULE(distributions,m) {
     .def("GetScale",&LeptonDepthFunction::GetScale)
     .def("GetMaxDepth",&LeptonDepthFunction::GetMaxDepth) 
     .def("GetLeptonDepthFunctionReturnValue",&LeptonDepthFunction::GetLeptonDepthFunctionReturnValue);
-    //.def((siren::dataclasses::InteractionSignature const &, double));
 
   // VertexPositionDistribution subclasses
 
@@ -215,7 +207,6 @@ PYBIND11_MODULE(distributions,m) {
     .def("InjectionBounds",&RangePositionDistribution::InjectionBounds)
     .def("Name",&RangePositionDistribution::Name);
 
-
   class_<SecondaryInjectionDistribution, std::shared_ptr<SecondaryInjectionDistribution>, WeightableDistribution>(m, "SecondaryInjectionDistribution")
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::SecondaryDistributionRecord &>(&SecondaryInjectionDistribution::Sample, const_));
 
@@ -240,6 +231,26 @@ PYBIND11_MODULE(distributions,m) {
     .def("GenerationProbability",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::GenerationProbability, const_))
     .def("InjectionBounds",overload_cast<std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::InteractionRecord const &>(&SecondaryBoundedVertexDistribution::InjectionBounds, const_))
     .def("Name",&SecondaryBoundedVertexDistribution::Name);
+
+  // Binding for the SamplePrimaryPositionDistribution class
+  class_<SamplePrimaryPositionDistribution, std::shared_ptr<SamplePrimaryPositionDistribution>, VertexPositionDistribution>(m, "SamplePrimaryPositionDistribution")
+    .def(init<std::vector<siren::math::Vector3D>, std::vector<double>>(), arg("positions"), arg("weights") = std::vector<double>())
+    .def("GenerationProbability", &SamplePrimaryPositionDistribution::GenerationProbability)
+    .def("InjectionBounds", &SamplePrimaryPositionDistribution::InjectionBounds)
+    .def("Name", &SamplePrimaryPositionDistribution::Name);
+
+  // Binding for the SamplePrimaryEnergyDistribution class
+  class_<SamplePrimaryEnergyDistribution, std::shared_ptr<SamplePrimaryEnergyDistribution>, PrimaryEnergyDistribution>(m, "SamplePrimaryEnergyDistribution")
+    .def(init<std::vector<double>, std::vector<double>>(), arg("energies"), arg("weights") = std::vector<double>())
+    .def("pdf", &SamplePrimaryEnergyDistribution::pdf)
+    .def("SampleEnergy", &SamplePrimaryEnergyDistribution::SampleEnergy)
+    .def("GenerationProbability", &SamplePrimaryEnergyDistribution::GenerationProbability)
+    .def("Name", &SamplePrimaryEnergyDistribution::Name);
+
+  // Binding for the SamplePrimaryKinematicsDistribution class
+  class_<SamplePrimaryKinematicsDistribution, std::shared_ptr<SamplePrimaryKinematicsDistribution>, VertexPositionDistribution>(m, "SamplePrimaryKinematicsDistribution")
+    .def(init<std::vector<double>, std::vector<siren::math::Vector3D>, std::vector<siren::math::Vector3D>, double, std::vector<double>>(), arg("energies"), arg("positions"), arg("directions"), arg("primary_mass"), arg("weights") = std::vector<double>())
+    .def("GenerationProbability", &SamplePrimaryKinematicsDistribution::GenerationProbability)
+    .def("InjectionBounds", &SamplePrimaryKinematicsDistribution::InjectionBounds)
+    .def("Name", &SamplePrimaryKinematicsDistribution::Name);
 }
-
-
