@@ -235,13 +235,20 @@ void DetectorModel::AddSector(DetectorSector sector) {
 }
 
 DetectorSector DetectorModel::GetSector(int heirarchy) const {
-    auto const iter = sector_map_.find(heirarchy);
-    assert(iter != sector_map_.end());
-    unsigned int index = sector_map_.at(heirarchy);
-    assert(index < sectors_.size());
-    unsigned int alt_index = sector_map_.find(heirarchy)->second;
-    assert(index == alt_index);
-    return sectors_[index];
+    auto it = sector_map_.find(heirarchy);
+    if(it == sector_map_.end()) {
+        std::ostringstream oss;
+        oss << "GetSector: missing heirarchy=" << heirarchy
+            << " (sector_map_.size=" << sector_map_.size()
+            << ", sectors_.size=" << sectors_.size() << "). Keys:";
+        for (auto const& kv : sector_map_) oss << " " << kv.first;
+        throw std::runtime_error(oss.str());
+    }
+    auto index = it->second;
+    if(index >= sectors_.size()) {
+        throw std::runtime_error("GetSector: sector_map_ index out of range");
+    }
+    return sectors_.at(index);
 }
 
 void DetectorModel::ClearSectors() {
@@ -1107,32 +1114,40 @@ double DetectorModel::GetInteractionDepthInCGS(GeometryPosition const & p0, Geom
 }
 
 DetectorSector DetectorModel::GetContainingSector(Geometry::IntersectionList const & intersections, GeometryPosition const & p0) const {
-    Vector3D direction = intersections.direction;
-
-    double offset = (intersections.position - p0) * direction;
-    double dot = (intersections.position - p0) * (intersections.position - p0);
-
-    if(dot < 0) {
-        dot = -1;
+    Vector3D direction = p0 - intersections.position;
+    if(direction.magnitude() == 0) {
+        direction = intersections.direction;
     } else {
-        dot = 1;
+        direction.normalize();
     }
 
+    double dot = direction * intersections.direction;
+    assert(std::abs(1.0 - std::abs(dot)) < 1e-6);
+
+    double offset = (intersections.position - p0) * direction;
+    dot = (dot < 0.0) ? -1.0 : 1.0;
+
     DetectorSector sector;
+    bool found = false;
 
     std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
         [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
         double end_point = offset + dot * intersection->distance;
-        double start_point = offset + dot * current_intersection->distance;
+        double start_point = std::max(offset + dot * current_intersection->distance,
+                                      offset + dot * last_point);
         bool done = false;
-        if((start_point < 0 and end_point > 0) or start_point == 0) {
+        if(start_point <= 0 and end_point >= 0) {
             sector = GetSector(current_intersection->hierarchy);
             done = true;
+            found = true;
         }
         return done;
     };
 
     SectorLoop(callback, intersections, dot < 0);
+    if(not found) {
+        throw(std::runtime_error("Point is not contained within any sector!"));
+    }
 
     return sector;
 }
