@@ -1,6 +1,6 @@
 import os
 import glob
-from typing import Tuple, List, Any, Optional
+from typing import List, Optional
 import siren
 import collections
 
