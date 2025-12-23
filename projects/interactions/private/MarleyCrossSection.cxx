@@ -55,6 +55,7 @@ MarleyCrossSection::MarleyCrossSection(std::string marley_react_file, std::strin
 
         std::ofstream ofs(dest_file, std::ios::binary);
         ofs << ss.str();
+        ofs.close();
     }
 
     std::string search_path = tmp_dir_path.string();
@@ -103,6 +104,7 @@ MarleyCrossSection::MarleyCrossSection(std::array<std::vector<char>, 4> const & 
         std::string string_data(data.begin(), data.end());
         std::ofstream ofs(dest_file, std::ios::binary);
         ofs << string_data;
+        ofs.close();
     }
 
     std::string react_basename = std::filesystem::path(marley_react_fname_).filename();
