@@ -19,7 +19,11 @@ if(NOT EXISTS "${PROJECT_SOURCE_DIR}/vendor/delabella/CMakeLists.txt")
     message(FATAL_ERROR "The delabella submodule was not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
 endif()
 
+# override CMAKE_POLICY_VERSION_MINIMUM before adding subdirectory
+set(TEMP_CMAKE_POLICY_VERSION_MINIMUM ${CMAKE_POLICY_VERSION_MINIMUM})
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/delabella)
+set(CMAKE_POLICY_VERSION_MINIMUM ${TEMP_CMAKE_POLICY_VERSION_MINIMUM})
 #add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/delabella)
 #install(TARGETS delabella_shared
 #    ARCHIVE DESTINATION lib)

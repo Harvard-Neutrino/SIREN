@@ -9,12 +9,14 @@
 #include "../../public/SIREN/distributions/primary/direction/IsotropicDirection.h"
 #include "../../public/SIREN/distributions/primary/energy/Monoenergetic.h"
 #include "../../public/SIREN/distributions/primary/energy/PowerLaw.h"
+#include "../../public/SIREN/distributions/primary/energy/PiDARNuEDistribution.h"
 #include "../../public/SIREN/distributions/primary/energy/TabulatedFluxDistribution.h"
 #include "../../public/SIREN/distributions/primary/helicity/PrimaryNeutrinoHelicityDistribution.h"
 #include "../../public/SIREN/distributions/primary/mass/PrimaryMass.h"
 #include "../../public/SIREN/distributions/primary/vertex/VertexPositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/ColumnDepthPositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/CylinderVolumePositionDistribution.h"
+#include "../../public/SIREN/distributions/primary/vertex/FixedTargetPositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/DecayRangeFunction.h"
 #include "../../public/SIREN/distributions/primary/vertex/DecayRangePositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/DepthFunction.h"
@@ -22,6 +24,8 @@
 #include "../../public/SIREN/distributions/primary/vertex/PointSourcePositionDistribution.h"
 #include "../../public/SIREN/distributions/primary/vertex/RangeFunction.h"
 #include "../../public/SIREN/distributions/primary/vertex/RangePositionDistribution.h"
+#include "../../public/SIREN/distributions/primary/area/PrimaryAreaDistribution.h"
+#include "../../public/SIREN/distributions/primary/area/FixedTargetAreaDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryPhysicalVertexDistribution.h"
 #include "../../public/SIREN/distributions/secondary/vertex/SecondaryBoundedVertexDistribution.h"
 
@@ -114,8 +118,17 @@ PYBIND11_MODULE(distributions,m) {
     .def("ComputeCDF",&TabulatedFluxDistribution::ComputeCDF)
     .def("GetCDF",&TabulatedFluxDistribution::GetCDF)
     .def("GetCDFEnergyNodes",&TabulatedFluxDistribution::GetCDFEnergyNodes)
-    .def("GetEnergyNodes",&TabulatedFluxDistribution::GetEnergyNodes); 
-    
+    .def("GetEnergyNodes",&TabulatedFluxDistribution::GetEnergyNodes);
+
+  class_<PiDARNuEDistribution, std::shared_ptr<PiDARNuEDistribution>, PrimaryEnergyDistribution>(m, "PiDARNuEDistribution")
+    .def(init<>())
+    .def("pdf",&PiDARNuEDistribution::pdf)
+    .def("cdf",&PiDARNuEDistribution::cdf)
+    .def("inv_cdf",&PiDARNuEDistribution::inv_cdf)
+    .def("SampleEnergy",&PiDARNuEDistribution::SampleEnergy)
+    .def("GenerationProbability",&PiDARNuEDistribution::GenerationProbability)
+    .def("Name",&PiDARNuEDistribution::Name);
+
   // Helicity distributions
 
   class_<PrimaryNeutrinoHelicityDistribution, std::shared_ptr<PrimaryNeutrinoHelicityDistribution>, PrimaryInjectionDistribution>(m, "PrimaryNeutrinoHelicityDistribution")
@@ -215,6 +228,24 @@ PYBIND11_MODULE(distributions,m) {
     .def("InjectionBounds",&RangePositionDistribution::InjectionBounds)
     .def("Name",&RangePositionDistribution::Name);
 
+  class_<FixedTargetPositionDistribution, std::shared_ptr<FixedTargetPositionDistribution>, VertexPositionDistribution>(m, "FixedTargetPositionDistribution")
+    .def(init<>())
+    .def(init<siren::geometry::Cylinder, double>())
+    .def(init<siren::geometry::Cylinder, std::shared_ptr<siren::geometry::Geometry>>())
+    .def(init<siren::geometry::Cylinder, std::shared_ptr<siren::geometry::Geometry>, double>())
+    .def("GenerationProbability",&FixedTargetPositionDistribution::GenerationProbability)
+    .def("InjectionBounds",&FixedTargetPositionDistribution::InjectionBounds)
+    .def("Name",&FixedTargetPositionDistribution::Name);
+
+  class_<PrimaryAreaDistribution, std::shared_ptr<PrimaryAreaDistribution>, PrimaryInjectionDistribution>(m, "PrimaryAreaDistribution")
+    .def("DensityVariables",&PrimaryAreaDistribution::DensityVariables)
+    .def("AreEquivalent",&PrimaryAreaDistribution::AreEquivalent);
+
+  class_<FixedTargetAreaDistribution, std::shared_ptr<FixedTargetAreaDistribution>, PrimaryAreaDistribution>(m, "FixedTargetAreaDistribution")
+    .def(init<>())
+    .def(init<siren::geometry::Cylinder>())
+    .def("GenerationProbability",&FixedTargetAreaDistribution::GenerationProbability)
+    .def("Name",&FixedTargetAreaDistribution::Name);
 
   class_<SecondaryInjectionDistribution, std::shared_ptr<SecondaryInjectionDistribution>, WeightableDistribution>(m, "SecondaryInjectionDistribution")
     .def("Sample",overload_cast<std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::detector::DetectorModel const>, std::shared_ptr<siren::interactions::InteractionCollection const>, siren::dataclasses::SecondaryDistributionRecord &>(&SecondaryInjectionDistribution::Sample, const_));

@@ -54,6 +54,7 @@ public:
     virtual ~Injector() {};
 protected:
     unsigned int events_to_inject = 0;
+    unsigned int injection_attempts = 0;
     unsigned int injected_events = 0;
     std::shared_ptr<siren::utilities::SIREN_random> random;
     std::shared_ptr<siren::detector::DetectorModel> detector_model;
@@ -108,6 +109,7 @@ public:
     virtual void SetDetectorModel(std::shared_ptr<siren::detector::DetectorModel> detector_model);
     virtual std::shared_ptr<siren::interactions::InteractionCollection> GetInteractions() const;
     unsigned int InjectedEvents() const;
+    unsigned int InjectionAttempts() const;
     unsigned int EventsToInject() const;
     void ResetInjectedEvents();
     operator bool() const;
@@ -118,6 +120,7 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
+            archive(::cereal::make_nvp("InjectionAttempts", injection_attempts));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             // archive(::cereal::make_nvp("SIRENRandom", random));
@@ -135,6 +138,7 @@ public:
             std::vector<std::shared_ptr<injection::SecondaryInjectionProcess>> _secondary_processes;
 
             archive(::cereal::make_nvp("EventsToInject", events_to_inject));
+            archive(::cereal::make_nvp("InjectionAttempts", injection_attempts));
             archive(::cereal::make_nvp("InjectedEvents", injected_events));
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             // archive(::cereal::make_nvp("SIRENRandom", random));

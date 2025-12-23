@@ -272,62 +272,31 @@ siren::dataclasses::InteractionRecord Injector::SampleSecondaryProcess(siren::da
     std::shared_ptr<siren::interactions::InteractionCollection> secondary_interactions = secondary_process->GetInteractions();
     std::vector<std::shared_ptr<siren::distributions::SecondaryInjectionDistribution>> secondary_distributions = secondary_process->GetSecondaryInjectionDistributions();
 
-    size_t max_tries = 100;
-    size_t tries = 0;
-    size_t failed_tries = 0;
-    while(true) {
-        try {
-            for(auto & distribution : secondary_distributions) {
-                distribution->Sample(random, detector_model, secondary_process->GetInteractions(), secondary_record);
-            }
-            siren::dataclasses::InteractionRecord record;
-            secondary_record.Finalize(record);
-            SampleCrossSection(record, secondary_interactions);
-            return record;
-        } catch(siren::utilities::InjectionFailure const & e) {
-            failed_tries += 1;
-            if(tries > max_tries) {
-                throw(siren::utilities::InjectionFailure("Failed to generate secondary process!"));
-                break;
-            }
-            continue;
-        }
-        if(tries > max_tries) {
-            throw(siren::utilities::InjectionFailure("Failed to generate secondary process!"));
-            break;
-        }
+    for(auto & distribution : secondary_distributions) {
+        distribution->Sample(random, detector_model, secondary_process->GetInteractions(), secondary_record);
     }
-    return siren::dataclasses::InteractionRecord();
+    siren::dataclasses::InteractionRecord record;
+    secondary_record.Finalize(record);
+    SampleCrossSection(record, secondary_interactions);
+    return record;
 }
 
 siren::dataclasses::InteractionTree Injector::GenerateEvent() {
+    if(injection_attempts >= events_to_inject) {
+        throw(std::runtime_error("Injector has already made the maximum number of injection attempts!"));
+    }
+    injection_attempts += 1;
     siren::dataclasses::InteractionRecord record;
-    size_t max_tries = 100;
-    size_t tries = 0;
-    size_t failed_tries = 0;
     // Initial Process
-    while(true) {
-        tries += 1;
-        try {
-            siren::dataclasses::PrimaryDistributionRecord primary_record(primary_process->GetPrimaryType());
-            for(auto & distribution : primary_process->GetPrimaryInjectionDistributions()) {
-                distribution->Sample(random, detector_model, primary_process->GetInteractions(), primary_record);
-            }
-            primary_record.Finalize(record);
-            SampleCrossSection(record);
-            break;
-        } catch(siren::utilities::InjectionFailure const & e) {
-            failed_tries += 1;
-            if(tries > max_tries) {
-                throw(siren::utilities::InjectionFailure("Failed to generate primary process!"));
-                break;
-            }
-            continue;
+    try {
+        siren::dataclasses::PrimaryDistributionRecord primary_record(primary_process->GetPrimaryType());
+        for(auto & distribution : primary_process->GetPrimaryInjectionDistributions()) {
+            distribution->Sample(random, detector_model, primary_process->GetInteractions(), primary_record);
         }
-        if(tries > max_tries) {
-            throw(siren::utilities::InjectionFailure("Failed to generate primary process!"));
-            break;
-        }
+        primary_record.Finalize(record);
+        SampleCrossSection(record);
+    } catch(siren::utilities::InjectionFailure const & e) {
+        return siren::dataclasses::InteractionTree();
     }
     siren::dataclasses::InteractionTree tree;
     std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent = tree.add_entry(record);
@@ -352,16 +321,20 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
     };
 
     add_secondaries(parent);
-    while(secondaries.size() > 0) {
-        for(int i = secondaries.size() - 1; i >= 0; --i) {
-            std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent = std::get<0>(secondaries[i]);
-            std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord> secondary_dist = std::get<1>(secondaries[i]);
-            secondaries.erase(secondaries.begin() + i);
+    try {
+        while(secondaries.size() > 0) {
+            for(int i = secondaries.size() - 1; i >= 0; --i) {
+                std::shared_ptr<siren::dataclasses::InteractionTreeDatum> parent = std::get<0>(secondaries[i]);
+                std::shared_ptr<siren::dataclasses::SecondaryDistributionRecord> secondary_dist = std::get<1>(secondaries[i]);
+                secondaries.erase(secondaries.begin() + i);
 
-            siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
-            std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
-            add_secondaries(secondary_datum);
+                siren::dataclasses::InteractionRecord secondary_record = SampleSecondaryProcess(*secondary_dist);
+                std::shared_ptr<siren::dataclasses::InteractionTreeDatum> secondary_datum = tree.add_entry(secondary_record, parent);
+                add_secondaries(secondary_datum);
+            }
         }
+    } catch(siren::utilities::InjectionFailure const & e) {
+        return siren::dataclasses::InteractionTree();
     }
     injected_events += 1;
     return tree;
@@ -483,6 +456,10 @@ std::shared_ptr<siren::interactions::InteractionCollection> Injector::GetInterac
 
 unsigned int Injector::InjectedEvents() const {
     return injected_events;
+}
+
+unsigned int Injector::InjectionAttempts() const {
+    return injection_attempts;
 }
 
 unsigned int Injector::EventsToInject() const {

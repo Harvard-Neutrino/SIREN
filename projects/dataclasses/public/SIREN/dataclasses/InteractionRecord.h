@@ -68,6 +68,9 @@ private:
     bool length_set = false;
     bool initial_position_set = false;
     bool interaction_vertex_set = false;
+    bool point_of_closest_approach_set = false;
+    bool vertex_distance_from_closest_approach_set = false;
+    bool initial_distance_from_closest_approach_set = false;
     bool helicity_set = false;
 
     mutable double mass;
@@ -78,6 +81,9 @@ private:
     mutable double length;
     mutable std::array<double, 3> initial_position;
     mutable std::array<double, 3> interaction_vertex;
+    mutable std::array<double, 3> point_of_closest_approach;
+    mutable double vertex_distance_from_closest_approach;
+    mutable double initial_distance_from_closest_approach;
     mutable double helicity = 0;
 public:
     friend std::ostream& ::operator<<(std::ostream& os, siren::dataclasses::PrimaryDistributionRecord const& record);
@@ -106,6 +112,9 @@ public:
     double const & GetLength() const;
     std::array<double, 3> const & GetInitialPosition() const;
     std::array<double, 3> const & GetInteractionVertex() const;
+    std::array<double, 3> const & GetPointOfClosestApproach() const;
+    double const & GetVertexDistanceFromClosestApproach() const;
+    double const & GetInitialDistanceFromClosestApproach() const;
     double const & GetHelicity() const;
 
     void SetMass(double mass);
@@ -117,6 +126,9 @@ public:
     void SetLength(double length);
     void SetInitialPosition(std::array<double, 3> initial_position);
     void SetInteractionVertex(std::array<double, 3> interaction_vertex);
+    void SetPointOfClosestApproach(std::array<double, 3> point_of_closest_approach);
+    void SetVertexDistanceFromClosestApproach(double vertex_distance_from_closest_approach);
+    void SetInitialDistanceFromClosestApproach(double initial_distance_from_closest_approach);
     void SetHelicity(double helicity);
 
     void UpdateMass() const;
@@ -127,6 +139,9 @@ public:
     void UpdateLength() const;
     void UpdateInitialPosition() const;
     void UpdateInteractionVertex() const;
+    void UpdatePointOfClosestApproach() const;
+    void UpdateVertexDistanceFromClosestApproach() const;
+    void UpdateInitialDistanceFromClosestApproach() const;
 
     void FinalizeAvailable(InteractionRecord & record) const;
     void Finalize(InteractionRecord & record) const;

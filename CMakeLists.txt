@@ -32,12 +32,16 @@ option(SIREN_PYTHON_PACKAGE
     "Build and install the SIREN Python package"
     ON  # default ON, or OFF if you prefer
 )
+option(SIREN_WITH_MARLEY "Enable MARLEY support if available" ON)
+option(SIREN_REQUIRE_MARLEY "Fail configure if MARLEY requested but not found" OFF)
 
 # include cmake dependencies
 include(GNUInstallDirs)
 include(ExternalProject)
 
-SET(CMAKE_CXX_STANDARD 14)
+SET(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 SET(CMAKE_C_STANDARD 99)
 
 # set the build type and appropriate flags
@@ -148,6 +152,10 @@ endif()
 include(NamedType)
 if(TARGET NamedType)
     apply_siren_compile_options(NamedType)
+endif()
+include(MARLEY)
+if(TARGET MARLEY)
+    apply_siren_compile_options(MARLEY)
 endif()
 
 # load macros for googletest

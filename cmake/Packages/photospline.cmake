@@ -20,7 +20,11 @@ if(NOT EXISTS "${PROJECT_SOURCE_DIR}/vendor/photospline/CMakeLists.txt")
 endif()
 
 #add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/photospline EXCLUDE_FROM_ALL)
+# Override CMAKE_POLICY_VERSION_MINIMUM before adding subdirectory
+set(TEMP_CMAKE_POLICY_VERSION_MINIMUM ${CMAKE_POLICY_VERSION_MINIMUM})
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 add_subdirectory(${PROJECT_SOURCE_DIR}/vendor/photospline)
+set(CMAKE_POLICY_VERSION_MINIMUM ${TEMP_CMAKE_POLICY_VERSION_MINIMUM})
 if(DEFINED SKBUILD)
     if(${CIBUILDWHEEL})
         message(STATUS "Setting photospline install lib dir to: ${CI_INSTALL_PREFIX}/lib")
