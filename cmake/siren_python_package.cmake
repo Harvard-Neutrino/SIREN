@@ -3,6 +3,8 @@ if(${SIREN_PYTHON_PACKAGE})
 # Stage the python package within the build directory
 set(PACKAGE_STAGING_DIR "${CMAKE_BINARY_DIR}/python_staging")
 
+file(MAKE_DIRECTORY ${PACKAGE_STAGING_DIR})
+
 find_package(Python3 COMPONENTS Interpreter REQUIRED)  # or Python
 
 # Configure script that copies extra files into the package staging area
