@@ -36,11 +36,11 @@ public:
     pyDecay(Decay && parent) : Decay(std::move(parent)) {}
 
     bool equal(Decay const & other) const override;
+    double TotalDecayLengthAllFinalStates(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayLength(dataclasses::InteractionRecord const & interaction) const override;
-    double TotalDecayLengthForFinalState(dataclasses::InteractionRecord const & interaction) const override;
+    double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const override;
     double TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const override;
-    double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & interaction) const override;
-    double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
+    double TotalDecayWidthAllFinalStates(siren::dataclasses::ParticleType const & primary) const override;
     double DifferentialDecayWidth(dataclasses::InteractionRecord const & interaction) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
     std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;

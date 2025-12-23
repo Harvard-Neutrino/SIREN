@@ -31,21 +31,21 @@ bool DarkNewsDecay::equal(Decay const & other) const {
         return true;
 }
 
-double DarkNewsDecay::TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const {
-    return TotalDecayWidth(interaction.signature.primary_type);
+double DarkNewsDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
+    return TotalDecayWidthAllFinalStates(interaction.signature.primary_type);
 }
 
-double DarkNewsDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary) const {
+double DarkNewsDecay::TotalDecayWidthAllFinalStates(siren::dataclasses::ParticleType const & primary) const {
     // Should be implemented on the python side
-    // Not pure virtual in order to allow TotalDecayWidth to call
-    throw(siren::utilities::PythonImplementationError("DarkNewsDecay::TotalDecayWidth should be implemented in Python!"));
+    // Not pure virtual in order to allow TotalDecayWidthAllFinalStates to call
+    throw(siren::utilities::PythonImplementationError("DarkNewsDecay::TotalDecayWidthAllFinalStates should be implemented in Python!"));
     return 0;
 }
 
-double DarkNewsDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & interaction) const {
+double DarkNewsDecay::TotalDecayWidth(dataclasses::InteractionRecord const & interaction) const {
      // Should be implemented on the python side
     // Not pure virtual in order to allow FinalStateProbability to call
-    throw(siren::utilities::PythonImplementationError("DarkNewsDecay::TotalDecayWidthForFinalState should be implemented in Python!"));
+    throw(siren::utilities::PythonImplementationError("DarkNewsDecay::TotalDecayWidth should be implemented in Python!"));
     return 0;
 }
 
@@ -58,7 +58,7 @@ double DarkNewsDecay::DifferentialDecayWidth(dataclasses::InteractionRecord cons
 
 double DarkNewsDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
   double dd = DifferentialDecayWidth(record);
-  double td = TotalDecayWidthForFinalState(record);
+  double td = TotalDecayWidth(record);
   if (dd == 0) return 0.;
   else if (td == 0) return 0.;
   else return dd/td;

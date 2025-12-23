@@ -13,7 +13,7 @@ import subprocess
 # On Python >= 3.11, tomllib is in the standard library.
 try:
     import tomllib  # Python 3.11+
-except ImportError:
+except ModuleNotFoundError:
     import tomli as tomllib  # fallback for older Python
 
 try:
@@ -24,7 +24,11 @@ except ModuleNotFoundError as e:
     except:
         print(f"[Error] Please install the 'tomli-w' package: `pip install toml-w`", file=sys.stderr)
         raise
-
+    try:
+        import tomli_w as toml
+    except:
+        print(f"[Error] Please install the 'tomli-w' package: `pip install toml-w`", file=sys.stderr)
+        raise
 def main():
     if len(sys.argv) < 3:
         print("Usage: parse_pyproject.py <input_pyproject> <output_pyproject>")

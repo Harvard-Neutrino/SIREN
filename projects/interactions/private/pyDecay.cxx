@@ -33,6 +33,17 @@ bool pyDecay::equal(Decay const & other) const {
     )
 }
 
+double pyDecay::TotalDecayLengthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
+    SELF_OVERRIDE(
+        self,
+        Decay,
+        double,
+        TotalDecayLengthAllFinalStates,
+        "TotalDecayLengthAllFinalStates",
+        interaction
+    )
+}
+
 double pyDecay::TotalDecayLength(dataclasses::InteractionRecord const & interaction) const {
     SELF_OVERRIDE(
         self,
@@ -44,13 +55,13 @@ double pyDecay::TotalDecayLength(dataclasses::InteractionRecord const & interact
     )
 }
 
-double pyDecay::TotalDecayLengthForFinalState(dataclasses::InteractionRecord const & interaction) const {
+double pyDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & interaction) const {
     SELF_OVERRIDE(
         self,
         Decay,
         double,
-        TotalDecayLengthForFinalState,
-        "TotalDecayLengthForFinalState",
+        TotalDecayWidthAllFinalStates,
+        "TotalDecayWidthAllFinalStates",
         interaction
     )
 }
@@ -66,24 +77,13 @@ double pyDecay::TotalDecayWidth(dataclasses::InteractionRecord const & interacti
     )
 }
 
-double pyDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & interaction) const {
-    SELF_OVERRIDE_PURE(
+double pyDecay::TotalDecayWidthAllFinalStates(siren::dataclasses::ParticleType const & primary) const {
+    SELF_OVERRIDE(
         self,
         Decay,
         double,
-        TotalDecayWidthForFinalState,
-        "TotalDecayWidthForFinalState",
-        interaction
-    )
-}
-
-double pyDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary) const {
-    SELF_OVERRIDE_PURE(
-        self,
-        Decay,
-        double,
-        TotalDecayWidth,
-        "TotalDecayWidth",
+        TotalDecayWidthAllFinalStates,
+        "TotalDecayWidthAllFinalStates",
         primary
     )
 }
@@ -100,7 +100,7 @@ double pyDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & in
 }
 
 void pyDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
-    SELF_OVERRIDE_PURE(
+    SELF_OVERRIDE_PURE_REF(
         self,
         Decay,
         void,
@@ -126,8 +126,8 @@ std::vector<siren::dataclasses::InteractionSignature> pyDecay::GetPossibleSignat
         self,
         Decay,
         std::vector<siren::dataclasses::InteractionSignature>,
-        GetPossibleSignaturesFromParents,
-        "GetPossibleSignaturesFromParents",
+        GetPossibleSignaturesFromParent,
+        "GetPossibleSignaturesFromParent",
         primary_type
     )
 }

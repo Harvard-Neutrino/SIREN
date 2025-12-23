@@ -323,7 +323,6 @@ endif()
 
 include(siren_python_package)
 
-
 # Export targets for use in downstream CMake projects
 # -----------------------------------------------------------------------------
 include(CMakePackageConfigHelpers)

@@ -62,7 +62,7 @@ void SecondaryPhysicalVertexDistribution::SampleVertex(std::shared_ptr<siren::ut
     std::vector<siren::dataclasses::ParticleType> targets(interactions->TargetTypes().begin(), interactions->TargetTypes().end());
 
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_length = interactions->TotalDecayLength(record.record);
+    double total_decay_length = interactions->TotalDecayLengthAllFinalStates(record.record);
     siren::dataclasses::InteractionRecord fake_record = record.record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         siren::dataclasses::ParticleType const & target = targets[i];
@@ -112,7 +112,7 @@ double SecondaryPhysicalVertexDistribution::GenerationProbability(std::shared_pt
 
     std::vector<siren::dataclasses::ParticleType> targets(possible_targets.begin(), possible_targets.end());
     std::vector<double> total_cross_sections(targets.size(), 0.0);
-    double total_decay_length = interactions->TotalDecayLength(record);
+    double total_decay_length = interactions->TotalDecayLengthAllFinalStates(record);
     siren::dataclasses::InteractionRecord fake_record = record;
     for(unsigned int i=0; i<targets.size(); ++i) {
         siren::dataclasses::ParticleType const & target = targets[i];

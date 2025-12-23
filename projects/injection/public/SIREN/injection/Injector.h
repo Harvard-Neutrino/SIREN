@@ -93,6 +93,9 @@ public:
     virtual void SampleCrossSection(siren::dataclasses::InteractionRecord & record) const;
     virtual void SampleCrossSection(siren::dataclasses::InteractionRecord & record,
                                     std::shared_ptr<siren::interactions::InteractionCollection> interactions) const;
+    // virtual siren::dataclasses::CrossSectionDistributionRecord SampleCrossSection(siren::dataclasses::InteractionRecord & record) const;
+    // virtual siren::dataclasses::CrossSectionDistributionRecord SampleCrossSection(siren::dataclasses::InteractionRecord & record,
+    //                                 std::shared_ptr<siren::interactions::InteractionCollection> interactions) const;
     siren::dataclasses::InteractionRecord SampleSecondaryProcess(siren::dataclasses::SecondaryDistributionRecord & secondary_record) const;
     siren::dataclasses::InteractionTree GenerateEvent();
     virtual std::string Name() const;
