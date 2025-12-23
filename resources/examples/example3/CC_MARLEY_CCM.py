@@ -2,7 +2,6 @@ import os
 import numpy as np
 import siren
 from siren import utilities
-import matplotlib.pyplot as plt
 import pickle
 import argparse
 
