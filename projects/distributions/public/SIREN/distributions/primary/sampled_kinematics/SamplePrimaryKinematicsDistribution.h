@@ -93,6 +93,7 @@ private:
     std::vector<double> weights_;
     mutable std::vector<double> sum_weights_; // mutable to allow modification in const methods
     mutable double total_sum_weights_; // mutable to allow modification in const methods
+    mutable double simulated_pot_ = 1e4;
 };
 
 } // namespace distributions

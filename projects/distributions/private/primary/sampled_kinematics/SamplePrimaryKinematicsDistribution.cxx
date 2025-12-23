@@ -39,20 +39,8 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePrimaryKinematics
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::PrimaryDistributionRecord & record) const {
-    if (energies_.empty()) {
-        throw std::runtime_error("No data available for sampling.");
-    }
-    if (total_sum_weights_ == 0.0) {
-        throw std::runtime_error("Sum of weights is zero; cannot sample.");
-    }
-    double u = rand->Uniform(0, total_sum_weights_);
-    auto it = std::lower_bound(sum_weights_.begin(), sum_weights_.end(), u);
-    size_t idx = std::distance(sum_weights_.begin(), it);
-    siren::math::Vector3D pos = positions_[idx];
-    siren::math::Vector3D dir = directions_[idx];
-    double step_length = weights_[idx];
-    siren::math::Vector3D end = pos + step_length * dir;
-    return {pos, end};
+    throw std::runtime_error("SamplePrimaryKinematicsDistribution::SamplePosition is not implemented!");
+    return {siren::math::Vector3D(), siren::math::Vector3D()};
 }
 
 void SamplePrimaryKinematicsDistribution::Sample(
@@ -87,7 +75,7 @@ double SamplePrimaryKinematicsDistribution::GenerationProbability(
     std::shared_ptr<siren::detector::DetectorModel const> detector_model,
     std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
     siren::dataclasses::InteractionRecord const & record) const {
-    return 1.0; // Constant probability, as data is pre-modeled
+    return 1.0 / (total_sum_weights_ / simulated_pot_); // Constant probability, as data is pre-modeled
 }
 
 std::vector<std::string> SamplePrimaryKinematicsDistribution::DensityVariables() const {
@@ -116,10 +104,10 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePrimaryKinematics
 bool SamplePrimaryKinematicsDistribution::equal(WeightableDistribution const & distribution) const {
     const SamplePrimaryKinematicsDistribution* x = dynamic_cast<const SamplePrimaryKinematicsDistribution*>(&distribution);
     if (!x) return false;
-    return (energies_ == x->energies_) && 
-           (positions_ == x->positions_) && 
-           (directions_ == x->directions_) && 
-           (primary_mass_ == x->primary_mass_) && 
+    return (energies_ == x->energies_) &&
+           (positions_ == x->positions_) &&
+           (directions_ == x->directions_) &&
+           (primary_mass_ == x->primary_mass_) &&
            (weights_ == x->weights_);
 }
 
