@@ -295,7 +295,6 @@ siren::dataclasses::InteractionTree Injector::GenerateEvent() {
         }
         primary_record.Finalize(record);
         SampleCrossSection(record);
-        injected_events += 1;
     } catch(siren::utilities::InjectionFailure const & e) {
         return siren::dataclasses::InteractionTree();
     }
