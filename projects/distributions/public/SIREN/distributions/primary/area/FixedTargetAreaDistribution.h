@@ -52,8 +52,6 @@ public:
     static void load_and_construct(Archive & archive, cereal::construct<FixedTargetAreaDistribution> & construct, std::uint32_t const version) {
         if(version == 0) {
             siren::geometry::Cylinder c;
-            double max_length;
-            std::shared_ptr<siren::geometry::Geometry> fiducial_volume;
             archive(::cereal::make_nvp("Cylinder", c));
             construct(c);
             archive(cereal::virtual_base_class<PrimaryAreaDistribution>(construct.ptr()));
