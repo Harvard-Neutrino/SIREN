@@ -55,7 +55,6 @@ double log_one_minus_exp_of_negative(double x) {
 void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::SecondaryDistributionRecord & record) const {
     siren::math::Vector3D pos = record.initial_position;
     siren::math::Vector3D dir = record.direction;
-    dir.normalize();
 
     siren::math::Vector3D endcap_0 = pos;
     siren::math::Vector3D endcap_1 = endcap_0 + max_length * dir;
@@ -85,7 +84,6 @@ void SecondaryBoundedVertexDistribution::SampleVertex(std::shared_ptr<siren::uti
                 siren::math::Vector3D first_point((fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0);
                 siren::math::Vector3D last_point((fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1);
                 path.SetPoints(DetectorPosition(first_point), DetectorPosition(last_point));
-                path.ClipToOuterBounds();
             }
         }
     }
@@ -159,7 +157,6 @@ double SecondaryBoundedVertexDistribution::GenerationProbability(std::shared_ptr
                 DetectorPosition first_point((fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0);
                 DetectorPosition last_point((fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1);
                 path.SetPoints(first_point, last_point);
-                path.ClipToOuterBounds();
             }
         }
     }
@@ -248,7 +245,6 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> SecondaryBoundedVertexD
                 DetectorPosition first_point((fid_intersections.front().distance > 0) ? fid_intersections.front().position : endcap_0);
                 DetectorPosition last_point((fid_intersections.back().distance < max_length) ? fid_intersections.back().position : endcap_1);
                 path.SetPoints(first_point, last_point);
-                path.ClipToOuterBounds();
             }
         }
     }
