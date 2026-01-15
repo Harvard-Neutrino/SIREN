@@ -32,6 +32,35 @@ SamplePrimaryKinematicsDistribution::SamplePrimaryKinematicsDistribution(std::ve
         sum_weights_[i] = sum;
     }
     total_sum_weights_ = sum;
+
+    // this is fragile -- but let's rotate our gamma positions + directions
+    // they were simulated assuming the target is at (-23, 0) and detector is at (0, 0)
+    // but we have rotated the target to be around (-18, -14) and detector at (0, 0) to match reality
+    // so we need to rotate gamma position and directions
+    double theta = 0.654498;
+    double cos_theta = std::cos(theta);
+    double sin_theta = std::sin(theta);
+
+    for (size_t i = 0; i < positions_.size(); ++i) {
+        double x = positions_[i].GetX();
+        double y = positions_[i].GetY();
+        double z = positions_[i].GetZ();
+
+        double dx = directions_[i].GetX();
+        double dy = directions_[i].GetY();
+        double dz = directions_[i].GetZ();
+
+        // rotate positions
+        double x_new = x * cos_theta - y * sin_theta;
+        double y_new = x * sin_theta + y * cos_theta;
+        positions_[i] = siren::math::Vector3D(x_new, y_new, z);
+
+        // rotate directions
+        double dx_new = dx * cos_theta - dy * sin_theta;
+        double dy_new = dx * sin_theta + dy * cos_theta;
+        directions_[i] = siren::math::Vector3D(dx_new, dy_new, dz);
+    }
+
 }
 
 std::tuple<siren::math::Vector3D, siren::math::Vector3D> SamplePrimaryKinematicsDistribution::SamplePosition(
