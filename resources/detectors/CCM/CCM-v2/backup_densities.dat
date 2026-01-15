@@ -19,18 +19,18 @@ object box    0 0 -6          0 0 0      100 100 8      floor              CONCR
 #############################################
 
 # Steel shielding around TMRS (rough guess based on https://docdb.lns.mit.edu/captainmills/0004/000493/002/CCM_DMNIReviewJune2022_vdwater_Intro.pdf)
-object cylinder  -18.247133 -14.001504 0           0 0 0      5 0 4          Fe_around_TMRS      STEEL     constant 7.83
+object cylinder  0 0 0           0 0 0      5 0 4          Fe_around_TMRS      STEEL     constant 7.83
 
 # TMRS around targets, eyeballed from https://permalink.lanl.gov/object/tr?what=info:lanl-repo/lareport/LA-UR-17-30411
-object cylinder  -18.247133 -14.001504  0.185      0 0 0      0.83 0 1.63     TMRS_Fe             STEEL     constant 7.83
-object cylinder  -18.247133 -14.001504  0.17       0 0 0      0.55 0 1.24     TMRS_Pb             LEAD      constant 11.29
-object cylinder  -18.247133 -14.001504 -0.316      0 0 0      0.3  0 0.15     TMRS_lower_Be1      BERYLLIUM constant 1.85
-object cylinder  -18.247133 -14.001504 -0.166      0 0 0      0.3  0 0.15     TMRS_lower_Be2      BERYLLIUM constant 1.85
-object cylinder  -18.247133 -14.001504  0.29       0 0 0      0.3  0 0.42     TMRS_upper_Be       BERYLLIUM constant 1.85
+object cylinder  0 0  0.185      0 0 0      0.83 0 1.63     TMRS_Fe             STEEL     constant 7.83
+object cylinder  0 0  0.17       0 0 0      0.55 0 1.24     TMRS_Pb             LEAD      constant 11.29
+object cylinder  0 0 -0.316      0 0 0      0.3  0 0.15     TMRS_lower_Be1      BERYLLIUM constant 1.85
+object cylinder  0 0 -0.166      0 0 0      0.3  0 0.15     TMRS_lower_Be2      BERYLLIUM constant 1.85
+object cylinder  0 0  0.29       0 0 0      0.3  0 0.42     TMRS_upper_Be       BERYLLIUM constant 1.85
 # Upper tungsten target
-object cylinder  -18.247133 -14.001504 0.1375      0 0 0      0.05 0 0.091    upper_target        TUNGSTEN  constant   19.3
+object cylinder  0 0 0.1375      0 0 0      0.05 0 0.091    upper_target        TUNGSTEN  constant   19.3
 # Lower tungsten target
-object cylinder  -18.247133 -14.001504 -0.241      0 0 0      0.05 0 0.298    lower_target        TUNGSTEN  constant   19.3
+object cylinder  0 0 -0.241      0 0 0      0.05 0 0.298    lower_target        TUNGSTEN  constant   19.3
 
 
 #############################################
@@ -38,26 +38,27 @@ object cylinder  -18.247133 -14.001504 -0.241      0 0 0      0.05 0 0.298    lo
 #############################################
 
 # Concrete platform, again a guess
-object box  -11.821629 -9.071644 -1.695     0 0 0      6.1976 5.893 0.61  ER1_platform  CONCRETE constant 2.4 # check Lujan concrete
+object box  8.099 0 -1.695     0 0 0      6.1976 5.893 0.61  ER1_platform  CONCRETE constant 2.4 # check Lujan concrete
 
-object box  -13.019267 -10.756182 -0.463     0 0 0      0.6604 1.8288 1.854   ER1_concrete1  CONCRETE  constant 2.4
-object box  -12.394580 -10.276845 -0.463     0 0 0      0.9144 1.8796 1.854   ER1_concrete2  CONCRETE  constant 2.4
-object box  -11.951254 -9.936670 -0.463     0 0 0      0.2032 1.8796 1.854   ER1_steel      STEEL     constant 7.83
-object box  -11.689288 -9.735657 -0.463     0 0 0      0.4572 2.4892 1.854   ER1_concrete3  CONCRETE  constant 2.4
-object box  -11.476701 -9.573300 -0.463     0 0 0      0.0762 3.6576 1.854   ER1_poly       POLY      constant 0.9547
-object box  -10.471760 -8.802183 -0.463     0 0 0      0.4572 3.6576 1.854   ER1_concrete4  CONCRETE  constant 2.4
+
+object box  5.3302 0 -0.463     0 0 0      0.6604 1.8288 1.854   ER1_concrete1  CONCRETE  constant 2.4
+object box  6.1176 0 -0.463     0 0 0      0.9144 1.8796 1.854   ER1_concrete2  CONCRETE  constant 2.4
+object box  6.6764 0 -0.463     0 0 0      0.2032 1.8796 1.854   ER1_steel      STEEL     constant 7.83
+object box  7.0066 0 -0.463     0 0 0      0.4572 2.4892 1.854   ER1_concrete3  CONCRETE  constant 2.4
+object box  7.2733 0 -0.463     0 0 0      0.0762 3.6576 1.854   ER1_poly       POLY      constant 0.9547
+object box  8.5400 0 -0.463     0 0 0      0.4572 3.6576 1.854   ER1_concrete4  CONCRETE  constant 2.4
 
 #############################################
 # ER2 Shielding
 #############################################
 
 # Steel shielding in front of detector (verify 1 m)
-object box       0.429909 -2.739424 -0.5       0 0 0      1 5 3         det_steel_shielding    STEEL     constant   7.83
+object box       18.5 0 -0.5       0 0 0      1 5 3         det_steel_shielding    STEEL     constant   7.83
 # Concrete shielding in front of detector (start with 2 m, suspect there is more)
-object box       1.619940 -1.826283 -0.5       0 0 0      2 5 3         det_concrete_shielding CONCRETE  constant   2.4
+object box       20.0 0 -0.5       0 0 0      2 5 3         det_concrete_shielding CONCRETE  constant   2.4
 # Concrete shielding on sides of detector (guess based on https://docdb.lns.mit.edu/cgi-bin/captainmills/ShowDocument?docid=292)
-object box       1.260576 3.569092 -0.5    0 0 0      4 1 3         det_concrete_shielding CONCRETE  constant   2.4
-object box       6.739425 -3.413091 -0.5    0 0 0      4 1 3         det_concrete_shielding CONCRETE  constant   2.4
+object box       23.0  4.5 -0.5    0 0 0      4 1 3         det_concrete_shielding CONCRETE  constant   2.4
+object box       23.0 -4.5 -0.5    0 0 0      4 1 3         det_concrete_shielding CONCRETE  constant   2.4
 
 #############################################
 # CCM Detector
@@ -65,23 +66,23 @@ object box       6.739425 -3.413091 -0.5    0 0 0      4 1 3         det_concret
 
 # Dimensions taken from Darcy's simulation
 # Outer cryogen
-object cylinder  0 0 -0.65          0 0 0      1.38 0 2.62    ccm_outer_cryogen   STEEL    constant    7.83
+object cylinder  23 0 -0.65          0 0 0      1.38 0 2.62    ccm_outer_cryogen   STEEL    constant    7.83
 # Vacuum jacket (make sure 0 density is ok)
-object cylinder  0 0 -0.65          0 0 0      1.35 0 2.52    ccm_vacuum_jacket   AIR      constant    0.0
+object cylinder  23 0 -0.65          0 0 0      1.35 0 2.52    ccm_vacuum_jacket   AIR      constant    0.0
 # Inner cryogen
-object cylinder  0 0 -0.65          0 0 0      1.25 0 2.40    ccm_inner_cryogen   STEEL    constant    7.83
+object cylinder  23 0 -0.65          0 0 0      1.25 0 2.40    ccm_inner_cryogen   STEEL    constant    7.83
 # Outer argon
-object cylinder  0 0 -0.65          0 0 0      1.20 0 2.30    ccm_outer_argon     ARGON    constant    1.3954
+object cylinder  23 0 -0.65          0 0 0      1.20 0 2.30    ccm_outer_argon     ARGON    constant    1.3954
 # Aluminum PMT frame
 # note -- the aluminum frame is actually struts (not a continuous cylinder)
 # approximating the frame as a continuous thin cylinder with approximately same total mass as the struts
-object cylinder  0 0 -0.65          0 0 0      1.130076 0 1.24261    ccm_pmt_frame       ALUMINUM constant    2.70
+object cylinder  23 0 -0.65          0 0 0      1.130076 0 1.24261    ccm_pmt_frame       ALUMINUM constant    2.70
 # Inner argon
 # The "inner argon" represents argon within the radius of the PMT support struts (inner frame) but is distinct from the "active volume" of argon
 # A thin reflective TPB-coated film of radius 1.03385m separates the veto region from the active volume, and is not represented here because of its minimal contribution to the detector mass
-object cylinder  0 0 -0.65          0 0 0      1.12776 0 1.2396   ccm_inner_argon     ARGON    constant    1.3954
+object cylinder  23 0 -0.65          0 0 0      1.12776 0 1.2396   ccm_inner_argon     ARGON    constant    1.3954
 
-detector 0 0 -0.65
+detector 23 0 -0.65
 
 # Fiducial volume
 # This represents the "active volume" of liquid argon contained within the reflective TPB-coated film
