@@ -199,6 +199,45 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<si
 }
 
 template<typename ProcessType>
+std::vector<double> ProcessWeighter<ProcessType>::PhysicalProbabilityComponents(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
+        siren::dataclasses::InteractionRecord const & record) const {
+
+    std::vector<double> physical_probability = {};
+
+    double interaction_prob = InteractionProbability(bounds, record);
+    double normalized_position_prob = NormalizedPositionProbability(bounds, record);
+    double cross_section_prob = siren::injection::CrossSectionProbability(detector_model, phys_process->GetInteractions(), record);
+
+    physical_probability.push_back(interaction_prob);
+    physical_probability.push_back(normalized_position_prob);
+    physical_probability.push_back(cross_section_prob);
+
+    for(auto physical_dist : unique_phys_distributions) {
+        double gen_prob = physical_dist->GenerationProbability(detector_model, phys_process->GetInteractions(), record);
+        physical_probability.push_back(gen_prob);
+    }
+
+    return physical_probability;
+}
+
+template<typename ProcessType>
+std::vector<double> ProcessWeighter<ProcessType>::GenerationProbabilityComponents(siren::dataclasses::InteractionTreeDatum const & datum ) const {
+
+    std::vector<double> generation_probability = {};
+
+    double cross_section_prob = siren::injection::CrossSectionProbability(detector_model, inj_process->GetInteractions(), datum.record);
+
+    generation_probability.push_back(cross_section_prob);
+
+    for(auto gen_dist : unique_gen_distributions) {
+        double gen_prob = gen_dist->GenerationProbability(detector_model, inj_process->GetInteractions(), datum.record);
+        generation_probability.push_back(gen_prob);
+    }
+
+    return generation_probability;
+}
+
+template<typename ProcessType>
 double ProcessWeighter<ProcessType>::PhysicalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds,
         siren::dataclasses::InteractionRecord const & record ) const {
 

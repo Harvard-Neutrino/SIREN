@@ -30,7 +30,7 @@ class Weighter:
     A wrapper for the C++ Weighter class, handling event weight calculations.
     """
 
-    def __init__(self, 
+    def __init__(self,
         injectors: Optional[List[_Injector]] = None,
         detector_model: Optional[DetectorModel] = None,
         primary_type: Optional[_dataclasses.ParticleType] = None,
@@ -101,7 +101,7 @@ class Weighter:
             raise ValueError("Primary type has not been set.")
         if len(self.__primary_interactions) == 0:
             raise ValueError("Primary interactions have not been set.")
-    
+
         injectors = [injector._Injector__injector if isinstance(injector, _PyInjector) else injector for injector in self.__injectors]
 
         primary_type = self.primary_type
@@ -306,3 +306,21 @@ class Weighter:
             float: The calculated event weight.
         """
         return self(interaction_tree)
+
+    def primary_process_physical_probability_components(self, interaction_tree: InteractionTree) -> List[float]:
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        return self.__weighter.PrimaryProcessPhysicalProbability(interaction_tree)
+    def primary_process_generation_probability_components(self, interaction_tree: InteractionTree) -> List[float]:
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        return self.__weighter.PrimaryProcessGenerationProbability(interaction_tree)
+    def secondary_process_physical_probability_components(self, interaction_tree: InteractionTree) -> List[float]:
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        return self.__weighter.SecondaryProcessPhysicalProbability(interaction_tree)
+    def secondary_process_generation_probability_components(self, interaction_tree: InteractionTree) -> List[float]:
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        return self.__weighter.SecondaryProcessGenerationProbability(interaction_tree)
+

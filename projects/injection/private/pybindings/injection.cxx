@@ -145,7 +145,7 @@ PYBIND11_MODULE(injection,m) {
   //       &(siren::serialization::pickle_save<Injector>),
   //       &(siren::serialization::pickle_load<Injector>)
   //   ));
-    
+
 //  class_<RangedSIREN, std::shared_ptr<RangedSIREN>, Injector>(m, "RangedSIREN")
 //    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::distributions::RangeFunction>, double, double>())
 //    .def("Name",&RangedSIREN::Name);
@@ -188,6 +188,10 @@ PYBIND11_MODULE(injection,m) {
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>, std::vector<std::shared_ptr<PhysicalProcess>>>())
     .def(init<std::vector<std::shared_ptr<Injector>>, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PhysicalProcess>>())
     .def(init<std::vector<std::shared_ptr<Injector>>, std::string>())
+    .def("PrimaryProcessPhysicalProbability",&Weighter::PrimaryProcessPhysicalProbability)
+    .def("PrimaryProcessGenerationProbability",&Weighter::PrimaryProcessGenerationProbability)
+    .def("SecondaryProcessPhysicalProbability",&Weighter::SecondaryProcessPhysicalProbability)
+    .def("SecondaryProcessGenerationProbability",&Weighter::SecondaryProcessGenerationProbability)
     .def("EventWeight",&Weighter::EventWeight)
     .def("SaveWeighter",&Weighter::SaveWeighter)
     .def("LoadWeighter",&Weighter::LoadWeighter)

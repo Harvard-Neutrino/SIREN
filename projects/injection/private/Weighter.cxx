@@ -84,6 +84,78 @@ void Weighter::Initialize() {
     }
 }
 
+std::vector<double> Weighter::PrimaryProcessPhysicalProbability(siren::dataclasses::InteractionTree const & tree) const {
+
+    std::vector<double> primary_process_physical_probability = {};
+
+    for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
+        for(auto const & datum : tree.tree) {
+            std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+            if(datum->depth() == 0) {
+                bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
+                primary_process_physical_probability = primary_process_weighters[idx]->PhysicalProbabilityComponents(bounds, datum->record);
+            }
+        }
+    }
+
+    return primary_process_physical_probability;
+}
+
+std::vector<double> Weighter::PrimaryProcessGenerationProbability(siren::dataclasses::InteractionTree const & tree) const {
+
+    std::vector<double> primary_process_generation_probability = {};
+
+    for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
+        for(auto const & datum : tree.tree) {
+            std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+            if(datum->depth() == 0) {
+                primary_process_generation_probability = primary_process_weighters[idx]->GenerationProbabilityComponents(*datum);
+            }
+        }
+    }
+
+    return primary_process_generation_probability;
+}
+
+std::vector<double> Weighter::SecondaryProcessPhysicalProbability(siren::dataclasses::InteractionTree const & tree) const {
+    std::vector<double> secondary_process_physical_probability = {};
+
+    for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
+        for(auto const & datum : tree.tree) {
+            std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+
+            if(datum->depth() == 0) {
+                ;
+            }
+            else {
+                bounds = injectors[idx]->SecondaryInjectionBounds(datum->record);
+                secondary_process_physical_probability = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->PhysicalProbabilityComponents(bounds, datum->record);
+            }
+        }
+    }
+
+    return secondary_process_physical_probability;
+}
+
+std::vector<double> Weighter::SecondaryProcessGenerationProbability(siren::dataclasses::InteractionTree const & tree) const {
+    std::vector<double> secondary_process_generation_probability = {};
+
+    for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
+        for(auto const & datum : tree.tree) {
+            std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+
+            if(datum->depth() == 0) {
+                ;
+            }
+            else {
+                secondary_process_generation_probability = secondary_process_weighter_maps[idx].at(datum->record.signature.primary_type)->GenerationProbabilityComponents(*datum);
+            }
+        }
+    }
+
+    return secondary_process_generation_probability;
+}
+
 double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) const {
     // The weight is given by
     //
@@ -104,7 +176,6 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
     // Thus, the two will cancel out and we are left with only the unnormalized position probability
     //  w = p_physCommon / (\sum_i p_gen^i / p_physPosNonNorm^i)
 
-    
 
     double inv_weight = 0;
     for(unsigned int idx = 0; idx < injectors.size(); ++idx) {

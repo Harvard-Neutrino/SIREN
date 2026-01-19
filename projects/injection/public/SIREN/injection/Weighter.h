@@ -52,6 +52,8 @@ public:
     double InteractionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double NormalizedPositionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
     double PhysicalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
+    std::vector<double> PhysicalProbabilityComponents(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const;
+    std::vector<double> GenerationProbabilityComponents(siren::dataclasses::InteractionTreeDatum const & datum) const;
     double GenerationProbability(siren::dataclasses::InteractionTreeDatum const & datum) const;
     double EventWeight(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionTreeDatum const & datum) const;
     ProcessWeighter(std::shared_ptr<siren::injection::PhysicalProcess> phys_process, std::shared_ptr<ProcessType> inj_process, std::shared_ptr<siren::detector::DetectorModel> detector_model);
@@ -83,6 +85,10 @@ private:
     void Initialize();
 public:
     double EventWeight(siren::dataclasses::InteractionTree const & tree) const;
+    std::vector<double> PrimaryProcessPhysicalProbability(siren::dataclasses::InteractionTree const & tree) const;
+    std::vector<double> PrimaryProcessGenerationProbability(siren::dataclasses::InteractionTree const & tree) const;
+    std::vector<double> SecondaryProcessPhysicalProbability(siren::dataclasses::InteractionTree const & tree) const;
+    std::vector<double> SecondaryProcessGenerationProbability(siren::dataclasses::InteractionTree const & tree) const;
     Weighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process, std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes);
     Weighter(std::vector<std::shared_ptr<Injector>> injectors, std::shared_ptr<siren::detector::DetectorModel> detector_model, std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process);
     Weighter(std::vector<std::shared_ptr<Injector>> injectors, std::string filename);
