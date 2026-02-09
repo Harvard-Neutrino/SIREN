@@ -17,8 +17,8 @@ from siren import _util
 from siren.DNModelContainer import ModelContainer
 
 # DarkNews methods
+import DarkNews
 from DarkNews import phase_space
-from DarkNews.processes import *
 from DarkNews.nuclear_tools import NuclearTarget
 from DarkNews.integrands import get_decay_momenta_from_vegas_samples
 
@@ -755,7 +755,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
         # Momentum variables of HNL necessary for calculating decay phase space
         PN = np.array(record.primary_momentum)
 
-        if type(self.dec_case) == FermionSinglePhotonDecay:
+        if type(self.dec_case) == DarkNews.processes.FermionSinglePhotonDecay:
             gamma_idx = 0
             for secondary in record.signature.secondary_types:
                 if secondary == dataclasses.Particle.ParticleType.Gamma:
@@ -768,7 +768,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
             Pgamma = np.array(record.secondary_momenta[gamma_idx])
             momenta = np.expand_dims(PN, 0), np.expand_dims(Pgamma, 0)
 
-        elif type(self.dec_case) == FermionDileptonDecay:
+        elif type(self.dec_case) == DarkNews.processes.FermionDileptonDecay:
             lepminus_idx = -1
             lepplus_idx = -1
             nu_idx = -1
@@ -816,7 +816,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
             return 0
         if self.total_width is None:
             # Need to set the total width
-            if type(self.dec_case) == FermionDileptonDecay and (
+            if type(self.dec_case) == DarkNews.processes.FermionDileptonDecay and (
                 self.dec_case.vector_off_shell and self.dec_case.scalar_off_shell
             ):
                 # total width calculation requires evaluating an integral
@@ -857,9 +857,9 @@ class PyDarkNewsDecay(DarkNewsDecay):
         return ret
 
     def DensityVariables(self):
-        if type(self.dec_case) == FermionSinglePhotonDecay:
+        if type(self.dec_case) == DarkNews.processes.FermionSinglePhotonDecay:
             return "cost"
-        elif type(self.dec_case) == FermionDileptonDecay:
+        elif type(self.dec_case) == DarkNews.processes.FermionDileptonDecay:
             if self.dec_case.vector_on_shell and self.dec_case.scalar_on_shell:
                 print("Can't have both the scalar and vector on shell")
                 exit(0)
@@ -919,7 +919,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
 
         secondaries = record.GetSecondaryParticleRecords()
 
-        if type(self.dec_case) == FermionSinglePhotonDecay:
+        if type(self.dec_case) == DarkNews.processes.FermionSinglePhotonDecay:
             gamma_idx = 0
             for secondary in record.signature.secondary_types:
                 if secondary == dataclasses.Particle.ParticleType.Gamma:
@@ -934,7 +934,7 @@ class PyDarkNewsDecay(DarkNewsDecay):
             secondaries[nu_idx].four_momentum = np.squeeze(four_momenta["P_decay_N_daughter"])
             secondaries[nu_idx].mass = 0
 
-        elif type(self.dec_case) == FermionDileptonDecay:
+        elif type(self.dec_case) == DarkNews.processes.FermionDileptonDecay:
             lepminus_idx = -1
             lepplus_idx = -1
             nu_idx = -1
