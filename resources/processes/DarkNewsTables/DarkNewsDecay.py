@@ -4,7 +4,6 @@ import pickle
 import json
 import tempfile
 
-import siren
 from siren import _util
 
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -326,10 +325,15 @@ class PyDarkNewsDecay(DarkNewsDecay):
                     self.total_width = self.dec_case.total_width(
                         savefile_norm=norm_name, savefile_dec=integrator_name
                     )
-                    dec_norm = json.load(open(norm_name, "r"))
-                    _, dec_integrator = pickle.load(open(integrator_name, "rb"))
-                    os.remove(norm_name)
-                    os.remove(integrator_name)
+                    # Get normalization and integrator objects from files and then delete them
+                    try:
+                        with open(norm_name, "r") as f:
+                            dec_norm = json.load(f)
+                        with open(integrator_name, "rb") as f:
+                            _, dec_integrator = pickle.load(f)
+                    finally:
+                        os.remove(norm_name)
+                        os.remove(integrator_name)
                     self.SetIntegratorAndNorm(dec_norm, dec_integrator)
                 else:
                     self.total_width = (
@@ -409,10 +413,15 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 self.PS_samples, PS_weights_dict = self.dec_case.SamplePS(
                     savefile_norm=norm_name, savefile_dec=integrator_name
                 )
-                dec_norm = json.load(open(norm_name, "r"))
-                _, dec_integrator = pickle.load(open(integrator_name, "rb"))
-                os.remove(norm_name)
-                os.remove(integrator_name)
+                # Get normalization and integrator objects from files and then delete them
+                try:
+                    with open(norm_name, "r") as f:
+                        dec_norm = json.load(f)
+                    with open(integrator_name, "rb") as f:
+                        _, dec_integrator = pickle.load(f)
+                finally:
+                    os.remove(norm_name)
+                    os.remove(integrator_name)
                 self.PS_weights = PS_weights_dict["diff_decay_rate_0"]
                 self.SetIntegratorAndNorm(dec_norm, dec_integrator)
             else:
