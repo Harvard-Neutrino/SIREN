@@ -59,6 +59,7 @@ for secondary_type, decays in secondary_processes.items():
         DN_min_decay_width = min(DN_min_decay_width, decay_width)
 
 print("Minimum decay width for secondary decays: ", DN_min_decay_width)
+assert DN_min_decay_width < np.inf, "No decays found for secondary processes. Check the loaded processes and model parameters."
 
 # Primary distributions
 primary_injection_distributions = {}
@@ -130,7 +131,7 @@ weighter.secondary_interactions = secondary_processes
 weighter.primary_physical_distributions = primary_physical_distributions
 weighter.secondary_physical_distributions = {}
 
-SaveEvents(events,weighter,gen_times,output_filename="output/CCM_Dipole")
+SaveEvents(events,weighter,gen_times,output_filename="output/MINERvA_Dipole")
 
 # save cross section tables
 SaveDarkNewsProcesses(table_dir,
