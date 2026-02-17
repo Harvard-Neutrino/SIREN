@@ -31,7 +31,8 @@ object cylinder  0 0  0.29       0 0 0      0.3  0 0.42     TMRS_upper_Be       
 object cylinder  0 0 0.1375      0 0 0      0.05 0 0.091    upper_target        TUNGSTEN  constant   19.3
 # Lower tungsten target
 object cylinder  0 0 -0.241      0 0 0      0.05 0 0.298    lower_target        TUNGSTEN  constant   19.3
-
+# Target disk (key difference between Mark-III and Mark-IV targets)
+object cylinder -0.019 0.046 0.35     0 1.5708 1.997     0.05 0 0.012     disk_target         TUNGSTEN  constant   19.3
 
 #############################################
 # ER1 Shielding Wall Installed in August 2022 (From Aayush's presentation)
