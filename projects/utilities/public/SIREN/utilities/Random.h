@@ -7,7 +7,7 @@
 
 // this implements a class to sample numbers just like in an i3 service
 
-#include <random> // default_random_engine, uniform_real_distribution
+#include <random> // mt19937_64, uniform_real_distribution
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -29,7 +29,7 @@ namespace utilities {
 
             // this naming convention is used to
             double Uniform( double from=0.0, double to=1.0);
-            double PowerLaw(double min, double max, double n); 
+            double PowerLaw(double min, double max, double n);
 
             // in case this is set up without a seed!
             void set_seed(unsigned int new_seed);
@@ -55,7 +55,14 @@ namespace utilities {
 
         private:
             unsigned int seed;
-            std::default_random_engine configuration;
+            // Previously used std::default_random_engine (minstd_rand0 on GCC),
+            // a linear congruential generator with only ~2.1 billion states
+            // (period 2^31-2). With ~500 RNG draws per event and thousands of
+            // seeds each generating 10k events, the birthday paradox causes
+            // frequent internal state collisions across seeds, producing
+            // identical event sequences. Switched to Mersenne Twister
+            // (period 2^19937-1) to eliminate cross-seed duplicates.
+            std::mt19937_64 configuration;
             std::uniform_real_distribution<double> generator;
     };
 
