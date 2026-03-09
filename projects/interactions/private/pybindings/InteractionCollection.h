@@ -6,6 +6,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
+#include "../../public/SIREN/interactions/Interaction.h"
 #include "../../public/SIREN/interactions/CrossSection.h"
 #include "../../public/SIREN/interactions/InteractionCollection.h"
 #include "../../public/SIREN/interactions/Decay.h"
@@ -22,6 +23,7 @@ void register_InteractionCollection(pybind11::module_ & m) {
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>>())
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<Decay>>>())
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>>())
+        .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<Interaction>>>())
         .def(self == self)
         .def("GetPrimaryType",&InteractionCollection::GetPrimaryType, return_value_policy::reference_internal)
         .def("GetCrossSections",&InteractionCollection::GetCrossSections, return_value_policy::reference_internal)
@@ -36,5 +38,7 @@ void register_InteractionCollection(pybind11::module_ & m) {
         .def("TotalDecayWidth",&InteractionCollection::TotalDecayWidth)
         .def("TotalDecayLength",&InteractionCollection::TotalDecayLength)
         .def("MatchesPrimary",&InteractionCollection::MatchesPrimary)
+        .def("GetPrimaryType",&InteractionCollection::GetPrimaryType)
+        .def("SetPrimaryType",&InteractionCollection::SetPrimaryType)
         ;
 }

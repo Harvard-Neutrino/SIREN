@@ -40,3 +40,6 @@ double RadialAxis1D::GetdX(const math::Vector3D& xi, const math::Vector3D& direc
 
 } // namespace siren
 } // namespace detector
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_RadialAxis1D);
+

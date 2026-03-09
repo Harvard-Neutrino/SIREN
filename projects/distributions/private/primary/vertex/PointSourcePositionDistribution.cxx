@@ -144,7 +144,7 @@ double PointSourcePositionDistribution::GenerationProbability(std::shared_ptr<si
 
 PointSourcePositionDistribution::PointSourcePositionDistribution() {}
 
-PointSourcePositionDistribution::PointSourcePositionDistribution(siren::math::Vector3D origin, double max_distance, std::set<siren::dataclasses::ParticleType> target_types) : origin(origin), max_distance(max_distance), target_types(target_types) {}
+PointSourcePositionDistribution::PointSourcePositionDistribution(siren::math::Vector3D origin, double max_distance) : origin(origin), max_distance(max_distance) {}
 
 std::string PointSourcePositionDistribution::Name() const {
     return "PointSourcePositionDistribution";
@@ -177,16 +177,15 @@ bool PointSourcePositionDistribution::equal(WeightableDistribution const & other
         return false;
     else
         return (origin == x->origin
-            and max_distance == x->max_distance
-            and target_types == x->target_types);
+            and max_distance == x->max_distance);
 }
 
 bool PointSourcePositionDistribution::less(WeightableDistribution const & other) const {
     const PointSourcePositionDistribution* x = dynamic_cast<const PointSourcePositionDistribution*>(&other);
     return
-        std::tie(origin, max_distance, target_types)
+        std::tie(origin, max_distance)
         <
-        std::tie(origin, x->max_distance, x->target_types);
+        std::tie(origin, x->max_distance);
 }
 
 } // namespace distributions

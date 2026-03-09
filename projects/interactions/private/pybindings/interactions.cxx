@@ -1,6 +1,7 @@
 
 #include <vector>
 
+#include "../../public/SIREN/interactions/Interaction.h"
 #include "../../public/SIREN/interactions/CrossSection.h"
 #include "../../public/SIREN/interactions/DarkNewsCrossSection.h"
 #include "../../public/SIREN/interactions/DarkNewsDecay.h"
@@ -16,6 +17,7 @@
 #include "../../public/SIREN/interactions/InteractionCollection.h"
 
 
+#include "./Interaction.h"
 #include "./CrossSection.h"
 #include "./DarkNewsCrossSection.h"
 #include "./DarkNewsDecay.h"
@@ -29,6 +31,7 @@
 #include "./HNLDISFromSpline.h"
 #include "./HNLDecay.h"
 #include "./InteractionCollection.h"
+#include "./MarleyCrossSection.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
@@ -41,6 +44,7 @@ using namespace pybind11;
 PYBIND11_MODULE(interactions,m) {
     using namespace siren::interactions;
 
+    register_Interaction(m);
     register_CrossSection(m);
     register_Decay(m);
     register_DarkNewsCrossSection(m);
@@ -54,4 +58,5 @@ PYBIND11_MODULE(interactions,m) {
     register_HNLDISFromSpline(m);
     register_HNLDecay(m);
     register_InteractionCollection(m);
+    register_MarleyCrossSection(m);
 }

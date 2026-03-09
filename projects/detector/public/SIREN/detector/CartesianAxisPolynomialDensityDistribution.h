@@ -25,4 +25,6 @@ CEREAL_CLASS_VERSION(siren::detector::CartesianAxisPolynomialDensityDistribution
 CEREAL_REGISTER_TYPE(siren::detector::CartesianAxisPolynomialDensityDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::CartesianAxisPolynomialDensityDistribution);
 
+CEREAL_FORCE_DYNAMIC_INIT(siren_CartesianAxisPolynomialDensityDistribution);
+
 #endif // SIREN_CartesianAxisPolynomialDensityDistribution.h

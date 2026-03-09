@@ -6,6 +6,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
+#include "../../public/SIREN/interactions/Interaction.h"
 #include "../../public/SIREN/interactions/CrossSection.h"
 #include "../../public/SIREN/interactions/Decay.h"
 #include "../../public/SIREN/interactions/pyDecay.h"
@@ -17,7 +18,7 @@ void register_Decay(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace siren::interactions;
 
-    class_<Decay, std::shared_ptr<Decay>, pyDecay>(m, "Decay")
+    class_<Decay, std::shared_ptr<Decay>, pyDecay, Interaction>(m, "Decay")
         .def("TotalDecayLength",&Decay::TotalDecayLength)
         .def("TotalDecayLengthForFinalState",&Decay::TotalDecayLengthForFinalState);
 

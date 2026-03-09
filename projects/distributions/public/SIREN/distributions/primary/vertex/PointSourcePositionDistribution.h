@@ -34,7 +34,6 @@ friend cereal::access;
 private:
     siren::math::Vector3D origin;
     double max_distance;
-    std::set<siren::dataclasses::ParticleType> target_types;
 
     siren::math::Vector3D SampleFromDisk(std::shared_ptr<siren::utilities::SIREN_random> rand, siren::math::Vector3D const & dir) const;
 
@@ -43,7 +42,7 @@ public:
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     PointSourcePositionDistribution();
     PointSourcePositionDistribution(const PointSourcePositionDistribution &) = default;
-    PointSourcePositionDistribution(siren::math::Vector3D origin, double max_distance, std::set<siren::dataclasses::ParticleType> target_types);
+    PointSourcePositionDistribution(siren::math::Vector3D origin, double max_distance);
     std::string Name() const override;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
@@ -52,7 +51,6 @@ public:
         if(version == 0) {
             archive(::cereal::make_nvp("Origin", origin));
             archive(::cereal::make_nvp("MaxDistance", max_distance));
-            archive(::cereal::make_nvp("TargetTypes", target_types));
             archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
         } else {
             throw std::runtime_error("PointSourcePositionDistribution only supports version <= 0!");
@@ -66,8 +64,7 @@ public:
             std::set<siren::dataclasses::ParticleType> t;
             archive(::cereal::make_nvp("Origin", r));
             archive(::cereal::make_nvp("MaxDistance", l));
-            archive(::cereal::make_nvp("TargetTypes", t));
-            construct(r, l, t);
+            construct(r, l);
             archive(cereal::virtual_base_class<VertexPositionDistribution>(construct.ptr()));
         } else {
             throw std::runtime_error("PointSourcePositionDistribution only supports version <= 0!");

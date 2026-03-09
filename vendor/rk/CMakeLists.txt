@@ -30,6 +30,7 @@ LIST(APPEND rk_HEADERS
 )
 
 add_library(rk_static STATIC ${rk_SOURCES})
+set_property(TARGET rk_static PROPERTY POSITION_INDEPENDENT_CODE ON)
 add_library(rk_shared SHARED ${rk_SOURCES})
 set_target_properties(rk_static PROPERTIES EXPORT_NAME rk)
 set_target_properties(rk_shared PROPERTIES EXPORT_NAME rk)

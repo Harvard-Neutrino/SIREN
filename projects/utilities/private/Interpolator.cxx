@@ -3,6 +3,15 @@
 #include <tuple>
 #include <vector>
 
+// Explicit template instantiation
+template struct siren::utilities::TableData1D<double>;
+template struct siren::utilities::TableData2D<double>;
+template struct siren::utilities::IndexFinderRegular<double>;
+template struct siren::utilities::IndexFinderIrregular<double>;
+template struct siren::utilities::Indexer1D<double>;
+template struct siren::utilities::Interpolator1D<double>;
+template struct siren::utilities::Interpolator2D<double>;
+
 using namespace siren::utilities;
 
 template<>
@@ -28,4 +37,14 @@ template<>
 bool Interpolator2D<double>::operator==<double>(Interpolator2D<double> const & other) const {
     return original_table == other.original_table;
 }
+
+CEREAL_CLASS_VERSION(siren::utilities::TableData1D<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::TableData2D<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::IndexFinderRegular<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::IndexFinderIrregular<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::Indexer1D<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::Interpolator1D<double>, 0);
+CEREAL_CLASS_VERSION(siren::utilities::Interpolator2D<double>, 0);
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_Interpolator);
 

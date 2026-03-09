@@ -77,7 +77,9 @@ private:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::geometry::Sphere, 0);
-CEREAL_REGISTER_TYPE(siren::geometry::Sphere)
+CEREAL_REGISTER_TYPE(siren::geometry::Sphere);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::geometry::Geometry, siren::geometry::Sphere);
+
+CEREAL_FORCE_DYNAMIC_INIT(siren_Sphere);
 
 #endif // SIREN_Sphere_H
