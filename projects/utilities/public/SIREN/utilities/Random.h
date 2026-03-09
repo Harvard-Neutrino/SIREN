@@ -7,7 +7,7 @@
 
 // this implements a class to sample numbers just like in an i3 service
 
-#include <random> // default_random_engine, uniform_real_distribution
+#include <random> // mt19937_64, uniform_real_distribution
 #include <cstdint>                                      // for uint32_t
 
 #include <cereal/cereal.hpp>
@@ -59,7 +59,7 @@ public:
 
 private:
     uint64_t seed;
-    std::default_random_engine configuration;
+    std::mt19937_64 configuration;
     std::uniform_real_distribution<double> generator;
 };
 
