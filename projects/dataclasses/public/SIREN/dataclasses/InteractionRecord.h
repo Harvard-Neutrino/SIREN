@@ -37,6 +37,18 @@ std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryParticle
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::CrossSectionDistributionRecord const & record);
 std::ostream& operator<<(std::ostream& os, siren::dataclasses::SecondaryDistributionRecord const & record);
 
+std::string to_str(siren::dataclasses::InteractionRecord const & record);
+std::string to_str(siren::dataclasses::PrimaryDistributionRecord const & record);
+std::string to_str(siren::dataclasses::SecondaryParticleRecord const & record);
+std::string to_str(siren::dataclasses::CrossSectionDistributionRecord const & record);
+std::string to_str(siren::dataclasses::SecondaryDistributionRecord const & record);
+
+std::string to_repr(siren::dataclasses::InteractionRecord const & record);
+std::string to_repr(siren::dataclasses::PrimaryDistributionRecord const & record);
+std::string to_repr(siren::dataclasses::SecondaryParticleRecord const & record);
+std::string to_repr(siren::dataclasses::CrossSectionDistributionRecord const & record);
+std::string to_repr(siren::dataclasses::SecondaryDistributionRecord const & record);
+
 namespace siren {
 namespace dataclasses {
 
@@ -56,6 +68,9 @@ private:
     bool length_set = false;
     bool initial_position_set = false;
     bool interaction_vertex_set = false;
+    bool point_of_closest_approach_set = false;
+    bool vertex_distance_from_closest_approach_set = false;
+    bool initial_distance_from_closest_approach_set = false;
     bool helicity_set = false;
 
     mutable double mass;
@@ -66,10 +81,15 @@ private:
     mutable double length;
     mutable std::array<double, 3> initial_position;
     mutable std::array<double, 3> interaction_vertex;
+    mutable std::array<double, 3> point_of_closest_approach;
+    mutable double vertex_distance_from_closest_approach;
+    mutable double initial_distance_from_closest_approach;
     mutable double helicity = 0;
     std::map<std::string, double> interaction_parameters;
 public:
-    friend std::ostream& ::operator<<(std::ostream& os, PrimaryDistributionRecord const& record);
+    friend std::ostream& ::operator<<(std::ostream& os, siren::dataclasses::PrimaryDistributionRecord const& record);
+    friend std::string (::to_str)(siren::dataclasses::PrimaryDistributionRecord const & record);
+    friend std::string (::to_repr)(siren::dataclasses::PrimaryDistributionRecord const & record);
 
     PrimaryDistributionRecord(PrimaryDistributionRecord const & other) = delete;
     PrimaryDistributionRecord(PrimaryDistributionRecord && other) = default;
@@ -93,6 +113,9 @@ public:
     double const & GetLength() const;
     std::array<double, 3> const & GetInitialPosition() const;
     std::array<double, 3> const & GetInteractionVertex() const;
+    std::array<double, 3> const & GetPointOfClosestApproach() const;
+    double const & GetVertexDistanceFromClosestApproach() const;
+    double const & GetInitialDistanceFromClosestApproach() const;
     double const & GetHelicity() const;
 
     void SetMass(double mass);
@@ -104,6 +127,9 @@ public:
     void SetLength(double length);
     void SetInitialPosition(std::array<double, 3> initial_position);
     void SetInteractionVertex(std::array<double, 3> interaction_vertex);
+    void SetPointOfClosestApproach(std::array<double, 3> point_of_closest_approach);
+    void SetVertexDistanceFromClosestApproach(double vertex_distance_from_closest_approach);
+    void SetInitialDistanceFromClosestApproach(double initial_distance_from_closest_approach);
     void SetHelicity(double helicity);
     void SetInteractionParameters(std::map<std::string, double> const & parameters);
     void SetInteractionParameter(std::string const & name, double value);
@@ -116,6 +142,9 @@ public:
     void UpdateLength() const;
     void UpdateInitialPosition() const;
     void UpdateInteractionVertex() const;
+    void UpdatePointOfClosestApproach() const;
+    void UpdateVertexDistanceFromClosestApproach() const;
+    void UpdateInitialDistanceFromClosestApproach() const;
 
     void FinalizeAvailable(InteractionRecord & record) const;
     void Finalize(InteractionRecord & record) const;
@@ -143,7 +172,11 @@ private:
     mutable std::array<double, 3> momentum = {0, 0, 0};
     mutable double helicity = 0;
 public:
-    friend std::ostream& ::operator<<(std::ostream& os, SecondaryParticleRecord const& record);
+    friend std::ostream& ::operator<<(std::ostream& os, siren::dataclasses::SecondaryParticleRecord const& record);
+    friend std::string (::to_str)(siren::dataclasses::SecondaryParticleRecord const & record);
+    friend std::string (::to_repr)(siren::dataclasses::SecondaryParticleRecord const & record);
+    friend std::string (::to_str)(siren::dataclasses::CrossSectionDistributionRecord const & record);
+    friend std::string (::to_repr)(siren::dataclasses::CrossSectionDistributionRecord const & record);
 
     SecondaryParticleRecord(SecondaryParticleRecord const & other) = delete;
     SecondaryParticleRecord(SecondaryParticleRecord && other) = default;
@@ -207,7 +240,9 @@ public:
 private:
     std::vector<SecondaryParticleRecord> secondary_particles;
 public:
-    friend std::ostream& ::operator<<(std::ostream& os, CrossSectionDistributionRecord const& record);
+    friend std::ostream& ::operator<<(std::ostream& os, siren::dataclasses::CrossSectionDistributionRecord const& record);
+    friend std::string (::to_str)(siren::dataclasses::CrossSectionDistributionRecord const & record);
+    friend std::string (::to_repr)(siren::dataclasses::CrossSectionDistributionRecord const & record);
 
     CrossSectionDistributionRecord(CrossSectionDistributionRecord const & other) = delete;
     CrossSectionDistributionRecord(CrossSectionDistributionRecord && other) = default;
@@ -267,7 +302,9 @@ public:
 
     bool operator==(InteractionRecord const & other) const;
     bool operator<(InteractionRecord const & other) const;
-    friend std::ostream& ::operator<<(std::ostream& os, InteractionRecord const& record);
+    friend std::ostream& ::operator<<(std::ostream& os, siren::dataclasses::InteractionRecord const& record);
+    friend std::string (::to_str)(siren::dataclasses::InteractionRecord const & record);
+    friend std::string (::to_repr)(siren::dataclasses::InteractionRecord const & record);
 
     template<typename Archive>
     void save(Archive & archive, std::uint32_t const version) const {

@@ -38,7 +38,6 @@ private:
     double radius;
     double endcap_length;
     std::shared_ptr<DepthFunction> depth_function;
-    std::set<siren::dataclasses::ParticleType> target_types;
 
     siren::math::Vector3D SampleFromDisk(std::shared_ptr<siren::utilities::SIREN_random> rand, siren::math::Vector3D const & dir) const;
 
@@ -46,7 +45,7 @@ private:
 public:
     std::tuple<siren::math::Vector3D, siren::math::Vector3D> GetSamplePosition(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record); 
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
-    ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<siren::dataclasses::ParticleType> target_types);
+    ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function);
     std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     virtual std::tuple<siren::math::Vector3D, siren::math::Vector3D> InjectionBounds(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & interaction) const override;
@@ -56,7 +55,6 @@ public:
             archive(::cereal::make_nvp("Radius", radius));
             archive(::cereal::make_nvp("EndcapLength", endcap_length));
             archive(::cereal::make_nvp("DepthFunction", depth_function));
-            archive(::cereal::make_nvp("TargetTypes", target_types));
             archive(cereal::virtual_base_class<VertexPositionDistribution>(this));
         } else {
             throw std::runtime_error("ColumnDepthPositionDistribution only supports version <= 0!");
@@ -72,8 +70,7 @@ public:
             archive(::cereal::make_nvp("Radius", r));
             archive(::cereal::make_nvp("EndcapLength", l));
             archive(::cereal::make_nvp("DepthFunction", f));
-            archive(::cereal::make_nvp("TargetTypes", t));
-            construct(r, l, f, t);
+            construct(r, l, f);
             archive(cereal::virtual_base_class<VertexPositionDistribution>(construct.ptr()));
         } else {
             throw std::runtime_error("ColumnDepthPositionDistribution only supports version <= 0!");

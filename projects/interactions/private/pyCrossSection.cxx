@@ -78,15 +78,29 @@ double pyCrossSection::InteractionThreshold(dataclasses::InteractionRecord const
 }
 
 void pyCrossSection::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
-    SELF_OVERRIDE_PURE(
-        self,
-        CrossSection,
-        void,
-        SampleFinalState,
-        "SampleFinalState",
-        record,
-        random
-    )
+        const CrossSection * ref;
+        if(self) {
+            ref = self.cast<CrossSection *>();
+        } else {
+            ref = this;
+        }
+        do {
+            do {
+                pybind11::gil_scoped_acquire gil;
+                pybind11::function override
+                    = pybind11::get_override(static_cast<const CrossSection *>(ref), "SampleFinalState");
+                if (override) {
+                auto o = override.operator()<pybind11::return_value_policy::reference>(record, random);
+                    if (pybind11::detail::cast_is_temporary_value_reference<void>::value) {
+                        static pybind11::detail::override_caster_t<void> caster;
+                        return pybind11::detail::cast_ref<void>(std::move(o), caster);
+                    }
+                    return pybind11::detail::cast_safe<void>(std::move(o));
+                }
+            } while (false);
+            pybind11::pybind11_fail(
+                "Tried to call pure virtual function \"CrossSection::SampleFinalState\"");
+        } while (false);
 }
 
 std::vector<siren::dataclasses::ParticleType> pyCrossSection::GetPossibleTargets() const {

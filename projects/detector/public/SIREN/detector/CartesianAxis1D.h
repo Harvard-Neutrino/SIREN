@@ -53,4 +53,6 @@ CEREAL_CLASS_VERSION(siren::detector::CartesianAxis1D, 0);
 CEREAL_REGISTER_TYPE(siren::detector::CartesianAxis1D);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::Axis1D, siren::detector::CartesianAxis1D);
 
+CEREAL_FORCE_DYNAMIC_INIT(siren_CartesianAxis1D);
+
 #endif // SIREN_CartesianAxis1D_H

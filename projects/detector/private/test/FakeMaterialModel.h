@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <string>
 #include <random>
+#include <iomanip>
 #include <fstream>
 #include <iostream>
 

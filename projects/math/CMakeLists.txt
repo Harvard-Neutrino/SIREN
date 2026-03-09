@@ -37,6 +37,8 @@ target_link_libraries(SIREN_math
 )
 endif()
 
+apply_siren_compile_options(SIREN_math)
+
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/math/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING

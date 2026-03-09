@@ -39,3 +39,6 @@ double CartesianAxis1D::GetdX(const math::Vector3D& xi, const math::Vector3D& di
 
 } // namespace siren
 } // namespace detector
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_CartesianAxis1D);
+

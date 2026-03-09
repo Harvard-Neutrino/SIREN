@@ -16,12 +16,14 @@ target_include_directories(SIREN_dataclasses PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SIREN/dataclasses/>
 )
 
-target_link_libraries(SIREN_dataclasses PUBLIC
+target_link_libraries(SIREN_dataclasses
+    PUBLIC
     photospline
-    SIREN_serialization
     SIREN_utilities
+    SIREN_serialization
     SIREN_math
 )
+apply_siren_compile_options(SIREN_dataclasses)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/dataclasses/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -30,9 +32,9 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/dataclasses/public/"
     PATTERN "*.tcc"
 )
 
-#package_add_test(UnitTest_InteractionSignature ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionSignature_TEST.cxx)
-#package_add_test(UnitTest_InteractionRecord ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionRecord_TEST.cxx)
-#package_add_test(UnitTest_InteractionTree ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionTree_TEST.cxx)
+package_add_test(UnitTest_InteractionSignature ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionSignature_TEST.cxx)
+package_add_test(UnitTest_InteractionRecord ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionRecord_TEST.cxx)
+package_add_test(UnitTest_InteractionTree ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/test/InteractionTree_TEST.cxx)
 
 pybind11_add_module(dataclasses ${PROJECT_SOURCE_DIR}/projects/dataclasses/private/pybindings/dataclasses.cxx)
 target_link_libraries(dataclasses PRIVATE SIREN)

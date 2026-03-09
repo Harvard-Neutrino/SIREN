@@ -1,12 +1,14 @@
 #pragma once
-#ifndef SIREN_Distribution1D_H
-#define SIREN_Distribution1D_H
+#ifndef SIREN_detector_Distribution1D_H
+#define SIREN_detector_Distribution1D_H
 #include <memory>                 // for shared_ptr
 #include <cstdint>                // for uint32_t
 
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/types/base_class.hpp>
 
 namespace siren {
 namespace detector {
@@ -32,5 +34,8 @@ public:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::detector::Distribution1D, 0);
+CEREAL_REGISTER_TYPE(siren::detector::Distribution1D);
 
-#endif // SIREN_Distribution1D_H
+CEREAL_FORCE_DYNAMIC_INIT(siren_Distribution1D);
+
+#endif // SIREN_detector_Distribution1D_H

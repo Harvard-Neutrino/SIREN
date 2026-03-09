@@ -17,6 +17,7 @@
 #include "SIREN/dataclasses/Particle.h"  // for Particle
 #include "SIREN/dataclasses/InteractionSignature.h" // for InteractionSignature
 #include "SIREN/utilities/Random.h" // for SIREN_random
+#include "SIREN/interactions/Interaction.h" // for Interaction
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace dataclasses { class CrossSectionDistributionRecord; } }
@@ -26,7 +27,7 @@ namespace siren { namespace utilities { class SIREN_random; } }
 namespace siren {
 namespace interactions {
 
-class CrossSection {
+class CrossSection : public Interaction {
 friend cereal::access;
 private:
     void SampleFinalState(dataclasses::InteractionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const;
@@ -59,6 +60,8 @@ public:
 } // namespace siren
 
 CEREAL_CLASS_VERSION(siren::interactions::CrossSection, 0);
+CEREAL_REGISTER_TYPE(siren::interactions::CrossSection);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::Interaction, siren::interactions::CrossSection);
 
 #endif // SIREN_CrossSection_H
 

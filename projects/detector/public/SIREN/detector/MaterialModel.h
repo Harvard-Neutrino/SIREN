@@ -153,11 +153,13 @@ public:
 } // namespace detector
 } // namespace siren
 
+#include "SIREN/detector/MaterialModel.tcc"
+
 CEREAL_CLASS_VERSION(siren::detector::MaterialModel, 0);
 CEREAL_CLASS_VERSION(siren::detector::MaterialModel::Component, 0);
 CEREAL_CLASS_VERSION(siren::detector::MaterialModel::MaterialComponent, 0);
 
-#include "SIREN/detector/MaterialModel.tcc"
+CEREAL_FORCE_DYNAMIC_INIT(siren_MaterialModel);
 
 # endif // SIREN_MaterialModel_H
 

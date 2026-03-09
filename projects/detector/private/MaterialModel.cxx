@@ -495,3 +495,6 @@ double MaterialModel::GetEmpericalNuclearBindingEnergy(int strange_count, int ne
         + L * (c0 * lambda0_mass - c1 - c2 * std::abs(S) / std::pow(A, 2.0/3.0));
     return binding_energy_in_MeV * 1e-3; // GeV
 }
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_MaterialModel);
+

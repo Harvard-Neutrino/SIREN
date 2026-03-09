@@ -7,6 +7,7 @@
 #include <vector>                                             // for vector
 #include <utility>                                            // for pair
 
+#include "SIREN/interactions/Interaction.h"          // for Interaction
 #include "SIREN/interactions/CrossSection.h"        // for CrossSe...
 #include "SIREN/interactions/Decay.h"               // for Decay
 #include "SIREN/dataclasses/InteractionRecord.h"     // for Interac...
@@ -60,6 +61,23 @@ InteractionCollection::InteractionCollection(siren::dataclasses::ParticleType pr
     InitializeTargetTypes();
 }
 
+InteractionCollection::InteractionCollection(siren::dataclasses::ParticleType primary_type, std::vector<std::shared_ptr<Interaction>> interactions) : primary_type(primary_type) {
+    for(auto interaction : interactions) {
+        std::shared_ptr<CrossSection> xs = std::dynamic_pointer_cast<CrossSection>(interaction);
+        if(xs) {
+            cross_sections.push_back(xs);
+        } else {
+            std::shared_ptr<Decay> dec = std::dynamic_pointer_cast<Decay>(interaction);
+            if(dec) {
+                decays.push_back(dec);
+            } else {
+                throw std::runtime_error("InteractionCollection: Interaction is neither a CrossSection nor a Decay");
+            }
+        }
+    }
+    InitializeTargetTypes();
+}
+
 bool InteractionCollection::operator==(InteractionCollection const & other) const {
     return
         std::tie(primary_type, target_types, cross_sections, decays)
@@ -96,6 +114,14 @@ double InteractionCollection::TotalDecayLength(dataclasses::InteractionRecord co
 
 bool InteractionCollection::MatchesPrimary(dataclasses::InteractionRecord const & record) const {
     return primary_type == record.signature.primary_type;
+}
+
+siren::dataclasses::ParticleType InteractionCollection::GetPrimaryType() const {
+    return primary_type;
+}
+
+void InteractionCollection::SetPrimaryType(siren::dataclasses::ParticleType primary_type) {
+    this->primary_type = primary_type;
 }
 
 std::map<siren::dataclasses::ParticleType, double> InteractionCollection::TotalCrossSectionByTarget(siren::dataclasses::InteractionRecord const & record) const {

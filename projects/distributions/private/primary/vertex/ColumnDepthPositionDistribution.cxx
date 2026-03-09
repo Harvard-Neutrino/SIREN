@@ -173,7 +173,7 @@ double ColumnDepthPositionDistribution::GenerationProbability(std::shared_ptr<si
     return prob_density;
 }
 
-ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function, std::set<siren::dataclasses::ParticleType> target_types) : radius(radius), endcap_length(endcap_length), depth_function(depth_function), target_types(target_types) {}
+ColumnDepthPositionDistribution::ColumnDepthPositionDistribution(double radius, double endcap_length, std::shared_ptr<DepthFunction> depth_function) : radius(radius), endcap_length(endcap_length), depth_function(depth_function) {}
 
 std::string ColumnDepthPositionDistribution::Name() const {
     return "ColumnDepthPositionDistribution";
@@ -215,7 +215,7 @@ bool ColumnDepthPositionDistribution::equal(WeightableDistribution const & other
                     (depth_function and x->depth_function and *depth_function == *x->depth_function)
                     or (!depth_function and !x->depth_function)
                 )
-            and target_types == x->target_types);
+        );
 }
 
 bool ColumnDepthPositionDistribution::less(WeightableDistribution const & other) const {
@@ -226,9 +226,9 @@ bool ColumnDepthPositionDistribution::less(WeightableDistribution const & other)
                 and *depth_function < *x->depth_function); // Less than
     bool f = false;
     return
-        std::tie(radius, endcap_length, f, target_types)
+        std::tie(radius, endcap_length, f)
         <
-        std::tie(radius, x->endcap_length, depth_less, x->target_types);
+        std::tie(radius, x->endcap_length, depth_less);
 }
 
 } // namespace distributions
