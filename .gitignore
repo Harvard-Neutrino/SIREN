@@ -70,4 +70,6 @@ __pycache__/
 output/
 
 # specific flux directory
-resources/Fluxes/T2K_Kaons
+resources/fluxes/Atmospheric
+
+MoveToSpackPython.sh
