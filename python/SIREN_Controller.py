@@ -101,6 +101,7 @@ class SIREN_Controller:
         primary_injection_distributions,
         secondary_types=[],
         secondary_injection_distributions=[],
+        fid_vol_secondary=True,
     ):
         """
         SIREN injection process setter.
@@ -108,6 +109,7 @@ class SIREN_Controller:
         :param dict<str,InjectionDistribution> primary_injection_distributions: The dict of injection distributions for the primary process
         :param list<ParticleType> secondary_types: The secondary particles being generated
         :param list<dict<str,InjectionDistribution> secondary_injection_distributions: List of dict of injection distributions for each secondary process
+        :param bool fid_vol_secondary: whether to restrict secondary interactions to fiducial volume
         """
 
         # Define the primary injection process primary type
@@ -138,7 +140,7 @@ class SIREN_Controller:
                 secondary_injection_process.AddSecondaryInjectionDistribution(idist)
 
             # Add the position distribution
-            if self.fid_vol is not None:
+            if fid_vol_secondary and self.fid_vol is not None:
                 secondary_injection_process.AddSecondaryInjectionDistribution(
                     _distributions.SecondaryBoundedVertexDistribution(self.fid_vol)
                 )
@@ -201,6 +203,7 @@ class SIREN_Controller:
         secondary_types=[],
         secondary_injection_distributions=[],
         secondary_physical_distributions=[],
+        fid_vol_secondary=True,
     ):
         """
         SIREN process setter.
@@ -210,8 +213,9 @@ class SIREN_Controller:
         :param list<ParticleType> secondary_types: The secondary particles being generated
         :param list<dict<str,InjectionDistribution> secondary_injection_distributions: List of dict of injection distributions for each secondary process
         :param list<dict<str,PhysicalDistribution> secondary_physical_distributions: List of dict of physical distributions for each secondary process
+        :param bool fid_vol_secondary: whether to restrict secondary interactions to fiducial volume
         """
-        self.SetInjectionProcesses(primary_type,primary_injection_distributions,secondary_types,secondary_injection_distributions)
+        self.SetInjectionProcesses(primary_type,primary_injection_distributions,secondary_types,secondary_injection_distributions,fid_vol_secondary)
         self.SetPhysicalProcesses(primary_type,primary_physical_distributions,secondary_types,secondary_physical_distributions)
 
     def InputDarkNewsModel(self, primary_type, table_dir, upscattering=True, decay=True, fill_tables_at_start=False, Emax=None, fid_vol_secondary=True, **kwargs):
