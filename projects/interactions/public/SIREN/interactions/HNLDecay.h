@@ -118,7 +118,7 @@ public:
         if(version == 0) {
             std::set<siren::dataclasses::ParticleType> _primary_types;
             double _hnl_mass;
-            double _mixing;
+            std::vector<double> _mixing;
             ChiralNature _nature;
 
             archive(::cereal::make_nvp("PrimaryTypes", _primary_types));

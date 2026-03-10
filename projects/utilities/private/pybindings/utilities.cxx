@@ -17,12 +17,6 @@ using namespace pybind11;
 PYBIND11_MODULE(utilities,m) {
   using namespace siren::utilities;
 
-  class_<SIREN_random, std::shared_ptr<SIREN_random>>(m, "SIREN_random")
-    .def(init<>())
-    .def(init<unsigned int>())
-    .def("Uniform",&SIREN_random::Uniform)
-    .def("set_seed",&SIREN_random::set_seed);
-
   module Constants = m.def_submodule("Constants");
   // geometry
   Constants.attr("pi") = &Constants::pi;
@@ -143,6 +137,11 @@ PYBIND11_MODULE(utilities,m) {
   Constants.attr("Vub") = &Constants::Vub;
   Constants.attr("Vcb") = &Constants::Vcb;
   Constants.attr("Vtb") = &Constants::Vtb;
+
+  class_<SIREN_random, std::shared_ptr<SIREN_random>>(m, "SIREN_random")
+    .def(init<>())
+    .def(init<unsigned int>())
+    .def("Uniform",&SIREN_random::Uniform)
     .def("set_seed",&SIREN_random::set_seed)
     .def("get_seed",&SIREN_random::get_seed)
     .def_static("generate_seed",&SIREN_random::generate_seed);

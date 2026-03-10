@@ -35,13 +35,13 @@ target_include_directories(SIREN_interactions PUBLIC
 find_package(GSL REQUIRED)
 target_link_libraries(SIREN_interactions
     PRIVATE
-        $<BUILD_INTERFACE:rk_static>
-        $<BUILD_INTERFACE:crundec_static>
         pybind11::embed
         GSL::gsl
         GSL::gslcblas
     PUBLIC
         photospline
+        $<BUILD_INTERFACE:crundec_static>
+        $<BUILD_INTERFACE:rk_static>
         $<$<TARGET_EXISTS:MARLEY>:MARLEY>
         SIREN_utilities
         SIREN_serialization
