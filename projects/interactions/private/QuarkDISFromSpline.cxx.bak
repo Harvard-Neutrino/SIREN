@@ -450,16 +450,7 @@ double QuarkDISFromSpline::TotalCrossSection(dataclasses::InteractionRecord cons
         std::cout << "DIS::interaction threshold not satisfied" << std::endl;
         return 0;
     }
-    double total_xs = TotalCrossSection(primary_type, primary_energy);
-    // Apply fragmentation fraction for the specific D meson in this signature
-    // so that summing over signatures (D0 + D+) gives the correct total
-    for (auto const & sec_type : interaction.signature.secondary_types) {
-        if (siren::dataclasses::isD(sec_type)) {
-            total_xs *= FragmentationFraction(sec_type);
-            break;
-        }
-    }
-    return total_xs;
+    return TotalCrossSection(primary_type, primary_energy);
 }
 
 double QuarkDISFromSpline::TotalCrossSection(siren::dataclasses::ParticleType primary_type, double primary_energy) const {
@@ -934,14 +925,17 @@ double QuarkDISFromSpline::FinalStateProbability(dataclasses::InteractionRecord 
     //     std::cout << "diff xsec gives 0" << std::endl;
     // }
     double txs = TotalCrossSection(interaction);
-    // fragmentation fraction is now applied inside TotalCrossSection
+    //then compute the fragmentation probability
+    std::map<std::string, int> secondaries = getIndices(interaction.signature);
+    unsigned int meson_index = secondaries["meson"];
+    double fragfrac = FragmentationFraction(interaction.signature.secondary_types[meson_index]);
     if(dxs == 0) {
         std::cout << "diff xsec gives 0" << std::endl;
         return 0.0;
     } else {
         // if (txs == 0) {std::cout << "wtf??? txs is 0 in final state prob" << txs << std::endl;}
         if (std::isinf(dxs)) {std::cout << "dxs is inf in final state prob" << std::endl;}
-        return dxs / txs;
+        return dxs / txs * fragfrac;
     }
 }
 
