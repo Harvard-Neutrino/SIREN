@@ -49,7 +49,7 @@ CharmMesonDecay::CharmMesonDecay(siren::dataclasses::Particle::ParticleType prim
 
   if (primary == siren::dataclasses::Particle::ParticleType::DPlus) {
     constants[0] = 0.725; // this is f^+(0)|V_cs| for charged D
-    constants[1] = 0.50; // this is alpha, same for all K final states
+    constants[1] = 0.44; // this is alpha, same for all K final states
     constants[2] = 2.01027; // this is excited charged D meson
 
     mD = particleMass(siren::dataclasses::Particle::ParticleType::DPlus);
@@ -267,8 +267,8 @@ double CharmMesonDecay::DifferentialDecayWidth(std::vector<double> constants, do
     double ms = constants[2];
     double Q2tilde = Q2 / ms;
     // compute the 3-momentum as a function of Q2
-    double EK = 0.5 * (Q2 - pow(mD, 2 + pow(mK, 2))) / mD; // energy of Kaon
-    double PK = pow(pow(EK, 2) - pow(mK, 2), 1/2);
+    double EK = 0.5 * (Q2 - pow(mD, 2) + pow(mK, 2)) / mD; // energy of Kaon
+    double PK = pow(pow(EK, 2) - pow(mK, 2), 0.5);
     // plug in the constants
     double dGamma = pow(siren::utilities::Constants::FermiConstant,2) / (24 * pow(siren::utilities::Constants::pi,3)) * pow(F0CKM,2) *
                     pow((1/((1-Q2tilde) * (1 - alpha * Q2tilde))),2) * pow(PK,3);
