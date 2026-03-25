@@ -105,9 +105,9 @@ if (NOT CFITSIO_FOUND)
         message(STATUS "  * includes: ${CFITSIO_INCLUDE_DIR}")
         message(STATUS "  * libs:     ${CFITSIO_LIBRARIES}")
 
-        add_library(CFITSIO SHARED IMPORTED)
-        target_include_directories(CFITSIO INTERFACE ${CFITSIO_INCLUDE_DIR})
-        set_target_properties(CFITSIO PROPERTIES
+        add_library(CFITSIO::cfitsio SHARED IMPORTED)
+        target_include_directories(CFITSIO::cfitsio INTERFACE ${CFITSIO_INCLUDE_DIR})
+        set_target_properties(CFITSIO::cfitsio PROPERTIES
             IMPORTED_LOCATION ${CFITSIO_LIBRARIES})
     else()
         message(WARNING "CFITSIO not found. Please ensure CFITSIO is installed and the environment variables CFITSIOROOT, CPLUS_INCLUDE_PATH, LIBRARY_PATH, and LD_LIBRARY_PATH are set correctly.")
