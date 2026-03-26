@@ -6,133 +6,199 @@ SIREN (**S**ampling and **I**njection for **R**are **E**ve**N**ts) is a framewor
 
 SIREN provides a generic interface for user-defined BSM processes (and includes several pre-defined processes). It also supports generation of any number of secondary processes, e.g. the decay of a BSM particle after it has been created by an initial process. SIREN also includes detector geometry definitions for a number of existing HEP experiments, although contributions are always appreciated!
 
-# Python installation of SIREN
+## Python installation
 
-SIREN is distributed on pypi as `siren`, and can be installed via pip with:
+SIREN is distributed on PyPI as `siren`, and can be installed via pip:
 
-```
+```bash
 pip install siren
 ```
 
-For development of SIREN as a python project, simply clone the repository:
+For development of SIREN as a Python project, clone the repository and install:
 
-```
+```bash
 git clone https://github.com/Harvard-Neutrino/SIREN.git
 cd SIREN
-```
-
-and run the following command to build and install SIREN:
-
-```
 pip install . --config-settings='build-dir=build'
 ```
 
-After the python bindings are installed, you should be able to import the `siren` python library. Open a python interpreter by running `python`, and then run
+After installing, verify that the `siren` Python library is available:
 
-```
+```python
 import siren
 ```
 
-To use SIREN, you will
+## Usage overview
+
+To use SIREN, you will:
 
 1. Define a primary process and a list of secondary processes by specifying a particle type and which interactions (cross sections or decays) each particle can undergo
 
 2. For each (primary or secondary) process, define a set of distributions from which to sample when injecting that particle (e.g. energy, position, direction)
 
-3. Combine this information to define an InjectorBase object
+3. Combine this information to define an `Injector` object
 
-4. Generate interaction trees using the InjectorBase object
+4. Generate interaction trees using the `Injector` object
 
-5. Create a TreeWeighter object using a list of primary and secondary physical processes
+5. Create a `Weighter` object using a list of primary and secondary physical processes
 
-6. Calculate the event weight for each interaction tree using the TreeWeighter object
+6. Calculate the event weight for each interaction tree using the `Weighter` object
 
-For an example of this in action, see `resources/DipoleInjection/inject_HNLs_CCM.{py,ipynb}`
+For examples, see the `resources/examples/` directory.
 
-# Dependencies
+## Dependencies
 
-For local installations, you need the following:
+### Required
 
-* A C++ compiler with C++14 support.
+* A C++ compiler with C++17 support
+* CMake >= 3.20
+* [CFITSIO](https://heasarc.gsfc.nasa.gov/fitsio/) — required by photospline for reading cross-section spline tables
+* [SuiteSparse](http://faculty.cse.tamu.edu/davis/suitesparse.html) — required by photospline
 
-* Some classes also require Photospline to create and to read cross sections. Read more about it, and its installation at [github.com/icecube/photospline](https://github.com/icecube/photospline). Note that Photospline has dependencies that you will need that are not listed here.
+### Optional
 
-* SIREN requires Photospline's `SuiteSparse` capabilities, whose dependencies are available [here](http://faculty.cse.tamu.edu/davis/suitesparse.html).
+* [MARLEY](https://www.marleygen.org/) — Monte Carlo event generator for low-energy neutrino interactions. Controlled by the `SIREN_WITH_MARLEY` and `SIREN_REQUIRE_MARLEY` CMake options.
 
-For building py-bindings,
+### For Python bindings
 
-* Python > 3.8
+* Python >= 3.8
+* numpy, scipy, awkward, pyarrow, h5py (installed automatically via pip)
+* [DarkNews](https://github.com/mhostert/DarkNews-generator) >= 0.4.2 (optional, for BSM processes)
 
-* That's it! We use pybind11 to generate our pybindings, which is automatically included in SIREN as a submodule
+### Vendored dependencies
 
+These are included automatically as git submodules and do not need to be installed separately:
 
-# Included External Dependencies
+* [cereal](https://github.com/USCiLab/cereal) — serialization
+* [delabella](https://github.com/msokalski/delabella) — Delaunay triangulation for interpolation
+* [googletest](https://github.com/google/googletest) — unit testing
+* [pybind11](https://github.com/pybind/pybind11) — Python bindings
+* [rk](https://rk.hepforge.org/) — relativistic kinematics
+* [photospline](https://github.com/icecube/photospline) — B-spline representations of multi-dimensional tables
+* [NamedType](https://github.com/joboccara/NamedType) — type-safe wrappers
 
-These are not ostensibly a part of SIREN, but are included automatically as submodules for its functionality.
+## C++ installation
 
-* [cereal](https://github.com/USCiLab/cereal): for serialization
+SIREN can be built and installed as a C++ library using CMake. The recommended approach keeps source, build, and install directories separate.
 
-* [delabella](https://github.com/msokalski/delabella): for Delaunay triangulation in our interpolation classes
+### Workspace layout
 
-* [googletest](https://github.com/google/googletest): for constructing our tests
-
-* [pybind11](https://github.com/pybind/pybind11): for compiling our python bindings
-
-* [rk](https://rk.hepforge.org/): a relativistic kinematics library used mostly in the CrossSection and Decay subclasses
-
-* [photospline](https://github.com/icecube/photospline): a library that uses the penalized spline technique to efficiently compute, store, and evaluate B-spline representations of such large multi-dimensional tables
-
-# C++ installation of SIREN
-
-To use SIREN in a C++ project, there are a few more steps.
-
-We will be trying to keep our source, build, and install directories separate. To this end, these instructions will assume the following directory structure:
-
-```
-| local (for installing built libraries, headers, and binaries)
-|  --lib
-|  --include
-|  --bin
-| source (source code for SIREN and other dependencies)
-|  --SIREN
-|     --build (for building SIREN)
-|  --(SIREN dependencies...)
-```
-
-`git clone git@github.com:Harvard-Neutrino/SIREN.git`
-
-or
-
-`git clone https://github.com/Harvard-Neutrino/SIREN.git`
-
-to download the source code. To download the submodules, run
-
-`git submodule update --init`
-
-Now `cd SIREN/build` to get to the build directory. We call cmake
-
-`cmake ../ -DCMAKE_INSTALL_PREFIX=../../local`
-
-This tells cmake to install the shared objects in the `local` directory. CMake prepares a `Makefile` which calls the `g++` compiler with the necessary instructions to compile. So now you'll call
-
-`make -j4 && make install`
-
-to build the project and install the project. Now you need to set all the environmental variables so this actually works. We recommend putting the followig commands into a `env.sh` script that can load the environment.
+A typical workspace looks like this:
 
 ```
-export PROJECTSPACE=/path/to/parent/directory
-export PROJECTBUILDPATH=$PROJECTSPACE/local
-export PROJECTSOURCEPATH=$PROJECTSPACE/source
-export PREFIX=$PROJECTBUILDPATH
-# On linux:
-export LD_LIBRARY_PATH=$PROJECTBUILDPATH/lib/:$LD_LIBRARY_PATH
-# On mac:
-export DYLD_FALLBACK_LIBRARY_PATH=$PROJECTBUILDPATH/lib/:$DYLD_FALLBACK_LIBRARY_PATH
+workspace/
+├── env.sh           # environment setup script
+├── local/           # install prefix (libraries, headers, binaries)
+│   ├── bin/
+│   ├── include/
+│   └── lib/
+└── sources/
+    └── SIREN/
+        └── build/   # out-of-source build directory
 ```
 
-Now you should be good to go!
+### Clone and initialize submodules
 
-# Making Contributions
+```bash
+git clone https://github.com/Harvard-Neutrino/SIREN.git
+cd SIREN
+git submodule update --init
+```
+
+### Environment setup
+
+Before building, set up your environment so that the compiler and linker can find your installed dependencies and your install prefix. A typical `env.sh` script looks like:
+
+```bash
+#!/bin/bash
+
+# Set your workspace root
+export WORKSPACE=/path/to/workspace
+export PREFIX=$WORKSPACE/local
+
+# Compiler
+export CC=gcc
+export CXX=g++
+
+# Paths
+export PATH=$PREFIX/bin:$PATH
+export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
+export C_INCLUDE_PATH=$PREFIX/include:$C_INCLUDE_PATH
+export CPLUS_INCLUDE_PATH=$PREFIX/include:$CPLUS_INCLUDE_PATH
+export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
+
+# Python (if using Python bindings)
+export PYTHONPATH=$PREFIX/lib/python3.11/site-packages:$PYTHONPATH
+```
+
+On macOS, use `DYLD_FALLBACK_LIBRARY_PATH` instead of `LD_LIBRARY_PATH`.
+
+Source this script before building or using SIREN:
+
+```bash
+source env.sh
+```
+
+### Build and install
+
+Create a build directory, run CMake, and build:
+
+```bash
+mkdir -p SIREN/build && cd SIREN/build
+cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX
+make -j$(nproc) && make install
+```
+
+### CMake options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `CMAKE_INSTALL_PREFIX` | — | Install destination for libraries, headers, and binaries |
+| `SIREN_PYTHON_PACKAGE` | `ON` | Build and install the Python package |
+| `SIREN_WITH_MARLEY` | `ON` | Enable MARLEY support (uses MARLEY if found) |
+| `SIREN_REQUIRE_MARLEY` | `OFF` | Fail the build if MARLEY is not found |
+
+### Verifying the installation
+
+After building and installing, verify that the shared library is in place:
+
+```bash
+ls $PREFIX/lib/libSIREN.so      # Linux
+ls $PREFIX/lib/libSIREN.dylib   # macOS
+```
+
+If Python bindings were built, verify the Python package:
+
+```python
+import siren
+```
+
+## Project structure
+
+```
+SIREN/
+├── cmake/Packages/    # CMake find-modules for external dependencies
+├── projects/          # C++ source modules
+│   ├── utilities/     # Interpolation, random numbers, string utilities
+│   ├── serialization/ # Serialization support
+│   ├── math/          # Vector3D, Matrix3D, Quaternion, interpolation
+│   ├── dataclasses/   # Core data structures (Particle, InteractionRecord, etc.)
+│   ├── geometry/      # Geometric primitives and operations
+│   ├── detector/      # Detector geometry definitions
+│   ├── interactions/  # Cross sections and decay implementations
+│   ├── distributions/ # Probability distributions for sampling
+│   └── injection/     # Injection and weighting engine
+├── python/            # Python wrappers and utilities
+├── vendor/            # Vendored dependencies (git submodules)
+└── resources/
+    ├── detectors/     # Detector geometry files (CCM, IceCube, DUNE, ATLAS, etc.)
+    ├── fluxes/        # Neutrino flux definitions
+    ├── processes/     # Cross-section splines and decay tables
+    └── examples/      # Example scripts and notebooks
+```
+
+## Making contributions
+
 If you would like to make contributions to this project, please create a branch off of the `main` branch and name it something following the template: `$YourLastName/$YourSubProject`.
 Work on this branch until you have made the changes you wished to see and your branch is stable.
 Then, pull from main, and create a pull request to merge your branch back into main.
