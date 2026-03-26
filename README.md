@@ -194,7 +194,7 @@ export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
 export C_INCLUDE_PATH=$PREFIX/include:$C_INCLUDE_PATH
 export CPLUS_INCLUDE_PATH=$PREFIX/include:$CPLUS_INCLUDE_PATH
 export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
-PY_SITE_DIR="$(python3 -c 'import sysconfig; print(sysconfig.get_paths()[\"purelib\"])')"
+PY_SITE_DIR="$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
 export PYTHONPATH="$PY_SITE_DIR${PYTHONPATH:+:$PYTHONPATH}"
 ```
 
