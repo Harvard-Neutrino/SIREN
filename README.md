@@ -12,7 +12,9 @@ SIREN provides a generic interface for user-defined BSM processes (and includes 
 pip install siren
 ```
 
-The following example injects 10,000 muon-neutrino DIS events in IceCube and computes their physical weights:
+See [Installation](#installation) for other options, including building from source or as a C++ library.
+
+The following example injects 1e4 muon-neutrino DIS events in IceCube and computes their physical weights:
 
 ```python
 import siren
@@ -44,7 +46,8 @@ injector.primary_injection_distributions = [
 ]
 
 # Generate events
-events = [injector.generate_event() for _ in range(injector.number_of_events)]
+from siren._util import GenerateEvents, SaveEvents
+events, gen_times = GenerateEvents(injector)
 
 # Weight events using physical distributions
 weighter = siren.injection.Weighter()
@@ -58,6 +61,9 @@ weighter.primary_physical_distributions = [
 ]
 
 weights = [weighter(event) for event in events]
+
+# Save results to HDF5 and Parquet
+SaveEvents(events, weighter, gen_times, output_filename="my_output")
 ```
 
 More examples — including BSM dipole-portal injection and MARLEY low-energy interactions — are in [`resources/examples/`](resources/examples/).
@@ -99,7 +105,7 @@ Contributions of new detector geometries are welcome.
 |-------|-------------|
 | `CSMSDISSplines` | Deep inelastic scattering (CC and NC) on nucleons, using photospline cross-section tables |
 | `MarleyCrossSection` | Low-energy neutrino interactions via [MARLEY](https://www.marleygen.org/) |
-| DarkNews integration | BSM processes (dark photons, dipole portal, HNLs) via [DarkNews](https://github.com/mhostert/DarkNews-generator) |
+| `DarkNewsTables` | BSM processes (dark photons, dipole portal, HNLs) via [DarkNews](https://github.com/mhostert/DarkNews-generator) — see [example2](resources/examples/example2/) |
 
 ## Supported flux models
 
@@ -109,6 +115,12 @@ Contributions of new detector geometries are welcome.
 | `NUMI` | NuMI beamline (low-energy and medium-energy) |
 | `T2K_NEAR` | T2K near detector flux |
 | `HE_SN` | Supernova neutrino flux |
+
+To load a flux model:
+
+```python
+flux = siren.utilities.load_flux("BNB", tag="FHC_numu")
+```
 
 ## Installation
 
@@ -182,7 +194,8 @@ export LD_LIBRARY_PATH=$PREFIX/lib:$LD_LIBRARY_PATH
 export C_INCLUDE_PATH=$PREFIX/include:$C_INCLUDE_PATH
 export CPLUS_INCLUDE_PATH=$PREFIX/include:$CPLUS_INCLUDE_PATH
 export PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH
-export PYTHONPATH=$PREFIX/lib/python3.11/site-packages:$PYTHONPATH
+PY_SITE_DIR="$(python3 -c 'import sysconfig; print(sysconfig.get_paths()[\"purelib\"])')"
+export PYTHONPATH="$PY_SITE_DIR${PYTHONPATH:+:$PYTHONPATH}"
 ```
 
 On macOS, use `DYLD_FALLBACK_LIBRARY_PATH` instead of `LD_LIBRARY_PATH`.
@@ -192,16 +205,16 @@ On macOS, use `DYLD_FALLBACK_LIBRARY_PATH` instead of `LD_LIBRARY_PATH`.
 ```bash
 source env.sh
 
-git clone https://github.com/Harvard-Neutrino/SIREN.git
-cd SIREN
+git clone https://github.com/Harvard-Neutrino/SIREN.git $WORKSPACE/sources/SIREN
+cd $WORKSPACE/sources/SIREN
 git submodule update --init
 
 mkdir -p build && cd build
 cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX
-make -j$(nproc) && make install
+cmake --build . --parallel && cmake --install .
 ```
 
-After the initial build, only the last line (`make -j$(nproc) && make install`) needs to be rerun when source files change. Rerun the `cmake` step if `CMakeLists.txt` files change or new source files are added.
+After the initial build, only the last line (`cmake --build . --parallel && cmake --install .`) needs to be rerun when source files change. Rerun the first `cmake` step if `CMakeLists.txt` files change or new source files are added.
 
 #### CMake options
 
@@ -246,6 +259,14 @@ SIREN/
 ## Contributing
 
 Create a branch off of `main` named `$GitHubUsername/$YourSubProject`. When your changes are stable, pull from main and open a pull request.
+
+## Citing SIREN
+
+If you use SIREN in your research, please cite the repository:
+
+```
+https://github.com/Harvard-Neutrino/SIREN
+```
 
 ## License
 
