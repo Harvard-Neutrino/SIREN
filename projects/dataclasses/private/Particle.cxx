@@ -30,6 +30,7 @@ std::string to_str(siren::dataclasses::Particle const& p) {
     ss << tab << "Position: " << p.position.at(0) << ' ' << p.position.at(1) << ' ' << p.position.at(2) << '\n';
     ss << tab << "Length: " << p.length << '\n';
     ss << tab << "Helicity: " << p.helicity << '\n';
+    ss << tab << "InjectionStepLength: " << p.injection_step_length << '\n';
     ss << ']';
 
     return ss.str();
@@ -45,6 +46,7 @@ std::string to_repr(siren::dataclasses::Particle const& p) {
     ss << "position=(" << p.position.at(0) << ", " << p.position.at(1) << ", " << p.position.at(2) << "), ";
     ss << "length=" << p.length << ", ";
     ss << "helicity=" << p.helicity;
+    ss << "injection_step_length=" << p.injection_step_length;
     ss << ')';
 
     return ss.str();

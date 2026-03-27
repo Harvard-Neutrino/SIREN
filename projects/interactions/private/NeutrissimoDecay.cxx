@@ -39,17 +39,17 @@ bool NeutrissimoDecay::equal(Decay const & other) const {
                     x->dipole_coupling);
 }
 
-double NeutrissimoDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
-    return TotalDecayWidth(record.signature.primary_type);
+double NeutrissimoDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & record) const {
+    return TotalDecayWidthAllFinalStates(record.signature.primary_type);
 }
 
-double NeutrissimoDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary) const {
+double NeutrissimoDecay::TotalDecayWidthAllFinalStates(siren::dataclasses::ParticleType const & primary) const {
     double total_coupling_sq = 0;
     for(auto dc : dipole_coupling) total_coupling_sq += dc*dc;
     return total_coupling_sq * std::pow(hnl_mass,3) / (4*siren::utilities::Constants::pi) * siren::utilities::Constants::GeV;
 }
 
-double NeutrissimoDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
+double NeutrissimoDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
     siren::dataclasses::InteractionSignature const & signature = record.signature;
     unsigned int gamma_index = (signature.secondary_types[0] == siren::dataclasses::ParticleType::Gamma) ? 0 : 1;
     unsigned int nu_index = 1 - gamma_index;
@@ -103,7 +103,7 @@ std::vector<dataclasses::InteractionSignature> NeutrissimoDecay::GetPossibleSign
 }
 
 double NeutrissimoDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
-    double DecayWidth = TotalDecayWidthForFinalState(record);
+    double DecayWidth = TotalDecayWidth(record);
     if(nature==ChiralNature::Majorana) {
       //TODO: make sure factor of 2 is correct here
       return DecayWidth/2.;
@@ -193,7 +193,7 @@ void NeutrissimoDecay::SampleFinalState(dataclasses::CrossSectionDistributionRec
 
 double NeutrissimoDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
   double dd = DifferentialDecayWidth(record);
-  double td = TotalDecayWidthForFinalState(record);
+  double td = TotalDecayWidth(record);
   if (dd == 0) return 0.;
   else if (td == 0) return 0.;
   else return dd/td;

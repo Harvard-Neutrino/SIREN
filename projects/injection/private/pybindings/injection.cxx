@@ -111,6 +111,42 @@ PYBIND11_MODULE(injection,m) {
     ))
     ;
 
+  // class_<Injector, std::shared_ptr<Injector>>(m, "Injector")
+  //   .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<siren::utilities::SIREN_random>>())
+  //   .def(init<unsigned int, std::string, std::shared_ptr<siren::utilities::SIREN_random>>())
+  //   .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::shared_ptr<siren::utilities::SIREN_random>>())
+  //   .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::SIREN_random>>())
+  //   .def("SetStoppingCondition", &Injector::SetStoppingCondition)
+  //   .def("GetStoppingCondition", &Injector::GetStoppingCondition)
+  //   .def("SetPrimaryProcess", &Injector::SetPrimaryProcess)
+  //   .def("AddSecondaryProcess", &Injector::AddSecondaryProcess)
+  //   .def("GetPrimaryProcess", &Injector::GetPrimaryProcess)
+  //   .def("GetSecondaryProcesses", &Injector::GetSecondaryProcesses)
+  //   .def("GetSecondaryProcessMap", &Injector::GetSecondaryProcessMap)
+  //   .def("NewRecord", &Injector::NewRecord, pybind11::return_value_policy::automatic, "Create a new interaction record")
+  //   .def("SetRandom", &Injector::SetRandom)
+  //   .def("GenerateEvent", &Injector::GenerateEvent, pybind11::return_value_policy::reference_internal, "Generate a single event")
+  //   .def("SampleCrossSection",
+  //        static_cast<siren::dataclasses::CrossSectionDistributionRecord (Injector::*)(siren::dataclasses::InteractionRecord &, std::shared_ptr<siren::interactions::InteractionCollection>) const>(&Injector::SampleCrossSection),
+  //        pybind11::return_value_policy::reference_internal,
+  //        "Sample a cross-section distribution",
+  //        pybind11::arg("record"), pybind11::arg("interactions"))
+  //   .def("DensityVariables", &Injector::DensityVariables)
+  //   .def("Name", &Injector::Name)
+  //   .def("GetPrimaryInjectionDistributions", &Injector::GetPrimaryInjectionDistributions)
+  //   .def("GetDetectorModel", &Injector::GetDetectorModel)
+  //   .def("SetDetectorModel", &Injector::SetDetectorModel)
+  //   .def("GetInteractions", &Injector::GetInteractions)
+  //   .def("InjectedEvents", &Injector::InjectedEvents)
+  //   .def("EventsToInject", &Injector::EventsToInject)
+  //   .def("ResetInjectedEvents", &Injector::ResetInjectedEvents)
+  //   .def("SaveInjector", &Injector::SaveInjector)
+  //   .def("LoadInjector", &Injector::LoadInjector)
+  //   .def(pybind11::pickle(
+  //       &(siren::serialization::pickle_save<Injector>),
+  //       &(siren::serialization::pickle_load<Injector>)
+  //   ));
+    
 //  class_<RangedSIREN, std::shared_ptr<RangedSIREN>, Injector>(m, "RangedSIREN")
 //    .def(init<unsigned int, std::shared_ptr<siren::detector::DetectorModel>, std::shared_ptr<PrimaryInjectionProcess>, std::vector<std::shared_ptr<SecondaryInjectionProcess>>, std::shared_ptr<siren::utilities::SIREN_random>, std::shared_ptr<siren::distributions::RangeFunction>, double, double>())
 //    .def("Name",&RangedSIREN::Name);

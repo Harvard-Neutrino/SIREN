@@ -112,7 +112,7 @@ double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<siren::ma
     std::vector<siren::dataclasses::ParticleType> targets;
     targets.reserve(cross_sections_by_target.size());
     std::vector<double> total_cross_sections;
-    double total_decay_length = phys_process->GetInteractions()->TotalDecayLength(record);
+    double total_decay_length = phys_process->GetInteractions()->TotalDecayLengthAllFinalStates(record);
 
     siren::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
@@ -164,7 +164,7 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<si
 
     std::vector<siren::dataclasses::ParticleType> targets; targets.reserve(n_targets);
     std::vector<double> total_cross_sections;
-    double total_decay_length = phys_process->GetInteractions()->TotalDecayLength(record);
+    double total_decay_length = phys_process->GetInteractions()->TotalDecayLengthAllFinalStates(record);
     siren::dataclasses::InteractionRecord fake_record = record;
     for(auto const & target_xs : cross_sections_by_target) {
         targets.push_back(target_xs.first);

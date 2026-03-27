@@ -94,20 +94,20 @@ std::vector<std::shared_ptr<CrossSection>> const & InteractionCollection::GetCro
     }
 }
 
-double InteractionCollection::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
+double InteractionCollection::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & record) const {
   double width = 0;
   if(!HasDecays()) return width;
   for(auto dec : decays) {
-    width += dec->TotalDecayWidth(record);
+    width += dec->TotalDecayWidthAllFinalStates(record);
   }
   return width;
 }
 
-double InteractionCollection::TotalDecayLength(dataclasses::InteractionRecord const & record) const {
+double InteractionCollection::TotalDecayLengthAllFinalStates(dataclasses::InteractionRecord const & record) const {
   double inv_length = 0;
   if(!HasDecays()) return std::numeric_limits<double>::infinity();
   for(auto dec : decays) {
-    inv_length += 1./dec->TotalDecayLength(record);
+    inv_length += 1./dec->TotalDecayLengthAllFinalStates(record);
   }
   return 1./inv_length;
 }

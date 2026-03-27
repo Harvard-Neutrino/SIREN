@@ -235,13 +235,20 @@ void DetectorModel::AddSector(DetectorSector sector) {
 }
 
 DetectorSector DetectorModel::GetSector(int heirarchy) const {
-    auto const iter = sector_map_.find(heirarchy);
-    assert(iter != sector_map_.end());
-    unsigned int index = sector_map_.at(heirarchy);
-    assert(index < sectors_.size());
-    unsigned int alt_index = sector_map_.find(heirarchy)->second;
-    assert(index == alt_index);
-    return sectors_[index];
+    auto it = sector_map_.find(heirarchy);
+    if(it == sector_map_.end()) {
+        std::ostringstream oss;
+        oss << "GetSector: missing heirarchy=" << heirarchy
+            << " (sector_map_.size=" << sector_map_.size()
+            << ", sectors_.size=" << sectors_.size() << "). Keys:";
+        for (auto const& kv : sector_map_) oss << " " << kv.first;
+        throw std::runtime_error(oss.str());
+    }
+    auto index = it->second;
+    if(index >= sectors_.size()) {
+        throw std::runtime_error("GetSector: sector_map_ index out of range");
+    }
+    return sectors_.at(index);
 }
 
 void DetectorModel::ClearSectors() {
@@ -1107,32 +1114,40 @@ double DetectorModel::GetInteractionDepthInCGS(GeometryPosition const & p0, Geom
 }
 
 DetectorSector DetectorModel::GetContainingSector(Geometry::IntersectionList const & intersections, GeometryPosition const & p0) const {
-    Vector3D direction = intersections.direction;
-
-    double offset = (intersections.position - p0) * direction;
-    double dot = (intersections.position - p0) * (intersections.position - p0);
-
-    if(dot < 0) {
-        dot = -1;
+    Vector3D direction = p0 - intersections.position;
+    if(direction.magnitude() == 0) {
+        direction = intersections.direction;
     } else {
-        dot = 1;
+        direction.normalize();
     }
 
+    double dot = direction * intersections.direction;
+    assert(std::abs(1.0 - std::abs(dot)) < 1e-6);
+
+    double offset = (intersections.position - p0) * direction;
+    dot = (dot < 0.0) ? -1.0 : 1.0;
+
     DetectorSector sector;
+    bool found = false;
 
     std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
         [&] (std::vector<Geometry::Intersection>::const_iterator current_intersection, std::vector<Geometry::Intersection>::const_iterator intersection, double last_point) {
         double end_point = offset + dot * intersection->distance;
-        double start_point = offset + dot * current_intersection->distance;
+        double start_point = std::max(offset + dot * current_intersection->distance,
+                                      offset + dot * last_point);
         bool done = false;
-        if((start_point < 0 and end_point > 0) or start_point == 0) {
+        if(start_point <= 0 and end_point >= 0) {
             sector = GetSector(current_intersection->hierarchy);
             done = true;
+            found = true;
         }
         return done;
     };
 
     SectorLoop(callback, intersections, dot < 0);
+    if(not found) {
+        throw(std::runtime_error("Point is not contained within any sector!"));
+    }
 
     return sector;
 }
@@ -1229,9 +1244,26 @@ std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(Ge
     return GetAvailableTargets(intersections, vertex);
 }
 
+// std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & vertex) const {
+//     int matID = GetContainingSector(intersections, vertex).material_id;
+//     std::vector<siren::dataclasses::ParticleType> particles = materials_.GetMaterialConstituents(matID);
+//     return std::set<siren::dataclasses::ParticleType>(particles.begin(), particles.end());
+// }
 std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & vertex) const {
-    int matID = GetContainingSector(intersections, vertex).material_id;
-    std::vector<siren::dataclasses::ParticleType> particles = materials_.GetMaterialConstituents(matID);
+    // Check if there are no intersections
+    if (intersections.intersections.empty()) {
+        return {};
+    }
+
+    DetectorSector const & sector = GetContainingSector(intersections, vertex);
+    // For decays or invalid sectors, return Decay as a placeholder
+    // Use GetMaterialConstituents to indirectly validate material_id
+    std::vector<siren::dataclasses::ParticleType> particles = materials_.GetMaterialConstituents(sector.material_id);
+    if (particles.empty()) {
+        std::cerr << "Warning: Invalid or decay-related sector material_id detected; returning Decay." << std::endl;
+        return {siren::dataclasses::ParticleType::Decay};
+    }
+
     return std::set<siren::dataclasses::ParticleType>(particles.begin(), particles.end());
 }
 
@@ -1364,27 +1396,40 @@ double DetectorModel::DistanceForInteractionDepthFromPoint(Geometry::Intersectio
             double segment_length = end_point - start_point;
             DetectorSector sector = GetSector(current_intersection->hierarchy);
             double target = interaction_depth - total_interaction_depth;
-            // This next line is because when we evaluate the density integral,
-            // we end up calculating an interaction length in units of m/cm.
-            // This is a correction
-            target /= 100;
-            std::vector<double> interaction_depths = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end());
+            std::vector<double> interaction_depths = materials_.GetTargetParticleFraction(sector.material_id, targets.begin(), targets.end()); // units = 1 / g
             for(unsigned int i=0; i<targets.size(); ++i) {
                 interaction_depths[i] *= total_cross_sections[i];
             }
             double target_composition = accumulate(interaction_depths.begin(), interaction_depths.end(), 0.0); // cm^2 g^-1
-            target /= target_composition;
             double distance;
-            // total_decay_length now in cm
-            if (total_decay_length < std::numeric_limits<double>::infinity()) {
+            bool valid_interaction = target_composition > 0;
+            bool valid_decay = total_decay_length < std::numeric_limits<double>::infinity();
+            double integral;
+            if (valid_interaction and valid_decay) {
+              target /= 100;
+              target /= target_composition;
               distance = sector.density->InverseIntegral(p0+start_point*direction, direction, 1./(total_decay_length_cm*target_composition), target, segment_length);
+              integral = sector.density->Integral(p0+start_point*direction, direction, segment_length); // g cm^-3 * m
+              integral *= (target_composition*siren::utilities::Constants::m/siren::utilities::Constants::cm); // g cm^-3 * m * cm^2 g^-1 = cm^-1 * m * cm * m^-1 --> dimensionless
+            }
+            else if (valid_interaction and !valid_decay){
+              target /= 100;
+              target /= target_composition;
+              distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
+              integral = sector.density->Integral(p0+start_point*direction, direction, segment_length); // g cm^-3 * m
+              integral *= (target_composition*siren::utilities::Constants::m/siren::utilities::Constants::cm); // g cm^-3 * m * cm^2 g^-1 = cm^-1 * m * cm * m^-1--> dimensionless
+            }
+            else if (!valid_interaction and valid_decay){
+              distance = total_decay_length * target;
+              if (distance > segment_length){
+                distance = -1.0;
+              }
+              integral = segment_length / total_decay_length;
             }
             else {
-              distance = sector.density->InverseIntegral(p0+start_point*direction, direction, target, segment_length);
+                throw(std::runtime_error("No valid interactions and no valid decays!"));
             }
             done = distance >= 0;
-            double integral = sector.density->Integral(p0+start_point*direction, direction, segment_length); // g cm^-3 * m
-            integral *= (target_composition*siren::utilities::Constants::m/siren::utilities::Constants::cm); // --> m cm^-1 --> dimensionless
             total_interaction_depth += integral;
             if(done) {
                 total_distance = start_point + distance;
@@ -1477,11 +1522,11 @@ double DetectorModel::DistanceForColumnDepthFromPoint(DetectorPosition const & p
 }
 
 double DetectorModel::DistanceForColumnDepthToPoint(Geometry::IntersectionList const & intersections, DetectorPosition const & p0, DetectorDirection const & direction, double column_depth) const {
-    return DistanceForColumnDepthFromPoint(intersections, ToGeo(p0), ToGeo(direction), column_depth);
+    return DistanceForColumnDepthFromPoint(intersections, ToGeo(p0), ToGeo(-direction), column_depth);
 }
 
 double DetectorModel::DistanceForColumnDepthToPoint(DetectorPosition const & p0, DetectorDirection const & direction, double column_depth) const {
-    return DistanceForColumnDepthFromPoint(ToGeo(p0), ToGeo(direction), column_depth);
+    return DistanceForColumnDepthFromPoint(ToGeo(p0), ToGeo(-direction), column_depth);
 }
 
 double DetectorModel::GetMassDensity(Geometry::IntersectionList const & intersections, DetectorPosition const & p0,  std::set<siren::dataclasses::ParticleType> targets) const {
@@ -1561,14 +1606,14 @@ double DetectorModel::DistanceForInteractionDepthToPoint(Geometry::IntersectionL
         std::vector<siren::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
-    return DistanceForInteractionDepthFromPoint(intersections, ToGeo(p0), ToGeo(direction), interaction_depth, targets, total_cross_sections, total_decay_length);
+    return DistanceForInteractionDepthFromPoint(intersections, ToGeo(p0), ToGeo(-direction), interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
 double DetectorModel::DistanceForInteractionDepthToPoint(DetectorPosition const & p0, DetectorDirection const & direction, double interaction_depth,
         std::vector<siren::dataclasses::ParticleType> const & targets,
         std::vector<double> const & total_cross_sections,
         double const & total_decay_length) const {
-    return DistanceForInteractionDepthFromPoint(ToGeo(p0), ToGeo(direction), interaction_depth, targets, total_cross_sections, total_decay_length);
+    return DistanceForInteractionDepthFromPoint(ToGeo(p0), ToGeo(-direction), interaction_depth, targets, total_cross_sections, total_decay_length);
 }
 
 //////////////////////////////////////////////////////////
@@ -1759,4 +1804,3 @@ double DetectorModel::GetTargetMass(siren::dataclasses::ParticleType target) con
 }
 
 CEREAL_REGISTER_DYNAMIC_INIT(siren_DetectorModel);
-

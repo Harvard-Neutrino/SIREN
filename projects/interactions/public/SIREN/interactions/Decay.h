@@ -35,11 +35,11 @@ public:
     virtual ~Decay() {};
     bool operator==(Decay const & other) const;
     virtual bool equal(Decay const & other) const = 0;
+    virtual double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const &) const;
+    virtual double TotalDecayWidthAllFinalStates(siren::dataclasses::ParticleType const & primary) const;
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const = 0;
-    virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const = 0;
-    virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const = 0;
     virtual double TotalDecayLength(siren::dataclasses::InteractionRecord const & record) const;
-    virtual double TotalDecayLengthForFinalState(siren::dataclasses::InteractionRecord const & record) const;
+    virtual double TotalDecayLengthAllFinalStates(siren::dataclasses::InteractionRecord const & record) const;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const = 0;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const = 0;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const = 0;

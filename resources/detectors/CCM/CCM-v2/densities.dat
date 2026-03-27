@@ -82,7 +82,7 @@ object cylinder  23 0 -0.65          0 0 0      1.130076 0 1.24261    ccm_pmt_fr
 # A thin reflective TPB-coated film of radius 1.03385m separates the veto region from the active volume, and is not represented here because of its minimal contribution to the detector mass
 object cylinder  23 0 -0.65          0 0 0      1.12776 0 1.2396   ccm_inner_argon     ARGON    constant    1.3954
 
-detector 23 0 -0.65
+detector 23 0 -0.65 -0.654498 0 0
 
 # Fiducial volume
 # This represents the "active volume" of liquid argon contained within the reflective TPB-coated film
