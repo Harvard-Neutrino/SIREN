@@ -28,6 +28,10 @@ if (NOT CFITSIO_FOUND)
     list(PREPEND CFITSIO_INCLUDE_SEARCH_PATH_LIST
         $ENV{CFITSIOROOT}/include
     )
+    # Also search CMAKE_PREFIX_PATH
+    foreach(_prefix ${CMAKE_PREFIX_PATH})
+        list(APPEND CFITSIO_INCLUDE_SEARCH_PATH_LIST "${_prefix}/include")
+    endforeach()
 
     # Search user environment for headers, then default paths; extract version
     find_path(CFITSIO_INCLUDE_DIR fitsio.h
@@ -72,6 +76,12 @@ if (NOT CFITSIO_FOUND)
     else()
         set(CFITSIO_LIBRARY_SEARCH_PATH_LIST "")
     endif()
+
+    # Also search CMAKE_PREFIX_PATH
+    foreach(_prefix ${CMAKE_PREFIX_PATH})
+        list(APPEND CFITSIO_LIBRARY_SEARCH_PATH_LIST "${_prefix}/lib")
+        list(APPEND CFITSIO_LIBRARY_SEARCH_PATH_LIST "${_prefix}/lib64")
+    endforeach()
 
     # Search user environment for libraries, then default paths
     find_library(CFITSIO_LIBRARIES cfitsio

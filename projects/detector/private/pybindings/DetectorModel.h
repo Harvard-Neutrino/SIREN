@@ -180,7 +180,14 @@ void register_DetectorModel(pybind11::module_ & m) {
         .def_property("DetectorOrigin", &DetectorModel::GetDetectorOrigin, &DetectorModel::SetDetectorOrigin)
         .def_property("DetectorRotation", &DetectorModel::GetDetectorRotation, &DetectorModel::SetDetectorRotation)
         .def("AddSector", &DetectorModel::AddSector)
-        .def("GetSector", &DetectorModel::GetSector)
+        .def("GetSector", (
+                    DetectorSector (DetectorModel::*)(
+                        int) const
+                    )(&DetectorModel::GetSector))
+        .def("GetSector", (
+                    DetectorSector (DetectorModel::*)(
+                        std::string) const
+                    )(&DetectorModel::GetSector))
         .def("ClearSectors", &DetectorModel::ClearSectors)
         .def("GetIntersections", (
                     siren::geometry::Geometry::IntersectionList (DetectorModel::*)(

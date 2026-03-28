@@ -32,9 +32,13 @@ ZLIB_VERSION="1.3.1"
 mkdir -p $CI_INSTALL_PREFIX
 
 if [[ $RUNNER_OS == "Linux" ]] ; then
-    :
+    if command -v apk &> /dev/null; then
+        apk add gsl-dev  # musllinux (Alpine)
+    else
+        yum install -y gsl-devel  # manylinux (CentOS/RHEL)
+    fi
 elif [[ $RUNNER_OS == "macOS" ]]; then
-    :
+    brew install gsl
 elif [[ $RUNNER_OS == "Windows" ]]; then
     mkdir -p $CI_DOWNLOAD_PATH
     cd $CI_DOWNLOAD_PATH
