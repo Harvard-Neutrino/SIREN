@@ -265,9 +265,11 @@ double CharmMesonDecay::DifferentialDecayWidth(std::vector<double> constants, do
     double F0CKM = constants[0];
     double alpha = constants[1];
     double ms = constants[2];
-    double Q2tilde = Q2 / ms;
+    double Q2tilde = Q2 / (ms * ms);
     // compute the 3-momentum as a function of Q2
-    double EK = 0.5 * (Q2 - pow(mD, 2) + pow(mK, 2)) / mD; // energy of Kaon
+    // double EK = 0.5 * (Q2 - pow(mD, 2) + pow(mK, 2)) / mD; // energy of Kaon
+    double EK = 0.5 * (Q2 - (pow(mD, 2) + pow(mK, 2))) / mD; // energy of Kaon
+
     double PK = pow(pow(EK, 2) - pow(mK, 2), 0.5);
     // plug in the constants
     double dGamma = pow(siren::utilities::Constants::FermiConstant,2) / (24 * pow(siren::utilities::Constants::pi,3)) * pow(F0CKM,2) *
