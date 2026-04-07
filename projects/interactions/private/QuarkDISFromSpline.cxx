@@ -129,7 +129,7 @@ QuarkDISFromSpline::QuarkDISFromSpline(std::string differential_filename, std::s
     InitializeSignatures();
     SetUnits(units);
 }
-    
+
 void QuarkDISFromSpline::SetUnits(std::string units) {
     std::transform(units.begin(), units.end(), units.begin(),
         [](unsigned char c){ return std::tolower(c); });
@@ -233,11 +233,11 @@ double QuarkDISFromSpline::getHadronMass(siren::dataclasses::ParticleType hadron
 			case siren::dataclasses::ParticleType::DPlus:
 				return( siren::utilities::Constants::DPlusMass);
 			case siren::dataclasses::ParticleType::DMinus:
-				return( siren::utilities::Constants::DPlusMass);	
+				return( siren::utilities::Constants::DPlusMass);
 			case siren::dataclasses::ParticleType::Charm:
 				return( siren::utilities::Constants::CharmMass);
 			case siren::dataclasses::ParticleType::CharmBar:
-				return( siren::utilities::Constants::CharmMass);	
+				return( siren::utilities::Constants::CharmMass);
             default:
                 return(0.0);
         }
@@ -291,10 +291,9 @@ void QuarkDISFromSpline::ReadParamsFromSplineTable() {
     if(!mass_good) {
         if(int_good) {
             if(interaction_type_ == 1 or interaction_type_ == 2) {
-                target_mass_ = (siren::dataclasses::isLepton(siren::dataclasses::ParticleType::PPlus)+
-                        siren::dataclasses::isLepton(siren::dataclasses::ParticleType::Neutron))/2;
+                target_mass_ = siren::utilities::Constants::isoscalarMass;
             } else if(interaction_type_ == 3) {
-                target_mass_ = siren::dataclasses::isLepton(siren::dataclasses::ParticleType::EMinus);
+                target_mass_ = siren::utilities::Constants::electronMass;
             } else {
                 throw std::runtime_error("Logic error. Interaction type is not 1, 2, or 3!");
             }
@@ -302,7 +301,6 @@ void QuarkDISFromSpline::ReadParamsFromSplineTable() {
         } else {
             if(differential_cross_section_.get_ndim() == 3) {
                 target_mass_ = siren::utilities::Constants::isoscalarMass;
-                
             } else if(differential_cross_section_.get_ndim() == 2) {
                 target_mass_ = siren::utilities::Constants::electronMass;
             } else {
@@ -351,10 +349,10 @@ void QuarkDISFromSpline::InitializeSignatures() {
         signature.secondary_types.push_back(siren::dataclasses::ParticleType::Hadrons);
         // define the charmed meson types based on the quark type, now considering only D0 and D+
         if (quark_type_ == 1) {
-            D_types_ = {siren::dataclasses::Particle::ParticleType::D0, 
+            D_types_ = {siren::dataclasses::Particle::ParticleType::D0,
                         siren::dataclasses::Particle::ParticleType::DPlus};
         } else {
-            D_types_ = {siren::dataclasses::Particle::ParticleType::D0Bar, 
+            D_types_ = {siren::dataclasses::Particle::ParticleType::D0Bar,
                         siren::dataclasses::Particle::ParticleType::DMinus};
         }
         // push back the meson type
@@ -370,7 +368,7 @@ void QuarkDISFromSpline::InitializeSignatures() {
                 std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType> key(primary_type, target_type);
                 signatures_by_parent_types_[key].push_back(full_signature);
             }
-        }       
+        }
     }
 }
 
@@ -426,7 +424,7 @@ void QuarkDISFromSpline::compute_cdf() {
     pdf_vector.push_back(0);
 
 
-    // set the spline table 
+    // set the spline table
     siren::utilities::TableData1D<double> inverse_cdf_data;
     inverse_cdf_data.x = cdf_vector;
     inverse_cdf_data.f = cdf_z_nodes;
@@ -747,7 +745,7 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
 
     if (pqx_lab>momq_lab){
         // if current setting does not work, start looping through scalings
-        int maxIterations = 10; 
+        int maxIterations = 10;
         int iteration = 0;
         double p1_lab_x = p1_lab.px();
         double p1_lab_y = p1_lab.py();
@@ -760,7 +758,7 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
             momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
             if (pqx_lab>momq_lab){
                 // std::cout << "triggered on " << momq_lab << " and " << pqx_lab << std::endl;
-                //scale down 
+                //scale down
                 E1_lab /= 10;
                 E2_lab /= 10;
                 p1_lab_x /= 10;
@@ -805,7 +803,15 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     pq_lab.rotate(rand_rot);
 
     rk::P4 p3_lab((p1_lab - pq_lab).momentum(), m3);
-    rk::P4 p4_lab = p2_lab + pq_lab;
+
+    double m_c = siren::utilities::Constants::CharmMass;
+    double xi = final_x * (1.0 + m_c * m_c / Q2);
+    if (xi >= 1.0) {
+        xi = 1.0 - 1e-5; // to avoid unphysical xi values due to numerical precision issues
+    }
+    rk::P4 p_parton(geom3::Vector3(0, 0, 0), xi * target_mass_);  // parton at rest: (ξM, 0, 0, 0)
+    rk::P4 p4_lab = p_parton + pq_lab;                              // struck charm = ξ*p2 + q
+    rk::P4 p_spectator((1.0 - xi) * target_mass_, geom3::Vector3(0, 0, 0));  // spectator: ((1-ξ)M, 0,0, 0)
 
     rk::P4 p3;
     rk::P4 p4;
@@ -813,109 +819,39 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     p4 = p4_lab; // momentum of the virtual charm
     // std::cout << "charm momentum is " << p4 << std::endl;
 
-    // compute the energy and 3-momentum of the virtual charm
-    // std::cout << "the virtual charm off-shell mass is " << p4.m() << std::endl;
-    double p3c = std::sqrt(std::pow(p4.px(), 2) + std::pow(p4.py(), 2) + std::pow(p4.pz(), 2));
-    double Ec = p4.e(); //energy of primary charm
-    double mCH = getHadronMass(record.signature.secondary_types[meson_index]); // obtain charmed hadron mass
+    // D meson fragmentation: D gets fraction z of charm quark momentum
+    double mCH = getHadronMass(record.signature.secondary_types[meson_index]);
+    double p_charm_mag = std::sqrt(p4_lab.px()*p4_lab.px() + p4_lab.py()*p4_lab.py() + p4_lab.pz()*p4_lab.pz());
+    geom3::Vector3 p4_mom = p4_lab.momentum();
+    geom3::UnitVector3 p4_dir = p4_mom.direction();
 
-    // accept-reject sampling for a valid momentum fragmentation
-    bool frag_accept;
-    double randValue;
-    double z;
-    double ECH;
-
-    // add a maximum number of trials in the while loop
+    rk::P4 p4CH, p4X;
     int max_sampling = 500;
     int sampling = 0;
-
-    // sample again if this eenrgy is not kinematically allowed
-    // this samples in the lab frame the energy of the D-meson such that mass is real
     do {
         sampling += 1;
         if (sampling > max_sampling) {
-            std::cout << "energy of the charm is " << Ec << " and momentum is " << p3c << std::endl;
-            std::cout << "desired mass of hadron is " << mCH << std::endl;
-            // throw(siren::utilities::InjectionFailure("Failed to sample hadronization!"));
-            break;
+            throw(siren::utilities::InjectionFailure("Failed to sample hadronization!"));
         }
-        randValue = random->Uniform(0,1);
-        z = inverseCdfTable(randValue);
-        ECH = z * Ec;
-        if (std::pow(ECH, 2) - std::pow(mCH, 2) <= 0) {
-            frag_accept = false;
-        } else {
-            frag_accept = true;
-        }
-    } while (!frag_accept);
-    // new attempt of using the isoscalar mass as the remnant hadronic shower mass
-    double mX = target_mass_;
-    double Mc = p4.m();
-    // std::cout << "using remnant mass " << mX << std::endl;
-    // std::cout << "invariant charm mass and its energy is " << Mc << ", " << p4.e() << std::endl;
-    // std::cout << "target sampled D meson energy is " << ECH << std::endl;
-    // std::cout << "and the fraction of momentum is sampled to be " << z << std::endl;
-    //compute the energies in the charm rest frame
-    double E_CH_c = (std::pow(Mc, 2) - std::pow(mX, 2) + std::pow(mCH, 2)) / (2 * Mc);
-    // std::cout << "energy of charm in rest frame is " << E_CH_c << std::endl;
-    double p_c = std::sqrt((std::pow(Mc, 2) - std::pow(mCH + mX, 2)) * (std::pow(Mc, 2) - std::pow(mCH - mX, 2))) / (2 * Mc);
-    // std::cout << "momentum in charm rest frame is " << p_c << std::endl;
-    // compute the lorentz boost parameters
-    double gamma = p4.gamma();
-    double beta = p4.beta();
-    // std::cout << "beta and gamma parameters are " << beta << ", " << gamma << std::endl;
-    // using the lab frame fragmented energy and the 
-    double cosTheta = std::max(std::min(((ECH - gamma * E_CH_c)/(gamma * beta * p_c)), 1.), -1.);
-    // std::cout << "cosine of theta in charm frame is " << cosTheta << std::endl;
-    // std::cout << "without cutting, the number is " << (ECH - gamma * E_CH_c)/(gamma * beta * p_c) << std::endl;
-    // now compute the momentum vectors in the rest frame
-    double sinTheta = std::sin(std::acos(cosTheta));
-    // std::cout << "and sine of theta is computed to be " << sinTheta << std::endl;
-    rk::P4 p4CH_c(p_c * geom3::Vector3(cosTheta, sinTheta, 0), mCH);
-    rk::P4 p4X_c(p_c * geom3::Vector3(-cosTheta, -sinTheta, 0), mX);
-    // these all assume boost direction is charm direction. Now we should rotate back to charm lab momentum direction
-    geom3::Vector3 pc_lab_momentum = p4.momentum();
-    geom3::UnitVector3 pc_lab_dir = pc_lab_momentum.direction();
-    geom3::Rotation3 x_to_pc_lab_rot = geom3::rotationBetween(x_dir, pc_lab_dir);
-    p4X_c.rotate(x_to_pc_lab_rot);
-    p4CH_c.rotate(x_to_pc_lab_rot);
-    
-    // finally, we perform a random azimuthal rotation
-    double c_phi = random->Uniform(0, 2 * M_PI);
-    geom3::Rotation3 azimuth_rand_rot(pc_lab_dir, c_phi);
-    p4X_c.rotate(azimuth_rand_rot);
-    p4CH_c.rotate(azimuth_rand_rot);
+        double z = inverseCdfTable(random->Uniform(0, 1));
+        double pCH_mag = z * p_charm_mag;
+        p4CH = rk::P4(geom3::Vector3(p4_dir * pCH_mag), mCH);
+        p4X = p_spectator + p4_lab - p4CH;
+    } while (p4X.dot(p4X) < 0);
 
-    // and boost them back to the lab frame
-    rk::Boost boost_from_crest_to_lab = p4.labBoost();
-    rk::P4 p4X = p4X_c.boost(boost_from_crest_to_lab);
-    rk::P4 p4CH = p4CH_c.boost(boost_from_crest_to_lab);
-
-    // std::cout << "computed remnant mass and energy is " << p4X.m() << ", " << p4X.e() << std::endl;
-    // std::cout << "and computed D mass and energy is " << p4CH.m() << ", " << p4CH.e() << std::endl;
-    // std::cout << "target sampled D meson energy is " << ECH << std::endl;
-
-    
-    // now we proceed to saving the final state kinematics
+    // Save final state kinematics
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
     siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
     siren::dataclasses::SecondaryParticleRecord & hadron = secondaries[hadron_index];
     siren::dataclasses::SecondaryParticleRecord & meson = secondaries[meson_index];
-    // std::cout << "QuarkDIS::SampleFInalState : the indices are: " << lepton_index << hadron_index<< meson_index << std::endl;
 
     lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
-    // std::cout << "setting lepton mass with lepton momentum " << p3 << std::endl;
     lepton.SetMass(p3.m());
     lepton.SetHelicity(record.primary_helicity);
     hadron.SetFourMomentum({p4X.e(), p4X.px(), p4X.py(), p4X.pz()});
-    // std::cout << "setting hadron mass with hadron momentum " << p4X << std::endl;
     hadron.SetMass(p4X.m());
     hadron.SetHelicity(record.target_helicity);
     meson.SetFourMomentum({p4CH.e(), p4CH.px(), p4CH.py(), p4CH.pz()});
-    // std::cout << "setting meson mass with meson momentum " << p4CH << std::endl;
-    meson.SetMass(p4CH.m());
-    meson.SetHelicity(record.target_helicity); // this needs working on
-    // std::cout << "finished sampling final state" << std::endl;
 }
 
 double QuarkDISFromSpline::FragmentationFraction(siren::dataclasses::Particle::ParticleType secondary) const {
