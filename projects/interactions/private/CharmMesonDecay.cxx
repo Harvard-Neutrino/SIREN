@@ -40,7 +40,7 @@ CharmMesonDecay::CharmMesonDecay() {
 }
 
 CharmMesonDecay::CharmMesonDecay(siren::dataclasses::Particle::ParticleType primary) {
-  
+
   //standard stuff, constant across primary types
   std::vector<double> constants;
   constants.resize(3);
@@ -87,7 +87,7 @@ double CharmMesonDecay::particleMass(siren::dataclasses::ParticleType particle) 
 			case siren::dataclasses::ParticleType::DPlus:
 				return( siren::utilities::Constants::DPlusMass);
 			case siren::dataclasses::ParticleType::DMinus:
-				return( siren::utilities::Constants::DPlusMass);	
+				return( siren::utilities::Constants::DPlusMass);
 			case siren::dataclasses::ParticleType::K0:
 				return( siren::utilities::Constants::K0Mass);
 			case siren::dataclasses::ParticleType::K0Bar:
@@ -95,7 +95,7 @@ double CharmMesonDecay::particleMass(siren::dataclasses::ParticleType particle) 
 			case siren::dataclasses::ParticleType::KPlus:
 				return( siren::utilities::Constants::KplusMass);
 			case siren::dataclasses::ParticleType::KMinus:
-				return( siren::utilities::Constants::KminusMass);	
+				return( siren::utilities::Constants::KminusMass);
       case siren::dataclasses::ParticleType::EPlus:
         return( siren::utilities::Constants::electronMass );
       case siren::dataclasses::ParticleType::EMinus:
@@ -153,7 +153,7 @@ double CharmMesonDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
     std::set<siren::dataclasses::Particle::ParticleType> kminus_muplus_numu = {siren::dataclasses::Particle::ParticleType::KMinus,
                                                                             siren::dataclasses::Particle::ParticleType::MuPlus,
                                                                             siren::dataclasses::Particle::ParticleType::NuMu};
-    std::set<siren::dataclasses::Particle::ParticleType> hadrons = {siren::dataclasses::Particle::ParticleType::Hadrons};                                                                        
+    std::set<siren::dataclasses::Particle::ParticleType> hadrons = {siren::dataclasses::Particle::ParticleType::Hadrons};
     if (primary == siren::dataclasses::Particle::ParticleType::DPlus) {
       tau = 1040 * (1e-15);
       if (secondaries == k0_eplus_nue) {branching_ratio = .1607;} // e+ semileptonic mode according to pdg
@@ -176,7 +176,7 @@ std::vector<dataclasses::InteractionSignature> CharmMesonDecay::GetPossibleSigna
     std::vector<dataclasses::InteractionSignature> signatures;
     for(auto primary : primary_types) {
       std::vector<dataclasses::InteractionSignature> new_signatures = GetPossibleSignaturesFromParent(primary);
-      signatures.insert(signatures.end(),new_signatures.begin(),new_signatures.end()); 
+      signatures.insert(signatures.end(),new_signatures.begin(),new_signatures.end());
     }
     return signatures;
 }
@@ -268,7 +268,8 @@ double CharmMesonDecay::DifferentialDecayWidth(std::vector<double> constants, do
     double Q2tilde = Q2 / (ms * ms);
     // compute the 3-momentum as a function of Q2
     // double EK = 0.5 * (Q2 - pow(mD, 2) + pow(mK, 2)) / mD; // energy of Kaon
-    double EK = 0.5 * (Q2 - (pow(mD, 2) + pow(mK, 2))) / mD; // energy of Kaon
+    double EK = 0.5 * (pow(mD, 2) + pow(mK, 2) - Q2) / mD; // energy of Kaon
+    if (EK * EK < mK * mK) return 0.0;
 
     double PK = pow(pow(EK, 2) - pow(mK, 2), 0.5);
     // plug in the constants
@@ -284,7 +285,7 @@ void CharmMesonDecay::computeDiffGammaCDF(std::vector<double> constants, double 
   std::function<double(double)> pdf = [&] (double x) -> double {
             return DifferentialDecayWidth(constants, x, mD, mK);
         };
-  // first normalize the integral 
+  // first normalize the integral
   double min = 0;
   double max = 1.4; // these set the min and max of the Q2 considered
   double normalization = siren::utilities::rombergIntegrate(pdf, min, max);
@@ -330,8 +331,8 @@ void CharmMesonDecay::computeDiffGammaCDF(std::vector<double> constants, double 
   cdf_Q2_nodes.push_back(max);
   cdf_vector.push_back(1);
   pdf_vector.push_back(0);
-  
-  // set the spline table 
+
+  // set the spline table
   siren::utilities::TableData1D<double> inverse_cdf_data;
   inverse_cdf_data.x = cdf_vector;
   inverse_cdf_data.f = cdf_Q2_nodes;
@@ -366,7 +367,7 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     // first sample a q^2
     double rand_value_for_Q2 = random->Uniform(0, 1);
     double Q2 = inverseCdf(rand_value_for_Q2);
-    
+
     // now sample isotropically the "zenith" direction
     double cosTheta = random->Uniform(-1, 1);
     double sinTheta = std::sin(std::acos(cosTheta));
@@ -401,7 +402,7 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     // this ends the computation of D->W+K/Pi decay, now treat the W->l+nu decay
     double ml = particleMass(record.signature.secondary_types[1]);
     double mnu = 0;
-    double W_cosTheta = random->Uniform(-1, 1); // sampling the direction 
+    double W_cosTheta = random->Uniform(-1, 1); // sampling the direction
     double W_sinTheta = std::sin(std::acos(W_cosTheta));
     double El = (Q2 + pow(ml, 2)) / (2 * sqrt(Q2));
     double Enu = (Q2 - pow(ml, 2)) / (2 * sqrt(Q2)); // the energies of the outgoing lepton and neutrino
