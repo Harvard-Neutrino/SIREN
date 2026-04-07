@@ -804,6 +804,12 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
 
     rk::P4 p3_lab((p1_lab - pq_lab).momentum(), m3);
 
+
+
+    // #############################################
+    // New hadronization scheme: includes partonic cross section sampling and slow rescaling for charm mass effects
+    // ##############################################
+
     double m_c = siren::utilities::Constants::CharmMass;
     double xi = final_x * (1.0 + m_c * m_c / Q2);
     if (xi >= 1.0) {
@@ -817,7 +823,6 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     rk::P4 p4;
     p3 = p3_lab; // now we have our lepton momentum set, which should not be modified from here on
     p4 = p4_lab; // momentum of the virtual charm
-    // std::cout << "charm momentum is " << p4 << std::endl;
 
     // D meson fragmentation: D gets fraction z of charm quark momentum
     double mCH = getHadronMass(record.signature.secondary_types[meson_index]);
@@ -852,6 +857,126 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     hadron.SetMass(p4X.m());
     hadron.SetHelicity(record.target_helicity);
     meson.SetFourMomentum({p4CH.e(), p4CH.px(), p4CH.py(), p4CH.pz()});
+
+
+    // #############################################
+    // Included for posterity: original hadronization scheme
+    // ##############################################
+
+    /*
+
+    rk::P4 p4_lab = p2_lab + pq_lab;
+
+    rk::P4 p3;
+    rk::P4 p4;
+    p3 = p3_lab; // now we have our lepton momentum set, which should not be modified from here on
+    p4 = p4_lab; // momentum of the virtual charm
+
+
+    // compute the energy and 3-momentum of the virtual charm
+    // std::cout << "the virtual charm off-shell mass is " << p4.m() << std::endl;
+    double p3c = std::sqrt(std::pow(p4.px(), 2) + std::pow(p4.py(), 2) + std::pow(p4.pz(), 2));
+    double Ec = p4.e(); //energy of primary charm
+    double mCH = getHadronMass(record.signature.secondary_types[meson_index]); // obtain charmed hadron mass
+
+    // accept-reject sampling for a valid momentum fragmentation
+    bool frag_accept;
+    double randValue;
+    double z;
+    double ECH;
+
+    // add a maximum number of trials in the while loop
+    int max_sampling = 500;
+    int sampling = 0;
+
+    // sample again if this eenrgy is not kinematically allowed
+    // this samples in the lab frame the energy of the D-meson such that mass is real
+    do {
+        sampling += 1;
+        if (sampling > max_sampling) {
+            std::cout << "energy of the charm is " << Ec << " and momentum is " << p3c << std::endl;
+            std::cout << "desired mass of hadron is " << mCH << std::endl;
+            // throw(siren::utilities::InjectionFailure("Failed to sample hadronization!"));
+            break;
+        }
+        randValue = random->Uniform(0,1);
+        z = inverseCdfTable(randValue);
+        ECH = z * Ec;
+        if (std::pow(ECH, 2) - std::pow(mCH, 2) <= 0) {
+            frag_accept = false;
+        } else {
+            frag_accept = true;
+        }
+    } while (!frag_accept);
+    // new attempt of using the isoscalar mass as the remnant hadronic shower mass
+    double mX = target_mass_;
+    double Mc = p4.m();
+    // std::cout << "using remnant mass " << mX << std::endl;
+    // std::cout << "invariant charm mass and its energy is " << Mc << ", " << p4.e() << std::endl;
+    // std::cout << "target sampled D meson energy is " << ECH << std::endl;
+    // std::cout << "and the fraction of momentum is sampled to be " << z << std::endl;
+    //compute the energies in the charm rest frame
+    double E_CH_c = (std::pow(Mc, 2) - std::pow(mX, 2) + std::pow(mCH, 2)) / (2 * Mc);
+    // std::cout << "energy of charm in rest frame is " << E_CH_c << std::endl;
+    double p_c = std::sqrt((std::pow(Mc, 2) - std::pow(mCH + mX, 2)) * (std::pow(Mc, 2) - std::pow(mCH - mX, 2))) / (2 * Mc);
+    // std::cout << "momentum in charm rest frame is " << p_c << std::endl;
+    // compute the lorentz boost parameters
+    double gamma = p4.gamma();
+    double beta = p4.beta();
+    // std::cout << "beta and gamma parameters are " << beta << ", " << gamma << std::endl;
+    // using the lab frame fragmented energy and the
+    double cosTheta = std::max(std::min(((ECH - gamma * E_CH_c)/(gamma * beta * p_c)), 1.), -1.);
+    // std::cout << "cosine of theta in charm frame is " << cosTheta << std::endl;
+    // std::cout << "without cutting, the number is " << (ECH - gamma * E_CH_c)/(gamma * beta * p_c) << std::endl;
+    // now compute the momentum vectors in the rest frame
+    double sinTheta = std::sin(std::acos(cosTheta));
+    // std::cout << "and sine of theta is computed to be " << sinTheta << std::endl;
+    rk::P4 p4CH_c(p_c * geom3::Vector3(cosTheta, sinTheta, 0), mCH);
+    rk::P4 p4X_c(p_c * geom3::Vector3(-cosTheta, -sinTheta, 0), mX);
+    // these all assume boost direction is charm direction. Now we should rotate back to charm lab momentum direction
+    geom3::Vector3 pc_lab_momentum = p4.momentum();
+    geom3::UnitVector3 pc_lab_dir = pc_lab_momentum.direction();
+    geom3::Rotation3 x_to_pc_lab_rot = geom3::rotationBetween(x_dir, pc_lab_dir);
+    p4X_c.rotate(x_to_pc_lab_rot);
+    p4CH_c.rotate(x_to_pc_lab_rot);
+
+    // finally, we perform a random azimuthal rotation
+    double c_phi = random->Uniform(0, 2 * M_PI);
+    geom3::Rotation3 azimuth_rand_rot(pc_lab_dir, c_phi);
+    p4X_c.rotate(azimuth_rand_rot);
+    p4CH_c.rotate(azimuth_rand_rot);
+
+    // and boost them back to the lab frame
+    rk::Boost boost_from_crest_to_lab = p4.labBoost();
+    rk::P4 p4X = p4X_c.boost(boost_from_crest_to_lab);
+    rk::P4 p4CH = p4CH_c.boost(boost_from_crest_to_lab);
+
+    // std::cout << "computed remnant mass and energy is " << p4X.m() << ", " << p4X.e() << std::endl;
+    // std::cout << "and computed D mass and energy is " << p4CH.m() << ", " << p4CH.e() << std::endl;
+    // std::cout << "target sampled D meson energy is " << ECH << std::endl;
+
+
+    // now we proceed to saving the final state kinematics
+    std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
+    siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[lepton_index];
+    siren::dataclasses::SecondaryParticleRecord & hadron = secondaries[hadron_index];
+    siren::dataclasses::SecondaryParticleRecord & meson = secondaries[meson_index];
+    // std::cout << "QuarkDIS::SampleFInalState : the indices are: " << lepton_index << hadron_index<< meson_index << std::endl;
+
+    lepton.SetFourMomentum({p3.e(), p3.px(), p3.py(), p3.pz()});
+    // std::cout << "setting lepton mass with lepton momentum " << p3 << std::endl;
+    lepton.SetMass(p3.m());
+    lepton.SetHelicity(record.primary_helicity);
+    hadron.SetFourMomentum({p4X.e(), p4X.px(), p4X.py(), p4X.pz()});
+    // std::cout << "setting hadron mass with hadron momentum " << p4X << std::endl;
+    hadron.SetMass(p4X.m());
+    hadron.SetHelicity(record.target_helicity);
+    meson.SetFourMomentum({p4CH.e(), p4CH.px(), p4CH.py(), p4CH.pz()});
+    // std::cout << "setting meson mass with meson momentum " << p4CH << std::endl;
+    meson.SetMass(p4CH.m());
+    meson.SetHelicity(record.target_helicity); // this needs working on
+    // std::cout << "finished sampling final state" << std::endl;
+    */
 }
 
 double QuarkDISFromSpline::FragmentationFraction(siren::dataclasses::Particle::ParticleType secondary) const {
