@@ -156,13 +156,16 @@ double CharmMesonDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
     std::set<siren::dataclasses::Particle::ParticleType> hadrons = {siren::dataclasses::Particle::ParticleType::Hadrons};
     if (primary == siren::dataclasses::Particle::ParticleType::DPlus) {
       tau = 1040 * (1e-15);
+      // if (secondaries == k0_eplus_nue) {branching_ratio = .1607;} // e+ semileptonic mode according to pdg
+      // else if (secondaries == k0_muplus_numu) {branching_ratio = .176;} // mu+ anything according to pdg
+      // else if (secondaries == hadrons) {branching_ratio = (1 - .1607 - .176);} // everything else
       if (secondaries == k0_eplus_nue) {branching_ratio = .1607;} // e+ semileptonic mode according to pdg
-      else if (secondaries == k0_muplus_numu) {branching_ratio = .176;} // mu+ anything according to pdg
+      else if (secondaries == k0_muplus_numu) {branching_ratio = .176;} // mu+ anything according to pdg (K + K* combined)
       else if (secondaries == hadrons) {branching_ratio = (1 - .1607 - .176);} // everything else
     } else if (primary == siren::dataclasses::Particle::ParticleType::D0) {
       tau = 410.1 * (1e-15);
       if (secondaries == kminus_eplus_nue) {branching_ratio = .0649;} // e+ semileptonic mode according to pdg
-      else if (secondaries == kminus_muplus_numu) {branching_ratio = .067;} // mu+ anything according to pdg
+      else if (secondaries == kminus_muplus_numu) {branching_ratio = .067;} // mu+ anything according to pdg (K + K* combined)
       else if (secondaries == hadrons) {branching_ratio = (1 - .0649 - .067);} // everything else
     }
     else {
@@ -211,6 +214,7 @@ std::vector<dataclasses::InteractionSignature> CharmMesonDecay::GetPossibleSigna
       semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::KMinus;
       semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::EPlus;
       semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuE;
+      
       signatures.push_back(semilep_signature);
       semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::KMinus;
       semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::MuPlus;
@@ -353,82 +357,137 @@ void CharmMesonDecay::SampleFinalStateHadronic(dataclasses::CrossSectionDistribu
 }
 
 void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
-    // first handle hadronic decay separately, in the end we want to handle all decays in separate functions
+    // first handle hadronic decay separately
     dataclasses::InteractionSignature signature = record.signature;
     if (signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
       SampleFinalStateHadronic(record, random);
       return;
     }
-    // first obtain the constants needed for further computation from the signature
-    std::vector<double> constants = FormFactorFromRecord(record);
-    double mD = particleMass(record.signature.primary_type);
-    double mK = particleMass(record.signature.secondary_types[0]);
 
-    // first sample a q^2
-    double rand_value_for_Q2 = random->Uniform(0, 1);
-    double Q2 = inverseCdf(rand_value_for_Q2);
+    // =========================================================================
+    // 3-body phase space sampling following Pythia's approach
+    // (ParticleDecays::threeBody in ParticleDecays.cc)
+    //
+    // D (m0) -> K (m1) + lepton (m2) + neutrino (m3)
+    //
+    // Phase space: sample m23 (lepton-neutrino invariant mass = sqrt(q^2))
+    // flat in allowed range, accept-reject on phase space weight.
+    // Then apply V-A matrix element correction.
+    // =========================================================================
 
-    // now sample isotropically the "zenith" direction
-    double cosTheta = random->Uniform(-1, 1);
-    double sinTheta = std::sin(std::acos(cosTheta));
-      // set the x axis to be the D direction
+    double mD = particleMass(record.signature.primary_type);     // m0
+    double mK_base = particleMass(record.signature.secondary_types[0]); // m1 (K mass from signature)
+    double ml = particleMass(record.signature.secondary_types[1]); // m2
+    double mnu = 0.0;                                              // m3
+
+    // Randomly choose between D->K l nu and D->K* l nu channels
+    // based on their relative branching ratios within the muonic mode.
+    // Pythia uses the same V-A matrix element (meMode=22) for both;
+    // only the hadron mass differs: K(494 MeV) vs K*(892 MeV).
+    double mKstar = 0.89166;  // K*(892) mass in GeV
+    double fracK;  // fraction of events that are D->K (vs D->K*)
+    if (record.signature.primary_type == siren::dataclasses::Particle::ParticleType::DPlus) {
+        // D+ -> K0bar mu+ nu: BR=8.74%, D+ -> K*0bar mu+ nu: BR=5.33%
+        fracK = 8.74 / (8.74 + 5.33);  // ~0.621
+    } else {
+        // D0 -> K- mu+ nu: BR=3.41%, D0 -> K*- mu+ nu: BR=2.17%
+        fracK = 3.41 / (3.41 + 2.17);  // ~0.611
+    }
+    double mK = (random->Uniform(0, 1) < fracK) ? mK_base : mKstar;
+
+    // D meson 4-momentum in lab frame
+    rk::P4 p4D_lab(geom3::Vector3(record.primary_momentum[1],
+                                    record.primary_momentum[2],
+                                    record.primary_momentum[3]),
+                    record.primary_mass);
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
-      //set the D direction in lab frame and compute its angle wrt the x axis
-    rk::P4 p4D_lab(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
-    geom3::Vector3 p3D_lab = p4D_lab.momentum();
-    geom3::UnitVector3 p3D_lab_dir = p3D_lab.direction();
-    geom3::Rotation3 x_to_p3D_lab_rot = geom3::rotationBetween(x_dir, p3D_lab_dir);
-    // compute the momentum magnitude of the W and the K/pi
-    double EK = 0.5 * (pow(mD, 2) + pow(mK, 2) - Q2) / mD; // energy of Kaon
-    double PK = pow(pow(EK, 2) - pow(mK, 2), .5); // momentum magnitude of kaon in D rest frame
-    double PW = sqrt(Q2); // momentum magnitude of virtual W in D rest frame
-    // compute the 3 vectors of the W and the K/pi in the D rest frame, defined wrt x axis
-    rk::P4 p4K_Drest(PK * geom3::Vector3(cosTheta, sinTheta, 0), mK);
-    rk::P4 p4W_Drest(PK * geom3::Vector3(-cosTheta, -sinTheta, 0), PW); // invariant mass assigned to virtual W boson
 
-    // rotate the momentum vectors so they are defined wrt to the D lab frame direction
-    p4K_Drest.rotate(x_to_p3D_lab_rot);
-    p4W_Drest.rotate(x_to_p3D_lab_rot);
-    // perform the random "azimuth" rotation
-    double phi = random->Uniform(0, 2 * M_PI);
-    geom3::Rotation3 azimuth_rand_rot(p3D_lab_dir, phi);
-    p4K_Drest.rotate(azimuth_rand_rot);
-    p4W_Drest.rotate(azimuth_rand_rot);
-    // finally, boost the 4 momenta back to the lab frame
-    rk::Boost boost_from_Drest_to_lab = p4D_lab.labBoost();
-    rk::P4 p4K_lab = p4K_Drest.boost(boost_from_Drest_to_lab);
-    rk::P4 p4W_lab = p4W_Drest.boost(boost_from_Drest_to_lab);
+    // Kinematic limits for m23 (lepton-neutrino invariant mass)
+    double m23Min = ml + mnu;        // minimum: lepton + neutrino at rest
+    double m23Max = mD - mK;         // maximum: kaon at rest
+    double mDiff  = m23Max - m23Min;
 
-    // this ends the computation of D->W+K/Pi decay, now treat the W->l+nu decay
-    double ml = particleMass(record.signature.secondary_types[1]);
-    double mnu = 0;
-    double W_cosTheta = random->Uniform(-1, 1); // sampling the direction
-    double W_sinTheta = std::sin(std::acos(W_cosTheta));
-    double El = (Q2 + pow(ml, 2)) / (2 * sqrt(Q2));
-    double Enu = (Q2 - pow(ml, 2)) / (2 * sqrt(Q2)); // the energies of the outgoing lepton and neutrino
-    double P = (Q2 - pow(ml, 2)) / (2 * sqrt(Q2));
-    // now we have thr four vectors of the outgoing particle kinematics in tne W rest frame wrt x direction
-    rk::P4 p4l_Wrest(P * geom3::Vector3(W_cosTheta, W_sinTheta, 0), ml);
-    rk::P4 p4nu_Wrest(P * geom3::Vector3(-W_cosTheta, -W_sinTheta, 0), 0);
+    // Maximum phase space weight: p1Max * p23Max
+    // p1Max = kaon momentum when m23 = m23Min
+    double p1Max = 0.5 * sqrt((mD - mK - m23Min) * (mD + mK + m23Min)
+                             * (mD + mK - m23Min) * (mD - mK + m23Min)) / mD;
+    // p23Max = lepton momentum in m23 rest frame when m23 = m23Max
+    double p23Max = 0.5 * sqrt((m23Max - ml - mnu) * (m23Max + ml + mnu)
+                              * (m23Max + ml - mnu) * (m23Max - ml + mnu)) / m23Max;
+    double wtPSmax = 0.5 * p1Max * p23Max;
 
-    geom3::Vector3 p3W_lab = p4W_lab.momentum();
-    geom3::UnitVector3 p3W_lab_dir = p3W_lab.direction();
-    geom3::Rotation3 x_to_p3W_lab_rot = geom3::rotationBetween(x_dir, p3W_lab_dir);
-    p4l_Wrest.rotate(x_to_p3W_lab_rot);
-    p4nu_Wrest.rotate(x_to_p3W_lab_rot);
-    // now finally perform the last aximuthal rotation
-    double W_phi = random->Uniform(0, 2 * M_PI);
-    geom3::Rotation3 W_azimuth_rand_rot(p3W_lab_dir, W_phi);
-    p4l_Wrest.rotate(W_azimuth_rand_rot);
-    p4nu_Wrest.rotate(W_azimuth_rand_rot);
-    rk::Boost boost_from_Wrest_to_lab = p4W_lab.labBoost();
-    rk::P4 p4l_lab = p4l_Wrest.boost(boost_from_Wrest_to_lab);
-    rk::P4 p4nu_lab = p4nu_Wrest.boost(boost_from_Wrest_to_lab);
+    // V-A matrix element upper bound (from Pythia, meMode == 22)
+    double wtMEmax = std::min(std::pow(mD, 4) / 16.0,
+                              mD * (mD - mK - ml) * (mD - mK - mnu) * (mD - ml - mnu));
+    double wtME;
 
+    rk::P4 p4K_Drest, p4l_Drest, p4nu_Drest;
+
+    do {
+    wtME = 1.0;
+
+    // --- Step 1: Sample m23 flat, accept-reject on phase space weight ---
+    double m23, p1Abs, p23Abs, wtPS;
+    do {
+        m23 = m23Min + random->Uniform(0, 1) * mDiff;
+
+        // p1Abs = kaon momentum in D rest frame for this m23
+        p1Abs = 0.5 * sqrt((mD - mK - m23) * (mD + mK + m23)
+                          * (mD + mK - m23) * (mD - mK + m23)) / mD;
+        // p23Abs = lepton momentum in m23 rest frame
+        p23Abs = 0.5 * sqrt((m23 - ml - mnu) * (m23 + ml + mnu)
+                           * (m23 + ml - mnu) * (m23 - ml + mnu)) / m23;
+        wtPS = p1Abs * p23Abs;
+    } while (wtPS < random->Uniform(0, 1) * wtPSmax);
+
+    // --- Step 2: Set up m23 -> lepton + neutrino isotropically ---
+    double cosTheta23 = random->Uniform(-1, 1);
+    double sinTheta23 = std::sin(std::acos(cosTheta23));
+    double phi23 = random->Uniform(0, 2 * M_PI);
+
+    // Lepton and neutrino in m23 rest frame
+    geom3::Vector3 dir23(sinTheta23 * std::cos(phi23),
+                         sinTheta23 * std::sin(phi23),
+                         cosTheta23);
+    rk::P4 p4l_m23rest(p23Abs * dir23, ml);
+    rk::P4 p4nu_m23rest(-p23Abs * dir23, mnu);
+
+    // --- Step 3: Set up D -> K + (m23 system) isotropically ---
+    double cosTheta1 = random->Uniform(-1, 1);
+    double sinTheta1 = std::sin(std::acos(cosTheta1));
+    double phi1 = random->Uniform(0, 2 * M_PI);
+
+    geom3::Vector3 dir1(sinTheta1 * std::cos(phi1),
+                        sinTheta1 * std::sin(phi1),
+                        cosTheta1);
+    // Kaon in D rest frame
+    p4K_Drest = rk::P4(p1Abs * dir1, mK);
+    // m23 system in D rest frame (opposite to kaon)
+    rk::P4 p4m23_Drest(-p1Abs * dir1, m23);
+
+    // --- Step 4: Boost lepton and neutrino from m23 rest frame to D rest frame ---
+    rk::Boost boost_m23_to_Drest = p4m23_Drest.labBoost();
+    p4l_Drest = p4l_m23rest.boost(boost_m23_to_Drest);
+    p4nu_Drest = p4nu_m23rest.boost(boost_m23_to_Drest);
+
+    // --- Step 5: V-A matrix element weight ---
+    // wtME = m_D * E_lepton * (p_neutrino . p_kaon) in D rest frame
+    // This is Lorentz invariant up to the m_D * E_l factor which equals p_D . p_l
+    wtME = mD * p4l_Drest.e() * p4nu_Drest.dot(p4K_Drest);
+
+    } while (wtME < random->Uniform(0, 1) * wtMEmax);
+
+    // --- Boost all particles from D rest frame to lab frame ---
+    rk::Boost boost_D_to_lab = p4D_lab.labBoost();
+    rk::P4 p4K_lab = p4K_Drest.boost(boost_D_to_lab);
+    rk::P4 p4l_lab = p4l_Drest.boost(boost_D_to_lab);
+    rk::P4 p4nu_lab = p4nu_Drest.boost(boost_D_to_lab);
+
+    // --- Set secondary particle records ---
     std::vector<siren::dataclasses::SecondaryParticleRecord> & secondaries = record.GetSecondaryParticleRecords();
     siren::dataclasses::SecondaryParticleRecord & kpi = secondaries[0];
     siren::dataclasses::SecondaryParticleRecord & lepton = secondaries[1];
-    siren::dataclasses::SecondaryParticleRecord & neutrino = secondaries[2]; //these are all hardcoded at the time
+    siren::dataclasses::SecondaryParticleRecord & neutrino = secondaries[2];
 
     kpi.SetFourMomentum({p4K_lab.e(), p4K_lab.px(), p4K_lab.py(), p4K_lab.pz()});
     kpi.SetMass(p4K_lab.m());

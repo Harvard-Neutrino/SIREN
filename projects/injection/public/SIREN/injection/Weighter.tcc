@@ -121,12 +121,9 @@ double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<siren::ma
         std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
-            for(auto const & signature : signatures) {
-                fake_record.signature = signature;
-                // Add total cross section
-                total_xs += xs->TotalCrossSection(fake_record);
-            }
+            fake_record.signature.primary_type = record.signature.primary_type;
+            fake_record.signature.target_type = target_xs.first;
+            total_xs += xs->TotalCrossSectionAllFinalStates(fake_record);
         }
         total_cross_sections.push_back(total_xs);
     }
@@ -172,12 +169,9 @@ double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<si
         std::vector<std::shared_ptr<siren::interactions::CrossSection>> const & xs_list = target_xs.second;
         double total_xs = 0.0;
         for(auto const & xs : xs_list) {
-            std::vector<siren::dataclasses::InteractionSignature> signatures = xs->GetPossibleSignaturesFromParents(record.signature.primary_type, target_xs.first);
-            for(auto const & signature : signatures) {
-                fake_record.signature = signature;
-                // Add total cross section
-                total_xs += xs->TotalCrossSection(fake_record);
-            }
+            fake_record.signature.primary_type = record.signature.primary_type;
+            fake_record.signature.target_type = target_xs.first;
+            total_xs += xs->TotalCrossSectionAllFinalStates(fake_record);
         }
         total_cross_sections.push_back(total_xs);
     }
