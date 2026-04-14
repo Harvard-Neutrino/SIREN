@@ -472,7 +472,7 @@ void CharmDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     // kin_vars and its twin are 3-vectors containing [nu-energy, Bjorken X, Bjorken Y]
     std::array<double,3> kin_vars, test_kin_vars;
 
-    // centers of the cross section spline tales.
+    // centers of the cross section spline tables.
     std::array<int,3> spline_table_center, test_spline_table_center;
 
     // values of cross_section from the splines.  By * Bx * Spline(E,x,y)
