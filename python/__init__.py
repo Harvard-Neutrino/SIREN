@@ -49,9 +49,16 @@ dataclasses.Particle.ParticleType = dataclasses.ParticleType
 def darknews_version():
     try:
         import DarkNews
+        # Require the specific DarkNews APIs that SIREN_DarkNews.py uses.
+        # Some installed DarkNews versions ship without these, in which case
+        # we treat DarkNews as unavailable so the SIREN_DarkNews import path
+        # is skipped (same as when DarkNews itself is not installed).
+        from DarkNews import phase_space  # noqa: F401
+        from DarkNews.nuclear_tools import NuclearTarget  # noqa: F401
+        from DarkNews.integrands import get_decay_momenta_from_vegas_samples  # noqa: F401
         return _util.normalize_version(DarkNews.__version__)
-    except:
-        print("WARNING: DarkNews is not installed in the local environment")
+    except Exception:
+        print("WARNING: DarkNews is not available (not installed, or installed version lacks required APIs)")
         return None
 utilities.darknews_version = darknews_version
 

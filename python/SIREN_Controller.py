@@ -61,13 +61,9 @@ class SIREN_Controller:
         # Empty list for our interaction trees
         self.events = []
 
-        # Find the density and materials files
-        materials_file = _util.get_material_model_path(experiment)
-        detector_model_file = _util.get_detector_model_path(experiment)
-
-        self.detector_model = _detector.DetectorModel()
-        self.detector_model.LoadMaterialModel(materials_file)
-        self.detector_model.LoadDetectorModel(detector_model_file)
+        # Load the detector via upstream load_detector (handles both
+        # materials.dat and densities.dat in the named detector folder).
+        self.detector_model = _util.load_detector(experiment)
 
         # Define the primary injection and physical process
         self.primary_injection_process = _injection.PrimaryInjectionProcess()
@@ -291,22 +287,7 @@ class SIREN_Controller:
         """
         :return: identified fiducial volume for the experiment, None if not found
         """
-        detector_model_file = _util.get_detector_model_path(self.experiment)
-        with open(detector_model_file) as file:
-            fiducial_line = None
-            detector_line = None
-            for line in file:
-                data = line.split()
-                if len(data) <= 0:
-                    continue
-                elif data[0] == "fiducial":
-                    fiducial_line = line
-                elif data[0] == "detector":
-                    detector_line = line
-            if fiducial_line is None or detector_line is None:
-                return None
-            return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
-        return None
+        return _util.get_fiducial_volume(self.experiment)
 
     def GetCylinderVolumePositionDistributionFromSector(self, sector_name):
         geo = self.GetDetectorSectorGeometry(sector_name)
