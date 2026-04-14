@@ -26,6 +26,11 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/PythiaDISCrossSection.cxx
 
 )
+if(TARGET MARLEY)
+    LIST (APPEND interactions_SOURCES
+        ${PROJECT_SOURCE_DIR}/projects/interactions/private/MarleyCrossSection.cxx
+    )
+endif()
 add_library(SIREN_interactions OBJECT ${interactions_SOURCES})
 set_property(TARGET SIREN_interactions PROPERTY POSITION_INDEPENDENT_CODE ON)
 
@@ -50,12 +55,14 @@ target_link_libraries(SIREN_interactions
         pybind11::embed
     PUBLIC
         photospline
-        SIREN_serialization
+        $<$<TARGET_EXISTS:MARLEY>:MARLEY>
         SIREN_utilities
+        SIREN_serialization
         SIREN_math
         SIREN_dataclasses
         SIREN_detector
 )
+apply_siren_compile_options(SIREN_interactions)
 
 target_link_directories(SIREN_interactions PUBLIC ${PYTHIA8_DIR}/lib ${LHAPDF_DIR}/lib)
 target_link_libraries(SIREN_interactions PUBLIC pythia8 LHAPDF dl pthread)
@@ -74,6 +81,9 @@ package_add_test(UnitTest_DipoleFromTable ${PROJECT_SOURCE_DIR}/projects/interac
 pybind11_add_module(interactions ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/interactions.cxx)
 target_link_directories(interactions PRIVATE ${PYTHIA8_DIR}/lib ${LHAPDF_DIR}/lib)
 target_link_libraries(interactions PRIVATE SIREN photospline rk_static pybind11::embed pythia8 LHAPDF dl pthread)
+if(TARGET MARLEY)
+    target_compile_definitions(interactions PRIVATE SIREN_HAS_MARLEY)
+endif()
 #pybind11_add_module(pyDarkNewsSerializer ${PROJECT_SOURCE_DIR}/projects/interactions/private/pybindings/pyDarkNewsSerializer.cxx)
 #target_link_libraries(pyDarkNewsSerializer PRIVATE SIREN photospline rk_static pybind11::embed)
 if(DEFINED SKBUILD)

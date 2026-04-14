@@ -7,9 +7,9 @@
 #include <functional>
 
 #include <cereal/cereal.hpp>
+#include <cereal/types/polymorphic.hpp>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
-#include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 
 #include "SIREN/math/Vector3D.h"
@@ -121,6 +121,9 @@ class DensityDistribution1D<AxisT, ConstantDistribution1D, typename std::enable_
     };
 };
 
+// Declare the explicit specialization (but do not instantiate)
+extern template class DensityDistribution1D<CartesianAxis1D, ConstantDistribution1D>;
+
 // Define the specialization that we plan to use
 typedef DensityDistribution1D<CartesianAxis1D, ConstantDistribution1D> ConstantDensityDistribution;
 
@@ -134,4 +137,6 @@ CEREAL_CLASS_VERSION(siren::detector::ConstantDensityDistribution, 0);
 CEREAL_REGISTER_TYPE(siren::detector::ConstantDensityDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::ConstantDensityDistribution);
 
-#endif // SIREN_ConstantDensityDistribution.h
+CEREAL_FORCE_DYNAMIC_INIT(siren_ConstantDensityDistribution);
+
+#endif // SIREN_ConstantDensityDistribution_H

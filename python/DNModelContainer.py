@@ -552,8 +552,15 @@ class ModelContainer:
             ValueError: _description_
         """
 
-        loglevel = loglevel.upper()
-        _numeric_level = getattr(logging, loglevel, None)
+        # override default loglevel
+        loglevel = logging.WARNING
+
+        if isinstance(loglevel, int):
+            _numeric_level = loglevel
+        elif isinstance(loglevel, str):
+            loglevel = loglevel.upper()
+            _numeric_level = getattr(logging, loglevel, None)
+
         if not isinstance(_numeric_level, int):
             raise ValueError("Invalid log level: %s" % self.loglevel)
         logger.setLevel(_numeric_level)

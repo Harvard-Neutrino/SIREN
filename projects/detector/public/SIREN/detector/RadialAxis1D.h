@@ -54,4 +54,6 @@ CEREAL_CLASS_VERSION(siren::detector::RadialAxis1D, 0);
 CEREAL_REGISTER_TYPE(siren::detector::RadialAxis1D);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::Axis1D, siren::detector::RadialAxis1D);
 
+CEREAL_FORCE_DYNAMIC_INIT(siren_RadialAxis1D);
+
 #endif // SIREN_RadialAxis1D_H

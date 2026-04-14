@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SIREN_PolynomialDistribution1D_H
-#define SIREN_PolynomialDistribution1D_H
+#ifndef SIREN_detector_PolynomialDistribution1D_H
+#define SIREN_detector_PolynomialDistribution1D_H
 
 #include <memory>                                    // for shared_ptr
 #include <vector>                                    // for vector
@@ -60,4 +60,6 @@ CEREAL_CLASS_VERSION(siren::detector::PolynomialDistribution1D, 0);
 CEREAL_REGISTER_TYPE(siren::detector::PolynomialDistribution1D);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::Distribution1D, siren::detector::PolynomialDistribution1D);
 
-#endif // SIREN_PolynomialDistribution1D_H
+CEREAL_FORCE_DYNAMIC_INIT(siren_PolynomialDistribution1D);
+
+#endif // SIREN_detector_PolynomialDistribution1D_H

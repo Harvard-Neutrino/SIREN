@@ -41,3 +41,6 @@ double ConstantDistribution1D::Evaluate(double x) const {
 
 } // namespace siren
 } // namespace detector
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_ConstantDistribution1D);
+

@@ -102,12 +102,17 @@ public:
     }
 
     template<typename Archive>
-    void load(Archive & archive, std::uint32_t const version) const {
+    static void load_and_construct(Archive & archive, cereal::construct<Weighter> & construct, std::uint32_t const version) {
         if(version == 0) {
+            std::vector<std::shared_ptr<Injector>> injectors;
+            std::shared_ptr<siren::detector::DetectorModel> detector_model;
+            std::shared_ptr<siren::injection::PhysicalProcess> primary_physical_process;
+            std::vector<std::shared_ptr<siren::injection::PhysicalProcess>> secondary_physical_processes;
             archive(::cereal::make_nvp("Injectors", injectors));
             archive(::cereal::make_nvp("DetectorModel", detector_model));
             archive(::cereal::make_nvp("PrimaryPhysicalProcess", primary_physical_process));
             archive(::cereal::make_nvp("SecondaryPhysicalProcesses", secondary_physical_processes));
+            construct(injectors, detector_model, primary_physical_process, secondary_physical_processes);
         } else {
             throw std::runtime_error("Weighter only supports version <= 0!");
         }

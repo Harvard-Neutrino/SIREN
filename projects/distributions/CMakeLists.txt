@@ -13,6 +13,7 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/TabulatedFluxDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/PowerLaw.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/Monoenergetic.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/energy/PiDARNuEDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/helicity/PrimaryNeutrinoHelicityDistribution.cxx
 
@@ -29,6 +30,10 @@ LIST (APPEND distributions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/OrientedCylinderPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/CylinderVolumePositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/ColumnDepthPositionDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/vertex/FixedTargetPositionDistribution.cxx
+
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/PrimaryAreaDistribution.cxx
+    ${PROJECT_SOURCE_DIR}/projects/distributions/private/primary/area/FixedTargetAreaDistribution.cxx
 
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryVertexPositionDistribution.cxx
     ${PROJECT_SOURCE_DIR}/projects/distributions/private/secondary/vertex/SecondaryPhysicalVertexDistribution.cxx
@@ -47,14 +52,15 @@ target_link_libraries(SIREN_distributions
         pybind11::embed
     PUBLIC
         photospline
-        SIREN_serialization
         SIREN_utilities
+        SIREN_serialization
         SIREN_math
         SIREN_dataclasses
         SIREN_geometry
         SIREN_detector
         SIREN_interactions
 )
+apply_siren_compile_options(SIREN_distributions)
 
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/distributions/public/"
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

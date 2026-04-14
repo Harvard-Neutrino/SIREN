@@ -54,3 +54,6 @@ double PolynomialDistribution1D::Evaluate(double x) const {
 
 } // namespace siren
 } // namespace detector
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_PolynomialDistribution1D);
+

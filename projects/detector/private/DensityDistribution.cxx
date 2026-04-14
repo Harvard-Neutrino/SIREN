@@ -21,3 +21,6 @@ bool DensityDistribution::operator!=(const DensityDistribution& dens_distr) cons
 
 } // namespace siren
 } // namespace detector
+
+CEREAL_REGISTER_DYNAMIC_INIT(siren_DensityDistribution);
+

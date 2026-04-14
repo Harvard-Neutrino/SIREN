@@ -32,5 +32,7 @@ CEREAL_CLASS_VERSION(siren::detector::RadialAxisExponentialDensityDistribution, 
 CEREAL_REGISTER_TYPE(siren::detector::RadialAxisExponentialDensityDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::RadialAxisExponentialDensityDistribution);
 
+CEREAL_FORCE_DYNAMIC_INIT(siren_RadialAxisExponentialDensityDistribution);
+
 #endif // SIREN_RadialAxisExponentialDensityDistribution.h
 

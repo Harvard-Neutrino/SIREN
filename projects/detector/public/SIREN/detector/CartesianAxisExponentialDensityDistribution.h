@@ -25,4 +25,6 @@ CEREAL_CLASS_VERSION(siren::detector::CartesianAxisExponentialDensityDistributio
 CEREAL_REGISTER_TYPE(siren::detector::CartesianAxisExponentialDensityDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::detector::DensityDistribution, siren::detector::CartesianAxisExponentialDensityDistribution);
 
+CEREAL_FORCE_DYNAMIC_INIT(siren_CartesianAxisExponentialDensityDistribution);
+
 #endif // SIREN_CartesianAxisExponentialDensityDistribution.h
