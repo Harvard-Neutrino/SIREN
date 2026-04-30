@@ -790,7 +790,7 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     double m_c = siren::utilities::Constants::CharmMass;
     double xi = final_x * (1.0 + m_c * m_c / Q2);
     if (xi >= 1.0) {
-        xi = 1.0 - 1e-5; // to avoid unphysical xi values due to numerical precision issues
+        throw(siren::utilities::InjectionFailure("xi >= 1.0; slow-rescaling pushed Bjorken-x past unity"));
     }
     rk::P4 p_parton(geom3::Vector3(0, 0, 0), xi * target_mass_);  // parton at rest: (ξM, 0, 0, 0)
     rk::P4 p4_lab = p_parton + pq_lab;                              // struck charm = ξ*p2 + q
