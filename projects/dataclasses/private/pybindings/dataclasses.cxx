@@ -54,6 +54,7 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("position",&Particle::position)
         .def_readwrite("length",&Particle::length)
         .def_readwrite("helicity",&Particle::helicity)
+        .def_readwrite("injection_step_length",&Particle::injection_step_length)
         .def("generate_id",&Particle::GenerateID)
         .def(pybind11::pickle(
             &(siren::serialization::pickle_save<Particle>),
@@ -100,6 +101,7 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_property("initial_position", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInitialPosition)), &PrimaryDistributionRecord::SetInitialPosition)
         .def_property("interaction_vertex", ((std::array<double, 3> const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInteractionVertex)), &PrimaryDistributionRecord::SetInteractionVertex)
         .def_property("helicity", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetHelicity)), &PrimaryDistributionRecord::SetHelicity)
+        .def_property("injection_step_length", ((double const & (PrimaryDistributionRecord::*)())(&PrimaryDistributionRecord::GetInjectionStepLength)), &PrimaryDistributionRecord::SetInjectionStepLength)
         .def("finalize", &PrimaryDistributionRecord::Finalize);
 
     py::class_<SecondaryParticleRecord, std::shared_ptr<SecondaryParticleRecord>>(m, "SecondaryParticleRecord")
@@ -173,6 +175,7 @@ PYBIND11_MODULE(dataclasses, m) {
         .def_readwrite("signature",&InteractionRecord::signature)
         .def_readwrite("primary_id",&InteractionRecord::primary_id)
         .def_readwrite("primary_initial_position",&InteractionRecord::primary_initial_position)
+        .def_readwrite("primary_injection_step_length",&InteractionRecord::primary_injection_step_length)
         .def_readwrite("primary_mass",&InteractionRecord::primary_mass)
         .def_readwrite("primary_momentum",&InteractionRecord::primary_momentum)
         .def_readwrite("primary_helicity",&InteractionRecord::primary_helicity)

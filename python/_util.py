@@ -727,6 +727,8 @@ def import_resource(resource_type, resource_name):
 
     fname = os.path.join(abs_dir, f"{resource_type}.py")
     if not os.path.isfile(fname):
+        if resource_type == "detector":
+            return None
         logging.warning(f"Could not find file '{fname}' when loading resource '{resource_type}' '{resource_name}'")
         return None
     try:

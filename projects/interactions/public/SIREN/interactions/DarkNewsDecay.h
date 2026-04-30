@@ -39,9 +39,9 @@ public:
 
     virtual bool equal(Decay const & other) const override;
 
+    virtual double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const &) const override;
+    virtual double TotalDecayWidthAllFinalStates(siren::dataclasses::ParticleType const & primary) const override;
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
-    virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
-    virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual void SampleRecordFromDarkNews(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;

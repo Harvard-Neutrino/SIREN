@@ -57,6 +57,7 @@ package_add_test(UnitTest_Distribution1D ${PROJECT_SOURCE_DIR}/projects/detector
 package_add_test(UnitTest_DetectorModel ${PROJECT_SOURCE_DIR}/projects/detector/private/test/DetectorModel_TEST.cxx)
 package_add_test(UnitTest_MaterialModel ${PROJECT_SOURCE_DIR}/projects/detector/private/test/MaterialModel_TEST.cxx)
 package_add_test(UnitTest_Path ${PROJECT_SOURCE_DIR}/projects/detector/private/test/Path_TEST.cxx)
+package_add_test(UnitTest_ContainingSector ${PROJECT_SOURCE_DIR}/projects/detector/private/test/ContainingSector_TEST.cxx)
 
 pybind11_add_module(detector ${PROJECT_SOURCE_DIR}/projects/detector/private/pybindings/detector.cxx)
 target_link_libraries(detector PRIVATE SIREN)

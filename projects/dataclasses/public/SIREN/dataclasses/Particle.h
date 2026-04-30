@@ -50,6 +50,7 @@ public:
     std::array<double, 3> position = {0, 0, 0};
     double length = 0;
     double helicity = 0;
+    double injection_step_length = 0;
 
     ParticleID & GenerateID();
 
@@ -67,6 +68,7 @@ public:
             archive(::cereal::make_nvp("Position", position));
             archive(::cereal::make_nvp("Length", length));
             archive(::cereal::make_nvp("helicity", helicity));
+            archive(::cereal::make_nvp("injection_step_length", injection_step_length));
         } else {
             throw std::runtime_error("Particle only supports version <= 0!");
         }

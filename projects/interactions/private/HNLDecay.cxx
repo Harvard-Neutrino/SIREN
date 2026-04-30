@@ -40,21 +40,21 @@ bool HNLDecay::equal(Decay const & other) const {
                     x->dipole_coupling);
 }
 
-double HNLDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
-    return TotalDecayWidth(record.signature.primary_type);
+double HNLDecay::TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const & record) const {
+    return TotalDecayWidthAllFinalStates(record.signature.primary_type);
 }
 
-double HNLDecay::TotalDecayWidth(siren::dataclasses::ParticleType primary) const {
+double HNLDecay::TotalDecayWidthAllFinalStates(siren::dataclasses::ParticleType primary) const {
   std::vector<dataclasses::InteractionSignature> signatures = GetPossibleSignaturesFromParent(primary); 
   double gamma_tot = 0;
   dataclasses::InteractionRecord record;
   for(auto signature : signatures) {
     record.siganture = signature;
-    gamma_tot += TotalDecayWidthForFinalState(record);
+    gamma_tot += TotalDecayWidth(record);
   }
 }
 
-double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord const & record) const {
+double HNLDecay::TotalDecayWidth(dataclasses::InteractionRecord const & record) const {
   
   // All decay widths from 2007.03701
   
@@ -276,7 +276,7 @@ std::vector<dataclasses::InteractionSignature> HNLDecay::GetPossibleSignaturesFr
 }
 
 double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
-    double DecayWidth = TotalDecayWidthForFinalState(record);
+    double DecayWidth = TotalDecayWidth(record);
     if(nature==ChiralNature::Majorana) {
       //TODO: make sure factor of 2 is correct here
       return DecayWidth/2.;
@@ -358,7 +358,7 @@ void HNLDecay::SampleFinalState(dataclasses::InteractionRecord & record, std::sh
 
 double HNLDecay::FinalStateProbability(dataclasses::InteractionRecord const & record) const {
   double dd = DifferentialDecayWidth(record);
-  double td = TotalDecayWidthForFinalState(record);
+  double td = TotalDecayWidth(record);
   if (dd == 0) return 0.;
   else if (td == 0) return 0.;
   else return dd/td;

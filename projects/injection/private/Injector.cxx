@@ -5,6 +5,7 @@
 #include <string>
 #include <algorithm>
 #include <fstream>
+#include <iostream> // Added for debug output
 
 #include <rk/rk.hh>
 
@@ -90,7 +91,6 @@ Injector::Injector(
     }
 }
 
-
 std::shared_ptr<distributions::VertexPositionDistribution> Injector::FindPrimaryVertexDistribution(std::shared_ptr<siren::injection::PrimaryInjectionProcess> process) {
     for(auto distribution : process->GetPrimaryInjectionDistributions()) {
         distributions::VertexPositionDistribution * raw_ptr = dynamic_cast<distributions::VertexPositionDistribution*>(distribution.get());
@@ -162,13 +162,13 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
 void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record, std::shared_ptr<siren::interactions::InteractionCollection> interactions) const {
     // Make sure the particle has interacted
     if(std::isnan(record.interaction_vertex[0]) ||
-            std::isnan(record.interaction_vertex[1]) ||
-            std::isnan(record.interaction_vertex[2])) {
+       std::isnan(record.interaction_vertex[1]) ||
+       std::isnan(record.interaction_vertex[2])) {
         throw(siren::utilities::InjectionFailure("No particle interaction!"));
     }
 
     std::set<siren::dataclasses::ParticleType> const & possible_targets = interactions->TargetTypes();
-
+    
     siren::math::Vector3D interaction_vertex(
             record.interaction_vertex[0],
             record.interaction_vertex[1],
@@ -180,7 +180,9 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
             record.primary_momentum[3]);
     primary_direction.normalize();
 
+
     siren::geometry::Geometry::IntersectionList intersections = detector_model->GetIntersections(DetectorPosition(interaction_vertex), DetectorDirection(primary_direction));
+
     std::set<siren::dataclasses::ParticleType> available_targets = detector_model->GetAvailableTargets(intersections, DetectorPosition(record.interaction_vertex));
 
     double total_prob = 0.0;
@@ -225,7 +227,7 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
             for(auto const & signature : decay->GetPossibleSignaturesFromParent(record.signature.primary_type)) {
                 fake_record.signature = signature;
                 // fake_prob has units of 1/cm to match cross section probabilities
-                fake_prob = 1./(decay->TotalDecayLengthForFinalState(fake_record)/siren::utilities::Constants::cm);
+                fake_prob = 1./(decay->TotalDecayLength(fake_record)/siren::utilities::Constants::cm);
                 total_prob += fake_prob;
                 // Add total prob to probs
                 probs.push_back(total_prob);
@@ -237,8 +239,9 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
         }
     }
 
-    if(total_prob == 0)
+    if(total_prob == 0) {
         throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
+    }
     // Throw a random number
     double r = random->Uniform(0, total_prob);
     // Choose the target and cross section
@@ -252,8 +255,10 @@ void Injector::SampleCrossSection(siren::dataclasses::InteractionRecord & record
             selected_prob += (i > 0 ? probs[i] - probs[i - 1] : probs[i]);
         }
     }
-    if(selected_prob == 0)
+    
+    if(selected_prob == 0) {
         throw(siren::utilities::InjectionFailure("No valid interactions for this event!"));
+    }
     record.target_mass = detector_model->GetTargetMass(record.signature.target_type);
     siren::dataclasses::CrossSectionDistributionRecord xsec_record(record);
     if(r <= xsec_prob) {
@@ -433,7 +438,7 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> Injector::PrimaryInject
     return primary_position_distribution->InjectionBounds(detector_model, primary_process->GetInteractions(), interaction);
 }
 
-// Assumes there is a secondary process and position distribuiton for the provided particle type
+// Assumes there is a secondary process and position distribution for the provided particle type
 std::tuple<siren::math::Vector3D, siren::math::Vector3D> Injector::SecondaryInjectionBounds(siren::dataclasses::InteractionRecord const & record) const {
     return secondary_position_distribution_map.at(record.signature.primary_type)->InjectionBounds(detector_model, secondary_process_map.at(record.signature.primary_type)->GetInteractions(), record);
 }
@@ -488,4 +493,3 @@ void Injector::LoadInjector(std::string const & filename) {
 
 } // namespace injection
 } // namespace siren
-

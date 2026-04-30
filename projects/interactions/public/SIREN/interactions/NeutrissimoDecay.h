@@ -48,9 +48,9 @@ public:
     // if only one dipole coupling provided, assume it is d_mu
     NeutrissimoDecay(double hnl_mass, double dipole_coupling, ChiralNature nature) : hnl_mass(hnl_mass), dipole_coupling(std::vector<double>{0,dipole_coupling,0}), nature(nature) {};
     NeutrissimoDecay(double hnl_mass, double dipole_coupling, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(std::vector<double>{0,dipole_coupling,0}), nature(nature), primary_types(primary_types) {};
+    virtual double TotalDecayWidthAllFinalStates(dataclasses::InteractionRecord const &) const override;
+    virtual double TotalDecayWidthAllFinalStates(siren::dataclasses::ParticleType const & primary) const override;
     virtual double TotalDecayWidth(dataclasses::InteractionRecord const &) const override;
-    virtual double TotalDecayWidth(siren::dataclasses::ParticleType primary) const override;
-    virtual double TotalDecayWidthForFinalState(dataclasses::InteractionRecord const &) const override;
     virtual double DifferentialDecayWidth(dataclasses::InteractionRecord const &) const override;
     virtual void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random>) const override;
     virtual std::vector<siren::dataclasses::InteractionSignature> GetPossibleSignatures() const override;
