@@ -30,10 +30,9 @@ class PrimaryExternalDistribution : virtual public PrimaryInjectionDistribution 
 friend cereal::access;
 protected:
     PrimaryExternalDistribution() {};
-    void LoadInputFile(std::string _filename);
-public:
-    std::string filename;
+    void LoadInputFile(std::string const & _filename);
 private:
+    std::string filename;
     std::vector<std::vector<double>> input_data;
     std::vector<std::string> keys;
     bool init_pos_set = false;

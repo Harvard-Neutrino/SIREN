@@ -230,19 +230,26 @@ std::tuple<siren::math::Vector3D, siren::math::Vector3D> PrimaryBoundedVertexDis
 
 bool PrimaryBoundedVertexDistribution::equal(WeightableDistribution const & other) const {
     const PrimaryBoundedVertexDistribution* x = dynamic_cast<const PrimaryBoundedVertexDistribution*>(&other);
-
     if(!x)
         return false;
-    else
-        return (max_length == x->max_length);
+    bool same_fid = (!fiducial_volume && !x->fiducial_volume)
+        || (fiducial_volume && x->fiducial_volume && *fiducial_volume == *(x->fiducial_volume));
+    return max_length == x->max_length && same_fid;
 }
 
 bool PrimaryBoundedVertexDistribution::less(WeightableDistribution const & other) const {
     const PrimaryBoundedVertexDistribution* x = dynamic_cast<const PrimaryBoundedVertexDistribution*>(&other);
-    return
-        std::tie(max_length)
-        <
-        std::tie(x->max_length);
+    if(!x)
+        return false;
+    if(max_length != x->max_length)
+        return max_length < x->max_length;
+    bool has_fid = (fiducial_volume != nullptr);
+    bool other_has_fid = (x->fiducial_volume != nullptr);
+    if(has_fid != other_has_fid)
+        return has_fid < other_has_fid;
+    if(has_fid && other_has_fid)
+        return *fiducial_volume < *(x->fiducial_volume);
+    return false;
 }
 
 } // namespace distributions

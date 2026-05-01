@@ -1,5 +1,6 @@
 #include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
 
+#include <algorithm>                                       // for min
 #include <array>                                           // for array
 #include <fstream>                                         // for ifstream
 #include <sstream>                                         // for stringstream
@@ -17,7 +18,7 @@ namespace distributions {
 // class PrimaryExternalDistribution : PrimaryExternalDistribution
 //---------------
 
-void PrimaryExternalDistribution::LoadInputFile(std::string _filename)
+void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename)
 {
     filename = _filename;
     std::ifstream input_file(filename);
@@ -98,7 +99,7 @@ void PrimaryExternalDistribution::Sample(
     bool success = false;
     while(!success && num_tries < max_tries) {
         ++num_tries;
-        int i = int(rand->Uniform() * input_data.size());
+        int i = std::min(int(rand->Uniform() * input_data.size()), int(input_data.size()) - 1);
         int i_key = 0;
         std::array<double, 3> _initial_position;
         std::array<double, 3> _momentum;
@@ -122,7 +123,7 @@ void PrimaryExternalDistribution::Sample(
                 _momentum[2] = value;
             }
             else if (keys[i_key] == "E") {
-                if (value > emin) success=true;
+                if (value >= emin) success=true;
                 else success=false;
                 record.SetEnergy(value);
             }
@@ -154,7 +155,7 @@ double PrimaryExternalDistribution::GenerationProbability(std::shared_ptr<siren:
                                                           std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
                                                           siren::dataclasses::InteractionRecord const & record) const {
     double energy = record.primary_momentum[0];
-    if (energy > emin) return 1;
+    if (energy >= emin) return 1;
     return 0;
 }
 
