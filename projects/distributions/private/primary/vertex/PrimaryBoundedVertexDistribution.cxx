@@ -166,6 +166,9 @@ double PrimaryBoundedVertexDistribution::GenerationProbability(std::shared_ptr<s
 
     double interaction_density = detector_model->GetInteractionDensity(path.GetIntersections(), DetectorPosition(vertex), targets, total_cross_sections, total_decay_length);
 
+    if(total_interaction_depth <= 0)
+        return 0.0;
+
     double prob_density;
     if(total_interaction_depth < 1e-6) {
         prob_density = interaction_density / total_interaction_depth;

@@ -2,7 +2,6 @@
 #ifndef SIREN_PrimaryExternalDistribution_H
 #define SIREN_PrimaryExternalDistribution_H
 
-#include <fstream>                                       // for ifstream
 #include <memory>                                        // for shared_ptr
 #include <string>                                        // for string
 #include <vector>                                        // for vector
@@ -13,6 +12,8 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/base_class.hpp>
 #include <cereal/types/utility.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
 
 #include "SIREN/distributions/Distributions.h"  // for WeightableDi...
 
@@ -31,21 +32,17 @@ protected:
     PrimaryExternalDistribution() {};
     void LoadInputFile(std::string _filename);
 public:
-    ~PrimaryExternalDistribution() {
-        input_file.close();
-    };
     std::string filename;
 private:
-    std::ifstream input_file;
     std::vector<std::vector<double>> input_data;
     std::vector<std::string> keys;
-    bool init_pos_set;
-    bool mom_set;
-    double emin;
+    bool init_pos_set = false;
+    bool mom_set = false;
+    double emin = 0;
 public:
     PrimaryExternalDistribution(std::string _filename);
     PrimaryExternalDistribution(std::string _filename, double emin);
-    PrimaryExternalDistribution(PrimaryExternalDistribution const & other);
+    PrimaryExternalDistribution(PrimaryExternalDistribution const & other) = default;
     int GetPhysicalNumEvents() const;
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
@@ -56,6 +53,11 @@ public:
     void save(Archive & archive, std::uint32_t const version) const {
         if(version == 0) {
             archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
+            archive(::cereal::make_nvp("Emin", emin));
+            archive(::cereal::make_nvp("Keys", keys));
+            archive(::cereal::make_nvp("InputData", input_data));
+            archive(::cereal::make_nvp("InitPosSet", init_pos_set));
+            archive(::cereal::make_nvp("MomSet", mom_set));
         } else {
             throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
         }
@@ -64,6 +66,11 @@ public:
     void load(Archive & archive, std::uint32_t const version) {
         if(version == 0) {
             archive(cereal::virtual_base_class<PrimaryInjectionDistribution>(this));
+            archive(::cereal::make_nvp("Emin", emin));
+            archive(::cereal::make_nvp("Keys", keys));
+            archive(::cereal::make_nvp("InputData", input_data));
+            archive(::cereal::make_nvp("InitPosSet", init_pos_set));
+            archive(::cereal::make_nvp("MomSet", mom_set));
         } else {
             throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
         }
