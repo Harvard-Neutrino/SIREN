@@ -1,7 +1,10 @@
 #include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
 
 #include <array>                                           // for array
+#include <iostream>                                        // for cerr
+#include <sstream>                                         // for stringstream
 #include <string>                                          // for basic_string
+#include <stdexcept>                                       // for runtime_error
 
 #include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
 #include "SIREN/utilities/Random.h"               // for SIREN_random
@@ -14,15 +17,15 @@ namespace distributions {
 //---------------
 
 void PrimaryExternalDistribution::LoadInputFile(std::string _filename)
-{filename = _filename;
+{
+    filename = _filename;
     input_file.open(filename);
     init_pos_set = false;
     mom_set = false;
 
     std::string line;
     if (!input_file.is_open()) {
-        std::cerr << "error: file open failed " << filename << ".\n";
-        exit(0);
+        throw std::runtime_error("error: file open failed " + filename);
     }
     std::getline(input_file,line);
 
@@ -55,6 +58,7 @@ void PrimaryExternalDistribution::LoadInputFile(std::string _filename)
         if (passed) input_data.push_back(tmp_data);
     }
 
+    input_file.close();
 }
 
 PrimaryExternalDistribution::PrimaryExternalDistribution(std::string _filename) : emin(0)
@@ -129,8 +133,7 @@ void PrimaryExternalDistribution::Sample(
         if(init_pos_set) record.SetInitialPosition(_initial_position);
     }
     if(!success) {
-        std::cout << "Failed to generate a physical primary after " << max_tries << "attempts. Try again\n";
-        exit(0);
+        throw std::runtime_error("Failed to generate a physical primary after " + std::to_string(max_tries) + " attempts");
     }
 }
 
@@ -163,9 +166,9 @@ bool PrimaryExternalDistribution::equal(WeightableDistribution const & other) co
 
 bool PrimaryExternalDistribution::less(WeightableDistribution const & other) const {
     const PrimaryExternalDistribution* x = dynamic_cast<const PrimaryExternalDistribution*>(&other);
-    return filename != x->filename;
+    return filename < x->filename;
 }
 
 
 } // namespace distributions
-} // namespace sirenREN
+} // namespace siren

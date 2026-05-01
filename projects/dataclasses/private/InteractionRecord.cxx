@@ -627,7 +627,7 @@ void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
     record.primary_mass = GetMass();
     record.primary_momentum = GetFourMomentum();
     record.primary_helicity = GetHelicity();
-    for (auto x : interaction_parameters) {
+    for (auto const & x : interaction_parameters) {
         record.interaction_parameters[x.first] = x.second;
     }
 }
@@ -976,8 +976,7 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const 
     record.target_mass = target_mass;
     record.target_helicity = target_helicity;
 
-    //record.interaction_parameters = interaction_parameters;
-    for (auto x : interaction_parameters) {
+    for (auto const & x : interaction_parameters) {
         record.interaction_parameters[x.first] = x.second;
     }
 

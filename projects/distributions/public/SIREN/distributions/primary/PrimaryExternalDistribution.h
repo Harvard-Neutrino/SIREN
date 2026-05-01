@@ -2,6 +2,7 @@
 #ifndef SIREN_PrimaryExternalDistribution_H
 #define SIREN_PrimaryExternalDistribution_H
 
+#include <fstream>                                       // for ifstream
 #include <memory>                                        // for shared_ptr
 #include <string>                                        // for string
 #include <vector>                                        // for vector
@@ -38,7 +39,6 @@ private:
     std::ifstream input_file;
     std::vector<std::vector<double>> input_data;
     std::vector<std::string> keys;
-    std::vector<std::string> possible_keys = {"x0","y0","z0","m","E","px","py","pz"};
     bool init_pos_set;
     bool mom_set;
     double emin;
