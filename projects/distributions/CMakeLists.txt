@@ -76,6 +76,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/distributions/public/"
 
 package_add_test(UnitTest_PrimaryDirectionDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/PrimaryDirectionDistribution_TEST.cxx)
 package_add_test(UnitTest_PrimaryEnergyDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/PrimaryEnergyDistribution_TEST.cxx)
+package_add_test(UnitTest_PrimaryExternalDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/PrimaryExternalDistribution_TEST.cxx)
 package_add_test(UnitTest_WeightableDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/WeightableDistribution_TEST.cxx)
 package_add_test(UnitTest_SphereVolumePositionDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/SphereVolumePositionDistribution_TEST.cxx)
 package_add_test(UnitTest_CylinderVolumePositionDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/CylinderVolumePositionDistribution_TEST.cxx)
