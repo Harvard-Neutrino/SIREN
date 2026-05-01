@@ -178,7 +178,6 @@ bool PrimaryPhysicalVertexDistribution::equal(WeightableDistribution const & oth
 }
 
 bool PrimaryPhysicalVertexDistribution::less(WeightableDistribution const & other) const {
-    const PrimaryPhysicalVertexDistribution* x = dynamic_cast<const PrimaryPhysicalVertexDistribution*>(&other);
     return false;
 }
 

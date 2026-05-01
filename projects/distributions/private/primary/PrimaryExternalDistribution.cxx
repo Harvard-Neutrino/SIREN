@@ -175,6 +175,8 @@ bool PrimaryExternalDistribution::equal(WeightableDistribution const & other) co
 
 bool PrimaryExternalDistribution::less(WeightableDistribution const & other) const {
     const PrimaryExternalDistribution* x = dynamic_cast<const PrimaryExternalDistribution*>(&other);
+    if(!x)
+        return false;
     return std::tie(emin, keys, input_data)
         < std::tie(x->emin, x->keys, x->input_data);
 }
