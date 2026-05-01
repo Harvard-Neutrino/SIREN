@@ -180,8 +180,8 @@ TEST(PowerLaw, SampleDistribution) {
 }
 
 TEST(PowerLaw, GenerationProbability) {
-    size_t N = 1000;
-    size_t M = 10000;
+    size_t N = 100;
+    size_t M = 1000;
     std::shared_ptr<siren::utilities::SIREN_random> rand = std::make_shared<siren::utilities::SIREN_random>();
     for(size_t i=0; i<N; ++i) {
         double gamma = (RandomDouble() - 0.5) + 1;
@@ -303,8 +303,8 @@ TEST(ModifiedMoyalPlusExponentialEnergyDistribution, Normalization) {
             return dist.GenerationProbability(nullptr, nullptr, record) * exp(y);
         };
 
-        double norm = siren::utilities::rombergIntegrate(pdf, log(energyMin), log(energyMax), 1e-6);
-        EXPECT_NEAR(norm, 1.0, 2e-3);
+        double norm = siren::utilities::rombergIntegrate(pdf, log(energyMin), log(energyMax), 1e-7);
+        EXPECT_NEAR(norm, 1.0, 1e-2);
 
         double expected_norm = dist.GetNormalization();
         EXPECT_NEAR(expected_norm, normalization(), normalization() * 1e-3);

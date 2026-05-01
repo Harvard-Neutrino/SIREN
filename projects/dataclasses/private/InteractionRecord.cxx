@@ -603,6 +603,14 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) co
     record.signature.primary_type = type;
     record.primary_id = GetID();
     try {
+        record.primary_momentum[0] = GetEnergy();
+    } catch(std::runtime_error e) {}
+    try {
+        record.primary_momentum[1] = GetThreeMomentum().at(0);
+        record.primary_momentum[2] = GetThreeMomentum().at(1);
+        record.primary_momentum[3] = GetThreeMomentum().at(2);
+    } catch(std::runtime_error e) {}
+    try {
         record.primary_initial_position = GetInitialPosition();
     } catch(std::runtime_error e) {}
     try {
@@ -610,9 +618,6 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) co
     } catch(std::runtime_error e) {}
     try {
         record.primary_mass = GetMass();
-    } catch(std::runtime_error e) {}
-    try {
-        record.primary_momentum = GetFourMomentum();
     } catch(std::runtime_error e) {}
     try {
         record.primary_helicity = GetHelicity();
