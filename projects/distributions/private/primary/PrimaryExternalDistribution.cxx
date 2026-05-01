@@ -76,7 +76,7 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(PrimaryExternalDistribu
 }
 
 // Accounts for events above threshold only!
-int PrimaryExternalDistribution::GetPhysicalNumEvents()
+int PrimaryExternalDistribution::GetPhysicalNumEvents() const
 {
     return input_data.size();
 }

@@ -26,8 +26,6 @@ namespace distributions {
 
 using detector::DetectorPosition;
 using detector::DetectorDirection;
-using detector::GeometryPosition;
-using detector::GeometryDirection;
 
 namespace {
 double log_one_minus_exp_of_negative(double x) {
