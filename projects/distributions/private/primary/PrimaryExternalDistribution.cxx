@@ -60,7 +60,8 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename)
 
     std::string value;
     while (std::getline(input_file, line)) {
-        if (trim(line).empty()) continue;
+        std::string trimmed = trim(line);
+        if (trimmed.empty() || trimmed[0] == '#') continue;
         std::vector<double> tmp_data;
         std::stringstream _ss(line);
         size_t ikey = 0;
