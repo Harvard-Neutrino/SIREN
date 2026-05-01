@@ -130,7 +130,7 @@ class TestPrimaryExternalDistributionSampling:
         record = dataclasses.PrimaryDistributionRecord(
             dataclasses.ParticleType.NuMu)
         dist.Sample(rand, None, None, record)
-        assert record.GetEnergy() in (10.0, 20.0, 30.0)
+        assert record.energy in (10.0, 20.0, 30.0)
 
     def test_sample_respects_emin(self, distributions, dataclasses, utilities,
                                    csv_basic):
@@ -141,7 +141,7 @@ class TestPrimaryExternalDistributionSampling:
             record = dataclasses.PrimaryDistributionRecord(
                 dataclasses.ParticleType.NuMu)
             dist.Sample(rand, None, None, record)
-            assert record.GetEnergy() >= emin
+            assert record.energy >= emin
 
 
 # ---------------------------------------------------------------------------
