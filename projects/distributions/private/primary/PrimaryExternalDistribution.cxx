@@ -25,8 +25,7 @@ static std::string trim(std::string const & s) {
     return s.substr(start, end - start + 1);
 }
 
-void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename)
-{
+void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename) {
     filename = _filename;
     keys.clear();
     input_data.clear();
@@ -108,54 +107,41 @@ void PrimaryExternalDistribution::Sample(
         std::shared_ptr<siren::detector::DetectorModel const> detector_model,
         std::shared_ptr<siren::interactions::InteractionCollection const> interactions,
         siren::dataclasses::PrimaryDistributionRecord & record) const {
-
-    size_t max_tries = 1000;
-    size_t num_tries = 0;
-    bool success = false;
-    while(!success && num_tries < max_tries) {
-        ++num_tries;
-        int i = std::min(int(rand->Uniform() * input_data.size()), int(input_data.size()) - 1);
-        size_t i_key = 0;
-        success = true;
-        std::array<double, 3> _initial_position;
-        std::array<double, 3> _momentum;
-        for (double value : input_data[i]) {
-            if (keys[i_key] == "x0") {
-                _initial_position[0] = value;
-            }
-            else if (keys[i_key] == "y0") {
-                _initial_position[1] = value;
-            }
-            else if (keys[i_key] == "z0") {
-                _initial_position[2] = value;
-            }
-            else if (keys[i_key] == "px") {
-                _momentum[0] = value;
-            }
-            else if (keys[i_key] == "py") {
-                _momentum[1] = value;
-            }
-            else if (keys[i_key] == "pz") {
-                _momentum[2] = value;
-            }
-            else if (keys[i_key] == "E") {
-                if (value < emin) success = false;
-                record.SetEnergy(value);
-            }
-            else if (keys[i_key] == "m") {
-                record.SetMass(value);
-            }
-            else {
-                record.SetInteractionParameter(keys[i_key], value);
-            }
-            ++i_key;
+    size_t i = std::min(size_t(rand->Uniform() * input_data.size()), input_data.size() - 1);
+    std::array<double, 3> _initial_position;
+    std::array<double, 3> _momentum;
+    for(size_t i_key = 0; i_key < keys.size(); ++i_key) {
+        double value = input_data[i][i_key];
+        if (keys[i_key] == "x0") {
+            _initial_position[0] = value;
         }
-        if(mom_set) record.SetThreeMomentum(_momentum);
-        if(init_pos_set) record.SetInitialPosition(_initial_position);
+        else if (keys[i_key] == "y0") {
+            _initial_position[1] = value;
+        }
+        else if (keys[i_key] == "z0") {
+            _initial_position[2] = value;
+        }
+        else if (keys[i_key] == "px") {
+            _momentum[0] = value;
+        }
+        else if (keys[i_key] == "py") {
+            _momentum[1] = value;
+        }
+        else if (keys[i_key] == "pz") {
+            _momentum[2] = value;
+        }
+        else if (keys[i_key] == "E") {
+            record.SetEnergy(value);
+        }
+        else if (keys[i_key] == "m") {
+            record.SetMass(value);
+        }
+        else {
+            record.SetInteractionParameter(keys[i_key], value);
+        }
     }
-    if(!success) {
-        throw std::runtime_error("Failed to generate a physical primary after " + std::to_string(max_tries) + " attempts");
-    }
+    if(mom_set) record.SetThreeMomentum(_momentum);
+    if(init_pos_set) record.SetInitialPosition(_initial_position);
 }
 
 std::vector<std::string> PrimaryExternalDistribution::DensityVariables() const {
