@@ -1,7 +1,6 @@
 #include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
 
 #include <array>                                           // for array
-#include <iostream>                                        // for cerr
 #include <sstream>                                         // for stringstream
 #include <string>                                          // for basic_string
 #include <stdexcept>                                       // for runtime_error

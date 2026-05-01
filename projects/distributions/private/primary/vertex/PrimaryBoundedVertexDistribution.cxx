@@ -245,4 +245,4 @@ bool PrimaryBoundedVertexDistribution::less(WeightableDistribution const & other
 }
 
 } // namespace distributions
-} // namespace sirenREN
+} // namespace siren
