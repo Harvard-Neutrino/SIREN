@@ -74,7 +74,8 @@ PYBIND11_MODULE(distributions,m) {
     .def("Sample",&PrimaryExternalDistribution::Sample)
     .def("GetPhysicalNumEvents",&PrimaryExternalDistribution::GetPhysicalNumEvents)
     .def("DensityVariables",&PrimaryExternalDistribution::DensityVariables)
-    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability);
+    .def("GenerationProbability",&PrimaryExternalDistribution::GenerationProbability)
+    .def("Name",&PrimaryExternalDistribution::Name);
 
   // Direciton distributions
 

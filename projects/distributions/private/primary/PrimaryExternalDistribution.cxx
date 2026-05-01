@@ -18,9 +18,21 @@ namespace distributions {
 // class PrimaryExternalDistribution : PrimaryExternalDistribution
 //---------------
 
+static std::string trim(std::string const & s) {
+    size_t start = s.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) return "";
+    size_t end = s.find_last_not_of(" \t\r\n");
+    return s.substr(start, end - start + 1);
+}
+
 void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename)
 {
     filename = _filename;
+    keys.clear();
+    input_data.clear();
+    init_pos_set = false;
+    mom_set = false;
+
     std::ifstream input_file(filename);
     if (!input_file.is_open()) {
         throw std::runtime_error("error: file open failed " + filename);
@@ -34,6 +46,7 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename)
     bool has_x0 = false, has_y0 = false, has_z0 = false;
     bool has_px = false, has_py = false, has_pz = false;
     while (std::getline(ss, key, ',')) {
+        key = trim(key);
         keys.push_back(key);
         if (key == "x0") has_x0 = true;
         else if (key == "y0") has_y0 = true;
@@ -47,6 +60,7 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename)
 
     std::string value;
     while (std::getline(input_file, line)) {
+        if (trim(line).empty()) continue;
         std::vector<double> tmp_data;
         std::stringstream _ss(line);
         size_t ikey = 0;
@@ -83,7 +97,7 @@ PrimaryExternalDistribution::PrimaryExternalDistribution(std::string _filename, 
 }
 
 // Accounts for events above threshold only!
-int PrimaryExternalDistribution::GetPhysicalNumEvents() const
+size_t PrimaryExternalDistribution::GetPhysicalNumEvents() const
 {
     return input_data.size();
 }
@@ -100,10 +114,11 @@ void PrimaryExternalDistribution::Sample(
     while(!success && num_tries < max_tries) {
         ++num_tries;
         int i = std::min(int(rand->Uniform() * input_data.size()), int(input_data.size()) - 1);
-        int i_key = 0;
+        size_t i_key = 0;
+        success = true;
         std::array<double, 3> _initial_position;
         std::array<double, 3> _momentum;
-        for (auto value : input_data[i]) {
+        for (double value : input_data[i]) {
             if (keys[i_key] == "x0") {
                 _initial_position[0] = value;
             }
@@ -123,15 +138,14 @@ void PrimaryExternalDistribution::Sample(
                 _momentum[2] = value;
             }
             else if (keys[i_key] == "E") {
-                if (value >= emin) success=true;
-                else success=false;
+                if (value < emin) success = false;
                 record.SetEnergy(value);
             }
             else if (keys[i_key] == "m") {
                 record.SetMass(value);
             }
             else {
-                record.SetInteractionParameter(keys[i_key],value);
+                record.SetInteractionParameter(keys[i_key], value);
             }
             ++i_key;
         }

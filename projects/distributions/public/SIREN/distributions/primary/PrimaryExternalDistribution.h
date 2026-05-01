@@ -42,7 +42,7 @@ public:
     PrimaryExternalDistribution(std::string _filename);
     PrimaryExternalDistribution(std::string _filename, double emin);
     PrimaryExternalDistribution(PrimaryExternalDistribution const & other) = default;
-    int GetPhysicalNumEvents() const;
+    size_t GetPhysicalNumEvents() const;
     void Sample(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     virtual std::vector<std::string> DensityVariables() const override;
