@@ -119,6 +119,32 @@ class TestPrimaryExternalDistributionMetadata:
 
 
 # ---------------------------------------------------------------------------
+# Sampling
+# ---------------------------------------------------------------------------
+
+class TestPrimaryExternalDistributionSampling:
+    def test_sample_sets_energy(self, distributions, dataclasses, utilities,
+                                 csv_basic):
+        dist = distributions.PrimaryExternalDistribution(csv_basic)
+        rand = utilities.SIREN_random()
+        record = dataclasses.PrimaryDistributionRecord(
+            dataclasses.ParticleType.NuMu)
+        dist.Sample(rand, None, None, record)
+        assert record.GetEnergy() in (10.0, 20.0, 30.0)
+
+    def test_sample_respects_emin(self, distributions, dataclasses, utilities,
+                                   csv_basic):
+        emin = 15.0
+        dist = distributions.PrimaryExternalDistribution(csv_basic, emin)
+        rand = utilities.SIREN_random()
+        for _ in range(500):
+            record = dataclasses.PrimaryDistributionRecord(
+                dataclasses.ParticleType.NuMu)
+            dist.Sample(rand, None, None, record)
+            assert record.GetEnergy() >= emin
+
+
+# ---------------------------------------------------------------------------
 # GenerationProbability
 # ---------------------------------------------------------------------------
 

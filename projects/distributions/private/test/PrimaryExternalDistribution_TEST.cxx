@@ -10,6 +10,9 @@
 
 #include "SIREN/utilities/Random.h"
 #include "SIREN/distributions/primary/PrimaryExternalDistribution.h"
+#include "SIREN/distributions/primary/vertex/PrimaryBoundedVertexDistribution.h"
+#include "SIREN/distributions/primary/vertex/PrimaryPhysicalVertexDistribution.h"
+#include "SIREN/geometry/Sphere.h"
 
 using namespace siren::distributions;
 using namespace siren::dataclasses;
@@ -236,6 +239,25 @@ TEST(PrimaryExternalDistribution, SampleUniformOverRows) {
     std::remove(path.c_str());
 }
 
+TEST(PrimaryExternalDistribution, SampleRespectsEmin) {
+    // Mix of below and above emin; all samples must have E >= emin
+    std::string csv = "E\n";
+    for(int i = 1; i <= 20; ++i) {
+        csv += std::to_string(double(i)) + "\n";
+    }
+    std::string path = WriteTempCSV(csv);
+    double emin = 10.0;
+    PrimaryExternalDistribution dist(path, emin);
+    auto rand = std::make_shared<siren::utilities::SIREN_random>();
+
+    for(size_t i = 0; i < 10000; ++i) {
+        PrimaryDistributionRecord record(ParticleType::NuMu);
+        dist.Sample(rand, nullptr, nullptr, record);
+        EXPECT_GE(record.GetEnergy(), emin);
+    }
+    std::remove(path.c_str());
+}
+
 // ---------------------------------------------------------------------------
 // GenerationProbability
 // ---------------------------------------------------------------------------
@@ -384,6 +406,106 @@ TEST(PrimaryExternalDistribution, CopyConstructor) {
     EXPECT_EQ(copy.GetPhysicalNumEvents(), original.GetPhysicalNumEvents());
     EXPECT_EQ(copy.Name(), original.Name());
     std::remove(path.c_str());
+}
+
+// ===========================================================================
+// PrimaryBoundedVertexDistribution
+// ===========================================================================
+
+TEST(PrimaryBoundedVertexDistribution, EqualSameMaxLength) {
+    PrimaryBoundedVertexDistribution a(100.0);
+    PrimaryBoundedVertexDistribution b(100.0);
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a < b);
+    EXPECT_FALSE(b < a);
+}
+
+TEST(PrimaryBoundedVertexDistribution, NotEqualDifferentMaxLength) {
+    PrimaryBoundedVertexDistribution a(100.0);
+    PrimaryBoundedVertexDistribution b(200.0);
+    EXPECT_FALSE(a == b);
+    EXPECT_NE(a < b, b < a);
+}
+
+TEST(PrimaryBoundedVertexDistribution, EqualSameFiducialVolume) {
+    auto sphere_a = std::make_shared<siren::geometry::Sphere>(10.0, 0.0);
+    auto sphere_b = std::make_shared<siren::geometry::Sphere>(10.0, 0.0);
+    PrimaryBoundedVertexDistribution a(sphere_a, 100.0);
+    PrimaryBoundedVertexDistribution b(sphere_b, 100.0);
+    EXPECT_TRUE(a == b);
+}
+
+TEST(PrimaryBoundedVertexDistribution, NotEqualDifferentFiducialVolume) {
+    auto small = std::make_shared<siren::geometry::Sphere>(10.0, 0.0);
+    auto large = std::make_shared<siren::geometry::Sphere>(50.0, 0.0);
+    PrimaryBoundedVertexDistribution a(small, 100.0);
+    PrimaryBoundedVertexDistribution b(large, 100.0);
+    EXPECT_FALSE(a == b);
+    EXPECT_NE(a < b, b < a);
+}
+
+TEST(PrimaryBoundedVertexDistribution, NotEqualNullVsNonNullFiducial) {
+    auto sphere = std::make_shared<siren::geometry::Sphere>(10.0, 0.0);
+    PrimaryBoundedVertexDistribution a(100.0);
+    PrimaryBoundedVertexDistribution b(sphere, 100.0);
+    EXPECT_FALSE(a == b);
+    EXPECT_NE(a < b, b < a);
+}
+
+TEST(PrimaryBoundedVertexDistribution, EqualBothNullFiducial) {
+    PrimaryBoundedVertexDistribution a(100.0);
+    PrimaryBoundedVertexDistribution b(100.0);
+    EXPECT_TRUE(a == b);
+}
+
+TEST(PrimaryBoundedVertexDistribution, StrictWeakOrdering) {
+    PrimaryBoundedVertexDistribution a(100.0);
+    PrimaryBoundedVertexDistribution b(200.0);
+    PrimaryBoundedVertexDistribution c(300.0);
+    EXPECT_FALSE(a < a);
+    if((a < b) && (b < c)) {
+        EXPECT_TRUE(a < c);
+    }
+}
+
+TEST(PrimaryBoundedVertexDistribution, Name) {
+    PrimaryBoundedVertexDistribution dist;
+    EXPECT_EQ(dist.Name(), "PrimaryBoundedVertexDistribution");
+}
+
+TEST(PrimaryBoundedVertexDistribution, ClonePreservesEquality) {
+    auto sphere = std::make_shared<siren::geometry::Sphere>(10.0, 0.0);
+    PrimaryBoundedVertexDistribution dist(sphere, 100.0);
+    PrimaryBoundedVertexDistribution copy(dist);
+    EXPECT_TRUE(dist == copy);
+}
+
+// ===========================================================================
+// PrimaryPhysicalVertexDistribution
+// ===========================================================================
+
+TEST(PrimaryPhysicalVertexDistribution, EqualAlwaysTrue) {
+    PrimaryPhysicalVertexDistribution a;
+    PrimaryPhysicalVertexDistribution b;
+    EXPECT_TRUE(a == b);
+}
+
+TEST(PrimaryPhysicalVertexDistribution, LessAlwaysFalse) {
+    PrimaryPhysicalVertexDistribution a;
+    PrimaryPhysicalVertexDistribution b;
+    EXPECT_FALSE(a < b);
+    EXPECT_FALSE(b < a);
+}
+
+TEST(PrimaryPhysicalVertexDistribution, Name) {
+    PrimaryPhysicalVertexDistribution dist;
+    EXPECT_EQ(dist.Name(), "PrimaryPhysicalVertexDistribution");
+}
+
+TEST(PrimaryPhysicalVertexDistribution, ClonePreservesEquality) {
+    PrimaryPhysicalVertexDistribution dist;
+    PrimaryPhysicalVertexDistribution copy(dist);
+    EXPECT_TRUE(dist == copy);
 }
 
 int main(int argc, char** argv) {
