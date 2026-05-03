@@ -71,6 +71,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/distributions/public/"
 
 package_add_test(UnitTest_PrimaryDirectionDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/PrimaryDirectionDistribution_TEST.cxx)
 package_add_test(UnitTest_PrimaryEnergyDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/PrimaryEnergyDistribution_TEST.cxx)
+package_add_test(UnitTest_WeightableDistribution ${PROJECT_SOURCE_DIR}/projects/distributions/private/test/WeightableDistribution_TEST.cxx)
 
 pybind11_add_module(distributions ${PROJECT_SOURCE_DIR}/projects/distributions/private/pybindings/distributions.cxx)
 target_link_libraries(distributions PRIVATE SIREN)

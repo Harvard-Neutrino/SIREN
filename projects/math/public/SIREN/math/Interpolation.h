@@ -887,7 +887,7 @@ public:
         for(size_t i=0; i<sorted_y.size(); ++i)
             y_map.insert({sorted_y[i], i});
         for(size_t i=0; i<x.size(); ++i)
-            xy_to_z_map.insert({{x_map[x[i]], y_map[y[i]]}, i});
+            xy_to_z_map.insert({{x_map[x[i]], y_map[y[i]]}, int(i)});
     };
 
     virtual Index2D operator()(T const & x, T const & y) const override {

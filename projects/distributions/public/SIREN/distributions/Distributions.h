@@ -96,7 +96,7 @@ public:
         }
     }
     bool operator==(WeightableDistribution const & distribution) const;
-    bool operator<(WeightableDistribution const & distribution) const;
+    virtual bool operator<(WeightableDistribution const & distribution) const;
     virtual bool AreEquivalent(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<siren::detector::DetectorModel const> second_detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> second_interactions) const;
 protected:
     virtual bool equal(WeightableDistribution const & distribution) const = 0;

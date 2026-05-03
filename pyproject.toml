@@ -92,3 +92,13 @@ no-clean = true
 
 [install]
 no-clean = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+addopts = "-ra"
+# Default norecursedirs plus "vendor" so `pytest .` doesn't try to collect
+# the Python tests shipped inside vendor/googletest, vendor/pybind11, etc.
+norecursedirs = [
+    "*.egg", ".*", "_darcs", "CVS", "build", "dist", "node_modules", "venv", "{arch}",
+    "vendor",
+]

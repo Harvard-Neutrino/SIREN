@@ -1,0 +1,45 @@
+name: Python tests
+
+on: [pull_request]
+
+jobs:
+  pytest:
+    name: pytest on ${{ matrix.os }} (Python ${{ matrix.py }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        py: ['3.12']
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.py }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            build-essential \
+            libgsl-dev \
+            libcfitsio-dev
+
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install scikit-build-core pytest
+
+      - name: Build and install SIREN
+        env:
+          CMAKE_PREFIX_PATH: /usr  # use apt-installed gsl/cfitsio, not the cibw paths
+        run: pip install -v .
+
+      - name: Run pytest
+        run: pytest tests/python -v --color=yes

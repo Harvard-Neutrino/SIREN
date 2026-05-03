@@ -47,10 +47,10 @@ bool WeightableDistribution::operator==(WeightableDistribution const & distribut
 }
 
 bool WeightableDistribution::operator<(WeightableDistribution const & distribution) const {
-    if(typeid(this) == typeid(&distribution))
+    if(typeid(*this) == typeid(distribution))
         return this->less(distribution);
     else
-        return std::type_index(typeid(this)) < std::type_index(typeid(&distribution));
+        return std::type_index(typeid(*this)) < std::type_index(typeid(distribution));
 }
 
 bool WeightableDistribution::AreEquivalent(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, std::shared_ptr<WeightableDistribution const> distribution, std::shared_ptr<siren::detector::DetectorModel const> second_detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> second_interactions) const {

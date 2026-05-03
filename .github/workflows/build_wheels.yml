@@ -3,8 +3,39 @@ name: Build
 on: [pull_request]
 
 jobs:
+  populate_cfitsio_cache:
+    name: Populate cfitsio cache
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.cfitsio.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Read cfitsio version
+        id: cfitsio
+        shell: bash
+        run: |
+          ver=$(grep '^CFITSIO_VERSION=' tools/wheels/cibw_before_all.sh | cut -d'"' -f2)
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Cache cfitsio source tarball
+        id: cache
+        uses: actions/cache@v5
+        with:
+          path: .cfitsio-cache
+          key: cfitsio-${{ steps.cfitsio.outputs.version }}-v1
+
+      - name: Download cfitsio if not cached
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          bash tools/wheels/fetch_cfitsio.sh \
+            "${{ steps.cfitsio.outputs.version }}" \
+            ".cfitsio-cache/cfitsio-${{ steps.cfitsio.outputs.version }}.tar.gz"
+
   build_wheels_macos:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }}) - ${{ matrix.py }}
+    needs: populate_cfitsio_cache
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -23,53 +54,68 @@ jobs:
             arch: arm64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # IMPORTANT: CPython 3.8 on arm64 uses an x86_64 Python under Rosetta by default.
       # Installing a native arm64 Python 3.8 avoids CMake thinking it's x86_64.
       - name: Install native Python 3.8 (arm64 runner only)
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         if: runner.os == 'macOS' && runner.arch == 'ARM64' && matrix.py == 'cp38'
         with:
           python-version: '3.8'
 
+      - name: Restore cfitsio source tarball
+        uses: actions/cache/restore@v5
+        with:
+          path: .cfitsio-cache
+          key: cfitsio-${{ needs.populate_cfitsio_cache.outputs.version }}-v1
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.18.1
+        uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: ${{ matrix.py }}-*
           CIBW_ARCHS_MACOS: ${{ matrix.arch }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.py }}
           path: ./wheelhouse/*.whl
 
   build_wheels_linux:
     name: Build wheels on ${{ matrix.os }} - ${{ matrix.py }} - ${{ matrix.image }}_${{ matrix.arch }}
+    needs: populate_cfitsio_cache
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
         py: [cp38, cp39, cp310, cp311, cp312]
         image: [manylinux, musllinux]
         arch: [x86_64, aarch64]
+        include:
+          # Native runners per arch - aarch64 emulated under qemu was 13x
+          # slower (~80min vs ~6min), and GitHub now offers free arm64
+          # Linux runners for public repos.
+          - arch: x86_64
+            os: ubuntu-latest
+          - arch: aarch64
+            os: ubuntu-24.04-arm
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Restore cfitsio source tarball
+        uses: actions/cache/restore@v5
         with:
-          platforms: all
+          path: .cfitsio-cache
+          key: cfitsio-${{ needs.populate_cfitsio_cache.outputs.version }}-v1
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.18.1
+        uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: ${{ matrix.py }}-${{ matrix.image }}_${{ matrix.arch }}
-          CIBW_ARCHS: all
+          CIBW_ARCHS: ${{ matrix.arch }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ matrix.py }}-${{ matrix.image }}_${{ matrix.arch }}
           path: ./wheelhouse/*.whl
@@ -79,6 +125,6 @@ jobs:
     needs: [build_wheels_macos, build_wheels_linux]
     steps:
       - name: Merge Artifacts
-        uses: actions/upload-artifact/merge@v4
+        uses: actions/upload-artifact/merge@v6
         with:
           delete-merged: true

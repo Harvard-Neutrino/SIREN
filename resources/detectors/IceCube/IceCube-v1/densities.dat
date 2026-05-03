@@ -40,4 +40,4 @@ detector      0 0 6372184
 # This one is the 1km^3 detector
 # fiducial cylinder    0 0 0     0 0 0    564.19 0 1000
 # This one is a shell enlarged by 50m (effective scattering length)
-fiducial cylinder    0 0 0     0 0 0    664.19 0 1200
+fiducial cylinder    0 0 0     0 0 0    614.19 0 1100

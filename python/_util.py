@@ -157,34 +157,14 @@ def resource_dirs():
 
 
 # from imageio
-# https://github.com/imageio/imageio/blob/65d79140018bb7c64c0692ea72cb4093e8d632a0/imageio/core/util.py
 def resource_package_dir():
-    """package_dir
+    """Get the resources directory inside the installed siren package.
 
-    Get the resources directory in the siren package installation
-    directory.
-
-    Notes
-    -----
-    This is a convenience method that is used by `resource_dirs` and
-    siren entry point scripts.
+    This is a convenience method used by ``resource_dirs`` and siren
+    entry point scripts.
     """
-    # Make pkg_resources optional if setuptools is not available
-    try:
-        # Avoid importing pkg_resources in the top level due to how slow it is
-        # https://github.com/pypa/setuptools/issues/510
-        import pkg_resources
-    except ImportError:
-        pkg_resources = None
-
-    if pkg_resources:
-        # The directory returned by `pkg_resources.resource_filename`
-        # also works with eggs.
-        pdir = pkg_resources.resource_filename("siren", "resources")
-    else:
-        # If setuptools is not available, use fallback
-        pdir = os.path.abspath(os.path.join(THIS_DIR, "resources"))
-    return pdir
+    from importlib.resources import files
+    return str(files("siren") / "resources")
 
 
 # from imageio
@@ -312,13 +292,7 @@ _UNVERSIONED_MODEL_PATTERN = (
 _MODEL_PATTERN = (
     r"""
     (?P<model_name>
-        (?:
-            [a-zA-Z0-9]+
-        )
-        |
-        (?:
-            (?:[a-zA-Z0-9]+(?:[-_\.][a-zA-Z0-9]+)*(?:[-_\.][a-zA-Z]+[a-zA-Z0-9]*))?
-        )
+        [a-zA-Z0-9]+(?:(?:-(?!v?[0-9])|[_\.])[a-zA-Z0-9]+)*
     )
     (?:
         -
@@ -727,7 +701,7 @@ def import_resource(resource_type, resource_name):
 
     fname = os.path.join(abs_dir, f"{resource_type}.py")
     if not os.path.isfile(fname):
-        logging.warning(f"Could not find file '{fname}' when loading resource '{resource_type}' '{resource_name}'")
+        # No .py loader script; caller falls back to file-based loading.
         return None
     try:
         mod = load_module(f"siren-{resource_type}-{resource_name}", fname, persist=False)
@@ -762,6 +736,14 @@ def get_resource_loader(resource_type, resource_name):
             continue
         setattr(functor, key, getattr(resource_module, key))
     return functools.update_wrapper(functor, loader)
+
+
+def get_tabulated_flux_model_path(model_name, must_exist=True):
+    return _get_model_path(model_name, prefix=_resource_folder_by_name["flux"], is_file=False, must_exist=must_exist)
+
+
+def get_tabulated_flux_file(model_name, tag, must_exist=True):
+    return load_resource("flux", model_name, tag)
 
 
 def load_resource(resource_type, resource_name, *args, **kwargs):
