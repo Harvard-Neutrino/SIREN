@@ -83,7 +83,6 @@ def make_quark_dis_xs(pdf, target, current_type):
         os.path.join(SPLINES_DIR, f"dsdxdy_nu-N-{current_type}-charm-{pdf}.fits"),
         os.path.join(SPLINES_DIR, f"sigma_nu-N-{current_type}-charm-{pdf}.fits"),
         int(int_type),         # interaction type: 1=CC, 2=NC
-        int(1),                # quark type: 1=charm
         isoscalar_mass,
         1,                     # min Q^2
         [PRIMARY_TYPE],
