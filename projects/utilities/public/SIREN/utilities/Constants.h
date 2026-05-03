@@ -53,8 +53,8 @@ static const double EtaMass         = 0.547862; // GeV
 static const double EtaPrimeMass    = 0.95778;  // GeV
 static const double RhoMass         = 0.77526; // GeV
 static const double OmegaMass       = 0.78266; // GeV
-static const double D0Mass          = 1.86962; // GeV
-static const double DPlusMass       = 1.86484; // GeV
+static const double D0Mass          = 1.86484; // GeV (PDG D0)
+static const double DPlusMass       = 1.86966; // GeV (PDG D+)
 static const double CharmMass       = 1.27; // GeV
 
 // confusing units

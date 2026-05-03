@@ -224,7 +224,7 @@ TEST(Interpolator1D, DMesonDecayCDF) {
 
 TEST(CharmMesonDecay, DiffDecayWidthComparison) {
     // Check if the SIREN DifferentialDecayWidth matches our analytical formula
-    double mD = Constants::D0Mass;   // 1.86962 (note: swapped with DPlus in Constants.h!)
+    double mD = Constants::D0Mass;   // PDG D0 mass
     double mK = Constants::KminusMass;
     double F0CKM = 0.719;
     double alpha = 0.50;
@@ -233,7 +233,7 @@ TEST(CharmMesonDecay, DiffDecayWidthComparison) {
 
     std::cout << "\nTest 2b: DifferentialDecayWidth comparison" << std::endl;
     std::cout << "  Constants::D0Mass = " << Constants::D0Mass << " (PDG D0 = 1.86484, PDG D+ = 1.86966)" << std::endl;
-    std::cout << "  Constants::DPlusMass = " << Constants::DPlusMass << " (SWAPPED!)" << std::endl;
+    std::cout << "  Constants::DPlusMass = " << Constants::DPlusMass << std::endl;
 
     // Our analytical formula
     auto dGamma_analytical = [&](double Q2) -> double {
