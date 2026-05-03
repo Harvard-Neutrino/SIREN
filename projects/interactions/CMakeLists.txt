@@ -16,9 +16,7 @@ LIST (APPEND interactions_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DummyCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsCrossSection.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/pyDarkNewsDecay.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmDISFromSpline.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/Hadronization.cxx
-    ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmHadronization.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/CharmMesonDecay3Body.cxx
     ${PROJECT_SOURCE_DIR}/projects/interactions/private/DMesonELoss.cxx
