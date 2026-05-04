@@ -1,4 +1,5 @@
 #include "SIREN/distributions/primary/energy_direction/Tabulated2DFluxDistribution.h"
+#include <algorithm>                                       // for minmax_element
 #include <array>                                           // for array
 #include <cmath>                                           // for M_PI, cos, sin, sqrt, pow, log, log10, cbrt
 #include <tuple>                                           // for tie, operator<
@@ -37,6 +38,9 @@ void Tabulated2DFluxDistribution::ComputeIntegral() {
        return unnormed_pdf(x,y);
     };
     if (fluxTable.IsLogX()) {
+        if(energyMin <= 0 || energyMax <= 0) {
+            throw std::runtime_error("Energy bounds must be positive for log-spaced energy tables");
+        }
         eMin = log10(energyMin);
         eMax = log10(energyMax);
         integrand =  [&] (double x, double y) -> double {
@@ -83,14 +87,16 @@ void Tabulated2DFluxDistribution::LoadFluxTable() {
     if(table_data.x.empty()) {
         throw std::runtime_error("No valid data rows in flux table: " + fluxTableFilename);
     }
-    // If no bounds are manually set, use first/last entry of table
+    // If no bounds are manually set, derive from min/max of parsed values
     if(not energy_bounds_set) {
-        energyMin = table_data.x.front();
-        energyMax = table_data.x.back();
+        auto mm = std::minmax_element(table_data.x.begin(), table_data.x.end());
+        energyMin = *mm.first;
+        energyMax = *mm.second;
     }
     if(not cosZenith_bounds_set) {
-        cosZenithMin = table_data.y.front();
-        cosZenithMax = table_data.y.back();
+        auto mm = std::minmax_element(table_data.y.begin(), table_data.y.end());
+        cosZenithMin = *mm.first;
+        cosZenithMax = *mm.second;
     }
     fluxTable = siren::utilities::Interpolator2D<double>(table_data);
 }
@@ -112,14 +118,16 @@ void Tabulated2DFluxDistribution::LoadFluxTable(std::vector<double> & energies, 
     energy_nodes = energies;
     cosZenith_nodes = cosZeniths;
 
-    // If no bounds are manually set, use first/last entry of table
+    // If no bounds are manually set, derive from min/max of input values
     if(not energy_bounds_set) {
-        energyMin = table_data.x.front();
-        energyMax = table_data.x.back();
+        auto mm = std::minmax_element(table_data.x.begin(), table_data.x.end());
+        energyMin = *mm.first;
+        energyMax = *mm.second;
     }
     if(not cosZenith_bounds_set) {
-        cosZenithMin = table_data.y.front();
-        cosZenithMax = table_data.y.back();
+        auto mm = std::minmax_element(table_data.y.begin(), table_data.y.end());
+        cosZenithMin = *mm.first;
+        cosZenithMax = *mm.second;
     }
     fluxTable = siren::utilities::Interpolator2D<double>(table_data);
 }
@@ -156,13 +164,23 @@ void Tabulated2DFluxDistribution::SetEnergyBounds(double eMin, double eMax) {
     energyMin = eMin;
     energyMax = eMax;
     energy_bounds_set = true;
+    MH_sampled_points = 0;
+    MH_density = 0;
     ComputeIntegral();
 }
 
 void Tabulated2DFluxDistribution::SetCosZenithBounds(double czMin, double czMax) {
+    if(czMin < -1.0 || czMax > 1.0) {
+        throw std::runtime_error("cosZenith bounds must be within [-1, 1]");
+    }
+    if(czMin > czMax) {
+        throw std::runtime_error("cosZenithMin must be <= cosZenithMax");
+    }
     cosZenithMin = czMin;
     cosZenithMax = czMax;
     cosZenith_bounds_set = true;
+    MH_sampled_points = 0;
+    MH_density = 0;
     ComputeIntegral();
 }
 

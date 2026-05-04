@@ -28,7 +28,7 @@ namespace siren {
 namespace distributions {
 
 class Tabulated2DFluxDistribution : virtual public PrimaryEnergyDirectionDistribution {
-// Assumes table is in units of nu cm^-2 GeV^-1 Livetime^-1 sr^-1
+// Assumes table is in units of nu m^-2 GeV^-1 Livetime^-1 sr^-1
 // The "cosZenith" axis stores cos(zenith angle), i.e. values in [-1, 1].
 friend cereal::access;
 protected:

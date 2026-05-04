@@ -462,6 +462,90 @@ TEST(Tabulated2DFlux, Clone) {
     EXPECT_TRUE(orig_ref == clone_ref);
 }
 
+// --- Validation and edge cases ---
+
+TEST(Tabulated2DFlux, SetCosZenithBoundsInvalidThrows) {
+    std::vector<double> e, cz, f;
+    MakeFlatGrid(e, cz, f);
+    Tabulated2DFluxDistribution dist(e, cz, f);
+    // Outside [-1, 1]
+    EXPECT_THROW(dist.SetCosZenithBounds(-2.0, 1.0), std::runtime_error);
+    EXPECT_THROW(dist.SetCosZenithBounds(-1.0, 1.5), std::runtime_error);
+    // min > max
+    EXPECT_THROW(dist.SetCosZenithBounds(0.5, -0.5), std::runtime_error);
+    // Valid should not throw
+    EXPECT_NO_THROW(dist.SetCosZenithBounds(-0.5, 0.5));
+}
+
+TEST(Tabulated2DFlux, SamplingAfterBoundsChange) {
+    std::vector<double> e, cz, f;
+    MakeFlatGrid(e, cz, f);
+    Tabulated2DFluxDistribution dist(1.0, 3.0, -1.0, 1.0, e, cz, f);
+
+    // Sample once to initialize MH state
+    auto rand = std::make_shared<siren::utilities::SIREN_random>();
+    PrimaryDistributionRecord rec(ParticleType::NuMu);
+    rec.SetMass(0.0);
+    rec.SetEnergy(1.0);
+    rec.SetDirection({0.0, 0.0, 1.0});
+    dist.SampleEnergyAndDirection(rand, nullptr, nullptr, rec);
+
+    // Narrow the energy bounds and sample again -- results should be valid
+    dist.SetEnergyBounds(1.5, 2.5);
+    for (int i = 0; i < 1000; ++i) {
+        PrimaryDistributionRecord r(ParticleType::NuMu);
+        r.SetMass(0.0);
+        r.SetEnergy(1.0);
+        r.SetDirection({0.0, 0.0, 1.0});
+        auto result = dist.SampleEnergyAndDirection(rand, nullptr, nullptr, r);
+        EXPECT_GE(result.first, 1.5);
+        EXPECT_LE(result.first, 2.5);
+    }
+}
+
+TEST(Tabulated2DFlux, GenerationProbabilityZeroMomentum) {
+    std::vector<double> e, cz, f;
+    MakeFlatGrid(e, cz, f);
+    Tabulated2DFluxDistribution dist(1.0, 3.0, -1.0, 1.0, e, cz, f);
+
+    InteractionRecord record;
+    record.primary_momentum[0] = 2.0;
+    record.primary_momentum[1] = 0.0;
+    record.primary_momentum[2] = 0.0;
+    record.primary_momentum[3] = 0.0;  // zero 3-momentum
+
+    double prob = dist.GenerationProbability(nullptr, nullptr, record);
+    EXPECT_EQ(prob, 0.0);
+}
+
+TEST(Tabulated2DFlux, UnsortedInputBoundsCorrect) {
+    // Input in non-sorted order: energy goes 3, 1, 2
+    std::vector<double> e   = {3.0, 3.0, 3.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0};
+    std::vector<double> cz  = {1.0, -1.0, 0.0, 1.0, -1.0, 0.0, 1.0, -1.0, 0.0};
+    std::vector<double> flux(9, 1.0);
+    Tabulated2DFluxDistribution dist(e, cz, flux);
+
+    // Bounds should be derived from min/max, not first/last
+    double integral = dist.GetIntegral();
+    // Integral of constant 1 over [1,3] x [-1,1] = 4
+    EXPECT_NEAR(integral, 4.0, 0.5);
+}
+
+TEST(Tabulated2DFlux, MalformedFileThrows) {
+    char tmpfile[] = "/tmp/siren_test_malformed_XXXXXX";
+    int fd = mkstemp(tmpfile);
+    ASSERT_NE(fd, -1);
+    {
+        std::ofstream out(tmpfile);
+        out << "1.0 2.0 3.0\n";
+        out << "bad_data\n";  // only one token, not three
+        out << "4.0 5.0 6.0\n";
+    }
+    close(fd);
+    EXPECT_THROW(Tabulated2DFluxDistribution dist(tmpfile), std::runtime_error);
+    std::remove(tmpfile);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
