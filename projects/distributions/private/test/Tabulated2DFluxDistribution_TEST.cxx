@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <fstream>
+#include <unistd.h>
 #include <gtest/gtest.h>
 
 #include "SIREN/utilities/Integration.h"
@@ -247,8 +248,10 @@ TEST(Tabulated2DFlux, ConstructEmptyVectorsThrows) {
 }
 
 TEST(Tabulated2DFlux, ConstructFromFile) {
-    // Write a temporary flux table file, then load it.
-    std::string tmpfile = "/tmp/siren_test_flux2d.dat";
+    // Write a unique temporary flux table file, then load it.
+    char tmpfile[] = "/tmp/siren_test_flux2d_XXXXXX";
+    int fd = mkstemp(tmpfile);
+    ASSERT_NE(fd, -1);
     {
         std::ofstream out(tmpfile);
         double e_vals[] = {1.0, 2.0, 3.0};
@@ -259,8 +262,9 @@ TEST(Tabulated2DFlux, ConstructFromFile) {
             }
         }
     }
+    close(fd);
     ASSERT_NO_THROW(Tabulated2DFluxDistribution dist(tmpfile));
-    std::remove(tmpfile.c_str());
+    std::remove(tmpfile);
 }
 
 // --- PDF evaluation ---

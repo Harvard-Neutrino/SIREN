@@ -76,8 +76,16 @@ public:
             archive(::cereal::make_nvp("EnergyMax", energyMax));
             archive(::cereal::make_nvp("FluxTable", fluxTable));
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
+        } else if(version == 1) {
+            archive(::cereal::make_nvp("EnergyMin", energyMin));
+            archive(::cereal::make_nvp("EnergyMax", energyMax));
+            archive(::cereal::make_nvp("FluxTable", fluxTable));
+            archive(::cereal::make_nvp("UseRomberg", use_romberg));
+            archive(::cereal::make_nvp("EnergyNodes", energy_nodes));
+            archive(::cereal::make_nvp("PdfNodes", pdf_nodes));
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
         } else {
-            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 0!");
+            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 1!");
         }
     }
     template<typename Archive>
@@ -88,10 +96,22 @@ public:
             archive(::cereal::make_nvp("FluxTable", fluxTable));
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
             bounds_set = true;
+            use_romberg = true;
+            ComputeIntegral();
+            ComputeCDF();
+        } else if(version == 1) {
+            archive(::cereal::make_nvp("EnergyMin", energyMin));
+            archive(::cereal::make_nvp("EnergyMax", energyMax));
+            archive(::cereal::make_nvp("FluxTable", fluxTable));
+            archive(::cereal::make_nvp("UseRomberg", use_romberg));
+            archive(::cereal::make_nvp("EnergyNodes", energy_nodes));
+            archive(::cereal::make_nvp("PdfNodes", pdf_nodes));
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
+            bounds_set = true;
             ComputeIntegral();
             ComputeCDF();
         } else {
-            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 0!");
+            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 1!");
         }
     }
 protected:
@@ -102,7 +122,7 @@ protected:
 } // namespace distributions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::distributions::TabulatedFluxDistribution, 0);
+CEREAL_CLASS_VERSION(siren::distributions::TabulatedFluxDistribution, 1);
 CEREAL_REGISTER_TYPE(siren::distributions::TabulatedFluxDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryEnergyDistribution, siren::distributions::TabulatedFluxDistribution);
 

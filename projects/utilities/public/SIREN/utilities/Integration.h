@@ -5,6 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <cassert>
+#include <algorithm>
 
 namespace siren {
 namespace utilities {
@@ -199,7 +200,7 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
        double diff = std::abs(estimate - prev_estimate);
        double scale = std::max(std::abs(estimate), std::abs(prev_estimate));
        // Converged when relative change is small, or when the integral
-       // magnitude is at machine-epsilon level (effectively zero).
+       // magnitude is below tol^2 (effectively zero for any reasonable tol).
        if(scale < tol * tol || diff < tol * scale) {
          return estimate;
        }

@@ -70,7 +70,9 @@ void Tabulated2DFluxDistribution::LoadFluxTable() {
 
         std::stringstream ss(buf);
         double x, y, f;
-        ss >> x >> y >> f;
+        if(!(ss >> x >> y >> f)) {
+            throw std::runtime_error("Malformed row in flux table: " + buf);
+        }
         table_data.x.push_back(x);
         table_data.y.push_back(y);
         table_data.f.push_back(f);
@@ -98,8 +100,9 @@ void Tabulated2DFluxDistribution::LoadFluxTable(std::vector<double> & energies, 
     if(energies.empty()) {
         throw std::runtime_error("Empty vectors passed to LoadFluxTable");
     }
-    assert(energies.size()==flux.size());
-    assert(cosZeniths.size()==flux.size());
+    if(energies.size() != flux.size() || cosZeniths.size() != flux.size()) {
+        throw std::runtime_error("LoadFluxTable: energies, cosZeniths, and flux vectors must have the same size");
+    }
 
     siren::utilities::TableData2D<double> table_data;
 
@@ -300,6 +303,8 @@ std::pair<double,siren::math::Vector3D> Tabulated2DFluxDistribution::SampleEnerg
 double Tabulated2DFluxDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
     double p_mag = sqrt(pow(record.primary_momentum[1], 2) + pow(record.primary_momentum[2], 2) + pow(record.primary_momentum[3], 2));
+    if(p_mag == 0)
+        return 0.0;
     double cosZenith = record.primary_momentum[3] / p_mag;
     if(energy < energyMin or energy > energyMax)
         return 0.0;
