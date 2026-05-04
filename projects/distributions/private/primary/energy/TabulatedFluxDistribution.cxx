@@ -37,7 +37,7 @@ void TabulatedFluxDistribution::ComputeIntegral() {
         };
         integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax);
     } else {
-        integral = siren::utilities::trapezoidIntegrate(energy_nodes, pdf_nodes, energyMin, energyMax);
+        integral = siren::utilities::trapezoidIntegrate(energy_nodes, pdf_values, energyMin, energyMax);
     }
 }
 
@@ -67,12 +67,12 @@ void TabulatedFluxDistribution::LoadFluxTable() {
             table_data.f.push_back(f);
 
             energy_nodes.push_back(x);
-            pdf_nodes.push_back(f);
+            pdf_values.push_back(f);
         }
         // If no physical are manually set, use first/last entry of table
         if(not bounds_set) {
-            energyMin = table_data.x[0];
-            energyMax = table_data.x[table_data.x.size()-1];
+            energyMin = *std::min_element(table_data.x.begin(), table_data.x.end());
+            energyMax = *std::max_element(table_data.x.begin(), table_data.x.end());
         }
         fluxTable = siren::utilities::Interpolator1D<double>(table_data);
     } else {
@@ -89,12 +89,12 @@ void TabulatedFluxDistribution::LoadFluxTable(std::vector<double> & energies, st
     table_data.x = energies;
     table_data.f = flux;
     energy_nodes = energies;
-    pdf_nodes = flux;
+    pdf_values = flux;
 
     // If no physical are manually set, use first/last entry of table
     if(not bounds_set) {
-        energyMin = table_data.x[0];
-        energyMax = table_data.x[table_data.x.size()-1];
+        energyMin = *std::min_element(table_data.x.begin(), table_data.x.end());
+        energyMax = *std::max_element(table_data.x.begin(), table_data.x.end());
     }
     fluxTable = siren::utilities::Interpolator1D<double>(table_data);
 }
@@ -179,10 +179,10 @@ void TabulatedFluxDistribution::ComputeCDF() {
 
 
     // assign the cdf vector so it's accessible outside of the function
-    cdf = cdf_vector;
+    cdf_values = cdf_vector;
 
     siren::utilities::TableData1D<double> inverse_cdf_data;
-    inverse_cdf_data.x = cdf;
+    inverse_cdf_data.x = cdf_values;
     inverse_cdf_data.f = cdf_energy_nodes;
 
 
@@ -191,7 +191,7 @@ void TabulatedFluxDistribution::ComputeCDF() {
 }
 
 std::vector<double> TabulatedFluxDistribution::GetCDF() const {
-    return cdf;
+    return cdf_values;
 }
 
 std::vector<double> TabulatedFluxDistribution::GetCDFEnergyNodes() const {

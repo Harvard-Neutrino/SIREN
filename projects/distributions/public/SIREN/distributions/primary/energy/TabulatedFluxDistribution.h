@@ -42,9 +42,9 @@ private:
     siren::utilities::Interpolator1D<double> fluxTable;
     siren::utilities::Interpolator1D<double> inverseCdfTable;
     double integral;
-    std::vector<double> cdf;
+    std::vector<double> cdf_values;
     std::vector<double> energy_nodes;
-    std::vector<double> pdf_nodes;
+    std::vector<double> pdf_values;
     std::vector<double> cdf_energy_nodes;
     const size_t burnin = 40; //original burnin parameter for MH sampling
     double unnormed_pdf(double energy) const;
@@ -82,7 +82,7 @@ public:
             archive(::cereal::make_nvp("FluxTable", fluxTable));
             archive(::cereal::make_nvp("UseRomberg", use_romberg));
             archive(::cereal::make_nvp("EnergyNodes", energy_nodes));
-            archive(::cereal::make_nvp("PdfNodes", pdf_nodes));
+            archive(::cereal::make_nvp("PDF", pdf_values));
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
         } else {
             throw std::runtime_error("TabulatedFluxDistribution only supports version <= 1!");
@@ -105,7 +105,7 @@ public:
             archive(::cereal::make_nvp("FluxTable", fluxTable));
             archive(::cereal::make_nvp("UseRomberg", use_romberg));
             archive(::cereal::make_nvp("EnergyNodes", energy_nodes));
-            archive(::cereal::make_nvp("PdfNodes", pdf_nodes));
+            archive(::cereal::make_nvp("PDF", pdf_values));
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
             bounds_set = true;
             ComputeIntegral();
