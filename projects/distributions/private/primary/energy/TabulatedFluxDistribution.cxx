@@ -37,7 +37,7 @@ void TabulatedFluxDistribution::ComputeIntegral() {
         };
         integral = siren::utilities::rombergIntegrate(integrand, energyMin, energyMax);
     } else {
-        integral = siren::utilities::trapezoidIntegrate(energy_nodes, pdf_nodes);
+        integral = siren::utilities::trapezoidIntegrate(energy_nodes, pdf_nodes, energyMin, energyMax);
     }
 }
 

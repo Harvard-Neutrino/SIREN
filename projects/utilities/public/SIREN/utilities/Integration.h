@@ -218,16 +218,75 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
 * @param x the x points of the integration
 * @param y the y points of the integration
 */
-inline double trapezoidIntegrate(std::vector<double> const & x, std::vector<double> const & y){
+inline double trapezoidIntegrate(std::vector<double> const & x, std::vector<double> const & y) {
    if(x.size()!=y.size())
        throw(std::runtime_error("Integration x and y vectors must be the same size"));
 
    double integral = 0;
-   for(unsigned int i=1; i<x.size(); i++){
+   for(unsigned int i=1; i<x.size(); i++) {
       double dx = x[i]-x[i-1];
       double avg = 0.5*(y[i]+y[i-1]);
       integral += dx*avg;
    }
+   return integral;
+}
+
+/**
+* @brief Trapezoid integration of tabulated points restricted to [xmin, xmax].
+*
+* Uses binary search to find the first and last relevant intervals, then
+* only interpolates at the two boundary endpoints.  Interior intervals
+* use the raw node values with no per-interval interpolation.
+*
+* @param x the x nodes (must be sorted ascending)
+* @param y the corresponding y values
+* @param xmin lower integration bound
+* @param xmax upper integration bound
+*/
+inline double trapezoidIntegrate(std::vector<double> const & x, std::vector<double> const & y, double xmin, double xmax) {
+   if(x.size()!=y.size())
+       throw(std::runtime_error("Integration x and y vectors must be the same size"));
+   unsigned int n = x.size();
+   if(n < 2)
+       return 0;
+
+   // Interval i means [x[i-1], x[i]], valid for i in [1, n-1].
+   // Binary search for the first and last overlapping intervals.
+   unsigned int istart = std::max(1u, (unsigned int)(std::upper_bound(x.begin(), x.end(), xmin) - x.begin()));
+   unsigned int iend = std::min(n - 1, (unsigned int)(std::lower_bound(x.begin(), x.end(), xmax) - x.begin()));
+   if(istart > iend)
+       return 0;
+
+   auto lerp = [&](unsigned int i, double t) -> double {
+       return y[i-1] + (y[i] - y[i-1]) * (t - x[i-1]) / (x[i] - x[i-1]);
+   };
+
+   double integral = 0;
+
+   // Both bounds in the same interval
+   if(istart == iend) {
+       double y_l = (xmin <= x[istart-1]) ? y[istart-1] : lerp(istart, xmin);
+       double y_r = (xmax >= x[istart])   ? y[istart]   : lerp(istart, xmax);
+       double left  = std::max(x[istart-1], xmin);
+       double right = std::min(x[istart],   xmax);
+       return 0.5 * (y_l + y_r) * (right - left);
+   }
+
+   // First (possibly partial) interval
+   double y_left = (xmin <= x[istart-1]) ? y[istart-1] : lerp(istart, xmin);
+   double left_edge = std::max(x[istart-1], xmin);
+   integral += 0.5 * (y_left + y[istart]) * (x[istart] - left_edge);
+
+   // Full interior intervals: no interpolation
+   for(unsigned int i = istart + 1; i < iend; i++) {
+       integral += 0.5 * (y[i-1] + y[i]) * (x[i] - x[i-1]);
+   }
+
+   // Last (possibly partial) interval
+   double y_right = (xmax >= x[iend]) ? y[iend] : lerp(iend, xmax);
+   double right_edge = std::min(x[iend], xmax);
+   integral += 0.5 * (y[iend-1] + y_right) * (right_edge - x[iend-1]);
+
    return integral;
 }
 

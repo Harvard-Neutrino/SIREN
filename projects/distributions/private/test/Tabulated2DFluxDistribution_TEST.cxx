@@ -49,6 +49,102 @@ TEST(TrapezoidIntegrate, MismatchedSizesThrow) {
     EXPECT_THROW(siren::utilities::trapezoidIntegrate(x, y), std::runtime_error);
 }
 
+// ---------------------------------------------------------------------------
+// 1b. Bounded trapezoidIntegrate
+// ---------------------------------------------------------------------------
+
+TEST(TrapezoidIntegrateBounded, FullRangeMatchesUnbounded) {
+    // Bounds equal to the full node range should give the same result
+    std::vector<double> x = {0.0, 1.0, 2.0, 3.0, 4.0};
+    std::vector<double> y = {0.0, 1.0, 4.0, 9.0, 16.0};
+    double full = siren::utilities::trapezoidIntegrate(x, y);
+    double bounded = siren::utilities::trapezoidIntegrate(x, y, 0.0, 4.0);
+    EXPECT_DOUBLE_EQ(full, bounded);
+}
+
+TEST(TrapezoidIntegrateBounded, SubrangeOnNodes) {
+    // Bounds that land exactly on nodes: integrate [1,3] of f(x)=3
+    std::vector<double> x = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
+    std::vector<double> y(6, 3.0);
+    double result = siren::utilities::trapezoidIntegrate(x, y, 1.0, 3.0);
+    EXPECT_DOUBLE_EQ(result, 6.0);
+}
+
+TEST(TrapezoidIntegrateBounded, SubrangeBetweenNodes) {
+    // f(x)=2x on nodes [0, 1, 2, 3, 4].  Integrate over [0.5, 3.5].
+    // Exact integral of 2x from 0.5 to 3.5 = [x^2] = 12.25 - 0.25 = 12.0
+    // Trapezoid is exact for linear functions, so this should be exact.
+    std::vector<double> x = {0.0, 1.0, 2.0, 3.0, 4.0};
+    std::vector<double> y = {0.0, 2.0, 4.0, 6.0, 8.0};
+    double result = siren::utilities::trapezoidIntegrate(x, y, 0.5, 3.5);
+    EXPECT_DOUBLE_EQ(result, 12.0);
+}
+
+TEST(TrapezoidIntegrateBounded, BoundsWithinSingleInterval) {
+    // Both xmin and xmax fall inside [1, 2].  f(x)=2x.
+    // Integral of 2x from 1.25 to 1.75 = [x^2] = 3.0625 - 1.5625 = 1.5
+    std::vector<double> x = {0.0, 1.0, 2.0, 3.0};
+    std::vector<double> y = {0.0, 2.0, 4.0, 6.0};
+    double result = siren::utilities::trapezoidIntegrate(x, y, 1.25, 1.75);
+    EXPECT_DOUBLE_EQ(result, 1.5);
+}
+
+TEST(TrapezoidIntegrateBounded, BoundsOutsideNodesClamp) {
+    // Bounds wider than the data: should clamp to the node range.
+    std::vector<double> x = {1.0, 2.0, 3.0};
+    std::vector<double> y = {2.0, 2.0, 2.0};  // constant
+    double result = siren::utilities::trapezoidIntegrate(x, y, -10.0, 100.0);
+    EXPECT_DOUBLE_EQ(result, 4.0);  // 2 * (3-1) = 4
+}
+
+TEST(TrapezoidIntegrateBounded, ZeroWidthRange) {
+    std::vector<double> x = {0.0, 1.0, 2.0};
+    std::vector<double> y = {0.0, 1.0, 2.0};
+    EXPECT_DOUBLE_EQ(siren::utilities::trapezoidIntegrate(x, y, 1.5, 1.5), 0.0);
+    // Also on a node
+    EXPECT_DOUBLE_EQ(siren::utilities::trapezoidIntegrate(x, y, 1.0, 1.0), 0.0);
+}
+
+TEST(TrapezoidIntegrateBounded, NarrowingBoundsReducesIntegral) {
+    // Motivating use case: a flux table spanning [1,10], integrated first
+    // over the full range, then over a narrower sub-range.
+    std::vector<double> x = {1.0, 2.0, 4.0, 7.0, 10.0};
+    std::vector<double> y = {0.5, 1.0, 3.0, 2.0, 0.5};
+    double full    = siren::utilities::trapezoidIntegrate(x, y);
+    double bounded = siren::utilities::trapezoidIntegrate(x, y, 2.0, 7.0);
+    EXPECT_GT(full, bounded);
+    EXPECT_GT(bounded, 0.0);
+}
+
+TEST(TrapezoidIntegrateBounded, NonUniformSpacing) {
+    // Nodes at 0, 1, 5, 6 with y = 0, 2, 10, 12 (f(x)=2x).
+    // Integrate [0.5, 5.5].  Exact integral of 2x = [x^2] = 30.25 - 0.25 = 30.
+    // Trapezoid is exact for linear, so the bounded version should agree.
+    std::vector<double> x = {0.0, 1.0, 5.0, 6.0};
+    std::vector<double> y = {0.0, 2.0, 10.0, 12.0};
+    double result = siren::utilities::trapezoidIntegrate(x, y, 0.5, 5.5);
+    EXPECT_DOUBLE_EQ(result, 30.0);
+}
+
+TEST(TrapezoidIntegrateBounded, BoundsCompletelyOutside) {
+    // Range entirely below the nodes
+    std::vector<double> x = {5.0, 6.0, 7.0};
+    std::vector<double> y = {1.0, 1.0, 1.0};
+    EXPECT_DOUBLE_EQ(siren::utilities::trapezoidIntegrate(x, y, 0.0, 4.0), 0.0);
+    // Range entirely above the nodes
+    EXPECT_DOUBLE_EQ(siren::utilities::trapezoidIntegrate(x, y, 8.0, 10.0), 0.0);
+}
+
+TEST(TrapezoidIntegrateBounded, BoundsOnNodeEdgesExact) {
+    // xmin and xmax land exactly on node boundaries
+    // f(x) = x on [0,1,2,3,4,5], integrate [2,4]
+    // Exact integral of x from 2 to 4 = [x^2/2] = 8 - 2 = 6
+    std::vector<double> x = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
+    std::vector<double> y = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
+    double result = siren::utilities::trapezoidIntegrate(x, y, 2.0, 4.0);
+    EXPECT_DOUBLE_EQ(result, 6.0);
+}
+
 TEST(SimpsonIntegrate2D, ConstantFunction) {
     // f(x,y)=1 over [0,1]x[0,1] => integral = 1.0
     auto f = [](double, double) -> double { return 1.0; };
