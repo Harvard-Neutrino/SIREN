@@ -195,10 +195,12 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
        }
      }
      estimate *= h1i*h2i/9;
-     // Use absolute tolerance when estimate is near zero to avoid divide-by-zero
      if(i > 0) {
        double diff = std::abs(estimate - prev_estimate);
-       if(estimate == 0 ? (diff == 0) : (diff / std::abs(estimate) < tol)) {
+       double scale = std::max(std::abs(estimate), std::abs(prev_estimate));
+       // Converged when relative change is small, or when the integral
+       // magnitude is at machine-epsilon level (effectively zero).
+       if(scale < tol * tol || diff < tol * scale) {
          return estimate;
        }
      }
