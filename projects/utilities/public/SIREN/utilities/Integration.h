@@ -151,15 +151,17 @@ double rombergIntegrate(const FuncType& func, double a, double b, double tol=1e-
 }
 
 /**
-* @brief Performs a 2D simpson integration of a function
-*
+* @brief Performs a 2D Simpson integration of a function with adaptive refinement.
 *
 * @param func the function to integrate
-* @param a the lower bound of integration for the first dimension
-* @param b the upper bound of integration for the first dimension
-* @param c the lower bound of integration for the second dimension
-* @param d the upper bound of integration for the second dimension
-* @param tol the (absolute) tolerance on the error of the integral per dimension
+* @param a1 the lower bound of integration for the first dimension
+* @param b1 the upper bound of integration for the first dimension
+* @param a2 the lower bound of integration for the second dimension
+* @param b2 the upper bound of integration for the second dimension
+* @param tol the relative tolerance on the change between successive refinements
+* @param N1 initial number of intervals in the first dimension (must be even)
+* @param N2 initial number of intervals in the second dimension (must be even)
+* @param maxIter maximum number of refinement doublings
 */
 template<typename FuncType>
 double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2, double b2,
@@ -168,36 +170,37 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
   if(tol<0)
      throw(std::runtime_error("Integration tolerance must be positive"));
 
-
   double prev_estimate = 0;
   double estimate;
   unsigned int N1i,N2i;
   double h1i,h2i,c1,c2;
 
-  // std::cout << a1 << " " << b1 << " " << a2 << " " << b2 << std::endl;
-
   for(unsigned int i=0; i<maxIter; i++){
-     N1i = pow(2,i)*N1;
-     N2i = pow(2,i)*N2;
+     N1i = (1u << i) * N1;
+     N2i = (1u << i) * N2;
      h1i = (b1-a1)/N1i;
      h2i = (b2-a2)/N2i;
      estimate = 0;
      for(unsigned int j = 0; j < N1i+1; j++) {
        if (j==0 || j==N1i) c1 = 1;
        else if (j%2==0) c1 = 2;
-       else if (j%2==1) c1 = 4;
+       else c1 = 4;
        double x = a1 + j*h1i;
        for(unsigned int k = 0; k < N2i+1; k++) {
          if (k==0 || k==N2i) c2 = 1;
          else if (k%2==0) c2 = 2;
-         else if (k%2==1) c2 = 4;
+         else c2 = 4;
          double y = a2 + k*h2i;
          estimate += c1*c2*func(x, y);
        }
      }
      estimate *= h1i*h2i/9;
-     if(std::abs((estimate-prev_estimate)/estimate) < tol) {
-      return estimate;
+     // Use absolute tolerance when estimate is near zero to avoid divide-by-zero
+     if(i > 0) {
+       double diff = std::abs(estimate - prev_estimate);
+       if(estimate == 0 ? (diff == 0) : (diff / std::abs(estimate) < tol)) {
+         return estimate;
+       }
      }
      prev_estimate = estimate;
   }
@@ -213,7 +216,7 @@ double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2,
 * @param x the x points of the integration
 * @param y the y points of the integration
 */
-inline double trapezoidIntegrate(std::vector<double>& x, std::vector<double>& y){
+inline double trapezoidIntegrate(std::vector<double> const & x, std::vector<double> const & y){
    if(x.size()!=y.size())
        throw(std::runtime_error("Integration x and y vectors must be the same size"));
 

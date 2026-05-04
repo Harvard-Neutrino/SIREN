@@ -1,15 +1,17 @@
 #include "SIREN/distributions/primary/energy_direction/Tabulated2DFluxDistribution.h"
 #include <array>                                           // for array
-#include <tuple>                                           // for tie, opera...
+#include <cmath>                                           // for M_PI, cos, sin, sqrt, pow, log, log10, cbrt
+#include <tuple>                                           // for tie, operator<
 #include <vector>                                          // for vector
 #include <fstream>                                         // for basic_istream
+#include <sstream>                                         // for stringstream
 #include <functional>                                      // for function
-#include <math.h>                                        // for M_PI, cos, sin
+#include <stdexcept>                                       // for runtime_error
 
-#include "SIREN/dataclasses/InteractionRecord.h"  // for Interactio...
-#include "SIREN/distributions/Distributions.h"    // for InjectionD...
-#include "SIREN/utilities/Integration.h"          // for rombergInt...
-#include "SIREN/utilities/Interpolator.h"         // for TableData1D
+#include "SIREN/dataclasses/InteractionRecord.h"  // for InteractionRecord
+#include "SIREN/distributions/Distributions.h"    // for InjectionDistribution
+#include "SIREN/utilities/Integration.h"          // for simpsonIntegrate2D
+#include "SIREN/utilities/Interpolator.h"         // for TableData2D
 #include "SIREN/utilities/Random.h"               // for SIREN_random
 
 namespace siren { namespace interactions { class InteractionCollection; } }
@@ -17,13 +19,6 @@ namespace siren { namespace detector { class DetectorModel; } }
 
 namespace siren {
 namespace distributions {
-namespace {
-    bool fexists(const std::string filename)
-    {
-            std::ifstream ifile(filename.c_str());
-            return (bool)ifile;
-    }
-}
 
 //---------------
 // class Tabulated2DFluxDistribution : PrimaryEnergyDirectionDistribution
@@ -31,8 +26,11 @@ namespace {
 Tabulated2DFluxDistribution::Tabulated2DFluxDistribution() {}
 
 void Tabulated2DFluxDistribution::ComputeIntegral() {
-    // Check if the table is log in x (energy). If so, compute the integral in log space
-    // assuing we are never log in y (zenith)
+    // Integrate in log-energy space when the table is log-spaced in x.
+    // Assumes the table is never log-spaced in y (cosZenith).
+    if (fluxTable.IsLogY()) {
+        throw std::runtime_error("Tabulated2DFluxDistribution does not support log-spaced cosZenith axis");
+    }
     double eMin = energyMin;
     double eMax = energyMax;
     std::function<double(double, double)> integrand = [&] (double x, double y) -> double {
@@ -46,84 +44,89 @@ void Tabulated2DFluxDistribution::ComputeIntegral() {
         };
     }
 
-    integral = siren::utilities::simpsonIntegrate2D(integrand, eMin, eMax, zenithMin, zenithMax);
+    integral = siren::utilities::simpsonIntegrate2D(integrand, eMin, eMax, cosZenithMin, cosZenithMax);
 }
 
 void Tabulated2DFluxDistribution::LoadFluxTable() {
-    if(fexists(fluxTableFilename)) {
-        std::ifstream in(fluxTableFilename.c_str());
-        std::string buf;
-        std::string::size_type pos;
-        siren::utilities::TableData2D<double> table_data;
-
-        while(std::getline(in, buf)) {
-            // Ignore comments and blank lines
-            if((pos = buf.find('#')) != std::string::npos)
-                buf.erase(pos);
-            const char* whitespace=" \n\r\t\v";
-            if((pos=buf.find_first_not_of(whitespace))!=0)
-                buf.erase(0,pos);
-            if(!buf.empty() && (pos=buf.find_last_not_of(whitespace))!=buf.size()-1)
-                buf.erase(pos+1);
-            if(buf.empty())
-                continue;
-
-            std::stringstream ss(buf);
-            double x, y, f;
-            ss >> x >> y >> f;
-            table_data.x.push_back(x);
-            table_data.y.push_back(y);
-            table_data.f.push_back(f);
-
-            energy_nodes.push_back(x);
-            zenith_nodes.push_back(y);
-        }
-        // If no physical are manually set, use first/last entry of table
-        if(not energy_bounds_set) {
-            energyMin = table_data.x[0];
-            energyMax = table_data.x[table_data.x.size()-1];
-        }
-        if(not zenith_bounds_set) {
-            zenithMin = table_data.y[0];
-            zenithMax = table_data.y[table_data.y.size()-1];
-        }
-        fluxTable = siren::utilities::Interpolator2D<double>(table_data);
-    } else {
-        throw std::runtime_error("Failed to open flux table file!");
+    std::ifstream in(fluxTableFilename.c_str());
+    if(!in.is_open()) {
+        throw std::runtime_error("Failed to open flux table file: " + fluxTableFilename);
     }
-}
-
-void Tabulated2DFluxDistribution::LoadFluxTable(std::vector<double> & energies, std::vector<double> & zeniths, std::vector<double> & flux) {
-
-    assert(energies.size()==flux.size());
-    assert(zeniths.size()==flux.size());
-
+    std::string buf;
+    std::string::size_type pos;
     siren::utilities::TableData2D<double> table_data;
 
-    table_data.x = energies;
-    table_data.y = zeniths;
-    table_data.f = flux;
-    energy_nodes = energies;
-    zenith_nodes = zeniths;
+    while(std::getline(in, buf)) {
+        // Ignore comments and blank lines
+        if((pos = buf.find('#')) != std::string::npos)
+            buf.erase(pos);
+        const char* whitespace=" \n\r\t\v";
+        if((pos=buf.find_first_not_of(whitespace))!=0)
+            buf.erase(0,pos);
+        if(!buf.empty() && (pos=buf.find_last_not_of(whitespace))!=buf.size()-1)
+            buf.erase(pos+1);
+        if(buf.empty())
+            continue;
 
-    // If no physical are manually set, use first/last entry of table
-    if(not energy_bounds_set) {
-        energyMin = table_data.x[0];
-        energyMax = table_data.x[table_data.x.size()-1];
+        std::stringstream ss(buf);
+        double x, y, f;
+        ss >> x >> y >> f;
+        table_data.x.push_back(x);
+        table_data.y.push_back(y);
+        table_data.f.push_back(f);
+
+        energy_nodes.push_back(x);
+        cosZenith_nodes.push_back(y);
     }
-    if(not zenith_bounds_set) {
-        zenithMin = table_data.y[0];
-        zenithMax = table_data.y[table_data.y.size()-1];
+    if(table_data.x.empty()) {
+        throw std::runtime_error("No valid data rows in flux table: " + fluxTableFilename);
+    }
+    // If no bounds are manually set, use first/last entry of table
+    if(not energy_bounds_set) {
+        energyMin = table_data.x.front();
+        energyMax = table_data.x.back();
+    }
+    if(not cosZenith_bounds_set) {
+        cosZenithMin = table_data.y.front();
+        cosZenithMax = table_data.y.back();
     }
     fluxTable = siren::utilities::Interpolator2D<double>(table_data);
 }
 
-double Tabulated2DFluxDistribution::unnormed_pdf(double energy, double zenith) const {
-    return fluxTable(energy, zenith);
+void Tabulated2DFluxDistribution::LoadFluxTable(std::vector<double> & energies, std::vector<double> & cosZeniths, std::vector<double> & flux) {
+
+    if(energies.empty()) {
+        throw std::runtime_error("Empty vectors passed to LoadFluxTable");
+    }
+    assert(energies.size()==flux.size());
+    assert(cosZeniths.size()==flux.size());
+
+    siren::utilities::TableData2D<double> table_data;
+
+    table_data.x = energies;
+    table_data.y = cosZeniths;
+    table_data.f = flux;
+    energy_nodes = energies;
+    cosZenith_nodes = cosZeniths;
+
+    // If no bounds are manually set, use first/last entry of table
+    if(not energy_bounds_set) {
+        energyMin = table_data.x.front();
+        energyMax = table_data.x.back();
+    }
+    if(not cosZenith_bounds_set) {
+        cosZenithMin = table_data.y.front();
+        cosZenithMax = table_data.y.back();
+    }
+    fluxTable = siren::utilities::Interpolator2D<double>(table_data);
 }
 
-double Tabulated2DFluxDistribution::SampleUnnormedPDF(double energy, double zenith) const {
-    return unnormed_pdf(energy, zenith);
+double Tabulated2DFluxDistribution::unnormed_pdf(double energy, double cosZenith) const {
+    return fluxTable(energy, cosZenith);
+}
+
+double Tabulated2DFluxDistribution::SampleUnnormedPDF(double energy, double cosZenith) const {
+    return unnormed_pdf(energy, cosZenith);
 }
 
 double Tabulated2DFluxDistribution::GetIntegral() const {
@@ -134,16 +137,16 @@ std::vector<double> Tabulated2DFluxDistribution::GetEnergyNodes() const {
     return energy_nodes;
 }
 
-std::vector<double> Tabulated2DFluxDistribution::GetZenithNodes() const {
-    return zenith_nodes;
+std::vector<double> Tabulated2DFluxDistribution::GetCosZenithNodes() const {
+    return cosZenith_nodes;
 }
 
-double Tabulated2DFluxDistribution::pdf(double energy, double zenith) const {
-    return unnormed_pdf(energy,zenith) / integral;
+double Tabulated2DFluxDistribution::pdf(double energy, double cosZenith) const {
+    return unnormed_pdf(energy,cosZenith) / integral;
 }
 
-double Tabulated2DFluxDistribution::SamplePDF(double energy, double zenith) const {
-    return pdf(energy, zenith);
+double Tabulated2DFluxDistribution::SamplePDF(double energy, double cosZenith) const {
+    return pdf(energy, cosZenith);
 }
 
 void Tabulated2DFluxDistribution::SetEnergyBounds(double eMin, double eMax) {
@@ -153,16 +156,16 @@ void Tabulated2DFluxDistribution::SetEnergyBounds(double eMin, double eMax) {
     ComputeIntegral();
 }
 
-void Tabulated2DFluxDistribution::SetZenithBounds(double zMin, double zMax) {
-    zenithMin = zMin;
-    zenithMax = zMax;
-    zenith_bounds_set = true;
+void Tabulated2DFluxDistribution::SetCosZenithBounds(double czMin, double czMax) {
+    cosZenithMin = czMin;
+    cosZenithMax = czMax;
+    cosZenith_bounds_set = true;
     ComputeIntegral();
 }
 
 Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization)
     : energy_bounds_set(false)
-    , zenith_bounds_set(false)
+    , cosZenith_bounds_set(false)
     , fluxTableFilename(fluxTableFilename)
 {
     LoadFluxTable();
@@ -175,7 +178,7 @@ Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, doubl
     : energyMin(energyMin)
     , energyMax(energyMax)
     , energy_bounds_set(true)
-    , zenith_bounds_set(false)
+    , cosZenith_bounds_set(false)
     , fluxTableFilename(fluxTableFilename)
 {
     LoadFluxTable();
@@ -184,13 +187,13 @@ Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, doubl
         SetNormalization(integral);
 }
 
-Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, double energyMax, double zenithMin, double zenithMax, std::string fluxTableFilename, bool has_physical_normalization)
+Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, double energyMax, double cosZenithMin, double cosZenithMax, std::string fluxTableFilename, bool has_physical_normalization)
     : energyMin(energyMin)
     , energyMax(energyMax)
-    , zenithMin(zenithMin)
-    , zenithMax(zenithMax)
+    , cosZenithMin(cosZenithMin)
+    , cosZenithMax(cosZenithMax)
     , energy_bounds_set(true)
-    , zenith_bounds_set(true)
+    , cosZenith_bounds_set(true)
     , fluxTableFilename(fluxTableFilename)
 {
     LoadFluxTable();
@@ -199,124 +202,111 @@ Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, doubl
         SetNormalization(integral);
 }
 
-Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(std::vector<double> energies, std::vector<double> zeniths, std::vector<double> flux, bool has_physical_normalization)
+Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(std::vector<double> energies, std::vector<double> cosZeniths, std::vector<double> flux, bool has_physical_normalization)
     : energy_bounds_set(false)
-    , zenith_bounds_set(false)
+    , cosZenith_bounds_set(false)
 {
-    LoadFluxTable(energies,zeniths,flux);
+    LoadFluxTable(energies,cosZeniths,flux);
     ComputeIntegral();
     if(has_physical_normalization)
         SetNormalization(integral);
 }
 
-Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> zeniths, std::vector<double> flux, bool has_physical_normalization)
+Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> cosZeniths, std::vector<double> flux, bool has_physical_normalization)
     : energyMin(energyMin)
     , energyMax(energyMax)
     , energy_bounds_set(true)
-    , zenith_bounds_set(false)
+    , cosZenith_bounds_set(false)
 {
-    LoadFluxTable(energies,zeniths,flux);
+    LoadFluxTable(energies,cosZeniths,flux);
     ComputeIntegral();
     if(has_physical_normalization)
         SetNormalization(integral);
 }
 
-Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, double energyMax, double zenithMin, double zenithMax, std::vector<double> energies, std::vector<double> zeniths, std::vector<double> flux, bool has_physical_normalization)
+Tabulated2DFluxDistribution::Tabulated2DFluxDistribution(double energyMin, double energyMax, double cosZenithMin, double cosZenithMax, std::vector<double> energies, std::vector<double> cosZeniths, std::vector<double> flux, bool has_physical_normalization)
     : energyMin(energyMin)
     , energyMax(energyMax)
-    , zenithMin(zenithMin)
-    , zenithMax(zenithMax)
+    , cosZenithMin(cosZenithMin)
+    , cosZenithMax(cosZenithMax)
     , energy_bounds_set(true)
-    , zenith_bounds_set(true)
+    , cosZenith_bounds_set(true)
 {
-    LoadFluxTable(energies,zeniths,flux);
+    LoadFluxTable(energies,cosZeniths,flux);
     ComputeIntegral();
     if(has_physical_normalization)
         SetNormalization(integral);
 }
 
 std::pair<double, double> Tabulated2DFluxDistribution::SampleTablePoint(std::shared_ptr<siren::utilities::SIREN_random> rand) const {
-    // sample uniformly in linear or log space depending on the table
+    // Sample uniformly in linear or log space depending on the table
     double u1 = rand->Uniform();
     double u2 = rand->Uniform();
-    double energy, zenith;
+    double energy, cosZenith;
     if (fluxTable.IsLogX()) {
         double logEnergyMin = log10(energyMin);
         double logEnergyMax = log10(energyMax);
-        energy = pow(10,logEnergyMin + u1 * (logEnergyMax - logEnergyMin));
+        energy = pow(10, logEnergyMin + u1 * (logEnergyMax - logEnergyMin));
     }
     else {
         energy = energyMin + u1 * (energyMax - energyMin);
     }
-    if (fluxTable.IsLogY()) {
-        double logZenithMin = log10(zenithMin);
-        double logZenithMax = log10(zenithMax);
-        zenith = pow(10,logZenithMin + u2 * (logZenithMax - logZenithMin));
-    }
-    else {
-        zenith = zenithMin + u2 * (zenithMax - zenithMin);
-    }
-    return std::make_pair(energy,zenith);
+    // cosZenith axis is always linear (log-Y is rejected in ComputeIntegral)
+    cosZenith = cosZenithMin + u2 * (cosZenithMax - cosZenithMin);
+    return std::make_pair(energy, cosZenith);
 }
 
 std::pair<double,siren::math::Vector3D> Tabulated2DFluxDistribution::SampleEnergyAndDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const {
 
-    // Use metropolis hastings
-    double energy, zenith, test_density, odds;
-    bool accept;
-    std::pair<double,double> energy_zenith;
+    double energy, cosZenith, test_density;
+    std::pair<double,double> energy_cosZenith;
 
-    // Metropolis-Hastings algorithm
-
-    // ensure burn in has completed
+    // Metropolis-Hastings burn-in
     while (MH_sampled_points <= burnin) {
-        energy_zenith = SampleTablePoint(rand);
-        energy = energy_zenith.first;
-        zenith = energy_zenith.second;
-        test_density = pdf(energy, zenith);
-        odds = test_density / MH_density;
-        accept = (MH_density == 0 || (odds > 1.) || rand->Uniform() < odds);
+        energy_cosZenith = SampleTablePoint(rand);
+        energy = energy_cosZenith.first;
+        cosZenith = energy_cosZenith.second;
+        test_density = pdf(energy, cosZenith);
+        bool accept = (MH_density <= 0) || (test_density >= MH_density) || (rand->Uniform() < test_density / MH_density);
         if(accept) {
             MH_density = test_density;
             MH_sampled_points++;
         }
     }
-    // now sample one more point
-    accept = false;
+    // Sample one point after burn-in
+    bool accept = false;
     while(!accept) {
-        energy_zenith = SampleTablePoint(rand);
-        energy = energy_zenith.first;
-        zenith = energy_zenith.second;
-        test_density = pdf(energy, zenith);
-        odds = test_density / MH_density;
-        accept = (MH_density == 0 || (odds > 1.) || rand->Uniform() < odds);
+        energy_cosZenith = SampleTablePoint(rand);
+        energy = energy_cosZenith.first;
+        cosZenith = energy_cosZenith.second;
+        test_density = pdf(energy, cosZenith);
+        accept = (MH_density <= 0) || (test_density >= MH_density) || (rand->Uniform() < test_density / MH_density);
         if(accept) {
             MH_density = test_density;
             MH_sampled_points++;
         }
     }
-    // Now compute the direction given the sampled zenith
-    double nr = sqrt(1.0 - zenith*zenith);
+    // Convert cos(zenith) to a 3D direction vector
+    double sin_theta = sqrt(1.0 - cosZenith * cosZenith);
     double phi = rand->Uniform(-M_PI, M_PI);
-    double nx = nr * cos(phi);
-    double ny = nr * sin(phi);
-    siren::math::Vector3D dir(nx, ny, zenith);
+    double nx = sin_theta * cos(phi);
+    double ny = sin_theta * sin(phi);
+    siren::math::Vector3D dir(nx, ny, cosZenith);
     dir.normalize();
-    return std::make_pair(energy,dir);
-
+    return std::make_pair(energy, dir);
 }
 
 
 double Tabulated2DFluxDistribution::GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const {
     double const & energy = record.primary_momentum[0];
-    double zenith = record.primary_momentum[3] / sqrt(pow(record.primary_momentum[1], 2) + pow(record.primary_momentum[2],2) + pow(record.primary_momentum[3],2));
+    double p_mag = sqrt(pow(record.primary_momentum[1], 2) + pow(record.primary_momentum[2], 2) + pow(record.primary_momentum[3], 2));
+    double cosZenith = record.primary_momentum[3] / p_mag;
     if(energy < energyMin or energy > energyMax)
         return 0.0;
-    // TODO: check zenith
-    else if(zenith < zenithMin or zenith > zenithMax)
+    else if(cosZenith < cosZenithMin or cosZenith > cosZenithMax)
         return 0.0;
     else
-        return pdf(energy,zenith);
+        return pdf(energy, cosZenith);
 }
 
 std::string Tabulated2DFluxDistribution::Name() const {
@@ -334,20 +324,21 @@ bool Tabulated2DFluxDistribution::equal(WeightableDistribution const & other) co
         return false;
     else
         return
-            std::tie(energyMin, energyMax, zenithMin, zenithMax, fluxTable)
+            std::tie(energyMin, energyMax, cosZenithMin, cosZenithMax, fluxTable)
             ==
-            std::tie(x->energyMin, x->energyMax, x->zenithMin, x->zenithMax, x->fluxTable);
+            std::tie(x->energyMin, x->energyMax, x->cosZenithMin, x->cosZenithMax, x->fluxTable);
 }
 
 bool Tabulated2DFluxDistribution::less(WeightableDistribution const & other) const {
     const Tabulated2DFluxDistribution* x = dynamic_cast<const Tabulated2DFluxDistribution*>(&other);
+    if(!x)
+        return false;
     return
-        std::tie(energyMin, energyMax, zenithMin, zenithMax, fluxTable)
+        std::tie(energyMin, energyMax, cosZenithMin, cosZenithMax, fluxTable)
         <
-        std::tie(x->energyMin, x->energyMax, x->zenithMin, x->zenithMax, x->fluxTable);
+        std::tie(x->energyMin, x->energyMax, x->cosZenithMin, x->cosZenithMax, x->fluxTable);
 }
 
 } // namespace distributions
 
 } // namespace siren
-

@@ -32,11 +32,12 @@ class TabulatedFluxDistribution : virtual public PrimaryEnergyDistribution {
 friend cereal::access;
 protected:
     TabulatedFluxDistribution();
-    void ComputeIntegral(bool romberg=true);
+    void ComputeIntegral();
 private:
     double energyMin;
     double energyMax;
     bool bounds_set;
+    bool use_romberg = true;
     std::string fluxTableFilename;
     siren::utilities::Interpolator1D<double> fluxTable;
     siren::utilities::Interpolator1D<double> inverseCdfTable;

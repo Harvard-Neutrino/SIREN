@@ -120,10 +120,10 @@ PYBIND11_MODULE(distributions,m) {
     .def("Name",&PowerLaw::Name);
 
   class_<TabulatedFluxDistribution, std::shared_ptr<TabulatedFluxDistribution>, PrimaryEnergyDistribution>(m, "TabulatedFluxDistribution")
-    .def(init<std::string, bool, bool>())
-    .def(init<double, double, std::string, bool, bool>())
-    .def(init<std::vector<double>, std::vector<double>, bool, bool>())
-    .def(init<double, double, std::vector<double>, std::vector<double>, bool, bool>())
+    .def(init<std::string, bool, bool>(), arg("fluxTableFilename"), arg("has_physical_normalization")=false, arg("romberg")=true)
+    .def(init<double, double, std::string, bool, bool>(), arg("energyMin"), arg("energyMax"), arg("fluxTableFilename"), arg("has_physical_normalization")=false, arg("romberg")=true)
+    .def(init<std::vector<double>, std::vector<double>, bool, bool>(), arg("energies"), arg("flux"), arg("has_physical_normalization")=false, arg("romberg")=true)
+    .def(init<double, double, std::vector<double>, std::vector<double>, bool, bool>(), arg("energyMin"), arg("energyMax"), arg("energies"), arg("flux"), arg("has_physical_normalization")=false, arg("romberg")=true)
     .def("InverseCDF",&TabulatedFluxDistribution::InverseCDF)
     .def("SampleEnergy",&TabulatedFluxDistribution::SampleEnergy)
     .def("GenerationProbability",&TabulatedFluxDistribution::GenerationProbability)
@@ -152,22 +152,22 @@ PYBIND11_MODULE(distributions,m) {
     .def("Sample",&PrimaryEnergyDirectionDistribution::Sample);
 
   class_<Tabulated2DFluxDistribution, std::shared_ptr<Tabulated2DFluxDistribution>, PrimaryEnergyDirectionDistribution>(m, "Tabulated2DFluxDistribution")
-    .def(init<std::string, bool>())
-    .def(init<double, double, std::string, bool>())
-    .def(init<double, double, double, double, std::string, bool>())
-    .def(init<std::vector<double>, std::vector<double>, std::vector<double>, bool>())
-    .def(init<double, double, std::vector<double>, std::vector<double>, std::vector<double>, bool>())
-    .def(init<double, double, double, double, std::vector<double>, std::vector<double>, std::vector<double>, bool>())
+    .def(init<std::string, bool>(), arg("fluxTableFilename"), arg("has_physical_normalization")=false)
+    .def(init<double, double, std::string, bool>(), arg("energyMin"), arg("energyMax"), arg("fluxTableFilename"), arg("has_physical_normalization")=false)
+    .def(init<double, double, double, double, std::string, bool>(), arg("energyMin"), arg("energyMax"), arg("cosZenithMin"), arg("cosZenithMax"), arg("fluxTableFilename"), arg("has_physical_normalization")=false)
+    .def(init<std::vector<double>, std::vector<double>, std::vector<double>, bool>(), arg("energies"), arg("cosZeniths"), arg("flux"), arg("has_physical_normalization")=false)
+    .def(init<double, double, std::vector<double>, std::vector<double>, std::vector<double>, bool>(), arg("energyMin"), arg("energyMax"), arg("energies"), arg("cosZeniths"), arg("flux"), arg("has_physical_normalization")=false)
+    .def(init<double, double, double, double, std::vector<double>, std::vector<double>, std::vector<double>, bool>(), arg("energyMin"), arg("energyMax"), arg("cosZenithMin"), arg("cosZenithMax"), arg("energies"), arg("cosZeniths"), arg("flux"), arg("has_physical_normalization")=false)
     .def("SampleEnergyAndDirection",&Tabulated2DFluxDistribution::SampleEnergyAndDirection)
     .def("GenerationProbability",&Tabulated2DFluxDistribution::GenerationProbability)
     .def("SetEnergyBounds",&Tabulated2DFluxDistribution::SetEnergyBounds)
-    .def("SetZenithBounds",&Tabulated2DFluxDistribution::SetZenithBounds)
+    .def("SetCosZenithBounds",&Tabulated2DFluxDistribution::SetCosZenithBounds)
     .def("Name",&Tabulated2DFluxDistribution::Name)
     .def("GetIntegral",&Tabulated2DFluxDistribution::GetIntegral)
     .def("SamplePDF",&Tabulated2DFluxDistribution::SamplePDF)
     .def("SampleUnnormedPDF",&Tabulated2DFluxDistribution::SampleUnnormedPDF)
     .def("GetEnergyNodes",&Tabulated2DFluxDistribution::GetEnergyNodes)
-    .def("GetZenithNodes",&Tabulated2DFluxDistribution::GetZenithNodes);
+    .def("GetCosZenithNodes",&Tabulated2DFluxDistribution::GetCosZenithNodes);
 
   // Helicity distributions
 

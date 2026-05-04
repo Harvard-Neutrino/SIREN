@@ -29,6 +29,7 @@ namespace distributions {
 
 class Tabulated2DFluxDistribution : virtual public PrimaryEnergyDirectionDistribution {
 // Assumes table is in units of nu cm^-2 GeV^-1 Livetime^-1 sr^-1
+// The "cosZenith" axis stores cos(zenith angle), i.e. values in [-1, 1].
 friend cereal::access;
 protected:
     Tabulated2DFluxDistribution();
@@ -37,40 +38,41 @@ protected:
 private:
     double energyMin;
     double energyMax;
-    double zenithMin;
-    double zenithMax;
+    double cosZenithMin;
+    double cosZenithMax;
     bool energy_bounds_set;
-    bool zenith_bounds_set;
+    bool cosZenith_bounds_set;
     std::string fluxTableFilename;
     siren::utilities::Interpolator2D<double> fluxTable;
     double integral;
     std::vector<double> energy_nodes;
-    std::vector<double> zenith_nodes;
-    // metropolis hastings variables
-    const size_t burnin = 40; // burnin parameter for MH sampling
-    mutable size_t MH_sampled_points = 0; // to track the number of samples
-    mutable double MH_density;
+    std::vector<double> cosZenith_nodes;
+    // Metropolis-Hastings state. Mutable because sampling is logically const.
+    // NOT thread-safe: each thread must use its own distribution instance.
+    const size_t burnin = 40;
+    mutable size_t MH_sampled_points = 0;
+    mutable double MH_density = 0;
 
-    double unnormed_pdf(double energy, double zenith) const;
-    double pdf(double energy, double zenith) const;
+    double unnormed_pdf(double energy, double cosZenith) const;
+    double pdf(double energy, double cosZenith) const;
     void LoadFluxTable();
-    void LoadFluxTable(std::vector<double> & energies, std::vector<double> & zeniths, std::vector<double> & flux);
+    void LoadFluxTable(std::vector<double> & energies, std::vector<double> & cosZeniths, std::vector<double> & flux);
 public:
-    double SamplePDF(double energy, double zenith) const;
-    double SampleUnnormedPDF(double energy, double zenith) const;
+    double SamplePDF(double energy, double cosZenith) const;
+    double SampleUnnormedPDF(double energy, double cosZenith) const;
     double GetIntegral() const;
     std::vector<double> GetEnergyNodes() const;
-    std::vector<double> GetZenithNodes() const;
+    std::vector<double> GetCosZenithNodes() const;
     std::pair<double,siren::math::Vector3D> SampleEnergyAndDirection(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);
-    void SetZenithBounds(double zenithMin, double zenithMax);
+    void SetCosZenithBounds(double cosZenithMin, double cosZenithMax);
     Tabulated2DFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
     Tabulated2DFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false);
-    Tabulated2DFluxDistribution(double energyMin, double energyMax, double zenithMin, double zenithMax, std::string fluxTableFilename, bool has_physical_normalization=false);
-    Tabulated2DFluxDistribution(std::vector<double> energies, std::vector<double> zeniths, std::vector<double> flux, bool has_physical_normalization=false);
-    Tabulated2DFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> zeniths, std::vector<double> flux, bool has_physical_normalization=false);
-    Tabulated2DFluxDistribution(double energyMin, double energyMax, double zenithMin, double zenithMax, std::vector<double> energies, std::vector<double> zeniths, std::vector<double> flux, bool has_physical_normalization=false);
+    Tabulated2DFluxDistribution(double energyMin, double energyMax, double cosZenithMin, double cosZenithMax, std::string fluxTableFilename, bool has_physical_normalization=false);
+    Tabulated2DFluxDistribution(std::vector<double> energies, std::vector<double> cosZeniths, std::vector<double> flux, bool has_physical_normalization=false);
+    Tabulated2DFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> cosZeniths, std::vector<double> flux, bool has_physical_normalization=false);
+    Tabulated2DFluxDistribution(double energyMin, double energyMax, double cosZenithMin, double cosZenithMax, std::vector<double> energies, std::vector<double> cosZeniths, std::vector<double> flux, bool has_physical_normalization=false);
     std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     template<typename Archive>
@@ -78,9 +80,11 @@ public:
         if(version == 0) {
             archive(::cereal::make_nvp("EnergyMin", energyMin));
             archive(::cereal::make_nvp("EnergyMax", energyMax));
-            archive(::cereal::make_nvp("ZenithMin", zenithMin));
-            archive(::cereal::make_nvp("ZenithMax", zenithMax));
+            archive(::cereal::make_nvp("CosZenithMin", cosZenithMin));
+            archive(::cereal::make_nvp("CosZenithMax", cosZenithMax));
             archive(::cereal::make_nvp("FluxTable", fluxTable));
+            archive(::cereal::make_nvp("EnergyNodes", energy_nodes));
+            archive(::cereal::make_nvp("CosZenithNodes", cosZenith_nodes));
             archive(cereal::virtual_base_class<PrimaryEnergyDirectionDistribution>(this));
         } else {
             throw std::runtime_error("Tabulated2DFluxDistribution only supports version <= 0!");
@@ -91,12 +95,14 @@ public:
         if(version == 0) {
             archive(::cereal::make_nvp("EnergyMin", energyMin));
             archive(::cereal::make_nvp("EnergyMax", energyMax));
-            archive(::cereal::make_nvp("ZenithMin", zenithMin));
-            archive(::cereal::make_nvp("ZenithMax", zenithMax));
+            archive(::cereal::make_nvp("CosZenithMin", cosZenithMin));
+            archive(::cereal::make_nvp("CosZenithMax", cosZenithMax));
             archive(::cereal::make_nvp("FluxTable", fluxTable));
+            archive(::cereal::make_nvp("EnergyNodes", energy_nodes));
+            archive(::cereal::make_nvp("CosZenithNodes", cosZenith_nodes));
             archive(cereal::virtual_base_class<PrimaryEnergyDirectionDistribution>(this));
             energy_bounds_set = true;
-            zenith_bounds_set = true;
+            cosZenith_bounds_set = true;
             ComputeIntegral();
         } else {
             throw std::runtime_error("Tabulated2DFluxDistribution only supports version <= 0!");
