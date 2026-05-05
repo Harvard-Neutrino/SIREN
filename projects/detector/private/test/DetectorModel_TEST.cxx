@@ -1460,20 +1460,29 @@ TEST(GetSectorByName, DuplicateNameThrows) {
     EXPECT_THROW(A.AddSector(s2), std::runtime_error);
 }
 
-TEST(GetSectorByName, EmptyNameAllowsDuplicates) {
-    // Empty-named sectors (like the default vacuum) should not trigger the check
+TEST(GetSectorByName, DefaultSectorNamedUniverse) {
+    DetectorModel A;
+    DetectorSector sector = A.GetSector("UNIVERSE");
+    EXPECT_EQ(sector.name, "UNIVERSE");
+    EXPECT_EQ(std::numeric_limits<int>::min(), sector.level);
+}
+
+TEST(GetSectorByName, ClearSectorsAllowsReuse) {
     DetectorModel A;
 
     DetectorSector s1;
-    s1.name = "";
+    s1.name = "TestSector";
     s1.material_id = 1;
     s1.level = 1;
     s1.geo = Sphere(Vector3D(0,0,0), 50.0, 0).create();
     s1.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
-    EXPECT_NO_THROW(A.AddSector(s1));
+    A.AddSector(s1);
 
+    A.ClearSectors();
+
+    // After clear, the same name can be reused
     DetectorSector s2;
-    s2.name = "";
+    s2.name = "TestSector";
     s2.material_id = 2;
     s2.level = 2;
     s2.geo = Sphere(Vector3D(0,0,0), 100.0, 0).create();
