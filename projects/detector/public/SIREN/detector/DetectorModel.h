@@ -260,7 +260,7 @@ public:
 
     void AddSector(DetectorSector sector);
     DetectorSector GetSector(int level) const;
-    DetectorSector GetSector(std::string name) const;
+    DetectorSector GetSector(std::string const & name) const;
 
     void ClearSectors();
 

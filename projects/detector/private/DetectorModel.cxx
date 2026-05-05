@@ -44,25 +44,6 @@ namespace {
 void string_to_lower(std::string & data) {
     std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c){ return std::tolower(c); });
 }
-double estimateDotError(const std::array<double, 3>& p0, const std::array<double, 3>& p1, const std::array<double, 3>& int_dir) {
-    constexpr double epsilon = std::numeric_limits<double>::epsilon();
-
-    double dot_product = 0.0;
-    double error_sum = 0.0;
-
-    for (int i = 0; i < 3; ++i) {
-        double diff = p1[i] - p0[i];
-        double prod = int_dir[i] * diff;
-        dot_product += prod;
-        error_sum += std::fabs(int_dir[i] * diff);
-    }
-
-    // Estimated error of the expression
-    double error_estimate = epsilon * error_sum;
-
-    return error_estimate;
-}
-
 template <class InIt>
 typename std::iterator_traits<InIt>::value_type accumulate(InIt begin, InIt end) {
     typedef typename std::iterator_traits<InIt>::value_type real;
@@ -262,12 +243,11 @@ DetectorSector DetectorModel::GetSector(int heirarchy) const {
     return sectors_[index];
 }
 
-DetectorSector DetectorModel::GetSector(std::string name) const {
-    for (auto sector : sectors_) {
-        if (sector.name==name) return sector;
+DetectorSector DetectorModel::GetSector(std::string const & name) const {
+    for (auto const & sector : sectors_) {
+        if (sector.name == name) return sector;
     }
-    std::cout << "Sector " << name << " not found, returning empty sector\n";
-    return DetectorSector();
+    throw std::runtime_error("Sector not found: " + name);
 }
 
 void DetectorModel::ClearSectors() {
@@ -729,7 +709,6 @@ double DetectorModel::GetInteractionDensity(Geometry::IntersectionList const & i
         dot = 1;
     }
 
-
     double interaction_density = std::numeric_limits<double>::quiet_NaN();
 
     std::function<bool(std::vector<Geometry::Intersection>::const_iterator, std::vector<Geometry::Intersection>::const_iterator, double)> callback =
@@ -1009,22 +988,18 @@ double DetectorModel::GetInteractionDepthInCGS(Geometry::IntersectionList const 
     }
     Vector3D direction = p1 - p0;
     double distance = direction.magnitude();
-    // this dot error turned out to be much smaller than 1e-6 for event that failed the assertion below
-    // double dot_error = estimateDotError(std::array<double, 3>(p0.get()),
-    //                                     std::array<double, 3>(p1.get()),
-    //                                     std::array<double, 3>(intersections.direction));
 
-    // If we have only decays, avoid the sector loop
+    // If we have only decays, avoid the sector loop.
+    // This must be checked before normalize()/dot-assertion since short decay
+    // paths produce degenerate direction vectors.
     if(targets.empty()) {
-      return distance/total_decay_length; // m / m --> dimensionless
+      return distance / total_decay_length; // m / m --> dimensionless
     }
     if(distance == 0.0) {
         return 0.0;
     }
     direction.normalize();
 
-    // TODO: a better numerical precision check when the traversed distance is very small
-    // this functionally only happens for decays right now, so we just check for decays at the top
     double dot = intersections.direction * direction;
     assert(std::abs(1.0 - std::abs(dot)) < 1e-6);
     double offset = (intersections.position - p0) * direction;
@@ -1378,7 +1353,6 @@ double DetectorModel::DistanceForInteractionDepthFromPoint(Geometry::Intersectio
     } else {
         dot = 1;
     }
-
 
     // Recast decay length to cm for density integral
     double total_decay_length_cm = total_decay_length / siren::utilities::Constants::cm;

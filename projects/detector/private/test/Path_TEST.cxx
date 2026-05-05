@@ -2019,7 +2019,60 @@ TEST_F(FakeLegacyDetectorModelTest, GetDistanceFromEndInReverse)
 }
 
 
-// TEST()
+// ---------------------------------------------------------------------------
+// IsWithinBounds tolerance for short paths
+// ---------------------------------------------------------------------------
+
+TEST(IsWithinBounds, PointAtStart) {
+    // A path from (0,0,0) to (0,0,1) along z-axis.
+    // A point exactly at the start should be within bounds.
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Vector3D start(0, 0, 0);
+    Vector3D end(0, 0, 1);
+    Path path(model, DetectorPosition(start), DetectorPosition(end));
+    EXPECT_TRUE(path.IsWithinBounds(DetectorPosition(start)));
+}
+
+TEST(IsWithinBounds, PointAtEnd) {
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Vector3D start(0, 0, 0);
+    Vector3D end(0, 0, 1);
+    Path path(model, DetectorPosition(start), DetectorPosition(end));
+    EXPECT_TRUE(path.IsWithinBounds(DetectorPosition(end)));
+}
+
+TEST(IsWithinBounds, ShortPathPointAtStart) {
+    // Very short path (1e-6 m = 1 micron), simulating a short decay length.
+    // The point at the start should be within bounds despite rounding.
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Vector3D start(100.0, 200.0, 300.0);
+    Vector3D dir(0, 0, 1);
+    double distance = 1e-6;  // 1 micron
+    Vector3D end = start + distance * dir;
+    Path path(model, DetectorPosition(start), DetectorPosition(end));
+    EXPECT_TRUE(path.IsWithinBounds(DetectorPosition(start)));
+}
+
+TEST(IsWithinBounds, ShortPathPointAtEnd) {
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Vector3D start(100.0, 200.0, 300.0);
+    Vector3D dir(0, 0, 1);
+    double distance = 1e-6;
+    Vector3D end = start + distance * dir;
+    Path path(model, DetectorPosition(start), DetectorPosition(end));
+    EXPECT_TRUE(path.IsWithinBounds(DetectorPosition(end)));
+}
+
+TEST(IsWithinBounds, PointOutside) {
+    std::shared_ptr<const DetectorModel> model(new DetectorModel());
+    Vector3D start(0, 0, 0);
+    Vector3D end(0, 0, 1);
+    Path path(model, DetectorPosition(start), DetectorPosition(end));
+    // Point behind the start
+    EXPECT_FALSE(path.IsWithinBounds(DetectorPosition(Vector3D(0, 0, -0.1))));
+    // Point beyond the end
+    EXPECT_FALSE(path.IsWithinBounds(DetectorPosition(Vector3D(0, 0, 1.1))));
+}
 
 int main(int argc, char** argv)
 {

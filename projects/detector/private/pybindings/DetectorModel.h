@@ -186,7 +186,7 @@ void register_DetectorModel(pybind11::module_ & m) {
                     )(&DetectorModel::GetSector))
         .def("GetSector", (
                     DetectorSector (DetectorModel::*)(
-                        std::string) const
+                        std::string const &) const
                     )(&DetectorModel::GetSector))
         .def("ClearSectors", &DetectorModel::ClearSectors)
         .def("GetIntersections", (

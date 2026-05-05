@@ -832,8 +832,11 @@ bool Path::IsWithinBounds(DetectorPosition point) {
     if(set_det_points_) {
         double d0 = siren::math::scalar_product(direction_det_, first_point_det_ - point);
         double d1 = siren::math::scalar_product(direction_det_, last_point_det_ - point);
-        // avoid rounding errors for very small decay lengths; assume mm precision is fine
-        if((first_point_det_.get() - point).magnitude() < 1e-3) d0 = 0;
+        // Avoid rounding errors for very short paths (e.g. decay lengths).
+        // When the point is within 1mm of either endpoint, treat it as on-boundary.
+        constexpr double kBoundsTolerance = 1e-3; // meters
+        if((first_point_det_ - point)->magnitude() < kBoundsTolerance) d0 = 0;
+        if((last_point_det_ - point)->magnitude() < kBoundsTolerance) d1 = 0;
         return d0 <= 0 and d1 >= 0;
     } else if(set_points_ and set_detector_model_) {
         return IsWithinBounds(detector_model_->ToGeo(point));
