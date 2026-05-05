@@ -33,9 +33,39 @@ jobs:
             "${{ steps.cfitsio.outputs.version }}" \
             ".cfitsio-cache/cfitsio-${{ steps.cfitsio.outputs.version }}.tar.gz"
 
+  populate_gsl_cache:
+    name: Populate GSL cache
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.gsl.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Read GSL version
+        id: gsl
+        shell: bash
+        run: |
+          ver=$(grep '^GSL_VERSION=' tools/wheels/cibw_before_all.sh | cut -d'"' -f2)
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Cache GSL source tarball
+        id: cache
+        uses: actions/cache@v5
+        with:
+          path: .gsl-cache
+          key: gsl-${{ steps.gsl.outputs.version }}-v1
+
+      - name: Download GSL if not cached
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          bash tools/wheels/fetch_gsl.sh \
+            "${{ steps.gsl.outputs.version }}" \
+            ".gsl-cache/gsl-${{ steps.gsl.outputs.version }}.tar.gz"
+
   build_wheels_macos:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }}) - ${{ matrix.py }}
-    needs: populate_cfitsio_cache
+    needs: [populate_cfitsio_cache, populate_gsl_cache]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -69,6 +99,12 @@ jobs:
         with:
           path: .cfitsio-cache
           key: cfitsio-${{ needs.populate_cfitsio_cache.outputs.version }}-v1
+
+      - name: Restore GSL source tarball
+        uses: actions/cache/restore@v5
+        with:
+          path: .gsl-cache
+          key: gsl-${{ needs.populate_gsl_cache.outputs.version }}-v1
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.4.1

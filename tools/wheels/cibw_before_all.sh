@@ -1,6 +1,6 @@
 set -xe
 
-PROJECT_DIR="$1"
+PROJECT_DIR="$(cd "$1" && pwd)"
 
 echo "Project directory: $PROJECT_DIR"
 
@@ -27,6 +27,7 @@ DYLD_LIBRARY_PATH=$CI_INSTALL_PREFIX/lib64:$DYLD_LIBRARY_PATH
 
 PHOTOSPLINE_COMMIT="1faf62b8ad7116fbfcdf1ac7ade763ab9e547402"
 CFITSIO_VERSION="4.6.3"
+GSL_VERSION="2.8"
 ZLIB_VERSION="1.3.1"
 
 mkdir -p $CI_INSTALL_PREFIX
@@ -38,8 +39,33 @@ if [[ $RUNNER_OS == "Linux" ]] ; then
         (yum install -y gsl-devel || dnf install -y gsl-devel || microdnf install -y gsl-devel) || { echo "Failed to install GSL (yum/dnf/microdnf)"; exit 1; }  # manylinux
     fi
 elif [[ $RUNNER_OS == "macOS" ]]; then
-    export HOMEBREW_NO_AUTO_UPDATE=1
-    brew list gsl >/dev/null 2>&1 || brew install gsl || { echo "Failed to install GSL (brew)"; exit 1; }
+    # Build GSL from source so it inherits MACOSX_DEPLOYMENT_TARGET from
+    # cibuildwheel.  Homebrew's GSL is built for the runner's native macOS
+    # version (e.g. 14.0) which causes delocate to reject the bundled dylibs
+    # when the wheel targets an older macOS (e.g. 11.0).
+    GSL_TARBALL="gsl-$GSL_VERSION.tar.gz"
+    GSL_CACHE_DIR="$PROJECT_DIR/.gsl-cache"
+    mkdir -p "$GSL_CACHE_DIR"
+    if [ -f "$GSL_CACHE_DIR/$GSL_TARBALL" ] && \
+       tar -tzf "$GSL_CACHE_DIR/$GSL_TARBALL" >/dev/null 2>&1; then
+        echo "Using cached $GSL_CACHE_DIR/$GSL_TARBALL"
+    else
+        if [ -f "$GSL_CACHE_DIR/$GSL_TARBALL" ]; then
+            echo "Cached GSL tarball is corrupt; re-downloading"
+            rm -f "$GSL_CACHE_DIR/$GSL_TARBALL"
+        else
+            echo "GSL tarball not in cache; downloading"
+        fi
+        bash "$PROJECT_DIR/tools/wheels/fetch_gsl.sh" \
+            "$GSL_VERSION" "$GSL_CACHE_DIR/$GSL_TARBALL"
+    fi
+    mkdir -p "$CI_DOWNLOAD_PATH/gsl-$GSL_VERSION"
+    tar -xzf "$GSL_CACHE_DIR/$GSL_TARBALL" \
+        -C "$CI_DOWNLOAD_PATH/gsl-$GSL_VERSION" --strip-components=1
+    cd "$CI_DOWNLOAD_PATH/gsl-$GSL_VERSION"
+    ./configure --prefix="$CI_INSTALL_PREFIX"
+    make -j$(sysctl -n hw.ncpu)
+    make install
 elif [[ $RUNNER_OS == "Windows" ]]; then
     mkdir -p $CI_DOWNLOAD_PATH
     cd $CI_DOWNLOAD_PATH
