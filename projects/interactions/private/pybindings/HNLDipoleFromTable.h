@@ -18,9 +18,9 @@ void register_HNLDipoleFromTable(pybind11::module_ & m) {
     using namespace pybind11;
     using namespace siren::interactions;
 
-    class_<HNLDipoleFromTable, std::shared_ptr<HNLDipoleFromTable>, CrossSection> HNLDipoleFromTable(m, "HNLDipoleFromTable");
+    class_<HNLDipoleFromTable, std::shared_ptr<HNLDipoleFromTable>, CrossSection> hnl_dipole_from_table(m, "HNLDipoleFromTable");
 
-    HNLDipoleFromTable
+    hnl_dipole_from_table
         .def(init<double, double, HNLDipoleFromTable::HelicityChannel>())
         .def(init<double, double, HNLDipoleFromTable::HelicityChannel, bool, bool>())
         .def(init<double, double, HNLDipoleFromTable::HelicityChannel, bool, bool, bool>())
@@ -47,7 +47,7 @@ void register_HNLDipoleFromTable(pybind11::module_ & m) {
         .def("FinalStateProbability",&HNLDipoleFromTable::FinalStateProbability)
         ;
 
-    enum_<HNLDipoleFromTable::HelicityChannel>(HNLDipoleFromTable, "HelicityChannel")
+    enum_<HNLDipoleFromTable::HelicityChannel>(hnl_dipole_from_table, "HelicityChannel")
         .value("Conserving",HNLDipoleFromTable::HelicityChannel::Conserving)
         .value("Flipping",HNLDipoleFromTable::HelicityChannel::Flipping)
         .export_values()

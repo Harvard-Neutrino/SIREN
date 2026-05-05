@@ -33,9 +33,8 @@
 
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/interactions/CrossSection.h"
-#include "SIREN/interactions/DipoleFromTable.h"
+#include "SIREN/interactions/HNLHNLDipoleFromTable.h"
 #include "SIREN/interactions/Decay.h"
-#include "SIREN/interactions/NeutrissimoDecay.h"
 
 using namespace siren::math;
 using namespace siren::geometry;
@@ -192,8 +191,8 @@ TEST(Injector, Generation)
     // Load cross sections
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
     std::vector<ParticleType> target_types = gen_TargetPIDs();
-    std::shared_ptr<DipoleFromTable> hf_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV, inelastic);
-    std::shared_ptr<DipoleFromTable> hc_xs = std::make_shared<DipoleFromTable>(hnl_mass, dipole_coupling, DipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV, inelastic);
+    std::shared_ptr<HNLDipoleFromTable> hf_xs = std::make_shared<HNLDipoleFromTable>(hnl_mass, dipole_coupling, HNLDipoleFromTable::HelicityChannel::Flipping, z_samp, in_invGeV, inelastic);
+    std::shared_ptr<HNLDipoleFromTable> hc_xs = std::make_shared<HNLDipoleFromTable>(hnl_mass, dipole_coupling, HNLDipoleFromTable::HelicityChannel::Conserving, z_samp, in_invGeV, inelastic);
     std::vector<std::string> hf_diff_fnames = gen_diff_xs_hf(mHNL);
     std::vector<std::string> hc_diff_fnames = gen_diff_xs_hc(mHNL);
     std::vector<std::string> hf_tot_fnames = gen_tot_xs_hf(mHNL);
@@ -273,8 +272,9 @@ TEST(Injector, Generation)
     
     // Secondary cross sections: neutrissimo decay
     // Assume dirac HNL for now
-    std::shared_ptr<NeutrissimoDecay> sec_decay = std::make_shared<NeutrissimoDecay>(hnl_mass, dipole_coupling_vec, NeutrissimoDecay::ChiralNature::Majorana);  
-    std::vector<std::shared_ptr<Decay>> sec_decays = {sec_decay};
+    // TODO: NeutrissimoDecay was removed; replace with the new HNL decay class
+    // when feat/hnl-decays-hadronic lands.
+    std::vector<std::shared_ptr<Decay>> sec_decays = {};
     std::shared_ptr<InteractionCollection> secondary_interactions = std::make_shared<InteractionCollection>(ParticleType::NuF4, sec_decays);
     secondary_decay_inj_process->SetInteractions(secondary_interactions);
     secondary_decay_phys_process->SetInteractions(secondary_interactions);

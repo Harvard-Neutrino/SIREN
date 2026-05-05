@@ -150,7 +150,7 @@ public:
 private:
     void ReadParamsFromSplineTable();
     void InitializeSignatures();
-    void SetMinimiumW2();
+    void SetMinimumW2();
 };
 
 } // namespace interactions

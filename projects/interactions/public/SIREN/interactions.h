@@ -13,8 +13,6 @@
 #include "SIREN/interactions/HNLDipoleFromTable.h"
 #include "SIREN/interactions/HNLDipoleDISFromSpline.h"
 #include "SIREN/interactions/HNLDISFromSpline.h"
-#include "SIREN/interactions/HNLDecay.h"
-#include "SIREN/interactions/HNLDipoleDecay.h"
 #include "SIREN/interactions/pyCrossSection.h"
 #include "SIREN/interactions/pyDarkNewsCrossSection.h"
 #include "SIREN/interactions/pyDarkNewsDecay.h"
