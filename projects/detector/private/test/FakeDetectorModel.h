@@ -414,7 +414,7 @@ protected:
     }
 
     std::string random_name() {
-        unsigned int n_chars = RandomDouble()*46 + 1;
+        unsigned int n_chars = RandomDouble()*46 + 6;
         std::stringstream s;
         for(unsigned int i=0; i<n_chars; ++i)
             s << name_char_set[(unsigned int)(RandomDouble()*name_char_set.size())];
@@ -595,7 +595,7 @@ protected:
     }
 
     std::string random_name() {
-        unsigned int n_chars = RandomDouble()*46 + 1;
+        unsigned int n_chars = RandomDouble()*46 + 6;
         std::stringstream s;
         for(unsigned int i=0; i<n_chars; ++i)
             s << name_char_set[(unsigned int)(RandomDouble()*name_char_set.size())];
