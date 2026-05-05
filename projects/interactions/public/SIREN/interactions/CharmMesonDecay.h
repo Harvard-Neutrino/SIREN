@@ -34,7 +34,7 @@ namespace interactions {
 class CharmMesonDecay : public Decay {
 friend cereal::access;
 private:
-    const std::set<siren::dataclasses::Particle::ParticleType> primary_types = {siren::dataclasses::Particle::ParticleType::D0, siren::dataclasses::Particle::ParticleType::DPlus};
+    const std::set<siren::dataclasses::Particle::ParticleType> primary_types = {siren::dataclasses::Particle::ParticleType::D0, siren::dataclasses::Particle::ParticleType::DPlus, siren::dataclasses::Particle::ParticleType::DsPlus, siren::dataclasses::Particle::ParticleType::D0Bar, siren::dataclasses::Particle::ParticleType::DMinus, siren::dataclasses::Particle::ParticleType::DsMinus};
     siren::utilities::Interpolator1D<double> inverseCdf; // for dGamma
 public:
     CharmMesonDecay();

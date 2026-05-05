@@ -47,7 +47,11 @@ CharmMesonDecay::CharmMesonDecay(siren::dataclasses::Particle::ParticleType prim
   double mD;
   double mK;
 
-  if (primary == siren::dataclasses::Particle::ParticleType::DPlus) {
+  // Form-factor constants are CP-symmetric (|V_cs|, alpha, m_D*); the cached
+  // inverseCdf table is dead code in current SIREN, so anti-flavor instances
+  // share the same body as their particle counterparts.
+  if (primary == siren::dataclasses::Particle::ParticleType::DPlus ||
+      primary == siren::dataclasses::Particle::ParticleType::DMinus) {
     constants[0] = 0.725; // this is f^+(0)|V_cs| for charged D
     constants[1] = 0.44; // this is alpha, same for all K final states
     constants[2] = 2.01027; // this is excited charged D meson
@@ -55,13 +59,21 @@ CharmMesonDecay::CharmMesonDecay(siren::dataclasses::Particle::ParticleType prim
     mD = particleMass(siren::dataclasses::Particle::ParticleType::DPlus);
     mK = particleMass(siren::dataclasses::Particle::ParticleType::K0Bar);
 
-  } else if (primary == siren::dataclasses::Particle::ParticleType::D0) {
+  } else if (primary == siren::dataclasses::Particle::ParticleType::D0 ||
+             primary == siren::dataclasses::Particle::ParticleType::D0Bar) {
     constants[0] = 0.719; // this is f^+(0)|V_cs| for charged D
     constants[1] = 0.50; // this is alpha, same for all K final states
     constants[2] = 2.00697; // this is excited charged D meson
 
     mD = particleMass(siren::dataclasses::Particle::ParticleType::D0);
     mK = particleMass(siren::dataclasses::Particle::ParticleType::KMinus);
+  } else if (primary == siren::dataclasses::Particle::ParticleType::DsPlus ||
+             primary == siren::dataclasses::Particle::ParticleType::DsMinus) {
+    // Ds -> (eta / eta' / phi) + mu + nu uses pure 3-body phase space (no
+    // form factor). Daughter is sampled inline in SampleFinalState. The
+    // computeDiffGammaCDF table is only consumed by D+/D0 form-factor logic,
+    // so skip it here.
+    return;
   }
 
   computeDiffGammaCDF(constants, mD, mK);
@@ -108,6 +120,10 @@ double CharmMesonDecay::particleMass(siren::dataclasses::ParticleType particle) 
         return( siren::utilities::Constants::tauMass );
       case siren::dataclasses::ParticleType::TauMinus:
         return( siren::utilities::Constants::tauMass );
+      case siren::dataclasses::ParticleType::DsPlus:
+        return 1.96834;  // GeV (PDG 2022); not in Constants.h
+      case siren::dataclasses::ParticleType::DsMinus:
+        return 1.96834;
       default:
         return(0.0);
     }
@@ -153,20 +169,76 @@ double CharmMesonDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
     std::set<siren::dataclasses::Particle::ParticleType> kminus_muplus_numu = {siren::dataclasses::Particle::ParticleType::KMinus,
                                                                             siren::dataclasses::Particle::ParticleType::MuPlus,
                                                                             siren::dataclasses::Particle::ParticleType::NuMu};
+    std::set<siren::dataclasses::Particle::ParticleType> hadrons_muplus_numu = {siren::dataclasses::Particle::ParticleType::Hadrons,
+                                                                            siren::dataclasses::Particle::ParticleType::MuPlus,
+                                                                            siren::dataclasses::Particle::ParticleType::NuMu};
     std::set<siren::dataclasses::Particle::ParticleType> hadrons = {siren::dataclasses::Particle::ParticleType::Hadrons};
+    // Anti-flavor (c̄) decay-mode sets, sign-conjugated from the c modes above.
+    std::set<siren::dataclasses::Particle::ParticleType> k0_eminus_nuebar = {siren::dataclasses::Particle::ParticleType::K0,
+                                                                            siren::dataclasses::Particle::ParticleType::EMinus,
+                                                                            siren::dataclasses::Particle::ParticleType::NuEBar};
+    std::set<siren::dataclasses::Particle::ParticleType> kplus_eminus_nuebar = {siren::dataclasses::Particle::ParticleType::KPlus,
+                                                                            siren::dataclasses::Particle::ParticleType::EMinus,
+                                                                            siren::dataclasses::Particle::ParticleType::NuEBar};
+    std::set<siren::dataclasses::Particle::ParticleType> k0_muminus_numubar = {siren::dataclasses::Particle::ParticleType::K0,
+                                                                            siren::dataclasses::Particle::ParticleType::MuMinus,
+                                                                            siren::dataclasses::Particle::ParticleType::NuMuBar};
+    std::set<siren::dataclasses::Particle::ParticleType> kplus_muminus_numubar = {siren::dataclasses::Particle::ParticleType::KPlus,
+                                                                            siren::dataclasses::Particle::ParticleType::MuMinus,
+                                                                            siren::dataclasses::Particle::ParticleType::NuMuBar};
+    std::set<siren::dataclasses::Particle::ParticleType> hadrons_muminus_numubar = {siren::dataclasses::Particle::ParticleType::Hadrons,
+                                                                            siren::dataclasses::Particle::ParticleType::MuMinus,
+                                                                            siren::dataclasses::Particle::ParticleType::NuMuBar};
     if (primary == siren::dataclasses::Particle::ParticleType::DPlus) {
       tau = 1040 * (1e-15);
-      // if (secondaries == k0_eplus_nue) {branching_ratio = .1607;} // e+ semileptonic mode according to pdg
-      // else if (secondaries == k0_muplus_numu) {branching_ratio = .176;} // mu+ anything according to pdg
-      // else if (secondaries == hadrons) {branching_ratio = (1 - .1607 - .176);} // everything else
-      if (secondaries == k0_eplus_nue) {branching_ratio = .1607;} // e+ semileptonic mode according to pdg
-      else if (secondaries == k0_muplus_numu) {branching_ratio = .176;} // mu+ anything according to pdg (K + K* combined)
-      else if (secondaries == hadrons) {branching_ratio = (1 - .1607 - .176);} // everything else
+      // MODIFIED 2025-04-09: Force all decays to muonic semileptonic channel
+      // to maximize dimuon statistics. Must multiply event weights by physical BR
+      // in post-processing (D+ -> mu: 0.176, D+ -> e: 0.1607, D+ -> hadrons: 0.6633).
+      // To restore physical BRs, uncomment the original lines below:
+      // if (secondaries == k0_eplus_nue) {branching_ratio = .1607;}
+      // else if (secondaries == k0_muplus_numu) {branching_ratio = .176;}
+      // else if (secondaries == hadrons) {branching_ratio = (1 - .1607 - .176);}
+      if (secondaries == k0_eplus_nue) {branching_ratio = 0.0;}
+      else if (secondaries == k0_muplus_numu) {branching_ratio = 1.0;}
+      else if (secondaries == hadrons) {branching_ratio = 0.0;}
+    } else if (primary == siren::dataclasses::Particle::ParticleType::DMinus) {
+      // CP-mirror of D+ (same lifetime, same forced muonic BR convention).
+      tau = 1040 * (1e-15);
+      if (secondaries == k0_eminus_nuebar) {branching_ratio = 0.0;}
+      else if (secondaries == k0_muminus_numubar) {branching_ratio = 1.0;}
+      else if (secondaries == hadrons) {branching_ratio = 0.0;}
     } else if (primary == siren::dataclasses::Particle::ParticleType::D0) {
       tau = 410.1 * (1e-15);
-      if (secondaries == kminus_eplus_nue) {branching_ratio = .0649;} // e+ semileptonic mode according to pdg
-      else if (secondaries == kminus_muplus_numu) {branching_ratio = .067;} // mu+ anything according to pdg (K + K* combined)
-      else if (secondaries == hadrons) {branching_ratio = (1 - .0649 - .067);} // everything else
+      // MODIFIED 2025-04-09: Force all decays to muonic semileptonic channel
+      // to maximize dimuon statistics. Must multiply event weights by physical BR
+      // in post-processing (D0 -> mu: 0.067, D0 -> e: 0.0649, D0 -> hadrons: 0.8681).
+      // To restore physical BRs, uncomment the original lines below:
+      // if (secondaries == kminus_eplus_nue) {branching_ratio = .0649;}
+      // else if (secondaries == kminus_muplus_numu) {branching_ratio = .067;}
+      // else if (secondaries == hadrons) {branching_ratio = (1 - .0649 - .067);}
+      if (secondaries == kminus_eplus_nue) {branching_ratio = 0.0;}
+      else if (secondaries == kminus_muplus_numu) {branching_ratio = 1.0;}
+      else if (secondaries == hadrons) {branching_ratio = 0.0;}
+    } else if (primary == siren::dataclasses::Particle::ParticleType::D0Bar) {
+      // CP-mirror of D0.
+      tau = 410.1 * (1e-15);
+      if (secondaries == kplus_eminus_nuebar) {branching_ratio = 0.0;}
+      else if (secondaries == kplus_muminus_numubar) {branching_ratio = 1.0;}
+      else if (secondaries == hadrons) {branching_ratio = 0.0;}
+    } else if (primary == siren::dataclasses::Particle::ParticleType::DsPlus) {
+      tau = 504 * (1e-15);  // Ds+ lifetime: 504 fs (PDG)
+      // Force BR=1.0 for the muonic semileptonic channel (Ds -> Hadrons mu nu),
+      // matching the D+/D0 convention. Multiply by physical inclusive BR
+      // (Ds -> mu X ~ 0.0654, no tau feed-down) in post-processing.
+      // Daughter "Hadrons" stands in for eta / eta' / phi (sampled in
+      // SampleFinalState with fractions 0.46 / 0.16 / 0.38).
+      if (secondaries == hadrons_muplus_numu) {branching_ratio = 1.0;}
+      else if (secondaries == hadrons) {branching_ratio = 0.0;}
+    } else if (primary == siren::dataclasses::Particle::ParticleType::DsMinus) {
+      // CP-mirror of Ds+ (eta/eta'/phi are self-conjugate, only lepton/nu flip).
+      tau = 504 * (1e-15);
+      if (secondaries == hadrons_muminus_numubar) {branching_ratio = 1.0;}
+      else if (secondaries == hadrons) {branching_ratio = 0.0;}
     }
     else {
         std::cout << "this decay mode is not yet implemented!" << std::endl;
@@ -210,15 +282,59 @@ std::vector<dataclasses::InteractionSignature> CharmMesonDecay::GetPossibleSigna
       // all other modes implemented as one big bang
       hadron_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
       signatures.push_back(hadron_signature);
+    } else if (primary==siren::dataclasses::Particle::ParticleType::DMinus) {
+      // CP-mirror of D+: K0 (s̄d → contains s̄), e⁻/μ⁻, ν̄_e/ν̄_μ.
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::K0;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::EMinus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuEBar;
+      signatures.push_back(semilep_signature);
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::K0;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::MuMinus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuMuBar;
+      signatures.push_back(semilep_signature);
+      hadron_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
+      signatures.push_back(hadron_signature);
     } else if (primary==siren::dataclasses::Particle::ParticleType::D0) {
       semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::KMinus;
       semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::EPlus;
       semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuE;
-      
+
       signatures.push_back(semilep_signature);
       semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::KMinus;
       semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::MuPlus;
       semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuMu;
+      signatures.push_back(semilep_signature);
+      hadron_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
+      signatures.push_back(hadron_signature);
+    } else if (primary==siren::dataclasses::Particle::ParticleType::D0Bar) {
+      // CP-mirror of D0: K+ (us̄), e⁻/μ⁻, ν̄_e/ν̄_μ.
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::KPlus;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::EMinus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuEBar;
+      signatures.push_back(semilep_signature);
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::KPlus;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::MuMinus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuMuBar;
+      signatures.push_back(semilep_signature);
+      hadron_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
+      signatures.push_back(hadron_signature);
+    } else if (primary==siren::dataclasses::Particle::ParticleType::DsPlus) {
+      // Ds: only the muonic semileptonic channel (Ds -> Hadrons mu nu) plus
+      // the all-hadronic catch-all. No e+ ve channel — would just sit at BR=0
+      // anyway under the current "force-muonic" convention.
+      // The Hadrons daughter stands in for eta / eta' / phi (sampled inline
+      // in SampleFinalState; SIREN ParticleType has no entries for these).
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::MuPlus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuMu;
+      signatures.push_back(semilep_signature);
+      hadron_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
+      signatures.push_back(hadron_signature);
+    } else if (primary==siren::dataclasses::Particle::ParticleType::DsMinus) {
+      // CP-mirror of Ds+: eta/eta'/phi are self-conjugate, only lepton/nu flip.
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::MuMinus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuMuBar;
       signatures.push_back(semilep_signature);
       hadron_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
       signatures.push_back(hadron_signature);
@@ -234,11 +350,14 @@ std::vector<double> CharmMesonDecay::FormFactorFromRecord(dataclasses::CrossSect
   std::vector<double> constants;
   constants.resize(3);
   // check the primary and secondaries of the signature
-  if (signature.primary_type == dataclasses::Particle::ParticleType::DPlus && signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::K0Bar) {
+  // Form-factor constants are CP-symmetric — anti-flavor cases mirror the c cases.
+  if ((signature.primary_type == dataclasses::Particle::ParticleType::DPlus && signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::K0Bar) ||
+      (signature.primary_type == dataclasses::Particle::ParticleType::DMinus && signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::K0)) {
     constants[0] = 0.725; // this is f^+(0)|V_cs| for charged D
     constants[1] = 0.44; // this is alpha, same for all K final states
     constants[2] = 2.01027; // this is excited charged D meson
-  } else if (signature.primary_type == dataclasses::Particle::ParticleType::D0 && signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::KMinus) {
+  } else if ((signature.primary_type == dataclasses::Particle::ParticleType::D0 && signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::KMinus) ||
+             (signature.primary_type == dataclasses::Particle::ParticleType::D0Bar && signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::KPlus)) {
     constants[0] = 0.719; // this is f^+(0)|V_cs| for neutral D
     constants[1] = 0.50; // this is alpha, same for all K final states
     constants[2] = 2.00697; // this is excited neutral D meson
@@ -247,9 +366,20 @@ std::vector<double> CharmMesonDecay::FormFactorFromRecord(dataclasses::CrossSect
 }
 
 double CharmMesonDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & record) const {
-    // first let the fully hadronic state be handled separately
+    // first let the fully hadronic state be handled separately. Use size==1 so
+    // we don't mis-route the Ds semileptonic mode (Hadrons + mu + nu, size 3).
     dataclasses::InteractionSignature signature = record.signature;
-    if (signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
+    if (signature.secondary_types.size() == 1 &&
+        signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
+      return TotalDecayWidthForFinalState(record);
+    }
+    // Ds semileptonic uses pure phase space (no form factor); FinalStateProbability
+    // for Ds is dd/td which is handled by the matrix-element-free flat sampling.
+    // Returning the total width here makes FinalStateProbability = 1, which is the
+    // right thing when the kinematic distribution is sampled directly from phase
+    // space (no reweighting needed).
+    if (signature.primary_type == siren::dataclasses::Particle::ParticleType::DsPlus ||
+        signature.primary_type == siren::dataclasses::Particle::ParticleType::DsMinus) {
       return TotalDecayWidthForFinalState(record);
     }
     // get the form factor constants
@@ -357,9 +487,11 @@ void CharmMesonDecay::SampleFinalStateHadronic(dataclasses::CrossSectionDistribu
 }
 
 void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & record, std::shared_ptr<siren::utilities::SIREN_random> random) const {
-    // first handle hadronic decay separately
+    // first handle hadronic decay separately. Use size==1 so we don't
+    // mis-route the Ds semileptonic mode (Hadrons + mu + nu, size 3).
     dataclasses::InteractionSignature signature = record.signature;
-    if (signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
+    if (signature.secondary_types.size() == 1 &&
+        signature.secondary_types[0] == siren::dataclasses::Particle::ParticleType::Hadrons) {
       SampleFinalStateHadronic(record, random);
       return;
     }
@@ -368,32 +500,56 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     // 3-body phase space sampling following Pythia's approach
     // (ParticleDecays::threeBody in ParticleDecays.cc)
     //
-    // D (m0) -> K (m1) + lepton (m2) + neutrino (m3)
+    // D (m0) -> hadron (m1) + lepton (m2) + neutrino (m3)
     //
     // Phase space: sample m23 (lepton-neutrino invariant mass = sqrt(q^2))
     // flat in allowed range, accept-reject on phase space weight.
-    // Then apply V-A matrix element correction.
+    // For D+/D0: apply V-A matrix element correction (K vs K* with fixed ratio).
+    // For Ds:    pure 3-body phase space, no V-A correction. Daughter is
+    //            sampled inline as eta / eta' / phi with fractions 0.46 / 0.16
+    //            / 0.38 (from Ds->eta/eta'/phi mu nu BRs of 2.3/0.8/1.9 %).
     // =========================================================================
 
-    double mD = particleMass(record.signature.primary_type);     // m0
-    double mK_base = particleMass(record.signature.secondary_types[0]); // m1 (K mass from signature)
-    double ml = particleMass(record.signature.secondary_types[1]); // m2
-    double mnu = 0.0;                                              // m3
+    siren::dataclasses::Particle::ParticleType primary = record.signature.primary_type;
+    bool is_Ds = (primary == siren::dataclasses::Particle::ParticleType::DsPlus ||
+                  primary == siren::dataclasses::Particle::ParticleType::DsMinus);
 
-    // Randomly choose between D->K l nu and D->K* l nu channels
-    // based on their relative branching ratios within the muonic mode.
-    // Pythia uses the same V-A matrix element (meMode=22) for both;
-    // only the hadron mass differs: K(494 MeV) vs K*(892 MeV).
-    double mKstar = 0.89166;  // K*(892) mass in GeV
-    double fracK;  // fraction of events that are D->K (vs D->K*)
-    if (record.signature.primary_type == siren::dataclasses::Particle::ParticleType::DPlus) {
-        // D+ -> K0bar mu+ nu: BR=8.74%, D+ -> K*0bar mu+ nu: BR=5.33%
-        fracK = 8.74 / (8.74 + 5.33);  // ~0.621
+    double mD = particleMass(primary);                              // m0
+    double ml = particleMass(record.signature.secondary_types[1]);  // m2
+    double mnu = 0.0;                                               // m3
+
+    double mK;  // m1: hadron daughter mass (chosen per-decay)
+    if (is_Ds) {
+        // Ds -> eta mu nu (BR 2.3%), Ds -> eta' mu nu (0.8%), Ds -> phi mu nu (1.9%)
+        // Cumulative: eta=0.46, eta+eta'=0.62, all=1.0
+        double mEta      = siren::utilities::Constants::EtaMass;      // 0.547862 GeV
+        double mEtaPrime = siren::utilities::Constants::EtaPrimeMass; // 0.95778  GeV
+        double mPhi      = 1.01946;  // GeV (PDG); not in Constants.h
+        double r = random->Uniform(0, 1);
+        if (r < 2.3 / 5.0) {
+            mK = mEta;
+        } else if (r < 3.1 / 5.0) {
+            mK = mEtaPrime;
+        } else {
+            mK = mPhi;
+        }
     } else {
-        // D0 -> K- mu+ nu: BR=3.41%, D0 -> K*- mu+ nu: BR=2.17%
-        fracK = 3.41 / (3.41 + 2.17);  // ~0.611
+        // D+/D0: K vs K*(892) with V-A weighting
+        double mK_base = particleMass(record.signature.secondary_types[0]);
+        double mKstar = 0.89166;  // K*(892) mass in GeV
+        double fracK;
+        if (primary == siren::dataclasses::Particle::ParticleType::DPlus ||
+            primary == siren::dataclasses::Particle::ParticleType::DMinus) {
+            // D+ -> K0bar mu+ nu: BR=8.74%, D+ -> K*0bar mu+ nu: BR=5.33%
+            // (D- BRs identical by CP.)
+            fracK = 8.74 / (8.74 + 5.33);  // ~0.621
+        } else {
+            // D0 -> K- mu+ nu: BR=3.41%, D0 -> K*- mu+ nu: BR=2.17%
+            // (D0bar BRs identical by CP.)
+            fracK = 3.41 / (3.41 + 2.17);  // ~0.611
+        }
+        mK = (random->Uniform(0, 1) < fracK) ? mK_base : mKstar;
     }
-    double mK = (random->Uniform(0, 1) < fracK) ? mK_base : mKstar;
 
     // D meson 4-momentum in lab frame
     rk::P4 p4D_lab(geom3::Vector3(record.primary_momentum[1],
@@ -416,9 +572,14 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
                               * (m23Max + ml - mnu) * (m23Max - ml + mnu)) / m23Max;
     double wtPSmax = 0.5 * p1Max * p23Max;
 
-    // V-A matrix element upper bound (from Pythia, meMode == 22)
-    double wtMEmax = std::min(std::pow(mD, 4) / 16.0,
-                              mD * (mD - mK - ml) * (mD - mK - mnu) * (mD - ml - mnu));
+    // V-A matrix element upper bound (from Pythia, meMode == 22).
+    // For Ds we skip V-A weighting and use pure 3-body phase space — set
+    // wtMEmax = 1.0 and wtME = 1.0 inside the loop so the rejection test
+    // (wtME < rand * wtMEmax) is always false and we exit after one iteration.
+    double wtMEmax = is_Ds
+        ? 1.0
+        : std::min(std::pow(mD, 4) / 16.0,
+                   mD * (mD - mK - ml) * (mD - mK - mnu) * (mD - ml - mnu));
     double wtME;
 
     rk::P4 p4K_Drest, p4l_Drest, p4nu_Drest;
@@ -470,10 +631,15 @@ void CharmMesonDecay::SampleFinalState(dataclasses::CrossSectionDistributionReco
     p4l_Drest = p4l_m23rest.boost(boost_m23_to_Drest);
     p4nu_Drest = p4nu_m23rest.boost(boost_m23_to_Drest);
 
-    // --- Step 5: V-A matrix element weight ---
+    // --- Step 5: V-A matrix element weight (skipped for Ds — pure phase space) ---
     // wtME = m_D * E_lepton * (p_neutrino . p_kaon) in D rest frame
     // This is Lorentz invariant up to the m_D * E_l factor which equals p_D . p_l
-    wtME = mD * p4l_Drest.e() * p4nu_Drest.dot(p4K_Drest);
+    if (!is_Ds) {
+        wtME = mD * p4l_Drest.e() * p4nu_Drest.dot(p4K_Drest);
+    }
+    // For Ds: wtME stays at 1.0 (set at the top of the do-loop). Combined with
+    // wtMEmax = 1.0, the test (wtME < rand[0,1) * wtMEmax) is always false,
+    // so we exit after one iteration with no V-A reweighting.
 
     } while (wtME < random->Uniform(0, 1) * wtMEmax);
 
