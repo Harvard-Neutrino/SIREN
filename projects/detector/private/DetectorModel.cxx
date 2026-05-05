@@ -227,10 +227,16 @@ void DetectorModel::AddSector(DetectorSector sector) {
     if(sector_map_.count(sector.level) > 0) {
         throw(std::runtime_error("Already have a sector of that heirarchy!"));
     }
-    else {
-        sector_map_[sector.level] = sectors_.size();
-        sectors_.push_back(sector);
+    // Enforce unique non-empty sector names for name-based lookup
+    if(!sector.name.empty()) {
+        for(auto const & s : sectors_) {
+            if(s.name == sector.name) {
+                throw std::runtime_error("Already have a sector named: " + sector.name);
+            }
+        }
     }
+    sector_map_[sector.level] = sectors_.size();
+    sectors_.push_back(sector);
 }
 
 DetectorSector DetectorModel::GetSector(int heirarchy) const {

@@ -1440,6 +1440,47 @@ TEST(GetSectorByName, MultipleSectors) {
     EXPECT_EQ(A.GetSector("Beta").level, 2);
 }
 
+TEST(GetSectorByName, DuplicateNameThrows) {
+    DetectorModel A;
+
+    DetectorSector s1;
+    s1.name = "MyDetector";
+    s1.material_id = 1;
+    s1.level = 1;
+    s1.geo = Sphere(Vector3D(0,0,0), 50.0, 0).create();
+    s1.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    A.AddSector(s1);
+
+    DetectorSector s2;
+    s2.name = "MyDetector";  // same name
+    s2.material_id = 2;
+    s2.level = 2;
+    s2.geo = Sphere(Vector3D(0,0,0), 100.0, 0).create();
+    s2.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    EXPECT_THROW(A.AddSector(s2), std::runtime_error);
+}
+
+TEST(GetSectorByName, EmptyNameAllowsDuplicates) {
+    // Empty-named sectors (like the default vacuum) should not trigger the check
+    DetectorModel A;
+
+    DetectorSector s1;
+    s1.name = "";
+    s1.material_id = 1;
+    s1.level = 1;
+    s1.geo = Sphere(Vector3D(0,0,0), 50.0, 0).create();
+    s1.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    EXPECT_NO_THROW(A.AddSector(s1));
+
+    DetectorSector s2;
+    s2.name = "";
+    s2.material_id = 2;
+    s2.level = 2;
+    s2.geo = Sphere(Vector3D(0,0,0), 100.0, 0).create();
+    s2.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    EXPECT_NO_THROW(A.AddSector(s2));
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
