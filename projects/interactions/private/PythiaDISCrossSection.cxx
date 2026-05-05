@@ -359,7 +359,7 @@ double PythiaDISCrossSection::FragmentationFraction(siren::dataclasses::Particle
     } else if (secondary == siren::dataclasses::ParticleType::DPlus || secondary == siren::dataclasses::ParticleType::DMinus) {
         return 0.23;
     } else if (secondary == siren::dataclasses::ParticleType::DsPlus || secondary == siren::dataclasses::ParticleType::DsMinus) {
-        return 0.08;
+        return 0.15;
     }
     // TODO: Add Lambda_c (~0.09) when signatures include them
     return 0;
