@@ -178,9 +178,9 @@ DetectorModel::DetectorModel(std::string const & path, std::string const & detec
 
 bool DetectorModel::operator==(DetectorModel const & o) const {
     return
-        std::tie(materials_, sectors_, sector_map_, detector_origin_)
+        std::tie(materials_, sectors_, sector_map_, sector_name_map_, detector_origin_)
         ==
-        std::tie(o.materials_, o.sectors_, o.sector_map_, o.detector_origin_);
+        std::tie(o.materials_, o.sectors_, o.sector_map_, o.sector_name_map_, o.detector_origin_);
 }
 
 std::string DetectorModel::GetPath() const {
@@ -205,6 +205,19 @@ std::vector<DetectorSector> const & DetectorModel::GetSectors() const {
 
 void DetectorModel::SetSectors(std::vector<DetectorSector> const & sectors) {
     sectors_ = sectors;
+    sector_map_.clear();
+    sector_name_map_.clear();
+    for(unsigned int i=0; i<sectors.size(); ++i) {
+        if(sector_map_.count(sectors[i].level) > 0) {
+            throw(std::runtime_error("Already have a sector of that heirarchy!"));
+        }
+        // Enforce unique sector names for name-based lookup
+        if(sector_name_map_.count(sectors[i].name) > 0) {
+            throw(std::runtime_error("Already have a sector named: " + sectors[i].name));
+        }
+        sector_name_map_[sectors[i].name] = i;
+        sector_map_[sectors[i].level] = i;
+    }
 }
 
 GeometryPosition DetectorModel::GetDetectorOrigin() const {
@@ -227,14 +240,11 @@ void DetectorModel::AddSector(DetectorSector sector) {
     if(sector_map_.count(sector.level) > 0) {
         throw(std::runtime_error("Already have a sector of that heirarchy!"));
     }
-    // Enforce unique non-empty sector names for name-based lookup
-    if(!sector.name.empty()) {
-        for(auto const & s : sectors_) {
-            if(s.name == sector.name) {
-                throw std::runtime_error("Already have a sector named: " + sector.name);
-            }
-        }
+    // Enforce unique sector names for name-based lookup
+    if(sector_name_map_.count(sector.name) > 0) {
+        throw(std::runtime_error("Already have a sector named: " + sector.name));
     }
+    sector_name_map_[sector.name] = sectors_.size();
     sector_map_[sector.level] = sectors_.size();
     sectors_.push_back(sector);
 }
@@ -250,15 +260,19 @@ DetectorSector DetectorModel::GetSector(int heirarchy) const {
 }
 
 DetectorSector DetectorModel::GetSector(std::string const & name) const {
-    for (auto const & sector : sectors_) {
-        if (sector.name == name) return sector;
+    auto const iter = sector_name_map_.find(name);
+    if(iter == sector_name_map_.end()) {
+        throw(std::runtime_error("Sector not found: " + name));
     }
-    throw std::runtime_error("Sector not found: " + name);
+    unsigned int index = iter->second;
+    assert(index < sectors_.size());
+    return sectors_[index];
 }
 
 void DetectorModel::ClearSectors() {
     sectors_.clear();
     sector_map_.clear();
+    sector_name_map_.clear();
 }
 
 namespace {
@@ -584,6 +598,7 @@ void DetectorModel::LoadDefaultMaterials() {
 
 void DetectorModel::LoadDefaultSectors() {
     DetectorSector sector;
+    sector.name = "UNIVERSE";
     sector.material_id = materials_.GetMaterialId("VACUUM");
     sector.level = std::numeric_limits<int>::min();
     sector.geo = Sphere(std::numeric_limits<double>::infinity(), 0).create();
