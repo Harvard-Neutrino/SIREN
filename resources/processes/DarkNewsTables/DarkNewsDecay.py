@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import pickle
+import json
+import tempfile
 
 from siren import _util
 
@@ -14,7 +16,6 @@ from siren import dataclasses
 from siren.dataclasses import Particle
 
 # DarkNews methods
-import DarkNews
 from DarkNews.processes import FermionDileptonDecay, FermionSinglePhotonDecay
 from DarkNews import processes as proc
 from DarkNews import Cfourvec as Cfv
@@ -315,9 +316,24 @@ class PyDarkNewsDecay(DarkNewsDecay):
                 # total width calculation requires evaluating an integral
                 if self.decay_integrator is None or self.decay_norm is None:
                     # We need to initialize a new VEGAS integrator in DarkNews
-                    self.total_width, dec_norm, dec_integrator = self.dec_case.total_width(
-                        return_norm=True, return_dec=True
+                    norm_file = tempfile.NamedTemporaryFile(delete=False)
+                    integrator_file = tempfile.NamedTemporaryFile(delete=False)
+                    norm_name = norm_file.name
+                    integrator_name = integrator_file.name
+                    norm_file.close()
+                    integrator_file.close()
+                    self.total_width = self.dec_case.total_width(
+                        savefile_norm=norm_name, savefile_dec=integrator_name
                     )
+                    # Get normalization and integrator objects from files and then delete them
+                    try:
+                        with open(norm_name, "r") as f:
+                            dec_norm = json.load(f)
+                        with open(integrator_name, "rb") as f:
+                            _, dec_integrator = pickle.load(f)
+                    finally:
+                        os.remove(norm_name)
+                        os.remove(integrator_name)
                     self.SetIntegratorAndNorm(dec_norm, dec_integrator)
                 else:
                     self.total_width = (
@@ -370,18 +386,6 @@ class PyDarkNewsDecay(DarkNewsDecay):
         if self.PS_weights_CDF is None:
             self.PS_weights_CDF = np.cumsum(self.PS_weights)
 
-        # Random number to determine
-        x = random.Uniform(0, self.PS_weights_CDF[-1])
-
-        # find first instance of a CDF entry greater than x
-        PSidx = np.argmax(x - self.PS_weights_CDF <= 0)
-        return self.PS_samples[:, PSidx]
-
-    def GetPSSample(self, random):
-        # Make the PS weight CDF if that hasn't been done
-        if self.PS_weights_CDF is None:
-            self.PS_weights_CDF = np.cumsum(self.PS_weights)
-
         # Check that the CDF makes sense
         total_weight = self.PS_weights_CDF[-1]
         if total_weight == 0:
@@ -400,9 +404,24 @@ class PyDarkNewsDecay(DarkNewsDecay):
             # We need to generate new PS samples
             if self.decay_integrator is None or self.decay_norm is None:
                 # We need to initialize a new VEGAS integrator in DarkNews
-                (self.PS_samples, PS_weights_dict), dec_norm, dec_integrator = self.dec_case.SamplePS(
-                    return_norm=True, return_dec=True
+                norm_file = tempfile.NamedTemporaryFile(delete=False)
+                integrator_file = tempfile.NamedTemporaryFile(delete=False)
+                norm_name = norm_file.name
+                integrator_name = integrator_file.name
+                norm_file.close()
+                integrator_file.close()
+                self.PS_samples, PS_weights_dict = self.dec_case.SamplePS(
+                    savefile_norm=norm_name, savefile_dec=integrator_name
                 )
+                # Get normalization and integrator objects from files and then delete them
+                try:
+                    with open(norm_name, "r") as f:
+                        dec_norm = json.load(f)
+                    with open(integrator_name, "rb") as f:
+                        _, dec_integrator = pickle.load(f)
+                finally:
+                    os.remove(norm_name)
+                    os.remove(integrator_name)
                 self.PS_weights = PS_weights_dict["diff_decay_rate_0"]
                 self.SetIntegratorAndNorm(dec_norm, dec_integrator)
             else:
