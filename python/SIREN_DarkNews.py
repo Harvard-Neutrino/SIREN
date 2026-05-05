@@ -69,7 +69,6 @@ class PyDarkNewsInteractionCollection:
         else:
             try:
                 os.makedirs(self.table_dir, exist_ok=False)
-                #print("Directory '%s' created successfully" % self.table_dir)
             except OSError as error:
                 print("Directory '%s' cannot be created" % self.table_dir)
                 exit(0)
