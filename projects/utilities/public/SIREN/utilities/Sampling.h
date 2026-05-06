@@ -3,6 +3,7 @@
 #define SIREN_Sampling_H
 
 #include <cmath>
+#include <memory>
 #include <vector>
 #include <cassert>
 
@@ -12,11 +13,12 @@ namespace siren {
 namespace utilities {
 
 /**
-* @brief Performs a Metropolic Hasting sampling of a differential distribution
+* @brief Performs a Metropolis-Hastings sampling of a differential distribution
 *
-*
-* @param func the function to integrate
-* @param tol the (absolute) tolerance on the error of the integral
+* @param func_proposal callable returning a proposed sample (vector<double>)
+* @param func_likelihood callable returning the likelihood of a sample
+* @param random random number generator
+* @param burnin number of burn-in iterations before returning a sample
 */
 template<typename FuncTypeProposal, typename FuncTypeLikelihood>
 std::vector<double> MetropolisHasting_Sample(const FuncTypeProposal& func_proposal, const FuncTypeLikelihood& func_likelihood, std::shared_ptr<siren::utilities::SIREN_random> random, const size_t burnin = 40) {
@@ -33,8 +35,11 @@ std::vector<double> MetropolisHasting_Sample(const FuncTypeProposal& func_propos
     for (size_t j = 0; j <= burnin; j++) {
         test_vars = func_proposal();
         test_llh = func_likelihood(test_vars);
-        double odds = test_llh / llh;
-        accept = (llh==0 || odds>1. || random->Uniform(0,1) < odds);
+        if (llh <= 0) {
+            accept = true;
+        } else {
+            accept = (test_llh >= llh) || (random->Uniform(0,1) < test_llh / llh);
+        }
         if(accept) {
             vars = test_vars;
             llh = test_llh;

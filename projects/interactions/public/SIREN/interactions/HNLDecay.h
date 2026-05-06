@@ -54,7 +54,6 @@ private:
                                                                         siren::dataclasses::ParticleType::KMinus,
                                                                         siren::dataclasses::ParticleType::RhoMinus,
                                                                         siren::dataclasses::ParticleType::KPrimeMinus,
-                                                                        siren::dataclasses::ParticleType::Hadrons,
                                                                         siren::dataclasses::ParticleType::DMinus,
                                                                         siren::dataclasses::ParticleType::DsMinus};
     std::vector<siren::dataclasses::ParticleType> PlusChargedMesons = {siren::dataclasses::ParticleType::PiPlus,

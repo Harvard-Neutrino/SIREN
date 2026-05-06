@@ -930,7 +930,7 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
       double alpha = GetAlpha(record.signature.secondary_types[X_index]);
       alpha = std::copysign(alpha,record.primary_helicity); // 1 for RH, -1 for LH
       alpha = (record.signature.primary_type == siren::dataclasses::ParticleType::N4) ? -1*alpha : alpha;
-      if(nature==ChiralNature::Majorana) {
+      if(nature==ChiralNature::Majorana || std::abs(alpha) < 1e-12) {
         CosTheta = random->Uniform(-1,1);
       }
       else {

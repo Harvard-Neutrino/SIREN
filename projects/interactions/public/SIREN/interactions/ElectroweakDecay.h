@@ -99,6 +99,7 @@ public:
     void load_and_construct(Archive & archive, cereal::construct<ElectroweakDecay> & construct, std::uint32_t version) {
         if(version == 0) {
             std::set<siren::dataclasses::ParticleType> _primary_types;
+            archive(::cereal::make_nvp("PrimaryTypes", _primary_types));
             construct(_primary_types);
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));
         } else {
