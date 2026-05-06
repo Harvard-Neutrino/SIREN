@@ -1039,9 +1039,11 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
         siren::dataclasses::SecondaryParticleRecord & lep_beta = record.GetSecondaryParticleRecord(2);
 
 
-        // Make proposal function
+        // Make proposal function. The proposal is uniform on the
+        // kinematically-allowed phase space, so the density is a constant
+        // (1.0 here -- only ratios matter in the MH acceptance).
         auto proposal_func = [&] () {
-          return ThreeBodyPhaseSpaceProposalDistribution(m_alpha,m_beta,random);
+          return std::make_pair(ThreeBodyPhaseSpaceProposalDistribution(m_alpha,m_beta,random), 1.0);
         };
 
         // Make likelihood funciton
