@@ -162,6 +162,105 @@ TEST(ElectroweakDecay, ZDecayWidthPositive) {
 }
 
 // ---------------------------------------------------------------------------
+// SampleFinalState and momentum conservation
+// ---------------------------------------------------------------------------
+
+TEST(HNLDecay, SampleTwoBodyConservesMomentum) {
+    // N4 (0.5 GeV) -> nu + pi0 (2-body decay)
+    double hnl_mass = 0.5;
+    HNLDecay decay(hnl_mass, std::vector<double>{0, 0, 1e-3}, HNLDecay::ChiralNature::Dirac);
+
+    InteractionRecord event;
+    event.signature.primary_type = ParticleType::N4;
+    event.signature.target_type = ParticleType::Decay;
+    event.signature.secondary_types = {ParticleType::NuTau, ParticleType::Pi0};
+    event.primary_mass = hnl_mass;
+    double energy = 5.0;
+    event.primary_momentum = {energy, 0, 0, std::sqrt(energy*energy - hnl_mass*hnl_mass)};
+    event.primary_helicity = 1.0;
+
+    auto rand = std::make_shared<SIREN_random>();
+    for (int i = 0; i < 100; ++i) {
+        CrossSectionDistributionRecord xsec_record(event);
+        decay.SampleFinalState(xsec_record, rand);
+        xsec_record.Finalize(event);
+
+        // Sum secondary momenta
+        double psum[4] = {0, 0, 0, 0};
+        for (size_t s = 0; s < event.secondary_momenta.size(); ++s) {
+            for (int j = 0; j < 4; ++j)
+                psum[j] += event.secondary_momenta[s][j];
+        }
+        for (int j = 0; j < 4; ++j) {
+            EXPECT_NEAR(psum[j], event.primary_momentum[j],
+                        1e-6 * std::max(1.0, std::abs(event.primary_momentum[j])))
+                << "4-momentum not conserved in component " << j;
+        }
+    }
+}
+
+TEST(HNLDecay, SampleThreeBodyConservesMomentum) {
+    // N4 (0.5 GeV) -> nu + e- + e+ (3-body leptonic)
+    double hnl_mass = 0.5;
+    HNLDecay decay(hnl_mass, std::vector<double>{0, 0, 1e-3}, HNLDecay::ChiralNature::Dirac);
+
+    InteractionRecord event;
+    event.signature.primary_type = ParticleType::N4;
+    event.signature.target_type = ParticleType::Decay;
+    event.signature.secondary_types = {ParticleType::NuLight, ParticleType::EMinus, ParticleType::EPlus};
+    event.primary_mass = hnl_mass;
+    double energy = 5.0;
+    event.primary_momentum = {energy, 0, 0, std::sqrt(energy*energy - hnl_mass*hnl_mass)};
+    event.primary_helicity = 1.0;
+
+    auto rand = std::make_shared<SIREN_random>();
+    for (int i = 0; i < 50; ++i) {
+        CrossSectionDistributionRecord xsec_record(event);
+        decay.SampleFinalState(xsec_record, rand);
+        xsec_record.Finalize(event);
+
+        double psum[4] = {0, 0, 0, 0};
+        for (size_t s = 0; s < event.secondary_momenta.size(); ++s) {
+            for (int j = 0; j < 4; ++j)
+                psum[j] += event.secondary_momenta[s][j];
+        }
+        for (int j = 0; j < 4; ++j) {
+            EXPECT_NEAR(psum[j], event.primary_momentum[j],
+                        1e-6 * std::max(1.0, std::abs(event.primary_momentum[j])))
+                << "4-momentum not conserved in component " << j;
+        }
+    }
+}
+
+TEST(HNLDecay, SampleDifferentialWidthPositive) {
+    // DifferentialDecayWidth should be > 0 for a valid 2-body signature
+    double hnl_mass = 0.5;
+    HNLDecay decay(hnl_mass, std::vector<double>{0, 0, 1e-3}, HNLDecay::ChiralNature::Dirac);
+
+    InteractionRecord event;
+    event.signature.primary_type = ParticleType::N4;
+    event.signature.target_type = ParticleType::Decay;
+    event.signature.secondary_types = {ParticleType::NuTau, ParticleType::Pi0};
+    event.primary_mass = hnl_mass;
+    double energy = 5.0;
+    event.primary_momentum = {energy, 0, 0, std::sqrt(energy*energy - hnl_mass*hnl_mass)};
+    event.primary_helicity = 1.0;
+
+    // Need to populate secondary momenta for DifferentialDecayWidth
+    auto rand = std::make_shared<SIREN_random>();
+    CrossSectionDistributionRecord xsec_record(event);
+    decay.SampleFinalState(xsec_record, rand);
+    xsec_record.Finalize(event);
+
+    double dw = decay.DifferentialDecayWidth(event);
+    EXPECT_GT(dw, 0.0);
+
+    double fp = decay.FinalStateProbability(event);
+    EXPECT_GT(fp, 0.0);
+    EXPECT_LE(fp, 1.0);
+}
+
+// ---------------------------------------------------------------------------
 // Sampling utility
 // ---------------------------------------------------------------------------
 
