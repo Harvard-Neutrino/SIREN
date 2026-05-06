@@ -1,6 +1,7 @@
 #include "SIREN/interactions/HNLDecay.h"
 
 #include <cmath>
+#include <stdexcept>
 
 #include <gsl/gsl_integration.h>
 
@@ -58,7 +59,8 @@ double I1(double x, double y, double z) {
   double result,error;
   gsl_integration_qags (&F, pow(sqrt(x)+sqrt(y),2), pow(1-sqrt(z),2), 0, 1e-5, 1000,
                         workspace, &result, &error);
-  assert(error/result < 1e-3);
+  if(result != 0 && std::abs(error/result) > 1e-3)
+    throw std::runtime_error("GSL integration failed to converge");
   gsl_integration_workspace_free (workspace);
   return result;
 }
@@ -73,7 +75,8 @@ double I2(double x, double y, double z) {
   double result,error;
   gsl_integration_qags (&F, pow(sqrt(y)+sqrt(z),2), pow(1-sqrt(x),2), 0, 1e-5, 1000,
                         workspace, &result, &error);
-  assert(error/result < 1e-3);
+  if(result != 0 && std::abs(error/result) > 1e-3)
+    throw std::runtime_error("GSL integration failed to converge");
   gsl_integration_workspace_free (workspace);
   return result;
 }
@@ -112,7 +115,8 @@ double I(double xu, double xd, double xl) {
   double result,error;
   gsl_integration_qags (&F, pow(xd+xl,2), pow(1-xu,2), 0, 1e-5, 1000,
                         workspace, &result, &error);
-  assert(error/result < 1e-3);
+  if(result != 0 && std::abs(error/result) > 1e-3)
+    throw std::runtime_error("GSL integration failed to converge");
   gsl_integration_workspace_free (workspace);
   return result;
 }
@@ -509,8 +513,7 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
     }
     // Signature not recognized
     else {
-      std::cout << "HNL decay signature not recongized! Exiting\n";
-      exit(0);
+      throw std::runtime_error("HNL decay signature not recongized!");
     }
 
     if (meson) {
@@ -536,8 +539,7 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
         width = constant * pow(hnl_mass,3) / pow(m_meson,2) * pow(mixing_element,2) * pow(Vqq,2) * sqrt(lambda(1,pow(x_meson,2),pow(x_alpha,2))) * ((1 - pow(x_meson,2))*(1+2*pow(x_meson,2)) + pow(x_alpha,2)*(pow(x_meson,2) + pow(x_alpha,2) - 2));
       }
       else {
-        std::cout << "Could not find total decay width" << std::endl;
-        exit(0);
+        throw std::runtime_error("Could not find total decay width");
       }
     }
   }
@@ -563,14 +565,14 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
         {m_alpha = siren::utilities::Constants::muonMass; alpha = 1;}
       else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::TauMinus)
         {m_alpha = siren::utilities::Constants::tauMass; alpha = 2;}
-      else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
+      else {throw std::runtime_error("Invalid HNL 3-body signature");}
       if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::EPlus)
         {m_beta = siren::utilities::Constants::electronMass; beta = 0;}
       else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::MuPlus)
         {m_beta = siren::utilities::Constants::muonMass; beta = 1;}
       else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::TauPlus)
         {m_beta = siren::utilities::Constants::tauMass; beta = 2;}
-      else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
+      else {throw std::runtime_error("Invalid HNL 3-body signature");}
       double x_alpha = m_alpha/hnl_mass;
       double x_beta = m_beta/hnl_mass;
       // N -> nu l- l+ (l same flavor)
@@ -609,8 +611,7 @@ double HNLDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRecord con
     }
   }
   else {
-    std::cout << "4+ body HNL decays not supported by this class\n";
-    exit(0);
+    throw std::runtime_error("HNL decays with more than 3 particles in the final state are not supported by this class");
   }
 
   if(nature==ChiralNature::Majorana) return std::max(0.,2*width);
@@ -816,9 +817,9 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
     {
       // Check for isotropic decay
       if (nature==ChiralNature::Majorana) return DecayWidth/2.; // This factor of 2 is for the cosTheta phase space, not the majorana nature :-)
-      siren::math::Vector3D hnl_dir = siren::math::Vector3D(record.primary_momentum[0],
-                                                            record.primary_momentum[1],
-                                                            record.primary_momentum[2]);
+      siren::math::Vector3D hnl_dir = siren::math::Vector3D(record.primary_momentum[1],
+                                                            record.primary_momentum[2],
+                                                            record.primary_momentum[3]);
       hnl_dir.normalize();
       unsigned int lep_index = (record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuE ||
                                 record.signature.secondary_types[0] == siren::dataclasses::ParticleType::NuMu ||
@@ -875,14 +876,14 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
           {m_alpha = siren::utilities::Constants::muonMass; alpha = 1;}
         else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::TauMinus)
           {m_alpha = siren::utilities::Constants::tauMass; alpha = 2;}
-        else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
+        else {throw std::runtime_error("Invalid HNL 3-body signature");}
         if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::EPlus)
           {m_beta = siren::utilities::Constants::electronMass; beta = 0;}
         else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::MuPlus)
           {m_beta = siren::utilities::Constants::muonMass; beta = 1;}
         else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::TauPlus)
           {m_beta = siren::utilities::Constants::tauMass; beta = 2;}
-        else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
+        else {throw std::runtime_error("Invalid HNL 3-body signature");}
 
         rk::P4 k1(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), hnl_mass);
         rk::P4 k2(geom3::Vector3(record.secondary_momenta[0][1], record.secondary_momenta[0][2], record.secondary_momenta[0][3]), 0);
@@ -900,8 +901,7 @@ double HNLDecay::DifferentialDecayWidth(dataclasses::InteractionRecord const & r
     }
     else
     {
-      std::cerr << "Too many final state particles in HNL decay\n";
-      exit(0);
+      throw std::runtime_error("HNL decays with more than 3 particles in the final state are not supported by this class");
     }
 
 }
@@ -1025,14 +1025,14 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
           {m_alpha = siren::utilities::Constants::muonMass; alpha = 1;}
         else if(record.signature.secondary_types[1] == siren::dataclasses::ParticleType::TauMinus)
           {m_alpha = siren::utilities::Constants::tauMass; alpha = 2;}
-        else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
+        else {throw std::runtime_error("Invalid HNL 3-body signature");}
         if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::EPlus)
           {m_beta = siren::utilities::Constants::electronMass; beta = 0;}
         else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::MuPlus)
           {m_beta = siren::utilities::Constants::muonMass; beta = 1;}
         else if(record.signature.secondary_types[2] == siren::dataclasses::ParticleType::TauPlus)
           {m_beta = siren::utilities::Constants::tauMass; beta = 2;}
-        else {std::cerr << "Invalid HNL 3-body signature\n"; exit(0);}
+        else {throw std::runtime_error("Invalid HNL 3-body signature");}
 
         siren::dataclasses::SecondaryParticleRecord & nu = record.GetSecondaryParticleRecord(0);
         siren::dataclasses::SecondaryParticleRecord & lep_alpha = record.GetSecondaryParticleRecord(1);

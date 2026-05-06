@@ -12,6 +12,7 @@
 #include "SIREN/interactions/HNLDipoleFromTable.h"
 #include "SIREN/interactions/HNLDipoleDISFromSpline.h"
 #include "SIREN/interactions/HNLDISFromSpline.h"
+#include "SIREN/interactions/ElectroweakDecay.h"
 #include "SIREN/interactions/HNLDecay.h"
 #include "SIREN/interactions/HNLDipoleDecay.h"
 
