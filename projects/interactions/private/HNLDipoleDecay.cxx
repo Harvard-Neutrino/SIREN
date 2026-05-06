@@ -111,9 +111,9 @@ double HNLDipoleDecay::DifferentialDecayWidth(dataclasses::InteractionRecord con
 
     siren::dataclasses::InteractionSignature const & signature = record.signature;
 
-    siren::math::Vector3D hnl_dir = siren::math::Vector3D(record.primary_momentum[0],
-                                                    record.primary_momentum[1],
-                                                    record.primary_momentum[2]);
+    siren::math::Vector3D hnl_dir = siren::math::Vector3D(record.primary_momentum[1],
+                                                    record.primary_momentum[2],
+                                                    record.primary_momentum[3]);
     hnl_dir.normalize();
     unsigned int gamma_index = (signature.secondary_types[0] == siren::dataclasses::ParticleType::Gamma) ? 0 : 1;
     std::array<double, 4> const & gamma_momentum = record.secondary_momenta[gamma_index];

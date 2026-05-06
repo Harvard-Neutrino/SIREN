@@ -39,7 +39,7 @@ namespace interactions {
 class HNLDecay : public Decay {
 friend cereal::access;
 protected:
-HNLDecay() {crundec = new CRunDec();};
+HNLDecay(): crundec(new CRunDec()){};
 public:
     enum ChiralNature {Dirac, Majorana};
 private:
@@ -47,7 +47,7 @@ private:
     std::vector<double> mixing; // Ue4, Um4, Ut4
     ChiralNature nature;
     const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::N4, siren::dataclasses::ParticleType::N4Bar};
-    CRunDec * crundec;
+    std::unique_ptr<CRunDec> crundec;
     double _GammaHadronsCC = 0;
     double _GammaHadronsNC = 0;
     std::vector<siren::dataclasses::ParticleType> MinusChargedMesons = {siren::dataclasses::ParticleType::PiMinus,
@@ -73,10 +73,10 @@ private:
 
 
 public:
-    HNLDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(mixing), nature(nature) {crundec = new CRunDec();};
-    HNLDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), primary_types(primary_types) {crundec = new CRunDec();};
-    HNLDecay(double hnl_mass, double mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(std::vector<double>{0,0,mixing}), nature(nature) {crundec = new CRunDec();};
-    HNLDecay(double hnl_mass, double mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(std::vector<double>{0,0,mixing}), nature(nature), primary_types(primary_types) {crundec = new CRunDec();};
+    HNLDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), crundec(new CRunDec()){};
+    HNLDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), primary_types(primary_types), crundec(new CRunDec()){};
+    HNLDecay(double hnl_mass, double mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(std::vector<double>{0,0,mixing}), nature(nature), crundec(new CRunDec()){};
+    HNLDecay(double hnl_mass, double mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(std::vector<double>{0,0,mixing}), nature(nature), primary_types(primary_types), crundec(new CRunDec()){};
     virtual bool equal(Decay const & other) const override;
     double GetHNLMass() const {return hnl_mass;};
     // if only one coupling provided, assume it is U4t
@@ -106,7 +106,7 @@ public:
         if(version == 0) {
             archive(::cereal::make_nvp("PrimaryTypes", primary_types));
             archive(::cereal::make_nvp("HNLMass", hnl_mass));
-            archive(::cereal::make_nvp("DipoleCoupling", mixing));
+            archive(::cereal::make_nvp("Mixing", mixing));
             archive(::cereal::make_nvp("ChiralNature", static_cast<int>(nature)));
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(this)));
         } else {
@@ -123,7 +123,7 @@ public:
 
             archive(::cereal::make_nvp("PrimaryTypes", _primary_types));
             archive(::cereal::make_nvp("HNLMass", _hnl_mass));
-            archive(::cereal::make_nvp("DipoleCoupling", _mixing));
+            archive(::cereal::make_nvp("Mixing", _mixing));
             archive(::cereal::make_nvp("ChiralNature", _nature));
             construct(_hnl_mass, _mixing, _nature, _primary_types);
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));

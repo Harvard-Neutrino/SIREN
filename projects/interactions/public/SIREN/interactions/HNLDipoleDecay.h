@@ -75,14 +75,14 @@ public:
         if(version == 0) {
             std::set<siren::dataclasses::ParticleType> _primary_types;
             double _hnl_mass;
-            double _dipole_coupling;
-            ChiralNature _nature;
+            std::vector<double> _dipole_coupling;
+            int _nature;
 
             archive(::cereal::make_nvp("PrimaryTypes", _primary_types));
             archive(::cereal::make_nvp("HNLMass", _hnl_mass));
             archive(::cereal::make_nvp("DipoleCoupling", _dipole_coupling));
             archive(::cereal::make_nvp("ChiralNature", _nature));
-            construct(_hnl_mass, _dipole_coupling, _nature, _primary_types);
+            construct(_hnl_mass, _dipole_coupling, static_cast<ChiralNature>(_nature), _primary_types);
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));
         } else {
             throw std::runtime_error("HNLDipoleDecay only supports version <= 0!");
