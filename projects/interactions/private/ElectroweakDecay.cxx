@@ -93,6 +93,12 @@ double ElectroweakDecay::TotalDecayWidth(siren::dataclasses::ParticleType primar
   std::vector<dataclasses::InteractionSignature> signatures = GetPossibleSignaturesFromParent(primary);
   double gamma_tot = 0;
   dataclasses::InteractionRecord record;
+  if(primary == siren::dataclasses::ParticleType::WPlus
+     || primary == siren::dataclasses::ParticleType::WMinus) {
+    record.primary_mass = siren::utilities::Constants::wMass;
+  } else if(primary == siren::dataclasses::ParticleType::Z0) {
+    record.primary_mass = siren::utilities::Constants::zMass;
+  }
   for(auto signature : signatures) {
     record.signature = signature;
     gamma_tot += TotalDecayWidthForFinalState(record);

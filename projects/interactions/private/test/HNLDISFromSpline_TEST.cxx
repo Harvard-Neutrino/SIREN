@@ -92,17 +92,9 @@ TEST(HNLDipoleDISFromSpline, DefaultConstructor) {
 
 TEST(HNLDipoleDISFromSpline, SetUnitsWrongCouplingSize) {
     HNLDipoleDISFromSpline xs;
-    // Default-constructed has empty coupling vector; SetUnits rejects size != 3
     EXPECT_THROW(xs.SetUnits("invGeV"), std::runtime_error);
     EXPECT_THROW(xs.SetUnits("cm"), std::runtime_error);
     EXPECT_THROW(xs.SetUnits("m"), std::runtime_error);
-}
-
-TEST(HNLDipoleDISFromSpline, SetUnitsInvalidThrows) {
-    // Default-constructed object has empty dipole_coupling_
-    // SetUnits should throw because coupling size != 3
-    HNLDipoleDISFromSpline xs;
-    EXPECT_THROW(xs.SetUnits("cm"), std::runtime_error);
 }
 
 // ---------------------------------------------------------------------------

@@ -14,21 +14,12 @@ namespace siren {
 namespace utilities {
 
 /**
-* @brief Performs Independent Metropolis-Hastings sampling of a differential
-* distribution.
+* @brief Independent Metropolis-Hastings sampler.
 *
-* Each call to func_proposal must return a pair (sample, proposal_density),
-* where sample is independent of the current chain state.  The density is
-* used to form the correct independent-MH acceptance ratio:
-*     alpha = min(1, [pi(x') * q(x)] / [pi(x) * q(x')])
-* Density only needs to be correct up to a constant that cancels in the ratio,
-* so a uniform proposal can return any fixed positive value (e.g. 1.0).
-*
-* @param func_proposal callable returning std::pair<std::vector<double>, double>
-*                       (sample, proposal density)
-* @param func_likelihood callable returning the target density of a sample
-* @param random random number generator
-* @param burnin number of burn-in iterations before returning a sample
+* @param func_proposal returns pair(sample, proposal_density); density up to a constant
+* @param func_likelihood target density at a sample point
+* @param random RNG
+* @param burnin iterations before returning
 */
 template<typename FuncTypeProposal, typename FuncTypeLikelihood>
 std::vector<double> MetropolisHasting_Sample(const FuncTypeProposal& func_proposal, const FuncTypeLikelihood& func_likelihood, std::shared_ptr<siren::utilities::SIREN_random> random, const size_t burnin = 40) {

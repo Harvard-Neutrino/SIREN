@@ -167,9 +167,6 @@ TEST(ElectroweakDecay, ZDecayWidthPositive) {
 
 TEST(Sampling, UniformProposal) {
     auto random = std::make_shared<SIREN_random>();
-    // Sample from a Gaussian-like likelihood with uniform proposal.
-    // Uniform on [-5,5] has constant density 1/10; any positive constant works
-    // since only ratios matter.
     auto proposal = [&]() -> std::pair<std::vector<double>, double> {
         return std::make_pair(std::vector<double>{random->Uniform(-5, 5)}, 1.0);
     };
@@ -186,36 +183,28 @@ TEST(Sampling, ZeroLikelihoodDoesNotCrash) {
     auto proposal = [&]() -> std::pair<std::vector<double>, double> {
         return std::make_pair(std::vector<double>{random->Uniform(0, 1)}, 1.0);
     };
-    // Likelihood is zero everywhere
     auto likelihood = [](std::vector<double> const & x) -> double {
         return 0.0;
     };
-    // Should not crash (divide by zero was the bug)
     ASSERT_NO_THROW(MetropolisHasting_Sample(proposal, likelihood, random));
 }
 
 TEST(Sampling, NonUniformProposal) {
-    // Test that a non-uniform proposal correctly samples the target.
-    // Target: Gaussian centered at 2 with std 0.5
-    // Proposal: Gaussian centered at 0 with std 2 (different shape)
+    // Proposal N(0,2), target N(2,0.5) -- samples should converge to target mean
     auto random = std::make_shared<SIREN_random>();
     auto proposal = [&]() -> std::pair<std::vector<double>, double> {
-        // Sample from N(0, 2)
         double u1 = random->Uniform(0, 1);
         double u2 = random->Uniform(0, 1);
         double z = std::sqrt(-2.0 * std::log(u1)) * std::cos(2 * M_PI * u2);
-        double x = 2.0 * z;  // mean=0, std=2
-        // Density of N(0, 2) at x
+        double x = 2.0 * z;
         double density = std::exp(-x * x / 8.0) / (2.0 * std::sqrt(2.0 * M_PI));
         return std::make_pair(std::vector<double>{x}, density);
     };
     auto target = [](std::vector<double> const & x) -> double {
-        // N(2, 0.5)
         double dx = x[0] - 2.0;
         return std::exp(-dx * dx / 0.5) / (0.5 * std::sqrt(2.0 * M_PI));
     };
 
-    // Verify samples concentrate near the target mean
     double sum = 0;
     int n = 1000;
     for (int i = 0; i < n; ++i) {
