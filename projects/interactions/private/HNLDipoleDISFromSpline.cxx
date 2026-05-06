@@ -3,11 +3,14 @@
 #include <map>                                             // for map, opera...
 #include <set>                                             // for set, opera...
 #include <array>                                           // for array
+#include <cctype>                                          // for tolower
 #include <cmath>                                           // for pow, log10
 #include <tuple>                                           // for tie, opera...
 #include <memory>                                          // for allocator
 #include <string>                                          // for basic_string
 #include <vector>                                          // for vector
+#include <iostream>                                        // for cerr
+#include <stdexcept>                                       // for runtime_error
 #include <assert.h>                                        // for assert
 #include <stddef.h>                                        // for size_t
 
@@ -95,6 +98,8 @@ HNLDipoleDISFromSpline::HNLDipoleDISFromSpline(std::string differential_filename
 }
 
 void HNLDipoleDISFromSpline::SetUnits(std::string units) {
+    if(dipole_coupling_.size() != 3)
+        throw std::runtime_error("dipole_coupling must have exactly 3 elements (d_e, d_mu, d_tau)");
     // default units are inverse GeV, set by the units of the dipole coupling
     std::transform(units.begin(), units.end(), units.begin(),
         [](unsigned char c){ return std::tolower(c); });
@@ -156,7 +161,13 @@ void HNLDipoleDISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::
 
 void HNLDipoleDISFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data) {
     differential_cross_section_.read_fits_mem(differential_data.data(), differential_data.size());
+    if(differential_cross_section_.get_ndim() != 3 && differential_cross_section_.get_ndim() != 2)
+        throw std::runtime_error("Differential cross section spline has " + std::to_string(differential_cross_section_.get_ndim())
+                + " dimensions, expected 2 or 3");
     total_cross_section_.read_fits_mem(total_data.data(), total_data.size());
+    if(total_cross_section_.get_ndim() != 1)
+        throw std::runtime_error("Total cross section spline has " + std::to_string(total_cross_section_.get_ndim())
+                + " dimensions, expected 1");
 }
 
 void HNLDipoleDISFromSpline::ReadParamsFromSplineTable() {
@@ -549,11 +560,10 @@ void HNLDipoleDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistribut
 double HNLDipoleDISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
     double dxs = DifferentialCrossSection(interaction);
     double txs = TotalCrossSection(interaction);
-    if(dxs == 0) {
+    if(dxs == 0 || txs == 0) {
         return 0.0;
-    } else {
-        return dxs / txs;
     }
+    return dxs / txs;
 }
 
 std::vector<siren::dataclasses::Particle::ParticleType> HNLDipoleDISFromSpline::GetPossiblePrimaries() const {

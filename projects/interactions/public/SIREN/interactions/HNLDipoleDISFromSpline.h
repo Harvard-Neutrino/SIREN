@@ -4,7 +4,9 @@
 
 #include <set>                                                // for set
 #include <map>                                                // for map
+#include <limits>                                             // for numeric_limits
 #include <memory>
+#include <string>                                             // for string
 #include <vector>                                             // for vector
 #include <cstdint>                                            // for uint32_t
 #include <utility>                                            // for pair
@@ -52,15 +54,15 @@ private:
     std::map<std::pair<siren::dataclasses::Particle::ParticleType, siren::dataclasses::Particle::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
 
 
-    double unit;
+    double unit = 1.0;
 
 public:
     HNLDipoleDISFromSpline();
-    HNLDipoleDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "invGeV");
-    HNLDipoleDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "invGeV");
-    HNLDipoleDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "invGeV");
+    HNLDipoleDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "invGeV");
+    HNLDipoleDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "invGeV");
+    HNLDipoleDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "invGeV");
     HNLDipoleDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> dipole_coupling, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "invGeV");
-    HNLDipoleDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "invGeV");
+    HNLDipoleDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "invGeV");
     HNLDipoleDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> dipole_coupling, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "invGeV");
 
     void SetUnits(std::string units);
@@ -122,6 +124,7 @@ public:
             archive(::cereal::make_nvp("HNLMass", hnl_mass_));
             archive(::cereal::make_nvp("DipoleCoupling", dipole_coupling_));
             archive(::cereal::make_nvp("MinimumQ2", minimum_Q2_));
+            archive(::cereal::make_nvp("Unit", unit));
             archive(cereal::virtual_base_class<CrossSection>(this));
         } else {
             throw std::runtime_error("HNLDipoleDISFromSpline only supports version <= 0!");
@@ -140,6 +143,7 @@ public:
             archive(::cereal::make_nvp("HNLMass", hnl_mass_));
             archive(::cereal::make_nvp("DipoleCoupling", dipole_coupling_));
             archive(::cereal::make_nvp("MinimumQ2", minimum_Q2_));
+            archive(::cereal::make_nvp("Unit", unit));
             archive(cereal::virtual_base_class<CrossSection>(this));
             LoadFromMemory(differential_data, total_data);
             InitializeSignatures();

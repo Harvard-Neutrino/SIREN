@@ -3,6 +3,7 @@
 #include <map>                                             // for map, opera...
 #include <set>                                             // for set, opera...
 #include <array>                                           // for array
+#include <cctype>                                          // for tolower
 #include <cmath>                                           // for pow, log10
 #include <tuple>                                           // for tie, opera...
 #include <string>                                          // for basic_string
@@ -97,6 +98,8 @@ HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::strin
 }
 
 void HNLDISFromSpline::SetUnits(std::string units) {
+    if(mixing_.size() != 3)
+        throw std::runtime_error("mixing must have exactly 3 elements (Ue4, Um4, Ut4)");
     std::transform(units.begin(), units.end(), units.begin(),
         [](unsigned char c){ return std::tolower(c); });
     if(units == "cm") {
@@ -157,7 +160,13 @@ void HNLDISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::string
 
 void HNLDISFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data) {
     differential_cross_section_.read_fits_mem(differential_data.data(), differential_data.size());
+    if(differential_cross_section_.get_ndim() != 3 && differential_cross_section_.get_ndim() != 2)
+        throw std::runtime_error("Differential cross section spline has " + std::to_string(differential_cross_section_.get_ndim())
+                + " dimensions, expected 2 or 3");
     total_cross_section_.read_fits_mem(total_data.data(), total_data.size());
+    if(total_cross_section_.get_ndim() != 1)
+        throw std::runtime_error("Total cross section spline has " + std::to_string(total_cross_section_.get_ndim())
+                + " dimensions, expected 1");
 }
 
 void HNLDISFromSpline::ReadParamsFromSplineTable() {
@@ -551,11 +560,10 @@ void HNLDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionRec
 double HNLDISFromSpline::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
     double dxs = DifferentialCrossSection(interaction);
     double txs = TotalCrossSection(interaction);
-    if(dxs == 0) {
+    if(dxs == 0 || txs == 0) {
         return 0.0;
-    } else {
-        return dxs / txs;
     }
+    return dxs / txs;
 }
 
 std::vector<siren::dataclasses::ParticleType> HNLDISFromSpline::GetPossiblePrimaries() const {

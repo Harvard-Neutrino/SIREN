@@ -143,6 +143,7 @@ public:
             archive(cereal::virtual_base_class<CrossSection>(this));
             LoadFromMemory(differential_data, total_data);
             InitializeSignatures();
+            SetMinimumW2();
         } else {
             throw std::runtime_error("DISFromSpline only supports version <= 0!");
         }
