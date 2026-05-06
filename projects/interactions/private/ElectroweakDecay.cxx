@@ -266,7 +266,7 @@ std::vector<dataclasses::InteractionSignature> ElectroweakDecay::GetPossibleSign
     signature.secondary_types.resize(2);
     if(primary==siren::dataclasses::ParticleType::WPlus) {
       // W+ -> l+ nu_l
-      for (uint i = 0; i < AntiLeptons.size(); ++i) {
+      for (size_t i = 0; i < AntiLeptons.size(); ++i) {
         signature.secondary_types[0] = AntiLeptons[i];
         signature.secondary_types[1] = Nus[i];
         signatures.push_back(signature);
@@ -282,7 +282,7 @@ std::vector<dataclasses::InteractionSignature> ElectroweakDecay::GetPossibleSign
     }
     else if(primary==siren::dataclasses::ParticleType::WMinus) {
       // W- -> l- nu_l_bar
-      for (uint i = 0; i < Leptons.size(); ++i) {
+      for (size_t i = 0; i < Leptons.size(); ++i) {
         signature.secondary_types[0] = Leptons[i];
         signature.secondary_types[1] = AntiNus[i];
         signatures.push_back(signature);
@@ -298,25 +298,25 @@ std::vector<dataclasses::InteractionSignature> ElectroweakDecay::GetPossibleSign
     }
     else if(primary==siren::dataclasses::ParticleType::Z0) {
       // Z -> nu nubar
-      for (uint i = 0; i < Nus.size(); ++i) {
+      for (size_t i = 0; i < Nus.size(); ++i) {
         signature.secondary_types[0] = Nus[i];
         signature.secondary_types[1] = AntiNus[i];
         signatures.push_back(signature);
       }
       // Z -> l- l+
-      for (uint i = 0; i < Nus.size(); ++i) {
+      for (size_t i = 0; i < Nus.size(); ++i) {
         signature.secondary_types[0] = Leptons[i];
         signature.secondary_types[1] = AntiLeptons[i];
         signatures.push_back(signature);
       }
       // Z -> u ubar
-      for (uint i = 0; i < UpQuarks.size(); ++i) {
+      for (size_t i = 0; i < UpQuarks.size(); ++i) {
         signature.secondary_types[0] = UpQuarks[i];
         signature.secondary_types[1] = UpAntiQuarks[i];
         signatures.push_back(signature);
       }
       // Z -> d dbar
-      for (uint i = 0; i < DownQuarks.size(); ++i) {
+      for (size_t i = 0; i < DownQuarks.size(); ++i) {
         signature.secondary_types[0] = DownQuarks[i];
         signature.secondary_types[1] = DownAntiQuarks[i];
         signatures.push_back(signature);
