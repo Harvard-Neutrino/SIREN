@@ -34,7 +34,7 @@
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/interactions/CrossSection.h"
 #include "SIREN/interactions/HNLDipoleFromTable.h"
-#include "SIREN/interactions/HNLDecay.h"
+#include "SIREN/interactions/HNLDipoleDecay.h"
 #include "SIREN/interactions/Decay.h"
 
 using namespace siren::math;
@@ -271,8 +271,8 @@ TEST(Injector, Generation)
     secondary_decay_inj_process->SetPrimaryType(ParticleType::NuF4);
     secondary_decay_phys_process->SetPrimaryType(ParticleType::NuF4);
 
-    // Secondary cross sections: HNL decay
-    std::shared_ptr<HNLDecay> sec_decay = std::make_shared<HNLDecay>(hnl_mass, dipole_coupling_vec, HNLDecay::ChiralNature::Majorana);
+    // Secondary decay: dipole portal HNL (NuF4)
+    std::shared_ptr<HNLDipoleDecay> sec_decay = std::make_shared<HNLDipoleDecay>(hnl_mass, dipole_coupling_vec, HNLDipoleDecay::ChiralNature::Majorana);
     std::vector<std::shared_ptr<Decay>> sec_decays = {sec_decay};
     std::shared_ptr<InteractionCollection> secondary_interactions = std::make_shared<InteractionCollection>(ParticleType::NuF4, sec_decays);
     secondary_decay_inj_process->SetInteractions(secondary_interactions);

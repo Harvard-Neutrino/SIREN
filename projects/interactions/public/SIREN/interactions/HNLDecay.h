@@ -72,8 +72,12 @@ private:
 
 
 public:
-    HNLDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), crundec(new CRunDec()){};
-    HNLDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), primary_types(primary_types), crundec(new CRunDec()){};
+    HNLDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), crundec(new CRunDec()){
+        if(this->mixing.size() != 3) throw std::runtime_error("mixing must have exactly 3 elements");
+    };
+    HNLDecay(double hnl_mass, std::vector<double> mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(mixing), nature(nature), primary_types(primary_types), crundec(new CRunDec()){
+        if(this->mixing.size() != 3) throw std::runtime_error("mixing must have exactly 3 elements");
+    };
     HNLDecay(double hnl_mass, double mixing, ChiralNature nature) : hnl_mass(hnl_mass), mixing(std::vector<double>{0,0,mixing}), nature(nature), crundec(new CRunDec()){};
     HNLDecay(double hnl_mass, double mixing, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), mixing(std::vector<double>{0,0,mixing}), nature(nature), primary_types(primary_types), crundec(new CRunDec()){};
     virtual bool equal(Decay const & other) const override;

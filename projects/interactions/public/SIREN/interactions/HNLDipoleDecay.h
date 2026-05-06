@@ -41,8 +41,12 @@ private:
     ChiralNature nature;
     const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::NuF4, siren::dataclasses::ParticleType::NuF4Bar};
 public:
-    HNLDipoleDecay(double hnl_mass, std::vector<double> dipole_coupling, ChiralNature nature) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), nature(nature) {};
-    HNLDipoleDecay(double hnl_mass, std::vector<double> dipole_coupling, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), nature(nature), primary_types(primary_types) {};
+    HNLDipoleDecay(double hnl_mass, std::vector<double> dipole_coupling, ChiralNature nature) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), nature(nature) {
+        if(this->dipole_coupling.size() != 3) throw std::runtime_error("dipole_coupling must have exactly 3 elements");
+    };
+    HNLDipoleDecay(double hnl_mass, std::vector<double> dipole_coupling, ChiralNature nature, std::set<siren::dataclasses::ParticleType> const & primary_types) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), nature(nature), primary_types(primary_types) {
+        if(this->dipole_coupling.size() != 3) throw std::runtime_error("dipole_coupling must have exactly 3 elements");
+    };
     virtual bool equal(Decay const & other) const override;
     double GetHNLMass() const {return hnl_mass;};
     // if only one dipole coupling provided, assume it is d_mu
