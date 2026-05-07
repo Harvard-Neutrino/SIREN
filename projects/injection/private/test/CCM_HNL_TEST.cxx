@@ -33,7 +33,7 @@
 
 #include "SIREN/interactions/InteractionCollection.h"
 #include "SIREN/interactions/CrossSection.h"
-#include "SIREN/interactions/HNLHNLDipoleFromTable.h"
+#include "SIREN/interactions/HNLDipoleFromTable.h"
 #include "SIREN/interactions/Decay.h"
 
 using namespace siren::math;
@@ -59,11 +59,11 @@ std::string diff_xsec_table_path = "/home/nwkamp/Research/Pheno/Neutrissimos2/Sa
 
 std::string material_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/SIRENDevPrivate/resources/Detectors/materials/CCM.dat";
 std::string detector_file = "/home/nwkamp/Research/CCM/DipoleAnalysis/sources/SIRENDevPrivate/resources/Detectors/densities/PREM_ccm.dat";
-    
+
 double hnl_mass = 0.01375; // in GeV; The HNL mass we are injecting
 double dipole_coupling = 1.0e-6; // in GeV^-1; the effective dipole coupling strength
 std::string mHNL = "0.01375";
-    
+
 // Events to inject
 unsigned int events_to_inject = 1e2;
 ParticleType primary_type = ParticleType::NuMu;
@@ -186,7 +186,7 @@ TEST(Injector, Generation)
     primary_injection_process_lower_injector->SetPrimaryType(primary_type);
     primary_physical_process_upper_injector->SetPrimaryType(primary_type);
     primary_physical_process_lower_injector->SetPrimaryType(primary_type);
-    
+
     std::cout << "LoadingCrossSections...\n";
     // Load cross sections
     std::vector<std::shared_ptr<CrossSection>> cross_sections;
@@ -209,7 +209,7 @@ TEST(Injector, Generation)
     }
     cross_sections.push_back(hf_xs);
     cross_sections.push_back(hc_xs);
-    
+
     std::cout << "GotCrossSections!\n";
 
     std::shared_ptr<InteractionCollection> primary_interactions = std::make_shared<InteractionCollection>(primary_type, cross_sections);
@@ -257,7 +257,7 @@ TEST(Injector, Generation)
 
     // Primary position distribution: treat targets as point sources, generate from center
     double max_dist = 25; // m
-    std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist, primary_interactions->TargetTypes()); 
+    std::shared_ptr<VertexPositionDistribution> upper_pos_dist = std::make_shared<PointSourcePositionDistribution>(upper_target_origin, max_dist, primary_interactions->TargetTypes());
     std::shared_ptr<VertexPositionDistribution> lower_pos_dist = std::make_shared<PointSourcePositionDistribution>(lower_target_origin, max_dist, primary_interactions->TargetTypes());
     primary_injection_process_upper_injector->AddPrimaryInjectionDistribution(upper_pos_dist);
     primary_injection_process_lower_injector->AddPrimaryInjectionDistribution(lower_pos_dist);
@@ -267,15 +267,15 @@ TEST(Injector, Generation)
     // Secondary process
     std::shared_ptr<SecondaryInjectionProcess> secondary_decay_inj_process = std::make_shared<SecondaryInjectionProcess>();
     std::shared_ptr<PhysicalProcess> secondary_decay_phys_process = std::make_shared<PhysicalProcess>();
-    secondary_decay_inj_process->SetPrimaryType(ParticleType::NuF4);
-    secondary_decay_phys_process->SetPrimaryType(ParticleType::NuF4);
-    
+    secondary_decay_inj_process->SetPrimaryType(ParticleType::N4);
+    secondary_decay_phys_process->SetPrimaryType(ParticleType::N4);
+
     // Secondary cross sections: neutrissimo decay
     // Assume dirac HNL for now
     // TODO: NeutrissimoDecay was removed; replace with the new HNL decay class
     // when feat/hnl-decays-hadronic lands.
     std::vector<std::shared_ptr<Decay>> sec_decays = {};
-    std::shared_ptr<InteractionCollection> secondary_interactions = std::make_shared<InteractionCollection>(ParticleType::NuF4, sec_decays);
+    std::shared_ptr<InteractionCollection> secondary_interactions = std::make_shared<InteractionCollection>(ParticleType::N4, sec_decays);
     secondary_decay_inj_process->SetInteractions(secondary_interactions);
     secondary_decay_phys_process->SetInteractions(secondary_interactions);
 

@@ -176,8 +176,8 @@ double HNLDipoleFromTable::DifferentialCrossSection(dataclasses::InteractionReco
     p2_lab = p2;
     std::vector<siren::dataclasses::ParticleType> const & secondary_types = interaction.signature.secondary_types;
     assert(secondary_types.size() == 2);
-    assert(secondary_types[0] == siren::dataclasses::ParticleType::NuF4 or secondary_types[1] == siren::dataclasses::ParticleType::NuF4 or secondary_types[0] == siren::dataclasses::ParticleType::NuF4Bar or secondary_types[1] == siren::dataclasses::ParticleType::NuF4Bar);
-    unsigned int lepton_index = (secondary_types[0] == siren::dataclasses::ParticleType::NuF4 or secondary_types[0] == siren::dataclasses::ParticleType::NuF4Bar) ? 0 : 1;
+    assert(secondary_types[0] == siren::dataclasses::ParticleType::N4 or secondary_types[1] == siren::dataclasses::ParticleType::N4 or secondary_types[0] == siren::dataclasses::ParticleType::N4Bar or secondary_types[1] == siren::dataclasses::ParticleType::N4Bar);
+    unsigned int lepton_index = (secondary_types[0] == siren::dataclasses::ParticleType::N4 or secondary_types[0] == siren::dataclasses::ParticleType::N4Bar) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
 
     std::array<double, 4> const & mom3 = interaction.secondary_momenta.at(lepton_index);
@@ -277,7 +277,7 @@ void HNLDipoleFromTable::SampleFinalState(dataclasses::CrossSectionDistributionR
 
     std::vector<siren::dataclasses::ParticleType> const & secondary_types = record.record.signature.secondary_types;
 
-    unsigned int lepton_index = (secondary_types[0] == siren::dataclasses::ParticleType::NuF4 or secondary_types[0] == siren::dataclasses::ParticleType::NuF4Bar) ? 0 : 1;
+    unsigned int lepton_index = (secondary_types[0] == siren::dataclasses::ParticleType::N4 or secondary_types[0] == siren::dataclasses::ParticleType::N4Bar) ? 0 : 1;
     unsigned int other_index = 1 - lepton_index;
     double m = hnl_mass;
     double thresh = InteractionThreshold(record.record);
@@ -503,9 +503,9 @@ std::vector<dataclasses::InteractionSignature> HNLDipoleFromTable::GetPossibleSi
     for(auto primary : primary_types) {
         signature.primary_type = primary;
         if(std::set<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::NuE, siren::dataclasses::ParticleType::NuMu, siren::dataclasses::ParticleType::NuTau}.count(primary))
-            signature.secondary_types[0] = siren::dataclasses::ParticleType::NuF4;
+            signature.secondary_types[0] = siren::dataclasses::ParticleType::N4;
         else if(std::set<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::NuEBar, siren::dataclasses::ParticleType::NuMuBar, siren::dataclasses::ParticleType::NuTauBar}.count(primary))
-            signature.secondary_types[0] = siren::dataclasses::ParticleType::NuF4Bar;
+            signature.secondary_types[0] = siren::dataclasses::ParticleType::N4Bar;
         else
             throw std::runtime_error("Primary type not in primary_types!");
         for(auto target : targets) {
@@ -526,9 +526,9 @@ std::vector<dataclasses::InteractionSignature> HNLDipoleFromTable::GetPossibleSi
         signature.target_type = target_type;
         signature.secondary_types[1] = target_type;
         if(std::set<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::NuE, siren::dataclasses::ParticleType::NuMu, siren::dataclasses::ParticleType::NuTau}.count(primary_type))
-            signature.secondary_types[0] = siren::dataclasses::ParticleType::NuF4;
+            signature.secondary_types[0] = siren::dataclasses::ParticleType::N4;
         else if(std::set<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::NuEBar, siren::dataclasses::ParticleType::NuMuBar, siren::dataclasses::ParticleType::NuTauBar}.count(primary_type))
-            signature.secondary_types[0] = siren::dataclasses::ParticleType::NuF4Bar;
+            signature.secondary_types[0] = siren::dataclasses::ParticleType::N4Bar;
         else
             throw std::runtime_error("Primary type not in primary_types!");
         return std::vector<dataclasses::InteractionSignature>{signature};

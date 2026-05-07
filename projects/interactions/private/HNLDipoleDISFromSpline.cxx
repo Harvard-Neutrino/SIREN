@@ -161,9 +161,9 @@ void HNLDipoleDISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::
 
 void HNLDipoleDISFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data) {
     differential_cross_section_.read_fits_mem(differential_data.data(), differential_data.size());
-    if(differential_cross_section_.get_ndim() != 3 && differential_cross_section_.get_ndim() != 2)
+    if(differential_cross_section_.get_ndim() != 3)
         throw std::runtime_error("Differential cross section spline has " + std::to_string(differential_cross_section_.get_ndim())
-                + " dimensions, expected 2 or 3");
+                + " dimensions, expected 3");
     total_cross_section_.read_fits_mem(total_data.data(), total_data.size());
     if(total_cross_section_.get_ndim() != 1)
         throw std::runtime_error("Total cross section spline has " + std::to_string(total_cross_section_.get_ndim())
@@ -515,9 +515,7 @@ void HNLDipoleDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistribut
     double momq_lab = std::sqrt(Q2 + E1_lab*E1_lab*final_y*final_y);
     double pqy_lab;
     if (pqx_lab>momq_lab){
-        std::cout << "WARNING: DIS sampling resulted in an x component of the momentum transfer larger than the total momentum transfer by ";
-        std::cout << ((pqx_lab-momq_lab)/momq_lab)*100 << "%" << std::endl;
-        std::cout << "Setting y component to zero" << std::endl;
+        assert(((pqx_lab-momq_lab)/momq_lab)<1e-3);
         pqy_lab = 0;
     }
     else pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);

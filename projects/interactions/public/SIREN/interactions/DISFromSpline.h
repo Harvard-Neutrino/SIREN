@@ -27,8 +27,9 @@
 #include "SIREN/interactions/CrossSection.h"        // for CrossSe...
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
+#include "SIREN/utilities/Constants.h"            // for isoscalarMass
 
-namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace dataclasses { struct InteractionRecord; } }
 namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
@@ -47,10 +48,10 @@ private:
     std::map<std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
 
     int interaction_type_;
-    double target_mass_ = 0;
-    double minimum_Q2_;
-    double minimum_W2_;
-    double unit;
+    double target_mass_ = siren::utilities::Constants::isoscalarMass;
+    double minimum_Q2_ = 1.0; // GeV^2
+    double minimum_W2_ = 0.0; // GeV^2, to be set later
+    double unit  = 1.0;
 
 public:
     DISFromSpline();

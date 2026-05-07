@@ -28,6 +28,7 @@
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
 #include "photospline/detail/fitsio.h"                        // for splinet...
+#include "SIREN/utilities/Constants.h"            // for isoscalarMass
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace utilities { class SIREN_random; } }
@@ -49,10 +50,10 @@ private:
     std::map<siren::dataclasses::ParticleType, std::vector<siren::dataclasses::ParticleType>> targets_by_primary_types_;
     std::map<std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
 
-    double hnl_mass_;
+    double hnl_mass_ = 0.0; // GeV
     std::vector<double> mixing_; // Ue4, Um4, Ut4
-    double target_mass_;
-    double minimum_Q2_;
+    double target_mass_ = siren::utilities::Constants::isoscalarMass;
+    double minimum_Q2_ = 1.0; // GeV^2
     double unit = 1.0;
 
 public:

@@ -29,6 +29,7 @@
 #include "SIREN/interactions/CrossSection.h"        // for CrossSe...
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
+#include "SIREN/utilities/Constants.h"            // for isoscalarMass
 
 namespace siren { namespace dataclasses { struct InteractionRecord; } }
 namespace siren { namespace utilities { class SIREN_random; } }
@@ -42,10 +43,10 @@ private:
     photospline::splinetable<> differential_cross_section_;
     photospline::splinetable<> total_cross_section_;
 
-    double hnl_mass_;
+    double hnl_mass_ = 0.0; // GeV
     std::vector<double> dipole_coupling_;  // d_e, d_mu, d_tau
-    double target_mass_;
-    double minimum_Q2_;
+    double target_mass_ = siren::utilities::Constants::isoscalarMass;;
+    double minimum_Q2_ = 1.0; // GeV^2
 
     std::vector<dataclasses::InteractionSignature> signatures_;
     std::set<siren::dataclasses::Particle::ParticleType> primary_types_;

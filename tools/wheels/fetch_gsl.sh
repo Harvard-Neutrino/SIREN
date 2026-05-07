@@ -1,6 +1,6 @@
 #!/bin/bash
-# Download the GSL source tarball with mirror fallback and integrity
-# validation.  Used both by the GitHub Actions populate_cache job and as a
+# Download the GSL source tarball with mirror fallback.
+#  Used both by the GitHub Actions populate_cache job and as a
 # defensive backstop inside cibw_before_all.sh when the cache misses.
 #
 # Usage: fetch_gsl.sh <version> <output-path>

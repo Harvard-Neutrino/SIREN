@@ -45,7 +45,7 @@ TEST(HNLDipoleFromTable, Constructor)
     InteractionSignature signature;
     signature.primary_type = ParticleType::NuE;
     signature.target_type = ParticleType::C12Nucleus;
-    signature.secondary_types = {ParticleType::NuF4, ParticleType::C12Nucleus};
+    signature.secondary_types = {ParticleType::N4, ParticleType::C12Nucleus};
     InteractionRecord event;
     event.signature = signature;
     double energy = 10; // 10GeV

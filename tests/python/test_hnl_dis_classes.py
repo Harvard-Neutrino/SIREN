@@ -35,7 +35,7 @@ class TestParticleTypes:
 
     def test_hnl_types_exist(self, dataclasses):
         from siren.dataclasses import Particle
-        assert hasattr(Particle.ParticleType, "NuF4")
+        assert hasattr(Particle.ParticleType, "N4")
 
     def test_meson_types_exist(self, dataclasses):
         from siren.dataclasses import Particle
