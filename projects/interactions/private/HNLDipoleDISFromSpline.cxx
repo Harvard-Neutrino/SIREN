@@ -13,6 +13,8 @@
 #include <stdexcept>                                       // for runtime_error
 #include <assert.h>                                        // for assert
 #include <stddef.h>                                        // for size_t
+#include <cctype>                                          // for tolower
+#include <iostream>                                        // for cout, endl
 
 #include <rk/rk.hh>                                        // for P4, Boost
 #include <rk/geom3.hh>                                     // for Vector3
@@ -63,18 +65,21 @@ HNLDipoleDISFromSpline::HNLDipoleDISFromSpline(std::vector<char> differential_da
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
     SetUnits(units);
+    assert(dipole_coupling_.size() == 3);
 }
 
 HNLDipoleDISFromSpline::HNLDipoleDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : hnl_mass_(hnl_mass), dipole_coupling_(dipole_coupling), primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
     SetUnits(units);
+    assert(dipole_coupling_.size() == 3);
 }
 
 HNLDipoleDISFromSpline::HNLDipoleDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : hnl_mass_(hnl_mass), dipole_coupling_(dipole_coupling), primary_types_(primary_types), target_types_(target_types), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
     SetUnits(units);
+    assert(dipole_coupling_.size() == 3);
 }
 
 HNLDipoleDISFromSpline::HNLDipoleDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> dipole_coupling, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : hnl_mass_(hnl_mass), dipole_coupling_(dipole_coupling), primary_types_(primary_types), target_types_(target_types) {
@@ -82,6 +87,7 @@ HNLDipoleDISFromSpline::HNLDipoleDISFromSpline(std::string differential_filename
     ReadParamsFromSplineTable();
     InitializeSignatures();
     SetUnits(units);
+    assert(dipole_coupling_.size() == 3);
 }
 
 HNLDipoleDISFromSpline::HNLDipoleDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> dipole_coupling, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : hnl_mass_(hnl_mass), dipole_coupling_(dipole_coupling), primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
@@ -95,6 +101,7 @@ HNLDipoleDISFromSpline::HNLDipoleDISFromSpline(std::string differential_filename
     ReadParamsFromSplineTable();
     InitializeSignatures();
     SetUnits(units);
+    assert(dipole_coupling_.size() == 3);
 }
 
 void HNLDipoleDISFromSpline::SetUnits(std::string units) {

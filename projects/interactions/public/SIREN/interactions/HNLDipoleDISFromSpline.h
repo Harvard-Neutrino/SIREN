@@ -45,7 +45,7 @@ private:
 
     double hnl_mass_ = 0.0; // GeV
     std::vector<double> dipole_coupling_;  // d_e, d_mu, d_tau
-    double target_mass_ = siren::utilities::Constants::isoscalarMass;;
+    double target_mass_ = siren::utilities::Constants::isoscalarMass;
     double minimum_Q2_ = 1.0; // GeV^2
 
     std::vector<dataclasses::InteractionSignature> signatures_;

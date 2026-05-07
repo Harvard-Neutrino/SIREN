@@ -63,18 +63,21 @@ HNLDISFromSpline::HNLDISFromSpline(std::vector<char> differential_data, std::vec
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
     SetUnits(units);
+    assert(mixing_.size() == 3);
 }
 
 HNLDISFromSpline::HNLDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), hnl_mass_(hnl_mass), mixing_(mixing), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromMemory(differential_data, total_data);
     InitializeSignatures();
     SetUnits(units);
+    assert(mixing_.size() == 3);
 }
 
 HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : primary_types_(primary_types), target_types_(target_types), hnl_mass_(hnl_mass), mixing_(mixing), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
     SetUnits(units);
+    assert(mixing_.size() == 3);
 }
 
 HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units) : hnl_mass_(hnl_mass), mixing_(mixing), primary_types_(primary_types), target_types_(target_types) {
@@ -82,12 +85,14 @@ HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::strin
     ReadParamsFromSplineTable();
     InitializeSignatures();
     SetUnits(units);
+    assert(mixing_.size() == 3);
 }
 
 HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : hnl_mass_(hnl_mass), mixing_(mixing), primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()), target_mass_(target_mass), minimum_Q2_(minimum_Q2) {
     LoadFromFile(differential_filename, total_filename);
     InitializeSignatures();
     SetUnits(units);
+    assert(mixing_.size() == 3);
 }
 
 HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units) : hnl_mass_(hnl_mass), mixing_(mixing), primary_types_(primary_types.begin(), primary_types.end()), target_types_(target_types.begin(), target_types.end()) {
@@ -95,6 +100,7 @@ HNLDISFromSpline::HNLDISFromSpline(std::string differential_filename, std::strin
     ReadParamsFromSplineTable();
     InitializeSignatures();
     SetUnits(units);
+    assert(mixing_.size() == 3);
 }
 
 void HNLDISFromSpline::SetUnits(std::string units) {
