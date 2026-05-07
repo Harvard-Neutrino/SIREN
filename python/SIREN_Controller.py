@@ -69,11 +69,11 @@ class SIREN_Controller:
         self.materials_model_file = materials_model_file
         if experiment is not None:
             # Find the density and materials files
-            self.materials_model_file = _util.get_material_model_path(experiment)
-            self.detector_model_file = _util.get_detector_model_path(experiment)
+            detector_dir = _util.get_detector_model_path(experiment)
+            self.materials_model_file = os.path.join(detector_dir, "materials.dat")
+            self.detector_model_file = os.path.join(detector_dir, "densities.dat")
         elif (self.detector_model_file is None or self.materials_model_file is None):
-            print("Must provide either an experiment name or both a detector model file and materials model file. Exiting")
-            exit(0)
+            raise ValueError("Must provide either an experiment name or both a detector model file and materials model file")
 
         self.detector_model = _detector.DetectorModel()
         self.detector_model.LoadMaterialModel(self.materials_model_file)
@@ -277,20 +277,23 @@ class SIREN_Controller:
         secondary_interaction_collections = []
         for secondary_type, decay_list in secondary_decays.items():
 
-            # Define a sedcondary injection distribution if necessary
+            # Define a secondary injection distribution if necessary
             inj_sec_defined = False
             phys_sec_defined = False
+            existing_inj_process = None
             for secondary_injection_process in self.secondary_injection_processes:
                 if secondary_injection_process.primary_type == secondary_type:
                     inj_sec_defined = True
+                    existing_inj_process = secondary_injection_process
             for secondary_physical_process in self.secondary_physical_processes:
                 if secondary_physical_process.primary_type == secondary_type:
                     phys_sec_defined = True
 
-            secondary_injection_process = _injection.SecondaryInjectionProcess()
-            secondary_physical_process = _injection.PhysicalProcess()
-            secondary_injection_process.primary_type = secondary_type
-            secondary_physical_process.primary_type = secondary_type
+            if inj_sec_defined:
+                secondary_injection_process = existing_inj_process
+            else:
+                secondary_injection_process = _injection.SecondaryInjectionProcess()
+                secondary_injection_process.primary_type = secondary_type
 
             # Add the secondary position distribution
             if fid_vol_secondary and self.fid_vol is not None:
@@ -302,8 +305,12 @@ class SIREN_Controller:
                     _distributions.SecondaryPhysicalVertexDistribution()
                 )
 
-            if not inj_sec_defined: self.secondary_injection_processes.append(secondary_injection_process)
-            if not phys_sec_defined: self.secondary_physical_processes.append(secondary_physical_process)
+            if not inj_sec_defined:
+                self.secondary_injection_processes.append(secondary_injection_process)
+            if not phys_sec_defined:
+                secondary_physical_process = _injection.PhysicalProcess()
+                secondary_physical_process.primary_type = secondary_type
+                self.secondary_physical_processes.append(secondary_physical_process)
 
             secondary_interaction_collections.append(
                 _interactions.InteractionCollection(secondary_type, decay_list)
@@ -343,9 +350,9 @@ class SIREN_Controller:
                 decay.dec_case.nu_parent.pdgid
             ):
                 primary_decays.append(decay)
-            total_decay_width = decay.TotalDecayWidth(primary_type)
-            if total_decay_width < self.DN_min_decay_width:
-                self.DN_min_decay_width = total_decay_width
+                total_decay_width = decay.TotalDecayWidth(primary_type)
+                if total_decay_width > 0 and total_decay_width < self.DN_min_decay_width:
+                    self.DN_min_decay_width = total_decay_width
         primary_interaction_collection = _interactions.InteractionCollection(
             primary_type, primary_decays
         )
@@ -377,8 +384,7 @@ class SIREN_Controller:
     def GetVolumePositionDistributionFromSector(self, sector_name):
         geo = self.GetDetectorSectorGeometry(sector_name)
         if geo is None:
-            print("Sector %s not found. Exiting"%sector_name)
-            exit(0)
+            raise ValueError("Sector %s not found" % sector_name)
         # the position is in geometry coordinates
         # must update to detector coordintes
         det_position = self.detector_model.GeoPositionToDetPosition(_detector.GeometryPosition(geo.placement.Position))
@@ -391,8 +397,7 @@ class SIREN_Controller:
             sphere = _geometry.Sphere(det_placement,geo.Radius,geo.InnerRadius)
             return _distributions.SphereVolumePositionDistribution(sphere)
         else:
-            print("Geometry type %s not supported for position distribution. Exiting"%str(type(geo)))
-            exit(0)
+            raise TypeError("Geometry type %s not supported for position distribution" % str(type(geo)))
 
     def GetDetectorModelTargets(self):
         """
@@ -449,7 +454,7 @@ class SIREN_Controller:
                 if self.primary_physical_process.primary_type == _dataclasses.Particle.ParticleType.unknown:
                     self.primary_physical_process.primary_type = primary_interaction_collection.GetPrimaryType()
                 else:
-                    assert(self.primary_injection_process.primary_type == primary_interaction_collection.GetPrimaryType())
+                    assert(self.primary_physical_process.primary_type == primary_interaction_collection.GetPrimaryType())
                 if self.primary_physical_process.interactions is None:
                     self.primary_physical_process.interactions = primary_interaction_collection
                 else:
@@ -484,11 +489,10 @@ class SIREN_Controller:
                                                                                     [sec_phys.interactions, sec_ints])
                         found_collection = True
                 if not found_collection and(sec_inj.interactions is None or sec_phys.interactions is None):
-                    print(
-                        "Couldn't find cross section collection for secondary particle %s; Exiting"
+                    raise RuntimeError(
+                        "Couldn't find cross section collection for secondary particle %s"
                         % record.signature.primary_type
                     )
-                    exit(0)
 
     # set the stopping condition of the injector with a python function
     # must accept two arguments, assumes first is datum and the second is the index of the secondary particle
@@ -636,12 +640,16 @@ class SIREN_Controller:
                       "parent_idx",
                       "num_daughters"]:
                 datasets[k].append([])
+            if save_int_params:
+                datasets.setdefault("int_params", [])
+                datasets["int_params"].append({})
             # loop over interactions
             for id, datum in enumerate(event.tree):
                 if save_int_params:
-                    for param_name,param_value in datum.record.interaction_parameters.items():
-                        if ie==0: datasets[param_name] = []
-                        datasets[param_name].append(param_value)
+                    for param_name, param_value in datum.record.interaction_parameters.items():
+                        if param_name not in datasets["int_params"][-1]:
+                            datasets["int_params"][-1][param_name] = []
+                        datasets["int_params"][-1][param_name].append(param_value)
                 datasets["vertex"][-1].append(np.array(datum.record.interaction_vertex,dtype=float))
                 datasets["primary_initial_position"][-1].append(np.array(datum.record.primary_initial_position,dtype=float))
 

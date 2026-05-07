@@ -143,6 +143,15 @@ double ProcessWeighter<ProcessType>::InteractionProbability(std::tuple<siren::ma
 }
 
 template<typename ProcessType>
+double ProcessWeighter<ProcessType>::SurvivalProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
+    double interaction_probability = InteractionProbability(bounds, record);
+    double survival = 1.0 - interaction_probability;
+    if(survival < 0.0) survival = 0.0;
+    if(survival > 1.0) survival = 1.0;
+    return survival;
+}
+
+template<typename ProcessType>
 double ProcessWeighter<ProcessType>::NormalizedPositionProbability(std::tuple<siren::math::Vector3D, siren::math::Vector3D> const & bounds, siren::dataclasses::InteractionRecord const & record) const {
     using siren::detector::DetectorPosition;
     using siren::detector::DetectorDirection;
