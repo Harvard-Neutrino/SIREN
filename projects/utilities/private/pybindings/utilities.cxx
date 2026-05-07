@@ -17,85 +17,85 @@ using namespace pybind11;
 PYBIND11_MODULE(utilities,m) {
   using namespace siren::utilities;
 
-  module Constants = m.def_submodule("Constants");
+  auto constants_mod = m.def_submodule("Constants");
   // geometry
-  Constants.attr("pi") = &Constants::pi;
-  Constants.attr("tau") = &Constants::tau;
-  Constants.attr("degrees") = &Constants::degrees;
+  constants_mod.attr("pi") = Constants::pi;
+  constants_mod.attr("tau") = Constants::tau;
+  constants_mod.attr("degrees") = Constants::degrees;
   // This is used since the user will enter a number in degrees, while the c trigonometric functions
   // expect angles presented in radians.
-  Constants.attr("deg") = &Constants::deg;
-  Constants.attr("radian") = &Constants::radian;
+  constants_mod.attr("deg") = Constants::deg;
+  constants_mod.attr("radian") = Constants::radian;
 
   // meter
-  Constants.attr("m") = &Constants::m;
-  Constants.attr("meter") = &Constants::meter;
-  Constants.attr("cm") = &Constants::cm;
-  Constants.attr("centimeter") = &Constants::centimeter;
+  constants_mod.attr("m") = Constants::m;
+  constants_mod.attr("meter") = Constants::meter;
+  constants_mod.attr("cm") = Constants::cm;
+  constants_mod.attr("centimeter") = Constants::centimeter;
 
   // second is a billion to be consistent with IceCube code
-  Constants.attr("second") = &Constants::second;
+  constants_mod.attr("second") = Constants::second;
 
   // speed of light
-  Constants.attr("c") = &Constants::c;
+  constants_mod.attr("c") = Constants::c;
 
   // masses, GeV/c^2
-  Constants.attr("protonMass") = &Constants::protonMass;
-  Constants.attr("neutronMass") = &Constants::neutronMass;
-  Constants.attr("isoscalarMass") = &Constants::isoscalarMass;
-  Constants.attr("electronMass") = &Constants::electronMass;
-  Constants.attr("muonMass") = &Constants::muonMass;
-  Constants.attr("tauMass") = &Constants::tauMass;
-  Constants.attr("lambda0Mass") = &Constants::lambda0Mass;
-  Constants.attr("Pi0Mass") = &Constants::Pi0Mass;
-  Constants.attr("PiPlusMass") = &Constants::PiPlusMass;
-  Constants.attr("PiMinusMass") = &Constants::PiMinusMass;
-  Constants.attr("K0Mass") = &Constants::K0Mass;
-  Constants.attr("KPlusMass") = &Constants::KPlusMass;
-  Constants.attr("KMinusMass") = &Constants::KMinusMass;
-  Constants.attr("KPrime0Mass") = &Constants::KPrime0Mass;
-  Constants.attr("KPrimePlusMass") = &Constants::KPrimePlusMass;
-  Constants.attr("KPrimeMinusMass") = &Constants::KPrimeMinusMass;
-  Constants.attr("D0Mass") = &Constants::D0Mass;
-  Constants.attr("DPlusMass") = &Constants::DPlusMass;
-  Constants.attr("DMinusMass") = &Constants::DMinusMass;
-  Constants.attr("DsPlusMass") = &Constants::DsPlusMass;
-  Constants.attr("DsMinusMass") = &Constants::DsMinusMass;
-  Constants.attr("EtaMass") = &Constants::EtaMass;
-  Constants.attr("EtaPrimeMass") = &Constants::EtaPrimeMass;
-  Constants.attr("Rho0Mass") = &Constants::Rho0Mass;
-  Constants.attr("RhoPlusMass") = &Constants::RhoPlusMass;
-  Constants.attr("RhoMinusMass") = &Constants::RhoMinusMass;
-  Constants.attr("OmegaMass") = &Constants::OmegaMass;
-  Constants.attr("PhiMass") = &Constants::PhiMass;
-  Constants.attr("BPlusMass") = &Constants::BPlusMass;
-  Constants.attr("BMinusMass") = &Constants::BMinusMass;
-  Constants.attr("upMass") = &Constants::upMass;
-  Constants.attr("downMass") = &Constants::downMass;
-  Constants.attr("charmMass") = &Constants::charmMass;
-  Constants.attr("strangeMass") = &Constants::strangeMass;
-  Constants.attr("topMass") = &Constants::topMass;
-  Constants.attr("bottomMass") = &Constants::bottomMass;
+  constants_mod.attr("protonMass") = Constants::protonMass;
+  constants_mod.attr("neutronMass") = Constants::neutronMass;
+  constants_mod.attr("isoscalarMass") = Constants::isoscalarMass;
+  constants_mod.attr("electronMass") = Constants::electronMass;
+  constants_mod.attr("muonMass") = Constants::muonMass;
+  constants_mod.attr("tauMass") = Constants::tauMass;
+  constants_mod.attr("lambda0Mass") = Constants::lambda0Mass;
+  constants_mod.attr("Pi0Mass") = Constants::Pi0Mass;
+  constants_mod.attr("PiPlusMass") = Constants::PiPlusMass;
+  constants_mod.attr("PiMinusMass") = Constants::PiMinusMass;
+  constants_mod.attr("K0Mass") = Constants::K0Mass;
+  constants_mod.attr("KPlusMass") = Constants::KPlusMass;
+  constants_mod.attr("KMinusMass") = Constants::KMinusMass;
+  constants_mod.attr("KPrime0Mass") = Constants::KPrime0Mass;
+  constants_mod.attr("KPrimePlusMass") = Constants::KPrimePlusMass;
+  constants_mod.attr("KPrimeMinusMass") = Constants::KPrimeMinusMass;
+  constants_mod.attr("D0Mass") = Constants::D0Mass;
+  constants_mod.attr("DPlusMass") = Constants::DPlusMass;
+  constants_mod.attr("DMinusMass") = Constants::DMinusMass;
+  constants_mod.attr("DsPlusMass") = Constants::DsPlusMass;
+  constants_mod.attr("DsMinusMass") = Constants::DsMinusMass;
+  constants_mod.attr("EtaMass") = Constants::EtaMass;
+  constants_mod.attr("EtaPrimeMass") = Constants::EtaPrimeMass;
+  constants_mod.attr("Rho0Mass") = Constants::Rho0Mass;
+  constants_mod.attr("RhoPlusMass") = Constants::RhoPlusMass;
+  constants_mod.attr("RhoMinusMass") = Constants::RhoMinusMass;
+  constants_mod.attr("OmegaMass") = Constants::OmegaMass;
+  constants_mod.attr("PhiMass") = Constants::PhiMass;
+  constants_mod.attr("BPlusMass") = Constants::BPlusMass;
+  constants_mod.attr("BMinusMass") = Constants::BMinusMass;
+  constants_mod.attr("upMass") = Constants::upMass;
+  constants_mod.attr("downMass") = Constants::downMass;
+  constants_mod.attr("charmMass") = Constants::charmMass;
+  constants_mod.attr("strangeMass") = Constants::strangeMass;
+  constants_mod.attr("topMass") = Constants::topMass;
+  constants_mod.attr("bottomMass") = Constants::bottomMass;
 
   // confusing units
   // static const double second          = 1.523e15; // [eV^-1 sec^-1]
-  Constants.attr("s") = &Constants::s;
-  Constants.attr("tauLifeTime") = &Constants::tauLifeTime;
-  Constants.attr("MuonLifeTime") = &Constants::MuonLifeTime;
+  constants_mod.attr("s") = Constants::s;
+  constants_mod.attr("tauLifeTime") = Constants::tauLifeTime;
+  constants_mod.attr("MuonLifeTime") = Constants::MuonLifeTime;
 
   // GeV/c^2
-  Constants.attr("wMass") = &Constants::wMass;
-  Constants.attr("wWidth") = &Constants::wWidth;
-  Constants.attr("zMass") = &Constants::zMass;
+  constants_mod.attr("wMass") = Constants::wMass;
+  constants_mod.attr("wWidth") = Constants::wWidth;
+  constants_mod.attr("zMass") = Constants::zMass;
 
-  Constants.attr("WBranchE") = &Constants::WBranchE;
-  Constants.attr("WBranchMuon") = &Constants::WBranchMuon;
-  Constants.attr("WBranchTau") = &Constants::WBranchTau;
-  Constants.attr("WBranchHadronic") = &Constants::WBranchHadronic;
+  constants_mod.attr("WBranchE") = Constants::WBranchE;
+  constants_mod.attr("WBranchMuon") = Constants::WBranchMuon;
+  constants_mod.attr("WBranchTau") = Constants::WBranchTau;
+  constants_mod.attr("WBranchHadronic") = Constants::WBranchHadronic;
 
-  Constants.attr("nuEMass") = &Constants::nuEMass;
-  Constants.attr("nuMuMass") = &Constants::nuMuMass;
-  Constants.attr("nuTauMass") = &Constants::nuTauMass;
+  constants_mod.attr("nuEMass") = Constants::nuEMass;
+  constants_mod.attr("nuMuMass") = Constants::nuMuMass;
+  constants_mod.attr("nuTauMass") = Constants::nuTauMass;
   /*
   W boson - http://pdg.lbl.gov/2019/listings/rpp2019-list-w-boson.pdf
   Z boson - http://pdg.lbl.gov/2018/listings/rpp2018-list-z-boson.pdf
@@ -103,40 +103,40 @@ PYBIND11_MODULE(utilities,m) {
 
   // Unit Conversions
 
-  Constants.attr("elementaryCharge") = &Constants::elementaryCharge;
+  constants_mod.attr("elementaryCharge") = Constants::elementaryCharge;
 
-  Constants.attr("GeV") = &Constants::GeV;
-  Constants.attr("EeV") = &Constants::EeV;
-  Constants.attr("PeV") = &Constants::PeV;
-  Constants.attr("TeV") = &Constants::TeV;
-  Constants.attr("MeV") = &Constants::MeV;
-  Constants.attr("keV") = &Constants::keV;
-  Constants.attr("eV") = &Constants::eV;
-  Constants.attr("Joule") = &Constants::Joule;
+  constants_mod.attr("GeV") = Constants::GeV;
+  constants_mod.attr("EeV") = Constants::EeV;
+  constants_mod.attr("PeV") = Constants::PeV;
+  constants_mod.attr("TeV") = Constants::TeV;
+  constants_mod.attr("MeV") = Constants::MeV;
+  constants_mod.attr("keV") = Constants::keV;
+  constants_mod.attr("eV") = Constants::eV;
+  constants_mod.attr("Joule") = Constants::Joule;
 
-  Constants.attr("GeV_per_amu") = &Constants::GeV_per_amu;
-  Constants.attr("invGeVsq_per_cmsq") = &Constants::invGeVsq_per_cmsq;
+  constants_mod.attr("GeV_per_amu") = Constants::GeV_per_amu;
+  constants_mod.attr("invGeVsq_per_cmsq") = Constants::invGeVsq_per_cmsq;
 
 
   // may need to fix these after setting GeV to 1.0
-  Constants.attr("FermiConstant") = &Constants::FermiConstant;
-  Constants.attr("avogadro") = &Constants::avogadro;
-  Constants.attr("thetaWeinberg") = &Constants::thetaWeinberg;
-  Constants.attr("gravConstant") = &Constants::gravConstant;
-  Constants.attr("fineStructure") = &Constants::fineStructure;
-  Constants.attr("hbarc") = &Constants::hbarc;
+  constants_mod.attr("FermiConstant") = Constants::FermiConstant;
+  constants_mod.attr("avogadro") = Constants::avogadro;
+  constants_mod.attr("thetaWeinberg") = Constants::thetaWeinberg;
+  constants_mod.attr("gravConstant") = Constants::gravConstant;
+  constants_mod.attr("fineStructure") = Constants::fineStructure;
+  constants_mod.attr("hbarc") = Constants::hbarc;
 
   // CKM matrix elements
   // from https://pdg.lbl.gov/2020/reviews/rpp2020-rev-ckm-matrix.pdf
-  Constants.attr("Vud") = &Constants::Vud;
-  Constants.attr("Vcd") = &Constants::Vcd;
-  Constants.attr("Vtd") = &Constants::Vtd;
-  Constants.attr("Vus") = &Constants::Vus;
-  Constants.attr("Vcs") = &Constants::Vcs;
-  Constants.attr("Vts") = &Constants::Vts;
-  Constants.attr("Vub") = &Constants::Vub;
-  Constants.attr("Vcb") = &Constants::Vcb;
-  Constants.attr("Vtb") = &Constants::Vtb;
+  constants_mod.attr("Vud") = Constants::Vud;
+  constants_mod.attr("Vcd") = Constants::Vcd;
+  constants_mod.attr("Vtd") = Constants::Vtd;
+  constants_mod.attr("Vus") = Constants::Vus;
+  constants_mod.attr("Vcs") = Constants::Vcs;
+  constants_mod.attr("Vts") = Constants::Vts;
+  constants_mod.attr("Vub") = Constants::Vub;
+  constants_mod.attr("Vcb") = Constants::Vcb;
+  constants_mod.attr("Vtb") = Constants::Vtb;
 
   class_<SIREN_random, std::shared_ptr<SIREN_random>>(m, "SIREN_random")
     .def(init<>())
