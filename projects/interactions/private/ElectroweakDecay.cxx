@@ -123,7 +123,7 @@ double ElectroweakDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRe
         for(auto ubar : UpAntiQuarks) {
           for(auto d : DownQuarks) {
             if (record.signature.secondary_types[0]==ubar && record.signature.secondary_types[1]==d) {
-              return V_CKM.at(std::make_pair(UpQuarks[iup],d)) * GammaW;
+              return 3.0 * std::pow(V_CKM.at(std::make_pair(UpQuarks[iup],d)), 2) * GammaW;
             }
           }
           ++iup;
@@ -141,7 +141,7 @@ double ElectroweakDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRe
           int idown = 0;
           for(auto dbar : DownAntiQuarks) {
             if (record.signature.secondary_types[0]==u && record.signature.secondary_types[1]==dbar) {
-              return V_CKM.at(std::make_pair(u,DownQuarks[idown])) * GammaW;
+              return 3.0 * std::pow(V_CKM.at(std::make_pair(u,DownQuarks[idown])), 2) * GammaW;
             }
             ++idown;
           }
@@ -149,32 +149,33 @@ double ElectroweakDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRe
     }
     else if (record.signature.primary_type == siren::dataclasses::ParticleType::Z0) {
       double cL, cR;
-      for(auto nu : Nus) {
-        if (record.signature.secondary_types[0]==nu) {
+      // Z decays are flavor-diagonal: require secondary_types[0] and [1] to be a particle/antiparticle pair
+      for(size_t i=0; i<Nus.size(); ++i) {
+        if (record.signature.secondary_types[0]==Nus[i] && record.signature.secondary_types[1]==AntiNus[i]) {
           cL = 0.5;
           cR = 0;
           return ZDecayWidth(cL,cR);
         }
       }
-      for(auto l : Leptons) {
-        if (record.signature.secondary_types[0]==l) {
+      for(size_t i=0; i<Leptons.size(); ++i) {
+        if (record.signature.secondary_types[0]==Leptons[i] && record.signature.secondary_types[1]==AntiLeptons[i]) {
           cL = -0.27;
           cR = 0.23;
           return ZDecayWidth(cL,cR);
         }
       }
-      for(auto u : UpQuarks) {
-        if (record.signature.secondary_types[0]==u) {
+      for(size_t i=0; i<UpQuarks.size(); ++i) {
+        if (record.signature.secondary_types[0]==UpQuarks[i] && record.signature.secondary_types[1]==UpAntiQuarks[i]) {
           cL = 0.35;
           cR = -0.15;
-          return ZDecayWidth(cL,cR);
+          return 3.0 * ZDecayWidth(cL,cR);
         }
       }
-      for(auto d : DownQuarks) {
-        if (record.signature.secondary_types[0]==d) {
+      for(size_t i=0; i<DownQuarks.size(); ++i) {
+        if (record.signature.secondary_types[0]==DownQuarks[i] && record.signature.secondary_types[1]==DownAntiQuarks[i]) {
           cL = -0.42;
           cR = 0.08;
-          return ZDecayWidth(cL,cR);
+          return 3.0 * ZDecayWidth(cL,cR);
         }
       }
     }

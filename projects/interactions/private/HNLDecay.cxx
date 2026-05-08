@@ -185,7 +185,7 @@ double GammaHadronsCC(double U, double m_N, double m_l) {
   double Gamma_qq = 0;
   for(auto upquark : upquarks) {
     for(auto dnquark : dnquarks) {
-      Gamma_qq += GammaQuarksCC(U, m_N, quark_masses[upquark], quark_masses[dnquark], m_l, 3*V_CKM[std::make_pair(upquark,dnquark)]);
+      Gamma_qq += GammaQuarksCC(U, m_N, quark_masses[upquark], quark_masses[dnquark], m_l, 3.0*pow(V_CKM[std::make_pair(upquark,dnquark)], 2));
     }
   }
   return Gamma_qq;
@@ -266,10 +266,7 @@ double HNLDecay::CCMesonDecayWidth(dataclasses::InteractionRecord const & record
   double GammaMeson = 0;
   if (proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::EMinus ||
       proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::MuMinus ||
-      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::TauMinus ||
-      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::EPlus ||
-      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::MuPlus ||
-      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::TauPlus) {
+      proxyRecord.signature.secondary_types[0] == dataclasses::ParticleType::TauMinus) {
     for(auto meson : PlusChargedMesons) {
       proxyRecord.signature.secondary_types[1] = meson;
       GammaMeson += TotalDecayWidthForFinalState(proxyRecord);
@@ -1235,7 +1232,7 @@ std::pair<rk::P4,rk::P4> HNLDecay::ThreeBodyPhaseSpaceConversion(dataclasses::In
   rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
   rk::Boost boost_to_lab = pHNL.labBoost();
   rk::P4 k3_HNLRest(p3_HNLRest*geom3::Vector3(SinTheta3_HNLRest*cos(Phi3_HNLRest),SinTheta3_HNLRest*sin(Phi3_HNLRest),CosTheta3_HNLRest),m_alpha);
-  rk::P4 k4_HNLRest(p4_HNLRest*geom3::Vector3(SinTheta4_HNLRest*cos(Phi4_HNLRest),SinTheta4_HNLRest*sin(Phi4_HNLRest),CosTheta4_HNLRest),m_alpha);
+  rk::P4 k4_HNLRest(p4_HNLRest*geom3::Vector3(SinTheta4_HNLRest*cos(Phi4_HNLRest),SinTheta4_HNLRest*sin(Phi4_HNLRest),CosTheta4_HNLRest),m_beta);
   rk::P4 k3 = k3_HNLRest.boost(boost_to_lab);
   rk::P4 k4 = k4_HNLRest.boost(boost_to_lab);
   return std::make_pair(k3,k4);

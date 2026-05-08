@@ -315,6 +315,149 @@ TEST(Sampling, NonUniformProposal) {
     EXPECT_NEAR(mean, 2.0, 0.3);
 }
 
+// ---------------------------------------------------------------------------
+// Physics regression tests
+// ---------------------------------------------------------------------------
+
+TEST(HNLDecay, MesonChannelsZeroBelowThreshold) {
+    // Below pion mass, all hadronic two-body channels should have zero width.
+    HNLDecay decay(0.05, 1e-3, HNLDecay::Majorana);
+    auto sigs = decay.GetPossibleSignaturesFromParent(ParticleType::N4);
+    InteractionRecord record;
+    record.primary_mass = 0.05;
+    for (auto const & sig : sigs) {
+        if (sig.secondary_types.size() != 2) continue;
+        ParticleType s1 = sig.secondary_types[1];
+        // Look for any charged or neutral meson final state
+        bool is_meson = (s1 == ParticleType::PiMinus || s1 == ParticleType::PiPlus ||
+                        s1 == ParticleType::Pi0 || s1 == ParticleType::KMinus ||
+                        s1 == ParticleType::KPlus || s1 == ParticleType::Eta);
+        if (!is_meson) continue;
+        record.signature = sig;
+        EXPECT_EQ(decay.TotalDecayWidthForFinalState(record), 0.0)
+            << "Sub-threshold meson channel returned non-zero width for secondary " << static_cast<int>(s1);
+    }
+}
+
+TEST(HNLDecay, AllPartialWidthsNonNegative) {
+    HNLDecay decay(0.5, 1e-3, HNLDecay::Majorana);
+    auto sigs = decay.GetPossibleSignaturesFromParent(ParticleType::N4);
+    InteractionRecord record;
+    record.primary_mass = 0.5;
+    for (auto const & sig : sigs) {
+        record.signature = sig;
+        double w = decay.TotalDecayWidthForFinalState(record);
+        EXPECT_GE(w, 0.0);
+        EXPECT_TRUE(std::isfinite(w));
+    }
+}
+
+TEST(HNLDecay, MajoranaApproxTwiceDirac) {
+    // For a pure leptonic mixing, total Majorana width is ~2x Dirac width
+    // (Majorana adds the charge-conjugate channels)
+    HNLDecay dirac(0.5, std::vector<double>{0, 0, 1e-3}, HNLDecay::Dirac);
+    HNLDecay majorana(0.5, std::vector<double>{0, 0, 1e-3}, HNLDecay::Majorana);
+    double wD = dirac.TotalDecayWidth(ParticleType::N4);
+    double wM = majorana.TotalDecayWidth(ParticleType::N4);
+    EXPECT_NEAR(wM / wD, 2.0, 0.1);
+}
+
+TEST(HNLDecay, ThreeBodyOnShell) {
+    // Sample many 3-body decays and verify each secondary is on its mass shell
+    double hnl_mass = 0.5;
+    HNLDecay decay(hnl_mass, std::vector<double>{0, 0, 1e-3}, HNLDecay::Dirac);
+
+    InteractionRecord event;
+    event.signature.primary_type = ParticleType::N4;
+    event.signature.target_type = ParticleType::Decay;
+    event.signature.secondary_types = {ParticleType::NuLight, ParticleType::EMinus, ParticleType::EPlus};
+    event.primary_mass = hnl_mass;
+    double energy = 5.0;
+    event.primary_momentum = {energy, 0, 0, std::sqrt(energy*energy - hnl_mass*hnl_mass)};
+    event.primary_helicity = 1.0;
+
+    auto rand = std::make_shared<SIREN_random>();
+    double me = 0.000511; // electron mass GeV
+    for (int i = 0; i < 50; ++i) {
+        CrossSectionDistributionRecord xsec_record(event);
+        decay.SampleFinalState(xsec_record, rand);
+        xsec_record.Finalize(event);
+        ASSERT_EQ(event.secondary_momenta.size(), 3u);
+        for (size_t s = 0; s < 3; ++s) {
+            double E = event.secondary_momenta[s][0];
+            double px = event.secondary_momenta[s][1];
+            double py = event.secondary_momenta[s][2];
+            double pz = event.secondary_momenta[s][3];
+            double m2 = E*E - px*px - py*py - pz*pz;
+            double expected = (s == 0) ? 0.0 : me*me;
+            EXPECT_NEAR(m2, expected, 1e-4)
+                << "Secondary " << s << " not on mass shell";
+        }
+    }
+}
+
+TEST(ElectroweakDecay, WHadronicToLeptonicRatio) {
+    // SM prediction: sum_q Gamma(W -> q qbar) / sum_l Gamma(W -> l nu) ~= 3 * sum |V_qq|^2 ~= 2
+    // (sum over kinematically accessible quarks: ud, us, cd, cs)
+    std::set<ParticleType> primaries = {ParticleType::WPlus};
+    ElectroweakDecay decay(primaries);
+
+    auto sigs = decay.GetPossibleSignaturesFromParent(ParticleType::WPlus);
+    double w_lep = 0, w_had = 0;
+    InteractionRecord record;
+    record.primary_mass = siren::utilities::Constants::wMass;
+    for (auto const & sig : sigs) {
+        record.signature = sig;
+        double w = decay.TotalDecayWidthForFinalState(record);
+        ParticleType s0 = sig.secondary_types[0];
+        bool is_lep = (s0 == ParticleType::EPlus || s0 == ParticleType::MuPlus || s0 == ParticleType::TauPlus);
+        if (is_lep) w_lep += w;
+        else w_had += w;
+    }
+    EXPECT_GT(w_lep, 0.0);
+    EXPECT_GT(w_had, 0.0);
+    // Hadronic / leptonic ratio should be ~2 (within ~10% of SM)
+    EXPECT_NEAR(w_had / w_lep, 2.0, 0.3);
+}
+
+TEST(ElectroweakDecay, ZHadronicToLeptonicColorFactor) {
+    // For a single quark flavor, Gamma(Z->qqbar) should include factor 3 from color
+    std::set<ParticleType> primaries = {ParticleType::Z0};
+    ElectroweakDecay decay(primaries);
+
+    InteractionRecord record_d;
+    record_d.primary_mass = siren::utilities::Constants::zMass;
+    record_d.signature.primary_type = ParticleType::Z0;
+    record_d.signature.secondary_types = {ParticleType::d, ParticleType::dBar};
+
+    InteractionRecord record_l;
+    record_l.primary_mass = siren::utilities::Constants::zMass;
+    record_l.signature.primary_type = ParticleType::Z0;
+    record_l.signature.secondary_types = {ParticleType::EMinus, ParticleType::EPlus};
+
+    double w_d = decay.TotalDecayWidthForFinalState(record_d);
+    double w_l = decay.TotalDecayWidthForFinalState(record_l);
+    EXPECT_GT(w_d, 0.0);
+    EXPECT_GT(w_l, 0.0);
+    // Width ratio depends on cV,cA; the color factor of 3 should make w_d > w_l
+    EXPECT_GT(w_d, w_l);
+}
+
+TEST(ElectroweakDecay, ZMismatchedFinalStateZero) {
+    // Non-pair final states (e.g. e- e-, e- mu+) should yield zero width
+    std::set<ParticleType> primaries = {ParticleType::Z0};
+    ElectroweakDecay decay(primaries);
+
+    InteractionRecord record;
+    record.primary_mass = siren::utilities::Constants::zMass;
+    record.signature.primary_type = ParticleType::Z0;
+    record.signature.secondary_types = {ParticleType::EMinus, ParticleType::MuPlus};
+    EXPECT_EQ(decay.TotalDecayWidthForFinalState(record), 0.0);
+
+    record.signature.secondary_types = {ParticleType::d, ParticleType::sBar};
+    EXPECT_EQ(decay.TotalDecayWidthForFinalState(record), 0.0);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

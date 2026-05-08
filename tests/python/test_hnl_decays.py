@@ -90,3 +90,33 @@ class TestElectroweakDecay:
         decay = interactions.ElectroweakDecay(primaries)
         width = decay.TotalDecayWidth(dataclasses.Particle.ParticleType.WPlus)
         assert width > 0
+
+    def test_z_decay_width_positive(self, interactions, dataclasses):
+        primaries = {dataclasses.Particle.ParticleType.Z0}
+        decay = interactions.ElectroweakDecay(primaries)
+        width = decay.TotalDecayWidth(dataclasses.Particle.ParticleType.Z0)
+        assert width > 0
+
+    def test_w_hadronic_to_leptonic_ratio(self, interactions, dataclasses):
+        # SM: Gamma(W -> hadrons) / Gamma(W -> leptons) ~ 2 (within ~10%)
+        primaries = {dataclasses.Particle.ParticleType.WPlus}
+        decay = interactions.ElectroweakDecay(primaries)
+        sigs = decay.GetPossibleSignaturesFromParent(dataclasses.Particle.ParticleType.WPlus)
+        record = dataclasses.InteractionRecord()
+        # wMass ~ 80.4 GeV
+        record.primary_mass = 80.4
+        lep_types = {dataclasses.Particle.ParticleType.EPlus,
+                     dataclasses.Particle.ParticleType.MuPlus,
+                     dataclasses.Particle.ParticleType.TauPlus}
+        w_lep = 0.0
+        w_had = 0.0
+        for sig in sigs:
+            record.signature = sig
+            w = decay.TotalDecayWidthForFinalState(record)
+            if sig.secondary_types[0] in lep_types:
+                w_lep += w
+            else:
+                w_had += w
+        assert w_lep > 0 and w_had > 0
+        ratio = w_had / w_lep
+        assert 1.7 < ratio < 2.3
