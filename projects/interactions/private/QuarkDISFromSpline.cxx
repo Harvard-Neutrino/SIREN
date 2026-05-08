@@ -877,7 +877,12 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     lepton.SetMass(p3.m());
     lepton.SetHelicity(record.primary_helicity);
     hadron.SetFourMomentum({p4X.e(), p4X.px(), p4X.py(), p4X.pz()});
-    hadron.SetMass(p4X.m());
+    // Use the already-validated dot() result instead of P4::m(), which
+    // recomputes msq from e^2 - p_.lengthSquared() and can disagree with
+    // dot() by FP roundoff (~1e-15) -- the assert in m() would then fire
+    // even though the do-while above accepted p4X.
+    const double p4X_msq = p4X.dot(p4X);
+    hadron.SetMass(p4X_msq > 0.0 ? std::sqrt(p4X_msq) : 0.0);
     hadron.SetHelicity(record.target_helicity);
     meson.SetFourMomentum({p4CH.e(), p4CH.px(), p4CH.py(), p4CH.pz()});
 
