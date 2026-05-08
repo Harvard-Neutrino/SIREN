@@ -511,21 +511,28 @@ double QuarkDISFromSpline::DifferentialCrossSection(dataclasses::InteractionReco
 
     const double mc = siren::utilities::Constants::CharmMass;
     double y  = 1.0 - p2.dot(p3) / p2.dot(p1);
-    // xi from inverting Q^2 = 2 M E y xi - m_c^2:
-    double xi = (Q2 + mc * mc) / (2.0 * primary_energy * target_mass_ * y);
+    // xi from inverting Q^2 = 2 M E y xi - m_c^2; guard against y <= 0:
+    double xi = (y > 0.0)
+                ? (Q2 + mc * mc) / (2.0 * primary_energy * target_mass_ * y)
+                : 0.0;
     double log_energy = log10(primary_energy);
-    std::array<double,3> coordinates{{log_energy, log10(xi), log10(y)}};
     std::array<int,3> centers;
 
-    if (Q2 < minimum_Q2_
-        || !kinematicallyAllowed(xi, y, primary_energy, target_mass_, lepton_mass)
-        || !differential_cross_section_.searchcenters(coordinates.data(), centers.data())) {
-            double E1_lab = interaction.interaction_parameters.at("energy");
-            // Fallback: trust stored xi (records sampled by this class always have bjorken_xi).
-            // If absent, std::out_of_range is intentional: this class is xi-y only.
-            xi = interaction.interaction_parameters.at("bjorken_xi");
-            y  = interaction.interaction_parameters.at("bjorken_y");
-            Q2 = slowRescalingQ2(xi, y, E1_lab, target_mass_, mc);
+    bool use_sample_kinematics = (xi > 0.0 && y > 0.0 && Q2 >= minimum_Q2_);
+    if (use_sample_kinematics) {
+        std::array<double,3> coordinates{{log_energy, log10(xi), log10(y)}};
+        use_sample_kinematics =
+            kinematicallyAllowed(xi, y, primary_energy, target_mass_, lepton_mass)
+            && differential_cross_section_.searchcenters(coordinates.data(), centers.data());
+    }
+
+    if (!use_sample_kinematics) {
+        double E1_lab = interaction.interaction_parameters.at("energy");
+        // Fallback: trust stored xi (records sampled by this class always have bjorken_xi).
+        // If absent, std::out_of_range is intentional: this class is xi-y only.
+        xi = interaction.interaction_parameters.at("bjorken_xi");
+        y  = interaction.interaction_parameters.at("bjorken_y");
+        Q2 = slowRescalingQ2(xi, y, E1_lab, target_mass_, mc);
     }
     return DifferentialCrossSection(primary_energy, xi, y, lepton_mass, Q2);
 }
@@ -618,6 +625,12 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     const double yMin    = (W2_thr - M_targ * M_targ + Q2_min) / (2.0 * M_targ * E_nu);
     const double xiMin   = (mc * mc + Q2_min) / (2.0 * M_targ * E_nu * yMax);
 
+    if (xiMin <= 0.0 || yMin <= 0.0 || yMax <= 0.0) {
+        throw std::runtime_error(
+            "QuarkDISFromSpline: non-positive sampling-bound (xiMin="
+            + std::to_string(xiMin) + ", yMin=" + std::to_string(yMin)
+            + ", yMax=" + std::to_string(yMax) + ")");
+    }
     if (xiMin >= 1.0 || yMin >= yMax) {
         throw std::runtime_error(
             "QuarkDISFromSpline: primary energy below slow-rescaling charm threshold "
@@ -655,18 +668,17 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
         // rejection sample a point which is kinematically allowed by calculation limits
         double trialQ;
         double trials = 0;
+        double xi_trial = 0.0, y_trial = 0.0;
         do {
             if (trials >= 100) throw std::runtime_error("too much trials");
             trials += 1;
             kin_vars[1] = random->Uniform(logXiMin, 0.0);
             kin_vars[2] = random->Uniform(logYMin, logYMax);
-            const double xi_trial = std::pow(10., kin_vars[1]);
-            const double y_trial  = std::pow(10., kin_vars[2]);
+            xi_trial = std::pow(10., kin_vars[1]);
+            y_trial  = std::pow(10., kin_vars[2]);
             trialQ = slowRescalingQ2(xi_trial, y_trial, E_nu, M_targ, mc);
         } while (trialQ < minimum_Q2_
-              || !kinematicallyAllowed(std::pow(10., kin_vars[1]),
-                                       std::pow(10., kin_vars[2]),
-                                       E_nu, M_targ, m));
+              || !kinematicallyAllowed(xi_trial, y_trial, E_nu, M_targ, m));
 
         accept = true;
         //sanity check: demand that the sampled point be within the table extents
@@ -700,16 +712,18 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     for(size_t j = 0; j <= burnin; j++) {
         // repeat the sampling from above to get a new valid point
         double trialQ;
+        double xi_trial = 0.0, y_trial = 0.0;
+        int burnin_trials = 0;
         do {
+            if (++burnin_trials >= 100)
+                throw std::runtime_error("QuarkDISFromSpline: burn-in proposal failed to find allowed point in 100 trials");
             test_kin_vars[1] = random->Uniform(logXiMin, 0.0);
             test_kin_vars[2] = random->Uniform(logYMin, logYMax);
-            const double xi_trial = std::pow(10., test_kin_vars[1]);
-            const double y_trial  = std::pow(10., test_kin_vars[2]);
+            xi_trial = std::pow(10., test_kin_vars[1]);
+            y_trial  = std::pow(10., test_kin_vars[2]);
             trialQ = slowRescalingQ2(xi_trial, y_trial, E_nu, M_targ, mc);
         } while (trialQ < minimum_Q2_
-              || !kinematicallyAllowed(std::pow(10., test_kin_vars[1]),
-                                       std::pow(10., test_kin_vars[2]),
-                                       E_nu, M_targ, m));
+              || !kinematicallyAllowed(xi_trial, y_trial, E_nu, M_targ, m));
 
         accept = true;
         if(test_kin_vars[1] < differential_cross_section_.lower_extent(1)
@@ -775,7 +789,6 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
             if (pqx_lab>momq_lab){
                 //scale down
                 E1_lab /= 10;
-                E2_lab /= 10;
                 p1_lab_x /= 10;
                 p1_lab_y /= 10;
                 p1_lab_z /= 10;
@@ -791,7 +804,6 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
             // //scale back
         if (iteration > 0) {
             E1_lab *= pow(10.0, iteration);
-            E2_lab *= pow(10.0, iteration);
             p1_lab_x *= pow(10.0, iteration);
             p1_lab_y *= pow(10.0, iteration);
             p1_lab_z *= pow(10.0, iteration);
@@ -822,7 +834,6 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     // New hadronization scheme: includes partonic cross section sampling and slow rescaling for charm mass effects
     // ##############################################
 
-    const double m_c = siren::utilities::Constants::CharmMass;
     const double xi = final_xi;  // sampled directly in slow-rescaling
     if (xi >= 1.0) {
         throw(siren::utilities::InjectionFailure("xi >= 1.0; sampled slow-rescaling xi past unity"));
