@@ -770,7 +770,8 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     double p1x_lab = std::sqrt(p1_lab.px() * p1_lab.px() + p1_lab.py() * p1_lab.py() + p1_lab.pz() * p1_lab.pz());
     double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
     double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
-    double pqy_lab, Eq_lab;
+    double pqy_lab = std::numeric_limits<double>::quiet_NaN();
+    double Eq_lab;
 
     if (pqx_lab>momq_lab){
         // if current setting does not work, start looping through scalings
@@ -812,6 +813,10 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
         }
         // pqy_lab = 0;
     } else {pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);}
+    if (std::isnan(pqy_lab)) {
+        throw(siren::utilities::InjectionFailure(
+            "QuarkDISFromSpline::SampleFinalState: precision loop failed to converge; pqy_lab is NaN"));
+    }
     Eq_lab = E1_lab * final_y;
 
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
