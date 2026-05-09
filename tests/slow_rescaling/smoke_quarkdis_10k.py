@@ -18,7 +18,7 @@ import traceback
 # Constants (mirror C++ values exactly)
 # ---------------------------------------------------------------------------
 M_C    = 1.27       # Constants::CharmMass
-M_D0   = 1.86962    # Constants::D0Mass
+M_D0   = 1.86484    # Constants::D0Mass
 M_N    = (0.938272 + 0.939565) / 2   # isoscalar nucleon mass
 M_MU   = 0.105658   # muon mass
 Q2MIN  = 1.0        # GeV^2

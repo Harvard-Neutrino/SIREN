@@ -39,7 +39,7 @@ namespace interactions {
 /// Slow-rescaling charm DIS sampler. Expects FITS splines tabulated as
 /// dsdxidy(log10 E, log10 xi, log10 y), e.g. Maboi_M_Muon_SR/dsdxidy_*.fits.
 /// Charm-quark mass m_c=1.27 GeV (Constants::CharmMass) and lightest charm
-/// hadron M_D0=1.86962 GeV (Constants::D0Mass) are taken from
+/// hadron M_D0=1.86484 GeV (Constants::D0Mass) are taken from
 /// siren::utilities::Constants and are not configurable per-instance.
 class QuarkDISFromSpline : public CrossSection {
 friend cereal::access;
