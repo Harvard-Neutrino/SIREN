@@ -235,6 +235,10 @@ double QuarkDISFromSpline::getHadronMass(siren::dataclasses::ParticleType hadron
 				return( siren::utilities::Constants::DPlusMass);
 			case siren::dataclasses::ParticleType::DMinus:
 				return( siren::utilities::Constants::DPlusMass);
+			case siren::dataclasses::ParticleType::DsPlus:
+				return 1.96834; // GeV (PDG 2022); no Constants::DsMass yet
+			case siren::dataclasses::ParticleType::DsMinus:
+				return 1.96834;
 			case siren::dataclasses::ParticleType::Charm:
 				return( siren::utilities::Constants::CharmMass);
 			case siren::dataclasses::ParticleType::CharmBar:
@@ -309,12 +313,14 @@ std::set<siren::dataclasses::ParticleType> QuarkDISFromSpline::DTypesForPrimary(
         || primary == siren::dataclasses::ParticleType::NuMu
         || primary == siren::dataclasses::ParticleType::NuTau) {
         return {siren::dataclasses::Particle::ParticleType::D0,
-                siren::dataclasses::Particle::ParticleType::DPlus};
+                siren::dataclasses::Particle::ParticleType::DPlus,
+                siren::dataclasses::Particle::ParticleType::DsPlus};
     } else if (primary == siren::dataclasses::ParticleType::NuEBar
         || primary == siren::dataclasses::ParticleType::NuMuBar
         || primary == siren::dataclasses::ParticleType::NuTauBar) {
         return {siren::dataclasses::Particle::ParticleType::D0Bar,
-                siren::dataclasses::Particle::ParticleType::DMinus};
+                siren::dataclasses::Particle::ParticleType::DMinus,
+                siren::dataclasses::Particle::ParticleType::DsMinus};
     } else {
         throw std::runtime_error("DTypesForPrimary: Unknown neutrino primary type!");
     }
@@ -996,7 +1002,9 @@ double QuarkDISFromSpline::FragmentationFraction(siren::dataclasses::Particle::P
         return 0.6;
     } else if (secondary == siren::dataclasses::Particle::ParticleType::DPlus || secondary == siren::dataclasses::Particle::ParticleType::DMinus) {
         return 0.23;
-    } // D_s and Lambda^+ not yet implemented
+    } else if (secondary == siren::dataclasses::Particle::ParticleType::DsPlus || secondary == siren::dataclasses::Particle::ParticleType::DsMinus) {
+        return 0.15;
+    } // Lambda_c not yet implemented
     return 0;
 }
 
