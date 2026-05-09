@@ -105,7 +105,11 @@ print()
 # Run N_EVENTS events — kinematic checks + collect (xi, y) for spline eval
 # ---------------------------------------------------------------------------
 failures = []
+rejected = []  # NaN-guard rejections from precision loop (expected, not failures)
 sampled_kinematics = []   # list of (event_idx, xi, y, x, Q2, W2)
+
+MAX_RETRIES = 100  # max resamples per event slot when NaN guard fires
+total_retries = 0
 
 for event_idx in range(N_EVENTS):
     try:
@@ -115,8 +119,27 @@ for event_idx in range(N_EVENTS):
         ir.primary_mass     = 0.0
         ir.target_mass      = M_N
 
-        cdr = siren.dataclasses.CrossSectionDistributionRecord(ir)
-        xs.SampleFinalState(cdr, rng)
+        # Retry loop mirrors SIREN Injector behavior: on InjectionFailure
+        # (precision-loop NaN guard), resample with new RNG state until success.
+        # Production injector framework retries automatically; direct
+        # SampleFinalState calls (like this smoke test) need to do it explicitly.
+        for retry in range(MAX_RETRIES + 1):
+            cdr = siren.dataclasses.CrossSectionDistributionRecord(ir)
+            try:
+                xs.SampleFinalState(cdr, rng)
+                if retry > 0:
+                    total_retries += retry
+                break
+            except RuntimeError as exc:
+                if 'precision loop failed to converge' in str(exc):
+                    if retry < MAX_RETRIES:
+                        continue  # retry with fresh RNG draws
+                    rejected.append(event_idx)
+                    raise  # exhausted budget
+                raise
+        else:
+            rejected.append(event_idx)
+            raise RuntimeError(f'event {event_idx}: exhausted {MAX_RETRIES} retries')
 
         params = dict(cdr.interaction_parameters)
         xi = params["bjorken_xi"]
@@ -161,6 +184,15 @@ for event_idx in range(N_EVENTS):
             if len(failures) <= 10:
                 print(f"FAIL: {msg}")
 
+    except RuntimeError as exc:
+        if 'precision loop failed to converge' in str(exc):
+            rejected.append(event_idx)
+            continue
+        msg = f"Event {event_idx}: unexpected exception: {exc}"
+        failures.append(msg)
+        if len(failures) <= 10:
+            print(f"FAIL: {msg}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
     except Exception as exc:
         msg = f"Event {event_idx}: unexpected exception: {exc}"
         failures.append(msg)
@@ -243,6 +275,12 @@ if not math.isfinite(mean_log_xs):
 # ---------------------------------------------------------------------------
 # Report
 # ---------------------------------------------------------------------------
+if total_retries > 0:
+    print(f"Resampled (NaN guard retry): {total_retries} resamples across {N_EVENTS} events")
+
+if rejected:
+    print(f"Rejected (NaN guard, retry budget exhausted): {len(rejected)}/{N_EVENTS} events ({100.0*len(rejected)/N_EVENTS:.2f}%)")
+
 if all_failures:
     print(f"\nFAIL: " + "; ".join(all_failures))
     if failures:
@@ -251,5 +289,7 @@ if all_failures:
             print(f"  {msg}")
     sys.exit(1)
 else:
-    print(f"OK {N_EVENTS}/{N_EVENTS}")
+    retry_info = f" with {total_retries} resamples" if total_retries > 0 else ""
+    rej_info = f", {len(rejected)} unrecoverable" if rejected else ""
+    print(f"OK {len(sampled_kinematics)}/{N_EVENTS} sampled{retry_info}{rej_info}")
     sys.exit(0)

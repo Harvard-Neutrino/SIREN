@@ -781,7 +781,7 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
 
     if (pqx_lab>momq_lab){
         // if current setting does not work, start looping through scalings
-        int maxIterations = 10;
+        int maxIterations = 15;
         int iteration = 0;
         double p1_lab_x = p1_lab.px();
         double p1_lab_y = p1_lab.py();

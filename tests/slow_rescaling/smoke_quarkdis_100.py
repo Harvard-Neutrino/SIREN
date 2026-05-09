@@ -96,6 +96,9 @@ print()
 # Run N_EVENTS events
 # ---------------------------------------------------------------------------
 failures = []
+rejected = []
+total_retries = 0
+MAX_RETRIES = 100
 
 for event_idx in range(N_EVENTS):
     try:
@@ -105,8 +108,21 @@ for event_idx in range(N_EVENTS):
         ir.primary_mass    = 0.0
         ir.target_mass     = M_N
 
-        cdr = siren.dataclasses.CrossSectionDistributionRecord(ir)
-        xs.SampleFinalState(cdr, rng)
+        # Retry on NaN-guard InjectionFailure (mirrors SIREN Injector behavior).
+        for retry in range(MAX_RETRIES + 1):
+            cdr = siren.dataclasses.CrossSectionDistributionRecord(ir)
+            try:
+                xs.SampleFinalState(cdr, rng)
+                if retry > 0:
+                    total_retries += retry
+                break
+            except RuntimeError as exc:
+                if 'precision loop failed to converge' in str(exc):
+                    if retry < MAX_RETRIES:
+                        continue
+                    rejected.append(event_idx)
+                    raise
+                raise
 
         params = dict(cdr.interaction_parameters)
         xi = params["bjorken_xi"]
@@ -166,5 +182,7 @@ if failures:
     print(f"\nFAIL {n_ok}/{N_EVENTS} ({n_fail} events failed bounds checks)")
     sys.exit(1)
 else:
-    print(f"OK {N_EVENTS}/{N_EVENTS}")
+    retry_info = f" with {total_retries} resamples" if total_retries > 0 else ""
+    rej_info = f", {len(rejected)} unrecoverable" if rejected else ""
+    print(f"OK {N_EVENTS - len(rejected)}/{N_EVENTS} sampled{retry_info}{rej_info}")
     sys.exit(0)
