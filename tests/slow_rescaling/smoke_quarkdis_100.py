@@ -48,7 +48,6 @@ try:
         DIFF_FILE,
         TOTAL_FILE,
         int(1),                                   # interaction_type: CC
-        int(1),                                   # quark_type: +1 for nu -> c
         M_N,                                      # isoscalar mass
         int(1),                                   # minimum Q2
         [PT.NuMu],                                # primary types
