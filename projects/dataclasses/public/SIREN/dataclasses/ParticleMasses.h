@@ -10,10 +10,24 @@ namespace siren {
 namespace dataclasses {
 
 static const std::map<ParticleType, double> ParticleMasses = {
+    {ParticleType::d,          siren::utilities::Constants::downMass},
+    {ParticleType::dBar,       siren::utilities::Constants::downMass},
+    {ParticleType::u,          siren::utilities::Constants::upMass},
+    {ParticleType::uBar,       siren::utilities::Constants::upMass},
+    {ParticleType::s,          siren::utilities::Constants::strangeMass},
+    {ParticleType::sBar,       siren::utilities::Constants::strangeMass},
+    {ParticleType::c,          siren::utilities::Constants::charmMass},
+    {ParticleType::cBar,       siren::utilities::Constants::charmMass},
+    {ParticleType::b,          siren::utilities::Constants::bottomMass},
+    {ParticleType::bBar,       siren::utilities::Constants::bottomMass},
+    {ParticleType::t,          siren::utilities::Constants::topMass},
+    {ParticleType::tBar,       siren::utilities::Constants::topMass},
     {ParticleType::PPlus,      siren::utilities::Constants::protonMass},
     {ParticleType::PMinus,     siren::utilities::Constants::protonMass},
     {ParticleType::Neutron,    siren::utilities::Constants::neutronMass},
+    {ParticleType::Gamma,      0.0},
     {ParticleType::EMinus,     siren::utilities::Constants::electronMass},
+    {ParticleType::EPlus,      siren::utilities::Constants::electronMass},
     {ParticleType::MuMinus,    siren::utilities::Constants::muonMass},
     {ParticleType::MuPlus,     siren::utilities::Constants::muonMass},
     {ParticleType::TauMinus,   siren::utilities::Constants::tauMass},
@@ -28,6 +42,7 @@ static const std::map<ParticleType, double> ParticleMasses = {
     {ParticleType::KPrimePlus, siren::utilities::Constants::KPrimePlusMass},
     {ParticleType::KPrimeMinus,siren::utilities::Constants::KPrimeMinusMass},
     {ParticleType::D0,         siren::utilities::Constants::D0Mass},
+    {ParticleType::D0Bar,      siren::utilities::Constants::D0Mass},
     {ParticleType::DPlus,      siren::utilities::Constants::DPlusMass},
     {ParticleType::DMinus,     siren::utilities::Constants::DMinusMass},
     {ParticleType::DsPlus,     siren::utilities::Constants::DsPlusMass},
@@ -59,7 +74,9 @@ inline double GetParticleMass(ParticleType type) {
     auto it = ParticleMasses.find(type);
     if (it != ParticleMasses.end())
         return it->second;
-    return 0.0; // or throw, or std::numeric_limits<double>::quiet_NaN()
+    if(ParticleTypeNames.find(type) != ParticleTypeNames.end())
+        throw std::invalid_argument("Particle type " + ParticleTypeNames.at(type) + " not found in mass map.");
+    throw std::invalid_argument("Particle type with value " + std::to_string(static_cast<int>(type)) + " not found in mass map.");
 }
 
 } // namespace dataclasses
