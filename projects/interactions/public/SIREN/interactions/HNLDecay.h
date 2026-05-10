@@ -122,12 +122,14 @@ public:
             std::set<siren::dataclasses::ParticleType> _primary_types;
             double _hnl_mass;
             std::vector<double> _mixing;
+            int _nature_int;
             ChiralNature _nature;
 
             archive(::cereal::make_nvp("PrimaryTypes", _primary_types));
             archive(::cereal::make_nvp("HNLMass", _hnl_mass));
             archive(::cereal::make_nvp("Mixing", _mixing));
-            archive(::cereal::make_nvp("ChiralNature", _nature));
+            archive(::cereal::make_nvp("ChiralNature", _nature_int));
+            _nature = static_cast<ChiralNature>(_nature_int);
             construct(_hnl_mass, _mixing, _nature, _primary_types);
             archive(::cereal::make_nvp("Decay", cereal::virtual_base_class<Decay>(construct.ptr())));
         } else {
