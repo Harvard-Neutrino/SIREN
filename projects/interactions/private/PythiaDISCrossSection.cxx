@@ -250,11 +250,25 @@ void PythiaDISCrossSection::InitializeSignatures() {
         // Hadron remnant
         signature.secondary_types.push_back(siren::dataclasses::ParticleType::Hadrons);
 
-        // Charmed meson types: D0, D+, Ds (Ds support added to match SIREN_outputs 0420 run).
+        // Charmed meson types. For ν the c quark fragments to D0/D+/Ds+; for ν̄ the
+        // c̄ quark fragments to D̄0/D-/Ds-. SampleFinalState writes Pythia's actual
+        // produced PID into the signature's meson slot, so the registered set must
+        // include the correct charge to keep weighter signature lookups in range
+        // (otherwise event_weight comes out NaN — see fix in this commit).
         // TODO: Add Lambda_c (4122) support.
-        D_types_ = {siren::dataclasses::ParticleType::D0,
-                    siren::dataclasses::ParticleType::DPlus,
-                    siren::dataclasses::ParticleType::DsPlus};
+        bool is_antineutrino =
+            (primary_type == siren::dataclasses::ParticleType::NuEBar ||
+             primary_type == siren::dataclasses::ParticleType::NuMuBar ||
+             primary_type == siren::dataclasses::ParticleType::NuTauBar);
+        if (is_antineutrino) {
+            D_types_ = {siren::dataclasses::ParticleType::D0Bar,
+                        siren::dataclasses::ParticleType::DMinus,
+                        siren::dataclasses::ParticleType::DsMinus};
+        } else {
+            D_types_ = {siren::dataclasses::ParticleType::D0,
+                        siren::dataclasses::ParticleType::DPlus,
+                        siren::dataclasses::ParticleType::DsPlus};
+        }
 
         for (auto meson_type : D_types_) {
             dataclasses::InteractionSignature full_signature = signature;
