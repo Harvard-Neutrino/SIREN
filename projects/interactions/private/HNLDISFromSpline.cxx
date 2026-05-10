@@ -153,9 +153,9 @@ void HNLDISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::string
 
     differential_cross_section_ = photospline::splinetable<>(dd_crossSectionFile.c_str());
 
-    if(differential_cross_section_.get_ndim()!=3 && differential_cross_section_.get_ndim()!=2)
+    if(differential_cross_section_.get_ndim()!=3)
         throw std::runtime_error("cross section spline has " + std::to_string(differential_cross_section_.get_ndim())
-                + " dimensions, should have either 3 (log10(E), log10(x), log10(y)) or 2 (log10(E), log10(y))");
+                + " dimensions, should have 3 (log10(E), log10(x), log10(y))");
 
     total_cross_section_ = photospline::splinetable<>(total_crossSectionFile.c_str());
 
@@ -166,9 +166,9 @@ void HNLDISFromSpline::LoadFromFile(std::string dd_crossSectionFile, std::string
 
 void HNLDISFromSpline::LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data) {
     differential_cross_section_.read_fits_mem(differential_data.data(), differential_data.size());
-    if(differential_cross_section_.get_ndim() != 3 && differential_cross_section_.get_ndim() != 2)
+    if(differential_cross_section_.get_ndim() != 3)
         throw std::runtime_error("Differential cross section spline has " + std::to_string(differential_cross_section_.get_ndim())
-                + " dimensions, expected 2 or 3");
+                + " dimensions, expected 3");
     total_cross_section_.read_fits_mem(total_data.data(), total_data.size());
     if(total_cross_section_.get_ndim() != 1)
         throw std::runtime_error("Total cross section spline has " + std::to_string(total_cross_section_.get_ndim())
