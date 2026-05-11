@@ -87,13 +87,13 @@ std::vector<dataclasses::InteractionSignature> HNLDipoleDecay::GetPossibleSignat
     signature.target_type = siren::dataclasses::ParticleType::Decay;
     signature.secondary_types.resize(2);
     signature.secondary_types[0] = siren::dataclasses::ParticleType::Gamma;
-    if(primary==siren::dataclasses::ParticleType::NuF4) {
+    if(primary==siren::dataclasses::ParticleType::N4) {
       for(auto particle : std::vector<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::NuE, siren::dataclasses::ParticleType::NuMu, siren::dataclasses::ParticleType::NuTau}) {
         signature.secondary_types[1] = particle;
         signatures.push_back(signature);
       }
     }
-    else if(primary==siren::dataclasses::ParticleType::NuF4Bar) {
+    else if(primary==siren::dataclasses::ParticleType::N4Bar) {
       for(auto particle : std::vector<siren::dataclasses::ParticleType>{siren::dataclasses::ParticleType::NuEBar, siren::dataclasses::ParticleType::NuMuBar, siren::dataclasses::ParticleType::NuTauBar}) {
         signature.secondary_types[1] = particle;
         signatures.push_back(signature);
@@ -128,7 +128,7 @@ double HNLDipoleDecay::DifferentialDecayWidth(dataclasses::InteractionRecord con
     gamma_dir.normalize();
     double CosThetaGamma = gamma_dir*hnl_dir; // scalar product
     double alpha = std::copysign(1.0, record.primary_helicity); // 1 for RH, -1 for LH
-    alpha = (signature.primary_type == siren::dataclasses::ParticleType::NuF4) ? -1*alpha : alpha;
+    alpha = (signature.primary_type == siren::dataclasses::ParticleType::N4) ? -1*alpha : alpha;
     return DecayWidth/2. * (1 + alpha*CosThetaGamma);
 }
 
@@ -141,7 +141,7 @@ void HNLDipoleDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecor
 
     double CosTheta;
     double alpha = std::copysign(1.0,record.GetPrimaryHelicity()); // 1 for RH, -1 for LH
-    alpha = (signature.primary_type == siren::dataclasses::ParticleType::NuF4) ? -1*alpha : alpha;
+    alpha = (signature.primary_type == siren::dataclasses::ParticleType::N4) ? -1*alpha : alpha;
 
     if(nature == ChiralNature::Majorana) {
         CosTheta = random->Uniform(-1,1);

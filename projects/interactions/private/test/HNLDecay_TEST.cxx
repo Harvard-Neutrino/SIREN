@@ -123,7 +123,7 @@ TEST(HNLDipoleDecay, SignaturesNonEmpty) {
 
 TEST(HNLDipoleDecay, TotalDecayWidthPositive) {
     HNLDipoleDecay decay(0.3, 1e-6, HNLDipoleDecay::Dirac);
-    double width = decay.TotalDecayWidth(ParticleType::NuF4);
+    double width = decay.TotalDecayWidth(ParticleType::N4);
     EXPECT_GT(width, 0.0);
 }
 

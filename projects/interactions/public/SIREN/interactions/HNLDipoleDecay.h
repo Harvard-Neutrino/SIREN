@@ -39,7 +39,7 @@ private:
     double hnl_mass;
     std::vector<double> dipole_coupling; // d_e, d_mu, d_tau
     ChiralNature nature;
-    const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::NuF4, siren::dataclasses::ParticleType::NuF4Bar};
+    const std::set<siren::dataclasses::ParticleType> primary_types = {siren::dataclasses::ParticleType::N4, siren::dataclasses::ParticleType::N4Bar};
 public:
     HNLDipoleDecay(double hnl_mass, std::vector<double> dipole_coupling, ChiralNature nature) : hnl_mass(hnl_mass), dipole_coupling(dipole_coupling), nature(nature) {
         if(this->dipole_coupling.size() != 3) throw std::runtime_error("dipole_coupling must have exactly 3 elements");

@@ -68,7 +68,7 @@ class TestHNLDipoleDecay:
     def test_total_decay_width_positive(self, interactions, dataclasses):
         decay = interactions.HNLDipoleDecay(
             0.3, 1e-6, interactions.HNLDipoleDecay.ChiralNature.Dirac)
-        width = decay.TotalDecayWidth(dataclasses.Particle.ParticleType.NuF4)
+        width = decay.TotalDecayWidth(dataclasses.Particle.ParticleType.N4)
         assert width > 0
 
 

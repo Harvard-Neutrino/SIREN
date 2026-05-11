@@ -268,13 +268,13 @@ TEST(Injector, Generation)
     // Secondary process
     std::shared_ptr<SecondaryInjectionProcess> secondary_decay_inj_process = std::make_shared<SecondaryInjectionProcess>();
     std::shared_ptr<PhysicalProcess> secondary_decay_phys_process = std::make_shared<PhysicalProcess>();
-    secondary_decay_inj_process->SetPrimaryType(ParticleType::NuF4);
-    secondary_decay_phys_process->SetPrimaryType(ParticleType::NuF4);
+    secondary_decay_inj_process->SetPrimaryType(ParticleType::N4);
+    secondary_decay_phys_process->SetPrimaryType(ParticleType::N4);
 
-    // Secondary decay: dipole portal HNL (NuF4)
+    // Secondary decay: dipole portal HNL (N4)
     std::shared_ptr<HNLDipoleDecay> sec_decay = std::make_shared<HNLDipoleDecay>(hnl_mass, dipole_coupling_vec, HNLDipoleDecay::ChiralNature::Majorana);
     std::vector<std::shared_ptr<Decay>> sec_decays = {sec_decay};
-    std::shared_ptr<InteractionCollection> secondary_interactions = std::make_shared<InteractionCollection>(ParticleType::NuF4, sec_decays);
+    std::shared_ptr<InteractionCollection> secondary_interactions = std::make_shared<InteractionCollection>(ParticleType::N4, sec_decays);
     secondary_decay_inj_process->SetInteractions(secondary_interactions);
     secondary_decay_phys_process->SetInteractions(secondary_interactions);
 
