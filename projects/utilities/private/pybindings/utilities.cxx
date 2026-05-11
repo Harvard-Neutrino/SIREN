@@ -118,13 +118,13 @@ PYBIND11_MODULE(utilities,m) {
   constants_mod.attr("invGeVsq_per_cmsq") = Constants::invGeVsq_per_cmsq;
 
 
-  // may need to fix these after setting GeV to 1.0
   constants_mod.attr("FermiConstant") = Constants::FermiConstant;
   constants_mod.attr("avogadro") = Constants::avogadro;
   constants_mod.attr("thetaWeinberg") = Constants::thetaWeinberg;
   constants_mod.attr("gravConstant") = Constants::gravConstant;
   constants_mod.attr("fineStructure") = Constants::fineStructure;
   constants_mod.attr("hbarc") = Constants::hbarc;
+  constants_mod.attr("gweak") = Constants::gweak;
 
   // CKM matrix elements
   // from https://pdg.lbl.gov/2020/reviews/rpp2020-rev-ckm-matrix.pdf
