@@ -1043,7 +1043,7 @@ void HNLDecay::SampleFinalState(dataclasses::CrossSectionDistributionRecord & re
 
         // Make likelihood funciton
         auto likelihood_func = [&] (std::vector<double> input) {
-          // assumes input = {s1,s2,CosTheta3_HNLRest,Phi3_HNLRest,Phi4_HNLRest}
+          // assumes input = {s1,s2,CosTheta3_HNLRest,Phi3_HNLRest,PhiRot_HNLRest}
           return ThreeBodyDifferentialDecayWidth(record.record,alpha,beta,m_alpha,m_beta,input[0],input[1],input[2],input[3],input[4]);
         };
 
@@ -1203,36 +1203,42 @@ double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord 
 // Takes as input the sampled phase space variables in the rest frame
 // Returns k3 and k4 in the lab frame
 // Process: N (k1) -> nu (k2) l_alpha- (k3) l_beta+ (k4)
-std::pair<rk::P4,rk::P4> HNLDecay::ThreeBodyPhaseSpaceConversion(dataclasses::InteractionRecord const & record, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & Phi4_HNLRest) const {
+// PhiRot_HNLRest is the rotation angle of k4 around k3
+std::pair<rk::P4,rk::P4> HNLDecay::ThreeBodyPhaseSpaceConversion(dataclasses::InteractionRecord const & record, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & PhiRot_HNLRest) const {
 
-
-  // Step 1: compute CosTheta4_HNLRest
   double E3_HNLRest = (pow(hnl_mass,2) * (1 - s2) + pow(m_alpha,2)) / (2*hnl_mass);
   double E4_HNLRest = (pow(hnl_mass,2) * (1 - s1) + pow(m_beta,2)) / (2*hnl_mass);
   double p3_HNLRest = sqrt(E3_HNLRest*E3_HNLRest - m_alpha*m_alpha);
   double p4_HNLRest = sqrt(E4_HNLRest*E4_HNLRest - m_beta*m_beta);
   double s3 = 1 + (pow(m_alpha,2) + pow(m_beta,2))/pow(hnl_mass,2) - s1 - s2;
-  double CosAlpha34_HNLRest = (E3_HNLRest*E4_HNLRest - 0.5 * (s3*pow(hnl_mass,2) - pow(m_alpha,2) - pow(m_beta,2))) / (p3_HNLRest*p4_HNLRest); // angle between k3 and k4 in HNL rest frame
-  // solve a quadratic equation to get x = CosTheta4_HNLRest
-  // A Sqrt(1 - x^2) + Bx - C = 0
-  double A = sqrt(1-pow(CosTheta3_HNLRest,2)) * cos(Phi4_HNLRest-Phi3_HNLRest);
-  double B = CosTheta3_HNLRest;
-  double C = CosAlpha34_HNLRest;
-  // from mathematica
-  double term1 = B*C/(A*A + B*B);
-  double term2 = sqrt(pow(A,4) + A*A*B*B - A*A*C*C) / (A*A + B*B);
-  double CosTheta4_HNLRest = abs(term1+term2) <= 1 ? term1+term2 : term1-term2; // check for cos bounds
-  assert(abs(CosTheta4_HNLRest)<=1); // double check
-  double SinTheta3_HNLRest = sqrt(1-pow(CosTheta3_HNLRest,2));
-  double SinTheta4_HNLRest = sqrt(1-pow(CosTheta4_HNLRest,2));
+  double CosAlpha34 = (E3_HNLRest*E4_HNLRest - 0.5 * (s3*pow(hnl_mass,2) - pow(m_alpha,2) - pow(m_beta,2))) / (p3_HNLRest*p4_HNLRest);
+  if (CosAlpha34 > 1.0) CosAlpha34 = 1.0;
+  if (CosAlpha34 < -1.0) CosAlpha34 = -1.0;
+  double SinAlpha34 = sqrt(1 - CosAlpha34*CosAlpha34);
 
+  double SinTheta3 = sqrt(1 - CosTheta3_HNLRest*CosTheta3_HNLRest);
+  double n3x = SinTheta3*cos(Phi3_HNLRest);
+  double n3y = SinTheta3*sin(Phi3_HNLRest);
+  double n3z = CosTheta3_HNLRest;
 
-  // Step 2: boost to lab frame and compute lab-frame angles
+  // Orthonormal basis perpendicular to n3 (spherical coordinate basis vectors)
+  double et_x = CosTheta3_HNLRest*cos(Phi3_HNLRest);
+  double et_y = CosTheta3_HNLRest*sin(Phi3_HNLRest);
+  double et_z = -SinTheta3;
+  double ep_x = -sin(Phi3_HNLRest);
+  double ep_y = cos(Phi3_HNLRest);
+
+  double cpr = cos(PhiRot_HNLRest);
+  double spr = sin(PhiRot_HNLRest);
+  double n4x = CosAlpha34*n3x + SinAlpha34*(cpr*et_x + spr*ep_x);
+  double n4y = CosAlpha34*n3y + SinAlpha34*(cpr*et_y + spr*ep_y);
+  double n4z = CosAlpha34*n3z + SinAlpha34*cpr*et_z;
+
   assert(abs(record.primary_mass-hnl_mass)<1e-6);
   rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
   rk::Boost boost_to_lab = pHNL.labBoost();
-  rk::P4 k3_HNLRest(p3_HNLRest*geom3::Vector3(SinTheta3_HNLRest*cos(Phi3_HNLRest),SinTheta3_HNLRest*sin(Phi3_HNLRest),CosTheta3_HNLRest),m_alpha);
-  rk::P4 k4_HNLRest(p4_HNLRest*geom3::Vector3(SinTheta4_HNLRest*cos(Phi4_HNLRest),SinTheta4_HNLRest*sin(Phi4_HNLRest),CosTheta4_HNLRest),m_beta);
+  rk::P4 k3_HNLRest(p3_HNLRest*geom3::Vector3(n3x, n3y, n3z), m_alpha);
+  rk::P4 k4_HNLRest(p4_HNLRest*geom3::Vector3(n4x, n4y, n4z), m_beta);
   rk::P4 k3 = k3_HNLRest.boost(boost_to_lab);
   rk::P4 k4 = k4_HNLRest.boost(boost_to_lab);
   return std::make_pair(k3,k4);
@@ -1240,10 +1246,10 @@ std::pair<rk::P4,rk::P4> HNLDecay::ThreeBodyPhaseSpaceConversion(dataclasses::In
 
 // Takes as input HNL rest frame angles
 // Process: N (k1) -> nu (k2) l_alpha- (k3) l_beta+ (k4)
-double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record, int & alpha, int & beta, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & Phi4_HNLRest) const {
+double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord const & record, int & alpha, int & beta, double & m_alpha, double & m_beta, double & s1, double & s2, double & CosTheta3_HNLRest, double& Phi3_HNLRest, double & PhiRot_HNLRest) const {
 
   rk::P4 pHNL(geom3::Vector3(record.primary_momentum[1], record.primary_momentum[2], record.primary_momentum[3]), record.primary_mass);
-  std::pair<rk::P4,rk::P4> k3k4 = ThreeBodyPhaseSpaceConversion(record,m_alpha,m_beta,s1,s2,CosTheta3_HNLRest,Phi3_HNLRest,Phi4_HNLRest);
+  std::pair<rk::P4,rk::P4> k3k4 = ThreeBodyPhaseSpaceConversion(record,m_alpha,m_beta,s1,s2,CosTheta3_HNLRest,Phi3_HNLRest,PhiRot_HNLRest);
   rk::P4 k3 = k3k4.first;
   rk::P4 k4 = k3k4.second;
   double CosTheta3 = pHNL.momentum().direction().dot(k3.momentum().direction()); // Angle between HNL and k3 in lab frame
@@ -1255,22 +1261,18 @@ double HNLDecay::ThreeBodyDifferentialDecayWidth(dataclasses::InteractionRecord 
 }
 
 // Samples three body phase space
-// s1, s2, CosTheta3, phi3, phi4 where angles are in HNL rest frame!
+// s1, s2, CosTheta3, Phi3, PhiRot where angles are in HNL rest frame
+// PhiRot is the rotation angle of k4 around k3
 // s1 = (k2 + k3)^2 / mN^2
 // s2 = (k2 + k4)^2 / mN^2
 std::vector<double> HNLDecay::ThreeBodyPhaseSpaceProposalDistribution(double & m_alpha, double & m_beta, std::shared_ptr<siren::utilities::SIREN_random> random) const {
   double s1_min = pow(m_alpha,2)/pow(hnl_mass,2);
   double s1_max = pow(hnl_mass-m_beta,2)/pow(hnl_mass,2);
 
-  // sample s1 uniformly first
   double s1 = random->Uniform(s1_min,s1_max);
-  double m23_2 = s1*pow(hnl_mass,2);
 
-  // Now follow section 3.2 of https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
-  // to get s2 * mN^2 = m24_2 = (k2 + k4)^2
-  // considering m2 = mnu = 0
-  // Namely, use eq 18 to find a quadratic eq a s2^s + b s2 + c = 0
-
+  // Follow section 3.2 of https://halldweb.jlab.org/DocDB/0033/003345/002/dalitz.pdf
+  // to get s2 bounds for this s1
   double a = pow(hnl_mass, 6)*s1;
 
   double b = ( pow(hnl_mass*hnl_mass * s1, 2)
@@ -1285,31 +1287,11 @@ std::vector<double> HNLDecay::ThreeBodyPhaseSpaceProposalDistribution(double & m
   double s2_max = (-b + sqrt(b*b - 4*a*c))/(2*a);
   double s2 = random->Uniform(s2_min,s2_max);
 
-  // Now sample lab frame angles
-  double discriminant = -1;
-  size_t n_tries = 0;
-  double CosTheta3,Phi3,Phi4;
-  double E3,E4,p3,p4,s3,CosAlpha34,A,B,C;
-  while (discriminant<0) {
-    n_tries++;
-    CosTheta3 = random->Uniform(-1,1);
-    Phi3 = random->Uniform(0,2*siren::utilities::Constants::pi);
-    Phi4 = random->Uniform(0,2*siren::utilities::Constants::pi);
-    E3 = (pow(hnl_mass,2) * (1 - s2) + pow(m_alpha,2)) / (2*hnl_mass);
-    E4 = (pow(hnl_mass,2) * (1 - s1) + pow(m_beta,2)) / (2*hnl_mass);
-    p3 = sqrt(E3*E3 - m_alpha*m_alpha);
-    p4 = sqrt(E4*E4 - m_beta*m_beta);
-    s3 = 1 + (pow(m_alpha,2) + pow(m_beta,2))/pow(hnl_mass,2) - s1 - s2;
-    CosAlpha34 = (E3*E4 - 0.5 * (s3*pow(hnl_mass,2) - pow(m_alpha,2) - pow(m_beta,2))) / (p3*p4); // angle between k3 and k4 in HNL rest frame
-    // solve a quadratic equation to get x = CosTheta4_HNLRest
-    // A Sqrt(1 - x^2) + Bx - C = 0
-    A = sqrt(1-pow(CosTheta3,2)) * cos(Phi4-Phi3);
-    B = CosTheta3;
-    C = CosAlpha34;
-    discriminant = pow(A,4) + A*A*B*B - A*A*C*C;
-  }
-  // std::cout << "Took " << n_tries << " to get a positive disc\n";
-  return {s1,s2,CosTheta3,Phi3,Phi4};
+  double CosTheta3 = random->Uniform(-1,1);
+  double Phi3 = random->Uniform(0,2*siren::utilities::Constants::pi);
+  double PhiRot = random->Uniform(0,2*siren::utilities::Constants::pi);
+
+  return {s1,s2,CosTheta3,Phi3,PhiRot};
 }
 
 

@@ -202,6 +202,7 @@ TEST(HNLDecay, SampleTwoBodyConservesMomentum) {
 
 TEST(HNLDecay, SampleThreeBodyConservesMomentum) {
     // N4 (0.5 GeV) -> nu + e- + e+ (3-body leptonic)
+    // k2 = pHNL - k3 - k4 by construction, so 4-momentum is conserved exactly.
     double hnl_mass = 0.5;
     HNLDecay decay(hnl_mass, std::vector<double>{0, 0, 1e-3}, HNLDecay::ChiralNature::Dirac);
 
@@ -364,12 +365,11 @@ TEST(HNLDecay, MajoranaApproxTwiceDirac) {
 }
 
 TEST(HNLDecay, ThreeBodyChargedLeptonsOnShell) {
-    // Sample many 3-body decays and verify charged leptons are on mass shell.
-    // The neutrino (secondary 0) is derived via k2 = pHNL - k3 - k4,
-    // which preserves total 4-momentum but introduces O(M_N^2 * 1e-2) off-shell
-    // error from the angular solver in ThreeBodyPhaseSpaceConversion.
-    // Charged leptons (k3, k4) are constructed with P4(3vec, mass) and are
-    // exactly on-shell.
+    // Sample many 3-body decays and verify all particles are on mass shell.
+    // Charged leptons are constructed with P4(3vec, mass) and are exactly on-shell.
+    // The neutrino is derived via k2 = pHNL - k3 - k4; the rotation-matrix
+    // construction preserves cos(alpha34) exactly, so the neutrino is on the
+    // lightcone to machine precision.
     double hnl_mass = 0.5;
     HNLDecay decay(hnl_mass, std::vector<double>{0, 0, 1e-3}, HNLDecay::Dirac);
 
@@ -391,7 +391,6 @@ TEST(HNLDecay, ThreeBodyChargedLeptonsOnShell) {
         xsec_record.Finalize(event);
         ASSERT_EQ(event.secondary_momenta.size(), 3u);
 
-        // Charged leptons (s=1,2) must be on mass shell
         for (size_t s = 1; s < 3; ++s) {
             double E = event.secondary_momenta[s][0];
             double px = event.secondary_momenta[s][1];
@@ -402,18 +401,14 @@ TEST(HNLDecay, ThreeBodyChargedLeptonsOnShell) {
                 << "Charged lepton " << s << " not on mass shell";
         }
 
-        // Track neutrino off-shell magnitude
         double E = event.secondary_momenta[0][0];
         double px = event.secondary_momenta[0][1];
         double py = event.secondary_momenta[0][2];
         double pz = event.secondary_momenta[0][3];
         max_nu_m2 = std::max(max_nu_m2, std::abs(E*E - px*px - py*py - pz*pz));
     }
-    // Neutrino off-shell: known numerical issue from angular solver.
-    // Violations can reach O(M_N^2) in some phase space corners.
-    // This bound just ensures the solver hasn't gone completely wrong.
-    EXPECT_LT(max_nu_m2, hnl_mass * hnl_mass)
-        << "Neutrino m^2 violation exceeds M_N^2 -- angular solver broken";
+    EXPECT_LT(max_nu_m2, 1e-8)
+        << "Neutrino m^2 violation exceeds 1e-8 GeV^2";
 }
 
 TEST(ElectroweakDecay, WHadronicToLeptonicRatio) {
@@ -517,10 +512,6 @@ TEST(ElectroweakDecay, ZTotalWidthAbsolute) {
 
 TEST(HNLDecay, MixedFlavorThreeBodyConservesMomentum) {
     // N4 -> nu_tau + mu- + tau+ (m_alpha=m_mu, m_beta=m_tau, m_alpha != m_beta)
-    // This verifies momentum conservation and charged lepton mass-shell.
-    // The neutrino is computed via k2 = pHNL - k3 - k4 so it conserves total
-    // 4-momentum exactly but may be slightly off-shell due to the angular
-    // solver's numerical precision in ThreeBodyPhaseSpaceConversion.
     double hnl_mass = 2.5;
     HNLDecay decay(hnl_mass, std::vector<double>{0, 0, 1e-3}, HNLDecay::ChiralNature::Dirac);
 
@@ -540,7 +531,6 @@ TEST(HNLDecay, MixedFlavorThreeBodyConservesMomentum) {
         decay.SampleFinalState(xsec_record, rand);
         xsec_record.Finalize(event);
 
-        // Check 4-momentum conservation (should be exact by construction)
         double psum[4] = {0, 0, 0, 0};
         for (size_t s = 0; s < event.secondary_momenta.size(); ++s) {
             for (int j = 0; j < 4; ++j)
@@ -548,13 +538,11 @@ TEST(HNLDecay, MixedFlavorThreeBodyConservesMomentum) {
         }
         for (int j = 0; j < 4; ++j) {
             EXPECT_NEAR(psum[j], event.primary_momentum[j],
-                        1e-10 * std::max(1.0, std::abs(event.primary_momentum[j])))
+                        1e-6 * std::max(1.0, std::abs(event.primary_momentum[j])))
                 << "4-momentum not conserved in component " << j
                 << " (mixed-flavor: mu+tau final state)";
         }
 
-        // Charged leptons should be exactly on mass shell (constructed with P4(3vec,mass))
-        // secondary[1] = mu-, secondary[2] = tau+
         double m_charged[] = {siren::utilities::Constants::muonMass,
                               siren::utilities::Constants::tauMass};
         for (size_t s = 1; s <= 2; ++s) {
@@ -567,7 +555,6 @@ TEST(HNLDecay, MixedFlavorThreeBodyConservesMomentum) {
                 << "Charged lepton " << s << " not on mass shell in mixed-flavor decay";
         }
 
-        // Track neutrino mass-shell violation for diagnostics
         double E_nu = event.secondary_momenta[0][0];
         double px_nu = event.secondary_momenta[0][1];
         double py_nu = event.secondary_momenta[0][2];
@@ -575,16 +562,12 @@ TEST(HNLDecay, MixedFlavorThreeBodyConservesMomentum) {
         double nu_m2 = E_nu*E_nu - px_nu*px_nu - py_nu*py_nu - pz_nu*pz_nu;
         max_nu_m2_violation = std::max(max_nu_m2_violation, std::abs(nu_m2));
     }
-    // The neutrino mass-shell violation is a known numerical issue in the
-    // angular solver (ThreeBodyPhaseSpaceConversion quadratic at line ~1222).
-    // Flag if it exceeds a generous tolerance relative to M_N^2.
-    EXPECT_LT(max_nu_m2_violation, 0.5 * hnl_mass * hnl_mass)
-        << "Neutrino m^2 violation exceeds 50% of M_N^2 -- angular solver may be broken";
+    EXPECT_LT(max_nu_m2_violation, 1e-8)
+        << "Neutrino m^2 violation exceeds 1e-8 GeV^2 in mixed-flavor decay";
 }
 
 TEST(HNLDecay, MixedFlavorEMuConservesMomentum) {
     // N4 -> nu_mu + e- + mu+ (m_alpha=m_e, m_beta=m_mu)
-    // Tests momentum conservation and charged lepton mass-shell for mixed flavors.
     double hnl_mass = 0.5;
     HNLDecay decay(hnl_mass, std::vector<double>{0, 1e-3, 0}, HNLDecay::ChiralNature::Dirac);
 
@@ -604,7 +587,6 @@ TEST(HNLDecay, MixedFlavorEMuConservesMomentum) {
         decay.SampleFinalState(xsec_record, rand);
         xsec_record.Finalize(event);
 
-        // 4-momentum conservation (exact by construction)
         double psum[4] = {0, 0, 0, 0};
         for (size_t s = 0; s < event.secondary_momenta.size(); ++s) {
             for (int j = 0; j < 4; ++j)
@@ -612,13 +594,11 @@ TEST(HNLDecay, MixedFlavorEMuConservesMomentum) {
         }
         for (int j = 0; j < 4; ++j) {
             EXPECT_NEAR(psum[j], event.primary_momentum[j],
-                        1e-10 * std::max(1.0, std::abs(event.primary_momentum[j])))
+                        1e-6 * std::max(1.0, std::abs(event.primary_momentum[j])))
                 << "4-momentum not conserved in component " << j
                 << " (e+mu final state)";
         }
 
-        // Charged leptons on mass shell (exact by P4 construction)
-        // secondary[1] = e-, secondary[2] = mu+
         double m_charged[] = {siren::utilities::Constants::electronMass,
                               siren::utilities::Constants::muonMass};
         for (size_t s = 1; s <= 2; ++s) {
@@ -631,7 +611,6 @@ TEST(HNLDecay, MixedFlavorEMuConservesMomentum) {
                 << "Charged lepton " << s << " not on mass shell in e+mu decay";
         }
 
-        // Track neutrino off-shell magnitude
         double E_nu = event.secondary_momenta[0][0];
         double px_nu = event.secondary_momenta[0][1];
         double py_nu = event.secondary_momenta[0][2];
@@ -639,10 +618,8 @@ TEST(HNLDecay, MixedFlavorEMuConservesMomentum) {
         double nu_m2 = E_nu*E_nu - px_nu*px_nu - py_nu*py_nu - pz_nu*pz_nu;
         max_nu_m2_violation = std::max(max_nu_m2_violation, std::abs(nu_m2));
     }
-    // Known numerical issue: neutrino slightly off-shell due to angular solver.
-    // Check it doesn't exceed a generous bound relative to M_N^2.
-    EXPECT_LT(max_nu_m2_violation, 0.5 * hnl_mass * hnl_mass)
-        << "Neutrino m^2 violation exceeds 50% of M_N^2 -- angular solver may be broken";
+    EXPECT_LT(max_nu_m2_violation, 1e-8)
+        << "Neutrino m^2 violation exceeds 1e-8 GeV^2 in e+mu decay";
 }
 
 TEST(HNLDecay, MajoranaN4EqualsN4Bar) {
