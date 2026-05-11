@@ -103,6 +103,51 @@ class TestControllerConstructor:
 
 
 # ---------------------------------------------------------------------------
+# Detector model queries
+# ---------------------------------------------------------------------------
+
+class TestDetectorModelQueries:
+    def test_fiducial_volume_exists(self, ccm_controller):
+        """CCM should have a fiducial volume defined."""
+        fv = ccm_controller.GetFiducialVolume()
+        assert fv is not None
+
+    def test_detector_model_targets_non_empty(self, ccm_controller):
+        """GetDetectorModelTargets should return non-empty lists."""
+        targets, target_strs = ccm_controller.GetDetectorModelTargets()
+        assert len(targets) > 0
+        assert len(target_strs) > 0
+        # target_strs may be shorter (deduped by string name)
+        assert len(target_strs) <= len(targets)
+
+    def test_detector_model_targets_contain_hydrogen(self, ccm_controller):
+        """CCM detector should contain hydrogen."""
+        _, target_strs = ccm_controller.GetDetectorModelTargets()
+        assert "H1" in target_strs
+
+    def test_sector_geometry_returns_geometry(self, ccm_controller):
+        """GetDetectorSectorGeometry with a valid name should return a geometry."""
+        geo = ccm_controller.GetDetectorSectorGeometry("ccm_inner_argon")
+        if geo is None:
+            pytest.skip("ccm_inner_argon sector not found in this detector model")
+        from siren import geometry as _geometry
+        assert isinstance(geo, (_geometry.Cylinder, _geometry.Sphere))
+
+    def test_old_cylinder_method_name_removed(self, ccm_controller):
+        """The old name GetCylinderVolumePositionDistributionFromSector should
+        not exist; it was renamed to GetVolumePositionDistributionFromSector."""
+        assert not hasattr(ccm_controller, "GetCylinderVolumePositionDistributionFromSector")
+
+    def test_volume_position_from_valid_sector(self, ccm_controller):
+        """GetVolumePositionDistributionFromSector should return a distribution for a valid sector."""
+        geo = ccm_controller.GetDetectorSectorGeometry("ccm_inner_argon")
+        if geo is None:
+            pytest.skip("ccm_inner_argon sector not found")
+        dist = ccm_controller.GetVolumePositionDistributionFromSector("ccm_inner_argon")
+        assert dist is not None
+
+
+# ---------------------------------------------------------------------------
 # SetInteractions
 # ---------------------------------------------------------------------------
 
