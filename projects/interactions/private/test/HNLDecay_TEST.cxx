@@ -411,6 +411,160 @@ TEST(HNLDecay, ThreeBodyChargedLeptonsOnShell) {
         << "Neutrino m^2 violation exceeds 1e-8 GeV^2";
 }
 
+TEST(HNLDecay, ThreeBodyDifferentialWidthPositive) {
+    // DifferentialDecayWidth reconstructs the neutrino as P4(3vec, 0),
+    // recomputing E from |p|.  If the neutrino is off-shell, the
+    // reconstructed s1/s2 differ from the sampled values, potentially
+    // producing a negative or zero width.  This regression test verifies
+    // that DifferentialDecayWidth returns a positive value for sampled
+    // 3-body events, and that FinalStateProbability stays in (0, 1].
+    double hnl_mass = 0.5;
+    HNLDecay decay(hnl_mass, std::vector<double>{0, 0, 1e-3}, HNLDecay::Dirac);
+
+    InteractionRecord event;
+    event.signature.primary_type = ParticleType::N4;
+    event.signature.target_type = ParticleType::Decay;
+    event.signature.secondary_types = {ParticleType::NuLight, ParticleType::EMinus, ParticleType::EPlus};
+    event.primary_mass = hnl_mass;
+    double energy = 5.0;
+    event.primary_momentum = {energy, 0, 0, std::sqrt(energy*energy - hnl_mass*hnl_mass)};
+    event.primary_helicity = 1.0;
+
+    auto rand = std::make_shared<SIREN_random>();
+    for (int i = 0; i < 50; ++i) {
+        CrossSectionDistributionRecord xsec_record(event);
+        decay.SampleFinalState(xsec_record, rand);
+        xsec_record.Finalize(event);
+
+        double dw = decay.DifferentialDecayWidth(event);
+        EXPECT_GT(dw, 0.0)
+            << "3-body DifferentialDecayWidth should be positive for a sampled event";
+
+        double fp = decay.FinalStateProbability(event);
+        EXPECT_GT(fp, 0.0);
+        EXPECT_LE(fp, 1.0)
+            << "FinalStateProbability > 1 indicates Dalitz invariant inconsistency";
+    }
+}
+
+TEST(HNLDecay, ThreeBodyDalitzRoundTrip) {
+    // The sampled Dalitz invariants (s1, s2) should be recoverable from
+    // the stored secondary momenta.  DifferentialDecayWidth reconstructs
+    // k2 = P4(3vec, 0) and computes s1 = (k2+k3)^2/M_N^2.  If the
+    // angular solver produces an off-shell neutrino, the reconstructed
+    // s1/s2 will differ from the sampled values.  This test verifies
+    // round-trip consistency.
+    double hnl_mass = 0.5;
+    HNLDecay decay(hnl_mass, std::vector<double>{0, 0, 1e-3}, HNLDecay::Dirac);
+
+    InteractionRecord event;
+    event.signature.primary_type = ParticleType::N4;
+    event.signature.target_type = ParticleType::Decay;
+    event.signature.secondary_types = {ParticleType::NuLight, ParticleType::EMinus, ParticleType::EPlus};
+    event.primary_mass = hnl_mass;
+    double energy = 5.0;
+    event.primary_momentum = {energy, 0, 0, std::sqrt(energy*energy - hnl_mass*hnl_mass)};
+    event.primary_helicity = 1.0;
+
+    auto rand = std::make_shared<SIREN_random>();
+    double me = siren::utilities::Constants::electronMass;
+    double max_ds = 0;
+    for (int i = 0; i < 50; ++i) {
+        CrossSectionDistributionRecord xsec_record(event);
+        decay.SampleFinalState(xsec_record, rand);
+        xsec_record.Finalize(event);
+
+        // Reconstruct k2 the same way DifferentialDecayWidth does:
+        // P4(3-momentum, mass=0) so E = |p|
+        rk::P4 k2(geom3::Vector3(event.secondary_momenta[0][1],
+                                  event.secondary_momenta[0][2],
+                                  event.secondary_momenta[0][3]), 0);
+        rk::P4 k3(geom3::Vector3(event.secondary_momenta[1][1],
+                                  event.secondary_momenta[1][2],
+                                  event.secondary_momenta[1][3]), me);
+        rk::P4 k4(geom3::Vector3(event.secondary_momenta[2][1],
+                                  event.secondary_momenta[2][2],
+                                  event.secondary_momenta[2][3]), me);
+
+        double s1_recon = (k2+k3).dot(k2+k3) / (hnl_mass*hnl_mass);
+        double s2_recon = (k2+k4).dot(k2+k4) / (hnl_mass*hnl_mass);
+
+        // Also compute s1/s2 using the stored energy (not recomputed from mass=0)
+        // This is what was sampled
+        rk::P4 k2_stored(event.secondary_momenta[0][0],
+                          geom3::Vector3(event.secondary_momenta[0][1],
+                                         event.secondary_momenta[0][2],
+                                         event.secondary_momenta[0][3]));
+        double s1_stored = (k2_stored+k3).dot(k2_stored+k3) / (hnl_mass*hnl_mass);
+        double s2_stored = (k2_stored+k4).dot(k2_stored+k4) / (hnl_mass*hnl_mass);
+
+        max_ds = std::max(max_ds, std::abs(s1_recon - s1_stored));
+        max_ds = std::max(max_ds, std::abs(s2_recon - s2_stored));
+    }
+    EXPECT_LT(max_ds, 1e-10)
+        << "Dalitz invariants from P4(3vec,0) differ from stored -- neutrino off-shell";
+}
+
+TEST(HNLDecay, ThreeBodyOpeningAngleConsistency) {
+    // Verify that the opening angle between k3 and k4 in the rest frame
+    // matches the Dalitz prediction.  This is the core invariant that
+    // the rotation-matrix construction preserves exactly.
+    double hnl_mass = 0.5;
+    HNLDecay decay(hnl_mass, std::vector<double>{0, 0, 1e-3}, HNLDecay::Dirac);
+
+    InteractionRecord event;
+    event.signature.primary_type = ParticleType::N4;
+    event.signature.target_type = ParticleType::Decay;
+    event.signature.secondary_types = {ParticleType::NuLight, ParticleType::EMinus, ParticleType::EPlus};
+    event.primary_mass = hnl_mass;
+    double energy = 5.0;
+    event.primary_momentum = {energy, 0, 0, std::sqrt(energy*energy - hnl_mass*hnl_mass)};
+    event.primary_helicity = 1.0;
+
+    auto rand = std::make_shared<SIREN_random>();
+    double me = siren::utilities::Constants::electronMass;
+    double max_err = 0;
+    for (int i = 0; i < 50; ++i) {
+        CrossSectionDistributionRecord xsec_record(event);
+        decay.SampleFinalState(xsec_record, rand);
+        xsec_record.Finalize(event);
+
+        // Boost secondaries back to rest frame
+        rk::P4 pHNL(geom3::Vector3(event.primary_momentum[1],
+                                    event.primary_momentum[2],
+                                    event.primary_momentum[3]), hnl_mass);
+        rk::Boost to_rest = pHNL.restBoost();
+
+        rk::P4 k3_lab(geom3::Vector3(event.secondary_momenta[1][1],
+                                      event.secondary_momenta[1][2],
+                                      event.secondary_momenta[1][3]), me);
+        rk::P4 k4_lab(geom3::Vector3(event.secondary_momenta[2][1],
+                                      event.secondary_momenta[2][2],
+                                      event.secondary_momenta[2][3]), me);
+        rk::P4 k3_rest = k3_lab;
+        rk::P4 k4_rest = k4_lab;
+        k3_rest.boost(to_rest);
+        k4_rest.boost(to_rest);
+
+        double cos_alpha34_geom = k3_rest.momentum().direction().dot(
+                                  k4_rest.momentum().direction());
+
+        // Dalitz prediction: cos(alpha34) from energies
+        double E3 = k3_rest.e();
+        double E4 = k4_rest.e();
+        double p3 = k3_rest.p();
+        double p4 = k4_rest.p();
+        double s1 = (pHNL - k4_lab).dot(pHNL - k4_lab) / (hnl_mass*hnl_mass);
+        double s2 = (pHNL - k3_lab).dot(pHNL - k3_lab) / (hnl_mass*hnl_mass);
+        double s3 = 1 + (me*me + me*me)/(hnl_mass*hnl_mass) - s1 - s2;
+        double cos_alpha34_dalitz = (E3*E4 - 0.5*(s3*hnl_mass*hnl_mass - me*me - me*me)) / (p3*p4);
+
+        max_err = std::max(max_err, std::abs(cos_alpha34_geom - cos_alpha34_dalitz));
+    }
+    EXPECT_LT(max_err, 1e-10)
+        << "Opening angle from geometry does not match Dalitz prediction";
+}
+
 TEST(ElectroweakDecay, WHadronicToLeptonicRatio) {
     // SM prediction: sum_q Gamma(W -> q qbar) / sum_l Gamma(W -> l nu) ~= 3 * sum |V_qq|^2 ~= 2
     // (sum over kinematically accessible quarks: ud, us, cd, cs)
