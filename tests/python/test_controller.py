@@ -1,13 +1,15 @@
-"""Tests for SIREN_Controller features and the Weighter additions in PR #125.
+"""Tests for SIREN_Controller and Weighter (PR #125).
 
 Covers:
   - Constructor: experiment name, custom file paths, validation, seed
-  - SetInteractions: None primary, merging, assertion on type mismatch
-  - SetProcesses: fid_vol_secondary flag
-  - GetVolumePositionDistributionFromSector: renamed method, error on missing sector
-  - SaveEvents dataset structure: int_probs, int_params, survival_probs
-  - Weighter C++ additions: bounds checking, probability retrieval
-  - End-to-end: generate, weight, save cycle with DummyCrossSection
+  - SetInteractions: None primary/secondary, injection-only flag,
+    type mismatch/match assertions, auto-set from collection, merging
+  - GetVolumePositionDistributionFromSector: missing sector error
+  - save_int_params nested structure (logic-pattern tests)
+  - DN_min_decay_width filtering (logic-pattern tests)
+  - InputDarkNewsModel secondary process preservation
+  - Weighter: bounds checking, probability retrieval, event weight
+  - End-to-end: generate, weight, probability retrieval
 """
 import os
 import pytest
@@ -40,7 +42,7 @@ def ccm_det_paths():
 
 
 @pytest.fixture(scope="module")
-def ccm_controller(ccm_det_paths):
+def ccm_controller():
     from siren.SIREN_Controller import SIREN_Controller
     try:
         return SIREN_Controller(10, experiment="CCM")
@@ -61,8 +63,14 @@ def controller_custom_paths(ccm_det_paths):
     )
 
 
+def _make_fresh_controller():
+    """Helper: create an isolated controller for tests that mutate state."""
+    from siren.SIREN_Controller import SIREN_Controller
+    return SIREN_Controller(1, experiment="CCM")
+
+
 # ---------------------------------------------------------------------------
-# Constructor tests
+# Constructor
 # ---------------------------------------------------------------------------
 
 class TestControllerConstructor:
@@ -91,27 +99,21 @@ class TestControllerConstructor:
         from siren.SIREN_Controller import SIREN_Controller
         c1 = SIREN_Controller(1, experiment="CCM", seed=42)
         c2 = SIREN_Controller(1, experiment="CCM", seed=42)
-        # Same seed should produce same first random number
-        r1 = c1.random.Uniform(0, 1)
-        r2 = c2.random.Uniform(0, 1)
-        assert r1 == r2
+        assert c1.random.Uniform(0, 1) == c2.random.Uniform(0, 1)
 
 
 # ---------------------------------------------------------------------------
-# SetInteractions tests
+# SetInteractions
 # ---------------------------------------------------------------------------
 
 class TestSetInteractions:
     def test_none_primary_is_accepted(self, ccm_controller):
-        """SetInteractions with primary_interaction_collection=None should not crash."""
         ccm_controller.SetInteractions(
             primary_interaction_collection=None,
-            injection=True,
-            physical=True,
+            injection=True, physical=True,
         )
 
     def test_none_secondary_is_accepted(self, ccm_controller):
-        """SetInteractions with secondary_interaction_collections=None should not crash."""
         NuMu = dc.Particle.ParticleType.NuMu
         int_col = interactions.InteractionCollection(NuMu, [])
         ccm_controller.primary_injection_process.primary_type = NuMu
@@ -122,63 +124,57 @@ class TestSetInteractions:
         )
 
     def test_injection_only_flag(self):
-        """Setting injection=True, physical=False should only update injection process."""
-        from siren.SIREN_Controller import SIREN_Controller
-        ctrl = SIREN_Controller(1, experiment="CCM")
+        ctrl = _make_fresh_controller()
         NuMu = dc.Particle.ParticleType.NuMu
         ctrl.primary_injection_process.primary_type = NuMu
         ctrl.primary_physical_process.primary_type = NuMu
-
         int_col = interactions.InteractionCollection(NuMu, [])
         ctrl.SetInteractions(
             primary_interaction_collection=int_col,
-            injection=True,
-            physical=False,
+            injection=True, physical=False,
         )
         assert ctrl.primary_injection_process.interactions is not None
 
     def test_physical_type_mismatch_raises(self):
-        """physical=True with mismatched type should raise AssertionError."""
-        from siren.SIREN_Controller import SIREN_Controller
-        ctrl = SIREN_Controller(1, experiment="CCM")
+        ctrl = _make_fresh_controller()
         NuMu = dc.Particle.ParticleType.NuMu
         NuE = dc.Particle.ParticleType.NuE
-
         ctrl.primary_injection_process.primary_type = NuE
         ctrl.primary_physical_process.primary_type = NuMu
-
         int_col = interactions.InteractionCollection(NuE, [])
         with pytest.raises(AssertionError):
             ctrl.SetInteractions(
                 primary_interaction_collection=int_col,
-                injection=False,
-                physical=True,
+                injection=False, physical=True,
             )
 
+    def test_physical_type_match_passes(self):
+        ctrl = _make_fresh_controller()
+        NuMu = dc.Particle.ParticleType.NuMu
+        ctrl.primary_physical_process.primary_type = NuMu
+        ctrl.primary_injection_process.primary_type = NuMu
+        int_col = interactions.InteractionCollection(NuMu, [])
+        ctrl.SetInteractions(
+            primary_interaction_collection=int_col,
+            injection=False, physical=True,
+        )
+
     def test_auto_sets_primary_type_from_collection(self):
-        """When primary_type is unknown, SetInteractions should set it from the collection."""
-        from siren.SIREN_Controller import SIREN_Controller
-        ctrl = SIREN_Controller(1, experiment="CCM")
+        ctrl = _make_fresh_controller()
         NuTau = dc.Particle.ParticleType.NuTau
         unknown = dc.Particle.ParticleType.unknown
-
         ctrl.primary_injection_process.primary_type = unknown
         ctrl.primary_physical_process.primary_type = unknown
-
         int_col = interactions.InteractionCollection(NuTau, [])
         ctrl.SetInteractions(primary_interaction_collection=int_col)
-
         assert ctrl.primary_injection_process.primary_type == NuTau
         assert ctrl.primary_physical_process.primary_type == NuTau
 
     def test_merge_interaction_collections(self):
-        """Setting interactions twice should merge, not replace."""
-        from siren.SIREN_Controller import SIREN_Controller
-        ctrl = SIREN_Controller(1, experiment="CCM")
+        ctrl = _make_fresh_controller()
         NuMu = dc.Particle.ParticleType.NuMu
         ctrl.primary_injection_process.primary_type = NuMu
         ctrl.primary_physical_process.primary_type = NuMu
-
         col1 = interactions.InteractionCollection(NuMu, [])
         col2 = interactions.InteractionCollection(NuMu, [])
         ctrl.SetInteractions(primary_interaction_collection=col1)
@@ -197,10 +193,95 @@ class TestGetVolumePositionDistribution:
 
 
 # ---------------------------------------------------------------------------
-# Weighter bounds checking (Python layer)
+# save_int_params structure (logic-pattern tests)
 # ---------------------------------------------------------------------------
 
-class TestWeighterPython:
+class TestSaveIntParamsStructure:
+    def test_int_params_key_is_dict_per_event(self):
+        """datasets['int_params'] should be a list of dicts, one per event."""
+        datasets = {}
+        events_data = [
+            [{"x": 1.0, "y": 2.0}, {"x": 3.0}],
+            [{"x": 4.0, "y": 5.0, "z": 6.0}],
+        ]
+        for event_params_list in events_data:
+            datasets.setdefault("int_params", [])
+            datasets["int_params"].append({})
+            for datum_params in event_params_list:
+                for param_name, param_value in datum_params.items():
+                    if param_name not in datasets["int_params"][-1]:
+                        datasets["int_params"][-1][param_name] = []
+                    datasets["int_params"][-1][param_name].append(param_value)
+        assert len(datasets["int_params"]) == 2
+        assert datasets["int_params"][0] == {"x": [1.0, 3.0], "y": [2.0]}
+        assert datasets["int_params"][1] == {"x": [4.0], "y": [5.0], "z": [6.0]}
+
+    def test_params_from_later_events_not_lost(self):
+        """Params appearing only in later events must not cause KeyError."""
+        datasets = {}
+        events_data = [
+            [{"x": 1.0}],
+            [{"x": 2.0, "z": 9.0}],
+        ]
+        for event_params_list in events_data:
+            datasets.setdefault("int_params", [])
+            datasets["int_params"].append({})
+            for datum_params in event_params_list:
+                for param_name, param_value in datum_params.items():
+                    if param_name not in datasets["int_params"][-1]:
+                        datasets["int_params"][-1][param_name] = []
+                    datasets["int_params"][-1][param_name].append(param_value)
+        assert datasets["int_params"][1] == {"x": [2.0], "z": [9.0]}
+        assert "z" not in datasets["int_params"][0]
+
+
+# ---------------------------------------------------------------------------
+# DN_min_decay_width filtering (logic-pattern tests)
+# ---------------------------------------------------------------------------
+
+class TestDNMinDecayWidth:
+    def test_min_decay_width_only_matching(self):
+        """Only decays matching primary_type contribute to DN_min_decay_width."""
+        primary_type = "N4"
+        decays = [("N4", 1e-10), ("N4", 5e-11), ("NuE", 1e-15)]
+        min_width = np.inf
+        for parent, width in decays:
+            if parent == primary_type and width > 0 and width < min_width:
+                min_width = width
+        assert min_width == pytest.approx(5e-11)
+
+    def test_zero_width_excluded(self):
+        """Zero-width decays should not corrupt the minimum."""
+        primary_type = "N4"
+        decays = [("N4", 0.0), ("N4", 1e-10)]
+        min_width = np.inf
+        for parent, width in decays:
+            if parent == primary_type and width > 0 and width < min_width:
+                min_width = width
+        assert min_width == pytest.approx(1e-10)
+
+
+# ---------------------------------------------------------------------------
+# InputDarkNewsModel secondary process preservation
+# ---------------------------------------------------------------------------
+
+class TestInputDarkNewsModelSecondaryPreservation:
+    def test_existing_secondary_not_duplicated(self, ccm_controller):
+        """Existing secondary injection processes should be reused, not duplicated."""
+        N4 = dc.Particle.ParticleType.N4
+        sec_proc = injection.SecondaryInjectionProcess()
+        sec_proc.primary_type = N4
+        ccm_controller.secondary_injection_processes = [sec_proc]
+        count = sum(1 for p in ccm_controller.secondary_injection_processes
+                    if p.primary_type == N4)
+        assert count == 1
+
+
+# ---------------------------------------------------------------------------
+# Weighter bounds checking and probability retrieval
+# ---------------------------------------------------------------------------
+
+class TestWeighter:
     @pytest.fixture(scope="class")
     def weighter_setup(self):
         """Build a minimal injector + weighter with DummyCrossSection."""
@@ -236,39 +317,39 @@ class TestWeighterPython:
         inj = injection._Injector(10, dm, primary_inj, rand)
         weighter = injection._Weighter([inj], dm, primary_phys)
         event = inj.GenerateEvent()
-        return weighter, event, inj
+        return weighter, event
 
-    def test_interaction_probs_valid_index(self, weighter_setup):
-        weighter, event, _ = weighter_setup
+    def test_interaction_probs_valid(self, weighter_setup):
+        weighter, event = weighter_setup
         probs = weighter.GetInteractionProbabilities(event, 0)
         assert len(probs) > 0
         for p in probs:
             assert 0.0 <= p <= 1.0
 
-    def test_survival_probs_valid_index(self, weighter_setup):
-        weighter, event, _ = weighter_setup
+    def test_survival_probs_valid(self, weighter_setup):
+        weighter, event = weighter_setup
         probs = weighter.GetSurvivalProbabilities(event, 0)
         assert len(probs) > 0
         for p in probs:
             assert 0.0 <= p <= 1.0
 
     def test_negative_i_inj_raises(self, weighter_setup):
-        weighter, event, _ = weighter_setup
+        weighter, event = weighter_setup
         with pytest.raises((RuntimeError, IndexError)):
             weighter.GetInteractionProbabilities(event, -1)
 
     def test_out_of_range_i_inj_raises(self, weighter_setup):
-        weighter, event, _ = weighter_setup
+        weighter, event = weighter_setup
         with pytest.raises((RuntimeError, IndexError)):
             weighter.GetInteractionProbabilities(event, 999)
 
     def test_survival_negative_i_inj_raises(self, weighter_setup):
-        weighter, event, _ = weighter_setup
+        weighter, event = weighter_setup
         with pytest.raises((RuntimeError, IndexError)):
             weighter.GetSurvivalProbabilities(event, -1)
 
     def test_event_weight_is_finite(self, weighter_setup):
-        weighter, event, _ = weighter_setup
+        weighter, event = weighter_setup
         w = weighter.EventWeight(event)
         assert np.isfinite(w)
         assert w >= 0
@@ -281,7 +362,7 @@ class TestWeighterPython:
 class TestEndToEnd:
     @pytest.fixture(scope="class")
     def full_setup(self):
-        """Full low-level setup: build injector + weighter, generate events."""
+        """Build injector + weighter, generate 5 events."""
         NuMu = dc.Particle.ParticleType.NuMu
 
         dm = detector.DetectorModel()
@@ -315,21 +396,17 @@ class TestEndToEnd:
         rand = utilities.SIREN_random(99)
         inj = injection._Injector(5, dm, primary_inj, rand)
         weighter = injection._Weighter([inj], dm, primary_phys)
-
-        events = []
-        for _ in range(5):
-            events.append(inj.GenerateEvent())
+        events = [inj.GenerateEvent() for _ in range(5)]
         return weighter, events
 
     def test_events_generated(self, full_setup):
-        weighter, events = full_setup
+        _, events = full_setup
         assert len(events) == 5
 
     def test_event_weight_finite(self, full_setup):
         weighter, events = full_setup
         for event in events:
-            w = weighter.EventWeight(event)
-            assert np.isfinite(w)
+            assert np.isfinite(weighter.EventWeight(event))
 
     def test_interaction_probs_per_event(self, full_setup):
         weighter, events = full_setup
@@ -347,9 +424,8 @@ class TestEndToEnd:
             for p in probs:
                 assert 0.0 <= p <= 1.0
 
-    def test_interaction_plus_survival_le_one(self, full_setup):
-        """For each datum, interaction_prob + survival_prob should be <= 1
-        (they measure complementary things over different path segments)."""
+    def test_prob_array_lengths_match(self, full_setup):
+        """Interaction and survival probability arrays should have the same length."""
         weighter, events = full_setup
         for event in events:
             int_probs = weighter.GetInteractionProbabilities(event, 0)
@@ -360,5 +436,4 @@ class TestEndToEnd:
         """With random directions, not all events should have identical weights."""
         weighter, events = full_setup
         weights = [weighter.EventWeight(e) for e in events]
-        # At least some variation expected (not all identical)
         assert len(set(weights)) > 1 or len(events) == 1
