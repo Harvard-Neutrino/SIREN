@@ -172,6 +172,9 @@ double CharmMesonDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
     std::set<siren::dataclasses::Particle::ParticleType> hadrons_muplus_numu = {siren::dataclasses::Particle::ParticleType::Hadrons,
                                                                             siren::dataclasses::Particle::ParticleType::MuPlus,
                                                                             siren::dataclasses::Particle::ParticleType::NuMu};
+    std::set<siren::dataclasses::Particle::ParticleType> hadrons_eplus_nue = {siren::dataclasses::Particle::ParticleType::Hadrons,
+                                                                            siren::dataclasses::Particle::ParticleType::EPlus,
+                                                                            siren::dataclasses::Particle::ParticleType::NuE};
     std::set<siren::dataclasses::Particle::ParticleType> hadrons = {siren::dataclasses::Particle::ParticleType::Hadrons};
     // Anti-flavor (c̄) decay-mode sets, sign-conjugated from the c modes above.
     std::set<siren::dataclasses::Particle::ParticleType> k0_eminus_nuebar = {siren::dataclasses::Particle::ParticleType::K0,
@@ -189,56 +192,50 @@ double CharmMesonDecay::TotalDecayWidthForFinalState(dataclasses::InteractionRec
     std::set<siren::dataclasses::Particle::ParticleType> hadrons_muminus_numubar = {siren::dataclasses::Particle::ParticleType::Hadrons,
                                                                             siren::dataclasses::Particle::ParticleType::MuMinus,
                                                                             siren::dataclasses::Particle::ParticleType::NuMuBar};
+    std::set<siren::dataclasses::Particle::ParticleType> hadrons_eminus_nuebar = {siren::dataclasses::Particle::ParticleType::Hadrons,
+                                                                            siren::dataclasses::Particle::ParticleType::EMinus,
+                                                                            siren::dataclasses::Particle::ParticleType::NuEBar};
     if (primary == siren::dataclasses::Particle::ParticleType::DPlus) {
       tau = 1040 * (1e-15);
-      // MODIFIED 2025-04-09: Force all decays to muonic semileptonic channel
-      // to maximize dimuon statistics. Must multiply event weights by physical BR
-      // in post-processing (D+ -> mu: 0.176, D+ -> e: 0.1607, D+ -> hadrons: 0.6633).
-      // To restore physical BRs, uncomment the original lines below:
-      // if (secondaries == k0_eplus_nue) {branching_ratio = .1607;}
-      // else if (secondaries == k0_muplus_numu) {branching_ratio = .176;}
-      // else if (secondaries == hadrons) {branching_ratio = (1 - .1607 - .176);}
-      if (secondaries == k0_eplus_nue) {branching_ratio = 0.0;}
-      else if (secondaries == k0_muplus_numu) {branching_ratio = 1.0;}
-      else if (secondaries == hadrons) {branching_ratio = 0.0;}
+      // Physical PDG BRs for D+ semileptonic decay (2022 values).
+      // Pavel's downstream dimuon analysis uses a force-muonic variant
+      // (BR_mu = 1.0, BR_e = 0, BR_hadrons = 0); that lives on his fork.
+      if (secondaries == k0_eplus_nue) {branching_ratio = .1607;}
+      else if (secondaries == k0_muplus_numu) {branching_ratio = .176;}
+      else if (secondaries == hadrons) {branching_ratio = (1 - .1607 - .176);}
     } else if (primary == siren::dataclasses::Particle::ParticleType::DMinus) {
-      // CP-mirror of D+ (same lifetime, same forced muonic BR convention).
+      // CP-mirror of D+ (same lifetime, same physical PDG BRs).
       tau = 1040 * (1e-15);
-      if (secondaries == k0_eminus_nuebar) {branching_ratio = 0.0;}
-      else if (secondaries == k0_muminus_numubar) {branching_ratio = 1.0;}
-      else if (secondaries == hadrons) {branching_ratio = 0.0;}
+      if (secondaries == k0_eminus_nuebar) {branching_ratio = .1607;}
+      else if (secondaries == k0_muminus_numubar) {branching_ratio = .176;}
+      else if (secondaries == hadrons) {branching_ratio = (1 - .1607 - .176);}
     } else if (primary == siren::dataclasses::Particle::ParticleType::D0) {
       tau = 410.1 * (1e-15);
-      // MODIFIED 2025-04-09: Force all decays to muonic semileptonic channel
-      // to maximize dimuon statistics. Must multiply event weights by physical BR
-      // in post-processing (D0 -> mu: 0.067, D0 -> e: 0.0649, D0 -> hadrons: 0.8681).
-      // To restore physical BRs, uncomment the original lines below:
-      // if (secondaries == kminus_eplus_nue) {branching_ratio = .0649;}
-      // else if (secondaries == kminus_muplus_numu) {branching_ratio = .067;}
-      // else if (secondaries == hadrons) {branching_ratio = (1 - .0649 - .067);}
-      if (secondaries == kminus_eplus_nue) {branching_ratio = 0.0;}
-      else if (secondaries == kminus_muplus_numu) {branching_ratio = 1.0;}
-      else if (secondaries == hadrons) {branching_ratio = 0.0;}
+      // Physical PDG BRs for D0 semileptonic decay (2022 values).
+      if (secondaries == kminus_eplus_nue) {branching_ratio = .0649;}
+      else if (secondaries == kminus_muplus_numu) {branching_ratio = .067;}
+      else if (secondaries == hadrons) {branching_ratio = (1 - .0649 - .067);}
     } else if (primary == siren::dataclasses::Particle::ParticleType::D0Bar) {
-      // CP-mirror of D0.
+      // CP-mirror of D0 (same lifetime, same physical PDG BRs).
       tau = 410.1 * (1e-15);
-      if (secondaries == kplus_eminus_nuebar) {branching_ratio = 0.0;}
-      else if (secondaries == kplus_muminus_numubar) {branching_ratio = 1.0;}
-      else if (secondaries == hadrons) {branching_ratio = 0.0;}
+      if (secondaries == kplus_eminus_nuebar) {branching_ratio = .0649;}
+      else if (secondaries == kplus_muminus_numubar) {branching_ratio = .067;}
+      else if (secondaries == hadrons) {branching_ratio = (1 - .0649 - .067);}
     } else if (primary == siren::dataclasses::Particle::ParticleType::DsPlus) {
       tau = 504 * (1e-15);  // Ds+ lifetime: 504 fs (PDG)
-      // Force BR=1.0 for the muonic semileptonic channel (Ds -> Hadrons mu nu),
-      // matching the D+/D0 convention. Multiply by physical inclusive BR
-      // (Ds -> mu X ~ 0.0654, no tau feed-down) in post-processing.
+      // Physical PDG BRs for Ds+ semileptonic decay. Inclusive
+      // Ds -> e X = 0.0654, Ds -> mu X = 0.0654 (no tau feed-down).
       // Daughter "Hadrons" stands in for eta / eta' / phi (sampled in
       // SampleFinalState with fractions 0.46 / 0.16 / 0.38).
-      if (secondaries == hadrons_muplus_numu) {branching_ratio = 1.0;}
-      else if (secondaries == hadrons) {branching_ratio = 0.0;}
+      if (secondaries == hadrons_eplus_nue) {branching_ratio = .0654;}
+      else if (secondaries == hadrons_muplus_numu) {branching_ratio = .0654;}
+      else if (secondaries == hadrons) {branching_ratio = (1 - 2 * .0654);}
     } else if (primary == siren::dataclasses::Particle::ParticleType::DsMinus) {
       // CP-mirror of Ds+ (eta/eta'/phi are self-conjugate, only lepton/nu flip).
       tau = 504 * (1e-15);
-      if (secondaries == hadrons_muminus_numubar) {branching_ratio = 1.0;}
-      else if (secondaries == hadrons) {branching_ratio = 0.0;}
+      if (secondaries == hadrons_eminus_nuebar) {branching_ratio = .0654;}
+      else if (secondaries == hadrons_muminus_numubar) {branching_ratio = .0654;}
+      else if (secondaries == hadrons) {branching_ratio = (1 - 2 * .0654);}
     }
     else {
         std::cout << "this decay mode is not yet implemented!" << std::endl;
@@ -319,11 +316,13 @@ std::vector<dataclasses::InteractionSignature> CharmMesonDecay::GetPossibleSigna
       hadron_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
       signatures.push_back(hadron_signature);
     } else if (primary==siren::dataclasses::Particle::ParticleType::DsPlus) {
-      // Ds: only the muonic semileptonic channel (Ds -> Hadrons mu nu) plus
-      // the all-hadronic catch-all. No e+ ve channel — would just sit at BR=0
-      // anyway under the current "force-muonic" convention.
+      // Ds: muonic + electronic semileptonic channels plus all-hadronic catch-all.
       // The Hadrons daughter stands in for eta / eta' / phi (sampled inline
       // in SampleFinalState; SIREN ParticleType has no entries for these).
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::EPlus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuE;
+      signatures.push_back(semilep_signature);
       semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
       semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::MuPlus;
       semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuMu;
@@ -332,6 +331,10 @@ std::vector<dataclasses::InteractionSignature> CharmMesonDecay::GetPossibleSigna
       signatures.push_back(hadron_signature);
     } else if (primary==siren::dataclasses::Particle::ParticleType::DsMinus) {
       // CP-mirror of Ds+: eta/eta'/phi are self-conjugate, only lepton/nu flip.
+      semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
+      semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::EMinus;
+      semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuEBar;
+      signatures.push_back(semilep_signature);
       semilep_signature.secondary_types[0] = siren::dataclasses::Particle::ParticleType::Hadrons;
       semilep_signature.secondary_types[1] = siren::dataclasses::Particle::ParticleType::MuMinus;
       semilep_signature.secondary_types[2] = siren::dataclasses::Particle::ParticleType::NuMuBar;
