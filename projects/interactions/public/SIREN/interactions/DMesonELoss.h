@@ -37,7 +37,7 @@ namespace interactions {
 class DMesonELoss : public CrossSection {
 friend cereal::access;
 private:
-    std::set<siren::dataclasses::Particle::ParticleType> primary_types_ = {siren::dataclasses::Particle::ParticleType::D0, siren::dataclasses::Particle::ParticleType::DPlus};
+    std::set<siren::dataclasses::Particle::ParticleType> primary_types_ = {siren::dataclasses::Particle::ParticleType::D0, siren::dataclasses::Particle::ParticleType::DPlus, siren::dataclasses::Particle::ParticleType::DsPlus, siren::dataclasses::Particle::ParticleType::D0Bar, siren::dataclasses::Particle::ParticleType::DMinus, siren::dataclasses::Particle::ParticleType::DsMinus};
     std::set<siren::dataclasses::Particle::ParticleType> target_types_ = {siren::dataclasses::Particle::ParticleType::PPlus};
 
 public:

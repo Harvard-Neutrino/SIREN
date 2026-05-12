@@ -157,11 +157,8 @@ bool PythiaDISCrossSection::equal(CrossSection const & other) const {
 
 bool PythiaDISCrossSection::IsCharmedHadron(int pdgId) {
     int abs_id = std::abs(pdgId);
-    // Only match D0 (421) and D+/- (411) for now.
-    // TODO: Add Ds (431) and Lambda_c (4122) support — need CharmMesonDecay
-    // to handle these types before they can be registered as signatures.
-    // Currently Ds/Lambda_c end up in the hadronic remnant.
-    return (abs_id == 411 || abs_id == 421);
+    // Match D0 (421), D+/- (411), Ds (431). Lambda_c (4122) still routed to hadronic remnant.
+    return (abs_id == 411 || abs_id == 421 || abs_id == 431);
 }
 
 siren::dataclasses::ParticleType PythiaDISCrossSection::PdgToParticleType(int pdgId) {
@@ -194,15 +191,20 @@ double PythiaDISCrossSection::GetHadronMass(siren::dataclasses::ParticleType had
 }
 
 std::map<std::string, int> PythiaDISCrossSection::getIndices(siren::dataclasses::InteractionSignature signature) {
+    // Identify meson by elimination (not via isD(), which only covers D0/D±).
+    // First pass: claim lepton and Hadrons. Second pass: whatever remains is the meson.
     int lepton_id = -1, hadron_id = -1, meson_id = -1;
     for (size_t i = 0; i < signature.secondary_types.size(); i++) {
         if (siren::dataclasses::isLepton(signature.secondary_types[i])) {
             lepton_id = i;
-        } else if (siren::dataclasses::isD(signature.secondary_types[i])) {
-            meson_id = i;
-        } else {
+        } else if (signature.secondary_types[i] == siren::dataclasses::ParticleType::Hadrons) {
             hadron_id = i;
         }
+    }
+    for (size_t i = 0; i < signature.secondary_types.size(); i++) {
+        if ((int)i == lepton_id || (int)i == hadron_id) continue;
+        meson_id = i;
+        break;
     }
     return {{"lepton", lepton_id}, {"hadron", hadron_id}, {"meson", meson_id}};
 }
@@ -248,12 +250,25 @@ void PythiaDISCrossSection::InitializeSignatures() {
         // Hadron remnant
         signature.secondary_types.push_back(siren::dataclasses::ParticleType::Hadrons);
 
-        // Charmed meson types: always D0 and DPlus regardless of nu/nubar.
-        // This matches the existing CharmHadronization convention and ensures
-        // compatibility with CharmMesonDecay (which only supports D0/DPlus).
-        // TODO: Add Ds (431) and Lambda_c (4122) support.
-        D_types_ = {siren::dataclasses::ParticleType::D0,
-                    siren::dataclasses::ParticleType::DPlus};
+        // Charmed meson types. For ν the c quark fragments to D0/D+/Ds+; for ν̄ the
+        // c̄ quark fragments to D̄0/D-/Ds-. SampleFinalState writes Pythia's actual
+        // produced PID into the signature's meson slot, so the registered set must
+        // include the correct charge to keep weighter signature lookups in range
+        // (otherwise event_weight comes out NaN — see fix in this commit).
+        // TODO: Add Lambda_c (4122) support.
+        bool is_antineutrino =
+            (primary_type == siren::dataclasses::ParticleType::NuEBar ||
+             primary_type == siren::dataclasses::ParticleType::NuMuBar ||
+             primary_type == siren::dataclasses::ParticleType::NuTauBar);
+        if (is_antineutrino) {
+            D_types_ = {siren::dataclasses::ParticleType::D0Bar,
+                        siren::dataclasses::ParticleType::DMinus,
+                        siren::dataclasses::ParticleType::DsMinus};
+        } else {
+            D_types_ = {siren::dataclasses::ParticleType::D0,
+                        siren::dataclasses::ParticleType::DPlus,
+                        siren::dataclasses::ParticleType::DsPlus};
+        }
 
         for (auto meson_type : D_types_) {
             dataclasses::InteractionSignature full_signature = signature;
@@ -357,16 +372,25 @@ double PythiaDISCrossSection::FragmentationFraction(siren::dataclasses::Particle
         return 0.6;
     } else if (secondary == siren::dataclasses::ParticleType::DPlus || secondary == siren::dataclasses::ParticleType::DMinus) {
         return 0.23;
+    } else if (secondary == siren::dataclasses::ParticleType::DsPlus || secondary == siren::dataclasses::ParticleType::DsMinus) {
+        return 0.15;
     }
-    // TODO: Add Ds (~0.08) and Lambda_c (~0.09) when signatures include them
+    // TODO: Add Lambda_c (~0.09) when signatures include them
     return 0;
 }
 
 double PythiaDISCrossSection::FinalStateProbability(dataclasses::InteractionRecord const & interaction) const {
-    // Pythia samples final-state kinematics from the physical distribution,
-    // so no differential reweighting is needed. FinalStateProbability appears
-    // in both physical_probability and generation_probability and cancels.
-    return 1.0;
+    // Trust Pythia: SampleFinalState accepts whatever charm meson Pythia
+    // produces and overwrites the signature's meson_type to match. The natural
+    // Lund-string fragmentation distribution IS the physical fragfrac, so we
+    // don't multiply by a PDG-average fragfrac table here — that would double-
+    // count. Return dσ/σ only (matches DISFromSpline).
+    double dxs = DifferentialCrossSection(interaction);
+    double txs = TotalCrossSection(interaction);
+    if (!std::isfinite(dxs) || !std::isfinite(txs) || dxs <= 0 || txs <= 0) return 0.0;
+    double result = dxs / txs;
+    if (!std::isfinite(result)) return 0.0;
+    return result;
 }
 
 // ── Signature accessors ──
@@ -403,7 +427,7 @@ std::vector<std::string> PythiaDISCrossSection::DensityVariables() const {
 // Pythia initialization and SampleFinalState — the core new logic
 // ══════════════════════════════════════════════════════════════════════
 
-void PythiaDISCrossSection::InitializePythia(double E_nu) const {
+void PythiaDISCrossSection::InitializePythia(double E_nu, int target_pdg) const {
     // Ensure LHAPDF can find PDF sets — derive data path from the LHAPDF library location
     // The pdf_set_ is e.g. "LHAPDF6:HERAPDF20_NLO_EIG", and LHAPDF needs LHAPDF_DATA_PATH set
     const char* lhapdf_path = std::getenv("LHAPDF_DATA_PATH");
@@ -432,7 +456,7 @@ void PythiaDISCrossSection::InitializePythia(double E_nu) const {
     // Beam setup: fixed target
     pythia_->readString("Beams:frameType = 2");
     pythia_->readString("Beams:idA = " + std::to_string(beam_id));
-    pythia_->readString("Beams:idB = 2212");
+    pythia_->readString("Beams:idB = " + std::to_string(target_pdg));
     pythia_->readString("Beams:eA = " + std::to_string(E_nu));
     pythia_->readString("Beams:eB = 0.");
 
@@ -490,13 +514,18 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
     double E_nu = p1.e();
     geom3::UnitVector3 nu_dir = p1.momentum().direction();
 
-    // Initialize or update Pythia
-    if (!pythia_initialized_) {
-        InitializePythia(E_nu);
-    }
+    // Sample target nucleon PDG: 10/18 proton (2212), 8/18 neutron (2112)
+    // to match H2O composition of ice (10 protons, 8 neutrons per molecule).
+    // Pythia requires a concrete hadron beam; SIREN's "Nucleon" abstraction
+    // is resolved here, per event, via the SIREN RNG.
+    int target_pdg = (random->Uniform(0.0, 1.0) < (10.0 / 18.0)) ? 2212 : 2112;
 
-    // For now, reinitialize if energy changes significantly
-    // TODO: test setKinematics stability across energy ranges
+    // Re-initialize Pythia every event so Beams:eA tracks this event's E_nu.
+    // Pythia 8's variable-energy mode is not supported for WeakBosonExchange
+    // processes, so setKinematics cannot be used here. Rebuilding the Pythia
+    // object is expensive (~1 s/event) but is the only way to keep the
+    // sampled muon kinematics consistent with the event's true beam energy.
+    InitializePythia(E_nu, target_pdg);
 
     // Bridge the SIREN RNG for this event
     siren_rndm_->rng_ = random;
@@ -533,6 +562,14 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
         }
 
         if (i_muon >= 0 && i_charm >= 0) {
+            // Trust Pythia: accept whatever charm meson it produced and
+            // overwrite the signature's pre-chosen (uniform) meson slot with
+            // Pythia's actual PID. Natural Lund-string fragmentation then
+            // carries the physical D-type distribution without rejection.
+            int pythia_pid = pythia_->event[i_charm].id();
+            const_cast<dataclasses::InteractionSignature &>(record.signature)
+                .secondary_types[meson_index] = PdgToParticleType(pythia_pid);
+
             found_charm = true;
 
             // Extract 4-momenta from Pythia (in Pythia's frame: nu along +z)
@@ -548,6 +585,7 @@ void PythiaDISCrossSection::SampleFinalState(dataclasses::CrossSectionDistributi
             record.interaction_parameters["energy"] = E_nu;
             record.interaction_parameters["bjorken_x"] = pythia_x;
             record.interaction_parameters["bjorken_y"] = pythia_y;
+            record.interaction_parameters["target_pdg"] = static_cast<double>(target_pdg);
 
             // Rotate from Pythia frame (+z) to SIREN's neutrino direction
             geom3::UnitVector3 z_dir = geom3::UnitVector3::zAxis();

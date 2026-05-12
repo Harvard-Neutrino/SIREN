@@ -34,35 +34,42 @@ namespace siren {
 namespace interactions {
 
 namespace {
-///Check whether a given point in phase space is physically realizable.
-///Based on equations 6-8 of http://dx.doi.org/10.1103/PhysRevD.66.113007
-///S. Kretzer and M. H. Reno
-///"Tau neutrino deep inelastic charged current interactions"
-///Phys. Rev. D 66, 113007
-///\param x Bjorken x of the interaction
-///\param y Bjorken y of the interaction
-///\param E Incoming neutrino in energy in the lab frame ($E_\nu$)
-///\param M Mass of the target nucleon ($M_N$)
-///\param m Mass of the secondary lepton ($m_\tau$)
-bool kinematicallyAllowed(double x, double y, double E, double M, double m) {
-    if(x > 1) //Eq. 6 right inequality
-        return false;
-    if(x < ((m * m) / (2 * M * (E - m)))) //Eq. 6 left inequality
-        return false;
-    if (x < 1e-6 || y < 1e-6) return false;
+// Slow-rescaling helpers (lab frame, stationary nucleon target).
+//   E   = primary neutrino lab energy
+//   M   = target nucleon mass
+//   mc  = charm-quark mass
+inline double slowRescalingQ2(double xi, double y, double E, double M, double mc) {
+    return 2.0 * M * E * y * xi - mc * mc;
+}
+inline double xiToBjorkenX(double xi, double y, double E, double M, double mc) {
+    return xi - (mc * mc) / (2.0 * M * E * y);
+}
+inline double slowRescalingW2(double xi, double y, double E, double M, double mc) {
+    // W^2 = M^2 + 2 M E y (1 - xi) + m_c^2  =  M^2 + (Q^2 + m_c^2)/xi - Q^2
+    return M * M + 2.0 * M * E * y * (1.0 - xi) + mc * mc;
+}
 
-    //denominator of a and b
-    double d = 2 * (1 + (M * x) / (2 * E));
-    //the numerator of a (or a*d)
-    double ad = 1 - m * m * ((1 / (2 * M * E * x)) + (1 / (2 * E * E)));
-    double term = 1 - ((m * m) / (2 * M * E * x));
-    //the numerator of b (or b*d)
-    double bd = sqrt(term * term - ((m * m) / (E * E)));
+///\brief Slow-rescaling kinematic check.
+///
+/// Replaces the old (x_BJ, y) check. Cuts:
+///   xi in [1e-9, 1], y in [1e-9, 1 - m_lep/E],
+///   Q^2 = 2 M E y xi - m_c^2 > 0  (charm threshold),
+///   W^2 = M^2 + 2 M E y (1-xi) + m_c^2 > (M + M_D0)^2.
+bool kinematicallyAllowed(double xi, double y, double E, double M, double m_lep) {
+    if (xi < 1e-9 || xi > 1.0)              return false;
+    if (y  < 1e-9)                          return false;
+    if (y  > 1.0 - m_lep / E)               return false;
 
-    double s = 2 * M * E;
-    double Q2 = s * x * y;
-    double Mc = siren::utilities::Constants::D0Mass;
-    return ((ad - bd) <= d * y and d * y <= (ad + bd)) && (Q2 * (1 - x) / x + pow(M, 2) >= pow(M + Mc, 2)); //Eq. 7
+    const double mc  = siren::utilities::Constants::CharmMass;
+    const double Mch = siren::utilities::Constants::D0Mass;
+
+    const double Q2 = slowRescalingQ2(xi, y, E, M, mc);
+    if (Q2 <= 0.0)                          return false;
+
+    const double W2 = slowRescalingW2(xi, y, E, M, mc);
+    if (W2 <= (M + Mch) * (M + Mch))        return false;
+
+    return true;
 }
 }
 
@@ -228,6 +235,10 @@ double QuarkDISFromSpline::getHadronMass(siren::dataclasses::ParticleType hadron
 				return( siren::utilities::Constants::DPlusMass);
 			case siren::dataclasses::ParticleType::DMinus:
 				return( siren::utilities::Constants::DPlusMass);
+			case siren::dataclasses::ParticleType::DsPlus:
+				return 1.96834; // GeV (PDG 2022); no Constants::DsMass yet
+			case siren::dataclasses::ParticleType::DsMinus:
+				return 1.96834;
 			case siren::dataclasses::ParticleType::Charm:
 				return( siren::utilities::Constants::CharmMass);
 			case siren::dataclasses::ParticleType::CharmBar:
@@ -302,12 +313,14 @@ std::set<siren::dataclasses::ParticleType> QuarkDISFromSpline::DTypesForPrimary(
         || primary == siren::dataclasses::ParticleType::NuMu
         || primary == siren::dataclasses::ParticleType::NuTau) {
         return {siren::dataclasses::Particle::ParticleType::D0,
-                siren::dataclasses::Particle::ParticleType::DPlus};
+                siren::dataclasses::Particle::ParticleType::DPlus,
+                siren::dataclasses::Particle::ParticleType::DsPlus};
     } else if (primary == siren::dataclasses::ParticleType::NuEBar
         || primary == siren::dataclasses::ParticleType::NuMuBar
         || primary == siren::dataclasses::ParticleType::NuTauBar) {
         return {siren::dataclasses::Particle::ParticleType::D0Bar,
-                siren::dataclasses::Particle::ParticleType::DMinus};
+                siren::dataclasses::Particle::ParticleType::DMinus,
+                siren::dataclasses::Particle::ParticleType::DsMinus};
     } else {
         throw std::runtime_error("DTypesForPrimary: Unknown neutrino primary type!");
     }
@@ -500,53 +513,63 @@ double QuarkDISFromSpline::DifferentialCrossSection(dataclasses::InteractionReco
     // however p4 is not used in computation here so we should be fine...
 
     double Q2 = -q.dot(q);
-    double x, y;
     double lepton_mass = GetLeptonMass(interaction.signature.secondary_types[lepton_index]);
 
-    y = 1.0 - p2.dot(p3) / p2.dot(p1);
-    x = Q2 / (2.0 * p2.dot(q));
+    const double mc = siren::utilities::Constants::CharmMass;
+    double y  = 1.0 - p2.dot(p3) / p2.dot(p1);
+    // xi from inverting Q^2 = 2 M E y xi - m_c^2; guard against y <= 0:
+    double xi = (y > 0.0)
+                ? (Q2 + mc * mc) / (2.0 * primary_energy * target_mass_ * y)
+                : 0.0;
     double log_energy = log10(primary_energy);
-    std::array<double,3> coordinates{{log_energy, log10(x), log10(y)}};
     std::array<int,3> centers;
 
-    if (Q2 < minimum_Q2_ || !kinematicallyAllowed(x, y, primary_energy, target_mass_, lepton_mass)
-        || !differential_cross_section_.searchcenters(coordinates.data(), centers.data())) {
-            double E1_lab = interaction.interaction_parameters.at("energy");
-            double E2_lab = p2.e();
-            x = interaction.interaction_parameters.at("bjorken_x");
-            y = interaction.interaction_parameters.at("bjorken_y");
-            Q2 = 2. * E1_lab * E2_lab * x * y;
+    bool use_sample_kinematics = (xi > 0.0 && y > 0.0 && Q2 >= minimum_Q2_);
+    if (use_sample_kinematics) {
+        std::array<double,3> coordinates{{log_energy, log10(xi), log10(y)}};
+        use_sample_kinematics =
+            kinematicallyAllowed(xi, y, primary_energy, target_mass_, lepton_mass)
+            && differential_cross_section_.searchcenters(coordinates.data(), centers.data());
     }
-    return DifferentialCrossSection(primary_energy, x, y, lepton_mass, Q2);
+
+    if (!use_sample_kinematics) {
+        double E1_lab = interaction.interaction_parameters.at("energy");
+        // Fallback: trust stored xi (records sampled by this class always have bjorken_xi).
+        // If absent, std::out_of_range is intentional: this class is xi-y only.
+        xi = interaction.interaction_parameters.at("bjorken_xi");
+        y  = interaction.interaction_parameters.at("bjorken_y");
+        Q2 = slowRescalingQ2(xi, y, E1_lab, target_mass_, mc);
+    }
+    return DifferentialCrossSection(primary_energy, xi, y, lepton_mass, Q2);
 }
 
-double QuarkDISFromSpline::DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2) const {
+double QuarkDISFromSpline::DifferentialCrossSection(double energy, double xi, double y, double secondary_lepton_mass, double Q2) const {
     double log_energy = log10(energy);
     // check preconditions
-    if(log_energy < differential_cross_section_.lower_extent(0)
-            || log_energy>differential_cross_section_.upper_extent(0))
-        {
-            return 0.0;}
-    if(x <= 0 || x >= 1) {
+    if (log_energy < differential_cross_section_.lower_extent(0)
+            || log_energy > differential_cross_section_.upper_extent(0)) {
         return 0.0;
     }
-    if(y <= 0 || y >= 1){
+    if (xi <= 0 || xi >= 1) {
+        return 0.0;
+    }
+    if (y <= 0 || y >= 1) {
         return 0.0;
     }
 
-    if(std::isnan(Q2)) {
-        Q2 = 2.0 * energy * target_mass_ * x * y;
+    if (std::isnan(Q2)) {
+        Q2 = slowRescalingQ2(xi, y, energy, target_mass_,
+                             siren::utilities::Constants::CharmMass);
     }
-    if(Q2 < minimum_Q2_) {
-        return 0;
-    } // cross section not calculated, assumed to be zero
-
-    if(!kinematicallyAllowed(x, y, energy, target_mass_, secondary_lepton_mass)) {
+    if (Q2 < minimum_Q2_) {
         return 0;
     }
-    std::array<double,3> coordinates{{log_energy, log10(x), log10(y)}};
+    if (!kinematicallyAllowed(xi, y, energy, target_mass_, secondary_lepton_mass)) {
+        return 0;
+    }
+    std::array<double,3> coordinates{{log_energy, log10(xi), log10(y)}};
     std::array<int,3> centers;
-    if(!differential_cross_section_.searchcenters(coordinates.data(), centers.data())) {
+    if (!differential_cross_section_.searchcenters(coordinates.data(), centers.data())) {
         return 0;
     }
     double result = pow(10., differential_cross_section_.ndsplineeval(coordinates.data(), centers.data(), 0));
@@ -597,27 +620,43 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     double E1_lab = p1_lab.e();
     double E2_lab = p2_lab.e();
 
-    // The out-going particle always gets at least enough energy for its rest mass
-    double yMax = 1 - m / primary_energy;
-    double logYMax = log10(yMax);
+    const double mc      = siren::utilities::Constants::CharmMass;
+    const double Mch     = siren::utilities::Constants::D0Mass;
+    const double M_targ  = target_mass_;
+    const double E_nu    = primary_energy;
+    const double Q2_min  = minimum_Q2_;
 
-    // The minimum allowed value of y occurs when x = 1 and Q is minimized
-    double yMin = minimum_Q2_ / (2 * E1_lab * E2_lab);
-    double logYMin = log10(yMin);
-    // The minimum allowed value of x occurs when y = yMax and Q is minimized
-    // double xMin = minimum_Q2_ / ((s - target_mass_ * target_mass_) * yMax);
-    double xMin = minimum_Q2_ / (2 * E1_lab * E2_lab * yMax);
-    double logXMin = log10(xMin);
+    const double yMax    = 1.0 - m / E_nu;
+    const double W2_thr  = (M_targ + Mch) * (M_targ + Mch);
+    const double yMin    = (W2_thr - M_targ * M_targ + Q2_min) / (2.0 * M_targ * E_nu);
+    const double xiMin   = (mc * mc + Q2_min) / (2.0 * M_targ * E_nu * yMax);
+
+    if (xiMin <= 0.0 || yMin <= 0.0 || yMax <= 0.0) {
+        throw std::runtime_error(
+            "QuarkDISFromSpline: non-positive sampling-bound (xiMin="
+            + std::to_string(xiMin) + ", yMin=" + std::to_string(yMin)
+            + ", yMax=" + std::to_string(yMax) + ")");
+    }
+    if (xiMin >= 1.0 || yMin >= yMax) {
+        throw std::runtime_error(
+            "QuarkDISFromSpline: primary energy below slow-rescaling charm threshold "
+            "(xiMin=" + std::to_string(xiMin) + ", yMin=" + std::to_string(yMin) +
+            ", yMax=" + std::to_string(yMax) + ")");
+    }
+
+    const double logXiMin = std::log10(xiMin);
+    const double logYMin  = std::log10(yMin);
+    const double logYMax  = std::log10(yMax);
 
     bool accept;
 
-    // kin_vars and its twin are 3-vectors containing [nu-energy, Bjorken X, Bjorken Y]
+    // kin_vars and its twin are 3-vectors containing [nu-energy, xi, Bjorken Y]
     std::array<double,3> kin_vars, test_kin_vars;
 
     // centers of the cross section spline tales.
     std::array<int,3> spline_table_center, test_spline_table_center;
 
-    // values of cross_section from the splines.  By * Bx * Spline(E,x,y)
+    // values of cross_section from the splines.  By * Bxi * Spline(E,xi,y)
     double cross_section, test_cross_section;
 
     // No matter what, we're evaluating at this specific energy.
@@ -635,13 +674,17 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
         // rejection sample a point which is kinematically allowed by calculation limits
         double trialQ;
         double trials = 0;
+        double xi_trial = 0.0, y_trial = 0.0;
         do {
             if (trials >= 100) throw std::runtime_error("too much trials");
             trials += 1;
-            kin_vars[1] = random->Uniform(logXMin,0);
-            kin_vars[2] = random->Uniform(logYMin,logYMax);
-            trialQ = (2 * E1_lab * E2_lab) * pow(10., kin_vars[1] + kin_vars[2]);
-        } while(trialQ<minimum_Q2_ || !kinematicallyAllowed(pow(10., kin_vars[1]), pow(10., kin_vars[2]), primary_energy, target_mass_, m));
+            kin_vars[1] = random->Uniform(logXiMin, 0.0);
+            kin_vars[2] = random->Uniform(logYMin, logYMax);
+            xi_trial = std::pow(10., kin_vars[1]);
+            y_trial  = std::pow(10., kin_vars[2]);
+            trialQ = slowRescalingQ2(xi_trial, y_trial, E_nu, M_targ, mc);
+        } while (trialQ < minimum_Q2_
+              || !kinematicallyAllowed(xi_trial, y_trial, E_nu, M_targ, m));
 
         accept = true;
         //sanity check: demand that the sampled point be within the table extents
@@ -662,9 +705,9 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     } while(!accept);
 
     //TODO: better proposal distribution?
-    double measure = pow(10., kin_vars[1] + kin_vars[2]); // Bx * By
+    double measure = pow(10., kin_vars[1] + kin_vars[2]); // Bxi * By
 
-    // Bx * By * xs(E, x, y)
+    // Bxi * By * xs(E, xi, y)
     // evalutates the differential spline at that point
     cross_section = measure*pow(10., differential_cross_section_.ndsplineeval(kin_vars.data(), spline_table_center.data(), 0));
 
@@ -675,11 +718,18 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     for(size_t j = 0; j <= burnin; j++) {
         // repeat the sampling from above to get a new valid point
         double trialQ;
+        double xi_trial = 0.0, y_trial = 0.0;
+        int burnin_trials = 0;
         do {
-            test_kin_vars[1] = random->Uniform(logXMin, 0);
+            if (++burnin_trials >= 100)
+                throw std::runtime_error("QuarkDISFromSpline: burn-in proposal failed to find allowed point in 100 trials");
+            test_kin_vars[1] = random->Uniform(logXiMin, 0.0);
             test_kin_vars[2] = random->Uniform(logYMin, logYMax);
-            trialQ = (2 * E1_lab * E2_lab) * pow(10., test_kin_vars[1] + test_kin_vars[2]);
-        } while(trialQ < minimum_Q2_ || !kinematicallyAllowed(pow(10., test_kin_vars[1]), pow(10., test_kin_vars[2]), primary_energy, target_mass_, m));
+            xi_trial = std::pow(10., test_kin_vars[1]);
+            y_trial  = std::pow(10., test_kin_vars[2]);
+            trialQ = slowRescalingQ2(xi_trial, y_trial, E_nu, M_targ, mc);
+        } while (trialQ < minimum_Q2_
+              || !kinematicallyAllowed(xi_trial, y_trial, E_nu, M_targ, m));
 
         accept = true;
         if(test_kin_vars[1] < differential_cross_section_.lower_extent(1)
@@ -711,36 +761,41 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     }
 
     // scaling down to handle numerical issues
-    double final_x = pow(10., kin_vars[1]);
+    double final_xi = std::pow(10., kin_vars[1]);
     double final_y = pow(10., kin_vars[2]);
     record.interaction_parameters.clear();
     record.interaction_parameters["energy"] = E1_lab;
-    record.interaction_parameters["bjorken_x"] = final_x;
-    record.interaction_parameters["bjorken_y"] = final_y;
+    record.interaction_parameters["bjorken_xi"] = final_xi;
+    record.interaction_parameters["bjorken_y"]  = final_y;
+    record.interaction_parameters["bjorken_x"]  =
+        xiToBjorkenX(final_xi, final_y, E1_lab, target_mass_,
+                     siren::utilities::Constants::CharmMass);
 
-    double Q2 = 2 * E1_lab * E2_lab * pow(10.0, kin_vars[1] + kin_vars[2]);
+    double Q2 = slowRescalingQ2(final_xi, final_y, E1_lab, target_mass_,
+                                siren::utilities::Constants::CharmMass);
     double p1x_lab = std::sqrt(p1_lab.px() * p1_lab.px() + p1_lab.py() * p1_lab.py() + p1_lab.pz() * p1_lab.pz());
     double pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
     double momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
-    double pqy_lab, Eq_lab;
+    double pqy_lab = std::numeric_limits<double>::quiet_NaN();
+    double Eq_lab;
 
     if (pqx_lab>momq_lab){
         // if current setting does not work, start looping through scalings
-        int maxIterations = 10;
+        int maxIterations = 15;
         int iteration = 0;
         double p1_lab_x = p1_lab.px();
         double p1_lab_y = p1_lab.py();
         double p1_lab_z = p1_lab.pz();
         // loop to resolve precision issue
         while (iteration <= maxIterations) {
-            Q2 = 2. * E1_lab * E2_lab * pow(10.0, kin_vars[1] + kin_vars[2]);
+            Q2 = slowRescalingQ2(final_xi, final_y, E1_lab, target_mass_,
+                                 siren::utilities::Constants::CharmMass);
             p1x_lab = std::sqrt(p1_lab_x * p1_lab_x + p1_lab_y * p1_lab_y + p1_lab_z * p1_lab_z);
             pqx_lab = (m1*m1 + m3*m3 + 2 * p1x_lab * p1x_lab + Q2 + 2 * E1_lab * E1_lab * (final_y - 1)) / (2.0 * p1x_lab);
             momq_lab = std::sqrt(m1*m1 + p1x_lab*p1x_lab + Q2 + E1_lab * E1_lab * (final_y * final_y - 1));
             if (pqx_lab>momq_lab){
                 //scale down
                 E1_lab /= 10;
-                E2_lab /= 10;
                 p1_lab_x /= 10;
                 p1_lab_y /= 10;
                 p1_lab_z /= 10;
@@ -756,7 +811,6 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
             // //scale back
         if (iteration > 0) {
             E1_lab *= pow(10.0, iteration);
-            E2_lab *= pow(10.0, iteration);
             p1_lab_x *= pow(10.0, iteration);
             p1_lab_y *= pow(10.0, iteration);
             p1_lab_z *= pow(10.0, iteration);
@@ -765,6 +819,10 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
         }
         // pqy_lab = 0;
     } else {pqy_lab = std::sqrt(momq_lab*momq_lab - pqx_lab *pqx_lab);}
+    if (std::isnan(pqy_lab)) {
+        throw(siren::utilities::InjectionFailure(
+            "QuarkDISFromSpline::SampleFinalState: precision loop failed to converge; pqy_lab is NaN"));
+    }
     Eq_lab = E1_lab * final_y;
 
     geom3::UnitVector3 x_dir = geom3::UnitVector3::xAxis();
@@ -787,10 +845,9 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     // New hadronization scheme: includes partonic cross section sampling and slow rescaling for charm mass effects
     // ##############################################
 
-    double m_c = siren::utilities::Constants::CharmMass;
-    double xi = final_x * (1.0 + m_c * m_c / Q2);
+    const double xi = final_xi;  // sampled directly in slow-rescaling
     if (xi >= 1.0) {
-        xi = 1.0 - 1e-5; // to avoid unphysical xi values due to numerical precision issues
+        throw(siren::utilities::InjectionFailure("xi >= 1.0; sampled slow-rescaling xi past unity"));
     }
     rk::P4 p_parton(geom3::Vector3(0, 0, 0), xi * target_mass_);  // parton at rest: (ξM, 0, 0, 0)
     rk::P4 p4_lab = p_parton + pq_lab;                              // struck charm = ξ*p2 + q
@@ -831,7 +888,12 @@ void QuarkDISFromSpline::SampleFinalState(dataclasses::CrossSectionDistributionR
     lepton.SetMass(p3.m());
     lepton.SetHelicity(record.primary_helicity);
     hadron.SetFourMomentum({p4X.e(), p4X.px(), p4X.py(), p4X.pz()});
-    hadron.SetMass(p4X.m());
+    // Use the already-validated dot() result instead of P4::m(), which
+    // recomputes msq from e^2 - p_.lengthSquared() and can disagree with
+    // dot() by FP roundoff (~1e-15) -- the assert in m() would then fire
+    // even though the do-while above accepted p4X.
+    const double p4X_msq = p4X.dot(p4X);
+    hadron.SetMass(p4X_msq > 0.0 ? std::sqrt(p4X_msq) : 0.0);
     hadron.SetHelicity(record.target_helicity);
     meson.SetFourMomentum({p4CH.e(), p4CH.px(), p4CH.py(), p4CH.pz()});
 
@@ -940,7 +1002,9 @@ double QuarkDISFromSpline::FragmentationFraction(siren::dataclasses::Particle::P
         return 0.6;
     } else if (secondary == siren::dataclasses::Particle::ParticleType::DPlus || secondary == siren::dataclasses::Particle::ParticleType::DMinus) {
         return 0.23;
-    } // D_s and Lambda^+ not yet implemented
+    } else if (secondary == siren::dataclasses::Particle::ParticleType::DsPlus || secondary == siren::dataclasses::Particle::ParticleType::DsMinus) {
+        return 0.15;
+    } // Lambda_c not yet implemented
     return 0;
 }
 
@@ -984,7 +1048,7 @@ std::vector<dataclasses::InteractionSignature> QuarkDISFromSpline::GetPossibleSi
 }
 
 std::vector<std::string> QuarkDISFromSpline::DensityVariables() const {
-    return std::vector<std::string>{"Bjorken x", "Bjorken y"};
+    return std::vector<std::string>{"Bjorken xi", "Bjorken y"};
 }
 
 } // namespace interactions

@@ -72,7 +72,7 @@ private:
     std::string pythia_data_path_;
 
     // Helper methods
-    void InitializePythia(double E_nu) const;
+    void InitializePythia(double E_nu, int target_pdg) const;
     void InitializeSignatures();
     void LoadFromFile(std::string differential_filename, std::string total_filename);
     void LoadFromMemory(std::vector<char> & differential_data, std::vector<char> & total_data);

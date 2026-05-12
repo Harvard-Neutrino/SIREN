@@ -36,6 +36,11 @@ namespace siren { namespace utilities { class SIREN_random; } }
 namespace siren {
 namespace interactions {
 
+/// Slow-rescaling charm DIS sampler. Expects FITS splines tabulated as
+/// dsdxidy(log10 E, log10 xi, log10 y), e.g. Maboi_M_Muon_SR/dsdxidy_*.fits.
+/// Charm-quark mass m_c=1.27 GeV (Constants::CharmMass) and lightest charm
+/// hadron M_D0=1.86484 GeV (Constants::D0Mass) are taken from
+/// siren::utilities::Constants and are not configurable per-instance.
 class QuarkDISFromSpline : public CrossSection {
 friend cereal::access;
 private:
@@ -48,7 +53,7 @@ private:
     std::map<siren::dataclasses::ParticleType, std::vector<siren::dataclasses::ParticleType>> targets_by_primary_types_;
     std::map<std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
     std::set<siren::dataclasses::ParticleType> D_types_;
-    
+
     // used by the DIS process
     int interaction_type_;
     double target_mass_;
@@ -58,7 +63,7 @@ private:
     double fragmentation_integral = 0; // for storing the integrated unnormed pdf
     void normalize_pdf(); // for normalizing pdf and integral, to be called at initialization
     siren::utilities::Interpolator1D<double> inverseCdfTable; // for storing the CDF-1 table for the hadronization
-    
+
     double unit;
 
 public:
@@ -69,7 +74,7 @@ public:
     QuarkDISFromSpline(std::string differential_filename, std::string total_filename, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
     QuarkDISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
     QuarkDISFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    
+
     void SetUnits(std::string units);
     void SetInteractionType(int interaction);
 
@@ -79,7 +84,7 @@ public:
     double TotalCrossSection(dataclasses::InteractionRecord const &) const override;
     double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
-    double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass, double Q2=std::numeric_limits<double>::quiet_NaN()) const;
+    double DifferentialCrossSection(double energy, double xi, double y, double secondary_lepton_mass, double Q2=std::numeric_limits<double>::quiet_NaN()) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
 
     // function definitions needed to compute the hadronization vertex
