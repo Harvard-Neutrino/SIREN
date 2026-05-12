@@ -105,9 +105,9 @@ double CharmMesonDecay::particleMass(siren::dataclasses::ParticleType particle) 
 			case siren::dataclasses::ParticleType::K0Bar:
 				return( siren::utilities::Constants::K0Mass);
 			case siren::dataclasses::ParticleType::KPlus:
-				return( siren::utilities::Constants::KplusMass);
+				return( siren::utilities::Constants::KPlusMass);
 			case siren::dataclasses::ParticleType::KMinus:
-				return( siren::utilities::Constants::KminusMass);
+				return( siren::utilities::Constants::KMinusMass);
       case siren::dataclasses::ParticleType::EPlus:
         return( siren::utilities::Constants::electronMass );
       case siren::dataclasses::ParticleType::EMinus:

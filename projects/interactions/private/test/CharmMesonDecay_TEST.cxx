@@ -88,7 +88,7 @@ TEST(Interpolator1D, LinearInverseCDF) {
 TEST(Interpolator1D, DMesonDecayCDF) {
     // Replicate computeDiffGammaCDF for D0 -> K- e+ nu_e
     double mD = Constants::D0Mass;
-    double mK = Constants::KminusMass;
+    double mK = Constants::KMinusMass;
     double F0CKM = 0.719;
     double alpha = 0.50;
     double ms = 2.00697;
@@ -225,7 +225,7 @@ TEST(Interpolator1D, DMesonDecayCDF) {
 TEST(CharmMesonDecay, DiffDecayWidthComparison) {
     // Check if the SIREN DifferentialDecayWidth matches our analytical formula
     double mD = Constants::D0Mass;   // PDG D0 mass
-    double mK = Constants::KminusMass;
+    double mK = Constants::KMinusMass;
     double F0CKM = 0.719;
     double alpha = 0.50;
     double ms_star = 2.00697;
@@ -324,7 +324,7 @@ TEST(CharmMesonDecay, SampledQ2Distribution) {
         rec.target_mass = 0;
         rec.target_helicity = 0;
         rec.secondary_momenta = {{0,0,0,0}, {0,0,0,0}, {0,0,0,0}};
-        rec.secondary_masses = {Constants::KminusMass, Constants::electronMass, 0.0};
+        rec.secondary_masses = {Constants::KMinusMass, Constants::electronMass, 0.0};
         rec.secondary_helicities = {0, 0, 0};
 
         CrossSectionDistributionRecord cdr(rec);

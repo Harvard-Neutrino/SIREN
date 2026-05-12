@@ -28,7 +28,7 @@ namespace siren {
 namespace distributions {
 
 class TabulatedFluxDistribution : virtual public PrimaryEnergyDistribution {
-// Assumes table is in units of nu cm^-2 GeV^-1 Livetime^-1
+// Assumes table is in units of nu m^-2 GeV^-1 Livetime^-1
 friend cereal::access;
 protected:
     TabulatedFluxDistribution();
@@ -37,12 +37,14 @@ private:
     double energyMin;
     double energyMax;
     bool bounds_set;
+    bool use_romberg = true;
     std::string fluxTableFilename;
     siren::utilities::Interpolator1D<double> fluxTable;
     siren::utilities::Interpolator1D<double> inverseCdfTable;
     double integral;
-    std::vector<double> cdf;
+    std::vector<double> cdf_values;
     std::vector<double> energy_nodes;
+    std::vector<double> pdf_values;
     std::vector<double> cdf_energy_nodes;
     const size_t burnin = 40; //original burnin parameter for MH sampling
     double unnormed_pdf(double energy) const;
@@ -50,9 +52,9 @@ private:
     void LoadFluxTable();
     void LoadFluxTable(std::vector<double> & energies, std::vector<double> & flux);
 public:
-    double SamplePDF(double energy) const; 
-    double SampleUnnormedPDF(double energy) const; 
-    double GetIntegral() const; 
+    double SamplePDF(double energy) const;
+    double SampleUnnormedPDF(double energy) const;
+    double GetIntegral() const;
     void ComputeCDF();
     std::vector<double> GetCDF() const;
     std::vector<double> GetEnergyNodes() const;
@@ -61,10 +63,10 @@ public:
     double SampleEnergy(std::shared_ptr<siren::utilities::SIREN_random> rand, std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::PrimaryDistributionRecord & record) const override;
     virtual double GenerationProbability(std::shared_ptr<siren::detector::DetectorModel const> detector_model, std::shared_ptr<siren::interactions::InteractionCollection const> interactions, siren::dataclasses::InteractionRecord const & record) const override;
     void SetEnergyBounds(double energyMin, double energyMax);
-    TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false);
-    TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false);
-    TabulatedFluxDistribution(std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization=false);
-    TabulatedFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization=false);
+    TabulatedFluxDistribution(std::string fluxTableFilename, bool has_physical_normalization=false, bool romberg=true);
+    TabulatedFluxDistribution(double energyMin, double energyMax, std::string fluxTableFilename, bool has_physical_normalization=false, bool romberg=true);
+    TabulatedFluxDistribution(std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization=false, bool romberg=true);
+    TabulatedFluxDistribution(double energyMin, double energyMax, std::vector<double> energies, std::vector<double> flux, bool has_physical_normalization=false, bool romberg=true);
     std::string Name() const override;
     virtual std::shared_ptr<PrimaryInjectionDistribution> clone() const override;
     template<typename Archive>
@@ -74,8 +76,16 @@ public:
             archive(::cereal::make_nvp("EnergyMax", energyMax));
             archive(::cereal::make_nvp("FluxTable", fluxTable));
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
+        } else if(version == 1) {
+            archive(::cereal::make_nvp("EnergyMin", energyMin));
+            archive(::cereal::make_nvp("EnergyMax", energyMax));
+            archive(::cereal::make_nvp("FluxTable", fluxTable));
+            archive(::cereal::make_nvp("UseRomberg", use_romberg));
+            archive(::cereal::make_nvp("EnergyNodes", energy_nodes));
+            archive(::cereal::make_nvp("PDF", pdf_values));
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
         } else {
-            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 0!");
+            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 1!");
         }
     }
     template<typename Archive>
@@ -86,10 +96,22 @@ public:
             archive(::cereal::make_nvp("FluxTable", fluxTable));
             archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
             bounds_set = true;
+            use_romberg = true;
+            ComputeIntegral();
+            ComputeCDF();
+        } else if(version == 1) {
+            archive(::cereal::make_nvp("EnergyMin", energyMin));
+            archive(::cereal::make_nvp("EnergyMax", energyMax));
+            archive(::cereal::make_nvp("FluxTable", fluxTable));
+            archive(::cereal::make_nvp("UseRomberg", use_romberg));
+            archive(::cereal::make_nvp("EnergyNodes", energy_nodes));
+            archive(::cereal::make_nvp("PDF", pdf_values));
+            archive(cereal::virtual_base_class<PrimaryEnergyDistribution>(this));
+            bounds_set = true;
             ComputeIntegral();
             ComputeCDF();
         } else {
-            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 0!");
+            throw std::runtime_error("TabulatedFluxDistribution only supports version <= 1!");
         }
     }
 protected:
@@ -100,7 +122,7 @@ protected:
 } // namespace distributions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::distributions::TabulatedFluxDistribution, 0);
+CEREAL_CLASS_VERSION(siren::distributions::TabulatedFluxDistribution, 1);
 CEREAL_REGISTER_TYPE(siren::distributions::TabulatedFluxDistribution);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::distributions::PrimaryEnergyDistribution, siren::distributions::TabulatedFluxDistribution);
 

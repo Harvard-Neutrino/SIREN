@@ -3,32 +3,43 @@
 
 #include "../../public/SIREN/interactions/Interaction.h"
 #include "../../public/SIREN/interactions/CrossSection.h"
-#include "../../public/SIREN/interactions/NeutrissimoDecay.h"
-#include "../../public/SIREN/interactions/InteractionCollection.h"
-#include "../../public/SIREN/interactions/DISFromSpline.h"
-#include "../../public/SIREN/interactions/QuarkDISFromSpline.h"
-#include "../../public/SIREN/interactions/HNLFromSpline.h"
-#include "../../public/SIREN/interactions/DipoleFromTable.h"
 #include "../../public/SIREN/interactions/DarkNewsCrossSection.h"
 #include "../../public/SIREN/interactions/DarkNewsDecay.h"
+#include "../../public/SIREN/interactions/Decay.h"
+#include "../../public/SIREN/interactions/DISFromSpline.h"
+#include "../../public/SIREN/interactions/DummyCrossSection.h"
+#include "../../public/SIREN/interactions/ElasticScattering.h"
+#include "../../public/SIREN/interactions/ElectroweakDecay.h"
+#include "../../public/SIREN/interactions/HNLDipoleDecay.h"
+#include "../../public/SIREN/interactions/HNLDipoleFromTable.h"
+#include "../../public/SIREN/interactions/HNLDipoleDISFromSpline.h"
+#include "../../public/SIREN/interactions/HNLDISFromSpline.h"
+#include "../../public/SIREN/interactions/HNLDecay.h"
+#include "../../public/SIREN/interactions/InteractionCollection.h"
+#include "../../public/SIREN/interactions/QuarkDISFromSpline.h"
 #include "../../public/SIREN/interactions/Hadronization.h"
 #include "../../public/SIREN/interactions/CharmMesonDecay.h"
 #include "../../public/SIREN/interactions/CharmMesonDecay3Body.h"
 #include "../../public/SIREN/interactions/DMesonELoss.h"
 #include "../../public/SIREN/interactions/PythiaDISCrossSection.h"
 
+
 #include "./Interaction.h"
 #include "./CrossSection.h"
-#include "./DipoleFromTable.h"
 #include "./DarkNewsCrossSection.h"
 #include "./DarkNewsDecay.h"
 #include "./DISFromSpline.h"
 #include "./QuarkDISFromSpline.h"
-#include "./HNLFromSpline.h"
 #include "./Decay.h"
-#include "./NeutrissimoDecay.h"
-#include "./InteractionCollection.h"
 #include "./DummyCrossSection.h"
+//#include "./ElasticScattering.h"
+#include "./ElectroweakDecay.h"
+#include "./HNLDipoleDecay.h"
+#include "./HNLDipoleFromTable.h"
+#include "./HNLDipoleDISFromSpline.h"
+#include "./HNLDISFromSpline.h"
+#include "./HNLDecay.h"
+#include "./InteractionCollection.h"
 #include "./Hadronization.h"
 #include "./CharmMesonDecay.h"
 #include "./CharmMesonDecay3Body.h"
@@ -50,21 +61,23 @@ PYBIND11_MODULE(interactions,m) {
     register_Interaction(m);
     register_CrossSection(m);
     register_Decay(m);
-    register_Hadronization(m);
-
-    register_CharmMesonDecay(m);
-    register_CharmMesonDecay3Body(m);
-    register_DMesonELoss(m);
-
-    register_DipoleFromTable(m);
     register_DarkNewsCrossSection(m);
     register_DarkNewsDecay(m);
     register_DISFromSpline(m);
-    register_QuarkDISFromSpline(m);
-    register_HNLFromSpline(m);
-    register_NeutrissimoDecay(m);
-    register_InteractionCollection(m);
     register_DummyCrossSection(m);
+    //register_ElasticScattering();
+    register_ElectroweakDecay(m);
+    register_HNLDipoleDecay(m);
+    register_HNLDipoleFromTable(m);
+    register_HNLDipoleDISFromSpline(m);
+    register_HNLDISFromSpline(m);
+    register_HNLDecay(m);
+    register_InteractionCollection(m);
+    register_QuarkDISFromSpline(m);
+    register_Hadronization(m);
+    register_CharmMesonDecay(m);
+    register_CharmMesonDecay3Body(m);
+    register_DMesonELoss(m);
     register_PythiaDISCrossSection(m);
     register_MarleyCrossSection(m);
 }

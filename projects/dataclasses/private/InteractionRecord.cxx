@@ -245,6 +245,14 @@ void PrimaryDistributionRecord::SetHelicity(double helicity) {
     this->helicity = helicity;
 }
 
+void PrimaryDistributionRecord::SetInteractionParameters(std::map<std::string, double> const & parameters) {
+    interaction_parameters = parameters;
+}
+
+void PrimaryDistributionRecord::SetInteractionParameter(std::string const & name, double value) {
+    interaction_parameters[name] = value;
+}
+
 void PrimaryDistributionRecord::UpdateMass() const {
     if(mass_set)
         return;
@@ -595,6 +603,14 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) co
     record.signature.primary_type = type;
     record.primary_id = GetID();
     try {
+        record.primary_momentum[0] = GetEnergy();
+    } catch(std::runtime_error e) {}
+    try {
+        record.primary_momentum[1] = GetThreeMomentum().at(0);
+        record.primary_momentum[2] = GetThreeMomentum().at(1);
+        record.primary_momentum[3] = GetThreeMomentum().at(2);
+    } catch(std::runtime_error e) {}
+    try {
         record.primary_initial_position = GetInitialPosition();
     } catch(std::runtime_error e) {}
     try {
@@ -602,9 +618,6 @@ void PrimaryDistributionRecord::FinalizeAvailable(InteractionRecord & record) co
     } catch(std::runtime_error e) {}
     try {
         record.primary_mass = GetMass();
-    } catch(std::runtime_error e) {}
-    try {
-        record.primary_momentum = GetFourMomentum();
     } catch(std::runtime_error e) {}
     try {
         record.primary_helicity = GetHelicity();
@@ -624,10 +637,9 @@ void PrimaryDistributionRecord::Finalize(InteractionRecord & record) const {
     record.primary_mass = GetMass();
     record.primary_momentum = GetFourMomentum();
     record.primary_helicity = GetHelicity();
-    //std::cout << "finished primary record finalize" << std::endl;
-
-    //std::cout << record.signature << std::endl;
-    //std::cout << record.primary_momentum[0] << std::endl;
+    for (auto const & x : interaction_parameters) {
+        record.interaction_parameters[x.first] = x.second;
+    }
 }
 
 /////////////////////////////////////////
@@ -984,7 +996,9 @@ void CrossSectionDistributionRecord::Finalize(InteractionRecord & record) const 
     record.target_mass = target_mass;
     record.target_helicity = target_helicity;
 
-    record.interaction_parameters = interaction_parameters;
+    for (auto const & x : interaction_parameters) {
+        record.interaction_parameters[x.first] = x.second;
+    }
 
     record.secondary_ids.resize(secondary_particles.size());
     record.secondary_masses.resize(secondary_particles.size());

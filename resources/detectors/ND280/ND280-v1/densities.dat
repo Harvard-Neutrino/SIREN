@@ -32,148 +32,148 @@ object box      0 0 0    0 0 0      3.5 3.6 7.0      UA1_chamber_2       AIR    
 object box       0 0 -0.87725       0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
 object box       0 0 -0.898875      0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
 
-object box       0 0 -0.9205        0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -0.942125      0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -0.9205        0 0 0      2.212 2.348 0.0045        lead_plate_2            LEAD                 constant   10.6
+object box       0 0 -0.942125      0 0 0      2.212 2.348 0.03875       pod_2                   SCINT                constant   1.05
 
-object box       0 0 -0.96375       0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -0.985375      0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -0.96375       0 0 0      2.212 2.348 0.0045        lead_plate_3            LEAD                 constant   10.6
+object box       0 0 -0.985375      0 0 0      2.212 2.348 0.03875       pod_3                   SCINT                constant   1.05
 
-object box       0 0 -1.007         0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -1.028625      0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -1.007         0 0 0      2.212 2.348 0.0045        lead_plate_4            LEAD                 constant   10.6
+object box       0 0 -1.028625      0 0 0      2.212 2.348 0.03875       pod_4                   SCINT                constant   1.05
 
-object box       0 0 -1.05025       0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -1.071875      0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -1.05025       0 0 0      2.212 2.348 0.0045        lead_plate_5            LEAD                 constant   10.6
+object box       0 0 -1.071875      0 0 0      2.212 2.348 0.03875       pod_5                   SCINT                constant   1.05
 
-object box       0 0 -1.0935        0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -1.115125      0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -1.0935        0 0 0      2.212 2.348 0.0045        lead_plate_6            LEAD                 constant   10.6
+object box       0 0 -1.115125      0 0 0      2.212 2.348 0.03875       pod_6                   SCINT                constant   1.05
 
-object box       0 0 -1.13675       0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -1.158375      0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -1.13675       0 0 0      2.212 2.348 0.0045        lead_plate_7            LEAD                 constant   10.6
+object box       0 0 -1.158375      0 0 0      2.212 2.348 0.03875       pod_7                   SCINT                constant   1.05
 
 # 25 layers of water targets (pod + water + brass)
 
 object box       0 0 -1.191750      0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
 object box       0 0 -1.206390      0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.226405      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.226405      0 0 0      2.212 2.348 0.03875        pod_8                   SCINT               constant   1.05
 
-object box       0 0 -1.25978       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -1.274420      0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.294435      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.25978       0 0 0      2.212 2.348 0.028          water_bag_2             WATER               constant   1
+object box       0 0 -1.274420      0 0 0      2.212 2.348 0.00128        brass_plate_2           BRASS               constant   8.73
+object box       0 0 -1.294435      0 0 0      2.212 2.348 0.03875        pod_9                   SCINT               constant   1.05
 
-object box       0 0 -1.32781       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -1.34245       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.362465      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.32781       0 0 0      2.212 2.348 0.028          water_bag_3             WATER               constant   1
+object box       0 0 -1.34245       0 0 0      2.212 2.348 0.00128        brass_plate_3           BRASS               constant   8.73
+object box       0 0 -1.362465      0 0 0      2.212 2.348 0.03875        pod_10                   SCINT               constant   1.05
 
-object box       0 0 -1.39584       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -1.41048       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.430495      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.39584       0 0 0      2.212 2.348 0.028          water_bag_4             WATER               constant   1
+object box       0 0 -1.41048       0 0 0      2.212 2.348 0.00128        brass_plate_4           BRASS               constant   8.73
+object box       0 0 -1.430495      0 0 0      2.212 2.348 0.03875        pod_11                   SCINT               constant   1.05
 
-object box       0 0 -1.46387       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -1.47851       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.498525      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.46387       0 0 0      2.212 2.348 0.028          water_bag_5             WATER               constant   1
+object box       0 0 -1.47851       0 0 0      2.212 2.348 0.00128        brass_plate_5           BRASS               constant   8.73
+object box       0 0 -1.498525      0 0 0      2.212 2.348 0.03875        pod_12                   SCINT               constant   1.05
 
-object box       0 0 -1.531900      0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -1.546540      0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.566555      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.531900      0 0 0      2.212 2.348 0.028          water_bag_6             WATER               constant   1
+object box       0 0 -1.546540      0 0 0      2.212 2.348 0.00128        brass_plate_6           BRASS               constant   8.73
+object box       0 0 -1.566555      0 0 0      2.212 2.348 0.03875        pod_13                   SCINT               constant   1.05
 
-object box       0 0 -1.599930      0 0 0       2.212 2.348 0.028         water_bag             WATER               constant   1
-object box       0 0 -1.614570      0 0 0       2.212 2.348 0.00128       brass_plate           BRASS               constant   8.73
-object box       0 0 -1.634585      0 0 0       2.212 2.348 0.03875       pod                   SCINT               constant   1.05
+object box       0 0 -1.599930      0 0 0       2.212 2.348 0.028         water_bag_7             WATER               constant   1
+object box       0 0 -1.614570      0 0 0       2.212 2.348 0.00128       brass_plate_7           BRASS               constant   8.73
+object box       0 0 -1.634585      0 0 0       2.212 2.348 0.03875       pod_14                   SCINT               constant   1.05
 
-object box       0 0 -1.667960      0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -1.682600      0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.702615      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.667960      0 0 0      2.212 2.348 0.028          water_bag_8             WATER               constant   1
+object box       0 0 -1.682600      0 0 0      2.212 2.348 0.00128        brass_plate_8           BRASS               constant   8.73
+object box       0 0 -1.702615      0 0 0      2.212 2.348 0.03875        pod_15                   SCINT               constant   1.05
 
-object box       0 0 -1.73599       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -1.75063       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.770645      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.73599       0 0 0      2.212 2.348 0.028          water_bag_9             WATER               constant   1
+object box       0 0 -1.75063       0 0 0      2.212 2.348 0.00128        brass_plate_9           BRASS               constant   8.73
+object box       0 0 -1.770645      0 0 0      2.212 2.348 0.03875        pod_16                   SCINT               constant   1.05
 
-object box       0 0 -1.80402       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -1.81866       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.838675      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.80402       0 0 0      2.212 2.348 0.028          water_bag_10             WATER               constant   1
+object box       0 0 -1.81866       0 0 0      2.212 2.348 0.00128        brass_plate_10           BRASS               constant   8.73
+object box       0 0 -1.838675      0 0 0      2.212 2.348 0.03875        pod_17                   SCINT               constant   1.05
 
-object box       0 0 -1.87205       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -1.88669       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.906705      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.87205       0 0 0      2.212 2.348 0.028          water_bag_11             WATER               constant   1
+object box       0 0 -1.88669       0 0 0      2.212 2.348 0.00128        brass_plate_11           BRASS               constant   8.73
+object box       0 0 -1.906705      0 0 0      2.212 2.348 0.03875        pod_18                   SCINT               constant   1.05
 
-object box       0 0 -1.94008       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -1.95472       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -1.974735      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -1.94008       0 0 0      2.212 2.348 0.028          water_bag_12             WATER               constant   1
+object box       0 0 -1.95472       0 0 0      2.212 2.348 0.00128        brass_plate_12           BRASS               constant   8.73
+object box       0 0 -1.974735      0 0 0      2.212 2.348 0.03875        pod_19                   SCINT               constant   1.05
 
-object box       0 0 -2.00811       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.02275       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.042765      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.00811       0 0 0      2.212 2.348 0.028          water_bag_13             WATER               constant   1
+object box       0 0 -2.02275       0 0 0      2.212 2.348 0.00128        brass_plate_13           BRASS               constant   8.73
+object box       0 0 -2.042765      0 0 0      2.212 2.348 0.03875        pod_20                   SCINT               constant   1.05
 
-object box       0 0 -2.07614       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.09078       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.110795      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.07614       0 0 0      2.212 2.348 0.028          water_bag_14             WATER               constant   1
+object box       0 0 -2.09078       0 0 0      2.212 2.348 0.00128        brass_plate_14           BRASS               constant   8.73
+object box       0 0 -2.110795      0 0 0      2.212 2.348 0.03875        pod_21                   SCINT               constant   1.05
 
-object box       0 0 -2.14417       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.15881       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.178825      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.14417       0 0 0      2.212 2.348 0.028          water_bag_15             WATER               constant   1
+object box       0 0 -2.15881       0 0 0      2.212 2.348 0.00128        brass_plate_15           BRASS               constant   8.73
+object box       0 0 -2.178825      0 0 0      2.212 2.348 0.03875        pod_22                   SCINT               constant   1.05
 
-object box       0 0 -2.2122        0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.22684       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.246855      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.2122        0 0 0      2.212 2.348 0.028          water_bag_16             WATER               constant   1
+object box       0 0 -2.22684       0 0 0      2.212 2.348 0.00128        brass_plate_16           BRASS               constant   8.73
+object box       0 0 -2.246855      0 0 0      2.212 2.348 0.03875        pod_23                   SCINT               constant   1.05
 
-object box       0 0 -2.28023       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.29487       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.314885      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.28023       0 0 0      2.212 2.348 0.028          water_bag_17             WATER               constant   1
+object box       0 0 -2.29487       0 0 0      2.212 2.348 0.00128        brass_plate_17           BRASS               constant   8.73
+object box       0 0 -2.314885      0 0 0      2.212 2.348 0.03875        pod_24                   SCINT               constant   1.05
 
-object box       0 0 -2.34826       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.3629        0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.382915      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.34826       0 0 0      2.212 2.348 0.028          water_bag_18             WATER               constant   1
+object box       0 0 -2.3629        0 0 0      2.212 2.348 0.00128        brass_plate_18           BRASS               constant   8.73
+object box       0 0 -2.382915      0 0 0      2.212 2.348 0.03875        pod_25                   SCINT               constant   1.05
 
-object box       0 0 -2.41629       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.43093       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.450945      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.41629       0 0 0      2.212 2.348 0.028          water_bag_19             WATER               constant   1
+object box       0 0 -2.43093       0 0 0      2.212 2.348 0.00128        brass_plate_19           BRASS               constant   8.73
+object box       0 0 -2.450945      0 0 0      2.212 2.348 0.03875        pod_26                   SCINT               constant   1.05
 
-object box       0 0 -2.484320      0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.498960      0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.518975      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.484320      0 0 0      2.212 2.348 0.028          water_bag_20             WATER               constant   1
+object box       0 0 -2.498960      0 0 0      2.212 2.348 0.00128        brass_plate_20           BRASS               constant   8.73
+object box       0 0 -2.518975      0 0 0      2.212 2.348 0.03875        pod_27                   SCINT               constant   1.05
 
-object box       0 0 -2.55235       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.56699       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.587005      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.55235       0 0 0      2.212 2.348 0.028          water_bag_21             WATER               constant   1
+object box       0 0 -2.56699       0 0 0      2.212 2.348 0.00128        brass_plate_21           BRASS               constant   8.73
+object box       0 0 -2.587005      0 0 0      2.212 2.348 0.03875        pod_28                   SCINT               constant   1.05
 
-object box       0 0 -2.62038       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.63502       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.655035      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.62038       0 0 0      2.212 2.348 0.028          water_bag_22             WATER               constant   1
+object box       0 0 -2.63502       0 0 0      2.212 2.348 0.00128        brass_plate_22           BRASS               constant   8.73
+object box       0 0 -2.655035      0 0 0      2.212 2.348 0.03875        pod_29                   SCINT               constant   1.05
 
-object box       0 0 -2.68841       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.70305       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.723065      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.68841       0 0 0      2.212 2.348 0.028          water_bag_23             WATER               constant   1
+object box       0 0 -2.70305       0 0 0      2.212 2.348 0.00128        brass_plate_23           BRASS               constant   8.73
+object box       0 0 -2.723065      0 0 0      2.212 2.348 0.03875        pod_30                   SCINT               constant   1.05
 
-object box       0 0 -2.75644       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.77108       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.791095      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.75644       0 0 0      2.212 2.348 0.028          water_bag_24             WATER               constant   1
+object box       0 0 -2.77108       0 0 0      2.212 2.348 0.00128        brass_plate_24           BRASS               constant   8.73
+object box       0 0 -2.791095      0 0 0      2.212 2.348 0.03875        pod_31                   SCINT               constant   1.05
 
-object box       0 0 -2.82447       0 0 0      2.212 2.348 0.028          water_bag             WATER               constant   1
-object box       0 0 -2.83911       0 0 0      2.212 2.348 0.00128        brass_plate           BRASS               constant   8.73
-object box       0 0 -2.859125      0 0 0      2.212 2.348 0.03875        pod                   SCINT               constant   1.05
+object box       0 0 -2.82447       0 0 0      2.212 2.348 0.028          water_bag_25             WATER               constant   1
+object box       0 0 -2.83911       0 0 0      2.212 2.348 0.00128        brass_plate_25           BRASS               constant   8.73
+object box       0 0 -2.859125      0 0 0      2.212 2.348 0.03875        pod_32                   SCINT               constant   1.05
 
 # 7 layers in upstream ECAL
 
-object box       0 0 -2.88075       0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -2.90238       0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -2.88075       0 0 0      2.212 2.348 0.0045        lead_plate_8            LEAD                 constant   10.6
+object box       0 0 -2.90238       0 0 0      2.212 2.348 0.03875       pod_33                   SCINT                constant   1.05
 
-object box       0 0 -2.924         0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -2.94563       0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -2.924         0 0 0      2.212 2.348 0.0045        lead_plate_9            LEAD                 constant   10.6
+object box       0 0 -2.94563       0 0 0      2.212 2.348 0.03875       pod_34                   SCINT                constant   1.05
 
-object box       0 0 -2.96725       0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -2.98888       0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -2.96725       0 0 0      2.212 2.348 0.0045        lead_plate_10            LEAD                 constant   10.6
+object box       0 0 -2.98888       0 0 0      2.212 2.348 0.03875       pod_35                   SCINT                constant   1.05
 
-object box       0 0 -3.0105        0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -3.03213       0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -3.0105        0 0 0      2.212 2.348 0.0045        lead_plate_11            LEAD                 constant   10.6
+object box       0 0 -3.03213       0 0 0      2.212 2.348 0.03875       pod_36                   SCINT                constant   1.05
 
-object box       0 0 -3.05375       0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -3.07538       0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -3.05375       0 0 0      2.212 2.348 0.0045        lead_plate_12            LEAD                 constant   10.6
+object box       0 0 -3.07538       0 0 0      2.212 2.348 0.03875       pod_37                   SCINT                constant   1.05
 
-object box       0 0 -3.097         0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -3.11863       0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -3.097         0 0 0      2.212 2.348 0.0045        lead_plate_13            LEAD                 constant   10.6
+object box       0 0 -3.11863       0 0 0      2.212 2.348 0.03875       pod_38                   SCINT                constant   1.05
 
-object box       0 0 -3.14025       0 0 0      2.212 2.348 0.0045        lead_plate            LEAD                 constant   10.6
-object box       0 0 -3.16188       0 0 0      2.212 2.348 0.03875       pod                   SCINT                constant   1.05
+object box       0 0 -3.14025       0 0 0      2.212 2.348 0.0045        lead_plate_14            LEAD                 constant   10.6
+object box       0 0 -3.16188       0 0 0      2.212 2.348 0.03875       pod_39                   SCINT                constant   1.05
 
 
 
@@ -184,11 +184,11 @@ object box       0 0 -3.16188       0 0 0      2.212 2.348 0.03875       pod    
 object box       0 0 -0.375    0 0 0      2.5 2.5 1.0        old_TPC_shell       old_TPC_padding      constant   0.685   
 object box       0 0 -0.375    0 0 0      2.47 2.47 0.97     new_TPC_gas         GAS                  constant   0.001855   
 
-object box       0 0 0.99    0 0 0      2.5 2.5 1.0        old_TPC_shell         old_TPC_padding      constant   0.685   
-object box       0 0 0.99    0 0 0      2.47 2.47 0.97     new_TPC_gas           GAS                  constant   0.001855   
+object box       0 0 0.99    0 0 0      2.5 2.5 1.0        old_TPC_shell_2         old_TPC_padding      constant   0.685
+object box       0 0 0.99    0 0 0      2.47 2.47 0.97     new_TPC_gas_2           GAS                  constant   0.001855
 
-object box       0 0 2.355    0 0 0      2.5 2.5 1.0        old_TPC_shell       old_TPC_padding      constant   0.685   
-object box       0 0 2.355    0 0 0      2.47 2.47 0.97     new_TPC_gas         GAS                  constant   0.001855   
+object box       0 0 2.355    0 0 0      2.5 2.5 1.0        old_TPC_shell_3       old_TPC_padding      constant   0.685
+object box       0 0 2.355    0 0 0      2.47 2.47 0.97     new_TPC_gas_3         GAS                  constant   0.001855
 
 # 2x FGD
 object box       0 0 0.3075    0 0 0      2.300 2.400 0.365     FGDXYBox           FGDbox      constant   0.06     # XY MODULE

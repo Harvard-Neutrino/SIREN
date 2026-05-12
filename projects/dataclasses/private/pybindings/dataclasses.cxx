@@ -4,6 +4,7 @@
 
 #include "../../public/SIREN/dataclasses/Particle.h"
 #include "../../public/SIREN/dataclasses/ParticleID.h"
+#include "../../public/SIREN/dataclasses/ParticleMasses.h"
 #include "../../public/SIREN/dataclasses/ParticleType.h"
 #include "../../public/SIREN/dataclasses/InteractionSignature.h"
 #include "../../public/SIREN/dataclasses/InteractionRecord.h"
@@ -216,5 +217,7 @@ PYBIND11_MODULE(dataclasses, m) {
 
     m.def("SaveInteractionTrees",&SaveInteractionTrees);
     m.def("LoadInteractionTrees",&LoadInteractionTrees, py::return_value_policy::reference);
+
+    m.def("GetParticleMass", &GetParticleMass, py::arg("particle_type"));
 
 }

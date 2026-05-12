@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SIREN_HNLFromSpline_H
-#define SIREN_HNLFromSpline_H
+#ifndef SIREN_HNLDISFromSpline_H
+#define SIREN_HNLDISFromSpline_H
 
 #include <map>                                                // for map
 #include <set>                                                // for set
@@ -28,6 +28,7 @@
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
 #include "photospline/detail/fitsio.h"                        // for splinet...
+#include "SIREN/utilities/Constants.h"            // for isoscalarMass
 
 namespace siren { namespace dataclasses { class InteractionRecord; } }
 namespace siren { namespace utilities { class SIREN_random; } }
@@ -37,7 +38,7 @@ namespace cereal { class access; }
 namespace siren {
 namespace interactions {
 
-class HNLFromSpline : public CrossSection {
+class HNLDISFromSpline : public CrossSection {
 friend cereal::access;
 private:
     photospline::splinetable<> differential_cross_section_;
@@ -49,18 +50,22 @@ private:
     std::map<siren::dataclasses::ParticleType, std::vector<siren::dataclasses::ParticleType>> targets_by_primary_types_;
     std::map<std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
 
-    int interaction_type_;
-    double target_mass_;
-    double minimum_Q2_;
+    double hnl_mass_ = 0.0; // GeV
+    std::vector<double> mixing_; // Ue4, Um4, Ut4
+    double target_mass_ = siren::utilities::Constants::isoscalarMass;
+    double minimum_Q2_ = 1.0; // GeV^2
+    double unit = 1.0;
 
 public:
-    HNLFromSpline();
-    HNLFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types);
-    HNLFromSpline(std::vector<char> differential_data, std::vector<char> total_data, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types);
-    HNLFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types);
-    HNLFromSpline(std::string differential_filename, std::string total_filename, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types);
-    HNLFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types);
-    HNLFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types);
+    HNLDISFromSpline();
+    HNLDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+    HNLDISFromSpline(std::vector<char> differential_data, std::vector<char> total_data, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, double target_mass, double minimum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+    HNLDISFromSpline(std::string differential_filename, std::string total_filename, double hnl_mass, std::vector<double> mixing, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "m");
+
+    void SetUnits(std::string units);
 
     virtual bool equal(CrossSection const & other) const override;
 
@@ -68,7 +73,7 @@ public:
     double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy) const;
     double TotalCrossSection(siren::dataclasses::ParticleType primary, double energy, siren::dataclasses::ParticleType target) const;
     double DifferentialCrossSection(dataclasses::InteractionRecord const &) const override;
-    double DifferentialCrossSection(double energy, double x, double y, double secondary_lepton_mass) const;
+    double DifferentialCrossSection(siren::dataclasses::Particle::ParticleType primary_type, double energy, double x, double y, double Q2) const;
     double InteractionThreshold(dataclasses::InteractionRecord const &) const override;
     void SampleFinalState(dataclasses::CrossSectionDistributionRecord &, std::shared_ptr<siren::utilities::SIREN_random> random) const override;
 
@@ -85,9 +90,8 @@ public:
 
     double GetMinimumQ2() const {return minimum_Q2_;};
     double GetTargetMass() const {return target_mass_;};
-    int GetInteractionType() const {return interaction_type_;};
+    double GetHNLMass() const {return hnl_mass_;};
 
-    static double GetLeptonMass(siren::dataclasses::ParticleType lepton_type);
 public:
     virtual std::vector<std::string> DensityVariables() const override;
     template<typename Archive>
@@ -117,12 +121,14 @@ public:
             archive(::cereal::make_nvp("TotalCrossSectionSpline", total_blob));
             archive(::cereal::make_nvp("PrimaryTypes", primary_types_));
             archive(::cereal::make_nvp("TargetTypes", target_types_));
-            archive(::cereal::make_nvp("InteractionType", interaction_type_));
             archive(::cereal::make_nvp("TargetMass", target_mass_));
+            archive(::cereal::make_nvp("HNLMass", hnl_mass_));
+            archive(::cereal::make_nvp("Mixing", mixing_));
             archive(::cereal::make_nvp("MinimumQ2", minimum_Q2_));
+            archive(::cereal::make_nvp("Unit", unit));
             archive(cereal::virtual_base_class<CrossSection>(this));
         } else {
-            throw std::runtime_error("HNLFromSpline only supports version <= 0!");
+            throw std::runtime_error("HNLDISFromSpline only supports version <= 0!");
         }
     }
     template<typename Archive>
@@ -134,14 +140,16 @@ public:
             archive(::cereal::make_nvp("TotalCrossSectionSpline", total_data));
             archive(::cereal::make_nvp("PrimaryTypes", primary_types_));
             archive(::cereal::make_nvp("TargetTypes", target_types_));
-            archive(::cereal::make_nvp("InteractionType", interaction_type_));
             archive(::cereal::make_nvp("TargetMass", target_mass_));
+            archive(::cereal::make_nvp("HNLMass", hnl_mass_));
+            archive(::cereal::make_nvp("Mixing", mixing_));
             archive(::cereal::make_nvp("MinimumQ2", minimum_Q2_));
+            archive(::cereal::make_nvp("Unit", unit));
             archive(cereal::virtual_base_class<CrossSection>(this));
             LoadFromMemory(differential_data, total_data);
             InitializeSignatures();
         } else {
-            throw std::runtime_error("HNLFromSpline only supports version <= 0!");
+            throw std::runtime_error("HNLDISFromSpline only supports version <= 0!");
         }
     }
 private:
@@ -152,8 +160,8 @@ private:
 } // namespace interactions
 } // namespace siren
 
-CEREAL_CLASS_VERSION(siren::interactions::HNLFromSpline, 0);
-CEREAL_REGISTER_TYPE(siren::interactions::HNLFromSpline);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::HNLFromSpline);
+CEREAL_CLASS_VERSION(siren::interactions::HNLDISFromSpline, 0);
+CEREAL_REGISTER_TYPE(siren::interactions::HNLDISFromSpline);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(siren::interactions::CrossSection, siren::interactions::HNLDISFromSpline);
 
-#endif // SIREN_HNLFromSpline_H
+#endif // SIREN_HNLDISFromSpline_H

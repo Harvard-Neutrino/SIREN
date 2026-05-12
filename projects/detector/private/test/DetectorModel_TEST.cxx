@@ -1392,6 +1392,104 @@ TEST_F(FakeDetectorModelTest, FileLoad)
     }
 }
 
+// ---------------------------------------------------------------------------
+// GetSector by name
+// ---------------------------------------------------------------------------
+
+TEST(GetSectorByName, Found) {
+    DetectorModel A;
+    DetectorSector sector;
+    sector.name = "InnerDetector";
+    sector.material_id = 1;
+    sector.level = 1;
+    sector.geo = Sphere(Vector3D(0,0,0), 100.0, 0).create();
+    sector.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    A.AddSector(sector);
+
+    DetectorSector result = A.GetSector("InnerDetector");
+    EXPECT_EQ(result.name, "InnerDetector");
+    EXPECT_EQ(result.material_id, 1);
+    EXPECT_EQ(result.level, 1);
+}
+
+TEST(GetSectorByName, NotFoundThrows) {
+    DetectorModel A;
+    EXPECT_THROW(A.GetSector("NonexistentSector"), std::runtime_error);
+}
+
+TEST(GetSectorByName, MultipleSectors) {
+    DetectorModel A;
+
+    DetectorSector s1;
+    s1.name = "Alpha";
+    s1.material_id = 1;
+    s1.level = 1;
+    s1.geo = Sphere(Vector3D(0,0,0), 50.0, 0).create();
+    s1.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    A.AddSector(s1);
+
+    DetectorSector s2;
+    s2.name = "Beta";
+    s2.material_id = 2;
+    s2.level = 2;
+    s2.geo = Sphere(Vector3D(0,0,0), 100.0, 0).create();
+    s2.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    A.AddSector(s2);
+
+    EXPECT_EQ(A.GetSector("Alpha").level, 1);
+    EXPECT_EQ(A.GetSector("Beta").level, 2);
+}
+
+TEST(GetSectorByName, DuplicateNameThrows) {
+    DetectorModel A;
+
+    DetectorSector s1;
+    s1.name = "MyDetector";
+    s1.material_id = 1;
+    s1.level = 1;
+    s1.geo = Sphere(Vector3D(0,0,0), 50.0, 0).create();
+    s1.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    A.AddSector(s1);
+
+    DetectorSector s2;
+    s2.name = "MyDetector";  // same name
+    s2.material_id = 2;
+    s2.level = 2;
+    s2.geo = Sphere(Vector3D(0,0,0), 100.0, 0).create();
+    s2.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    EXPECT_THROW(A.AddSector(s2), std::runtime_error);
+}
+
+TEST(GetSectorByName, DefaultSectorNamedUniverse) {
+    DetectorModel A;
+    DetectorSector sector = A.GetSector("UNIVERSE");
+    EXPECT_EQ(sector.name, "UNIVERSE");
+    EXPECT_EQ(std::numeric_limits<int>::min(), sector.level);
+}
+
+TEST(GetSectorByName, ClearSectorsAllowsReuse) {
+    DetectorModel A;
+
+    DetectorSector s1;
+    s1.name = "TestSector";
+    s1.material_id = 1;
+    s1.level = 1;
+    s1.geo = Sphere(Vector3D(0,0,0), 50.0, 0).create();
+    s1.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    A.AddSector(s1);
+
+    A.ClearSectors();
+
+    // After clear, the same name can be reused
+    DetectorSector s2;
+    s2.name = "TestSector";
+    s2.material_id = 2;
+    s2.level = 2;
+    s2.geo = Sphere(Vector3D(0,0,0), 100.0, 0).create();
+    s2.density = DensityDistribution1D<CartesianAxis1D,ConstantDistribution1D>().create();
+    EXPECT_NO_THROW(A.AddSector(s2));
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

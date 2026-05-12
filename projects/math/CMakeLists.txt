@@ -19,7 +19,7 @@ if(${MACOSX})
 target_link_libraries(SIREN_math
     PUBLIC
         photospline
-        delabella_shared
+        delabella_static
     PRIVATE
         $<BUILD_INTERFACE:rk_static>
         SIREN_serialization
@@ -28,7 +28,7 @@ else()
 target_link_libraries(SIREN_math
     PUBLIC
         photospline
-        delabella_shared
+        delabella_static
     PRIVATE
         -Wl,--whole-archive
         $<BUILD_INTERFACE:rk_static>

@@ -22,4 +22,32 @@ target_include_directories(crundec_static PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+install(TARGETS crundec_static
+    EXPORT ${PROJECT_NAME}Config
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/CRunDec3.1/"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING
+    PATTERN "*.h"
+    PATTERN "*.m"
+)
+
+### Export targets for use with the install tree
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion
+)
+export(EXPORT ${PROJECT_NAME}Config FILE ${PROJECT_NAME}Config.cmake)
+
+set(_config_dir share/${PROJECT_NAME}/cmake)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  DESTINATION ${_config_dir}
+)
+install(EXPORT ${PROJECT_NAME}Config
+  DESTINATION ${_config_dir}
+)
+
 message(STATUS "Added crundec3")

@@ -27,8 +27,9 @@
 #include "SIREN/interactions/CrossSection.h"        // for CrossSe...
 #include "SIREN/dataclasses/InteractionSignature.h"  // for Interac...
 #include "SIREN/dataclasses/Particle.h"              // for Particle
+#include "SIREN/utilities/Constants.h"            // for isoscalarMass
 
-namespace siren { namespace dataclasses { class InteractionRecord; } }
+namespace siren { namespace dataclasses { struct InteractionRecord; } }
 namespace siren { namespace utilities { class SIREN_random; } }
 
 namespace siren {
@@ -47,10 +48,10 @@ private:
     std::map<std::pair<siren::dataclasses::ParticleType, siren::dataclasses::ParticleType>, std::vector<dataclasses::InteractionSignature>> signatures_by_parent_types_;
 
     int interaction_type_;
-    double target_mass_;
-    double minimum_Q2_;
-    
-    double unit;
+    double target_mass_ = siren::utilities::Constants::isoscalarMass;
+    double minimum_Q2_ = 1.0; // GeV^2
+    double minimum_W2_ = 0.0; // GeV^2, to be set later
+    double unit  = 1.0;
 
 public:
     DISFromSpline();
@@ -60,7 +61,7 @@ public:
     DISFromSpline(std::string differential_filename, std::string total_filename, std::set<siren::dataclasses::ParticleType> primary_types, std::set<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
     DISFromSpline(std::string differential_filename, std::string total_filename, int interaction, double target_mass, double minumum_Q2, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
     DISFromSpline(std::string differential_filename, std::string total_filename, std::vector<siren::dataclasses::ParticleType> primary_types, std::vector<siren::dataclasses::ParticleType> target_types, std::string units = "cm");
-    
+
     void SetUnits(std::string units);
 
     virtual bool equal(CrossSection const & other) const override;
@@ -121,6 +122,7 @@ public:
             archive(::cereal::make_nvp("InteractionType", interaction_type_));
             archive(::cereal::make_nvp("TargetMass", target_mass_));
             archive(::cereal::make_nvp("MinimumQ2", minimum_Q2_));
+            archive(::cereal::make_nvp("MinimumW2", minimum_W2_));
             archive(::cereal::make_nvp("Unit", unit));
             archive(cereal::virtual_base_class<CrossSection>(this));
         } else {
@@ -139,10 +141,12 @@ public:
             archive(::cereal::make_nvp("InteractionType", interaction_type_));
             archive(::cereal::make_nvp("TargetMass", target_mass_));
             archive(::cereal::make_nvp("MinimumQ2", minimum_Q2_));
+            archive(::cereal::make_nvp("MinimumW2", minimum_W2_));
             archive(::cereal::make_nvp("Unit", unit));
             archive(cereal::virtual_base_class<CrossSection>(this));
             LoadFromMemory(differential_data, total_data);
             InitializeSignatures();
+            SetMinimumW2();
         } else {
             throw std::runtime_error("DISFromSpline only supports version <= 0!");
         }
@@ -150,6 +154,7 @@ public:
 private:
     void ReadParamsFromSplineTable();
     void InitializeSignatures();
+    void SetMinimumW2();
 };
 
 } // namespace interactions

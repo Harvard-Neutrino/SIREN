@@ -68,6 +68,7 @@ friend siren::detector::Path;
     MaterialModel materials_;
     std::vector<DetectorSector> sectors_;
     std::map<int, unsigned int> sector_map_;
+    std::map<std::string, unsigned int> sector_name_map_;
     math::Vector3D detector_origin_;
     math::Quaternion detector_rotation_;
 public:
@@ -84,6 +85,7 @@ public:
             archive(cereal::make_nvp("MaterialModel", materials_));
             archive(cereal::make_nvp("Sectors", sectors_));
             archive(cereal::make_nvp("SectorMap", sector_map_));
+            archive(cereal::make_nvp("SectorNameMap", sector_name_map_));
             archive(cereal::make_nvp("DetectorOrigin", detector_origin_));
         } else {
             throw std::runtime_error("DetectorModel only supports version <= 0!");
@@ -260,6 +262,7 @@ public:
 
     void AddSector(DetectorSector sector);
     DetectorSector GetSector(int level) const;
+    DetectorSector GetSector(std::string const & name) const;
 
     void ClearSectors();
 

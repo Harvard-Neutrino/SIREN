@@ -5,6 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <cassert>
+#include <algorithm>
 
 namespace siren {
 namespace utilities {
@@ -148,6 +149,146 @@ double rombergIntegrate(const FuncType& func, double a, double b, double tol=1e-
      stepSizes.push_back(stepSizes.back()/4);
   }
   throw(std::runtime_error("Integral failed to converge"));
+}
+
+/**
+* @brief Performs a 2D Simpson integration of a function with adaptive refinement.
+*
+* @param func the function to integrate
+* @param a1 the lower bound of integration for the first dimension
+* @param b1 the upper bound of integration for the first dimension
+* @param a2 the lower bound of integration for the second dimension
+* @param b2 the upper bound of integration for the second dimension
+* @param tol the relative tolerance on the change between successive refinements
+* @param N1 initial number of intervals in the first dimension (must be even)
+* @param N2 initial number of intervals in the second dimension (must be even)
+* @param maxIter maximum number of refinement doublings
+*/
+template<typename FuncType>
+double simpsonIntegrate2D(const FuncType& func, double a1, double b1, double a2, double b2,
+                          double tol=1e-3, const unsigned int N1 = 10, const unsigned int N2=10, const unsigned int maxIter=15){
+
+  if(tol<0)
+     throw(std::runtime_error("Integration tolerance must be positive"));
+
+  double prev_estimate = 0;
+  double estimate;
+  unsigned int N1i,N2i;
+  double h1i,h2i,c1,c2;
+
+  for(unsigned int i=0; i<maxIter; i++){
+     N1i = (1u << i) * N1;
+     N2i = (1u << i) * N2;
+     h1i = (b1-a1)/N1i;
+     h2i = (b2-a2)/N2i;
+     estimate = 0;
+     for(unsigned int j = 0; j < N1i+1; j++) {
+       if (j==0 || j==N1i) c1 = 1;
+       else if (j%2==0) c1 = 2;
+       else c1 = 4;
+       double x = a1 + j*h1i;
+       for(unsigned int k = 0; k < N2i+1; k++) {
+         if (k==0 || k==N2i) c2 = 1;
+         else if (k%2==0) c2 = 2;
+         else c2 = 4;
+         double y = a2 + k*h2i;
+         estimate += c1*c2*func(x, y);
+       }
+     }
+     estimate *= h1i*h2i/9;
+     if(i > 0) {
+       double diff = std::abs(estimate - prev_estimate);
+       double scale = std::max(std::abs(estimate), std::abs(prev_estimate));
+       // Converged when relative change is small, or when the integral
+       // magnitude is below tol^2 (effectively zero for any reasonable tol).
+       if(scale < tol * tol || diff < tol * scale) {
+         return estimate;
+       }
+     }
+     prev_estimate = estimate;
+  }
+  throw(std::runtime_error("Simpson 2D integral failed to converge"));
+}
+
+/**
+* @brief Performs a simple trapezoid integration given a set of points.
+*
+* This routine is simple and not suitable for complicated functions, and relies on fixed points
+* provided by the user in contrast to the TrapezoidalIntegrator class.
+*
+* @param x the x points of the integration
+* @param y the y points of the integration
+*/
+inline double trapezoidIntegrate(std::vector<double> const & x, std::vector<double> const & y) {
+   if(x.size()!=y.size())
+       throw(std::runtime_error("Integration x and y vectors must be the same size"));
+
+   double integral = 0;
+   for(unsigned int i=1; i<x.size(); i++) {
+      double dx = x[i]-x[i-1];
+      double avg = 0.5*(y[i]+y[i-1]);
+      integral += dx*avg;
+   }
+   return integral;
+}
+
+/**
+* @brief Trapezoid integration of tabulated points restricted to [xmin, xmax].
+*
+* Uses binary search to find the first and last relevant intervals, then
+* only interpolates at the two boundary endpoints.  Interior intervals
+* use the raw node values with no per-interval interpolation.
+*
+* @param x the x nodes (must be sorted ascending)
+* @param y the corresponding y values
+* @param xmin lower integration bound
+* @param xmax upper integration bound
+*/
+inline double trapezoidIntegrate(std::vector<double> const & x, std::vector<double> const & y, double xmin, double xmax) {
+   if(x.size()!=y.size())
+       throw(std::runtime_error("Integration x and y vectors must be the same size"));
+   unsigned int n = x.size();
+   if(n < 2)
+       return 0;
+
+   // Interval i means [x[i-1], x[i]], valid for i in [1, n-1].
+   // Binary search for the first and last overlapping intervals.
+   unsigned int istart = std::max(1u, (unsigned int)(std::upper_bound(x.begin(), x.end(), xmin) - x.begin()));
+   unsigned int iend = std::min(n - 1, (unsigned int)(std::lower_bound(x.begin(), x.end(), xmax) - x.begin()));
+   if(istart > iend)
+       return 0;
+
+   auto lerp = [&](unsigned int i, double t) -> double {
+       return y[i-1] + (y[i] - y[i-1]) * (t - x[i-1]) / (x[i] - x[i-1]);
+   };
+
+   double integral = 0;
+
+   // Both bounds in the same interval
+   if(istart == iend) {
+       double y_l = (xmin <= x[istart-1]) ? y[istart-1] : lerp(istart, xmin);
+       double y_r = (xmax >= x[istart])   ? y[istart]   : lerp(istart, xmax);
+       double left  = std::max(x[istart-1], xmin);
+       double right = std::min(x[istart],   xmax);
+       return 0.5 * (y_l + y_r) * (right - left);
+   }
+
+   // First (possibly partial) interval
+   double y_left = (xmin <= x[istart-1]) ? y[istart-1] : lerp(istart, xmin);
+   double left_edge = std::max(x[istart-1], xmin);
+   integral += 0.5 * (y_left + y[istart]) * (x[istart] - left_edge);
+
+   // Full interior intervals: no interpolation
+   for(unsigned int i = istart + 1; i < iend; i++) {
+       integral += 0.5 * (y[i-1] + y[i]) * (x[i] - x[i-1]);
+   }
+
+   // Last (possibly partial) interval
+   double y_right = (xmax >= x[iend]) ? y[iend] : lerp(iend, xmax);
+   double right_edge = std::min(x[iend], xmax);
+   integral += 0.5 * (y[iend-1] + y_right) * (right_edge - x[iend-1]);
+
+   return integral;
 }
 
 }

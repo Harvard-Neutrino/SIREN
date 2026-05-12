@@ -38,6 +38,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/injection/public/"
 )
 
 #package_add_test(UnitTest_Injector ${PROJECT_SOURCE_DIR}/projects/injection/private/test/Injector_TEST.cxx)
+package_add_test(UnitTest_Weighter ${PROJECT_SOURCE_DIR}/projects/injection/private/test/Weighter_TEST.cxx)
 if(NOT ${CIBUILDWHEEL})
 package_add_test(UnitTest_CCM_HNL ${PROJECT_SOURCE_DIR}/projects/injection/private/test/CCM_HNL_TEST.cxx)
 target_link_libraries(UnitTest_CCM_HNL pybind11::embed)

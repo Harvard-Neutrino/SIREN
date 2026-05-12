@@ -31,6 +31,7 @@ void register_InteractionCollection(pybind11::module_ & m) {
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<CrossSection>>, std::vector<std::shared_ptr<Decay>>, std::vector<std::shared_ptr<Hadronization>>>())
         .def(init<siren::dataclasses::ParticleType, std::vector<std::shared_ptr<Interaction>>>())
         .def(self == self)
+        .def("GetPrimaryType",&InteractionCollection::GetPrimaryType)
         .def("GetCrossSections",&InteractionCollection::GetCrossSections, return_value_policy::reference_internal)
         .def("GetDecays",&InteractionCollection::GetDecays, return_value_policy::reference_internal)
         .def("HasCrossSections",&InteractionCollection::HasCrossSections)
@@ -44,7 +45,6 @@ void register_InteractionCollection(pybind11::module_ & m) {
         .def("TotalDecayWidth",&InteractionCollection::TotalDecayWidth)
         .def("TotalDecayLength",&InteractionCollection::TotalDecayLength)
         .def("MatchesPrimary",&InteractionCollection::MatchesPrimary)
-        .def("GetPrimaryType",&InteractionCollection::GetPrimaryType)
         .def("SetPrimaryType",&InteractionCollection::SetPrimaryType)
         ;
 }

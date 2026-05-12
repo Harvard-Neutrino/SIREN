@@ -44,7 +44,6 @@ namespace {
 void string_to_lower(std::string & data) {
     std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c){ return std::tolower(c); });
 }
-
 template <class InIt>
 typename std::iterator_traits<InIt>::value_type accumulate(InIt begin, InIt end) {
     typedef typename std::iterator_traits<InIt>::value_type real;
@@ -179,9 +178,9 @@ DetectorModel::DetectorModel(std::string const & path, std::string const & detec
 
 bool DetectorModel::operator==(DetectorModel const & o) const {
     return
-        std::tie(materials_, sectors_, sector_map_, detector_origin_)
+        std::tie(materials_, sectors_, sector_map_, sector_name_map_, detector_origin_)
         ==
-        std::tie(o.materials_, o.sectors_, o.sector_map_, o.detector_origin_);
+        std::tie(o.materials_, o.sectors_, o.sector_map_, o.sector_name_map_, o.detector_origin_);
 }
 
 std::string DetectorModel::GetPath() const {
@@ -206,6 +205,19 @@ std::vector<DetectorSector> const & DetectorModel::GetSectors() const {
 
 void DetectorModel::SetSectors(std::vector<DetectorSector> const & sectors) {
     sectors_ = sectors;
+    sector_map_.clear();
+    sector_name_map_.clear();
+    for(unsigned int i=0; i<sectors.size(); ++i) {
+        if(sector_map_.count(sectors[i].level) > 0) {
+            throw(std::runtime_error("Already have a sector of that heirarchy!"));
+        }
+        // Enforce unique sector names for name-based lookup
+        if(sector_name_map_.count(sectors[i].name) > 0) {
+            throw(std::runtime_error("Already have a sector named: " + sectors[i].name));
+        }
+        sector_name_map_[sectors[i].name] = i;
+        sector_map_[sectors[i].level] = i;
+    }
 }
 
 GeometryPosition DetectorModel::GetDetectorOrigin() const {
@@ -228,10 +240,13 @@ void DetectorModel::AddSector(DetectorSector sector) {
     if(sector_map_.count(sector.level) > 0) {
         throw(std::runtime_error("Already have a sector of that heirarchy!"));
     }
-    else {
-        sector_map_[sector.level] = sectors_.size();
-        sectors_.push_back(sector);
+    // Enforce unique sector names for name-based lookup
+    if(sector_name_map_.count(sector.name) > 0) {
+        throw(std::runtime_error("Already have a sector named: " + sector.name));
     }
+    sector_name_map_[sector.name] = sectors_.size();
+    sector_map_[sector.level] = sectors_.size();
+    sectors_.push_back(sector);
 }
 
 DetectorSector DetectorModel::GetSector(int heirarchy) const {
@@ -244,9 +259,20 @@ DetectorSector DetectorModel::GetSector(int heirarchy) const {
     return sectors_[index];
 }
 
+DetectorSector DetectorModel::GetSector(std::string const & name) const {
+    auto const iter = sector_name_map_.find(name);
+    if(iter == sector_name_map_.end()) {
+        throw(std::runtime_error("Sector not found: " + name));
+    }
+    unsigned int index = iter->second;
+    assert(index < sectors_.size());
+    return sectors_[index];
+}
+
 void DetectorModel::ClearSectors() {
     sectors_.clear();
     sector_map_.clear();
+    sector_name_map_.clear();
 }
 
 namespace {
@@ -572,6 +598,7 @@ void DetectorModel::LoadDefaultMaterials() {
 
 void DetectorModel::LoadDefaultSectors() {
     DetectorSector sector;
+    sector.name = "UNIVERSE";
     sector.material_id = materials_.GetMaterialId("VACUUM");
     sector.level = std::numeric_limits<int>::min();
     sector.geo = Sphere(std::numeric_limits<double>::infinity(), 0).create();
@@ -688,6 +715,11 @@ double DetectorModel::GetInteractionDensity(Geometry::IntersectionList const & i
     } else {
         direction.normalize();
     }
+    // If we have only decays, avoid the sector loop
+    // total_decay_length is in m
+    if(targets.empty()) {
+        return 1.0 / total_decay_length;
+    }
     double dot = direction * intersections.direction;
     assert(std::abs(1.0 - std::abs(dot)) < 1e-6);
     double offset = (intersections.position - p0) * direction;
@@ -696,12 +728,6 @@ double DetectorModel::GetInteractionDensity(Geometry::IntersectionList const & i
         dot = -1;
     } else {
         dot = 1;
-    }
-
-    // If we have only decays, avoid the sector loop
-    // total_decay_length is in m
-    if(targets.empty()) {
-        return 1.0 / total_decay_length;
     }
 
     double interaction_density = std::numeric_limits<double>::quiet_NaN();
@@ -984,6 +1010,13 @@ double DetectorModel::GetInteractionDepthInCGS(Geometry::IntersectionList const 
     }
     Vector3D direction = p1 - p0;
     double distance = direction.magnitude();
+
+    // If we have only decays, avoid the sector loop.
+    // This must be checked before normalize()/dot-assertion since short decay
+    // paths produce degenerate direction vectors.
+    if(targets.empty()) {
+      return distance / total_decay_length; // m / m --> dimensionless
+    }
     if(distance == 0.0) {
         return 0.0;
     }
@@ -1001,11 +1034,6 @@ double DetectorModel::GetInteractionDepthInCGS(Geometry::IntersectionList const 
         dot = -1;
     } else {
         dot = 1;
-    }
-
-    // If we have only decays, avoid the sector loop
-    if(targets.empty()) {
-      return distance/total_decay_length; // m / m --> dimensionless
     }
 
     std::vector<double> interaction_depths(targets.size(), 0.0);
@@ -1336,6 +1364,11 @@ double DetectorModel::DistanceForInteractionDepthFromPoint(Geometry::Intersectio
         interaction_depth *= -1;
         direction = -direction;
     }
+    // If we have only decays, avoid the sector loop
+    // decay length in m
+    if(targets.empty()) {
+      return interaction_depth * total_decay_length;
+    }
 
     double dot = intersections.direction * direction;
     assert(std::abs(1.0 - std::abs(dot)) < 1e-6);
@@ -1345,12 +1378,6 @@ double DetectorModel::DistanceForInteractionDepthFromPoint(Geometry::Intersectio
         dot = -1;
     } else {
         dot = 1;
-    }
-
-    // If we have only decays, avoid the sector loop
-    // decay length in m
-    if(targets.empty()) {
-      return interaction_depth * total_decay_length;
     }
 
     // Recast decay length to cm for density integral
