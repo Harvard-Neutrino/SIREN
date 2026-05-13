@@ -87,9 +87,13 @@ SIREN includes detector geometry definitions for the following experiments:
 | [DUNE Far Detector](https://www.dunescience.org/) | `DUNEFD` |
 | [Hyper-Kamiokande](https://www.hyperk.org/) | `HyperK` |
 | [IceCube](https://icecube.wisc.edu/) | `IceCube` |
+| [KM3NeT/ORCA](https://www.km3net.org/) | `KM3NeTORCA` |
 | [MINERvA](https://minerva.fnal.gov/) | `MINERvA` |
 | [MiniBooNE](https://www-boone.fnal.gov/) | `MiniBooNE` |
+| [ND280](https://t2k-experiment.org/) | `ND280` |
 | [ND280 Upgrade](https://t2k-experiment.org/) | `ND280UPGRD` |
+| [SINE](https://journals.aps.org/prd/abstract/10.1103/z4f4-wdc3) | `SINE` |
+| [UNDINE](https://journals.aps.org/prd/abstract/10.1103/z4f4-wdc3) | `UNDINE` |
 
 Each detector is defined by a materials file and a density profile. To load one:
 
@@ -106,6 +110,8 @@ Contributions of new detector geometries are welcome.
 | `CSMSDISSplines` | Deep inelastic scattering (CC and NC) on nucleons, using photospline cross-section tables |
 | `MarleyCrossSection` | Low-energy neutrino interactions via [MARLEY](https://www.marleygen.org/) |
 | `DarkNewsTables` | BSM processes (dark photons, dipole portal, HNLs) via [DarkNews](https://github.com/mhostert/DarkNews-generator) — see [example2](resources/examples/example2/) |
+| `HNLDISSplines` | Heavy neutral lepton (HNL) production via neutrino neutral current deep inelastic scattering on nucleons, using photospline cross-section tables |
+| `DipoleHNLDISSplines` | Heavy neutral lepton (HNL) production via neutrino dipole-portal (i.e., via a transition magnetic moment) deep inelastic scattering on nucleons, using photospline cross-section tables |
 
 ## Supported flux models
 
@@ -115,6 +121,7 @@ Contributions of new detector geometries are welcome.
 | `NUMI` | NuMI beamline (low-energy and medium-energy) |
 | `T2K_NEAR` | T2K near detector flux |
 | `HE_SN` | Supernova neutrino flux |
+| `Atmospheric` |  A suite of atmospheric neutrino flux models |
 
 To load a flux model:
 
@@ -224,6 +231,17 @@ After the initial build, only the last line (`cmake --build . --parallel && cmak
 | `SIREN_PYTHON_PACKAGE` | `ON` | Build and install the Python package |
 | `SIREN_WITH_MARLEY` | `ON` | Enable MARLEY support (used if found) |
 | `SIREN_REQUIRE_MARLEY` | `OFF` | Fail the build if MARLEY is not found |
+
+## Dataset download
+
+SIREN uses external datasets that need to be downloaded separately, including neutrino flux models and cross-section tables. To do this, after installing SIREN , run the following commands:
+
+```bash
+siren-download --processes
+siren-download --flux
+```
+
+These commands will download the necessary datasets to the `resources/processes` and `resources/fluxes` directories in the SIREN installation.
 
 ## Project structure
 
