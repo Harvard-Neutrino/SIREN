@@ -950,6 +950,7 @@ def SaveEvents(events,
     # A dictionary containing each dataset we'd like to save
     datasets = {
         "event_weight":[], # weight of entire event
+        "event_oneweight":[], # oneweight of entire event
         "event_gen_time":[], # generation time of each event
         "event_weight_time":[], # generation time of each event
         "num_interactions":[], # number of interactions per event
@@ -967,6 +968,7 @@ def SaveEvents(events,
         print("Saving Event %d/%d  " % (ie, len(events)), end="\r")
         t0 = time.time()
         datasets["event_weight"].append(weighter(event) if weighter is not None else 0)
+        datasets["event_oneweight"].append(weighter.one_weight(event) if weighter is not None else 0)
         datasets["event_weight_time"].append(time.time()-t0)
         datasets["event_gen_time"].append(gen_times[ie])
         # add empty lists for each per interaction dataset
