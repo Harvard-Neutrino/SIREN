@@ -34,7 +34,7 @@ def _install_dir(override=None):
             )
             return appdata_dir("siren")
     except ImportError:
-        base = os.environ.get("LEPTONINJECTOR_USERDIR", os.path.expanduser("~"))
+        base = os.path.expanduser("~")
         path = os.path.join(base, ".siren")
         os.makedirs(path, exist_ok=True)
         return path
@@ -132,16 +132,15 @@ def _download_matching(args, resource_type, name_filter=None):
     """
     Download Zenodo files whose key starts with resource_type (e.g. 'fluxes'
     or 'processes'), optionally filtered by name_filter substring.
-    Extracts each zip into <dest>/<resource_type>/.
+    Extracts each zip into <dest>/ so that the zip's top-level folder (e.g.
+    processes/ or fluxes/) lands directly under the resources directory.
     """
     install_dir = _install_dir(args.dest)
-    resource_dir = os.path.join(install_dir, resource_type)
 
     entries = _query_files(args.token)
     if entries is None:
         return 1
 
-    # Match entries: key must contain the resource_type prefix
     matches = [
         e for e in entries
         if e.get("key", "").startswith(resource_type)
@@ -166,8 +165,8 @@ def _download_matching(args, resource_type, name_filter=None):
             tmp_path = tmp.name
         try:
             _download(url, tmp_path, args.token, label=f"{key} ({size_mb:.1f} MB)")
-            print(f"  Extracting into {resource_dir}/ ...")
-            _extract(tmp_path, resource_dir)
+            print(f"  Extracting into {install_dir}/ ...")
+            _extract(tmp_path, install_dir)
             print(f"  Done.")
         finally:
             if os.path.exists(tmp_path):
