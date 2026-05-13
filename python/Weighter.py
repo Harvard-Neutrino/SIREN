@@ -308,3 +308,36 @@ class Weighter:
             float: The calculated event weight.
         """
         return self(interaction_tree)
+
+    def one_weight(self, interaction_tree: InteractionTree) -> float:
+        """
+        Calculate the OneWeight for a given interaction tree (IceCube / simweights convention).
+
+        OneWeight is the flux-free per-event weight such that:
+
+            event_rate = sum_events( one_weight(tree) * flux(E) ) / N_events
+
+        where flux(E) is the differential flux evaluated at the primary energy
+        and N_events is the total number of generated events across all injectors.
+
+        Unlike event_weight, OneWeight excludes any flux contribution embedded in
+        the physical distributions (neither the PhysicallyNormalizedDistribution
+        normalization nor per-event flux PDFs are included). Only the detector
+        physics factors are retained: interaction probability, normalized position
+        probability, and cross-section probability.
+
+        The generation probability in the denominator is computed from the full
+        set of injection distributions (energy, direction, position, …) regardless
+        of whether any of them also appear in the physical distributions. This
+        ensures OneWeight always carries consistent units [m^2 GeV sr] even when
+        the injection and physical energy/direction distributions are identical.
+
+        Args:
+            interaction_tree: The interaction tree to weight.
+
+        Returns:
+            float: The OneWeight for this event.
+        """
+        if self.__weighter is None:
+            self.__initialize_weighter()
+        return self.__weighter.OneWeight(interaction_tree)

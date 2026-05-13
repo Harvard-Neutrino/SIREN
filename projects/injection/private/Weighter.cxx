@@ -135,6 +135,76 @@ double Weighter::EventWeight(siren::dataclasses::InteractionTree const & tree) c
     return 1./inv_weight;
 }
 
+double Weighter::OneWeight(siren::dataclasses::InteractionTree const & tree) const {
+    // OneWeight (IceCube / simweights convention):
+    //   rate = sum_events( OneWeight * flux(E, Omega) ) / N_events
+    //
+    // Numerator: detector physics only — InteractionProbability,
+    //   NormalizedPositionProbability, and CrossSectionProbability.
+    //   No flux normalization (PhysicallyNormalizedDistribution) and no
+    //   per-event flux PDFs from the physical distributions are included.
+    //
+    // Denominator: the FULL injection generation probability, iterating over
+    //   ALL injection distributions (energy, direction, position, …) regardless
+    //   of whether they also appear in the physical distributions. This ensures
+    //   OneWeight always carries units [m^2 GeV sr] even when the injection and
+    //   physical energy/direction distributions are identical and would otherwise
+    //   cancel in EventWeight.
+    //
+    // The N_events factor is omitted; the caller supplies it via the denominator
+    // in the formula above.
+
+    double inv_oneweight = 0;
+    for(unsigned int idx = 0; idx < injectors.size(); ++idx) {
+        double raw_physical = 1.0;
+        double full_generation = 1.0;
+        for(auto const & datum : tree.tree) {
+            std::tuple<siren::math::Vector3D, siren::math::Vector3D> bounds;
+            if(datum->depth() == 0) {
+                bounds = injectors[idx]->PrimaryInjectionBounds(datum->record);
+                raw_physical *= primary_process_weighters[idx]->InteractionProbability(bounds, datum->record);
+                raw_physical *= primary_process_weighters[idx]->NormalizedPositionProbability(bounds, datum->record);
+                raw_physical *= siren::injection::CrossSectionProbability(detector_model, primary_physical_process->GetInteractions(), datum->record);
+                auto primary_inj_process = injectors[idx]->GetPrimaryProcess();
+                full_generation *= siren::injection::CrossSectionProbability(detector_model, primary_inj_process->GetInteractions(), datum->record);
+                for(auto const & dist : primary_inj_process->GetPrimaryInjectionDistributions()) {
+                    full_generation *= dist->GenerationProbability(detector_model, primary_inj_process->GetInteractions(), datum->record);
+                }
+            } else {
+                try {
+                    bounds = injectors[idx]->SecondaryInjectionBounds(datum->record);
+                    siren::dataclasses::ParticleType sec_type = datum->record.signature.primary_type;
+                    std::shared_ptr<siren::injection::PhysicalProcess> sec_phys_process = nullptr;
+                    for(auto const & proc : secondary_physical_processes) {
+                        if(proc->GetPrimaryType() == sec_type) {
+                            sec_phys_process = proc;
+                            break;
+                        }
+                    }
+                    if(!sec_phys_process) {
+                        std::cout << "OneWeight: no secondary physical process for particle " << sec_type << '\n';
+                        return 0;
+                    }
+                    auto const & sec_weighter = secondary_process_weighter_maps[idx].at(sec_type);
+                    raw_physical *= sec_weighter->InteractionProbability(bounds, datum->record);
+                    raw_physical *= sec_weighter->NormalizedPositionProbability(bounds, datum->record);
+                    raw_physical *= siren::injection::CrossSectionProbability(detector_model, sec_phys_process->GetInteractions(), datum->record);
+                    auto sec_inj_process = injectors[idx]->GetSecondaryProcessMap().at(sec_type);
+                    full_generation *= siren::injection::CrossSectionProbability(detector_model, sec_inj_process->GetInteractions(), datum->record);
+                    for(auto const & dist : sec_inj_process->GetSecondaryInjectionDistributions()) {
+                        full_generation *= dist->GenerationProbability(detector_model, sec_inj_process->GetInteractions(), datum->record);
+                    }
+                } catch(const std::out_of_range & oor) {
+                    std::cout << "Out of Range error: " << oor.what() << '\n';
+                    return 0;
+                }
+            }
+        }
+        inv_oneweight += full_generation / raw_physical;
+    }
+    return 1.0 / inv_oneweight;
+}
+
 std::vector<double> Weighter::GetInteractionProbabilities(siren::dataclasses::InteractionTree const & tree, int i_inj) const {
     if(i_inj < 0 || static_cast<size_t>(i_inj) >= injectors.size()) {
         throw std::out_of_range("i_inj index out of range in GetInteractionProbabilities");
