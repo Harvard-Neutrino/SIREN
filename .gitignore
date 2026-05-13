@@ -70,5 +70,6 @@ __pycache__/
 output/
 
 # flux/processes dirs
-resources/fluxes/
-resources/processes/
+resources/fluxes/**/*txt
+resources/fluxes/**/*dat
+resources/processes/**/*fits
