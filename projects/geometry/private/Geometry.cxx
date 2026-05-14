@@ -230,6 +230,18 @@ std::vector<Geometry::Intersection> Geometry::Intersections(siren::math::Vector3
     return intersections;
 }
 
+std::vector<Geometry::Intersection> Geometry::Intersections(LocalPosition const & position, LocalDirection const & direction) const {
+    std::vector<Geometry::Intersection> intersections = ComputeIntersections(position.get(), direction.get());
+    for(auto & intersection : intersections) {
+        intersection.position = LocalToGlobalPosition(intersection.position);
+    }
+    return intersections;
+}
+
+std::pair<LocalPosition, LocalDirection> Geometry::ToLocal(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
+    return {LocalPosition(GlobalToLocalPosition(position)), LocalDirection(GlobalToLocalDirection(direction))};
+}
+
 } // namespace geometry
 } // namespace siren
 

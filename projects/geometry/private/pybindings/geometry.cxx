@@ -29,7 +29,7 @@ PYBIND11_MODULE(geometry,m) {
         .def("IsInfront",&Geometry::IsInfront)
         .def("IsBehind",&Geometry::IsBehind)
         .def("DistanceToBorder",&Geometry::DistanceToBorder)
-        .def("Intersections",&Geometry::Intersections)
+        .def("Intersections", (std::vector<Geometry::Intersection> (Geometry::*)(siren::math::Vector3D const &, siren::math::Vector3D const &) const) &Geometry::Intersections)
         .def("DistanceToClosestApproach",&Geometry::DistanceToClosestApproach)
         .def("GetLocation",&Geometry::GetLocation)
         .def_property_readonly("name",&Geometry::GetName)

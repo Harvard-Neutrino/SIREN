@@ -1529,18 +1529,24 @@ Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition cons
                     continue;
 
                 if(node.sector_index >= 0) {
-                    // Leaf: pre-filter using the tight local AABB.
-                    // Transform the ray to the sector's local frame and test
-                    // against the exact shape bounding box. This is tighter
-                    // than the world AABB for rotated shapes.
-                    auto const & geo = sectors_[node.sector_index].geo;
-                    Vector3D lp = geo->GlobalToLocalPosition(p0);
-                    Vector3D ld = geo->GlobalToLocalDirection(dir);
+                    // Leaf: transform ray to local once, pre-filter with
+                    // tight local AABB, then intersect without re-transforming.
+                    DetectorSector const & sector = sectors_[node.sector_index];
+                    Vector3D lp = sector.geo->GlobalToLocalPosition(p0);
+                    Vector3D ld = sector.geo->GlobalToLocalDirection(dir);
                     Vector3D li(1.0 / ld.GetX(), 1.0 / ld.GetY(), 1.0 / ld.GetZ());
-                    if(!geometry::RayAABBIntersect(lp, li, geo->GetBoundingBox()))
+                    if(!geometry::RayAABBIntersect(lp, li, sector.geo->GetBoundingBox()))
                         continue;
 
-                    AppendSectorIntersections(sectors_[node.sector_index], p0, direction, intersections);
+                    // Pass pre-transformed local coords via tagged types
+                    std::vector<Geometry::Intersection> hits = sector.geo->Intersections(
+                        geometry::LocalPosition(lp), geometry::LocalDirection(ld));
+                    size_t prev_size = intersections.intersections.size();
+                    intersections.intersections.insert(intersections.intersections.end(), hits.begin(), hits.end());
+                    for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
+                        intersections.intersections[j].hierarchy = sector.level;
+                        intersections.intersections[j].matID = sector.material_id;
+                    }
                 } else {
                     // Internal: push children
                     if(node.right_child >= 0)

@@ -54,9 +54,15 @@
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/geometry/AABB.h"
 #include "SIREN/geometry/Placement.h"
+#include <NamedType/named_type.hpp>
 
 namespace siren {
 namespace geometry {
+
+// Tagged types for local (body-frame) coordinates.
+// Prevents accidentally passing global coordinates to local-frame methods.
+using LocalPosition = fluent::NamedType<math::Vector3D, struct LocalPositionTag, fluent::Callable, fluent::Comparable>;
+using LocalDirection = fluent::NamedType<math::Vector3D, struct LocalDirectionTag, fluent::Callable, fluent::Comparable>;
 
 class Geometry {
 friend cereal::access;
@@ -158,9 +164,22 @@ public:
 
 
     /*!
-     * Calculates the intersections of a ray with the geometry surface
+     * Calculates the intersections of a ray with the geometry surface.
+     * Takes global coordinates; transforms to local internally.
      */
     std::vector<Intersection> Intersections(math::Vector3D const & position, math::Vector3D const & direction) const;
+
+    /*!
+     * Calculates intersections from pre-transformed local coordinates.
+     * Skips the GlobalToLocal transform. Use with ToLocal() for
+     * efficient pre-filtered intersection queries.
+     */
+    std::vector<Intersection> Intersections(LocalPosition const & position, LocalDirection const & direction) const;
+
+    /*!
+     * Transform global coordinates to this geometry's local frame.
+     */
+    std::pair<LocalPosition, LocalDirection> ToLocal(math::Vector3D const & position, math::Vector3D const & direction) const;
 
     /*!
      * Calculates the distance to the closest approch to the geometry center
