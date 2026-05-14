@@ -1387,41 +1387,32 @@ int DetectorModel::BuildBVHRecursive(std::vector<unsigned int> & indices, int be
 // BVH traversal
 // ---------------------------------------------------------------------------
 
+// TraverseBVH is now inlined into GetIntersections as an iterative traversal.
+// Kept as a no-op to satisfy the header declaration.
 void DetectorModel::TraverseBVH(
-    int node_idx,
-    math::Vector3D const & position,
-    math::Vector3D const & direction,
-    math::Vector3D const & inv_direction,
-    Geometry::IntersectionList & intersections) const
-{
-    BVHNode const & node = bvh_nodes_[node_idx];
+    int /*node_idx*/,
+    math::Vector3D const & /*position*/,
+    math::Vector3D const & /*direction*/,
+    math::Vector3D const & /*inv_direction*/,
+    Geometry::IntersectionList & /*intersections*/) const {}
 
-    // Test ray against this node's bounding box
-    if(!geometry::RayAABBIntersect(position, inv_direction, node.bounds)) {
-        return;
-    }
-
-    if(node.sector_index >= 0) {
-        // Leaf node: test the actual sector geometry
-        DetectorSector const & sector = sectors_[node.sector_index];
-        std::vector<Geometry::Intersection> i = sector.geo->Intersections(position, direction);
-        size_t prev_size = intersections.intersections.size();
-        intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
-        for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
-            intersections.intersections[j].hierarchy = sector.level;
-            intersections.intersections[j].matID = sector.material_id;
-        }
-    } else {
-        // Internal node: traverse children
-        if(node.left_child >= 0)
-            TraverseBVH(node.left_child, position, direction, inv_direction, intersections);
-        if(node.right_child >= 0)
-            TraverseBVH(node.right_child, position, direction, inv_direction, intersections);
+// Helper: append a sector's intersections into the output list
+static inline void AppendSectorIntersections(
+    siren::detector::DetectorSector const & sector,
+    siren::math::Vector3D const & position,
+    siren::math::Vector3D const & direction,
+    siren::geometry::Geometry::IntersectionList & intersections) {
+    std::vector<siren::geometry::Geometry::Intersection> hits = sector.geo->Intersections(position, direction);
+    size_t prev_size = intersections.intersections.size();
+    intersections.intersections.insert(intersections.intersections.end(), hits.begin(), hits.end());
+    for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
+        intersections.intersections[j].hierarchy = sector.level;
+        intersections.intersections[j].matID = sector.material_id;
     }
 }
 
 // ---------------------------------------------------------------------------
-// GetIntersections: BVH-accelerated
+// GetIntersections: BVH-accelerated with iterative traversal
 // ---------------------------------------------------------------------------
 
 Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const {
@@ -1433,40 +1424,51 @@ Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition cons
     Geometry::IntersectionList intersections;
     intersections.position = p0;
     intersections.direction = direction;
+    intersections.intersections.reserve(32);
 
     if(bvh_nodes_.empty() && bvh_excluded_sectors_.empty()) {
         // No sectors at all: fall back to linear scan
         for(auto const & sector : sectors_) {
-            std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
-            size_t prev_size = intersections.intersections.size();
-            intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
-            for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
-                intersections.intersections[j].hierarchy = sector.level;
-                intersections.intersections[j].matID = sector.material_id;
-            }
+            AppendSectorIntersections(sector, p0, direction, intersections);
         }
     } else {
         // Test sectors excluded from BVH (infinite bounds, e.g. UNIVERSE)
         for(unsigned int idx : bvh_excluded_sectors_) {
-            DetectorSector const & sector = sectors_[idx];
-            std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
-            size_t prev_size = intersections.intersections.size();
-            intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
-            for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
-                intersections.intersections[j].hierarchy = sector.level;
-                intersections.intersections[j].matID = sector.material_id;
-            }
+            AppendSectorIntersections(sectors_[idx], p0, direction, intersections);
         }
 
-        // Traverse the BVH for all finite-bounds sectors
+        // Iterative BVH traversal using an explicit stack
         if(!bvh_nodes_.empty()) {
-            math::Vector3D dir = direction;
-            math::Vector3D inv_dir(
+            Vector3D dir = direction;
+            Vector3D inv_dir(
                 1.0 / dir.GetX(),
                 1.0 / dir.GetY(),
                 1.0 / dir.GetZ()
             );
-            TraverseBVH(0, p0, direction, inv_dir, intersections);
+
+            // Stack of node indices to visit (max depth ~30 for millions of sectors)
+            int stack[64];
+            int stack_top = 0;
+            stack[stack_top++] = 0; // root
+
+            while(stack_top > 0) {
+                int node_idx = stack[--stack_top];
+                BVHNode const & node = bvh_nodes_[node_idx];
+
+                if(!geometry::RayAABBIntersect(p0, inv_dir, node.bounds))
+                    continue;
+
+                if(node.sector_index >= 0) {
+                    // Leaf: test actual geometry
+                    AppendSectorIntersections(sectors_[node.sector_index], p0, direction, intersections);
+                } else {
+                    // Internal: push children
+                    if(node.right_child >= 0)
+                        stack[stack_top++] = node.right_child;
+                    if(node.left_child >= 0)
+                        stack[stack_top++] = node.left_child;
+                }
+            }
         }
     }
 
