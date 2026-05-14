@@ -93,6 +93,14 @@ friend siren::detector::Path;
                      math::Vector3D const & inv_direction,
                      geometry::Geometry::IntersectionList & intersections) const;
 
+    // Direct point containment: finds containing sector without ray intersections.
+    // Uses BVH point-in-AABB tests + Geometry::IsInside() for O(log N) containment.
+    DetectorSector GetContainingSectorDirect(GeometryPosition const & p0) const;
+    void FindContainingSectorBVH(int node_idx,
+                                math::Vector3D const & position,
+                                int & best_level,
+                                DetectorSector & best_sector) const;
+
     // Volume tree acceleration structure (built from GDML hierarchy)
     struct VolumeTreeNode {
         int sector_index;                // index into sectors_

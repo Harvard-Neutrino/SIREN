@@ -787,9 +787,16 @@ double DetectorModel::GetMassDensity(Geometry::IntersectionList const & intersec
 }
 
 double DetectorModel::GetMassDensity(GeometryPosition const & p0) const {
-    Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
-    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
-    return GetMassDensity(intersections, p0);
+    DetectorSector sector = GetContainingSectorDirect(p0);
+    if(!sector.density) {
+        // Fallback for edge cases where direct containment misses
+        Vector3D direction(1,0,0);
+        Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
+        return GetMassDensity(intersections, p0);
+    }
+    double density = sector.density->Evaluate(p0);
+    assert(density >= 0);
+    return density;
 }
 
 double DetectorModel::GetParticleDensity(Geometry::IntersectionList const & intersections, GeometryPosition const & p0, siren::dataclasses::ParticleType target) const {
@@ -834,7 +841,7 @@ double DetectorModel::GetParticleDensity(Geometry::IntersectionList const & inte
 }
 
 double DetectorModel::GetParticleDensity(GeometryPosition const & p0, siren::dataclasses::ParticleType target) const {
-    Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
+    Vector3D direction(1,0,0);
     Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetParticleDensity(intersections, p0, target);
 }
@@ -900,7 +907,10 @@ double DetectorModel::GetInteractionDensity(GeometryPosition const & p0,
             std::vector<siren::dataclasses::ParticleType> const & targets,
             std::vector<double> const & total_cross_sections,
             double const & total_decay_length) const {
-    Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
+    if(targets.empty()) {
+        return 1.0 / total_decay_length;
+    }
+    Vector3D direction(1,0,0);
     Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetInteractionDensity(intersections, p0, targets, total_cross_sections, total_decay_length);
 }
@@ -1077,7 +1087,7 @@ double DetectorModel::GetMassDensity(Geometry::IntersectionList const & intersec
 }
 
 double DetectorModel::GetMassDensity(GeometryPosition const & p0,  std::set<siren::dataclasses::ParticleType> targets) const {
-    Vector3D direction(1,0,0); // Any direction will work for determining the sector heirarchy
+    Vector3D direction(1,0,0);
     Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
     return GetMassDensity(intersections, p0, targets);
 }
@@ -1300,9 +1310,76 @@ DetectorSector DetectorModel::GetContainingSector(Geometry::IntersectionList con
 }
 
 DetectorSector DetectorModel::GetContainingSector(GeometryPosition const & p0) const {
-    Vector3D direction(0, 0, 1);
-    Geometry::IntersectionList intersections = GetIntersections(p0, GeometryDirection(direction));
-    return GetContainingSector(intersections, p0);
+    return GetContainingSectorDirect(p0);
+}
+
+// ---------------------------------------------------------------------------
+// Direct point containment (no ray intersections needed)
+// ---------------------------------------------------------------------------
+
+void DetectorModel::FindContainingSectorBVH(
+    int node_idx,
+    math::Vector3D const & position,
+    int & best_level,
+    DetectorSector & best_sector) const
+{
+    BVHNode const & node = bvh_nodes_[node_idx];
+
+    // Prune: if the point is outside this node's AABB, skip
+    if(!node.bounds.Contains(position)) {
+        return;
+    }
+
+    if(node.sector_index >= 0) {
+        // Leaf node: test the actual sector geometry
+        DetectorSector const & sector = sectors_[node.sector_index];
+        if(sector.level > best_level && sector.geo->IsInside(position)) {
+            best_level = sector.level;
+            best_sector = sector;
+        }
+    } else {
+        // Internal node: traverse children
+        if(node.left_child >= 0)
+            FindContainingSectorBVH(node.left_child, position, best_level, best_sector);
+        if(node.right_child >= 0)
+            FindContainingSectorBVH(node.right_child, position, best_level, best_sector);
+    }
+}
+
+DetectorSector DetectorModel::GetContainingSectorDirect(GeometryPosition const & p0) const {
+    if(bvh_dirty_) {
+        RebuildBVH();
+    }
+
+    int best_level = std::numeric_limits<int>::min();
+    DetectorSector best_sector;
+
+    // BVH-excluded sectors (infinite bounds, e.g. UNIVERSE) always contain all points.
+    // Rather than calling IsInside on an infinite geometry (which involves inf arithmetic),
+    // unconditionally accept them — any finite point is inside an infinite volume.
+    // Use >= because UNIVERSE has level == INT_MIN which equals best_level's initial value.
+    for(unsigned int idx : bvh_excluded_sectors_) {
+        DetectorSector const & sector = sectors_[idx];
+        if(sector.level >= best_level) {
+            best_level = sector.level;
+            best_sector = sector;
+        }
+    }
+
+    // Traverse BVH for finite-bounds sectors
+    if(!bvh_nodes_.empty()) {
+        FindContainingSectorBVH(0, p0, best_level, best_sector);
+    } else if(bvh_excluded_sectors_.empty()) {
+        // No BVH at all: linear scan fallback
+        for(auto const & sector : sectors_) {
+            if(sector.level > best_level && sector.geo->IsInside(p0)) {
+                best_level = sector.level;
+                best_sector = sector;
+            }
+        }
+    }
+
+    return best_sector;
 }
 
 // ---------------------------------------------------------------------------
@@ -1691,8 +1768,9 @@ Geometry::IntersectionList DetectorModel::GetOuterBounds(GeometryPosition const 
 }
 
 std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(GeometryPosition const & vertex) const {
-    Geometry::IntersectionList intersections = GetIntersections(vertex, GeometryDirection(math::Vector3D(0,0,1)));
-    return GetAvailableTargets(intersections, vertex);
+    int matID = GetContainingSectorDirect(vertex).material_id;
+    std::vector<siren::dataclasses::ParticleType> particles = materials_.GetMaterialConstituents(matID);
+    return std::set<siren::dataclasses::ParticleType>(particles.begin(), particles.end());
 }
 
 std::set<siren::dataclasses::ParticleType> DetectorModel::GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, GeometryPosition const & vertex) const {

@@ -186,16 +186,29 @@ void Path::SetPoints(DetectorPosition first_point, DetectorPosition last_point) 
 }
 
 void Path::SetPointsWithRay(GeometryPosition first_point, GeometryDirection direction, double distance) {
+    // Check if the new ray is collinear with the cached intersections.
+    // Intersections along the same line are reusable: SectorLoop compensates
+    // for origin shifts via the offset calculation.
+    bool can_reuse_intersections = false;
+    if(set_intersections_) {
+        math::Vector3D new_dir = direction;
+        new_dir.normalize();
+        double dot = std::abs(new_dir * intersections_.direction);
+        if(dot > 1.0 - 1e-9) {
+            can_reuse_intersections = true;
+        }
+    }
+
     first_point_ = first_point;
     direction_ = direction;
     direction_->normalize();
-    //double dif = std::abs(direction_.magnitude() - direction.magnitude()) / std::max(direction_.magnitude(), direction.magnitude());
-    //if(not std::isnan(dif)) assert(dif < 1e-12);
     distance_ = distance;
     last_point_ = first_point + GeometryPosition(direction * distance);
     set_points_ = true;
     set_det_points_ = false;
-    set_intersections_ = false;
+    if(!can_reuse_intersections) {
+        set_intersections_ = false;
+    }
     set_column_depth_ = false;
     first_inf_ = IsInfinite(first_point_); // Set using GeometryPosition
     last_inf_ = IsInfinite(last_point_); // Set using GeometryPosition
@@ -204,16 +217,27 @@ void Path::SetPointsWithRay(GeometryPosition first_point, GeometryDirection dire
 }
 
 void Path::SetPointsWithRay(DetectorPosition first_point, DetectorDirection direction, double distance) {
+    // Check if the new ray is collinear with the cached intersections.
+    bool can_reuse_intersections = false;
+    if(set_intersections_) {
+        math::Vector3D new_dir = direction;
+        new_dir.normalize();
+        double dot = std::abs(new_dir * intersections_.direction);
+        if(dot > 1.0 - 1e-9) {
+            can_reuse_intersections = true;
+        }
+    }
+
     first_point_det_ = first_point;
     direction_det_ = direction;
     direction_det_->normalize();
-    //double dif = std::abs(direction_.magnitude() - direction.magnitude()) / std::max(direction_.magnitude(), direction.magnitude());
-    //if(not std::isnan(dif)) assert(dif < 1e-12);
     distance_ = distance;
     last_point_det_ = first_point + DetectorPosition(direction * distance);
     set_points_ = false;
     set_det_points_ = true;
-    set_intersections_ = false;
+    if(!can_reuse_intersections) {
+        set_intersections_ = false;
+    }
     set_column_depth_ = false;
     first_inf_ = IsInfinite(first_point_det_); // Set using DetectorPosition
     last_inf_ = IsInfinite(last_point_det_); // Set using DetectorPosition
