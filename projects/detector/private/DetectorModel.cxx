@@ -673,73 +673,74 @@ void DetectorModel::LoadGDML(std::string const & filename) {
         }
     }
 
-    // Flatten volume tree into sectors
-    // Walk depth-first from world volume
-    struct StackEntry {
-        std::string volume_name;
-        Placement global_placement;
-        int depth;
-    };
+    // Flatten volume tree into sectors and build volume tree simultaneously.
+    // Uses a recursive helper to maintain parent-child relationships.
+    volume_tree_nodes_.clear();
+    volume_tree_root_ = -1;
 
-    std::vector<StackEntry> stack;
-    stack.push_back({data.world_volume, Placement(), 0});
+    struct BuildContext {
+        DetectorModel & dm;
+        GDMLData const & data;
+        int level;
+        BuildContext(DetectorModel & dm_, GDMLData const & data_) : dm(dm_), data(data_), level(0) {}
 
-    int level = 0;
-    while(!stack.empty()) {
-        StackEntry entry = stack.back();
-        stack.pop_back();
+        // Returns the volume tree node index, or -1 if the volume was not found
+        int BuildVolume(std::string const & volume_name, Placement const & global_placement) {
+            auto it = data.volumes.find(volume_name);
+            if(it == data.volumes.end()) return -1;
 
-        auto it = data.volumes.find(entry.volume_name);
-        if(it == data.volumes.end()) continue;
+            GDMLVolume const & vol = it->second;
+            auto solid_it = data.solids.find(vol.solid_ref);
+            auto mat_it = data.materials.find(vol.material_ref);
+            if(solid_it == data.solids.end() || mat_it == data.materials.end()) return -1;
 
-        GDMLVolume const & vol = it->second;
-
-        // Create a sector for this volume
-        auto solid_it = data.solids.find(vol.solid_ref);
-        auto mat_it = data.materials.find(vol.material_ref);
-        if(solid_it != data.solids.end() && mat_it != data.materials.end()) {
+            // Create sector
             DetectorSector sector;
             std::string base_name = vol.name;
             std::string unique_name = base_name;
             int name_suffix = 2;
-            while(sector_name_map_.count(unique_name) > 0) {
+            while(dm.sector_name_map_.count(unique_name) > 0) {
                 unique_name = base_name + "_" + std::to_string(name_suffix++);
             }
             sector.name = unique_name;
             sector.level = level++;
 
-            // Clone the geometry with the global placement
             auto geo = solid_it->second->create();
-            geo->SetPlacement(entry.global_placement);
+            geo->SetPlacement(global_placement);
             sector.geo = geo;
 
-            // Material
-            if(materials_.HasMaterial(vol.material_ref)) {
-                sector.material_id = materials_.GetMaterialId(vol.material_ref);
+            if(dm.materials_.HasMaterial(vol.material_ref)) {
+                sector.material_id = dm.materials_.GetMaterialId(vol.material_ref);
             } else {
-                sector.material_id = 0; // fallback
+                sector.material_id = 0;
             }
-
-            // Density from material
             sector.density = ConstantDensityDistribution(mat_it->second.density).create();
 
-            AddSector(sector);
+            int sector_idx = (int)dm.sectors_.size();
+            dm.AddSector(sector);
+
+            // Create tree node
+            int node_idx = (int)dm.volume_tree_nodes_.size();
+            dm.volume_tree_nodes_.push_back(VolumeTreeNode{sector_idx, {}});
+
+            // Recurse into children
+            for(auto const & child : vol.children) {
+                Vector3D child_pos = global_placement.LocalToGlobalPosition(child.position);
+                Quaternion child_rot = global_placement.GetQuaternion() * child.rotation;
+                Placement child_global(child_pos, child_rot);
+
+                int child_node = BuildVolume(child.volume_ref, child_global);
+                if(child_node >= 0) {
+                    dm.volume_tree_nodes_[node_idx].children.push_back(child_node);
+                }
+            }
+
+            return node_idx;
         }
+    };
 
-        // Push children (in reverse order for depth-first with a stack)
-        for(int i = (int)vol.children.size() - 1; i >= 0; --i) {
-            GDMLPhysVol const & child = vol.children[i];
-
-            // Compose parent placement with child placement
-            // child position is relative to parent
-            Vector3D child_global_pos = entry.global_placement.LocalToGlobalPosition(child.position);
-            Quaternion child_global_rot = entry.global_placement.GetQuaternion() * child.rotation;
-
-            Placement child_global(child_global_pos, child_global_rot);
-
-            stack.push_back({child.volume_ref, child_global, entry.depth + 1});
-        }
-    }
+    BuildContext ctx(*this, data);
+    volume_tree_root_ = ctx.BuildVolume(data.world_volume, Placement());
 
     bvh_dirty_ = true;
 }
@@ -1472,6 +1473,73 @@ Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition cons
     SortIntersections(intersections);
 
     return intersections;
+}
+
+// ---------------------------------------------------------------------------
+// Volume tree traversal: only test children when parent is hit
+// ---------------------------------------------------------------------------
+
+void DetectorModel::TraverseVolumeTree(
+    int node_idx,
+    math::Vector3D const & position,
+    math::Vector3D const & direction,
+    Geometry::IntersectionList & intersections) const {
+    VolumeTreeNode const & node = volume_tree_nodes_[node_idx];
+    DetectorSector const & sector = sectors_[node.sector_index];
+
+    // Test this volume's geometry
+    std::vector<Geometry::Intersection> hits = sector.geo->Intersections(position, direction);
+
+    if(hits.empty()) {
+        // Ray misses this volume entirely -- skip all descendants
+        return;
+    }
+
+    // Record this volume's intersections
+    size_t prev_size = intersections.intersections.size();
+    intersections.intersections.insert(intersections.intersections.end(), hits.begin(), hits.end());
+    for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
+        intersections.intersections[j].hierarchy = sector.level;
+        intersections.intersections[j].matID = sector.material_id;
+    }
+
+    // Recurse into children
+    for(int child_idx : node.children) {
+        TraverseVolumeTree(child_idx, position, direction, intersections);
+    }
+}
+
+Geometry::IntersectionList DetectorModel::GetIntersectionsTree(GeometryPosition const & p0, GeometryDirection const & direction) const {
+    Geometry::IntersectionList intersections;
+    intersections.position = p0;
+    intersections.direction = direction;
+
+    // Always test excluded sectors (infinite UNIVERSE)
+    if(bvh_dirty_) {
+        RebuildBVH(); // need bvh_excluded_sectors_ list
+    }
+    for(unsigned int idx : bvh_excluded_sectors_) {
+        DetectorSector const & sector = sectors_[idx];
+        std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
+        size_t prev_size = intersections.intersections.size();
+        intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
+        for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
+            intersections.intersections[j].hierarchy = sector.level;
+            intersections.intersections[j].matID = sector.material_id;
+        }
+    }
+
+    // Traverse volume tree from root
+    if(volume_tree_root_ >= 0) {
+        TraverseVolumeTree(volume_tree_root_, p0, direction, intersections);
+    }
+
+    SortIntersections(intersections);
+    return intersections;
+}
+
+Geometry::IntersectionList DetectorModel::GetIntersectionsTree(DetectorPosition const & p0, DetectorDirection const & direction) const {
+    return GetIntersectionsTree(ToGeo(p0), ToGeo(direction));
 }
 
 void DetectorModel::SortIntersections(Geometry::IntersectionList & intersections) {

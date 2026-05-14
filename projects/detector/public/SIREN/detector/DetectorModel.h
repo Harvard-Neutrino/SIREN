@@ -92,6 +92,19 @@ friend siren::detector::Path;
                      math::Vector3D const & direction,
                      math::Vector3D const & inv_direction,
                      geometry::Geometry::IntersectionList & intersections) const;
+
+    // Volume tree acceleration structure (built from GDML hierarchy)
+    struct VolumeTreeNode {
+        int sector_index;                // index into sectors_
+        std::vector<int> children;       // indices into volume_tree_nodes_
+    };
+    std::vector<VolumeTreeNode> volume_tree_nodes_;
+    int volume_tree_root_ = -1;          // index of root node, -1 if no tree
+
+    void TraverseVolumeTree(int node_idx,
+                            math::Vector3D const & position,
+                            math::Vector3D const & direction,
+                            geometry::Geometry::IntersectionList & intersections) const;
 public:
     DetectorModel();
     DetectorModel(std::string const & detector_model, std::string const & material_model);
@@ -182,6 +195,7 @@ private:
     DetectorSector GetContainingSector(GeometryPosition const & p0) const;
 
     geometry::Geometry::IntersectionList GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const;
+    geometry::Geometry::IntersectionList GetIntersectionsTree(GeometryPosition const & p0, GeometryDirection const & direction) const;
     geometry::Geometry::IntersectionList GetOuterBounds(GeometryPosition const & p0, GeometryDirection const & direction) const;
 
     std::set<siren::dataclasses::ParticleType> GetAvailableTargets(GeometryPosition const & vertex) const;
@@ -253,7 +267,10 @@ public:
     DetectorSector GetContainingSector(DetectorPosition const & p0) const;
 
     geometry::Geometry::IntersectionList GetIntersections(DetectorPosition const & p0, DetectorDirection const & direction) const;
+    geometry::Geometry::IntersectionList GetIntersectionsTree(DetectorPosition const & p0, DetectorDirection const & direction) const;
     geometry::Geometry::IntersectionList GetOuterBounds(DetectorPosition const & p0, DetectorDirection const & direction) const;
+
+    bool HasVolumeTree() const { return volume_tree_root_ >= 0; }
 
     std::set<siren::dataclasses::ParticleType> GetAvailableTargets(DetectorPosition const & vertex) const;
     std::set<siren::dataclasses::ParticleType> GetAvailableTargets(geometry::Geometry::IntersectionList const & intersections, DetectorPosition const & vertex) const;
