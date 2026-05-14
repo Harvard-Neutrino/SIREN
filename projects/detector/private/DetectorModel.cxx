@@ -1354,6 +1354,8 @@ int DetectorModel::BuildBVHRecursive(std::vector<unsigned int> & indices,
         bvh_nodes_[node_idx].sector_index = (int)indices[begin];
         bvh_nodes_[node_idx].left_child = -1;
         bvh_nodes_[node_idx].right_child = -1;
+
+        // Local AABB pre-filter is done during traversal
     } else {
         bvh_nodes_[node_idx].sector_index = -1;
 
@@ -1527,7 +1529,17 @@ Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition cons
                     continue;
 
                 if(node.sector_index >= 0) {
-                    // Leaf: test actual geometry
+                    // Leaf: pre-filter using the tight local AABB.
+                    // Transform the ray to the sector's local frame and test
+                    // against the exact shape bounding box. This is tighter
+                    // than the world AABB for rotated shapes.
+                    auto const & geo = sectors_[node.sector_index].geo;
+                    Vector3D lp = geo->GlobalToLocalPosition(p0);
+                    Vector3D ld = geo->GlobalToLocalDirection(dir);
+                    Vector3D li(1.0 / ld.GetX(), 1.0 / ld.GetY(), 1.0 / ld.GetZ());
+                    if(!geometry::RayAABBIntersect(lp, li, geo->GetBoundingBox()))
+                        continue;
+
                     AppendSectorIntersections(sectors_[node.sector_index], p0, direction, intersections);
                 } else {
                     // Internal: push children
