@@ -441,10 +441,11 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
 
             // The solid ring at this z-plane
             if(r2_hit <= rmax_here * rmax_here && r2_hit >= rmin_here * rmin_here) {
-                // Determine entering based on direction: if moving upward (dz > 0)
-                // and hitting this cap from below, it is entering
+                // Determine entering based on step direction
+                bool step_faces_up = (rmax_above > rmax_below) || (rmin_above < rmin_below);
+                bool cap_entering = step_faces_up ? (dz < 0) : (dz > 0);
                 intersection_z = pz + t * dz;
-                save(t, dz > 0);
+                save(t, cap_entering);
             }
         }
     }

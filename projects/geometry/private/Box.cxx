@@ -163,12 +163,7 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(siren::math::Vecto
 
     // Use the slab method: find the ray parameter ranges where the ray is
     // inside each pair of parallel planes, then intersect the three ranges.
-    double inv_dx = (dx != 0) ? 1.0 / dx : 0;
-    double inv_dy = (dy != 0) ? 1.0 / dy : 0;
-    double inv_dz = (dz != 0) ? 1.0 / dz : 0;
-
     double t_enter, t_exit;
-    int enter_face = -1, exit_face = -1; // 0=+x,1=-x,2=+y,3=-y,4=+z,5=-z
 
     // Initialize with the full line
     t_enter = -std::numeric_limits<double>::infinity();
@@ -176,33 +171,36 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(siren::math::Vecto
 
     // X slab
     if(dx != 0) {
-        double t1 = (-hx - px) * inv_dx; // -x face
-        double t2 = ( hx - px) * inv_dx; // +x face
+        double inv = 1.0 / dx;
+        double t1 = (-hx - px) * inv; // -x face
+        double t2 = ( hx - px) * inv; // +x face
         if(t1 > t2) { std::swap(t1, t2); }
-        if(t1 > t_enter) { t_enter = t1; enter_face = (dx > 0) ? 1 : 0; }
-        if(t2 < t_exit)  { t_exit  = t2; exit_face  = (dx > 0) ? 0 : 1; }
+        if(t1 > t_enter) { t_enter = t1; }
+        if(t2 < t_exit)  { t_exit  = t2; }
     } else {
         if(px < -hx || px > hx) return {};
     }
 
     // Y slab
     if(dy != 0) {
-        double t1 = (-hy - py) * inv_dy;
-        double t2 = ( hy - py) * inv_dy;
+        double inv = 1.0 / dy;
+        double t1 = (-hy - py) * inv;
+        double t2 = ( hy - py) * inv;
         if(t1 > t2) { std::swap(t1, t2); }
-        if(t1 > t_enter) { t_enter = t1; enter_face = (dy > 0) ? 3 : 2; }
-        if(t2 < t_exit)  { t_exit  = t2; exit_face  = (dy > 0) ? 2 : 3; }
+        if(t1 > t_enter) { t_enter = t1; }
+        if(t2 < t_exit)  { t_exit  = t2; }
     } else {
         if(py < -hy || py > hy) return {};
     }
 
     // Z slab
     if(dz != 0) {
-        double t1 = (-hz - pz) * inv_dz;
-        double t2 = ( hz - pz) * inv_dz;
+        double inv = 1.0 / dz;
+        double t1 = (-hz - pz) * inv;
+        double t2 = ( hz - pz) * inv;
         if(t1 > t2) { std::swap(t1, t2); }
-        if(t1 > t_enter) { t_enter = t1; enter_face = (dz > 0) ? 5 : 4; }
-        if(t2 < t_exit)  { t_exit  = t2; exit_face  = (dz > 0) ? 4 : 5; }
+        if(t1 > t_enter) { t_enter = t1; }
+        if(t2 < t_exit)  { t_exit  = t2; }
     } else {
         if(pz < -hz || pz > hz) return {};
     }

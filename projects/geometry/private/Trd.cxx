@@ -8,6 +8,7 @@
 #include <ostream>
 #include <utility>
 #include <algorithm>
+#include <stdexcept>
 #include <functional>
 
 #include "SIREN/math/Vector3D.h"
@@ -242,18 +243,13 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
 
             iz = pz + t * dz;
             if(iz >= -dz_ && iz <= dz_) {
-                // Check x is on the face boundary at this z
-                double xh = dx1_ + (dx2_ - dx1_) * (iz + dz_) * inv2dz;
                 ix = px + t * dx;
-                // ix should be approximately +xh (the +x face)
-                if(std::fabs(ix - xh) < GEOMETRY_PRECISION) {
-                    // Check y bounds at this z
-                    double yh = dy1_ + (dy2_ - dy1_) * (iz + dz_) * inv2dz;
-                    iy = py + t * dy;
-                    if(iy >= -yh && iy <= yh) {
-                        entering = denom < 0;
-                        save();
-                    }
+                // Check y bounds at this z
+                double yh = dy1_ + (dy2_ - dy1_) * (iz + dz_) * inv2dz;
+                iy = py + t * dy;
+                if(iy >= -yh && iy <= yh) {
+                    entering = denom < 0;
+                    save();
                 }
             }
         }
@@ -273,15 +269,12 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
 
             iz = pz + t * dz;
             if(iz >= -dz_ && iz <= dz_) {
-                double xh = dx1_ + (dx2_ - dx1_) * (iz + dz_) * inv2dz;
                 ix = px + t * dx;
-                if(std::fabs(ix + xh) < GEOMETRY_PRECISION) {
-                    double yh = dy1_ + (dy2_ - dy1_) * (iz + dz_) * inv2dz;
-                    iy = py + t * dy;
-                    if(iy >= -yh && iy <= yh) {
-                        entering = denom < 0;
-                        save();
-                    }
+                double yh = dy1_ + (dy2_ - dy1_) * (iz + dz_) * inv2dz;
+                iy = py + t * dy;
+                if(iy >= -yh && iy <= yh) {
+                    entering = denom < 0;
+                    save();
                 }
             }
         }
@@ -306,15 +299,12 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
 
             iz = pz + t * dz;
             if(iz >= -dz_ && iz <= dz_) {
-                double yh = dy1_ + (dy2_ - dy1_) * (iz + dz_) * inv2dz;
                 iy = py + t * dy;
-                if(std::fabs(iy - yh) < GEOMETRY_PRECISION) {
-                    double xh = dx1_ + (dx2_ - dx1_) * (iz + dz_) * inv2dz;
-                    ix = px + t * dx;
-                    if(ix >= -xh && ix <= xh) {
-                        entering = denom < 0;
-                        save();
-                    }
+                double xh = dx1_ + (dx2_ - dx1_) * (iz + dz_) * inv2dz;
+                ix = px + t * dx;
+                if(ix >= -xh && ix <= xh) {
+                    entering = denom < 0;
+                    save();
                 }
             }
         }
@@ -334,15 +324,12 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
 
             iz = pz + t * dz;
             if(iz >= -dz_ && iz <= dz_) {
-                double yh = dy1_ + (dy2_ - dy1_) * (iz + dz_) * inv2dz;
                 iy = py + t * dy;
-                if(std::fabs(iy + yh) < GEOMETRY_PRECISION) {
-                    double xh = dx1_ + (dx2_ - dx1_) * (iz + dz_) * inv2dz;
-                    ix = px + t * dx;
-                    if(ix >= -xh && ix <= xh) {
-                        entering = denom < 0;
-                        save();
-                    }
+                double xh = dx1_ + (dx2_ - dx1_) * (iz + dz_) * inv2dz;
+                ix = px + t * dx;
+                if(ix >= -xh && ix <= xh) {
+                    entering = denom < 0;
+                    save();
                 }
             }
         }
@@ -362,16 +349,33 @@ std::pair<double, double> Trd::ComputeDistanceToBorder(const siren::math::Vector
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
     std::vector<double> dist;
+    bool first = true;
     for(unsigned int i=0; i<intersections.size(); ++i) {
-        if(intersections[i].distance > 0) {
-            dist.push_back(intersections[i].distance);
+        Intersection const & obj = intersections[i];
+        if(obj.distance > 0) {
+            if(first) {
+                first = false;
+                dist.push_back(obj.distance);
+                if(not obj.entering) {
+                    break;
+                }
+            }
+            else {
+                if(not obj.entering) {
+                    dist.push_back(obj.distance);
+                    break;
+                }
+                else {
+                    throw(std::runtime_error("There should never be two \"entering\" intersections in a row!"));
+                }
+            }
         }
     }
 
     std::pair<double, double> distance;
 
-    if(dist.size() < 1) // No intersection with the trapezoid
-    {
+    // No intersection with the trapezoid
+    if(dist.size() < 1) {
         distance.first  = -1;
         distance.second = -1;
     } else if(dist.size() == 1) // Particle is inside the trapezoid
@@ -388,8 +392,7 @@ std::pair<double, double> Trd::ComputeDistanceToBorder(const siren::math::Vector
         }
 
     } else {
-        distance.first  = -1;
-        distance.second = -1;
+        //log_error("This point should never be reached");
     }
 
     // Computer precision control

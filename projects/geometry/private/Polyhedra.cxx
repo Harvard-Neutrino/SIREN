@@ -21,6 +21,9 @@ void Polyhedra::validate() const {
     if(num_sides_ < 3) {
         throw std::runtime_error("Polyhedra requires at least 3 sides!");
     }
+    if(num_sides_ > 64) {
+        throw std::runtime_error("Polyhedra supports at most 64 sides!");
+    }
     if(z_planes_.size() < 2) {
         throw std::runtime_error("Polyhedra requires at least 2 z-planes!");
     }
@@ -487,8 +490,24 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
 
     // ---- Internal annular caps at each intermediate z-plane ----
     // These arise where the radii change discontinuously between sections.
+    // Skip caps where adjacent sections have continuous radii.
     if(std::fabs(dz) > GEOMETRY_PRECISION) {
         for(size_t i = 1; i + 1 < n; ++i) {
+            // Check if the section below and above are both valid (non-degenerate)
+            bool below_valid = (z_planes_[i] > z_planes_[i - 1]);
+            bool above_valid = (z_planes_[i + 1] > z_planes_[i]);
+
+            // Get the radii from the section below (at its top) and above (at its bottom)
+            double rmin_below = below_valid ? rmin_[i] : 0;
+            double rmax_below = below_valid ? rmax_[i] : 0;
+            double rmin_above = above_valid ? rmin_[i] : 0;
+            double rmax_above = above_valid ? rmax_[i] : 0;
+
+            // For continuous radii these are equal, so skip
+            if(rmax_below == rmax_above && rmin_below == rmin_above && below_valid && above_valid) {
+                continue;
+            }
+
             double z_cap = z_planes_[i];
             double t = (z_cap - pz) / dz;
 
@@ -502,7 +521,10 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             if(PointInAnnularPolygon(intersection_x, intersection_y,
                                        num_sides_, start_phi_,
                                        rmin_[i], rmax_[i])) {
-                save(t, dz > 0);
+                // Determine entering based on step direction
+                bool step_faces_up = (rmax_above > rmax_below) || (rmin_above < rmin_below);
+                bool cap_entering = step_faces_up ? (dz < 0) : (dz > 0);
+                save(t, cap_entering);
             }
         }
     }

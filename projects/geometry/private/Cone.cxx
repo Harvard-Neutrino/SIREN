@@ -185,10 +185,6 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         dist.push_back(i);
     };
 
-    std::function<bool()> entering_radial = [&]() {
-        return siren::math::Vector3D(intersection_x, intersection_y, 0) * direction < 0;
-    };
-
     // --- Outer conical surface ---
     {
         double a_outer = (rmax1_ + rmax2_) * 0.5;
@@ -228,7 +224,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         // r(z) = a + b*z must be >= 0 at the intersection
                         double r_at_z = a_outer + b_outer * intersection_z;
                         if(r_at_z >= 0) {
-                            save(t1, entering_radial());
+                            bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
+                            save(t1, entering);
                         }
                     }
 
@@ -238,7 +235,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         intersection_y = py + t2 * dy;
                         double r_at_z = a_outer + b_outer * intersection_z;
                         if(r_at_z >= 0) {
-                            save(t2, entering_radial());
+                            bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
+                            save(t2, entering);
                         }
                     }
                 }
@@ -254,7 +252,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     intersection_y = py + t1 * dy;
                     double r_at_z = a_outer + b_outer * intersection_z;
                     if(r_at_z >= 0) {
-                        save(t1, entering_radial());
+                        bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
+                        save(t1, entering);
                     }
                 }
             }
@@ -294,7 +293,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         double r_at_z = a_inner + b_inner * intersection_z;
                         if(r_at_z >= 0) {
                             // Inner surface: entering is inverted (entering inner = exiting volume)
-                            save(t1, not entering_radial());
+                            bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_at_z * dz) < 0);
+                            save(t1, entering);
                         }
                     }
 
@@ -304,7 +304,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         intersection_y = py + t2 * dy;
                         double r_at_z = a_inner + b_inner * intersection_z;
                         if(r_at_z >= 0) {
-                            save(t2, not entering_radial());
+                            bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_at_z * dz) < 0);
+                            save(t2, entering);
                         }
                     }
                 }
@@ -319,7 +320,8 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     intersection_y = py + t1 * dy;
                     double r_at_z = a_inner + b_inner * intersection_z;
                     if(r_at_z >= 0) {
-                        save(t1, not entering_radial());
+                        bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_at_z * dz) < 0);
+                        save(t1, entering);
                     }
                 }
             }
