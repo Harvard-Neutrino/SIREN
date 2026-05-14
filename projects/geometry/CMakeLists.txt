@@ -3,12 +3,17 @@
 LIST (APPEND geometry_SOURCES
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Geometry.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Box.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Cone.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Trd.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Cylinder.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Sphere.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/ExtrPoly.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Polycone.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/Polyhedra.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/GeometryMesh.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/MeshBuilder.cxx
     ${PROJECT_SOURCE_DIR}/projects/geometry/private/Placement.cxx
+    ${PROJECT_SOURCE_DIR}/projects/geometry/private/BooleanGeometry.cxx
 )
 add_library(SIREN_geometry OBJECT ${geometry_SOURCES})
 set_property(TARGET SIREN_geometry PROPERTY POSITION_INDEPENDENT_CODE ON)

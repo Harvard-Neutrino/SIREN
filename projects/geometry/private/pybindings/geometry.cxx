@@ -6,6 +6,10 @@
 #include "../../public/SIREN/geometry/ExtrPoly.h"
 #include "../../public/SIREN/geometry/Cylinder.h"
 #include "../../public/SIREN/geometry/Box.h"
+#include "../../public/SIREN/geometry/Cone.h"
+#include "../../public/SIREN/geometry/Polycone.h"
+#include "../../public/SIREN/geometry/Polyhedra.h"
+#include "../../public/SIREN/geometry/Trd.h"
 #include "../../public/SIREN/geometry/Sphere.h"
 
 #include <pybind11/pybind11.h>
@@ -86,6 +90,60 @@ PYBIND11_MODULE(geometry,m) {
         .def_property("X",&Box::GetX, &Box::SetX)
         .def_property("Y",&Box::GetY, &Box::SetY)
         .def_property("Z",&Box::GetZ, &Box::SetZ);
+
+    // Cone
+
+    class_<Cone, std::shared_ptr<Cone>, Geometry>(m, "Cone")
+        .def(init<>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Cone&>())
+        .def_property_readonly("Rmin1",&Cone::GetRmin1)
+        .def_property_readonly("Rmax1",&Cone::GetRmax1)
+        .def_property_readonly("Rmin2",&Cone::GetRmin2)
+        .def_property_readonly("Rmax2",&Cone::GetRmax2)
+        .def_property_readonly("Z",&Cone::GetZ);
+
+    // Polycone
+
+    class_<Polycone, std::shared_ptr<Polycone>, Geometry>(m, "Polycone")
+        .def(init<>())
+        .def(init<std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<const Polycone&>())
+        .def_property_readonly("ZPlanes",&Polycone::GetZPlanes)
+        .def_property_readonly("Rmin",&Polycone::GetRmin)
+        .def_property_readonly("Rmax",&Polycone::GetRmax);
+
+    // Polyhedra
+
+    class_<Polyhedra, std::shared_ptr<Polyhedra>, Geometry>(m, "Polyhedra")
+        .def(init<>())
+        .def(init<int, double, std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, int, double, std::vector<double>, std::vector<double>, std::vector<double>>())
+        .def(init<const Polyhedra&>())
+        .def_property_readonly("NumSides",&Polyhedra::GetNumSides)
+        .def_property_readonly("StartPhi",&Polyhedra::GetStartPhi)
+        .def_property_readonly("ZPlanes",&Polyhedra::GetZPlanes)
+        .def_property_readonly("Rmin",&Polyhedra::GetRmin)
+        .def_property_readonly("Rmax",&Polyhedra::GetRmax);
+
+    // Trd
+
+    class_<Trd, std::shared_ptr<Trd>, Geometry>(m, "Trd")
+        .def(init<>())
+        .def(init<double, double, double, double, double>())
+        .def(init<Placement const &>())
+        .def(init<Placement const &, double, double, double, double, double>())
+        .def(init<const Trd&>())
+        .def_property_readonly("Dx1",&Trd::GetDx1)
+        .def_property_readonly("Dx2",&Trd::GetDx2)
+        .def_property_readonly("Dy1",&Trd::GetDy1)
+        .def_property_readonly("Dy2",&Trd::GetDy2)
+        .def_property_readonly("Dz",&Trd::GetDz);
 
     // Cylinder
 
