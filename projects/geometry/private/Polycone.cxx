@@ -182,6 +182,14 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
     double intersection_y;
     double intersection_z;
 
+    // Cone surface entering test using the gradient normal.
+    // For surface x^2 + y^2 = (a + b*z)^2, outward normal is (x, y, -b*(a+b*z)).
+    // Entering when normal . direction < 0.
+    auto entering_cone = [&](double a, double b) {
+        double r_val = a + b * intersection_z;
+        return (intersection_x * dx + intersection_y * dy - b * r_val * dz) < 0;
+    };
+
     size_t n = z_planes_.size();
 
     // Process each frustum section between adjacent z-planes
@@ -235,7 +243,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             intersection_y = py + t1 * dy;
                             double r_at_z = a_outer + b_outer * intersection_z;
                             if(r_at_z >= 0) {
-                                bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
+                                bool entering = entering_cone(a_outer, b_outer);
                                 hits[n_hits].distance = t1;
                                 hits[n_hits].hierarchy = 0;
                                 hits[n_hits].entering = entering;
@@ -250,7 +258,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             intersection_y = py + t2 * dy;
                             double r_at_z = a_outer + b_outer * intersection_z;
                             if(r_at_z >= 0) {
-                                bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
+                                bool entering = entering_cone(a_outer, b_outer);
                                 hits[n_hits].distance = t2;
                                 hits[n_hits].hierarchy = 0;
                                 hits[n_hits].entering = entering;
@@ -271,7 +279,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         intersection_y = py + t1 * dy;
                         double r_at_z = a_outer + b_outer * intersection_z;
                         if(r_at_z >= 0) {
-                            bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
+                            bool entering = entering_cone(a_outer, b_outer);
                             hits[n_hits].distance = t1;
                             hits[n_hits].hierarchy = 0;
                             hits[n_hits].entering = entering;
@@ -315,8 +323,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             intersection_y = py + t1 * dy;
                             double r_at_z = a_inner + b_inner * intersection_z;
                             if(r_at_z >= 0) {
-                                double r_val = a_inner + b_inner * intersection_z;
-                                bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_val * dz) < 0);
+                                bool entering = !entering_cone(a_inner, b_inner);
                                 hits[n_hits].distance = t1;
                                 hits[n_hits].hierarchy = 0;
                                 hits[n_hits].entering = entering;
@@ -331,8 +338,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             intersection_y = py + t2 * dy;
                             double r_at_z = a_inner + b_inner * intersection_z;
                             if(r_at_z >= 0) {
-                                double r_val = a_inner + b_inner * intersection_z;
-                                bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_val * dz) < 0);
+                                bool entering = !entering_cone(a_inner, b_inner);
                                 hits[n_hits].distance = t2;
                                 hits[n_hits].hierarchy = 0;
                                 hits[n_hits].entering = entering;
@@ -352,8 +358,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         intersection_y = py + t1 * dy;
                         double r_at_z = a_inner + b_inner * intersection_z;
                         if(r_at_z >= 0) {
-                            double r_val = a_inner + b_inner * intersection_z;
-                            bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_val * dz) < 0);
+                            bool entering = !entering_cone(a_inner, b_inner);
                             hits[n_hits].distance = t1;
                             hits[n_hits].hierarchy = 0;
                             hits[n_hits].entering = entering;
