@@ -162,8 +162,7 @@ void BooleanGeometry::print(std::ostream& os) const
 // ------------------------------------------------------------------------- //
 std::vector<Geometry::Intersection> BooleanGeometry::ComputeIntersections(
         siren::math::Vector3D const & position,
-        siren::math::Vector3D const & direction) const
-{
+        siren::math::Vector3D const & direction) const {
     // Collect child intersections into a fixed-size tagged array.
     // Each child produces at most ~8 intersections for typical shapes;
     // 32 total handles deeply nested CSG.
@@ -240,8 +239,7 @@ std::vector<Geometry::Intersection> BooleanGeometry::ComputeIntersections(
 // ------------------------------------------------------------------------- //
 std::pair<double, double> BooleanGeometry::ComputeDistanceToBorder(
         const siren::math::Vector3D& position,
-        const siren::math::Vector3D& direction) const
-{
+        const siren::math::Vector3D& direction) const {
     // CSG shapes are non-convex: there can be multiple enter/exit pairs.
     // Find the first positive exit (if inside) or the first positive
     // enter-then-exit pair (if outside).
@@ -274,8 +272,7 @@ std::pair<double, double> BooleanGeometry::ComputeDistanceToBorder(
 }
 
 // ------------------------------------------------------------------------- //
-AABB BooleanGeometry::GetBoundingBox() const
-{
+AABB BooleanGeometry::GetBoundingBox() const {
     // Children's bounding boxes are in their own local frames.
     // GetWorldBoundingBox() transforms them through their Placements
     // into the shared coordinate frame (which is BooleanGeometry's local frame).

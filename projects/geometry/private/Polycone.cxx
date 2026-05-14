@@ -495,8 +495,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Polycone::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
-{
+std::pair<double, double> Polycone::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const {
     // Compute the surface intersections
     std::vector<Intersection> intersections = Intersections(position, direction);
     std::vector<double> dists;
