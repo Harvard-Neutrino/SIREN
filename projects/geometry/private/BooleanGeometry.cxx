@@ -207,30 +207,12 @@ std::vector<Geometry::Intersection> BooleanGeometry::ComputeIntersections(
             return a.isect.distance < b.isect.distance;
         });
 
-    // Walk through intersections maintaining inside/outside state for each child.
-    // Determine initial inside state: if the first intersection from a child
-    // is an exit (entering == false), then the ray starts inside that child.
+    // Start with both children "outside" -- the state at t = -infinity.
+    // The walk through all intersections (including negative-distance ones)
+    // will build up the correct state naturally, producing proper enter/exit
+    // pairs for the full line.
     bool in_left = false;
     bool in_right = false;
-
-    // Determine initial inside state from the first intersection of each child.
-    // If the first intersection is an entry (entering=true) with negative distance,
-    // the ray already passed through it -- the point is inside that child.
-    // If the first intersection is an exit (entering=false) with positive distance,
-    // the ray hasn't reached it yet -- the point is also inside that child.
-    // In general: inside = (entering == (distance < 0)).
-    for(auto const & ti : all) {
-        if(ti.child == 0) {
-            in_left = (ti.isect.entering == (ti.isect.distance < 0));
-            break;
-        }
-    }
-    for(auto const & ti : all) {
-        if(ti.child == 1) {
-            in_right = (ti.isect.entering == (ti.isect.distance < 0));
-            break;
-        }
-    }
 
     // Now walk through all intersections in order
     bool was_inside_result = IsInsideResult(op_, in_left, in_right);
