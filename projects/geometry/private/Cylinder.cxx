@@ -182,197 +182,83 @@ std::vector<Geometry::Intersection> Cylinder::ComputeIntersections(siren::math::
     // ( dist_1 / -1 ) particle is inside the cylinder or on border and moving
     // inside
 
-    double A, B, C, t1, t2, t;
-    double dir_vec_x = direction.GetX();
-    double dir_vec_y = direction.GetY();
-    double dir_vec_z = direction.GetZ();
+    double dx = direction.GetX();
+    double dy = direction.GetY();
+    double dz = direction.GetZ();
+    double px = position.GetX();
+    double py = position.GetY();
+    double pz = position.GetZ();
 
-    double determinant;
+    double hz = 0.5 * z_;
+    double r2_outer = radius_ * radius_;
+    double r2_inner = inner_radius_ * inner_radius_;
 
-    double intersection_x;
-    double intersection_y;
-    double intersection_z;
+    // At most 8 intersections (2 barrel + 2 caps + 2 inner barrel + 2 inner caps)
+    // but realistically at most 4 for a single hollow cylinder
+    Intersection hits[8];
+    int n_hits = 0;
 
-    std::vector<Intersection> dist;
-
-    std::function<void(double, bool)> save = [&](double t, bool entering){
-        Intersection i;
-        i.position = siren::math::Vector3D(intersection_x,intersection_y,intersection_z);
-        i.distance = t;
-        i.hierarchy = 0;
-        i.entering = entering;
-        dist.push_back(i);
+    auto add_hit = [&](double t, double ix, double iy, double iz, bool entering) {
+        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+        hits[n_hits].distance = t;
+        hits[n_hits].hierarchy = 0;
+        hits[n_hits].entering = entering;
+        hits[n_hits].position = siren::math::Vector3D(ix, iy, iz);
+        n_hits++;
     };
 
-    std::function<bool()> entering_radial = [&]() {
-        return siren::math::Vector3D(intersection_x, intersection_y, 0) * direction < 0;
+    // Test barrel surface for a given radius squared; invert_entering flips
+    // the radial entering logic for inner surfaces
+    auto test_barrel = [&](double r2, bool invert_entering) {
+        if(dx == 0 && dy == 0) return;
+        double C = dx*dx + dy*dy;
+        double B_half = px*dx + py*dy;
+        double A = px*px + py*py - r2;
+        double det = B_half*B_half - C*A;
+        if(det <= 0) return;
+        double sq = std::sqrt(det);
+        double inv_C = 1.0 / C;
+        double t1 = (-B_half - sq) * inv_C;
+        double t2 = (-B_half + sq) * inv_C;
+        for(int k = 0; k < 2; ++k) {
+            double t = (k == 0) ? t1 : t2;
+            double iz = pz + t * dz;
+            if(iz > -hz && iz < hz) {
+                double ix = px + t * dx;
+                double iy = py + t * dy;
+                bool radial_entering = (ix * dx + iy * dy) < 0;
+                add_hit(t, ix, iy, iz, invert_entering ? !radial_entering : radial_entering);
+            }
+        }
     };
 
-    double z_calc_pos = 0.5 * z_;
-    double z_calc_neg = -0.5 * z_;
-
-    if (!(dir_vec_x == 0 && dir_vec_y == 0)) // Otherwise the particle
-        // trajectory is parallel to
-        // cylinder barrel
-    {
-
-        A = std::pow((position.GetX()), 2) +
-            std::pow((position.GetY()), 2) -
-            radius_*radius_;
-
-        B = 2 * ((position.GetX()) * dir_vec_x + (position.GetY()) * dir_vec_y);
-
-        C = dir_vec_x * dir_vec_x + dir_vec_y * dir_vec_y;
-
-        B /= C;
-        A /= C;
-
-        determinant = 0.25 * B*B - A;
-
-        if (determinant > 0) // determinant == 0 (boundery point) is ignored
-        {
-            t1 = -1 * B / 2 + std::sqrt(determinant);
-            t2 = -1 * B / 2 - std::sqrt(determinant);
-
-            // Computer precision controll
-            if (t1 > 0 && t1 < GEOMETRY_PRECISION)
-                t1 = 0;
-            if (t2 > 0 && t2 < GEOMETRY_PRECISION)
-                t2 = 0;
-
-            intersection_z = position.GetZ() + t1 * dir_vec_z;
-            // is inside the borders
-            if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-            {
-                intersection_x = position.GetX() + t1 * dir_vec_x;
-                intersection_y = position.GetY() + t1 * dir_vec_y;
-                save(t1, entering_radial());
-            }
-
-            intersection_z = position.GetZ() + t2 * dir_vec_z;
-            // is inside the borders
-            if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-            {
-                intersection_x = position.GetX() + t2 * dir_vec_x;
-                intersection_y = position.GetY() + t2 * dir_vec_y;
-                save(t2, entering_radial());
-            }
+    // Test endcap at z_cap for a given annular ring [r2_lo, r2_hi]
+    auto test_cap = [&](double z_cap, double r2_lo, double r2_hi, bool enter) {
+        if(dz == 0) return;
+        double t = (z_cap - pz) / dz;
+        double ix = px + t * dx;
+        double iy = py + t * dy;
+        double r2_hit = ix*ix + iy*iy;
+        if(r2_hit <= r2_hi && r2_hit >= r2_lo) {
+            add_hit(t, ix, iy, pz + t * dz, enter);
         }
+    };
+
+    // Outer barrel
+    test_barrel(r2_outer, false);
+    // Endcaps (annular disk between inner and outer radius)
+    test_cap( hz, r2_inner, r2_outer, dz < 0);
+    test_cap(-hz, r2_inner, r2_outer, dz > 0);
+    // Inner barrel (if hollow)
+    if(inner_radius_ > 0) {
+        test_barrel(r2_inner, true);
     }
 
-    // intersection with E1
-    if (dir_vec_z != 0) // if dir_vec == 0 particle trajectory is parallel
-        // to E1 (Should not happen)
-    {
-        t = (z_calc_pos - position.GetZ()) / dir_vec_z;
-        // Computer precision controll
-        if (t > 0 && t < GEOMETRY_PRECISION)
-            t = 0;
-
-        intersection_x = position.GetX() + t * dir_vec_x;
-        intersection_y = position.GetY() + t * dir_vec_y;
-
-        if (std::sqrt(std::pow((intersection_x), 2) +
-                    std::pow((intersection_y), 2)) <=
-                radius_ &&
-                std::sqrt(std::pow((intersection_x), 2) +
-                    std::pow((intersection_y), 2)) >=
-                inner_radius_)
-        {
-            intersection_z = position.GetZ() + t * dir_vec_z;
-            save(t, direction.GetZ() < 0);
-        }
-    }
-
-    // intersection with E2
-    if (dir_vec_z != 0) // if dir_vec == 0 particle trajectory is parallel
-        // to E2 (Should not happen)
-    {
-        t = (z_calc_neg - position.GetZ()) / dir_vec_z;
-
-        // Computer precision controll
-        if (t > 0 && t < GEOMETRY_PRECISION)
-            t = 0;
-
-        intersection_x = position.GetX() + t * dir_vec_x;
-        intersection_y = position.GetY() + t * dir_vec_y;
-
-        if (std::sqrt(std::pow((intersection_x), 2) +
-                    std::pow((intersection_y), 2)) <=
-                radius_ &&
-                std::sqrt(std::pow((intersection_x), 2) +
-                    std::pow((intersection_y), 2)) >=
-                inner_radius_)
-        {
-            intersection_z = position.GetZ() + t * dir_vec_z;
-            save(t, direction.GetZ() > 0);
-        }
-    }
-
-    // This cylinder might be hollow and we have to check if the inner border is
-    // reached before.
-    // So we caluculate the intersection with the inner cylinder.
-
-    if (inner_radius_ > 0)
-    {
-        if (!(dir_vec_x == 0 && dir_vec_y == 0))
-        {
-
-            A = std::pow((position.GetX()), 2) +
-                std::pow((position.GetY()), 2) -
-                inner_radius_*inner_radius_;
-
-            B = 2 *
-                ((position.GetX()) * dir_vec_x + (position.GetY()) * dir_vec_y);
-
-            C = dir_vec_x * dir_vec_x + dir_vec_y * dir_vec_y;
-
-            B /= C;
-            A /= C;
-
-            determinant = 0.25 * B*B - A;
-
-            if (determinant > 0) // determinant == 0 (boundery point) is ignored
-            {
-                t1 = -1 * B / 2 + std::sqrt(determinant);
-                t2 = -1 * B / 2 - std::sqrt(determinant);
-
-                // Computer precision controll
-                if (t1 > 0 && t1 < GEOMETRY_PRECISION)
-                    t1 = 0;
-                if (t2 > 0 && t2 < GEOMETRY_PRECISION)
-                    t2 = 0;
-
-                // Ok we have a intersection with the inner cylinder
-
-                intersection_z = position.GetZ() + t1 * dir_vec_z;
-                // is inside the borders
-                if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                {
-                    intersection_x = position.GetX() + t1 * dir_vec_x;
-                    intersection_y = position.GetY() + t1 * dir_vec_y;
-                    save(t1, not entering_radial());
-                }
-
-                intersection_z = position.GetZ() + t2 * dir_vec_z;
-                // is inside the borders
-                if (intersection_z > z_calc_neg && intersection_z < z_calc_pos)
-                {
-                    intersection_x = position.GetX() + t2 * dir_vec_x;
-                    intersection_y = position.GetY() + t2 * dir_vec_y;
-                    save(t2, not entering_radial());
-                }
-            }
-        }
-    }
-
-    std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
+    if(n_hits == 0) return {};
+    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
-    };
-
-    std::sort(dist.begin(), dist.end(), comp);
-    return dist;
-    
+    });
+    return {hits, hits + n_hits};
 }
 
 // ------------------------------------------------------------------------- //

@@ -159,97 +159,55 @@ void Sphere::print(std::ostream& os) const
 
 // ------------------------------------------------------------------------- //
 std::vector<Geometry::Intersection> Sphere::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
-    // Calculate intersection of particle trajectory and the sphere
-    // sphere (x1 + x0)^2 + (x2 + y0)^2 + (x3 + z0)^2 = radius^2
-    // straight line (particle trajectory) g = vec(x,y,z) + t * dir_vec( cosph
-    // *sinth, sinph *sinth , costh)
-    // Insert and transform leads to C * t^2 + B * t + A = 0
-    // length of direction vector =1 => C = 1
-    // We are only interested in postive values of t
-    // ( we want to find the intersection in direction of the particle
-    // trajectory)
+    // Ray-sphere: C*t^2 + 2*B*t + A = 0  (C=1 for unit direction)
+    double difference_length_squared = position.GetX()*position.GetX()
+                                     + position.GetY()*position.GetY()
+                                     + position.GetZ()*position.GetZ();
+    double B = scalar_product(position, direction);
 
-    double A, B, t1, t2, difference_length_squared;
+    // At most 4 intersections (2 outer + 2 inner for hollow sphere)
+    Intersection hits[4];
+    int n_hits = 0;
 
-    double determinant;
-
-    std::vector<Intersection> dist;
-
-    siren::math::Vector3D intersection;
-
-    std::function<void(double, bool)> save = [&](double t, bool entering){
-        Intersection i;
-        i.position = intersection;
-        i.distance = t;
-        i.hierarchy = 0;
-        i.entering = entering;
-        dist.push_back(i);
+    auto add_hit = [&](double t, bool entering) {
+        if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+        hits[n_hits].distance = t;
+        hits[n_hits].hierarchy = 0;
+        hits[n_hits].entering = entering;
+        hits[n_hits].position = position + t * direction;
+        n_hits++;
     };
 
-    difference_length_squared = std::pow((position).magnitude(), 2);
-    A                         = difference_length_squared - radius_ * radius_;
+    // Outer sphere
+    double A = difference_length_squared - radius_ * radius_;
+    double determinant = B * B - A;
+    if(determinant > 0) {
+        double sq = std::sqrt(determinant);
+        double t1 = -B - sq;
+        double t2 = -B + sq;
+        add_hit(t1, true);
+        add_hit(t2, false);
 
-    B = scalar_product(position, direction);
-
-    determinant = B * B - A;
-
-    if (determinant > 0) // determinant == 0 (boundery point) is ignored
-    {
-        t1 = -1 * B + std::sqrt(determinant);
-        t2 = -1 * B - std::sqrt(determinant);
-
-        // Computer precision controll
-        if (t1 > 0 && t1 < GEOMETRY_PRECISION)
-            t1 = 0;
-        if (t2 > 0 && t2 < GEOMETRY_PRECISION)
-            t2 = 0;
-
-        if (t2 < t1)
-        {
-            std::swap(t1, t2);
-        }
-
-        intersection = position + t1*direction;
-        save(t1, true);
-        intersection = position + t2*direction;
-        save(t2, false);
-
-        if (inner_radius_ > 0)
-        {
+        // Inner sphere (hollow shell)
+        if(inner_radius_ > 0) {
             A = difference_length_squared - inner_radius_ * inner_radius_;
-
             determinant = B * B - A;
-
-            if (determinant > 0) // determinant == 0 (boundery point) is ignored
-            {
-                t1 = -1 * B + std::sqrt(determinant);
-                t2 = -1 * B - std::sqrt(determinant);
-
-                // Computer precision controll
-                if (t1 > 0 && t1 < GEOMETRY_PRECISION)
-                    t1 = 0;
-                if (t2 > 0 && t2 < GEOMETRY_PRECISION)
-                    t2 = 0;
-
-                if (t2 < t1)
-                {
-                    std::swap(t1, t2);
-                }
-
-                intersection = position + t1*direction;
-                save(t1, false);
-                intersection = position + t2*direction;
-                save(t2, true);
+            if(determinant > 0) {
+                sq = std::sqrt(determinant);
+                t1 = -B - sq;
+                t2 = -B + sq;
+                add_hit(t1, false);
+                add_hit(t2, true);
             }
         }
     }
 
-    std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
+    if(n_hits == 0) return {};
+    // Sort by distance
+    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
-    };
-
-    std::sort(dist.begin(), dist.end(), comp);
-    return dist;
+    });
+    return {hits, hits + n_hits};
 }
 
 // ------------------------------------------------------------------------- //
