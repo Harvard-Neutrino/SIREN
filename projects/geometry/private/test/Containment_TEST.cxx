@@ -101,19 +101,23 @@ bool InsidePolycone(Vector3D const & p, std::vector<double> const & zp,
     return false;
 }
 
-// For Polyhedra: check if (x,y) is inside a regular polygon at radius r
+// For Polyhedra: check if (x,y) is inside a regular polygon.
+// The Polyhedra shape places vertices at (r*cos(angle), r*sin(angle)), so r is
+// the circumradius (vertex distance from center). Each face edge connects two
+// adjacent vertices; test that the point is on the interior side of every edge.
 bool InsideRegularPolygon(double px, double py, int n, double r, double start_phi) {
-    // The polygon has n sides. At each side, the perpendicular distance
-    // from center to the midpoint of the side is r (the apothem).
-    // Check each side's half-plane.
     double dphi = 2.0 * M_PI / n;
     for(int k = 0; k < n; ++k) {
-        double mid_angle = start_phi + (k + 0.5) * dphi;
-        double nx = std::cos(mid_angle);
-        double ny = std::sin(mid_angle);
-        // Distance from origin to this face = r (the apothem)
-        // Point is inside if projection onto normal < r
-        if(px * nx + py * ny > r) return false;
+        double a0 = start_phi + k * dphi;
+        double a1 = start_phi + (k + 1) * dphi;
+        // Edge from vertex k to vertex k+1
+        double vx0 = r * std::cos(a0), vy0 = r * std::sin(a0);
+        double vx1 = r * std::cos(a1), vy1 = r * std::sin(a1);
+        // Inward-pointing normal: rotate edge vector 90 degrees clockwise
+        double ex = vx1 - vx0, ey = vy1 - vy0;
+        double nx = ey, ny = -ex; // outward normal (pointing away from center)
+        // Point is outside if on the outward side of any edge
+        if(nx * (px - vx0) + ny * (py - vy0) > 0) return false;
     }
     return true;
 }

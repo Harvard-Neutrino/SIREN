@@ -190,8 +190,12 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
         dist.push_back(isect);
     };
 
-    std::function<bool()> entering_radial = [&]() {
-        return siren::math::Vector3D(intersection_x, intersection_y, 0) * direction < 0;
+    // Proper cone surface entering test using the gradient normal.
+    // For surface x^2 + y^2 = (a + b*z)^2, the outward normal is (x, y, -b*(a+b*z)).
+    // entering when normal . direction < 0.
+    auto entering_cone = [&](double a, double b) {
+        double r_val = a + b * intersection_z;
+        return (intersection_x * dx + intersection_y * dy - b * r_val * dz) < 0;
     };
 
     size_t n = z_planes_.size();
@@ -247,7 +251,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             intersection_y = py + t1 * dy;
                             double r_at_z = a_outer + b_outer * intersection_z;
                             if(r_at_z >= 0) {
-                                save(t1, entering_radial());
+                                save(t1, entering_cone(a_outer, b_outer));
                             }
                         }
 
@@ -257,7 +261,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             intersection_y = py + t2 * dy;
                             double r_at_z = a_outer + b_outer * intersection_z;
                             if(r_at_z >= 0) {
-                                save(t2, entering_radial());
+                                save(t2, entering_cone(a_outer, b_outer));
                             }
                         }
                     }
@@ -273,7 +277,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         intersection_y = py + t1 * dy;
                         double r_at_z = a_outer + b_outer * intersection_z;
                         if(r_at_z >= 0) {
-                            save(t1, entering_radial());
+                            save(t1, entering_cone(a_outer, b_outer));
                         }
                     }
                 }
@@ -312,7 +316,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             intersection_y = py + t1 * dy;
                             double r_at_z = a_inner + b_inner * intersection_z;
                             if(r_at_z >= 0) {
-                                save(t1, not entering_radial());
+                                save(t1, !entering_cone(a_inner, b_inner));
                             }
                         }
 
@@ -322,7 +326,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             intersection_y = py + t2 * dy;
                             double r_at_z = a_inner + b_inner * intersection_z;
                             if(r_at_z >= 0) {
-                                save(t2, not entering_radial());
+                                save(t2, !entering_cone(a_inner, b_inner));
                             }
                         }
                     }
@@ -337,7 +341,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         intersection_y = py + t1 * dy;
                         double r_at_z = a_inner + b_inner * intersection_z;
                         if(r_at_z >= 0) {
-                            save(t1, not entering_radial());
+                            save(t1, !entering_cone(a_inner, b_inner));
                         }
                     }
                 }

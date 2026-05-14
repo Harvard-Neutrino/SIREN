@@ -213,17 +213,21 @@ std::vector<Geometry::Intersection> BooleanGeometry::ComputeIntersections(
     bool in_left = false;
     bool in_right = false;
 
-    // Determine initial inside state from the first intersection of each child
+    // Determine initial inside state from the first intersection of each child.
+    // If the first intersection is an entry (entering=true) with negative distance,
+    // the ray already passed through it -- the point is inside that child.
+    // If the first intersection is an exit (entering=false) with positive distance,
+    // the ray hasn't reached it yet -- the point is also inside that child.
+    // In general: inside = (entering == (distance < 0)).
     for(auto const & ti : all) {
-        if(ti.child == 0 && !in_left) {
-            // First left intersection: if it is an exit, we started inside left
-            in_left = !ti.isect.entering;
+        if(ti.child == 0) {
+            in_left = (ti.isect.entering == (ti.isect.distance < 0));
             break;
         }
     }
     for(auto const & ti : all) {
-        if(ti.child == 1 && !in_right) {
-            in_right = !ti.isect.entering;
+        if(ti.child == 1) {
+            in_right = (ti.isect.entering == (ti.isect.distance < 0));
             break;
         }
     }
@@ -263,40 +267,33 @@ std::pair<double, double> BooleanGeometry::ComputeDistanceToBorder(
         const siren::math::Vector3D& position,
         const siren::math::Vector3D& direction) const
 {
-    // Delegate to ComputeIntersections and pick the first two positive hits
+    // CSG shapes are non-convex: there can be multiple enter/exit pairs.
+    // Find the first positive exit (if inside) or the first positive
+    // enter-then-exit pair (if outside).
     std::vector<Intersection> intersections = Intersections(position, direction);
-    std::vector<double> dist;
-    for(unsigned int i = 0; i < intersections.size(); ++i) {
-        if(intersections[i].distance > 0) {
-            dist.push_back(intersections[i].distance);
-            if(dist.size() == 2) break;
-        }
-    }
 
     std::pair<double, double> distance;
+    distance.first = -1;
+    distance.second = -1;
 
-    if(dist.size() < 1) {
-        distance.first  = -1;
-        distance.second = -1;
-    }
-    else if(dist.size() == 1) {
-        distance.first  = dist.at(0);
-        distance.second = -1;
-    }
-    else {
-        distance.first  = dist.at(0);
-        distance.second = dist.at(1);
-        if(distance.second < distance.first) {
-            std::swap(distance.first, distance.second);
+    bool found_first = false;
+    for(unsigned int i = 0; i < intersections.size(); ++i) {
+        if(intersections[i].distance > GEOMETRY_PRECISION) {
+            if(!found_first) {
+                found_first = true;
+                distance.first = intersections[i].distance;
+                if(!intersections[i].entering) {
+                    // First positive hit is an exit: we're inside
+                    break;
+                }
+            } else {
+                if(!intersections[i].entering) {
+                    distance.second = intersections[i].distance;
+                    break;
+                }
+            }
         }
     }
-
-    if(distance.first < GEOMETRY_PRECISION)
-        distance.first = -1;
-    if(distance.second < GEOMETRY_PRECISION)
-        distance.second = -1;
-    if(distance.first < 0)
-        std::swap(distance.first, distance.second);
 
     return distance;
 }

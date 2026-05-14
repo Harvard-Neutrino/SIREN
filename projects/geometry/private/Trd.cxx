@@ -255,10 +255,10 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
         }
     }
 
-    // -x face: outward normal is (-2*dz_, 0, dx2_-dx1_), point on face (-dx1_, 0, -dz_)
+    // -x face: outward normal is (-2*dz_, 0, dx1_-dx2_), point on face (-dx1_, 0, -dz_)
     {
         double nx = -2.0 * dz_;
-        double nz = dx2_ - dx1_;
+        double nz = dx1_ - dx2_;
         double denom = nx * dx + nz * dz;
         if(denom != 0) {
             double num = nx * (-dx1_ - px) + nz * (-dz_ - pz);
@@ -310,10 +310,10 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
         }
     }
 
-    // -y face: outward normal is (0, -2*dz_, dy2_-dy1_), point on face (0, -dy1_, -dz_)
+    // -y face: outward normal is (0, -2*dz_, dy1_-dy2_), point on face (0, -dy1_, -dz_)
     {
         double ny = -2.0 * dz_;
-        double nz = dy2_ - dy1_;
+        double nz = dy1_ - dy2_;
         double denom = ny * dy + nz * dz;
         if(denom != 0) {
             double num = ny * (-dy1_ - py) + nz * (-dz_ - pz);
