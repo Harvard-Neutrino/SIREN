@@ -41,6 +41,7 @@ install(DIRECTORY "${PROJECT_SOURCE_DIR}/projects/geometry/public/"
 
 package_add_test(UnitTest_Geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Geometry_TEST.cxx)
 package_add_test(UnitTest_ExtrPoly ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/ExtrPoly_TEST.cxx)
+package_add_test(UnitTest_Containment ${PROJECT_SOURCE_DIR}/projects/geometry/private/test/Containment_TEST.cxx)
 
 pybind11_add_module(geometry ${PROJECT_SOURCE_DIR}/projects/geometry/private/pybindings/geometry.cxx)
 target_link_libraries(geometry PRIVATE SIREN)
