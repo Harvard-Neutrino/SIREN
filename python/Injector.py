@@ -265,7 +265,7 @@ class Injector:
             if current_secondary_types != new_secondary_types:
                 raise ValueError("Cannot change the secondary types after initialization")
             for secondary_type, secondary_process in secondary_injection_distributions.items():
-                secondary_process.distributions = secondary_distributions[secondary_type]
+                secondary_process.distributions = secondary_injection_distributions[secondary_type]
         self.__secondary_injection_distributions = secondary_injection_distributions
 
     @property
