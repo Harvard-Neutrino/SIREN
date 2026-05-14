@@ -809,6 +809,27 @@ def get_fiducial_volume(experiment):
         return _detector.DetectorModel.ParseFiducialVolume(fiducial_line, detector_line)
     return None
 
+def get_volume_position_distribution_from_sector(detector_model, sector_name):
+        from . import detector as _detector
+        from . import geometry as _geometry
+        from . import distributions as _distributions
+        geo = detector_model.GetDetectorSectorGeometry(sector_name)
+        if geo is None:
+            raise ValueError("Sector %s not found" % sector_name)
+        # the position is in geometry coordinates
+        # must update to detector coordintes
+        det_position = detector_model.GeoPositionToDetPosition(_detector.GeometryPosition(geo.placement.Position))
+        det_rotation = geo.placement.Quaternion
+        det_placement = _geometry.Placement(det_position.get(), det_rotation)
+        if type(geo)==_geometry.Cylinder:
+            cylinder = _geometry.Cylinder(det_placement,geo.Radius,geo.InnerRadius,geo.Z)
+            return _distributions.CylinderVolumePositionDistribution(cylinder)
+        elif type(geo)==_geometry.Sphere:
+            sphere = _geometry.Sphere(det_placement,geo.Radius,geo.InnerRadius)
+            return _distributions.SphereVolumePositionDistribution(sphere)
+        else:
+            raise TypeError("Geometry type %s not supported for position distribution" % str(type(geo)))
+
 def list_fluxes():
     return sorted(_get_model_subfolders(_get_base_directory(resource_package_dir(), "fluxes"), _model_regex))
 

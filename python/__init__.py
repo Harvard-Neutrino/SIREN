@@ -29,6 +29,7 @@ utilities.load_flux = _util.load_flux
 utilities.load_detector = _util.load_detector
 utilities.load_processes = _util.load_processes
 utilities.get_fiducial_volume = _util.get_fiducial_volume
+utilities.get_volume_position_distribution_from_sector = _util.get_volume_position_distribution_from_sector
 
 # Override the Injector with the python wrapper
 injection._Injector = injection.Injector
