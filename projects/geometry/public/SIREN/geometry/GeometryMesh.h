@@ -67,14 +67,20 @@ public:
     // Methods
     std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const override;
     std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
+    AABB GetBoundingBox() const override;
 
 protected:
     virtual bool equal(const Geometry&) const override;
     virtual bool less(const Geometry&) const override;
 private:
     void print(std::ostream&) const override;
+    void BuildAccelerationStructure();
 
     Mesh::TMesh mesh;
+
+    // KD-tree acceleration structure (built lazily from mesh data)
+    std::vector<Mesh::TData> triangle_data_;
+    std::shared_ptr<Mesh::KDNode> kd_root_;
 };
 
 } // namespace geometry

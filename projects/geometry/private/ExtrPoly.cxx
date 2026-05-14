@@ -310,5 +310,21 @@ std::pair<double, double> ExtrPoly::ComputeDistanceToBorder(const siren::math::V
     return distance;
 }
 
+// ------------------------------------------------------------------------- //
+AABB ExtrPoly::GetBoundingBox() const {
+    AABB box;
+    // Iterate over all z-sections, applying offset and scale to each polygon vertex
+    for(auto const & zsec : zsections_) {
+        for(auto const & vert : polygon_) {
+            if(vert.size() >= 2) {
+                double x = vert[0] * zsec.scale + zsec.offset[0];
+                double y = vert[1] * zsec.scale + zsec.offset[1];
+                box.ExpandToInclude(math::Vector3D(x, y, zsec.zpos));
+            }
+        }
+    }
+    return box;
+}
+
 } // namespace geometry
 } // namespace siren

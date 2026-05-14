@@ -447,5 +447,14 @@ std::pair<double, double> Cylinder::ComputeDistanceToBorder(const siren::math::V
     return distance;
 }
 
+// ------------------------------------------------------------------------- //
+AABB Cylinder::GetBoundingBox() const {
+    double hz = z_ * 0.5;
+    return AABB(
+        math::Vector3D(-radius_, -radius_, -hz),
+        math::Vector3D( radius_,  radius_,  hz)
+    );
+}
+
 } // namespace geometry
 } // namespace siren

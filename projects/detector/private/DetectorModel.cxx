@@ -30,11 +30,15 @@
 #include "SIREN/geometry/Box.h"
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/geometry/Cylinder.h"
+#include "SIREN/geometry/Cone.h"
+#include "SIREN/geometry/Trd.h"
 #include "SIREN/geometry/ExtrPoly.h"
 
 #include "SIREN/geometry/Placement.h"
 
 #include "SIREN/utilities/Constants.h"
+
+#include "SIREN/detector/GDMLParser.h"
 
 using namespace siren::math;
 using namespace siren::geometry;
@@ -167,6 +171,7 @@ DetectorModel::DetectorModel(std::string const & detector_model, std::string con
     LoadDefaultSectors();
     LoadMaterialModel(material_model);
     LoadDetectorModel(detector_model);
+    // RebuildBVH() is called at the end of LoadDetectorModel()
 }
 
 DetectorModel::DetectorModel(std::string const & path, std::string const & detector_model, std::string const & material_model) : path_(path) {
@@ -174,6 +179,7 @@ DetectorModel::DetectorModel(std::string const & path, std::string const & detec
     LoadDefaultSectors();
     LoadMaterialModel(material_model);
     LoadDetectorModel(detector_model);
+    // RebuildBVH() is called at the end of LoadDetectorModel()
 }
 
 bool DetectorModel::operator==(DetectorModel const & o) const {
@@ -218,6 +224,7 @@ void DetectorModel::SetSectors(std::vector<DetectorSector> const & sectors) {
         sector_name_map_[sectors[i].name] = i;
         sector_map_[sectors[i].level] = i;
     }
+    bvh_dirty_ = true;
 }
 
 GeometryPosition DetectorModel::GetDetectorOrigin() const {
@@ -247,6 +254,7 @@ void DetectorModel::AddSector(DetectorSector sector) {
     sector_name_map_[sector.name] = sectors_.size();
     sector_map_[sector.level] = sectors_.size();
     sectors_.push_back(sector);
+    bvh_dirty_ = true;
 }
 
 DetectorSector DetectorModel::GetSector(int heirarchy) const {
@@ -273,6 +281,7 @@ void DetectorModel::ClearSectors() {
     sectors_.clear();
     sector_map_.clear();
     sector_name_map_.clear();
+    bvh_dirty_ = true;
 }
 
 namespace {
@@ -309,6 +318,16 @@ std::shared_ptr<siren::geometry::Geometry> DetectorModel::ParseGeometryObject(st
         double _or, ir, z; // For Cylinder shapes
         ss >> _or >> ir >> z;
         geo = Cylinder(placement, _or, ir, z).create();
+    }
+    else if(shape.find("cone")!=std::string::npos) {
+        double rmin1, rmax1, rmin2, rmax2, z;
+        ss >> rmin1 >> rmax1 >> rmin2 >> rmax2 >> z;
+        geo = Cone(placement, rmin1, rmax1, rmin2, rmax2, z).create();
+    }
+    else if(shape.find("trd")!=std::string::npos) {
+        double dx1, dx2, dy1, dy2, dz;
+        ss >> dx1 >> dx2 >> dy1 >> dy2 >> dz;
+        geo = Trd(placement, dx1, dx2, dy1, dy2, dz).create();
     }
     else if(shape.find("extr")!=std::string::npos) {
         int nverts;
@@ -576,6 +595,7 @@ void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
         }
     } // end of the while loop
     in.close();
+    bvh_dirty_ = true;
 }
 
 void DetectorModel::LoadDefaultMaterials() {
@@ -609,6 +629,113 @@ void DetectorModel::LoadDefaultSectors() {
 void DetectorModel::LoadMaterialModel(std::string const & material_model) {
     materials_.SetPath(path_);
     materials_.AddModelFile(material_model);
+}
+
+void DetectorModel::LoadGDML(std::string const & filename) {
+    GDMLData data = ParseGDML(filename);
+
+    ClearSectors();
+    LoadDefaultMaterials();
+    LoadDefaultSectors();
+
+    // Add GDML materials to MaterialModel
+    for(auto const & mat_pair : data.materials) {
+        std::string const & mat_name = mat_pair.first;
+        GDMLMaterial const & mat = mat_pair.second;
+        if(!materials_.HasMaterial(mat_name)) {
+            if(!mat.composition.empty()) {
+                // Composite material: convert element fractions to PDG codes
+                std::map<int, double> pdg_fracs;
+                // Map Z to PDG nuclear code: 1000000000 + Z*10000 + A*10
+                for(auto const & comp_pair : mat.composition) {
+                    std::string const & comp_name = comp_pair.first;
+                    double frac = comp_pair.second;
+                    if(data.materials.count(comp_name)) {
+                        GDMLMaterial const & comp = data.materials.at(comp_name);
+                        int Z = (int)comp.Z;
+                        int A = (int)std::round(comp.A);
+                        int pdg = 1000000000 + Z * 10000 + A * 10;
+                        pdg_fracs[pdg] = frac;
+                    }
+                }
+                if(!pdg_fracs.empty()) {
+                    materials_.AddMaterial(mat_name, pdg_fracs);
+                }
+            } else {
+                // Simple material
+                int Z = (int)mat.Z;
+                int A = (int)std::round(mat.A);
+                if(Z > 0 && A > 0) {
+                    int pdg = 1000000000 + Z * 10000 + A * 10;
+                    materials_.AddMaterial(mat_name, {{pdg, 1.0}});
+                }
+            }
+        }
+    }
+
+    // Flatten volume tree into sectors
+    // Walk depth-first from world volume
+    struct StackEntry {
+        std::string volume_name;
+        Placement global_placement;
+        int depth;
+    };
+
+    std::vector<StackEntry> stack;
+    stack.push_back({data.world_volume, Placement(), 0});
+
+    int level = 0;
+    while(!stack.empty()) {
+        StackEntry entry = stack.back();
+        stack.pop_back();
+
+        auto it = data.volumes.find(entry.volume_name);
+        if(it == data.volumes.end()) continue;
+
+        GDMLVolume const & vol = it->second;
+
+        // Create a sector for this volume
+        auto solid_it = data.solids.find(vol.solid_ref);
+        auto mat_it = data.materials.find(vol.material_ref);
+        if(solid_it != data.solids.end() && mat_it != data.materials.end()) {
+            DetectorSector sector;
+            sector.name = vol.name;
+            sector.level = level++;
+
+            // Clone the geometry with the global placement
+            auto geo = solid_it->second->create();
+            geo->SetPlacement(entry.global_placement);
+            sector.geo = geo;
+
+            // Material
+            if(materials_.HasMaterial(vol.material_ref)) {
+                sector.material_id = materials_.GetMaterialId(vol.material_ref);
+            } else {
+                sector.material_id = 0; // fallback
+            }
+
+            // Density from material
+            sector.density = ConstantDensityDistribution(mat_it->second.density).create();
+
+            AddSector(sector);
+        }
+
+        // Push children (in reverse order for depth-first with a stack)
+        for(int i = (int)vol.children.size() - 1; i >= 0; --i) {
+            GDMLPhysVol const & child = vol.children[i];
+
+            // Compose parent placement with child placement
+            // child position is relative to parent
+            Vector3D child_global_pos = entry.global_placement.LocalToGlobalPosition(child.position);
+            Quaternion child_global_rot = entry.global_placement.GetQuaternion() * child.rotation;
+
+            Placement child_global(child_global_pos, child_global_rot);
+
+            stack.push_back({child.volume_ref, child_global, entry.depth + 1});
+        }
+    }
+
+    bvh_dirty_ = true;
 }
 
 
@@ -1171,19 +1298,168 @@ DetectorSector DetectorModel::GetContainingSector(GeometryPosition const & p0) c
     return GetContainingSector(intersections, p0);
 }
 
+// ---------------------------------------------------------------------------
+// BVH construction
+// ---------------------------------------------------------------------------
+
+void DetectorModel::RebuildBVH() const {
+    bvh_nodes_.clear();
+    bvh_excluded_sectors_.clear();
+
+    // Collect sector indices that have finite bounding boxes
+    std::vector<unsigned int> bvh_indices;
+    for(unsigned int i = 0; i < sectors_.size(); ++i) {
+        geometry::AABB box = sectors_[i].geo->GetWorldBoundingBox();
+        // Exclude sectors with non-finite bounds (e.g. the infinite UNIVERSE sphere)
+        if(!std::isfinite(box.min_corner.GetX()) || !std::isfinite(box.max_corner.GetX()) ||
+           !std::isfinite(box.min_corner.GetY()) || !std::isfinite(box.max_corner.GetY()) ||
+           !std::isfinite(box.min_corner.GetZ()) || !std::isfinite(box.max_corner.GetZ())) {
+            bvh_excluded_sectors_.push_back(i);
+        } else {
+            bvh_indices.push_back(i);
+        }
+    }
+
+    if(!bvh_indices.empty()) {
+        // Reserve space for nodes (at most 2*N-1 nodes for N leaves)
+        bvh_nodes_.reserve(2 * bvh_indices.size());
+        BuildBVHRecursive(bvh_indices, 0, (int)bvh_indices.size());
+    }
+
+    bvh_dirty_ = false;
+}
+
+int DetectorModel::BuildBVHRecursive(std::vector<unsigned int> & indices, int begin, int end) const {
+    int node_idx = (int)bvh_nodes_.size();
+    bvh_nodes_.push_back(BVHNode());
+    BVHNode & node = bvh_nodes_[node_idx];
+
+    // Compute bounds for this node over the sector range [begin, end)
+    node.bounds = geometry::AABB();
+    for(int i = begin; i < end; ++i) {
+        node.bounds.ExpandToInclude(sectors_[indices[i]].geo->GetWorldBoundingBox());
+    }
+
+    int count = end - begin;
+    if(count == 1) {
+        // Leaf node
+        node.sector_index = (int)indices[begin];
+        node.left_child = -1;
+        node.right_child = -1;
+    } else {
+        // Internal node: split on the largest axis using median
+        node.sector_index = -1;
+
+        // Compute centroid bounds to find the best split axis
+        geometry::AABB centroid_bounds;
+        for(int i = begin; i < end; ++i) {
+            centroid_bounds.ExpandToInclude(sectors_[indices[i]].geo->GetWorldBoundingBox().Centroid());
+        }
+        int axis = centroid_bounds.LargestAxis();
+
+        // Sort sector indices by centroid along the chosen axis
+        std::sort(indices.begin() + begin, indices.begin() + end,
+            [&](unsigned int a, unsigned int b) {
+                return sectors_[a].geo->GetWorldBoundingBox().GetCentroidAxis(axis)
+                     < sectors_[b].geo->GetWorldBoundingBox().GetCentroidAxis(axis);
+            });
+
+        int mid = begin + count / 2;
+        // Build children -- note: after these calls, node_idx reference may be
+        // invalidated since bvh_nodes_ can reallocate. Use node_idx to index back.
+        int left = BuildBVHRecursive(indices, begin, mid);
+        int right = BuildBVHRecursive(indices, mid, end);
+        bvh_nodes_[node_idx].left_child = left;
+        bvh_nodes_[node_idx].right_child = right;
+    }
+
+    return node_idx;
+}
+
+// ---------------------------------------------------------------------------
+// BVH traversal
+// ---------------------------------------------------------------------------
+
+void DetectorModel::TraverseBVH(
+    int node_idx,
+    math::Vector3D const & position,
+    math::Vector3D const & direction,
+    math::Vector3D const & inv_direction,
+    Geometry::IntersectionList & intersections) const
+{
+    BVHNode const & node = bvh_nodes_[node_idx];
+
+    // Test ray against this node's bounding box
+    if(!geometry::RayAABBIntersect(position, inv_direction, node.bounds)) {
+        return;
+    }
+
+    if(node.sector_index >= 0) {
+        // Leaf node: test the actual sector geometry
+        DetectorSector const & sector = sectors_[node.sector_index];
+        std::vector<Geometry::Intersection> i = sector.geo->Intersections(position, direction);
+        size_t prev_size = intersections.intersections.size();
+        intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
+        for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
+            intersections.intersections[j].hierarchy = sector.level;
+            intersections.intersections[j].matID = sector.material_id;
+        }
+    } else {
+        // Internal node: traverse children
+        if(node.left_child >= 0)
+            TraverseBVH(node.left_child, position, direction, inv_direction, intersections);
+        if(node.right_child >= 0)
+            TraverseBVH(node.right_child, position, direction, inv_direction, intersections);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GetIntersections: BVH-accelerated
+// ---------------------------------------------------------------------------
+
 Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const {
+    // Lazy BVH rebuild when sectors have changed
+    if(bvh_dirty_) {
+        RebuildBVH();
+    }
+
     Geometry::IntersectionList intersections;
     intersections.position = p0;
     intersections.direction = direction;
 
-    // Obtain the intersections with each sector geometry
-    for(auto const & sector : sectors_) {
-        std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
-        intersections.intersections.reserve(intersections.intersections.size() + std::distance(i.begin(), i.end()));
-        intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
-        for(unsigned int j=intersections.intersections.size(); j>intersections.intersections.size()-i.size(); --j) {
-            intersections.intersections[j-1].hierarchy = sector.level;
-            intersections.intersections[j-1].matID = sector.material_id;
+    if(bvh_nodes_.empty() && bvh_excluded_sectors_.empty()) {
+        // No sectors at all: fall back to linear scan
+        for(auto const & sector : sectors_) {
+            std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
+            size_t prev_size = intersections.intersections.size();
+            intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
+            for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
+                intersections.intersections[j].hierarchy = sector.level;
+                intersections.intersections[j].matID = sector.material_id;
+            }
+        }
+    } else {
+        // Test sectors excluded from BVH (infinite bounds, e.g. UNIVERSE)
+        for(unsigned int idx : bvh_excluded_sectors_) {
+            DetectorSector const & sector = sectors_[idx];
+            std::vector<Geometry::Intersection> i = sector.geo->Intersections(p0, direction);
+            size_t prev_size = intersections.intersections.size();
+            intersections.intersections.insert(intersections.intersections.end(), i.begin(), i.end());
+            for(size_t j = prev_size; j < intersections.intersections.size(); ++j) {
+                intersections.intersections[j].hierarchy = sector.level;
+                intersections.intersections[j].matID = sector.material_id;
+            }
+        }
+
+        // Traverse the BVH for all finite-bounds sectors
+        if(!bvh_nodes_.empty()) {
+            math::Vector3D dir = direction;
+            math::Vector3D inv_dir(
+                1.0 / dir.GetX(),
+                1.0 / dir.GetY(),
+                1.0 / dir.GetZ()
+            );
+            TraverseBVH(0, p0, direction, inv_dir, intersections);
         }
     }
 

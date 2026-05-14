@@ -52,6 +52,7 @@
 
 #include "SIREN/serialization/array.h"
 #include "SIREN/math/Vector3D.h"
+#include "SIREN/geometry/AABB.h"
 #include "SIREN/geometry/Placement.h"
 
 namespace siren {
@@ -186,6 +187,15 @@ public:
 
     virtual std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const = 0;
 
+    // Returns the axis-aligned bounding box in local coordinates.
+    // Each subclass must implement this.
+    virtual AABB GetBoundingBox() const = 0;
+
+    // Returns a conservative axis-aligned bounding box in global coordinates.
+    // Transforms the local AABB through the Placement (rotates the 8 corners
+    // and takes the axis-aligned envelope).
+    AABB GetWorldBoundingBox() const;
+
 protected:
     // Implemented in child classes to be able to use equality operator
     virtual bool equal(const Geometry&) const = 0;
@@ -205,9 +215,9 @@ public:
     math::Vector3D GlobalToLocalDirection(math::Vector3D const & d) const;
 };
 
-enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY, TRIANGULARMESH};
+enum Geometry_Type : int { SPHERE, BOX, CYLINDER, EXTRPOLY, TRIANGULARMESH, CONE, TRD, POLYCONE, POLYHEDRA, BOOLEAN};
 
-const std::array<std::string, 5>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh"};
+const std::array<std::string, 10>  Geometry_Name = { "sphere", "box", "cylinder", "extrpoly", "triangularmesh", "cone", "trd", "polycone", "polyhedra", "boolean"};
 
 } // namespace geometry
 } // namespace siren

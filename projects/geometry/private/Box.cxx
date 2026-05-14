@@ -386,5 +386,16 @@ std::pair<double, double> Box::ComputeDistanceToBorder(const siren::math::Vector
     return distance;
 }
 
+// ------------------------------------------------------------------------- //
+AABB Box::GetBoundingBox() const {
+    double hx = x_ * 0.5;
+    double hy = y_ * 0.5;
+    double hz = z_ * 0.5;
+    return AABB(
+        math::Vector3D(-hx, -hy, -hz),
+        math::Vector3D( hx,  hy,  hz)
+    );
+}
+
 } // namespace geometry
 } // namespace siren

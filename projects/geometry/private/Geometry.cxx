@@ -6,8 +6,10 @@
 #include <utility>
 #include <typeinfo>
 #include <typeindex>
+#include <algorithm>
 
 #include "SIREN/math/Vector3D.h"
+#include "SIREN/geometry/AABB.h"
 #include "SIREN/geometry/Placement.h"
 
 /******************************************************************************
@@ -187,6 +189,30 @@ siren::math::Vector3D Geometry::GlobalToLocalPosition(siren::math::Vector3D cons
 siren::math::Vector3D Geometry::GlobalToLocalDirection(siren::math::Vector3D const & p0) const
 {
     return placement_.GlobalToLocalDirection(p0);
+}
+
+AABB Geometry::GetWorldBoundingBox() const {
+    AABB local_box = GetBoundingBox();
+    // Generate the 8 corners of the local AABB
+    double x0 = local_box.min_corner.GetX();
+    double y0 = local_box.min_corner.GetY();
+    double z0 = local_box.min_corner.GetZ();
+    double x1 = local_box.max_corner.GetX();
+    double y1 = local_box.max_corner.GetY();
+    double z1 = local_box.max_corner.GetZ();
+
+    AABB world_box;
+    // Transform each corner to global coordinates and expand the world AABB
+    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y0, z0)));
+    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y0, z1)));
+    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y1, z0)));
+    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y1, z1)));
+    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y0, z0)));
+    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y0, z1)));
+    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y1, z0)));
+    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y1, z1)));
+
+    return world_box;
 }
 
 std::pair<double, double> Geometry::DistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const {

@@ -54,6 +54,7 @@ public:
     // Methods
     std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const override;
     std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
+    AABB GetBoundingBox() const override;
 
     // Getter & Setter
     double GetInnerRadius() const { return inner_radius_; }

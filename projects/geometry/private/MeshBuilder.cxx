@@ -951,6 +951,136 @@ std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangle_data, do
     return RecBuild(triangle_data, T, V, events, traversal_cost, intersection_cost, max_depth);
 }
 
+// ---------------------------------------------------------------------------
+// Moller-Trumbore ray-triangle intersection
+// ---------------------------------------------------------------------------
+RayTriangleHit RayTriangleIntersect(
+    Point const & origin,
+    Point const & direction,
+    Point const & v0,
+    Point const & v1,
+    Point const & v2,
+    double epsilon) {
+    RayTriangleHit result;
+    result.hit = false;
+    result.t = 0;
+    result.front_face = false;
+
+    Point edge1 = subtract(v1, v0);
+    Point edge2 = subtract(v2, v0);
+
+    // h = direction x edge2
+    Point h = {{
+        direction[1] * edge2[2] - direction[2] * edge2[1],
+        direction[2] * edge2[0] - direction[0] * edge2[2],
+        direction[0] * edge2[1] - direction[1] * edge2[0]
+    }};
+
+    double a = dot(edge1, h);
+
+    // Ray is parallel to triangle
+    if(a > -epsilon && a < epsilon)
+        return result;
+
+    double f = 1.0 / a;
+    Point s = subtract(origin, v0);
+    double u = f * dot(s, h);
+
+    if(u < 0.0 || u > 1.0)
+        return result;
+
+    // q = s x edge1
+    Point q = {{
+        s[1] * edge1[2] - s[2] * edge1[1],
+        s[2] * edge1[0] - s[0] * edge1[2],
+        s[0] * edge1[1] - s[1] * edge1[0]
+    }};
+
+    double v = f * dot(direction, q);
+
+    if(v < 0.0 || u + v > 1.0)
+        return result;
+
+    double t = f * dot(edge2, q);
+
+    result.hit = true;
+    result.t = t;
+    // Front face: ray hits the side where the normal points outward
+    // Normal direction = edge1 x edge2, front face if dot(direction, normal) < 0
+    result.front_face = (a < 0);
+
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Ray-Voxel intersection for KD-tree traversal
+// ---------------------------------------------------------------------------
+bool RayVoxelIntersect(
+    Point const & origin,
+    Point const & inv_direction,
+    Voxel const & voxel,
+    double & tmin,
+    double & tmax) {
+    double t1, t2;
+
+    t1 = (voxel.min_extent[0] - origin[0]) * inv_direction[0];
+    t2 = (voxel.max_extent[0] - origin[0]) * inv_direction[0];
+
+    tmin = std::fmin(t1, t2);
+    tmax = std::fmax(t1, t2);
+
+    t1 = (voxel.min_extent[1] - origin[1]) * inv_direction[1];
+    t2 = (voxel.max_extent[1] - origin[1]) * inv_direction[1];
+
+    tmin = std::fmax(tmin, std::fmin(t1, t2));
+    tmax = std::fmin(tmax, std::fmax(t1, t2));
+
+    t1 = (voxel.min_extent[2] - origin[2]) * inv_direction[2];
+    t2 = (voxel.max_extent[2] - origin[2]) * inv_direction[2];
+
+    tmin = std::fmax(tmin, std::fmin(t1, t2));
+    tmax = std::fmin(tmax, std::fmax(t1, t2));
+
+    // Full line test (no tmax >= 0 check) to match SIREN's conventions
+    return tmax >= tmin;
+}
+
+// ---------------------------------------------------------------------------
+// KD-tree traversal
+// ---------------------------------------------------------------------------
+void TraverseKDTree(
+    std::shared_ptr<KDNode> const & node,
+    std::vector<TData> const & triangle_data,
+    Point const & origin,
+    Point const & direction,
+    Point const & inv_direction,
+    std::vector<RayTriangleHit> & hits_out,
+    std::vector<TriangleID> & hit_tri_ids_out) {
+    if(!node) return;
+
+    // Test ray against this node's voxel
+    double tmin, tmax;
+    if(!RayVoxelIntersect(origin, inv_direction, node->V, tmin, tmax)) {
+        return;
+    }
+
+    if(node->terminal) {
+        // Leaf node: test all triangles
+        for(TriangleID tri_id : node->T) {
+            TData const & tri = triangle_data[tri_id];
+            RayTriangleHit hit = RayTriangleIntersect(origin, direction, tri[0], tri[1], tri[2]);
+            if(hit.hit) {
+                hits_out.push_back(hit);
+                hit_tri_ids_out.push_back(tri_id);
+            }
+        }
+    } else {
+        // Internal node: traverse children
+        TraverseKDTree(node->left, triangle_data, origin, direction, inv_direction, hits_out, hit_tri_ids_out);
+        TraverseKDTree(node->right, triangle_data, origin, direction, inv_direction, hits_out, hit_tri_ids_out);
+    }
+}
+
 } // namespace Mesh
 } // namespace geometry
 } // namespace siren

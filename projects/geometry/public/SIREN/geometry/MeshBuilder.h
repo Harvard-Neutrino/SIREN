@@ -180,6 +180,46 @@ struct KDNode {
 std::shared_ptr<KDNode> RecBuild(std::vector<TData> const & triangle_data, std::vector<TriangleID> const & T, Voxel & V, std::vector<Event> const & events, double traversal_cost, double intersection_cost, int max_depth);
 std::shared_ptr<KDNode> BuildKDTree(std::vector<TData> const & triangles_data, double traversal_cost, double intersection_cost, int max_depth);
 
+// Ray-triangle intersection result
+struct RayTriangleHit {
+    double t;         // distance along ray
+    bool hit;         // whether intersection occurred
+    bool front_face;  // true if ray hits the front face (entering)
+};
+
+// Moller-Trumbore ray-triangle intersection.
+// Returns hit info for the triangle defined by v0, v1, v2.
+// The ray is defined as origin + t * direction.
+RayTriangleHit RayTriangleIntersect(
+    Point const & origin,
+    Point const & direction,
+    Point const & v0,
+    Point const & v1,
+    Point const & v2,
+    double epsilon = 1e-12);
+
+// Ray-Voxel (AABB) intersection for KD-tree traversal.
+// Returns true if the line (not just forward ray) intersects the voxel.
+// Sets tmin, tmax to the entry/exit parameters.
+bool RayVoxelIntersect(
+    Point const & origin,
+    Point const & inv_direction,
+    Voxel const & voxel,
+    double & tmin,
+    double & tmax);
+
+// Traverse a KD-tree and collect all ray-triangle intersections.
+// triangle_data is the original array of triangle vertex data.
+// Results are appended to hits_out as (distance, triangle_id, front_face).
+void TraverseKDTree(
+    std::shared_ptr<KDNode> const & node,
+    std::vector<TData> const & triangle_data,
+    Point const & origin,
+    Point const & direction,
+    Point const & inv_direction,
+    std::vector<RayTriangleHit> & hits_out,
+    std::vector<TriangleID> & hit_tri_ids_out);
+
 
 } // namespace Mesh
 } // namespace geometry

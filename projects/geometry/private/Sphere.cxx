@@ -324,6 +324,14 @@ std::pair<double, double> Sphere::ComputeDistanceToBorder(const siren::math::Vec
     return distance;
 }
 
+// ------------------------------------------------------------------------- //
+AABB Sphere::GetBoundingBox() const {
+    return AABB(
+        math::Vector3D(-radius_, -radius_, -radius_),
+        math::Vector3D( radius_,  radius_,  radius_)
+    );
+}
+
 } // namespace geometry
 } // namespace siren
 

@@ -27,6 +27,7 @@
 #include "SIREN/dataclasses/Particle.h"    // for Particle
 #include "SIREN/detector/MaterialModel.h"  // for MaterialModel
 #include "SIREN/geometry/Geometry.h"       // for Geometry
+#include "SIREN/geometry/AABB.h"           // for AABB, RayAABBIntersect
 #include "SIREN/math/Vector3D.h"           // for Vector3D
 #include "SIREN/math/Quaternion.h"         // for Quaternion
 #include "SIREN/detector/Coordinates.h"
@@ -71,6 +72,26 @@ friend siren::detector::Path;
     std::map<std::string, unsigned int> sector_name_map_;
     math::Vector3D detector_origin_;
     math::Quaternion detector_rotation_;
+
+    // BVH acceleration structure for spatial queries
+    struct BVHNode {
+        geometry::AABB bounds;
+        int left_child;    // index into bvh_nodes_, or -1
+        int right_child;   // index into bvh_nodes_, or -1
+        int sector_index;  // index into sectors_ for leaf nodes, -1 for internal
+    };
+    mutable std::vector<BVHNode> bvh_nodes_;
+    // Indices into sectors_ for volumes excluded from BVH (e.g. infinite UNIVERSE)
+    mutable std::vector<unsigned int> bvh_excluded_sectors_;
+    mutable bool bvh_dirty_ = true;
+
+    void RebuildBVH() const;
+    int BuildBVHRecursive(std::vector<unsigned int> & indices, int begin, int end) const;
+    void TraverseBVH(int node_idx,
+                     math::Vector3D const & position,
+                     math::Vector3D const & direction,
+                     math::Vector3D const & inv_direction,
+                     geometry::Geometry::IntersectionList & intersections) const;
 public:
     DetectorModel();
     DetectorModel(std::string const & detector_model, std::string const & material_model);
@@ -87,6 +108,7 @@ public:
             archive(cereal::make_nvp("SectorMap", sector_map_));
             archive(cereal::make_nvp("SectorNameMap", sector_name_map_));
             archive(cereal::make_nvp("DetectorOrigin", detector_origin_));
+            bvh_dirty_ = true; // BVH will be rebuilt on next query
         } else {
             throw std::runtime_error("DetectorModel only supports version <= 0!");
         }
@@ -283,6 +305,7 @@ private:
     void LoadDefaultMaterials();
     void LoadDefaultSectors();
 public:
+    void LoadGDML(std::string const & filename);
     void LoadConcentricShellsFromLegacyFile(std::string fname, double detector_depth, double ice_angle=-1);
 
     double GetTargetMass(siren::dataclasses::ParticleType target) const;
