@@ -9,7 +9,6 @@
 #include <utility>
 #include <algorithm>
 #include <stdexcept>
-#include <functional>
 
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/geometry/Geometry.h"
@@ -170,20 +169,13 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
     double z_calc_pos = 0.5 * z_;
     double z_calc_neg = -0.5 * z_;
 
-    std::vector<Intersection> dist;
+    // Max 8 intersections: 2 outer barrel + 2 inner barrel + 2 top cap + 2 bottom cap
+    Intersection hits[8];
+    int n_hits = 0;
 
     double intersection_x;
     double intersection_y;
     double intersection_z;
-
-    std::function<void(double, bool)> save = [&](double t, bool entering){
-        Intersection i;
-        i.position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-        i.distance = t;
-        i.hierarchy = 0;
-        i.entering = entering;
-        dist.push_back(i);
-    };
 
     // --- Outer conical surface ---
     {
@@ -225,7 +217,11 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         double r_at_z = a_outer + b_outer * intersection_z;
                         if(r_at_z >= 0) {
                             bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
-                            save(t1, entering);
+                            hits[n_hits].distance = t1;
+                            hits[n_hits].hierarchy = 0;
+                            hits[n_hits].entering = entering;
+                            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                            n_hits++;
                         }
                     }
 
@@ -236,7 +232,11 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         double r_at_z = a_outer + b_outer * intersection_z;
                         if(r_at_z >= 0) {
                             bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
-                            save(t2, entering);
+                            hits[n_hits].distance = t2;
+                            hits[n_hits].hierarchy = 0;
+                            hits[n_hits].entering = entering;
+                            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                            n_hits++;
                         }
                     }
                 }
@@ -253,7 +253,11 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     double r_at_z = a_outer + b_outer * intersection_z;
                     if(r_at_z >= 0) {
                         bool entering = (intersection_x * dx + intersection_y * dy - b_outer * r_at_z * dz) < 0;
-                        save(t1, entering);
+                        hits[n_hits].distance = t1;
+                        hits[n_hits].hierarchy = 0;
+                        hits[n_hits].entering = entering;
+                        hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                        n_hits++;
                     }
                 }
             }
@@ -294,7 +298,11 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         if(r_at_z >= 0) {
                             // Inner surface: entering is inverted (entering inner = exiting volume)
                             bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_at_z * dz) < 0);
-                            save(t1, entering);
+                            hits[n_hits].distance = t1;
+                            hits[n_hits].hierarchy = 0;
+                            hits[n_hits].entering = entering;
+                            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                            n_hits++;
                         }
                     }
 
@@ -305,7 +313,11 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                         double r_at_z = a_inner + b_inner * intersection_z;
                         if(r_at_z >= 0) {
                             bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_at_z * dz) < 0);
-                            save(t2, entering);
+                            hits[n_hits].distance = t2;
+                            hits[n_hits].hierarchy = 0;
+                            hits[n_hits].entering = entering;
+                            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                            n_hits++;
                         }
                     }
                 }
@@ -321,7 +333,11 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
                     double r_at_z = a_inner + b_inner * intersection_z;
                     if(r_at_z >= 0) {
                         bool entering = !((intersection_x * dx + intersection_y * dy - b_inner * r_at_z * dz) < 0);
-                        save(t1, entering);
+                        hits[n_hits].distance = t1;
+                        hits[n_hits].hierarchy = 0;
+                        hits[n_hits].entering = entering;
+                        hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                        n_hits++;
                     }
                 }
             }
@@ -342,7 +358,11 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         // At z = +z_/2, outer radius is rmax2_, inner radius is rmin2_
         if(r2_hit <= rmax2_ * rmax2_ && r2_hit >= rmin2_ * rmin2_) {
             intersection_z = pz + t * dz;
-            save(t, dz < 0);
+            hits[n_hits].distance = t;
+            hits[n_hits].hierarchy = 0;
+            hits[n_hits].entering = dz < 0;
+            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+            n_hits++;
         }
     }
 
@@ -360,16 +380,18 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
         // At z = -z_/2, outer radius is rmax1_, inner radius is rmin1_
         if(r2_hit <= rmax1_ * rmax1_ && r2_hit >= rmin1_ * rmin1_) {
             intersection_z = pz + t * dz;
-            save(t, dz > 0);
+            hits[n_hits].distance = t;
+            hits[n_hits].hierarchy = 0;
+            hits[n_hits].entering = dz > 0;
+            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+            n_hits++;
         }
     }
 
-    std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
+    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
-    };
-
-    std::sort(dist.begin(), dist.end(), comp);
-    return dist;
+    });
+    return {hits, hits + n_hits};
 }
 
 // ------------------------------------------------------------------------- //

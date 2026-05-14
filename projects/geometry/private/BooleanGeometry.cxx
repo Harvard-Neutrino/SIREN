@@ -164,84 +164,77 @@ std::vector<Geometry::Intersection> BooleanGeometry::ComputeIntersections(
         siren::math::Vector3D const & position,
         siren::math::Vector3D const & direction) const
 {
-    // Tag to track which child produced each intersection
-    struct TaggedIntersection {
+    // Collect child intersections into a fixed-size tagged array.
+    // Each child produces at most ~8 intersections for typical shapes;
+    // 32 total handles deeply nested CSG.
+    struct TaggedHit {
+        double distance;
         Intersection isect;
         int child; // 0 = left, 1 = right
     };
 
-    std::vector<TaggedIntersection> all;
+    TaggedHit all[32];
+    int n_all = 0;
 
-    // Collect intersections from left child
     if(left_) {
-        std::vector<Intersection> left_hits = left_->Intersections(position, direction);
+        auto left_hits = left_->Intersections(position, direction);
         for(auto & h : left_hits) {
-            // Transform positions back to BooleanGeometry local coords
-            // (children's Intersections() returns positions in the children's
-            // global frame, which is our local frame, so no transform needed)
-            TaggedIntersection ti;
-            ti.isect = h;
-            ti.child = 0;
-            all.push_back(ti);
+            if(n_all < 32) {
+                all[n_all].distance = h.distance;
+                all[n_all].isect = h;
+                all[n_all].child = 0;
+                n_all++;
+            }
         }
     }
 
-    // Collect intersections from right child
     if(right_) {
-        std::vector<Intersection> right_hits = right_->Intersections(position, direction);
+        auto right_hits = right_->Intersections(position, direction);
         for(auto & h : right_hits) {
-            TaggedIntersection ti;
-            ti.isect = h;
-            ti.child = 1;
-            all.push_back(ti);
+            if(n_all < 32) {
+                all[n_all].distance = h.distance;
+                all[n_all].isect = h;
+                all[n_all].child = 1;
+                n_all++;
+            }
         }
     }
 
-    if(all.empty()) {
-        return std::vector<Intersection>();
-    }
+    if(n_all == 0) return {};
 
-    // Sort by distance
-    std::sort(all.begin(), all.end(),
-        [](TaggedIntersection const & a, TaggedIntersection const & b) {
-            return a.isect.distance < b.isect.distance;
-        });
+    std::sort(all, all + n_all, [](TaggedHit const & a, TaggedHit const & b) {
+        return a.distance < b.distance;
+    });
 
-    // Start with both children "outside" -- the state at t = -infinity.
-    // The walk through all intersections (including negative-distance ones)
-    // will build up the correct state naturally, producing proper enter/exit
-    // pairs for the full line.
+    // Walk from t=-infinity: both children start "outside"
     bool in_left = false;
     bool in_right = false;
+    bool was_inside = IsInsideResult(op_, in_left, in_right);
 
-    // Now walk through all intersections in order
-    bool was_inside_result = IsInsideResult(op_, in_left, in_right);
+    Intersection result[32];
+    int n_result = 0;
 
-    std::vector<Intersection> result;
-
-    for(auto const & ti : all) {
-        // Update the appropriate child state
-        if(ti.child == 0) {
-            in_left = ti.isect.entering;
+    for(int i = 0; i < n_all; ++i) {
+        if(all[i].child == 0) {
+            in_left = all[i].isect.entering;
         } else {
-            in_right = ti.isect.entering;
+            in_right = all[i].isect.entering;
         }
 
-        bool now_inside_result = IsInsideResult(op_, in_left, in_right);
+        bool now_inside = IsInsideResult(op_, in_left, in_right);
 
-        if(was_inside_result != now_inside_result) {
-            Intersection out;
-            out.distance = ti.isect.distance;
-            out.position = ti.isect.position;
-            out.hierarchy = ti.isect.hierarchy;
-            out.entering = now_inside_result;
-            result.push_back(out);
+        if(was_inside != now_inside && n_result < 32) {
+            result[n_result].distance = all[i].isect.distance;
+            result[n_result].position = all[i].isect.position;
+            result[n_result].hierarchy = all[i].isect.hierarchy;
+            result[n_result].entering = now_inside;
+            n_result++;
         }
 
-        was_inside_result = now_inside_result;
+        was_inside = now_inside;
     }
 
-    return result;
+    return {result, result + n_result};
 }
 
 // ------------------------------------------------------------------------- //

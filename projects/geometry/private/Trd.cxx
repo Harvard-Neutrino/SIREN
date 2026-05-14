@@ -9,7 +9,6 @@
 #include <utility>
 #include <algorithm>
 #include <stdexcept>
-#include <functional>
 
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/geometry/Geometry.h"
@@ -163,16 +162,9 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
     double ix, iy, iz; // intersection point
     bool entering;
 
-    std::vector<Intersection> dist;
-
-    std::function<void()> save = [&](){
-        Intersection i;
-        i.position = siren::math::Vector3D(ix, iy, iz);
-        i.distance = t;
-        i.hierarchy = 0;
-        i.entering = entering;
-        dist.push_back(i);
-    };
+    // Max 6 intersections: 6 faces
+    Intersection hits[6];
+    int n_hits = 0;
 
     // Helper: at a given z-level, compute the half-widths of the Trd cross-section
     // x_half(z) = dx1_ + (dx2_ - dx1_) * (z + dz_) / (2*dz_)
@@ -191,7 +183,11 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
         if(ix >= -dx2_ && ix <= dx2_ && iy >= -dy2_ && iy <= dy2_) {
             iz = pz + t * dz;
             entering = direction.GetZ() < 0;
-            save();
+            hits[n_hits].distance = t;
+            hits[n_hits].hierarchy = 0;
+            hits[n_hits].entering = entering;
+            hits[n_hits].position = siren::math::Vector3D(ix, iy, iz);
+            n_hits++;
         }
     }
 
@@ -207,7 +203,11 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
         if(ix >= -dx1_ && ix <= dx1_ && iy >= -dy1_ && iy <= dy1_) {
             iz = pz + t * dz;
             entering = direction.GetZ() > 0;
-            save();
+            hits[n_hits].distance = t;
+            hits[n_hits].hierarchy = 0;
+            hits[n_hits].entering = entering;
+            hits[n_hits].position = siren::math::Vector3D(ix, iy, iz);
+            n_hits++;
         }
     }
 
@@ -249,7 +249,11 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
                 iy = py + t * dy;
                 if(iy >= -yh && iy <= yh) {
                     entering = denom < 0;
-                    save();
+                    hits[n_hits].distance = t;
+                    hits[n_hits].hierarchy = 0;
+                    hits[n_hits].entering = entering;
+                    hits[n_hits].position = siren::math::Vector3D(ix, iy, iz);
+                    n_hits++;
                 }
             }
         }
@@ -274,7 +278,11 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
                 iy = py + t * dy;
                 if(iy >= -yh && iy <= yh) {
                     entering = denom < 0;
-                    save();
+                    hits[n_hits].distance = t;
+                    hits[n_hits].hierarchy = 0;
+                    hits[n_hits].entering = entering;
+                    hits[n_hits].position = siren::math::Vector3D(ix, iy, iz);
+                    n_hits++;
                 }
             }
         }
@@ -304,7 +312,11 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
                 ix = px + t * dx;
                 if(ix >= -xh && ix <= xh) {
                     entering = denom < 0;
-                    save();
+                    hits[n_hits].distance = t;
+                    hits[n_hits].hierarchy = 0;
+                    hits[n_hits].entering = entering;
+                    hits[n_hits].position = siren::math::Vector3D(ix, iy, iz);
+                    n_hits++;
                 }
             }
         }
@@ -329,18 +341,20 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
                 ix = px + t * dx;
                 if(ix >= -xh && ix <= xh) {
                     entering = denom < 0;
-                    save();
+                    hits[n_hits].distance = t;
+                    hits[n_hits].hierarchy = 0;
+                    hits[n_hits].entering = entering;
+                    hits[n_hits].position = siren::math::Vector3D(ix, iy, iz);
+                    n_hits++;
                 }
             }
         }
     }
 
-    std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
+    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
-    };
-
-    std::sort(dist.begin(), dist.end(), comp);
-    return dist;
+    });
+    return {hits, hits + n_hits};
 }
 
 // ------------------------------------------------------------------------- //

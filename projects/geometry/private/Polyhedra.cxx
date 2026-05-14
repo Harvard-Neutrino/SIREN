@@ -8,7 +8,6 @@
 #include <utility>
 #include <algorithm>
 #include <stdexcept>
-#include <functional>
 
 #include "SIREN/math/Vector3D.h"
 #include "SIREN/geometry/Geometry.h"
@@ -45,6 +44,25 @@ void Polyhedra::validate() const {
     }
 }
 
+void Polyhedra::precompute_trig() {
+    if(num_sides_ < 3) {
+        cos_phi_.clear();
+        sin_phi_.clear();
+        return;
+    }
+    double dphi = 2.0 * M_PI / num_sides_;
+    cos_phi_.resize(num_sides_ + 1);
+    sin_phi_.resize(num_sides_ + 1);
+    for(int k = 0; k < num_sides_; ++k) {
+        double angle = start_phi_ + k * dphi;
+        cos_phi_[k] = std::cos(angle);
+        sin_phi_[k] = std::sin(angle);
+    }
+    // Wrap-around entry so index [num_sides_] == index [0]
+    cos_phi_[num_sides_] = cos_phi_[0];
+    sin_phi_[num_sides_] = sin_phi_[0];
+}
+
 Polyhedra::Polyhedra()
     : Geometry((std::string)("Polyhedra"))
     , num_sides_(0)
@@ -67,6 +85,7 @@ Polyhedra::Polyhedra(int num_sides,
     , rmin_(rmin)
       , rmax_(rmax) {
     validate();
+    precompute_trig();
 }
 
 Polyhedra::Polyhedra(Placement const & placement)
@@ -92,6 +111,7 @@ Polyhedra::Polyhedra(Placement const & placement,
     , rmin_(rmin)
       , rmax_(rmax) {
     validate();
+    precompute_trig();
 }
 
 Polyhedra::Polyhedra(const Polyhedra& polyhedra)
@@ -100,7 +120,9 @@ Polyhedra::Polyhedra(const Polyhedra& polyhedra)
     , start_phi_(polyhedra.start_phi_)
     , z_planes_(polyhedra.z_planes_)
     , rmin_(polyhedra.rmin_)
-      , rmax_(polyhedra.rmax_) {
+    , rmax_(polyhedra.rmax_)
+    , cos_phi_(polyhedra.cos_phi_)
+      , sin_phi_(polyhedra.sin_phi_) {
     // Nothing to do here
 }
 
@@ -118,6 +140,8 @@ void Polyhedra::swap(Geometry& geometry) {
     std::swap(z_planes_, polyhedra->z_planes_);
     std::swap(rmin_, polyhedra->rmin_);
     std::swap(rmax_, polyhedra->rmax_);
+    std::swap(cos_phi_, polyhedra->cos_phi_);
+    std::swap(sin_phi_, polyhedra->sin_phi_);
 }
 
 // ------------------------------------------------------------------------- //
@@ -210,19 +234,16 @@ static bool PointInConvexPolygon(double px, double py,
 
 // Helper: check if a point (px, py) lies inside the annular polygon region
 // (between inner polygon at rmin and outer polygon at rmax).
-// Both polygons have num_sides vertices at the given radius, starting at
-// start_phi.  Returns true if point is inside outer and outside inner.
+// Uses precomputed cos_phi/sin_phi arrays (num_sides entries) to avoid trig.
 static bool PointInAnnularPolygon(double px, double py,
-                                   int num_sides, double start_phi,
+                                   int num_sides,
+                                   const double* cos_phi, const double* sin_phi,
                                    double rmin, double rmax) {
-    double dphi = 2.0 * M_PI / num_sides;
-
     // Outer polygon vertices
     double ovx[64], ovy[64]; // max 64 sides
     for(int k = 0; k < num_sides; ++k) {
-        double angle = start_phi + k * dphi;
-        ovx[k] = rmax * std::cos(angle);
-        ovy[k] = rmax * std::sin(angle);
+        ovx[k] = rmax * cos_phi[k];
+        ovy[k] = rmax * sin_phi[k];
     }
     if(!PointInConvexPolygon(px, py, ovx, ovy, num_sides)) {
         return false;
@@ -232,9 +253,8 @@ static bool PointInAnnularPolygon(double px, double py,
     if(rmin > 0) {
         double ivx[64], ivy[64];
         for(int k = 0; k < num_sides; ++k) {
-            double angle = start_phi + k * dphi;
-            ivx[k] = rmin * std::cos(angle);
-            ivy[k] = rmin * std::sin(angle);
+            ivx[k] = rmin * cos_phi[k];
+            ivy[k] = rmin * sin_phi[k];
         }
         if(PointInConvexPolygon(px, py, ivx, ivy, num_sides)) {
             return false; // inside inner hole
@@ -257,23 +277,23 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
     double dy = direction.GetY();
     double dz = direction.GetZ();
 
-    std::vector<Intersection> dist;
+    // Fixed-size hit buffer to avoid heap allocation.
+    // Max theoretical hits = 2*(num_sides*num_segments + num_segments+1),
+    // but realistic polyhedra produce far fewer.
+    static constexpr int MAX_HITS = 64;
+    Intersection hits[MAX_HITS];
+    int n_hits = 0;
 
     double intersection_x;
     double intersection_y;
     double intersection_z;
 
-    std::function<void(double, bool)> save = [&](double t, bool entering){
-        Intersection isect;
-        isect.position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-        isect.distance = t;
-        isect.hierarchy = 0;
-        isect.entering = entering;
-        dist.push_back(isect);
-    };
-
     size_t n = z_planes_.size();
-    double dphi = 2.0 * M_PI / num_sides_;
+
+    // Precomputed cos/sin arrays: cos_phi_[k], sin_phi_[k] for k = 0..num_sides_
+    // with wrap-around at index [num_sides_] == [0].
+    const double* cp = cos_phi_.data();
+    const double* sp = sin_phi_.data();
 
     // ---- Lateral faces (outer and inner) for each z-section and each side ----
     for(size_t seg = 0; seg + 1 < n; ++seg) {
@@ -290,12 +310,10 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
         double rmin_hi = rmin_[seg + 1];
 
         for(int side = 0; side < num_sides_; ++side) {
-            double angle_k = start_phi_ + side * dphi;
-            double angle_k1 = start_phi_ + (side + 1) * dphi;
-            double cos_k = std::cos(angle_k);
-            double sin_k = std::sin(angle_k);
-            double cos_k1 = std::cos(angle_k1);
-            double sin_k1 = std::sin(angle_k1);
+            double cos_k = cp[side];
+            double sin_k = sp[side];
+            double cos_k1 = cp[side + 1];
+            double sin_k1 = sp[side + 1];
 
             // ---- Outer lateral face ----
             // The four vertices of this quad face (going around the quad):
@@ -337,14 +355,8 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
 
                         // Check if hit point is inside the quad using
                         // the cross-product winding test.
-                        // Vertices of the quad in order:
                         double v2x = rmax_hi * cos_k1, v2y = rmax_hi * sin_k1, v2z = z_hi;
 
-                        // Project onto the plane's local 2D coords.
-                        // We test using cross products of edge vectors
-                        // with the vector from each vertex to the hit point.
-                        // For a convex quad, the hit point is inside iff all
-                        // cross products (with the normal) have the same sign.
                         double qx = intersection_x, qy = intersection_y, qz = intersection_z;
 
                         // Cross product of (v1-v0) x (q-v0) dot n
@@ -369,9 +381,13 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
                             (c0 <= GEOMETRY_PRECISION && c1 <= GEOMETRY_PRECISION &&
                              c2 <= GEOMETRY_PRECISION && c3 <= GEOMETRY_PRECISION)) {
 
-                            // Entering if the ray hits the outward-facing normal
-                            // from outside: n . d < 0 means entering
-                            save(t, n_dot_d < 0);
+                            if(n_hits < MAX_HITS) {
+                                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                                hits[n_hits].distance = t;
+                                hits[n_hits].hierarchy = 0;
+                                hits[n_hits].entering = (n_dot_d < 0);
+                                ++n_hits;
+                            }
                         }
                     }
                 }
@@ -434,12 +450,14 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
                              c2 <= GEOMETRY_PRECISION && c3 <= GEOMETRY_PRECISION)) {
 
                             // Inner surface: entering is inverted relative to
-                            // the normal direction. The normal points outward
-                            // from center, but the solid's interior is between
-                            // inner and outer surfaces. A ray hitting the inner
-                            // surface from outside (n_dot_d < 0) is actually
-                            // exiting the solid.
-                            save(t, n_dot_d > 0);
+                            // the normal direction.
+                            if(n_hits < MAX_HITS) {
+                                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                                hits[n_hits].distance = t;
+                                hits[n_hits].hierarchy = 0;
+                                hits[n_hits].entering = (n_dot_d > 0);
+                                ++n_hits;
+                            }
                         }
                     }
                 }
@@ -462,9 +480,15 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             intersection_z = pz + t * dz;
 
             if(PointInAnnularPolygon(intersection_x, intersection_y,
-                                       num_sides_, start_phi_,
+                                       num_sides_, cp, sp,
                                        rmin_.front(), rmax_.front())) {
-                save(t, dz > 0);
+                if(n_hits < MAX_HITS) {
+                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                    hits[n_hits].distance = t;
+                    hits[n_hits].hierarchy = 0;
+                    hits[n_hits].entering = (dz > 0);
+                    ++n_hits;
+                }
             }
         }
 
@@ -481,9 +505,15 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             intersection_z = pz + t * dz;
 
             if(PointInAnnularPolygon(intersection_x, intersection_y,
-                                       num_sides_, start_phi_,
+                                       num_sides_, cp, sp,
                                        rmin_.back(), rmax_.back())) {
-                save(t, dz < 0);
+                if(n_hits < MAX_HITS) {
+                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                    hits[n_hits].distance = t;
+                    hits[n_hits].hierarchy = 0;
+                    hits[n_hits].entering = (dz < 0);
+                    ++n_hits;
+                }
             }
         }
     }
@@ -519,22 +549,28 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             intersection_z = pz + t * dz;
 
             if(PointInAnnularPolygon(intersection_x, intersection_y,
-                                       num_sides_, start_phi_,
+                                       num_sides_, cp, sp,
                                        rmin_[i], rmax_[i])) {
                 // Determine entering based on step direction
                 bool step_faces_up = (rmax_above > rmax_below) || (rmin_above < rmin_below);
                 bool cap_entering = step_faces_up ? (dz < 0) : (dz > 0);
-                save(t, cap_entering);
+                if(n_hits < MAX_HITS) {
+                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                    hits[n_hits].distance = t;
+                    hits[n_hits].hierarchy = 0;
+                    hits[n_hits].entering = cap_entering;
+                    ++n_hits;
+                }
             }
         }
     }
 
-    std::function<bool(Intersection const &, Intersection const &)> comp = [](Intersection const & a, Intersection const & b){
+    // Sort hits by distance using a plain lambda (no std::function overhead)
+    std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
-    };
+    });
 
-    std::sort(dist.begin(), dist.end(), comp);
-    return dist;
+    return std::vector<Intersection>(hits, hits + n_hits);
 }
 
 // ------------------------------------------------------------------------- //

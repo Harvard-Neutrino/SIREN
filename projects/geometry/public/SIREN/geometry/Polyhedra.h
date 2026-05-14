@@ -50,6 +50,7 @@ public:
             archive(::cereal::make_nvp("Rmin", rmin_));
             archive(::cereal::make_nvp("Rmax", rmax_));
             archive(cereal::virtual_base_class<Geometry>(this));
+            precompute_trig();
         } else {
             throw std::runtime_error("Polyhedra only supports version <= 0!");
         }
@@ -84,11 +85,20 @@ private:
     // Validate parameters
     void validate() const;
 
+    // Precompute cached trig arrays from num_sides_ and start_phi_
+    void precompute_trig();
+
     int num_sides_;            //!< number of polygon sides (>= 3)
     double start_phi_;         //!< starting angle of first polygon edge (radians)
     std::vector<double> z_planes_; //!< z-positions of each plane (ascending)
     std::vector<double> rmin_;     //!< inner radius at each z-plane (to edge center)
     std::vector<double> rmax_;     //!< outer radius at each z-plane (to edge center)
+
+    // Precomputed cos/sin for polygon vertex angles.
+    // cos_phi_[k] = cos(start_phi_ + k * dphi), k = 0..num_sides_
+    // Entry [num_sides_] wraps around to [0].
+    std::vector<double> cos_phi_;
+    std::vector<double> sin_phi_;
 };
 
 } // namespace geometry
