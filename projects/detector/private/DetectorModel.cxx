@@ -699,7 +699,13 @@ void DetectorModel::LoadGDML(std::string const & filename) {
         auto mat_it = data.materials.find(vol.material_ref);
         if(solid_it != data.solids.end() && mat_it != data.materials.end()) {
             DetectorSector sector;
-            sector.name = vol.name;
+            std::string base_name = vol.name;
+            std::string unique_name = base_name;
+            int name_suffix = 2;
+            while(sector_name_map_.count(unique_name) > 0) {
+                unique_name = base_name + "_" + std::to_string(name_suffix++);
+            }
+            sector.name = unique_name;
             sector.level = level++;
 
             // Clone the geometry with the global placement
