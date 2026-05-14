@@ -1313,14 +1313,15 @@ void DetectorModel::RebuildBVH() const {
     bvh_nodes_.clear();
     bvh_excluded_sectors_.clear();
 
-    // Collect sector indices that have finite bounding boxes
+    // Pre-cache all world AABBs to avoid redundant GetWorldBoundingBox() calls
+    // during sort and bounds computation (each call does 8-corner rotation)
+    std::vector<geometry::AABB> cached_aabb(sectors_.size());
     std::vector<unsigned int> bvh_indices;
     for(unsigned int i = 0; i < sectors_.size(); ++i) {
-        geometry::AABB box = sectors_[i].geo->GetWorldBoundingBox();
-        // Exclude sectors with non-finite bounds (e.g. the infinite UNIVERSE sphere)
-        if(!std::isfinite(box.min_corner.GetX()) || !std::isfinite(box.max_corner.GetX()) ||
-           !std::isfinite(box.min_corner.GetY()) || !std::isfinite(box.max_corner.GetY()) ||
-           !std::isfinite(box.min_corner.GetZ()) || !std::isfinite(box.max_corner.GetZ())) {
+        cached_aabb[i] = sectors_[i].geo->GetWorldBoundingBox();
+        if(!std::isfinite(cached_aabb[i].min_corner.GetX()) || !std::isfinite(cached_aabb[i].max_corner.GetX()) ||
+           !std::isfinite(cached_aabb[i].min_corner.GetY()) || !std::isfinite(cached_aabb[i].max_corner.GetY()) ||
+           !std::isfinite(cached_aabb[i].min_corner.GetZ()) || !std::isfinite(cached_aabb[i].max_corner.GetZ())) {
             bvh_excluded_sectors_.push_back(i);
         } else {
             bvh_indices.push_back(i);
@@ -1328,56 +1329,123 @@ void DetectorModel::RebuildBVH() const {
     }
 
     if(!bvh_indices.empty()) {
-        // Reserve space for nodes (at most 2*N-1 nodes for N leaves)
         bvh_nodes_.reserve(2 * bvh_indices.size());
-        BuildBVHRecursive(bvh_indices, 0, (int)bvh_indices.size());
+        BuildBVHRecursive(bvh_indices, cached_aabb, 0, (int)bvh_indices.size());
     }
 
     bvh_dirty_ = false;
 }
 
-int DetectorModel::BuildBVHRecursive(std::vector<unsigned int> & indices, int begin, int end) const {
+int DetectorModel::BuildBVHRecursive(std::vector<unsigned int> & indices,
+                                     std::vector<geometry::AABB> const & aabbs,
+                                     int begin, int end) const {
     int node_idx = (int)bvh_nodes_.size();
     bvh_nodes_.push_back(BVHNode());
-    BVHNode & node = bvh_nodes_[node_idx];
 
-    // Compute bounds for this node over the sector range [begin, end)
-    node.bounds = geometry::AABB();
+    // Compute bounds for this node
+    geometry::AABB bounds;
     for(int i = begin; i < end; ++i) {
-        node.bounds.ExpandToInclude(sectors_[indices[i]].geo->GetWorldBoundingBox());
+        bounds.ExpandToInclude(aabbs[indices[i]]);
     }
+    bvh_nodes_[node_idx].bounds = bounds;
 
     int count = end - begin;
     if(count == 1) {
-        // Leaf node
-        node.sector_index = (int)indices[begin];
-        node.left_child = -1;
-        node.right_child = -1;
+        bvh_nodes_[node_idx].sector_index = (int)indices[begin];
+        bvh_nodes_[node_idx].left_child = -1;
+        bvh_nodes_[node_idx].right_child = -1;
     } else {
-        // Internal node: split on the largest axis using median
-        node.sector_index = -1;
+        bvh_nodes_[node_idx].sector_index = -1;
 
-        // Compute centroid bounds to find the best split axis
+        // Find best split using binned SAH over all 3 axes
+        constexpr int N_BINS = 12;
+
         geometry::AABB centroid_bounds;
         for(int i = begin; i < end; ++i) {
-            centroid_bounds.ExpandToInclude(sectors_[indices[i]].geo->GetWorldBoundingBox().Centroid());
+            centroid_bounds.ExpandToInclude(aabbs[indices[i]].Centroid());
         }
-        int axis = centroid_bounds.LargestAxis();
 
-        // Sort sector indices by centroid along the chosen axis
-        std::sort(indices.begin() + begin, indices.begin() + end,
-            [&](unsigned int a, unsigned int b) {
-                return sectors_[a].geo->GetWorldBoundingBox().GetCentroidAxis(axis)
-                     < sectors_[b].geo->GetWorldBoundingBox().GetCentroidAxis(axis);
-            });
+        int best_axis = 0;
+        int best_split = count / 2;
+        double best_cost = std::numeric_limits<double>::max();
+        double parent_area = bounds.SurfaceArea();
+        if(parent_area <= 0) parent_area = 1.0;
 
-        int mid = begin + count / 2;
-        // Build children -- note: after these calls, node_idx reference may be
-        // invalidated since bvh_nodes_ can reallocate. Use node_idx to index back.
-        int left = BuildBVHRecursive(indices, begin, mid);
-        int right = BuildBVHRecursive(indices, mid, end);
-        bvh_nodes_[node_idx].left_child = left;
-        bvh_nodes_[node_idx].right_child = right;
+        for(int axis = 0; axis < 3; ++axis) {
+            double axis_min = centroid_bounds.min_corner.GetX();
+            double axis_max = centroid_bounds.max_corner.GetX();
+            if(axis == 1) { axis_min = centroid_bounds.min_corner.GetY(); axis_max = centroid_bounds.max_corner.GetY(); }
+            if(axis == 2) { axis_min = centroid_bounds.min_corner.GetZ(); axis_max = centroid_bounds.max_corner.GetZ(); }
+
+            if(axis_max - axis_min < 1e-12) continue; // degenerate axis
+
+            // Bin the centroids
+            struct Bin { geometry::AABB bounds; int count = 0; };
+            Bin bins[N_BINS];
+            double inv_extent = N_BINS / (axis_max - axis_min);
+
+            for(int i = begin; i < end; ++i) {
+                double c = aabbs[indices[i]].GetCentroidAxis(axis);
+                int b = std::min((int)((c - axis_min) * inv_extent), N_BINS - 1);
+                bins[b].bounds.ExpandToInclude(aabbs[indices[i]]);
+                bins[b].count++;
+            }
+
+            // Sweep from left to find SAH cost at each split
+            geometry::AABB left_bounds;
+            int left_count = 0;
+            for(int s = 0; s < N_BINS - 1; ++s) {
+                left_bounds.ExpandToInclude(bins[s].bounds);
+                left_count += bins[s].count;
+                int right_count = count - left_count;
+                if(left_count == 0 || right_count == 0) continue;
+
+                geometry::AABB right_bounds;
+                for(int r = s + 1; r < N_BINS; ++r) {
+                    right_bounds.ExpandToInclude(bins[r].bounds);
+                }
+
+                double cost = 1.0 + (left_count * left_bounds.SurfaceArea()
+                                    + right_count * right_bounds.SurfaceArea()) / parent_area;
+                if(cost < best_cost) {
+                    best_cost = cost;
+                    best_axis = axis;
+                    best_split = left_count;
+                }
+            }
+        }
+
+        // Partition indices by the best split
+        int axis = best_axis;
+        double axis_min = centroid_bounds.min_corner.GetX();
+        double axis_max = centroid_bounds.max_corner.GetX();
+        if(axis == 1) { axis_min = centroid_bounds.min_corner.GetY(); axis_max = centroid_bounds.max_corner.GetY(); }
+        if(axis == 2) { axis_min = centroid_bounds.min_corner.GetZ(); axis_max = centroid_bounds.max_corner.GetZ(); }
+
+        if(axis_max - axis_min < 1e-12) {
+            // Degenerate: all centroids coincide. Fall back to median split.
+            int mid = begin + count / 2;
+            int left = BuildBVHRecursive(indices, aabbs, begin, mid);
+            int right = BuildBVHRecursive(indices, aabbs, mid, end);
+            bvh_nodes_[node_idx].left_child = left;
+            bvh_nodes_[node_idx].right_child = right;
+        } else {
+            // Sort by centroid on best axis and split at best_split
+            std::sort(indices.begin() + begin, indices.begin() + end,
+                [&](unsigned int a, unsigned int b) {
+                    return aabbs[a].GetCentroidAxis(axis) < aabbs[b].GetCentroidAxis(axis);
+                });
+
+            int mid = begin + best_split;
+            // Clamp to avoid empty partitions
+            if(mid <= begin) mid = begin + 1;
+            if(mid >= end) mid = end - 1;
+
+            int left = BuildBVHRecursive(indices, aabbs, begin, mid);
+            int right = BuildBVHRecursive(indices, aabbs, mid, end);
+            bvh_nodes_[node_idx].left_child = left;
+            bvh_nodes_[node_idx].right_child = right;
+        }
     }
 
     return node_idx;

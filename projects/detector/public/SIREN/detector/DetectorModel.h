@@ -86,7 +86,7 @@ friend siren::detector::Path;
     mutable bool bvh_dirty_ = true;
 
     void RebuildBVH() const;
-    int BuildBVHRecursive(std::vector<unsigned int> & indices, int begin, int end) const;
+    int BuildBVHRecursive(std::vector<unsigned int> & indices, std::vector<geometry::AABB> const & aabbs, int begin, int end) const;
     void TraverseBVH(int node_idx,
                      math::Vector3D const & position,
                      math::Vector3D const & direction,
