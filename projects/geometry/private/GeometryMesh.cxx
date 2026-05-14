@@ -195,32 +195,6 @@ std::vector<Geometry::Intersection> TriangularMesh::ComputeIntersections(math::V
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> TriangularMesh::ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const {
-    std::vector<Intersection> intersections = ComputeIntersections(position, direction);
-
-    if(intersections.empty()) {
-        return std::make_pair(-1.0, -1.0);
-    }
-
-    // Find the first positive-distance intersection
-    double dist_1 = -1.0;
-    double dist_2 = -1.0;
-
-    for(auto const & isect : intersections) {
-        if(isect.distance > GEOMETRY_PRECISION) {
-            if(dist_1 < 0) {
-                dist_1 = isect.distance;
-            } else {
-                dist_2 = isect.distance;
-                break;
-            }
-        }
-    }
-
-    return std::make_pair(dist_1, dist_2);
-}
-
-// ------------------------------------------------------------------------- //
 AABB TriangularMesh::GetBoundingBox() const {
     AABB box;
     for(auto const & vattr : mesh.vmap) {

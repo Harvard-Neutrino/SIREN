@@ -101,6 +101,13 @@ struct AABB {
             && min_corner.GetY() <= max_corner.GetY()
             && min_corner.GetZ() <= max_corner.GetZ();
     }
+
+    // Check if a point is inside this AABB
+    bool Contains(math::Vector3D const & p) const {
+        return p.GetX() >= min_corner.GetX() && p.GetX() <= max_corner.GetX()
+            && p.GetY() >= min_corner.GetY() && p.GetY() <= max_corner.GetY()
+            && p.GetZ() >= min_corner.GetZ() && p.GetZ() <= max_corner.GetZ();
+    }
 };
 
 // Ray-AABB intersection test using the slab method.

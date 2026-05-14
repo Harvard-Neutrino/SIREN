@@ -358,68 +358,6 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Trd::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const {
-    // Compute the surface intersections
-    std::vector<Intersection> intersections = Intersections(position, direction);
-    std::vector<double> dist;
-    bool first = true;
-    for(unsigned int i=0; i<intersections.size(); ++i) {
-        Intersection const & obj = intersections[i];
-        if(obj.distance > 0) {
-            if(first) {
-                first = false;
-                dist.push_back(obj.distance);
-                if(not obj.entering) {
-                    break;
-                }
-            }
-            else {
-                if(not obj.entering) {
-                    dist.push_back(obj.distance);
-                    break;
-                }
-                else {
-                    throw(std::runtime_error("There should never be two \"entering\" intersections in a row!"));
-                }
-            }
-        }
-    }
-
-    std::pair<double, double> distance;
-
-    // No intersection with the trapezoid
-    if(dist.size() < 1) {
-        distance.first  = -1;
-        distance.second = -1;
-    } else if(dist.size() == 1) // Particle is inside the trapezoid
-    {
-        distance.first  = dist.at(0);
-        distance.second = -1;
-    } else if(dist.size() == 2) // Particle is outside and the trapezoid is
-        // in front of the particle trajectory
-    {
-        distance.first  = dist.at(0);
-        distance.second = dist.at(1);
-        if(distance.second < distance.first) {
-            std::swap(distance.first, distance.second);
-        }
-
-    } else {
-        //log_error("This point should never be reached");
-    }
-
-    // Computer precision control
-    if(distance.first < GEOMETRY_PRECISION)
-        distance.first = -1;
-    if(distance.second < GEOMETRY_PRECISION)
-        distance.second = -1;
-    if(distance.first < 0)
-        std::swap(distance.first, distance.second);
-
-    return distance;
-}
-
-// ------------------------------------------------------------------------- //
 AABB Trd::GetBoundingBox() const {
     double max_dx = std::max(dx1_, dx2_);
     double max_dy = std::max(dy1_, dy2_);

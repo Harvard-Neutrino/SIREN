@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <random>
 #include <math.h>
+#include <vector>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -19,6 +21,29 @@ std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
 
 double RandomDouble() {
     return uniform_distribution(rng_);
+}
+
+// Replaces the removed DistanceToBorder method.
+std::pair<double, double> DistanceToBorder(
+        Geometry const & geo,
+        Vector3D const & position,
+        Vector3D const & direction) {
+    std::vector<Geometry::Intersection> isects = geo.Intersections(position, direction);
+    std::pair<double, double> result(-1, -1);
+    int count = 0;
+    for(auto const & hit : isects) {
+        if(hit.distance > Geometry::GEOMETRY_PRECISION) {
+            if(count == 0) {
+                result.first = hit.distance;
+                if(!hit.entering) break;
+                count++;
+            } else {
+                result.second = hit.distance;
+                break;
+            }
+        }
+    }
+    return result;
 }
 
 TEST(Comparison, Comparison_equal)
@@ -433,7 +458,7 @@ TEST(DistanceTo, Box)
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, 0.5 * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
 
-        distance = A.DistanceToBorder(particle_position, particle_direction);
+        distance = DistanceToBorder(A, particle_position, particle_direction);
 
         phi = particle_direction.GetPhi() * 180. / M_PI;
         if (phi < 45)
@@ -498,7 +523,7 @@ TEST(DistanceTo, Box)
         particle_position.SetCartesianCoordinates(-1 * width, 0, 0);
 
         phi      = particle_direction.GetPhi();
-        distance = A.DistanceToBorder(particle_position, particle_direction);
+        distance = DistanceToBorder(A, particle_position, particle_direction);
 
         //                       ________________           z|
         //                      |               |            |
@@ -568,7 +593,7 @@ TEST(DistanceTo, Box)
 
         particle_position.SetCartesianCoordinates(0, 0, -1 * height);
 
-        distance = A.DistanceToBorder(particle_position, particle_direction);
+        distance = DistanceToBorder(A, particle_position, particle_direction);
 
         //                       ________________       x|
         //                      |               |        |

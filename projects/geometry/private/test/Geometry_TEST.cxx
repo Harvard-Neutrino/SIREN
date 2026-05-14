@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <random>
 #include <math.h>
+#include <vector>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -20,6 +22,30 @@ std::uniform_real_distribution<double> uniform_distribution(0.0, 1.0);
 
 double RandomDouble() {
     return uniform_distribution(rng_);
+}
+
+// Replaces the removed DistanceToBorder method.
+// Returns pair<double,double> with the same semantics as the original.
+std::pair<double, double> DistanceToBorder(
+        Geometry const & geo,
+        Vector3D const & position,
+        Vector3D const & direction) {
+    std::vector<Geometry::Intersection> isects = geo.Intersections(position, direction);
+    std::pair<double, double> result(-1, -1);
+    int count = 0;
+    for(auto const & hit : isects) {
+        if(hit.distance > Geometry::GEOMETRY_PRECISION) {
+            if(count == 0) {
+                result.first = hit.distance;
+                if(!hit.entering) break;
+                count++;
+            } else {
+                result.second = hit.distance;
+                break;
+            }
+        }
+    }
+    return result;
 }
 
 TEST(Comparison, Comparison_equal)
@@ -757,7 +783,7 @@ TEST(DistanceTo, Sphere)
             particle_position.CalculateCartesianFromSpherical();
             particle_position = -particle_position;
 
-            distance = A.DistanceToBorder(particle_position, particle_direction);
+            distance = DistanceToBorder(A, particle_position, particle_direction);
 
             if (particle_radius < radius && particle_radius > inner_radius)
             {
@@ -785,7 +811,7 @@ TEST(DistanceTo, Sphere)
                 particle_position = -1 * particle_position;
 
                 // Now the particle is moving away from the sphere so we expect no intersection
-                distance = A.DistanceToBorder(particle_position, particle_direction);
+                distance = DistanceToBorder(A, particle_position, particle_direction);
                 EXPECT_EQ(distance.first, -1.);
                 EXPECT_EQ(distance.second, -1.);
             }
@@ -795,7 +821,7 @@ TEST(DistanceTo, Sphere)
                 particle_position.CalculateCartesianFromSpherical();
                 particle_position = -particle_position;
 
-                distance = A.DistanceToBorder(particle_position, particle_direction);
+                distance = DistanceToBorder(A, particle_position, particle_direction);
                 ASSERT_NEAR(distance.first, 2 * inner_radius, 1e-8 * (2 * inner_radius));
                 ASSERT_NEAR(distance.second, inner_radius + radius, 1e-8 * (inner_radius + radius));
             }
@@ -854,7 +880,7 @@ TEST(DistanceTo, Cylinder)
             particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, 0.5 * M_PI);
             particle_direction.CalculateCartesianFromSpherical();
 
-            distance = A.DistanceToBorder(particle_position, particle_direction);
+            distance = DistanceToBorder(A, particle_position, particle_direction);
 
             if (particle_radius < radius && particle_radius > inner_radius)
             {
@@ -882,7 +908,7 @@ TEST(DistanceTo, Cylinder)
                 particle_position = -particle_position;
 
                 // Now the particle is moving away from the sphere so we expect no intersection
-                distance = A.DistanceToBorder(particle_position, particle_direction);
+                distance = DistanceToBorder(A, particle_position, particle_direction);
                 EXPECT_EQ(distance.first, -1.);
                 EXPECT_EQ(distance.second, -1.);
             }
@@ -894,7 +920,7 @@ TEST(DistanceTo, Cylinder)
                 particle_position.CalculateCartesianFromSpherical();
                 particle_position = -particle_position;
 
-                distance = A.DistanceToBorder(particle_position, particle_direction);
+                distance = DistanceToBorder(A, particle_position, particle_direction);
                 ASSERT_NEAR(distance.first, 2 * inner_radius, 1e-8 * (2 * inner_radius));
                 ASSERT_NEAR(distance.second, inner_radius + radius, 1e-8 * (inner_radius + radius));
             }
@@ -917,7 +943,7 @@ TEST(DistanceTo, Cylinder)
 
     z = particle_position.GetZ();
 
-    distance = B.DistanceToBorder(particle_position, particle_direction);
+    distance = DistanceToBorder(B, particle_position, particle_direction);
 
     ASSERT_NEAR(distance.first, z - 0.5 * height, 1e-8 * (z - 0.5 * height));
     ASSERT_NEAR(distance.second, z + 0.5 * height, 1e-8 * (z + 0.5 * height));
@@ -951,7 +977,7 @@ TEST(DistanceTo, Cylinder)
         double dist1 = inner_radius / std::sin(alpha);
         double dist2 = radius / std::sin(alpha);
 
-        distance = A.DistanceToBorder(particle_position, particle_direction);
+        distance = DistanceToBorder(A, particle_position, particle_direction);
 
         //  case 1 throught inner cylinder => no intersection
         //  ___  x    ___
@@ -1071,7 +1097,7 @@ TEST(DistanceTo, Box)
         particle_direction.SetSphericalCoordinates(1, rnd_phi * 2 * M_PI, 0.5 * M_PI);
         particle_direction.CalculateCartesianFromSpherical();
 
-        distance = A.DistanceToBorder(particle_position, particle_direction);
+        distance = DistanceToBorder(A, particle_position, particle_direction);
 
         phi = particle_direction.GetPhi() * 180. / M_PI;
         if (phi < 45)
@@ -1136,7 +1162,7 @@ TEST(DistanceTo, Box)
         particle_position.SetCartesianCoordinates(-1 * width, 0, 0);
 
         phi      = particle_direction.GetPhi();
-        distance = A.DistanceToBorder(particle_position, particle_direction);
+        distance = DistanceToBorder(A, particle_position, particle_direction);
 
         //                       ________________           z|
         //                      |               |            |
@@ -1206,7 +1232,7 @@ TEST(DistanceTo, Box)
 
         particle_position.SetCartesianCoordinates(0, 0, -1 * height);
 
-        distance = A.DistanceToBorder(particle_position, particle_direction);
+        distance = DistanceToBorder(A, particle_position, particle_direction);
 
         //                       ________________       x|
         //                      |               |        |

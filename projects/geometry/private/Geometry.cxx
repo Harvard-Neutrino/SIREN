@@ -115,52 +115,23 @@ bool Geometry::operator!=(const Geometry& geometry) const
 
 bool Geometry::IsInside(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
 {
-    bool is_inside = false;
+    siren::math::Vector3D local_pos = GlobalToLocalPosition(position);
+    siren::math::Vector3D local_dir = GlobalToLocalDirection(direction);
+    std::vector<Intersection> hits = ComputeIntersections(local_pos, local_dir);
 
-    std::pair<double, double> dist = DistanceToBorder(position, direction);
-
-    if (dist.first > 0 && dist.second < 0)
-    {
-        is_inside = true;
+    // The first forward intersection determines containment:
+    // if it is an exit (entering == false), the point is inside.
+    for(auto const & hit : hits) {
+        if(hit.distance > GEOMETRY_PRECISION) {
+            return !hit.entering;
+        }
     }
-    return is_inside;
+    return false;
 }
 
-// ------------------------------------------------------------------------- //
-bool Geometry::IsInfront(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
+bool Geometry::IsInside(const siren::math::Vector3D& position) const
 {
-    bool is_infront = false;
-
-    std::pair<double, double> dist = DistanceToBorder(position, direction);
-
-    if (dist.first > 0 && dist.second > 0)
-    {
-        is_infront = true;
-    }
-    return is_infront;
-}
-
-// ------------------------------------------------------------------------- //
-bool Geometry::IsBehind(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
-{
-    bool is_behind = false;
-
-    std::pair<double, double> dist = DistanceToBorder(position, direction);
-
-    if (dist.first < 0 && dist.second < 0)
-    {
-        is_behind = true;
-    }
-    return is_behind;
-}
-
-Geometry::ParticleLocation::Enum Geometry::GetLocation(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const {
-    if(IsInfront(position, direction))
-        return Geometry::ParticleLocation::InfrontGeometry;
-    if(IsInside(position, direction))
-        return Geometry::ParticleLocation::InsideGeometry;
-    else
-        return Geometry::ParticleLocation::BehindGeometry;
+    return IsInside(position, siren::math::Vector3D(0, 0, 1));
 }
 
 // ------------------------------------------------------------------------- //
@@ -215,11 +186,6 @@ AABB Geometry::GetWorldBoundingBox() const {
     return world_box;
 }
 
-std::pair<double, double> Geometry::DistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const {
-    siren::math::Vector3D local_position = GlobalToLocalPosition(position);
-    siren::math::Vector3D local_direction = GlobalToLocalDirection(direction);
-    return ComputeDistanceToBorder(position, direction);
-}
 std::vector<Geometry::Intersection> Geometry::Intersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
     siren::math::Vector3D local_position = GlobalToLocalPosition(position);
     siren::math::Vector3D local_direction = GlobalToLocalDirection(direction);

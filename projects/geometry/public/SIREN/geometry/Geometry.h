@@ -70,9 +70,6 @@ public:
     template<class Archive>
     void serialize(Archive & archive, std::uint32_t const version) {};
     static constexpr const double GEOMETRY_PRECISION = 1.e-9;
-    struct ParticleLocation {
-        enum Enum { InfrontGeometry= 0, InsideGeometry, BehindGeometry };
-    };
     struct Intersection {
         double distance;
         int hierarchy;
@@ -138,30 +135,19 @@ public:
     // Member functions
     // ----------------------------------------------------------------- //
 
-    bool IsInside(const math::Vector3D& position, const math::Vector3D& direction) const;
-
-    bool IsInfront(const math::Vector3D& position, const math::Vector3D& direction) const;
-
-    bool IsBehind(const math::Vector3D& position, const math::Vector3D& direction) const;
-
-
-
     /*!
-     * This function calculates the distance of the particle position
-     * to the border of the geometry in direction of the particle trajectory.
-     * If the particle trajectory does not have an intersection with the geometry
-     * (-1 /-1) is returned
-     * If the particle trajectory has two intersections (dist_1 /dist_2) is returned
-     * If the particle has one intersection (dist_1 /-1) is returned
-     * (one intersection means one intersection in direction of the particle trajectory
-     * and one in the opposite direction. Cause we are not interested in this one. it is set to -1)
-     * Note: If the particle is on the geometry border this is not treated as an intersection
-     * A particle on the geometry border which moves inside has one intersection,
-     * a particle on the geometry border which moves outside has no intersection.
-     * Distances smaller then GEOMETRY_PRECISION (1e-9) are also set to -1
+     * Tests whether a point (in global coordinates) is inside this geometry.
+     * Uses ComputeIntersections and checks whether the first forward
+     * intersection is an exit (meaning the point is inside).
+     *
+     * The direction parameter controls boundary disambiguation: a point
+     * exactly on a surface is "inside" if the ray in that direction
+     * exits the volume (i.e. the particle is moving outward from inside).
+     * The directionless overload uses (0,0,1) for cases where boundary
+     * behavior does not matter.
      */
-    std::pair<double, double> DistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const;
-
+    bool IsInside(const math::Vector3D& position, const math::Vector3D& direction) const;
+    bool IsInside(const math::Vector3D& position) const;
 
     /*!
      * Calculates the intersections of a ray with the geometry surface.
@@ -192,8 +178,6 @@ public:
     // Getter & Setter
     // ----------------------------------------------------------------- //
 
-    ParticleLocation::Enum GetLocation(const math::Vector3D& position, const math::Vector3D& direction) const;
-
     //math::Vector3D GetPosition() const { return position_; }
 
     std::string GetName() const { return name_; }
@@ -220,7 +204,6 @@ protected:
     virtual bool equal(const Geometry&) const = 0;
     virtual bool less(const Geometry&) const = 0;
     virtual void print(std::ostream&) const     = 0;
-    virtual std::pair<double, double> ComputeDistanceToBorder(const math::Vector3D& position, const math::Vector3D& direction) const = 0;
 
     //math::Vector3D position_; //!< x,y,z-coordinate of origin ( center of box, cylinder, sphere)
 

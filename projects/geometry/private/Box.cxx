@@ -230,64 +230,6 @@ std::vector<Geometry::Intersection> Box::ComputeIntersections(siren::math::Vecto
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> Box::ComputeDistanceToBorder(const siren::math::Vector3D& position, const siren::math::Vector3D& direction) const
-{
-    // Compute the surface intersections
-    std::vector<Intersection> intersections = Intersections(position, direction);
-    std::vector<double> dist;
-    for(unsigned int i=0; i<intersections.size(); ++i) {
-        if(intersections[i].distance > 0) {
-            dist.push_back(intersections[i].distance);
-        }
-    }
-
-    std::pair<double, double> distance;
-
-    if (dist.size() < 1) // No intersection with the box
-    {
-        distance.first  = -1;
-        distance.second = -1;
-    } else if (dist.size() == 1) // Particle is inside the box and we have one
-        // intersection in direction of the particle
-        // trajectory
-    {
-        distance.first  = dist.at(0);
-        distance.second = -1;
-    } else if (dist.size() == 2) // Particle is outside and the box is infront
-        // of the particle trajectory ( two
-        // intersections).
-    {
-        distance.first  = dist.at(0);
-        distance.second = dist.at(1);
-        if (distance.second < distance.first)
-        {
-            std::swap(distance.first, distance.second);
-        }
-
-    } else
-    {
-        //log_error("This point should nerver be reached... (-1/-1) is returned");
-
-        distance.first  = -1;
-        distance.second = -1;
-    }
-
-    // Make a computer precision controll!
-    // This is necessary cause due to numerical effects it meight be happen
-    // that a particle which is located on a gemoetry border is treated as
-    // inside
-    // or outside
-    if (distance.first < GEOMETRY_PRECISION)
-        distance.first = -1;
-    if (distance.second < GEOMETRY_PRECISION)
-        distance.second = -1;
-    if (distance.first < 0)
-        std::swap(distance.first, distance.second);
-
-    return distance;
-}
-
-// ------------------------------------------------------------------------- //
 AABB Box::GetBoundingBox() const {
     double hx = x_ * 0.5;
     double hy = y_ * 0.5;

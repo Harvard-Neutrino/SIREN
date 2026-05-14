@@ -237,41 +237,6 @@ std::vector<Geometry::Intersection> BooleanGeometry::ComputeIntersections(
 }
 
 // ------------------------------------------------------------------------- //
-std::pair<double, double> BooleanGeometry::ComputeDistanceToBorder(
-        const siren::math::Vector3D& position,
-        const siren::math::Vector3D& direction) const {
-    // CSG shapes are non-convex: there can be multiple enter/exit pairs.
-    // Find the first positive exit (if inside) or the first positive
-    // enter-then-exit pair (if outside).
-    std::vector<Intersection> intersections = Intersections(position, direction);
-
-    std::pair<double, double> distance;
-    distance.first = -1;
-    distance.second = -1;
-
-    bool found_first = false;
-    for(unsigned int i = 0; i < intersections.size(); ++i) {
-        if(intersections[i].distance > GEOMETRY_PRECISION) {
-            if(!found_first) {
-                found_first = true;
-                distance.first = intersections[i].distance;
-                if(!intersections[i].entering) {
-                    // First positive hit is an exit: we're inside
-                    break;
-                }
-            } else {
-                if(!intersections[i].entering) {
-                    distance.second = intersections[i].distance;
-                    break;
-                }
-            }
-        }
-    }
-
-    return distance;
-}
-
-// ------------------------------------------------------------------------- //
 AABB BooleanGeometry::GetBoundingBox() const {
     // Children's bounding boxes are in their own local frames.
     // GetWorldBoundingBox() transforms them through their Placements
