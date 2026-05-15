@@ -131,6 +131,7 @@ bool Polycone::equal(const Geometry& geometry) const
 bool Polycone::less(const Geometry& geometry) const
 {
     const Polycone* polycone = dynamic_cast<const Polycone*>(&geometry);
+    if(!polycone) return false;
 
     return
         std::tie(z_planes_, rmin_, rmax_)
@@ -174,8 +175,8 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
     double dy = direction.GetY();
     double dz = direction.GetZ();
 
-    // Use fixed-size local array; 64 is sufficient for many segments x surfaces
-    Intersection hits[64];
+    static constexpr int MAX_HITS = 128;
+    Intersection hits[MAX_HITS];
     int n_hits = 0;
 
     double intersection_x;
@@ -199,6 +200,11 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
 
         // Skip degenerate zero-height sections
         if(z_hi <= z_lo) {
+            continue;
+        }
+
+        // Horizontal ray cannot hit barrel surfaces outside its z-plane
+        if(std::fabs(dz) < GEOMETRY_PRECISION && (pz <= z_lo || pz >= z_hi)) {
             continue;
         }
 
@@ -244,11 +250,13 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             double r_at_z = a_outer + b_outer * intersection_z;
                             if(r_at_z >= 0) {
                                 bool entering = entering_cone(a_outer, b_outer);
-                                hits[n_hits].distance = t1;
-                                hits[n_hits].hierarchy = 0;
-                                hits[n_hits].entering = entering;
-                                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                                n_hits++;
+                                if(n_hits < MAX_HITS) {
+                                    hits[n_hits].distance = t1;
+                                    hits[n_hits].hierarchy = 0;
+                                    hits[n_hits].entering = entering;
+                                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                                    n_hits++;
+                                }
                             }
                         }
 
@@ -259,11 +267,13 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             double r_at_z = a_outer + b_outer * intersection_z;
                             if(r_at_z >= 0) {
                                 bool entering = entering_cone(a_outer, b_outer);
-                                hits[n_hits].distance = t2;
-                                hits[n_hits].hierarchy = 0;
-                                hits[n_hits].entering = entering;
-                                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                                n_hits++;
+                                if(n_hits < MAX_HITS) {
+                                    hits[n_hits].distance = t2;
+                                    hits[n_hits].hierarchy = 0;
+                                    hits[n_hits].entering = entering;
+                                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                                    n_hits++;
+                                }
                             }
                         }
                     }
@@ -280,11 +290,13 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         double r_at_z = a_outer + b_outer * intersection_z;
                         if(r_at_z >= 0) {
                             bool entering = entering_cone(a_outer, b_outer);
-                            hits[n_hits].distance = t1;
-                            hits[n_hits].hierarchy = 0;
-                            hits[n_hits].entering = entering;
-                            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                            n_hits++;
+                            if(n_hits < MAX_HITS) {
+                                hits[n_hits].distance = t1;
+                                hits[n_hits].hierarchy = 0;
+                                hits[n_hits].entering = entering;
+                                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                                n_hits++;
+                            }
                         }
                     }
                 }
@@ -324,11 +336,13 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             double r_at_z = a_inner + b_inner * intersection_z;
                             if(r_at_z >= 0) {
                                 bool entering = !entering_cone(a_inner, b_inner);
-                                hits[n_hits].distance = t1;
-                                hits[n_hits].hierarchy = 0;
-                                hits[n_hits].entering = entering;
-                                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                                n_hits++;
+                                if(n_hits < MAX_HITS) {
+                                    hits[n_hits].distance = t1;
+                                    hits[n_hits].hierarchy = 0;
+                                    hits[n_hits].entering = entering;
+                                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                                    n_hits++;
+                                }
                             }
                         }
 
@@ -339,11 +353,13 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                             double r_at_z = a_inner + b_inner * intersection_z;
                             if(r_at_z >= 0) {
                                 bool entering = !entering_cone(a_inner, b_inner);
-                                hits[n_hits].distance = t2;
-                                hits[n_hits].hierarchy = 0;
-                                hits[n_hits].entering = entering;
-                                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                                n_hits++;
+                                if(n_hits < MAX_HITS) {
+                                    hits[n_hits].distance = t2;
+                                    hits[n_hits].hierarchy = 0;
+                                    hits[n_hits].entering = entering;
+                                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                                    n_hits++;
+                                }
                             }
                         }
                     }
@@ -359,11 +375,13 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                         double r_at_z = a_inner + b_inner * intersection_z;
                         if(r_at_z >= 0) {
                             bool entering = !entering_cone(a_inner, b_inner);
-                            hits[n_hits].distance = t1;
-                            hits[n_hits].hierarchy = 0;
-                            hits[n_hits].entering = entering;
-                            hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                            n_hits++;
+                            if(n_hits < MAX_HITS) {
+                                hits[n_hits].distance = t1;
+                                hits[n_hits].hierarchy = 0;
+                                hits[n_hits].entering = entering;
+                                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                                n_hits++;
+                            }
                         }
                     }
                 }
@@ -389,11 +407,13 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
             double rmin_cap = rmin_.front();
             if(r2_hit <= rmax_cap * rmax_cap && r2_hit >= rmin_cap * rmin_cap) {
                 intersection_z = pz + t * dz;
-                hits[n_hits].distance = t;
-                hits[n_hits].hierarchy = 0;
-                hits[n_hits].entering = dz > 0;
-                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                n_hits++;
+                if(n_hits < MAX_HITS) {
+                    hits[n_hits].distance = t;
+                    hits[n_hits].hierarchy = 0;
+                    hits[n_hits].entering = dz > 0;
+                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                    n_hits++;
+                }
             }
         }
 
@@ -413,11 +433,13 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
             double rmin_cap = rmin_.back();
             if(r2_hit <= rmax_cap * rmax_cap && r2_hit >= rmin_cap * rmin_cap) {
                 intersection_z = pz + t * dz;
-                hits[n_hits].distance = t;
-                hits[n_hits].hierarchy = 0;
-                hits[n_hits].entering = dz < 0;
-                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                n_hits++;
+                if(n_hits < MAX_HITS) {
+                    hits[n_hits].distance = t;
+                    hits[n_hits].hierarchy = 0;
+                    hits[n_hits].entering = dz < 0;
+                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                    n_hits++;
+                }
             }
         }
     }
@@ -479,11 +501,13 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
                 bool step_faces_up = (rmax_above > rmax_below) || (rmin_above < rmin_below);
                 bool cap_entering = step_faces_up ? (dz < 0) : (dz > 0);
                 intersection_z = pz + t * dz;
-                hits[n_hits].distance = t;
-                hits[n_hits].hierarchy = 0;
-                hits[n_hits].entering = cap_entering;
-                hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
-                n_hits++;
+                if(n_hits < MAX_HITS) {
+                    hits[n_hits].distance = t;
+                    hits[n_hits].hierarchy = 0;
+                    hits[n_hits].entering = cap_entering;
+                    hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
+                    n_hits++;
+                }
             }
         }
     }
