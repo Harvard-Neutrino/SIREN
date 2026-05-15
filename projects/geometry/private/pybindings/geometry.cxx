@@ -12,6 +12,8 @@
 #include "../../public/SIREN/geometry/Trd.h"
 #include "../../public/SIREN/geometry/Torus.h"
 #include "../../public/SIREN/geometry/Sphere.h"
+#include "../../public/SIREN/geometry/BooleanGeometry.h"
+#include "../../public/SIREN/geometry/AABB.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -187,6 +189,36 @@ PYBIND11_MODULE(geometry,m) {
         .def_property_readonly("DeltaPhi",&Sphere::GetDeltaPhi)
         .def_property_readonly("StartTheta",&Sphere::GetStartTheta)
         .def_property_readonly("DeltaTheta",&Sphere::GetDeltaTheta);
+
+    // BooleanGeometry
+
+    enum_<BooleanOperation>(m, "BooleanOperation")
+        .value("UNION", BooleanOperation::UNION)
+        .value("SUBTRACTION", BooleanOperation::SUBTRACTION)
+        .value("INTERSECTION", BooleanOperation::INTERSECTION);
+
+    class_<BooleanGeometry, std::shared_ptr<BooleanGeometry>, Geometry>(m, "BooleanGeometry")
+        .def(init<>())
+        .def(init<BooleanOperation, std::shared_ptr<const Geometry>, std::shared_ptr<const Geometry>>())
+        .def(init<Placement const &, BooleanOperation, std::shared_ptr<const Geometry>, std::shared_ptr<const Geometry>>())
+        .def(init<const BooleanGeometry&>())
+        .def_property_readonly("Operation",&BooleanGeometry::GetOperation)
+        .def_property_readonly("Left",&BooleanGeometry::GetLeft)
+        .def_property_readonly("Right",&BooleanGeometry::GetRight);
+
+    // AABB
+
+    class_<AABB>(m, "AABB")
+        .def(init<>())
+        .def(init<siren::math::Vector3D const &, siren::math::Vector3D const &>())
+        .def_readwrite("min_corner", &AABB::min_corner)
+        .def_readwrite("max_corner", &AABB::max_corner)
+        .def("ExpandToInclude", (void (AABB::*)(siren::math::Vector3D const &)) &AABB::ExpandToInclude)
+        .def("Centroid", &AABB::Centroid)
+        .def("SurfaceArea", &AABB::SurfaceArea)
+        .def("LargestAxis", &AABB::LargestAxis)
+        .def("IsValid", &AABB::IsValid)
+        .def("Contains", &AABB::Contains);
 
     class_<Placement, std::shared_ptr<Placement>>(m, "Placement")
         .def(init<>())
