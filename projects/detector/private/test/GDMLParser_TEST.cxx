@@ -954,11 +954,10 @@ TEST(GDMLParser, UnsupportedSolidSkipsWithWarning) {
 // GDML error handling: unparseable expression throws
 // =========================================================================
 TEST(GDMLParser, UnparseableExpressionThrows) {
-    // Use custom delimiter to avoid )" in sin(3.14)" closing the raw string
     std::string gdml = R"GDML(<?xml version="1.0"?>
 <gdml>
   <define>
-    <constant name="bad" value="sin(3.14)"/>
+    <constant name="bad" value="bogus_func(3.14)"/>
   </define>
   <materials/>
   <solids>
@@ -1446,4 +1445,178 @@ TEST(GDMLParser, PartialCylinderStillWarns) {
         if(w.find("tube") != std::string::npos || w.find("tubs") != std::string::npos) found = true;
     }
     EXPECT_TRUE(found) << "Expected warning about partial cylinder angular extent";
+}
+
+// =========================================================================
+// Expression evaluator: math functions
+// =========================================================================
+TEST(GDMLParser, ExpressionSingleArgFunctions) {
+    std::string gdml = R"GDML(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="pi_val" value="3.14159265358979323846"/>
+    <constant name="s" value="sin(pi_val/6)"/>
+    <constant name="c" value="cos(0)"/>
+    <constant name="t" value="tan(pi_val/4)"/>
+    <constant name="e" value="exp(1)"/>
+    <constant name="l" value="log(exp(2))"/>
+    <constant name="sq" value="sqrt(16)"/>
+    <constant name="ab" value="abs(-5.5)"/>
+    <constant name="as" value="asin(0.5)"/>
+    <constant name="ac" value="acos(1.0)"/>
+    <constant name="at" value="atan(1.0)"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)GDML";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_NEAR(data.constants.at("s"), 0.5, 1e-9);
+    EXPECT_NEAR(data.constants.at("c"), 1.0, 1e-9);
+    EXPECT_NEAR(data.constants.at("t"), 1.0, 1e-6);
+    EXPECT_NEAR(data.constants.at("e"), std::exp(1.0), 1e-9);
+    EXPECT_NEAR(data.constants.at("l"), 2.0, 1e-9);
+    EXPECT_NEAR(data.constants.at("sq"), 4.0, 1e-9);
+    EXPECT_NEAR(data.constants.at("ab"), 5.5, 1e-9);
+    EXPECT_NEAR(data.constants.at("as"), std::asin(0.5), 1e-9);
+    EXPECT_NEAR(data.constants.at("ac"), 0.0, 1e-9);
+    EXPECT_NEAR(data.constants.at("at"), std::atan(1.0), 1e-9);
+}
+
+TEST(GDMLParser, ExpressionTwoArgFunctions) {
+    std::string gdml = R"GDML(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="p" value="pow(2,10)"/>
+    <constant name="a2" value="atan2(1,1)"/>
+    <constant name="mn" value="min(3,7)"/>
+    <constant name="mx" value="max(3,7)"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)GDML";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_NEAR(data.constants.at("p"), 1024.0, 1e-9);
+    EXPECT_NEAR(data.constants.at("a2"), std::atan2(1.0, 1.0), 1e-9);
+    EXPECT_NEAR(data.constants.at("mn"), 3.0, 1e-9);
+    EXPECT_NEAR(data.constants.at("mx"), 7.0, 1e-9);
+}
+
+TEST(GDMLParser, ExpressionNestedFunctions) {
+    std::string gdml = R"GDML(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="v" value="sqrt(pow(3,2)+pow(4,2))"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)GDML";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_NEAR(data.constants.at("v"), 5.0, 1e-9);
+}
+
+TEST(GDMLParser, DeeplyNestedParentheses) {
+    // The iterative evaluator handles arbitrary nesting without stack overflow
+    std::string nested = "7";
+    for(int i = 0; i < 50; ++i) {
+        nested = "(" + nested + ")";
+    }
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="deep" value=")" + nested + R"("/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    EXPECT_NEAR(data.constants.at("deep"), 7.0, 1e-9);
+}
+
+// =========================================================================
+// Material composition cycle detection
+// =========================================================================
+TEST(GDMLParser, MaterialCompositionCycleThrows) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials>
+    <material name="MatA" Z="1">
+      <D value="1.0" unit="g/cm3"/>
+      <composite n="1" ref="MatB"/>
+    </material>
+    <material name="MatB" Z="1">
+      <D value="1.0" unit="g/cm3"/>
+      <composite n="1" ref="MatA"/>
+    </material>
+  </materials>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref="MatA"/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    std::string tmpfile = "/tmp/siren_gdml_cycle_test.gdml";
+    {
+        std::ofstream f(tmpfile);
+        f << gdml;
+    }
+    DetectorModel dm;
+    EXPECT_THROW(dm.LoadGDML(tmpfile), std::runtime_error);
+    std::remove(tmpfile.c_str());
 }

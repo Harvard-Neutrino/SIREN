@@ -152,6 +152,9 @@ std::vector<ShapeEntry> MakeShapes() {
     shapes.push_back({"Torus(R=10,r=3,0)", Torus(10, 3, 0).create(), -1, -1, 0});
     shapes.push_back({"TorusHollow(R=10,3,1)", Torus(10, 3, 1).create(), -1, -1, 0});
     shapes.push_back({"TorusThin(R=8,r=0.5,0)", Torus(8, 0.5, 0).create(), -1, -1, 0});
+    // Self-intersecting torus (rtor < rmax): tube passes through center
+    shapes.push_back({"TorusSelfIntersecting(R=3,r=5,0)", Torus(3, 5, 0).create(), -1, -1, 0});
+    shapes.push_back({"TorusSelfIntersectingHollow(R=3,5,2)", Torus(3, 5, 2).create(), -1, -1, 0});
 
     // Partial spheres
     shapes.push_back({"SphereThetaHemi", Sphere(5, 0, 0, 2*M_PI, 0, M_PI/2).create(), -1, -1, 0});

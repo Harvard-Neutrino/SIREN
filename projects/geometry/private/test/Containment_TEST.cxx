@@ -825,6 +825,32 @@ TEST(Containment, TorusValidation) {
     EXPECT_NO_THROW(Torus(10, 3, 2));
 }
 
+TEST(Containment, TorusSelfIntersecting) {
+    // Self-intersecting torus: rtor < rmax (tube overlaps through center)
+    double R = 3;
+    double r = 5;
+    Placement pl(Vector3D(0, 0, 0));
+    Torus torus(pl, R, r, 0);
+    ValidateContainment(torus, pl, [=](Vector3D const & p) {
+        double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
+        double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
+        return d2 < r*r;
+    }, R + r + 1, 10000, "TorusSelfIntersecting");
+}
+
+TEST(Containment, TorusSelfIntersectingHollow) {
+    double R = 3;
+    double rout = 5;
+    double rin = 2;
+    Placement pl(Vector3D(0, 0, 0));
+    Torus torus(pl, R, rout, rin);
+    ValidateContainment(torus, pl, [=](Vector3D const & p) {
+        double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
+        double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
+        return d2 < rout*rout && d2 > rin*rin;
+    }, R + rout + 1, 10000, "TorusSelfIntersectingHollow");
+}
+
 // =========================================================================
 // Partial angular extent: Sphere
 // =========================================================================
