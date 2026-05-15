@@ -728,6 +728,12 @@ std::vector<std::string> DetectorModel::LoadGDML(std::string const & filename, b
             auto solid_it = data.solids.find(vol.solid_ref);
             auto mat_it = data.materials.find(vol.material_ref);
             if(solid_it == data.solids.end() || mat_it == data.materials.end()) {
+                if(solid_it == data.solids.end()) {
+                    std::cerr << "GDML warning: volume '" << vol.name << "' references unknown solid '" << vol.solid_ref << "', skipping" << std::endl;
+                }
+                if(mat_it == data.materials.end()) {
+                    std::cerr << "GDML warning: volume '" << vol.name << "' references unknown material '" << vol.material_ref << "', skipping" << std::endl;
+                }
                 visited.erase(volume_name);
                 return;
             }

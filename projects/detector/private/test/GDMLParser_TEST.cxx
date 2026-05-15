@@ -1620,3 +1620,244 @@ TEST(GDMLParser, MaterialCompositionCycleThrows) {
     EXPECT_THROW(dm.LoadGDML(tmpfile), std::runtime_error);
     std::remove(tmpfile.c_str());
 }
+
+
+// =========================================================================
+// Quantity with unit converts correctly
+// =========================================================================
+TEST(GDMLParser, QuantityUnitConversion) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <quantity name="q_cm" value="100" unit="cm" type="length"/>
+    <quantity name="q_mm" value="500" unit="mm" type="length"/>
+    <quantity name="q_deg" value="90" unit="deg" type="angle"/>
+    <quantity name="q_nounit" value="42" type="length"/>
+    <quantity name="q_notype" value="10" unit="cm"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    double tol = 1e-9;
+    // 100 cm -> 1000 mm (cm -> mm scale = 10)
+    EXPECT_NEAR(data.constants["q_cm"], 1000.0, tol)
+        << "100 cm should convert to 1000 mm";
+    // 500 mm -> 500 mm (mm -> mm scale = 1)
+    EXPECT_NEAR(data.constants["q_mm"], 500.0, tol)
+        << "500 mm should stay as 500 mm";
+    // 90 deg -> pi/2 rad
+    EXPECT_NEAR(data.constants["q_deg"], 90.0 * 3.141592653589793 / 180.0, tol)
+        << "90 deg should convert to pi/2 radians";
+    // No unit -> raw value
+    EXPECT_NEAR(data.constants["q_nounit"], 42.0, tol)
+        << "No unit should leave value unchanged";
+    // No type but unit=cm -> treated as length
+    EXPECT_NEAR(data.constants["q_notype"], 100.0, tol)
+        << "10 cm with no type should convert to 100 mm (length assumed)";
+}
+
+
+// =========================================================================
+// Exponentiation operator: basic, precedence, right-associativity
+// =========================================================================
+TEST(GDMLParser, ExponentiationOperator) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="basic" value="2^3"/>
+    <constant name="right_assoc" value="2^3^2"/>
+    <constant name="precedence" value="2*3^2"/>
+    <constant name="neg_base" value="-2^2"/>
+    <constant name="paren" value="(2+1)^3"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    double tol = 1e-9;
+    EXPECT_NEAR(data.constants["basic"], 8.0, tol)
+        << "2^3 should be 8";
+    // Right-associative: 2^3^2 = 2^(3^2) = 2^9 = 512
+    EXPECT_NEAR(data.constants["right_assoc"], 512.0, tol)
+        << "2^3^2 should be 512 (right-associative: 2^(3^2) = 2^9)";
+    // Precedence: 2*3^2 = 2*(3^2) = 2*9 = 18
+    EXPECT_NEAR(data.constants["precedence"], 18.0, tol)
+        << "2*3^2 should be 18 (^ has higher precedence than *)";
+    // Unary minus: -2^2 = -(2^2) = -4
+    EXPECT_NEAR(data.constants["neg_base"], -4.0, tol)
+        << "-2^2 should be -4 (unary minus applied after exponentiation)";
+    // Parenthesized: (2+1)^3 = 3^3 = 27
+    EXPECT_NEAR(data.constants["paren"], 27.0, tol)
+        << "(2+1)^3 should be 27";
+}
+
+
+// =========================================================================
+// stod out-of-range throws instead of returning 0
+// =========================================================================
+TEST(GDMLParser, StodOutOfRangeThrows) {
+    // Use a value that will overflow double
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <constant name="huge" value="1e99999"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    EXPECT_THROW(ParseGDMLString(gdml), std::runtime_error)
+        << "Out-of-range numeric value should throw, not silently return 0";
+}
+
+
+// =========================================================================
+// Variable element emits warning
+// =========================================================================
+TEST(GDMLParser, VariableElementWarning) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <variable name="myvar" value="10"/>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    // The variable should be stored as a constant
+    EXPECT_NEAR(data.constants["myvar"], 10.0, 1e-9);
+
+    // A warning about <variable> should be emitted
+    bool found_var_warning = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("<variable>") != std::string::npos && w.find("myvar") != std::string::npos) {
+            found_var_warning = true;
+        }
+    }
+    EXPECT_TRUE(found_var_warning)
+        << "Expected warning about <variable> element being treated as constant";
+}
+
+
+// =========================================================================
+// Loop element emits warning
+// =========================================================================
+TEST(GDMLParser, LoopElementWarning) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define>
+    <variable name="i" value="0"/>
+    <loop for="i" from="0" to="3" step="1">
+      <constant name="dummy" value="0"/>
+    </loop>
+  </define>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    bool found_loop_warning = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("<loop>") != std::string::npos) {
+            found_loop_warning = true;
+        }
+    }
+    EXPECT_TRUE(found_loop_warning)
+        << "Expected warning about <loop> element not being supported";
+}
+
+
+// =========================================================================
+// Missing setup section emits warning
+// =========================================================================
+TEST(GDMLParser, MissingSetupWarning) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="world_box" x="1000" y="1000" z="1000" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="world_box"/>
+    </volume>
+  </structure>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+
+    EXPECT_TRUE(data.world_volume.empty());
+    bool found_setup_warning = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("setup") != std::string::npos || w.find("world volume") != std::string::npos) {
+            found_setup_warning = true;
+        }
+    }
+    EXPECT_TRUE(found_setup_warning)
+        << "Expected warning about missing <setup> section";
+}

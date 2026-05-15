@@ -12,6 +12,7 @@
 #include <iostream>
 #include <map>
 #include <cctype>
+#include <functional>
 
 #include <cereal/external/rapidxml/rapidxml.hpp>
 
@@ -75,7 +76,12 @@ struct Token {
 static int OpPrecedence(char op) {
     if(op == '+' || op == '-') return 1;
     if(op == '*' || op == '/') return 2;
+    if(op == '^') return 3;
     return 0;
+}
+
+static bool IsRightAssociative(char op) {
+    return op == '^';
 }
 
 static bool IsIdentStart(char c) {
@@ -120,7 +126,7 @@ static std::vector<Token> Tokenize(std::string const & s, std::map<std::string, 
         if(c == ')') { tokens.push_back({TokenKind::RPAREN}); ++i; continue; }
         if(c == ',') { tokens.push_back({TokenKind::COMMA}); ++i; continue; }
 
-        if(c == '+' || c == '-' || c == '*' || c == '/') {
+        if(c == '+' || c == '-' || c == '*' || c == '/' || c == '^') {
             bool is_unary = (c == '-' || c == '+') &&
                 (tokens.empty() || tokens.back().kind == TokenKind::LPAREN ||
                  tokens.back().kind == TokenKind::OP || tokens.back().kind == TokenKind::COMMA ||
@@ -181,7 +187,7 @@ double EvalExpression(std::string const & expr, std::map<std::string, double> co
             if(pos == s.size()) return val;
         } catch(std::invalid_argument &) {
         } catch(std::out_of_range &) {
-            return 0.0;
+            throw std::runtime_error("GDML expression error: numeric value out of range in '" + expr + "'");
         }
     }
 
@@ -226,10 +232,17 @@ double EvalExpression(std::string const & expr, std::map<std::string, double> co
             }
             break;
         case TokenKind::OP:
-            while(!op_stack.empty() && op_stack.back().kind == TokenKind::OP &&
-                  OpPrecedence(op_stack.back().op) >= OpPrecedence(tok.op)) {
-                output.push_back(op_stack.back());
-                op_stack.pop_back();
+            while(!op_stack.empty() && op_stack.back().kind == TokenKind::OP) {
+                int stack_prec = OpPrecedence(op_stack.back().op);
+                int cur_prec = OpPrecedence(tok.op);
+                // Right-associative: pop only when stack precedence is strictly greater
+                // Left-associative: pop when stack precedence is greater or equal
+                if(IsRightAssociative(tok.op) ? (stack_prec > cur_prec) : (stack_prec >= cur_prec)) {
+                    output.push_back(op_stack.back());
+                    op_stack.pop_back();
+                } else {
+                    break;
+                }
             }
             op_stack.push_back(tok);
             break;
@@ -285,6 +298,9 @@ double EvalExpression(std::string const & expr, std::map<std::string, double> co
                 if(b == 0.0) throw std::runtime_error("GDML expression error: division by zero in '" + expr + "'");
                 val_stack.push_back(a / b);
                 break;
+            case '^':
+                val_stack.push_back(std::pow(a, b));
+                break;
             }
             break;
         }
@@ -331,7 +347,7 @@ double SafeParseDouble(const char* val, std::map<std::string, double> const & co
     } catch(std::invalid_argument &) {
         // Not a simple number
     } catch(std::out_of_range &) {
-        return 0.0;
+        throw std::runtime_error("GDML expression error: numeric value out of range in '" + std::string(val) + "'");
     }
     // Fall back to expression evaluation
     return EvalExpression(std::string(val), constants);
@@ -413,6 +429,65 @@ Quaternion QuatFromGDMLRotation(double rx, double ry, double rz) {
     return qz * qy * qx;
 }
 
+// Convert a value from the given unit to the GDML default for that unit type.
+// For length: convert to mm (GDML default length)
+// For angle: convert to rad (GDML default angle)
+// For energy: convert to MeV (common default)
+// Returns the scale factor to multiply the raw value by.
+// The type parameter says what kind of quantity this is (length, angle, etc.)
+// and the unit parameter is the specific unit string.
+double QuantityUnitScale(const char* type, const char* unit) {
+    if(!unit || unit[0] == '\0') return 1.0; // no unit means use raw value
+
+    std::string u(unit);
+    std::string t;
+    if(type && type[0] != '\0') {
+        t = std::string(type);
+        // normalize to lowercase
+        for(auto & c : t) c = std::tolower(static_cast<unsigned char>(c));
+    }
+
+    // If type tells us what kind of unit, use that to interpret
+    if(t == "angle") {
+        // Convert to radians (GDML default angle for quantities)
+        if(u == "deg") return PI / 180.0;
+        if(u == "rad") return 1.0;
+        if(u == "mrad") return 0.001;
+        return 1.0; // unknown angle unit, pass through
+    }
+    if(t == "energy") {
+        // Convert to MeV
+        if(u == "eV")  return 1e-6;
+        if(u == "keV") return 1e-3;
+        if(u == "MeV") return 1.0;
+        if(u == "GeV") return 1e3;
+        if(u == "TeV") return 1e6;
+        return 1.0; // unknown energy unit, pass through
+    }
+
+    // For type "length" or unknown/missing type, try length units
+    // (length is the most common case in GDML quantity elements)
+    if(u == "mm") return 1.0;
+    if(u == "cm") return 10.0;
+    if(u == "m")  return 1000.0;
+    if(u == "km") return 1e6;
+    if(u == "in") return 25.4;
+
+    // Also try angle units if type was missing
+    if(t.empty()) {
+        if(u == "deg") return PI / 180.0;
+        if(u == "rad") return 1.0;
+        if(u == "mrad") return 0.001;
+        if(u == "eV")  return 1e-6;
+        if(u == "keV") return 1e-3;
+        if(u == "MeV") return 1.0;
+        if(u == "GeV") return 1e3;
+        if(u == "TeV") return 1e6;
+    }
+
+    return 1.0; // unknown unit, pass through
+}
+
 // Record a warning. In strict mode, throws instead of continuing.
 void EmitWarning(GDMLData & data, GDMLParseOptions const & options, std::string const & msg) {
     if(options.strict) {
@@ -447,6 +522,9 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
         else if(tag == "quantity") {
             std::string name = SafeAttrVal(node, "name");
             double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants);
+            const char* unit = SafeAttrVal(node, "unit");
+            const char* type = SafeAttrVal(node, "type");
+            value *= QuantityUnitScale(type, unit);
             if(!name.empty()) {
                 if(data.constants.find(name) != data.constants.end()) {
                     EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
@@ -481,11 +559,13 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
             }
         }
         else if(tag == "scale") {
-            // Scale definitions are not directly used; skip
+            std::string sname = SafeAttrVal(node, "name");
+            EmitWarning(data, options, "GDML <scale> element '" + sname + "' is not supported and will be ignored");
         }
         else if(tag == "variable") {
             std::string name = SafeAttrVal(node, "name");
             double value = SafeParseDouble(SafeAttrVal(node, "value"), data.constants);
+            EmitWarning(data, options, "GDML <variable> element '" + name + "' treated as constant; <loop> constructs using variables are not supported");
             if(!name.empty()) {
                 if(data.constants.find(name) != data.constants.end()) {
                     EmitWarning(data, options, "duplicate constant name '" + name + "', overwriting");
@@ -1361,6 +1441,12 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
 
     GDMLData data;
 
+    // Check raw XML text for xi:include or entity references
+    if(content.find("xi:include") != std::string::npos ||
+       content.find("<!ENTITY") != std::string::npos) {
+        EmitWarning(data, options, "GDML file may use xi:include or entity references which are not supported; included sections will be missing");
+    }
+
     // Find root node: accept <gdml> or any root element
     auto* gdml_node = doc.first_node("gdml");
     if(!gdml_node) {
@@ -1387,6 +1473,26 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
     // Parse all <setup> sections (last wins)
     for(auto* node = gdml_node->first_node("setup"); node; node = node->next_sibling("setup")) {
         ParseSetup(node, data, options);
+    }
+
+    // Check for <loop> elements anywhere in the document
+    // We scan all sections since loops can appear in define, structure, etc.
+    std::function<bool(rapidxml::xml_node<>*)> hasLoopElement;
+    hasLoopElement = [&](rapidxml::xml_node<>* node) -> bool {
+        if(!node) return false;
+        for(auto* child = node->first_node(); child; child = child->next_sibling()) {
+            if(std::string(child->name()) == "loop") return true;
+            if(hasLoopElement(child)) return true;
+        }
+        return false;
+    };
+    if(hasLoopElement(gdml_node)) {
+        EmitWarning(data, options, "GDML <loop> element found but loops are not supported; loop body will be ignored");
+    }
+
+    // Warn if no <setup> section was found (world volume undefined)
+    if(data.world_volume.empty()) {
+        EmitWarning(data, options, "No <setup> section found in GDML; world volume is undefined");
     }
 
     return data;
