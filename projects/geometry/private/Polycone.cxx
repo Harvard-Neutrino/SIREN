@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <ostream>
+#include <cassert>
 #include <utility>
 #include <algorithm>
 #include <stdexcept>
@@ -203,6 +204,7 @@ std::vector<Geometry::Intersection> Polycone::ComputeIntersections(siren::math::
         if(use_heap) {
             heap_hits.push_back(isect);
         } else {
+            assert(n_hits < STACK_CAP);
             stack_hits[n_hits] = isect;
         }
         n_hits++;
