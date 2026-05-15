@@ -63,6 +63,16 @@ void PrimaryExternalDistribution::LoadInputFile(std::string const & _filename) {
     vertex_set = has_x && has_y && has_z;
     mom_set = has_px && has_py && has_pz;
 
+    if((has_x0 || has_y0 || has_z0) && !init_pos_set) {
+        throw std::runtime_error("Incomplete initial position header in " + filename + ": need all of x0, y0, z0");
+    }
+    if((has_x || has_y || has_z) && !vertex_set) {
+        throw std::runtime_error("Incomplete vertex header in " + filename + ": need all of x, y, z");
+    }
+    if((has_px || has_py || has_pz) && !mom_set) {
+        throw std::runtime_error("Incomplete momentum header in " + filename + ": need all of px, py, pz");
+    }
+
     std::string value;
     while (std::getline(input_file, line)) {
         std::string trimmed = trim(line);
