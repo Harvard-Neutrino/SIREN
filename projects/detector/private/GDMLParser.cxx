@@ -367,35 +367,47 @@ static void ParseAllMaterials(rapidxml::xml_node<>* root_node, GDMLData & data, 
     }
     if(mat_sections.empty()) return;
 
-    // Instance-aware storage
-    std::map<std::string, std::vector<GDMLMaterial>> materials_instances;
-    std::map<std::string, int> material_instance_count;
+    // Instance-aware storage, separated by GDML type.
+    // In GDML, isotopes, elements, and materials are separate namespaces.
+    // An <element name="Iron"> and <material name="Iron"> are different things.
+    // We use separate instance stacks so they don't collide.
+    struct MatTypeStacks {
+        std::map<std::string, std::vector<GDMLMaterial>> instances;
+        std::map<std::string, int> count;
+    };
+    MatTypeStacks isotope_stacks, element_stacks, material_stacks;
 
-    // Helper: resolve a composition reference name to its flattened unique name.
-    // Given original name and the instance index, produce the flattened name.
     auto flattenedName = [](std::string const & name, int instance_idx) -> std::string {
         if(instance_idx == 0) return name;
         return name + "__" + std::to_string(instance_idx + 1);
     };
 
-    // Helper: store a material as a new instance.
-    // If the new material is equal to the current (most recent) instance,
-    // skip it — identical re-declarations don't create a new instance.
-    auto storeMaterial = [&](GDMLMaterial const & mat) {
-        auto & vec = materials_instances[mat.name];
+    // Store into the appropriate type stack. Dedup against most recent instance.
+    auto storeInStack = [&](MatTypeStacks & stacks, GDMLMaterial const & mat) {
+        auto & vec = stacks.instances[mat.name];
         if(!vec.empty() && vec.back() == mat) {
             return;
         }
         vec.push_back(mat);
-        material_instance_count[mat.name] = (int)vec.size();
+        stacks.count[mat.name] = (int)vec.size();
     };
 
-    // Helper: resolve a composition reference to the current instance's flattened name.
-    // If the referenced name has been defined, use the latest instance.
-    // If not yet defined (forward reference), use instance 0.
+    // Resolve a composition reference: look up in isotope, then element, then
+    // material stacks (in that order) to find the current instance.
     auto resolveCompRef = [&](std::string const & ref_name) -> std::string {
-        auto it = material_instance_count.find(ref_name);
-        if(it != material_instance_count.end()) {
+        // Try isotopes first (most specific)
+        auto it = isotope_stacks.count.find(ref_name);
+        if(it != isotope_stacks.count.end()) {
+            return flattenedName(ref_name, it->second - 1);
+        }
+        // Then elements
+        it = element_stacks.count.find(ref_name);
+        if(it != element_stacks.count.end()) {
+            return flattenedName(ref_name, it->second - 1);
+        }
+        // Then materials
+        it = material_stacks.count.find(ref_name);
+        if(it != material_stacks.count.end()) {
             return flattenedName(ref_name, it->second - 1);
         }
         // Forward reference: assume instance 0
@@ -420,7 +432,7 @@ static void ParseAllMaterials(rapidxml::xml_node<>* root_node, GDMLData & data, 
                 }
 
                 if(!mat.name.empty()) {
-                    storeMaterial(mat);
+                    storeInStack(isotope_stacks, mat);
                 }
             }
             else if(tag == "element") {
@@ -447,7 +459,7 @@ static void ParseAllMaterials(rapidxml::xml_node<>* root_node, GDMLData & data, 
                 }
 
                 if(!mat.name.empty()) {
-                    storeMaterial(mat);
+                    storeInStack(element_stacks, mat);
                 }
             }
             else if(tag == "material") {
@@ -499,26 +511,43 @@ static void ParseAllMaterials(rapidxml::xml_node<>* root_node, GDMLData & data, 
                 }
 
                 if(!mat.name.empty()) {
-                    storeMaterial(mat);
+                    storeInStack(material_stacks, mat);
                 }
             }
         }
     }
 
-    // Flatten multi-instance materials into data.materials with unique names.
-    // For names with 1 instance: keep the original name.
-    // For names with N > 1 instances: name (instance 0), name__2 (instance 1), etc.
-    // Also update composition references to use flattened names.
-    for(auto const & pair : materials_instances) {
-        std::string const & name = pair.first;
-        std::vector<GDMLMaterial> const & instances = pair.second;
-        data.material_instance_counts[name] = (int)instances.size();
-        for(int i = 0; i < (int)instances.size(); ++i) {
-            GDMLMaterial mat = instances[i];
-            std::string flat_name = flattenedName(name, i);
-            mat.name = flat_name;
-            data.materials[flat_name] = mat;
+    // Flatten all three type stacks into data.materials with unique names.
+    // Each type stack is independent, so <element name="Iron"> and
+    // <material name="Iron"> get separate entries.
+    // Within each stack, multi-instance names get __2, __3 suffixes.
+    // The material_instance_counts tracks the material stack only (since
+    // that is what volumes reference via materialref).
+    auto flattenStack = [&](MatTypeStacks const & stacks) {
+        for(auto const & pair : stacks.instances) {
+            std::string const & name = pair.first;
+            std::vector<GDMLMaterial> const & instances = pair.second;
+            for(int i = 0; i < (int)instances.size(); ++i) {
+                GDMLMaterial mat = instances[i];
+                std::string flat_name = flattenedName(name, i);
+                // If this flat_name collides with one already in data.materials
+                // (from a different type stack), append a type suffix
+                if(data.materials.find(flat_name) != data.materials.end()) {
+                    // The existing entry came from a different type stack.
+                    // Keep both by giving the new one a distinct name.
+                    flat_name = flat_name + "__mat";
+                }
+                mat.name = flat_name;
+                data.materials[flat_name] = mat;
+            }
         }
+    };
+    flattenStack(isotope_stacks);
+    flattenStack(element_stacks);
+    flattenStack(material_stacks);
+    // Instance counts from the material stack only (for volume ambiguity checks)
+    for(auto const & pair : material_stacks.instances) {
+        data.material_instance_counts[pair.first] = (int)pair.second.size();
     }
 }
 
@@ -1081,43 +1110,16 @@ static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data
         if(matref) {
             vol.material_ref = SafeAttrVal(matref, "ref");
             // Check for ambiguous material reference.
-            // When a name has multiple instances because GDML defines both an
-            // <element> and a <material> with the same name (common Geant4
-            // pattern), resolve to the <material> instance (the one with
-            // density > 0) since that is what volumes need.
+            // material_instance_counts tracks the <material> stack only
+            // (not isotopes or elements), so element/material name collisions
+            // don't trigger this — they are in separate namespaces.
             if(!vol.material_ref.empty()) {
                 auto it = data.material_instance_counts.find(vol.material_ref);
                 if(it != data.material_instance_counts.end() && it->second > 1) {
-                    // Try to disambiguate: find the instance with density > 0
-                    std::string resolved;
-                    int candidates = 0;
-                    for(auto const & mp : data.materials) {
-                        // Check all flattened names for this base name
-                        std::string base = vol.material_ref;
-                        bool matches = (mp.first == base);
-                        if(!matches) {
-                            // Check for __N suffix: "name__2", "name__3", etc.
-                            if(mp.first.size() > base.size() + 2
-                               && mp.first.substr(0, base.size()) == base
-                               && mp.first[base.size()] == '_'
-                               && mp.first[base.size() + 1] == '_') {
-                                matches = true;
-                            }
-                        }
-                        if(matches && mp.second.density > 0) {
-                            resolved = mp.first;
-                            candidates++;
-                        }
-                    }
-                    if(candidates == 1) {
-                        // Exactly one material instance with density; use it
-                        vol.material_ref = resolved;
-                    } else {
-                        throw std::runtime_error(
-                            "GDML error: volume '" + vol.name
-                            + "' references ambiguous material '" + vol.material_ref
-                            + "' which has " + std::to_string(it->second) + " instances");
-                    }
+                    throw std::runtime_error(
+                        "GDML error: volume '" + vol.name
+                        + "' references ambiguous material '" + vol.material_ref
+                        + "' which has " + std::to_string(it->second) + " instances");
                 }
             }
         }
