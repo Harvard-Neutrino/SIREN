@@ -1159,9 +1159,9 @@ TEST(GDMLParser, MultipleDefineSections) {
 
 
 // =========================================================================
-// Duplicate solid name: warns and overwrites
+// Duplicate solid name: tracked as multiple instances
 // =========================================================================
-TEST(GDMLParser, DuplicateNameWarning) {
+TEST(GDMLParser, DuplicateSolidInstances) {
     std::string gdml = R"(<?xml version="1.0"?>
 <gdml>
   <define/>
@@ -1175,7 +1175,7 @@ TEST(GDMLParser, DuplicateNameWarning) {
   <structure>
     <volume name="World">
       <materialref ref=""/>
-      <solidref ref="mybox"/>
+      <solidref ref="world_placeholder"/>
     </volume>
   </structure>
   <setup name="Default" version="1.0">
@@ -1184,34 +1184,31 @@ TEST(GDMLParser, DuplicateNameWarning) {
 </gdml>)";
 
     GDMLData data = ParseGDMLString(gdml);
-    // Last wins: mybox should be the 200mm version
+    // Instance 0 keeps the original name: 100mm half-width = 0.1m
     ASSERT_TRUE(data.solids.count("mybox") > 0);
     double tol = 1e-9;
-    EXPECT_NEAR(data.solids["mybox"]->GetBoundingBox().max_corner.GetX(), 0.2, tol)
-        << "Duplicate name should use last definition (200mm half-width = 0.2m)";
-    // Should have a warning about duplicate
-    bool found_dup_warning = false;
-    for(auto const & w : data.warnings) {
-        if(w.find("duplicate") != std::string::npos && w.find("mybox") != std::string::npos) {
-            found_dup_warning = true;
-        }
-    }
-    EXPECT_TRUE(found_dup_warning) << "Expected warning about duplicate solid name";
+    EXPECT_NEAR(data.solids["mybox"]->GetBoundingBox().max_corner.GetX(), 0.1, tol)
+        << "First instance keeps original name (100mm half-width = 0.1m)";
+    // Instance 1 gets flattened name: mybox__2, 200mm half-width = 0.2m
+    ASSERT_TRUE(data.solids.count("mybox__2") > 0);
+    EXPECT_NEAR(data.solids["mybox__2"]->GetBoundingBox().max_corner.GetX(), 0.2, tol)
+        << "Second instance gets flattened name mybox__2 (200mm half-width = 0.2m)";
+    // Instance count should be 2
+    ASSERT_TRUE(data.solid_instance_counts.count("mybox") > 0);
+    EXPECT_EQ(data.solid_instance_counts["mybox"], 2);
 }
 
 
 // =========================================================================
-// Duplicate name in strict mode: throws
+// Duplicate solid name referenced by volume: throws (ambiguous)
 // =========================================================================
-TEST(GDMLParser, DuplicateNameStrictThrows) {
+TEST(GDMLParser, AmbiguousSolidRefThrows) {
     std::string gdml = R"(<?xml version="1.0"?>
 <gdml>
   <define/>
   <materials/>
   <solids>
     <box name="mybox" x="100" y="100" z="100" lunit="mm"/>
-  </solids>
-  <solids>
     <box name="mybox" x="200" y="200" z="200" lunit="mm"/>
   </solids>
   <structure>
@@ -1225,12 +1222,51 @@ TEST(GDMLParser, DuplicateNameStrictThrows) {
   </setup>
 </gdml>)";
 
-    std::string tmpfile = "/tmp/siren_gdml_test_dupstrict.gdml";
-    { std::ofstream f(tmpfile); f << gdml; }
-    GDMLParseOptions strict_opts;
-    strict_opts.strict = true;
-    EXPECT_THROW(ParseGDML(tmpfile, strict_opts), std::runtime_error);
-    std::remove(tmpfile.c_str());
+    EXPECT_THROW(ParseGDMLString(gdml), std::runtime_error)
+        << "Volume referencing ambiguous solid (2 instances) should throw";
+}
+
+
+// =========================================================================
+// Boolean with duplicate operand name: resolves correct instance
+// =========================================================================
+TEST(GDMLParser, BooleanInstanceResolution) {
+    // Define a box with name "operand", then a boolean using it, then
+    // redefine "operand" with different dimensions. The boolean should
+    // use the first definition (current at definition time).
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <box name="base" x="100" y="100" z="100" lunit="mm"/>
+    <box name="cutter" x="50" y="50" z="200" lunit="mm"/>
+    <subtraction name="result">
+      <first ref="base"/>
+      <second ref="cutter"/>
+    </subtraction>
+    <box name="base" x="500" y="500" z="500" lunit="mm"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="result"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("result") > 0);
+    // The boolean "result" was defined after first "base" (100mm) but before
+    // second "base" (500mm). It should use the first definition.
+    auto bb = data.solids["result"]->GetBoundingBox();
+    double tol = 1e-6;
+    // The subtraction bounding box should be close to the first base box (100mm=0.1m half)
+    EXPECT_NEAR(bb.max_corner.GetX(), 0.1, tol)
+        << "Boolean should use first instance of 'base' (100mm), not second (500mm)";
 }
 
 

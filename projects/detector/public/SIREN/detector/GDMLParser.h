@@ -63,6 +63,13 @@ struct GDMLData {
     // World volume name (from <setup>)
     std::string world_volume;
 
+    // Instance counts: how many definitions of each name were seen during parsing.
+    // Names with count > 1 are ambiguous for direct volume references.
+    // Boolean solids resolve operand references using instance tracking at
+    // definition time, so they are not affected by ambiguity.
+    std::map<std::string, int> solid_instance_counts;
+    std::map<std::string, int> material_instance_counts;
+
     // Warnings collected during parsing (unsupported features, skipped solids, etc.)
     // In strict mode this stays empty since warnings throw instead.
     std::vector<std::string> warnings;

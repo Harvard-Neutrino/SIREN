@@ -353,122 +353,165 @@ static void ParseDefine(rapidxml::xml_node<>* define_node, GDMLData & data, GDML
 }
 
 
-// Parse the <materials> section: elements and materials
-static void ParseMaterials(rapidxml::xml_node<>* materials_node, GDMLData & data, GDMLParseOptions const & options) {
-    if(!materials_node) return;
+// Parse all <materials> sections with instance-scoped name resolution.
+// Each name can have multiple definitions (instances). Composition references
+// resolve to the current instance of the referenced name at definition time.
+// After parsing, multi-instance names are flattened to unique names.
+static void ParseAllMaterials(rapidxml::xml_node<>* root_node, GDMLData & data, GDMLParseOptions const & options) {
+    if(!root_node) return;
 
-    for(auto* node = materials_node->first_node(); node; node = node->next_sibling()) {
-        std::string tag(node->name());
+    // Collect all <materials> section nodes
+    std::vector<rapidxml::xml_node<>*> mat_sections;
+    for(auto* node = root_node->first_node("materials"); node; node = node->next_sibling("materials")) {
+        mat_sections.push_back(node);
+    }
+    if(mat_sections.empty()) return;
 
-        if(tag == "isotope") {
-            // Isotope definitions: store as simple materials
-            GDMLMaterial mat;
-            mat.name = SafeAttrVal(node, "name");
-            mat.Z = SafeParseDouble(SafeAttrVal(node, "Z"), data.constants);
-            mat.A = SafeParseDouble(SafeAttrVal(node, "N"), data.constants);
-            mat.density = 0.0;
+    // Instance-aware storage
+    std::map<std::string, std::vector<GDMLMaterial>> materials_instances;
+    std::map<std::string, int> material_instance_count;
 
-            // Check for <atom> child
-            auto* atom_node = node->first_node("atom");
-            if(atom_node) {
-                mat.A = SafeParseDouble(SafeAttrVal(atom_node, "value"), data.constants);
-            }
+    // Helper: resolve a composition reference name to its flattened unique name.
+    // Given original name and the instance index, produce the flattened name.
+    auto flattenedName = [](std::string const & name, int instance_idx) -> std::string {
+        if(instance_idx == 0) return name;
+        return name + "__" + std::to_string(instance_idx + 1);
+    };
 
-            if(!mat.name.empty()) {
-                if(data.materials.find(mat.name) != data.materials.end()) {
-                    EmitWarning(data, options, "duplicate material name '" + mat.name + "', overwriting");
-                }
-                data.materials[mat.name] = mat;
-            }
+    // Helper: store a material as a new instance
+    auto storeMaterial = [&](GDMLMaterial const & mat) {
+        materials_instances[mat.name].push_back(mat);
+        material_instance_count[mat.name] = (int)materials_instances[mat.name].size();
+    };
+
+    // Helper: resolve a composition reference to the current instance's flattened name.
+    // If the referenced name has been defined, use the latest instance.
+    // If not yet defined (forward reference), use instance 0.
+    auto resolveCompRef = [&](std::string const & ref_name) -> std::string {
+        auto it = material_instance_count.find(ref_name);
+        if(it != material_instance_count.end()) {
+            return flattenedName(ref_name, it->second - 1);
         }
-        else if(tag == "element") {
-            GDMLMaterial mat;
-            mat.name = SafeAttrVal(node, "name");
-            mat.Z = SafeParseDouble(SafeAttrVal(node, "Z"), data.constants);
-            mat.density = 0.0;
+        // Forward reference: assume instance 0
+        return ref_name;
+    };
 
-            // Check for <atom> child with mass
-            auto* atom_node = node->first_node("atom");
-            if(atom_node) {
-                // atom value might have units like "g/mol"
-                const char* a_val = SafeAttrVal(atom_node, "value");
-                mat.A = SafeParseDouble(a_val, data.constants);
-            }
+    // Process all sections in order
+    for(auto* mat_node : mat_sections) {
+        for(auto* node = mat_node->first_node(); node; node = node->next_sibling()) {
+            std::string tag(node->name());
 
-            // Check for <fraction> children (element defined as isotope mix)
-            for(auto* frac = node->first_node("fraction"); frac; frac = frac->next_sibling("fraction")) {
-                std::string ref = SafeAttrVal(frac, "ref");
-                double n = SafeParseDouble(SafeAttrVal(frac, "n"), data.constants);
-                if(!ref.empty()) {
-                    mat.composition[ref] = n;
+            if(tag == "isotope") {
+                GDMLMaterial mat;
+                mat.name = SafeAttrVal(node, "name");
+                mat.Z = SafeParseDouble(SafeAttrVal(node, "Z"), data.constants);
+                mat.A = SafeParseDouble(SafeAttrVal(node, "N"), data.constants);
+                mat.density = 0.0;
+
+                auto* atom_node = node->first_node("atom");
+                if(atom_node) {
+                    mat.A = SafeParseDouble(SafeAttrVal(atom_node, "value"), data.constants);
+                }
+
+                if(!mat.name.empty()) {
+                    storeMaterial(mat);
                 }
             }
+            else if(tag == "element") {
+                GDMLMaterial mat;
+                mat.name = SafeAttrVal(node, "name");
+                mat.Z = SafeParseDouble(SafeAttrVal(node, "Z"), data.constants);
+                mat.density = 0.0;
+                mat.A = 0.0;
 
-            if(!mat.name.empty()) {
-                if(data.materials.find(mat.name) != data.materials.end()) {
-                    EmitWarning(data, options, "duplicate material name '" + mat.name + "', overwriting");
+                auto* atom_node = node->first_node("atom");
+                if(atom_node) {
+                    const char* a_val = SafeAttrVal(atom_node, "value");
+                    mat.A = SafeParseDouble(a_val, data.constants);
                 }
-                data.materials[mat.name] = mat;
-            }
-        }
-        else if(tag == "material") {
-            GDMLMaterial mat;
-            mat.name = SafeAttrVal(node, "name");
-            mat.Z = SafeParseDouble(SafeAttrVal(node, "Z"), data.constants);
-            mat.density = 0.0;
-            mat.A = 0.0;
 
-            // Parse <D> (density) child
-            auto* d_node = node->first_node("D");
-            if(d_node) {
-                mat.density = SafeParseDouble(SafeAttrVal(d_node, "value"), data.constants);
-                // Density unit scaling (SIREN convention is g/cm3)
-                const char* d_unit = SafeAttrVal(d_node, "unit");
-                if(d_unit && d_unit[0] != '\0') {
-                    std::string du(d_unit);
-                    if(du == "kg/m3") {
-                        mat.density /= 1000.0;
-                    } else if(du == "mg/cm3") {
-                        mat.density /= 1000.0;
-                    } else if(du == "g/cm3") {
-                        // No conversion needed
-                    } else {
-                        EmitWarning(data, options, "unrecognized density unit '" + du + "' for material '" + mat.name + "', assuming g/cm3");
+                // Fraction children (element defined as isotope mix)
+                // Resolve each ref to the current instance
+                for(auto* frac = node->first_node("fraction"); frac; frac = frac->next_sibling("fraction")) {
+                    std::string ref = SafeAttrVal(frac, "ref");
+                    double n = SafeParseDouble(SafeAttrVal(frac, "n"), data.constants);
+                    if(!ref.empty()) {
+                        mat.composition[resolveCompRef(ref)] = n;
                     }
                 }
-                // If unit is missing, assume g/cm3 (no conversion)
-            }
 
-            // Parse <atom> child for simple materials
-            auto* atom_node = node->first_node("atom");
-            if(atom_node) {
-                mat.A = SafeParseDouble(SafeAttrVal(atom_node, "value"), data.constants);
-            }
-
-            // Parse <fraction> children for composite materials
-            for(auto* frac = node->first_node("fraction"); frac; frac = frac->next_sibling("fraction")) {
-                std::string ref = SafeAttrVal(frac, "ref");
-                double n = SafeParseDouble(SafeAttrVal(frac, "n"), data.constants);
-                if(!ref.empty()) {
-                    mat.composition[ref] = n;
+                if(!mat.name.empty()) {
+                    storeMaterial(mat);
                 }
             }
+            else if(tag == "material") {
+                GDMLMaterial mat;
+                mat.name = SafeAttrVal(node, "name");
+                mat.Z = SafeParseDouble(SafeAttrVal(node, "Z"), data.constants);
+                mat.density = 0.0;
+                mat.A = 0.0;
 
-            // Parse <composite> children (alternative to fraction)
-            for(auto* comp = node->first_node("composite"); comp; comp = comp->next_sibling("composite")) {
-                std::string ref = SafeAttrVal(comp, "ref");
-                double n = SafeParseDouble(SafeAttrVal(comp, "n"), data.constants);
-                if(!ref.empty()) {
-                    mat.composition[ref] = n;
+                auto* d_node = node->first_node("D");
+                if(d_node) {
+                    mat.density = SafeParseDouble(SafeAttrVal(d_node, "value"), data.constants);
+                    const char* d_unit = SafeAttrVal(d_node, "unit");
+                    if(d_unit && d_unit[0] != '\0') {
+                        std::string du(d_unit);
+                        if(du == "kg/m3") {
+                            mat.density /= 1000.0;
+                        } else if(du == "mg/cm3") {
+                            mat.density /= 1000.0;
+                        } else if(du == "g/cm3") {
+                            // No conversion needed
+                        } else {
+                            EmitWarning(data, options, "unrecognized density unit '" + du + "' for material '" + mat.name + "', assuming g/cm3");
+                        }
+                    }
+                }
+
+                auto* atom_node = node->first_node("atom");
+                if(atom_node) {
+                    mat.A = SafeParseDouble(SafeAttrVal(atom_node, "value"), data.constants);
+                }
+
+                // Fraction children: resolve each ref to the current instance
+                for(auto* frac = node->first_node("fraction"); frac; frac = frac->next_sibling("fraction")) {
+                    std::string ref = SafeAttrVal(frac, "ref");
+                    double n = SafeParseDouble(SafeAttrVal(frac, "n"), data.constants);
+                    if(!ref.empty()) {
+                        mat.composition[resolveCompRef(ref)] = n;
+                    }
+                }
+
+                // Composite children: resolve each ref to the current instance
+                for(auto* comp = node->first_node("composite"); comp; comp = comp->next_sibling("composite")) {
+                    std::string ref = SafeAttrVal(comp, "ref");
+                    double n = SafeParseDouble(SafeAttrVal(comp, "n"), data.constants);
+                    if(!ref.empty()) {
+                        mat.composition[resolveCompRef(ref)] = n;
+                    }
+                }
+
+                if(!mat.name.empty()) {
+                    storeMaterial(mat);
                 }
             }
+        }
+    }
 
-            if(!mat.name.empty()) {
-                if(data.materials.find(mat.name) != data.materials.end()) {
-                    EmitWarning(data, options, "duplicate material name '" + mat.name + "', overwriting");
-                }
-                data.materials[mat.name] = mat;
-            }
+    // Flatten multi-instance materials into data.materials with unique names.
+    // For names with 1 instance: keep the original name.
+    // For names with N > 1 instances: name (instance 0), name__2 (instance 1), etc.
+    // Also update composition references to use flattened names.
+    for(auto const & pair : materials_instances) {
+        std::string const & name = pair.first;
+        std::vector<GDMLMaterial> const & instances = pair.second;
+        data.material_instance_counts[name] = (int)instances.size();
+        for(int i = 0; i < (int)instances.size(); ++i) {
+            GDMLMaterial mat = instances[i];
+            std::string flat_name = flattenedName(name, i);
+            mat.name = flat_name;
+            data.materials[flat_name] = mat;
         }
     }
 }
@@ -743,8 +786,31 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
         return geo;
     };
 
-    // Helper lambda: parse a boolean solid node
-    auto parseBoolean = [&](rapidxml::xml_node<>* node) -> std::shared_ptr<Geometry> {
+    // Instance-aware storage: each name can have multiple definitions.
+    // solids_instances[name] = vector of shared_ptr (one per definition)
+    // solid_instance_count[name] = how many definitions seen so far
+    std::map<std::string, std::vector<std::shared_ptr<Geometry>>> solids_instances;
+    std::map<std::string, int> solid_instance_count;
+
+    // Helper: store a solid as a new instance
+    auto storeSolid = [&](std::string const & name, std::shared_ptr<Geometry> geo) {
+        solids_instances[name].push_back(geo);
+        solid_instance_count[name] = (int)solids_instances[name].size();
+    };
+
+    // Helper: look up a solid operand by name using instance tracking.
+    // If the name has been defined, returns the latest (current) instance.
+    // If not defined yet, returns nullptr (forward reference).
+    auto lookupSolid = [&](std::string const & name) -> std::shared_ptr<Geometry> {
+        auto it = solid_instance_count.find(name);
+        if(it != solid_instance_count.end()) {
+            return solids_instances[name][it->second - 1];
+        }
+        return nullptr;
+    };
+
+    // Modified boolean parser that uses instance-aware lookup
+    auto parseBooleanInstanced = [&](rapidxml::xml_node<>* node) -> std::shared_ptr<Geometry> {
         std::string tag(node->name());
         std::string name = SafeAttrVal(node, "name");
 
@@ -761,19 +827,15 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
         std::string first_ref = SafeAttrVal(first_node, "ref");
         std::string second_ref = SafeAttrVal(second_node, "ref");
 
-        auto first_it = data.solids.find(first_ref);
-        auto second_it = data.solids.find(second_ref);
+        auto left = lookupSolid(first_ref);
+        auto right_base = lookupSolid(second_ref);
 
-        if(first_it == data.solids.end() || second_it == data.solids.end()) return nullptr;
+        if(!left || !right_base) return nullptr;
 
-        auto left = first_it->second;
-
-        // The second solid may have a position and rotation
-        // relative to the first
+        // The second solid may have a position and rotation relative to the first
         Vector3D rel_pos(0, 0, 0);
         Quaternion rel_rot;
 
-        // Check for inline <position> child
         auto* pos_node = node->first_node("position");
         if(pos_node) {
             const char* punit = SafeAttrVal(pos_node, "unit");
@@ -783,7 +845,6 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             rel_pos = Vector3D(px, py, pz);
         }
 
-        // Check for <positionref>
         auto* posref_node = node->first_node("positionref");
         if(posref_node) {
             std::string ref = SafeAttrVal(posref_node, "ref");
@@ -793,7 +854,6 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             }
         }
 
-        // Check for inline <rotation> child
         auto* rot_node = node->first_node("rotation");
         if(rot_node) {
             const char* runit = SafeAttrVal(rot_node, "unit");
@@ -803,7 +863,6 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             rel_rot = QuatFromGDMLRotation(rx, ry, rz);
         }
 
-        // Check for <rotationref>
         auto* rotref_node = node->first_node("rotationref");
         if(rotref_node) {
             std::string ref = SafeAttrVal(rotref_node, "ref");
@@ -813,8 +872,7 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             }
         }
 
-        // Create the second solid with relative placement
-        auto right = second_it->second->create();
+        auto right = right_base->create();
         Placement rel_placement(rel_pos, rel_rot);
         right->SetPlacement(rel_placement);
 
@@ -823,56 +881,179 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             std::const_pointer_cast<const Geometry>(right));
     };
 
-    // First pass over all sections: parse all non-boolean solids
+    // Deferred boolean info: records a boolean node that could not be resolved
+    // in the first pass due to forward references. Records which instance index
+    // to use for each operand when resolved later.
+    struct DeferredBoolean {
+        rapidxml::xml_node<>* node;
+        std::string name;
+        std::string first_ref;
+        std::string second_ref;
+        // Instance index to use for forward-referenced operands (0 = first definition).
+        // -1 means "was already defined, use latest at resolution time"
+        int first_instance;
+        int second_instance;
+    };
+
+    // First pass: process ALL nodes (primitives and booleans) in document order.
+    // Booleans that reference not-yet-defined operands are deferred.
+    std::vector<DeferredBoolean> deferred;
+
     for(auto* solids_node : solids_sections) {
         for(auto* node = solids_node->first_node(); node; node = node->next_sibling()) {
             std::string tag(node->name());
-            if(tag == "subtraction" || tag == "union" || tag == "intersection") continue;
-
             std::string name = SafeAttrVal(node, "name");
             if(name.empty()) continue;
 
-            if(data.solids.find(name) != data.solids.end()) {
-                EmitWarning(data, options, "duplicate solid name '" + name + "', overwriting");
-            }
+            bool is_boolean = (tag == "subtraction" || tag == "union" || tag == "intersection");
 
-            auto geo = parsePrimitive(node);
-            if(geo) {
-                data.solids[name] = geo;
+            if(!is_boolean) {
+                auto geo = parsePrimitive(node);
+                if(geo) {
+                    storeSolid(name, geo);
+                }
+            } else {
+                // Try to resolve the boolean using current instance tracking
+                auto* first_child = node->first_node("first");
+                auto* second_child = node->first_node("second");
+                if(!first_child || !second_child) continue;
+
+                std::string first_ref = SafeAttrVal(first_child, "ref");
+                std::string second_ref = SafeAttrVal(second_child, "ref");
+
+                auto left = lookupSolid(first_ref);
+                auto right = lookupSolid(second_ref);
+
+                if(left && right) {
+                    // Both operands are defined; resolve now
+                    auto geo = parseBooleanInstanced(node);
+                    if(geo) {
+                        storeSolid(name, geo);
+                    }
+                } else {
+                    // At least one operand is a forward reference; defer.
+                    DeferredBoolean db;
+                    db.node = node;
+                    db.name = name;
+                    db.first_ref = first_ref;
+                    db.second_ref = second_ref;
+                    // For already-defined operands, record current instance index
+                    // For forward-referenced operands, use instance 0
+                    db.first_instance = left ? (solid_instance_count[first_ref] - 1) : 0;
+                    db.second_instance = right ? (solid_instance_count[second_ref] - 1) : 0;
+                    deferred.push_back(db);
+                }
             }
         }
     }
 
-    // Iterative boolean passes across all sections: keep resolving until
-    // no new solids are added. This handles arbitrary nesting depth
-    // (a boolean whose operand is another boolean that appears later in
-    // document order or in a different section).
+    // Second pass: iteratively resolve deferred booleans.
+    // For forward-referenced operands, use the instance index recorded at deferral time.
     bool made_progress = true;
     while(made_progress) {
         made_progress = false;
-        for(auto* solids_node : solids_sections) {
-            for(auto* node = solids_node->first_node(); node; node = node->next_sibling()) {
-                std::string tag(node->name());
-                if(tag != "subtraction" && tag != "union" && tag != "intersection") continue;
+        for(auto & db : deferred) {
+            // Skip if already resolved
+            if(solid_instance_count.find(db.name) != solid_instance_count.end()) {
+                // Check if this specific boolean was already stored
+                // (name might have multiple instances; check if we already processed this deferred entry)
+                if(db.node == nullptr) continue;
+            }
 
-                std::string name = SafeAttrVal(node, "name");
-                if(name.empty()) continue;
+            // Look up operands using recorded instance indices
+            auto first_it = solids_instances.find(db.first_ref);
+            auto second_it = solids_instances.find(db.second_ref);
 
-                // Skip if already resolved
-                if(data.solids.find(name) != data.solids.end()) continue;
+            if(first_it == solids_instances.end() || second_it == solids_instances.end()) continue;
+            if(db.first_instance >= (int)first_it->second.size()) continue;
+            if(db.second_instance >= (int)second_it->second.size()) continue;
 
-                auto geo = parseBoolean(node);
-                if(geo) {
-                    data.solids[name] = geo;
-                    made_progress = true;
+            auto left = first_it->second[db.first_instance];
+            auto right_base = second_it->second[db.second_instance];
+            if(!left || !right_base) continue;
+
+            // Parse position/rotation from the boolean node
+            std::string tag(db.node->name());
+            BooleanOperation op;
+            if(tag == "subtraction")   op = BooleanOperation::SUBTRACTION;
+            else if(tag == "union")    op = BooleanOperation::UNION;
+            else                       op = BooleanOperation::INTERSECTION;
+
+            Vector3D rel_pos(0, 0, 0);
+            Quaternion rel_rot;
+
+            auto* pos_node = db.node->first_node("position");
+            if(pos_node) {
+                const char* punit = SafeAttrVal(pos_node, "unit");
+                double px = ParseLength(SafeAttrVal(pos_node, "x"), punit, data.constants);
+                double py = ParseLength(SafeAttrVal(pos_node, "y"), punit, data.constants);
+                double pz = ParseLength(SafeAttrVal(pos_node, "z"), punit, data.constants);
+                rel_pos = Vector3D(px, py, pz);
+            }
+
+            auto* posref_node = db.node->first_node("positionref");
+            if(posref_node) {
+                std::string ref = SafeAttrVal(posref_node, "ref");
+                auto it = data.positions.find(ref);
+                if(it != data.positions.end()) {
+                    rel_pos = it->second;
                 }
             }
+
+            auto* rot_node = db.node->first_node("rotation");
+            if(rot_node) {
+                const char* runit = SafeAttrVal(rot_node, "unit");
+                double rx = ParseAngle(SafeAttrVal(rot_node, "x"), runit, data.constants);
+                double ry = ParseAngle(SafeAttrVal(rot_node, "y"), runit, data.constants);
+                double rz = ParseAngle(SafeAttrVal(rot_node, "z"), runit, data.constants);
+                rel_rot = QuatFromGDMLRotation(rx, ry, rz);
+            }
+
+            auto* rotref_node = db.node->first_node("rotationref");
+            if(rotref_node) {
+                std::string ref = SafeAttrVal(rotref_node, "ref");
+                auto it = data.rotations.find(ref);
+                if(it != data.rotations.end()) {
+                    rel_rot = it->second;
+                }
+            }
+
+            auto right = right_base->create();
+            Placement rel_placement(rel_pos, rel_rot);
+            right->SetPlacement(rel_placement);
+
+            auto geo = std::make_shared<BooleanGeometry>(op,
+                std::const_pointer_cast<const Geometry>(left),
+                std::const_pointer_cast<const Geometry>(right));
+
+            storeSolid(db.name, geo);
+            db.node = nullptr; // Mark as resolved
+            made_progress = true;
+        }
+    }
+
+    // Flatten multi-instance solids into data.solids with unique names.
+    // For names with 1 instance: keep the original name.
+    // For names with N > 1 instances: name (instance 0), name__2 (instance 1), etc.
+    for(auto const & pair : solids_instances) {
+        std::string const & name = pair.first;
+        std::vector<std::shared_ptr<Geometry>> const & instances = pair.second;
+        data.solid_instance_counts[name] = (int)instances.size();
+        for(int i = 0; i < (int)instances.size(); ++i) {
+            std::string flat_name;
+            if(i == 0) {
+                flat_name = name;
+            } else {
+                flat_name = name + "__" + std::to_string(i + 1);
+            }
+            data.solids[flat_name] = instances[i];
         }
     }
 }
 
 
-// Parse the <structure> section: volumes and physical volumes
+// Parse the <structure> section: volumes and physical volumes.
+// Checks for ambiguous solid/material references (names with multiple instances).
 static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data, GDMLParseOptions const & options) {
     if(!structure_node) return;
 
@@ -886,12 +1067,32 @@ static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data
         auto* matref = vol_node->first_node("materialref");
         if(matref) {
             vol.material_ref = SafeAttrVal(matref, "ref");
+            // Check for ambiguous material reference
+            if(!vol.material_ref.empty()) {
+                auto it = data.material_instance_counts.find(vol.material_ref);
+                if(it != data.material_instance_counts.end() && it->second > 1) {
+                    throw std::runtime_error(
+                        "GDML error: volume '" + vol.name
+                        + "' references ambiguous material '" + vol.material_ref
+                        + "' which has " + std::to_string(it->second) + " instances");
+                }
+            }
         }
 
         // Get <solidref>
         auto* solidref = vol_node->first_node("solidref");
         if(solidref) {
             vol.solid_ref = SafeAttrVal(solidref, "ref");
+            // Check for ambiguous solid reference
+            if(!vol.solid_ref.empty()) {
+                auto it = data.solid_instance_counts.find(vol.solid_ref);
+                if(it != data.solid_instance_counts.end() && it->second > 1) {
+                    throw std::runtime_error(
+                        "GDML error: volume '" + vol.name
+                        + "' references ambiguous solid '" + vol.solid_ref
+                        + "' which has " + std::to_string(it->second) + " instances");
+                }
+            }
         }
 
         // Parse <physvol> children
@@ -1009,11 +1210,9 @@ GDMLData ParseGDML(std::string const & filename, GDMLParseOptions const & option
     for(auto* node = gdml_node->first_node("define"); node; node = node->next_sibling("define")) {
         ParseDefine(node, data, options);
     }
-    // Parse all <materials> sections
-    for(auto* node = gdml_node->first_node("materials"); node; node = node->next_sibling("materials")) {
-        ParseMaterials(node, data, options);
-    }
-    // Parse all <solids> sections (with cross-section boolean resolution)
+    // Parse all <materials> sections (with instance-scoped name resolution)
+    ParseAllMaterials(gdml_node, data, options);
+    // Parse all <solids> sections (with instance-scoped boolean resolution)
     ParseAllSolids(gdml_node, data, options);
     // Parse all <structure> sections
     for(auto* node = gdml_node->first_node("structure"); node; node = node->next_sibling("structure")) {
