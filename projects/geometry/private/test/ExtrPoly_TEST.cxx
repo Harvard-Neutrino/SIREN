@@ -227,8 +227,6 @@ TEST(IsInside, ExtrPoly)
     Vector3D position_geometry(0, 0, 0);
 
     Vector3D Del(0, 0, 0);
-    double s = 0;
-    double t = 0;
 
     int is_inside  = 0;
     int is_outside = 0;
@@ -236,7 +234,7 @@ TEST(IsInside, ExtrPoly)
     double volumia_ratio = 0;
 
     // MathModel M;
-    int number_particles = 1e1;
+    int number_particles = 1e4;
     int number_volumina  = 1e1;
 
     Placement p;
@@ -280,17 +278,23 @@ TEST(IsInside, ExtrPoly)
                                                       (2 * rnd_y - 1) * 0.5 * big_width_y,
                                                       (2 * rnd_z - 1) * 0.5 * big_height);
 
-            // if this constraints are true the particle is inside the triangle geometry
-            // see https://stackoverflow.com/questions/2049582/how-to-determine-if-a-point-is-in-a-2d-triangle
-            // NOTE: maybe try to generalize this to arbitrary convex poly
+            // Check if point is inside the triangular prism.
+            // Triangle vertices (clockwise):
+            //   V0 = (face, -face), V1 = (-face, -face), V2 = (0, face)
+            // For clockwise winding, interior has cross products <= 0.
             Del = particle_position - position_geometry;
-            s = Del.GetX() / (2 * extr_face);
-            t = (Del.GetY() - 0.5 * Del.GetX()) / (2 * extr_face);
+            double px = Del.GetX();
+            double py = Del.GetY();
 
-            if (0 <= s && s <= 1 &&
-                0 <= t && t <= 1 &&
-                s+t <=1 &&
-                std::abs(Del.GetZ()) < extr_extent)
+            // Edge V0->V1 (base): py >= -face
+            // Edge V1->V2 (left):  py <= 2*px + face
+            // Edge V2->V0 (right): py <= -2*px + face
+            bool in_triangle = (py >= -extr_face &&
+                                py <= 2*px + extr_face &&
+                                py <= -2*px + extr_face);
+            bool in_prism = in_triangle && std::abs(Del.GetZ()) < extr_extent;
+
+            if(in_prism)
             {
                 is_inside++;
                 EXPECT_TRUE(A.IsInside(particle_position, particle_direction));
@@ -298,13 +302,6 @@ TEST(IsInside, ExtrPoly)
             else
             {
                 is_outside++;
-                if(A.IsInside(particle_position, particle_direction))
-                {
-									std::cout << "\n\ns t DelZ: " << s << " " << t << " " << Del.GetZ() << "\n\n";
-									std::cout << "poly position:\n" << position_geometry << "\n\n";
-									std::cout << "particle position:\n" << particle_position << "\n\n";
-									std::cout << "particle direction:\n" << particle_direction << "\n\n";
-								}
                 EXPECT_FALSE(A.IsInside(particle_position, particle_direction));
             }
         }

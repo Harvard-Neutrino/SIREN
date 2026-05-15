@@ -16,6 +16,11 @@
 #include "SIREN/geometry/Box.h"
 #include "SIREN/geometry/Sphere.h"
 #include "SIREN/geometry/Cylinder.h"
+#include "SIREN/geometry/Cone.h"
+#include "SIREN/geometry/Trd.h"
+#include "SIREN/geometry/Polycone.h"
+#include "SIREN/geometry/Polyhedra.h"
+#include "SIREN/geometry/Torus.h"
 #include "SIREN/geometry/Placement.h"
 #include "SIREN/detector/DetectorModel.h"
 #include "SIREN/detector/Coordinates.h"
@@ -54,7 +59,7 @@ void BuildTestModel(DetectorModel & dm, int n_volumes) {
         sector.level = i + 1;
         sector.density = ConstantDensityDistribution(2.0).create();
 
-        int shape_type = i % 3;
+        int shape_type = i % 8;
         Placement pl(Vector3D(x, y, z));
         if(shape_type == 0) {
             double r = size_dist(bvh_rng);
@@ -64,10 +69,42 @@ void BuildTestModel(DetectorModel & dm, int n_volumes) {
             double sy = size_dist(bvh_rng);
             double sz = size_dist(bvh_rng);
             sector.geo = Box(pl, sx, sy, sz).create();
-        } else {
+        } else if(shape_type == 2) {
             double r = size_dist(bvh_rng);
             double h = size_dist(bvh_rng);
             sector.geo = Cylinder(pl, r, 0, h).create();
+        } else if(shape_type == 3) {
+            double rmin1 = size_dist(bvh_rng) * 0.2;
+            double rmax1 = rmin1 + size_dist(bvh_rng);
+            double rmin2 = size_dist(bvh_rng) * 0.2;
+            double rmax2 = rmin2 + size_dist(bvh_rng);
+            double h = size_dist(bvh_rng);
+            sector.geo = Cone(pl, rmin1, rmax1, rmin2, rmax2, h).create();
+        } else if(shape_type == 4) {
+            double dx1 = size_dist(bvh_rng);
+            double dx2 = size_dist(bvh_rng);
+            double dy1 = size_dist(bvh_rng);
+            double dy2 = size_dist(bvh_rng);
+            double dz = size_dist(bvh_rng);
+            sector.geo = Trd(pl, dx1, dx2, dy1, dy2, dz).create();
+        } else if(shape_type == 5) {
+            double h = size_dist(bvh_rng);
+            double rmax = size_dist(bvh_rng);
+            std::vector<double> zp = {-h, 0.0, h};
+            std::vector<double> rn = {0.0, 0.0, 0.0};
+            std::vector<double> rx = {rmax * 0.5, rmax, rmax * 0.5};
+            sector.geo = Polycone(pl, zp, rn, rx).create();
+        } else if(shape_type == 6) {
+            double h = size_dist(bvh_rng);
+            double rmax = size_dist(bvh_rng);
+            std::vector<double> zp = {-h, 0.0, h};
+            std::vector<double> rn = {0.0, 0.0, 0.0};
+            std::vector<double> rx = {rmax * 0.5, rmax, rmax * 0.5};
+            sector.geo = Polyhedra(pl, 6, 0.0, zp, rn, rx).create();
+        } else {
+            double rtor = size_dist(bvh_rng) + 3.0;
+            double rmax = size_dist(bvh_rng) * 0.3;
+            sector.geo = Torus(pl, rtor, rmax, 0.0).create();
         }
         dm.AddSector(sector);
     }
