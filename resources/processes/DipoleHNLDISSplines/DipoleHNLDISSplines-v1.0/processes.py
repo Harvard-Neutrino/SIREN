@@ -80,8 +80,8 @@ def load_processes(
         elif primary in antineutrinos: nunubar = "nubar"
         else: raise ValueError(f"primary \"{primary}\" not supported")
         if isoscalar:
-            dxs_file = os.path.join(base_path, f"M_0000000MeV/dsdxdy-{nunubar}-N-nc-GRV98lo_patched_central.fits")
-            xs_file = os.path.join(base_path, f"M_{m4_str}MeV/sigma-{nunubar}-N-nc-GRV98lo_patched_central.fits")
+            dxs_file = os.path.join(base_path, f"M_0000000MeV/dsdxdy-{nunubar}-N-em-GRV98lo_patched_central.fits")
+            xs_file = os.path.join(base_path, f"M_{m4_str}MeV/sigma-{nunubar}-N-em-GRV98lo_patched_central.fits")
             xs = siren.interactions.HNLDipoleDISFromSpline(dxs_file, xs_file,
                                                            m4_GeV, dipole_couplings,
                                                            [primary],

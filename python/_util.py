@@ -813,7 +813,10 @@ def get_volume_position_distribution_from_sector(detector_model, sector_name):
         from . import detector as _detector
         from . import geometry as _geometry
         from . import distributions as _distributions
-        geo = detector_model.GetDetectorSectorGeometry(sector_name)
+        geo = None
+        for sector in detector_model.Sectors:
+            if sector.name==sector_name:
+                geo = sector.geo
         if geo is None:
             raise ValueError("Sector %s not found" % sector_name)
         # the position is in geometry coordinates
