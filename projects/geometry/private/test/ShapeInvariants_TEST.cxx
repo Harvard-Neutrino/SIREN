@@ -30,6 +30,7 @@
 #include "SIREN/geometry/Trd.h"
 #include "SIREN/geometry/Polycone.h"
 #include "SIREN/geometry/Polyhedra.h"
+#include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/BooleanGeometry.h"
 
 using namespace siren::geometry;
@@ -72,16 +73,55 @@ std::vector<ShapeEntry> MakeShapes() {
     shapes.push_back({"Cone(0,5,0,3,8)", Cone(0, 5, 0, 3, 8).create(), 2, -1, 0});
     shapes.push_back({"Trd(5,3,4,2,6)", Trd(5, 3, 4, 2, 6).create(), 2, -1, 0});
 
+    // Pointed cones (apex at one end, #21)
+    shapes.push_back({"ConePointed(0,5,0,0,8)", Cone(0, 5, 0, 0, 8).create(), 2, -1, 0});
+    shapes.push_back({"ConePointedReverse(0,0,0,5,8)", Cone(0, 0, 0, 5, 8).create(), 2, -1, 0});
+
+    // Extruded polygon (#20)
+    {
+        std::vector<std::vector<double>> polygon = {{-3,-3},{3,-3},{3,3},{-3,3}};
+        double off[2] = {0, 0};
+        std::vector<ExtrPoly::ZSection> zsecs = {
+            ExtrPoly::ZSection(-4, off, 1.0),
+            ExtrPoly::ZSection(4, off, 1.0)
+        };
+        shapes.push_back({"ExtrPoly(square)", ExtrPoly(polygon, zsecs).create(), 2, -1, 0});
+    }
+    {
+        std::vector<std::vector<double>> polygon = {{-3,0},{0,-3},{3,0},{0,3}};
+        double off[2] = {0, 0};
+        std::vector<ExtrPoly::ZSection> zsecs = {
+            ExtrPoly::ZSection(-2, off, 1.5),
+            ExtrPoly::ZSection(2, off, 0.5)
+        };
+        shapes.push_back({"ExtrPoly(diamond,tapered)", ExtrPoly(polygon, zsecs).create(), 2, -1, 0});
+    }
+
     // Hollow shapes (0, 2, or 4 intersections)
     shapes.push_back({"SphereHollow(5,2)", Sphere(5, 2).create(), 4, -1, 0});
     shapes.push_back({"CylinderHollow(5,2,10)", Cylinder(5, 2, 10).create(), 4, -1, 0});
     shapes.push_back({"ConeHollow(1,5,1,3,8)", Cone(1, 5, 1, 3, 8).create(), 4, -1, 0});
+
+    // Polyhedra variants (#20 triangle, #21 hollow, zero-radius apex)
+    shapes.push_back({"Polyhedra3(triangle)", Polyhedra(3, 0, {-4,4}, {0,0}, {5,5}).create(), -1, -1, 0});
+    shapes.push_back({"Polyhedra6Hollow", Polyhedra(6, 0, {-5,5}, {2,2}, {5,5}).create(), -1, -1, 0});
+    shapes.push_back({"Polyhedra4Pyramid", Polyhedra(4, M_PI/4, {-3,5}, {0,0}, {5,0}).create(), -1, -1, 0});
+    shapes.push_back({"Polyhedra6PyramidRev", Polyhedra(6, 0, {-4,4}, {0,0}, {0,6}).create(), -1, -1, 0});
 
     // Multi-segment shapes
     shapes.push_back({"Polycone", Polycone({-5,-2,0,3,5}, {0,0,0,0,0}, {3,5,4,6,2}).create(), -1, -1, 0});
     shapes.push_back({"PolyconeHollow", Polycone({-4,0,4}, {1,2,1}, {5,6,5}).create(), -1, -1, 0});
     shapes.push_back({"Polyhedra6", Polyhedra(6, 0, {-5,0,5}, {0,0,0}, {4,6,4}).create(), -1, -1, 0});
     shapes.push_back({"Polyhedra4", Polyhedra(4, M_PI/4, {-3,3}, {0,0}, {5,5}).create(), -1, -1, 0});
+
+    // Rotated-placement shapes (#22)
+    {
+        Quaternion q(std::cos(0.5), std::sin(0.5)*0.577, std::sin(0.5)*0.577, std::sin(0.5)*0.577);
+        shapes.push_back({"ConeRotated", Cone(Placement(Vector3D(1,2,3), q), 0, 5, 0, 3, 8).create(), 2, -1, 0});
+        shapes.push_back({"TrdRotated", Trd(Placement(Vector3D(-1,1,-2), q), 5, 3, 4, 2, 6).create(), 2, -1, 0});
+        shapes.push_back({"PolyconeRotated", Polycone(Placement(Vector3D(2,0,-1), q), {-4,0,4}, {0,0,0}, {3,5,3}).create(), -1, -1, 0});
+        shapes.push_back({"PolyhedraRotated", Polyhedra(Placement(Vector3D(0,-2,1), q), 6, 0, {-3,3}, {0,0}, {4,4}).create(), -1, -1, 0});
+    }
 
     // Boolean CSG (any even number of intersections)
     {
@@ -395,5 +435,85 @@ TEST(ShapeInvariants, MonteCarloCrossSection) {
             << entry.name << ": measured=" << measured_area
             << " expected=" << expected_area
             << " rel_error=" << relative_error;
+    }
+}
+
+// =========================================================================
+// Test 8: Surface-boundary points (#23)
+// Rays originating exactly on a surface with various directions
+// =========================================================================
+TEST(ShapeInvariants, SurfaceBoundaryPoints) {
+    // Test shapes with known surface points
+    struct SurfaceTest {
+        std::string name;
+        std::shared_ptr<Geometry> geo;
+        Vector3D surface_point;
+    };
+
+    std::vector<SurfaceTest> tests = {
+        {"Sphere(5) at +x", Sphere(5, 0).create(), Vector3D(5, 0, 0)},
+        {"Sphere(5) at +y", Sphere(5, 0).create(), Vector3D(0, 5, 0)},
+        {"Sphere(5) at +z", Sphere(5, 0).create(), Vector3D(0, 0, 5)},
+        {"Box(10,8,6) at +x face", Box(10, 8, 6).create(), Vector3D(5, 0, 0)},
+        {"Box(10,8,6) at edge", Box(10, 8, 6).create(), Vector3D(5, 4, 0)},
+        {"Cylinder(4,0,10) barrel", Cylinder(4, 0, 10).create(), Vector3D(4, 0, 0)},
+        {"Cylinder(4,0,10) top", Cylinder(4, 0, 10).create(), Vector3D(0, 0, 5)},
+        {"Cone(0,5,0,3,8) barrel mid", Cone(0, 5, 0, 3, 8).create(), Vector3D(4, 0, 0)},
+        {"Trd(5,3,4,2,6) top face", Trd(5, 3, 4, 2, 6).create(), Vector3D(0, 0, 6)},
+    };
+
+    for(auto const & t : tests) {
+        // Shoot rays in several directions from the surface point
+        Vector3D dirs[] = {
+            Vector3D(1, 0, 0), Vector3D(-1, 0, 0),
+            Vector3D(0, 1, 0), Vector3D(0, 0, 1),
+            Vector3D(0, 0, -1),
+        };
+        for(auto const & dir : dirs) {
+            auto isects = t.geo->Intersections(t.surface_point, dir);
+            // Intersection count must be even
+            EXPECT_EQ(isects.size() % 2, 0u)
+                << t.name << " dir=(" << dir.GetX() << "," << dir.GetY() << "," << dir.GetZ()
+                << "): odd count " << isects.size();
+            // Enter/exit must alternate
+            for(size_t i = 1; i < isects.size(); ++i) {
+                EXPECT_NE(isects[i].entering, isects[i-1].entering)
+                    << t.name << ": non-alternating at index " << i;
+            }
+        }
+    }
+}
+
+// =========================================================================
+// Test 9: Axis-aligned rays (#23)
+// Exercise dz==0, dx==0, dy==0 branches in cap/face tests
+// =========================================================================
+TEST(ShapeInvariants, AxisAlignedRays) {
+    auto shapes = MakeShapes();
+
+    Vector3D dirs[] = {
+        Vector3D(1, 0, 0), Vector3D(0, 1, 0), Vector3D(0, 0, 1),
+        Vector3D(-1, 0, 0), Vector3D(0, -1, 0), Vector3D(0, 0, -1),
+    };
+
+    for(auto const & entry : shapes) {
+        if(entry.known_cross_section > 0) continue;
+        for(auto const & dir : dirs) {
+            // Shoot from several positions
+            for(int i = 0; i < 1000; ++i) {
+                Vector3D pos = RandomPoint(20);
+                auto isects = entry.geo->Intersections(pos, dir);
+                int n = (int)isects.size();
+
+                EXPECT_EQ(n % 2, 0)
+                    << entry.name << " axis-aligned: odd count " << n;
+
+                // Check alternation
+                for(int j = 1; j < n; ++j) {
+                    EXPECT_NE(isects[j].entering, isects[j-1].entering)
+                        << entry.name << " axis-aligned: non-alternating at " << j;
+                }
+            }
+        }
     }
 }

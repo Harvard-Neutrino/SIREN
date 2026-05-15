@@ -20,6 +20,7 @@
 #include "SIREN/geometry/Trd.h"
 #include "SIREN/geometry/Polycone.h"
 #include "SIREN/geometry/Polyhedra.h"
+#include "SIREN/geometry/ExtrPoly.h"
 #include "SIREN/geometry/BooleanGeometry.h"
 
 using namespace siren::geometry;
@@ -389,4 +390,180 @@ TEST(Containment, BooleanIntersection) {
         bool in_box = std::fabs(p.GetX()) < 4 && std::fabs(p.GetY()) < 4 && std::fabs(p.GetZ()) < 4;
         return in_sphere && in_box;
     }, 10, 10000, "BooleanIntersection");
+}
+
+// =========================================================================
+// Pointed Cone (#21)
+// =========================================================================
+TEST(Containment, ConePointed) {
+    double rmin1 = 0, rmax1 = 5, rmin2 = 0, rmax2 = 0, z = 10;
+    Placement pl(Vector3D(0, 0, 0));
+    Cone cone(pl, rmin1, rmax1, rmin2, rmax2, z);
+    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+        return InsideCone(p, rmin1, rmax1, rmin2, rmax2, z);
+    }, 10, 10000, "ConePointed");
+}
+
+TEST(Containment, ConePointedReverse) {
+    double rmin1 = 0, rmax1 = 0, rmin2 = 0, rmax2 = 5, z = 10;
+    Placement pl(Vector3D(0, 0, 0));
+    Cone cone(pl, rmin1, rmax1, rmin2, rmax2, z);
+    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+        return InsideCone(p, rmin1, rmax1, rmin2, rmax2, z);
+    }, 10, 10000, "ConePointedReverse");
+}
+
+// =========================================================================
+// ExtrPoly (#20)
+// =========================================================================
+TEST(Containment, ExtrPolySquare) {
+    std::vector<std::vector<double>> polygon = {{-3,-3},{3,-3},{3,3},{-3,3}};
+    double off[2] = {0, 0};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-4, off, 1.0),
+        ExtrPoly::ZSection(4, off, 1.0)
+    };
+    Placement pl(Vector3D(0, 0, 0));
+    ExtrPoly ep(pl, polygon, zsecs);
+    ValidateContainment(ep, pl, [](Vector3D const & p) {
+        return std::fabs(p.GetX()) < 3 && std::fabs(p.GetY()) < 3 && std::fabs(p.GetZ()) < 4;
+    }, 8, 10000, "ExtrPolySquare");
+}
+
+TEST(Containment, ExtrPolyTapered) {
+    // Tapered: scale 1.5 at bottom, 0.5 at top
+    std::vector<std::vector<double>> polygon = {{-2,-2},{2,-2},{2,2},{-2,2}};
+    double off[2] = {0, 0};
+    std::vector<ExtrPoly::ZSection> zsecs = {
+        ExtrPoly::ZSection(-3, off, 1.5),
+        ExtrPoly::ZSection(3, off, 0.5)
+    };
+    Placement pl(Vector3D(0, 0, 0));
+    ExtrPoly ep(pl, polygon, zsecs);
+    ValidateContainment(ep, pl, [](Vector3D const & p) {
+        double frac = (p.GetZ() + 3.0) / 6.0;
+        double s = 1.5 + (0.5 - 1.5) * frac;
+        return std::fabs(p.GetX()) < 2.0 * s
+            && std::fabs(p.GetY()) < 2.0 * s
+            && p.GetZ() > -3.0 && p.GetZ() < 3.0;
+    }, 8, 10000, "ExtrPolyTapered");
+}
+
+// =========================================================================
+// Rotated shapes (#22)
+// =========================================================================
+TEST(Containment, ConeRotated) {
+    double rmin1 = 0, rmax1 = 6, rmin2 = 0, rmax2 = 3, z = 10;
+    Quaternion q(std::cos(0.4), std::sin(0.4)*0.577, std::sin(0.4)*0.577, std::sin(0.4)*0.577);
+    Placement pl(Vector3D(2, -1, 3), q);
+    Cone cone(pl, rmin1, rmax1, rmin2, rmax2, z);
+    ValidateContainment(cone, pl, [=](Vector3D const & p) {
+        return InsideCone(p, rmin1, rmax1, rmin2, rmax2, z);
+    }, 20, 10000, "ConeRotated");
+}
+
+TEST(Containment, TrdRotated) {
+    double dx1 = 5, dx2 = 3, dy1 = 4, dy2 = 2, dz = 6;
+    Quaternion q(std::cos(0.3), std::sin(0.3)*0.577, std::sin(0.3)*0.577, std::sin(0.3)*0.577);
+    Placement pl(Vector3D(-1, 2, 0), q);
+    Trd trd(pl, dx1, dx2, dy1, dy2, dz);
+    ValidateContainment(trd, pl, [=](Vector3D const & p) {
+        return InsideTrd(p, dx1, dx2, dy1, dy2, dz);
+    }, 20, 10000, "TrdRotated");
+}
+
+TEST(Containment, PolyconeRotated) {
+    std::vector<double> zp = {-4, 0, 4};
+    std::vector<double> rmin = {0, 0, 0};
+    std::vector<double> rmax = {3, 5, 3};
+    Quaternion q(std::cos(0.5), std::sin(0.5)*0.577, std::sin(0.5)*0.577, std::sin(0.5)*0.577);
+    Placement pl(Vector3D(1, 0, -2), q);
+    Polycone pc(pl, zp, rmin, rmax);
+    ValidateContainment(pc, pl, [&](Vector3D const & p) {
+        return InsidePolycone(p, zp, rmin, rmax);
+    }, 12, 10000, "PolyconeRotated");
+}
+
+TEST(Containment, PolyhedraRotated) {
+    int n = 6;
+    double start_phi = 0;
+    std::vector<double> zp = {-3, 3};
+    std::vector<double> rmin = {0, 0};
+    std::vector<double> rmax = {4, 4};
+    Quaternion q(std::cos(0.6), std::sin(0.6)*0.577, std::sin(0.6)*0.577, std::sin(0.6)*0.577);
+    Placement pl(Vector3D(0, -2, 1), q);
+    Polyhedra ph(pl, n, start_phi, zp, rmin, rmax);
+    ValidateContainment(ph, pl, [&](Vector3D const & p) {
+        return InsidePolyhedra(p, n, start_phi, zp, rmin, rmax);
+    }, 12, 10000, "PolyhedraRotated");
+}
+
+// =========================================================================
+// Polyhedra with zero-radius apex (pyramid shapes)
+// =========================================================================
+TEST(Containment, PolyhedraPyramid) {
+    // 4-sided polyhedra that tapers to a point at the top: rmax=0 at z=5
+    int n = 4;
+    double start_phi = M_PI / 4.0;
+    std::vector<double> zp = {-3, 5};
+    std::vector<double> rmin = {0, 0};
+    std::vector<double> rmax = {5, 0};
+    Placement pl(Vector3D(0, 0, 0));
+    Polyhedra ph(pl, n, start_phi, zp, rmin, rmax);
+    ValidateContainment(ph, pl, [&](Vector3D const & p) {
+        return InsidePolyhedra(p, n, start_phi, zp, rmin, rmax);
+    }, 10, 10000, "PolyhedraPyramid");
+}
+
+TEST(Containment, PolyhedraPyramidReverse) {
+    // 6-sided polyhedra that tapers to a point at the bottom: rmax=0 at z=-4
+    int n = 6;
+    double start_phi = 0;
+    std::vector<double> zp = {-4, 4};
+    std::vector<double> rmin = {0, 0};
+    std::vector<double> rmax = {0, 6};
+    Placement pl(Vector3D(0, 0, 0));
+    Polyhedra ph(pl, n, start_phi, zp, rmin, rmax);
+    ValidateContainment(ph, pl, [&](Vector3D const & p) {
+        return InsidePolyhedra(p, n, start_phi, zp, rmin, rmax);
+    }, 10, 10000, "PolyhedraPyramidReverse");
+}
+
+// =========================================================================
+// AABB cache invalidation after SetPlacement
+// =========================================================================
+TEST(Containment, AABBCacheInvalidation) {
+    Box box(10, 8, 6);
+    // Initial placement at origin
+    AABB bb1 = box.GetWorldBoundingBox();
+    EXPECT_NEAR(bb1.max_corner.GetX(), 5.0, 1e-9);
+
+    // Move placement to (100, 0, 0)
+    box.SetPlacement(Placement(Vector3D(100, 0, 0)));
+    AABB bb2 = box.GetWorldBoundingBox();
+    // The AABB should reflect the new placement, not the cached old one
+    EXPECT_NEAR(bb2.max_corner.GetX(), 105.0, 1e-9)
+        << "AABB cache should be invalidated after SetPlacement";
+    EXPECT_NEAR(bb2.min_corner.GetX(), 95.0, 1e-9);
+
+    // Call again to verify cache hit returns correct value
+    AABB bb3 = box.GetWorldBoundingBox();
+    EXPECT_NEAR(bb3.max_corner.GetX(), 105.0, 1e-9);
+}
+
+// =========================================================================
+// BooleanGeometry with ray from inside (#3 verification)
+// =========================================================================
+TEST(Containment, BooleanSubtractionFromInside) {
+    // Sphere with a box cut out, test that rays from inside work
+    auto sphere = Sphere(5, 0).create();
+    auto box = Box(4, 4, 4).create();
+    BooleanGeometry bg(BooleanOperation::SUBTRACTION, sphere, box);
+    Placement pl;
+    ValidateContainment(bg, pl, [](Vector3D const & p) {
+        double r2 = p.GetX()*p.GetX() + p.GetY()*p.GetY() + p.GetZ()*p.GetZ();
+        bool in_sphere = r2 < 25;
+        bool in_box = std::fabs(p.GetX()) < 2 && std::fabs(p.GetY()) < 2 && std::fabs(p.GetZ()) < 2;
+        return in_sphere && !in_box;
+    }, 10, 10000, "BooleanSubtractionFromInside");
 }
