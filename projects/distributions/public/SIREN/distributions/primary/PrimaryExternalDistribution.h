@@ -36,6 +36,7 @@ private:
     std::vector<std::vector<double>> input_data;
     std::vector<std::string> keys;
     bool init_pos_set = false;
+    bool vertex_set = false;
     bool mom_set = false;
     double emin = 0;
 public:
@@ -56,6 +57,7 @@ public:
             archive(::cereal::make_nvp("Keys", keys));
             archive(::cereal::make_nvp("InputData", input_data));
             archive(::cereal::make_nvp("InitPosSet", init_pos_set));
+            archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
         } else {
             throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
@@ -69,6 +71,7 @@ public:
             archive(::cereal::make_nvp("Keys", keys));
             archive(::cereal::make_nvp("InputData", input_data));
             archive(::cereal::make_nvp("InitPosSet", init_pos_set));
+            archive(::cereal::make_nvp("VertexSet", vertex_set));
             archive(::cereal::make_nvp("MomSet", mom_set));
         } else {
             throw std::runtime_error("PrimaryExternalDistribution only supports version <= 0!");
