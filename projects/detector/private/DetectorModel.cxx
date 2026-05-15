@@ -224,7 +224,7 @@ void DetectorModel::SetSectors(std::vector<DetectorSector> const & sectors) {
         sector_name_map_[sectors[i].name] = i;
         sector_map_[sectors[i].level] = i;
     }
-    bvh_dirty_ = true;
+    bvh_dirty_.store(true, std::memory_order_release);
 }
 
 GeometryPosition DetectorModel::GetDetectorOrigin() const {
@@ -254,7 +254,7 @@ void DetectorModel::AddSector(DetectorSector sector) {
     sector_name_map_[sector.name] = sectors_.size();
     sector_map_[sector.level] = sectors_.size();
     sectors_.push_back(sector);
-    bvh_dirty_ = true;
+    bvh_dirty_.store(true, std::memory_order_release);
 }
 
 DetectorSector DetectorModel::GetSector(int heirarchy) const {
@@ -281,7 +281,7 @@ void DetectorModel::ClearSectors() {
     sectors_.clear();
     sector_map_.clear();
     sector_name_map_.clear();
-    bvh_dirty_ = true;
+    bvh_dirty_.store(true, std::memory_order_release);
 }
 
 namespace {
@@ -595,7 +595,7 @@ void DetectorModel::LoadDetectorModel(std::string const & detector_model) {
         }
     } // end of the while loop
     in.close();
-    bvh_dirty_ = true;
+    bvh_dirty_.store(true, std::memory_order_release);
 }
 
 void DetectorModel::LoadDefaultMaterials() {
@@ -761,7 +761,7 @@ void DetectorModel::LoadGDML(std::string const & filename) {
     BuildContext ctx(*this, data);
     ctx.BuildVolume(data.world_volume, Placement());
 
-    bvh_dirty_ = true;
+    bvh_dirty_.store(true, std::memory_order_release);
 }
 
 
@@ -1366,7 +1366,7 @@ void DetectorModel::FindContainingSectorBVH(
 }
 
 DetectorSector DetectorModel::GetContainingSectorDirect(GeometryPosition const & p0) const {
-    if(bvh_dirty_) {
+    if(bvh_dirty_.load(std::memory_order_acquire)) {
         RebuildBVH();
     }
 
@@ -1429,7 +1429,7 @@ void DetectorModel::RebuildBVH() const {
         BuildBVHRecursive(bvh_indices, cached_aabb, 0, (int)bvh_indices.size());
     }
 
-    bvh_dirty_ = false;
+    bvh_dirty_.store(false, std::memory_order_release);
 }
 
 int DetectorModel::BuildBVHRecursive(std::vector<unsigned int> & indices,
@@ -1570,7 +1570,7 @@ static inline void AppendSectorIntersections(
 
 Geometry::IntersectionList DetectorModel::GetIntersections(GeometryPosition const & p0, GeometryDirection const & direction) const {
     // Lazy BVH rebuild when sectors have changed
-    if(bvh_dirty_) {
+    if(bvh_dirty_.load(std::memory_order_acquire)) {
         RebuildBVH();
     }
 

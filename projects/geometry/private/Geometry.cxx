@@ -64,8 +64,8 @@ void Geometry::swap(Geometry& geometry)
 {
     name_.swap(geometry.name_);
     placement_.swap(geometry.placement_);
-    world_aabb_valid_ = false;
-    geometry.world_aabb_valid_ = false;
+    world_aabb_valid_.store(false, std::memory_order_release);
+    geometry.world_aabb_valid_.store(false, std::memory_order_release);
 }
 
 
@@ -76,7 +76,7 @@ Geometry& Geometry::operator=(const Geometry& geometry)
     if(this != &geometry) {
         name_     = geometry.name_;
         placement_     = geometry.placement_;
-        world_aabb_valid_ = false;
+        world_aabb_valid_.store(false, std::memory_order_release);
     }
 
     return *this;
@@ -165,7 +165,9 @@ siren::math::Vector3D Geometry::GlobalToLocalDirection(siren::math::Vector3D con
 }
 
 AABB Geometry::GetWorldBoundingBox() const {
-    if(world_aabb_valid_) return cached_world_aabb_;
+    if(world_aabb_valid_.load(std::memory_order_acquire)) {
+        return cached_world_aabb_;
+    }
 
     AABB local_box = GetBoundingBox();
     // Generate the 8 corners of the local AABB
@@ -176,20 +178,20 @@ AABB Geometry::GetWorldBoundingBox() const {
     double y1 = local_box.max_corner.GetY();
     double z1 = local_box.max_corner.GetZ();
 
-    AABB world_box;
+    AABB result;
     // Transform each corner to global coordinates and expand the world AABB
-    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y0, z0)));
-    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y0, z1)));
-    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y1, z0)));
-    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y1, z1)));
-    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y0, z0)));
-    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y0, z1)));
-    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y1, z0)));
-    world_box.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y1, z1)));
+    result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y0, z0)));
+    result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y0, z1)));
+    result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y1, z0)));
+    result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x0, y1, z1)));
+    result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y0, z0)));
+    result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y0, z1)));
+    result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y1, z0)));
+    result.ExpandToInclude(LocalToGlobalPosition(siren::math::Vector3D(x1, y1, z1)));
 
-    cached_world_aabb_ = world_box;
-    world_aabb_valid_ = true;
-    return cached_world_aabb_;
+    cached_world_aabb_ = result;
+    world_aabb_valid_.store(true, std::memory_order_release);
+    return result;
 }
 
 std::vector<Geometry::Intersection> Geometry::Intersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {

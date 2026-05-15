@@ -5,6 +5,7 @@
 #include <map>                                      // for map
 #include <set>                                      // for set
 #include <array>                                    // for array
+#include <atomic>                                   // for atomic
 #include <memory>                                   // for shared_ptr
 #include <cstdint>                                  // for uint32_t
 #include <stdexcept>                                // for runtime_error
@@ -83,7 +84,7 @@ friend siren::detector::Path;
     mutable std::vector<BVHNode> bvh_nodes_;
     // Indices into sectors_ for volumes excluded from BVH (e.g. infinite UNIVERSE)
     mutable std::vector<unsigned int> bvh_excluded_sectors_;
-    mutable bool bvh_dirty_ = true;
+    mutable std::atomic<bool> bvh_dirty_{true};
 
     void RebuildBVH() const;
     int BuildBVHRecursive(std::vector<unsigned int> & indices, std::vector<geometry::AABB> const & aabbs, int begin, int end) const;
@@ -111,7 +112,7 @@ public:
             archive(cereal::make_nvp("SectorMap", sector_map_));
             archive(cereal::make_nvp("SectorNameMap", sector_name_map_));
             archive(cereal::make_nvp("DetectorOrigin", detector_origin_));
-            bvh_dirty_ = true; // BVH will be rebuilt on next query
+            bvh_dirty_.store(true, std::memory_order_release); // BVH will be rebuilt on next query
         } else {
             throw std::runtime_error("DetectorModel only supports version <= 0!");
         }
