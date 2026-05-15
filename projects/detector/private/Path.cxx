@@ -195,7 +195,11 @@ void Path::SetPointsWithRay(GeometryPosition first_point, GeometryDirection dire
         new_dir.normalize();
         double dot = std::abs(new_dir * intersections_.direction);
         if(dot > 1.0 - 1e-9) {
-            can_reuse_intersections = true;
+            math::Vector3D offset = math::Vector3D(first_point) - intersections_.position;
+            math::Vector3D perp = math::cross_product(offset, intersections_.direction);
+            if(perp.magnitude() < 1e-6 * (1.0 + offset.magnitude())) {
+                can_reuse_intersections = true;
+            }
         }
     }
 
@@ -224,7 +228,11 @@ void Path::SetPointsWithRay(DetectorPosition first_point, DetectorDirection dire
         new_dir.normalize();
         double dot = std::abs(new_dir * intersections_.direction);
         if(dot > 1.0 - 1e-9) {
-            can_reuse_intersections = true;
+            math::Vector3D offset = math::Vector3D(first_point) - intersections_.position;
+            math::Vector3D perp = math::cross_product(offset, intersections_.direction);
+            if(perp.magnitude() < 1e-6 * (1.0 + offset.magnitude())) {
+                can_reuse_intersections = true;
+            }
         }
     }
 
