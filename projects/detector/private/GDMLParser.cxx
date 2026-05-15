@@ -378,10 +378,16 @@ static void ParseAllMaterials(rapidxml::xml_node<>* root_node, GDMLData & data, 
         return name + "__" + std::to_string(instance_idx + 1);
     };
 
-    // Helper: store a material as a new instance
+    // Helper: store a material as a new instance.
+    // If the new material is equal to the current (most recent) instance,
+    // skip it — identical re-declarations don't create a new instance.
     auto storeMaterial = [&](GDMLMaterial const & mat) {
-        materials_instances[mat.name].push_back(mat);
-        material_instance_count[mat.name] = (int)materials_instances[mat.name].size();
+        auto & vec = materials_instances[mat.name];
+        if(!vec.empty() && vec.back() == mat) {
+            return;
+        }
+        vec.push_back(mat);
+        material_instance_count[mat.name] = (int)vec.size();
     };
 
     // Helper: resolve a composition reference to the current instance's flattened name.
@@ -792,10 +798,17 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
     std::map<std::string, std::vector<std::shared_ptr<Geometry>>> solids_instances;
     std::map<std::string, int> solid_instance_count;
 
-    // Helper: store a solid as a new instance
+    // Helper: store a solid as a new instance.
+    // If the new geometry is equal to the current (most recent) instance,
+    // skip it — identical re-declarations don't create a new instance.
     auto storeSolid = [&](std::string const & name, std::shared_ptr<Geometry> geo) {
-        solids_instances[name].push_back(geo);
-        solid_instance_count[name] = (int)solids_instances[name].size();
+        auto & vec = solids_instances[name];
+        if(!vec.empty() && *vec.back() == *geo) {
+            // Identical to current instance; no-op (keeps same instance count)
+            return;
+        }
+        vec.push_back(geo);
+        solid_instance_count[name] = (int)vec.size();
     };
 
     // Helper: look up a solid operand by name using instance tracking.
@@ -1067,14 +1080,44 @@ static void ParseStructure(rapidxml::xml_node<>* structure_node, GDMLData & data
         auto* matref = vol_node->first_node("materialref");
         if(matref) {
             vol.material_ref = SafeAttrVal(matref, "ref");
-            // Check for ambiguous material reference
+            // Check for ambiguous material reference.
+            // When a name has multiple instances because GDML defines both an
+            // <element> and a <material> with the same name (common Geant4
+            // pattern), resolve to the <material> instance (the one with
+            // density > 0) since that is what volumes need.
             if(!vol.material_ref.empty()) {
                 auto it = data.material_instance_counts.find(vol.material_ref);
                 if(it != data.material_instance_counts.end() && it->second > 1) {
-                    throw std::runtime_error(
-                        "GDML error: volume '" + vol.name
-                        + "' references ambiguous material '" + vol.material_ref
-                        + "' which has " + std::to_string(it->second) + " instances");
+                    // Try to disambiguate: find the instance with density > 0
+                    std::string resolved;
+                    int candidates = 0;
+                    for(auto const & mp : data.materials) {
+                        // Check all flattened names for this base name
+                        std::string base = vol.material_ref;
+                        bool matches = (mp.first == base);
+                        if(!matches) {
+                            // Check for __N suffix: "name__2", "name__3", etc.
+                            if(mp.first.size() > base.size() + 2
+                               && mp.first.substr(0, base.size()) == base
+                               && mp.first[base.size()] == '_'
+                               && mp.first[base.size() + 1] == '_') {
+                                matches = true;
+                            }
+                        }
+                        if(matches && mp.second.density > 0) {
+                            resolved = mp.first;
+                            candidates++;
+                        }
+                    }
+                    if(candidates == 1) {
+                        // Exactly one material instance with density; use it
+                        vol.material_ref = resolved;
+                    } else {
+                        throw std::runtime_error(
+                            "GDML error: volume '" + vol.name
+                            + "' references ambiguous material '" + vol.material_ref
+                            + "' which has " + std::to_string(it->second) + " instances");
+                    }
                 }
             }
         }

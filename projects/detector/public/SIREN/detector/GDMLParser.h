@@ -23,6 +23,11 @@ struct GDMLMaterial {
     double A;       // atomic mass (g/mol, for simple materials)
     // For composite materials: map of component name -> mass fraction
     std::map<std::string, double> composition;
+
+    bool operator==(GDMLMaterial const & o) const {
+        return name == o.name && density == o.density
+            && Z == o.Z && A == o.A && composition == o.composition;
+    }
 };
 
 struct GDMLPhysVol {
