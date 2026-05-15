@@ -33,13 +33,15 @@ namespace geometry {
 // The surface equation is:
 //   (sqrt(x^2 + y^2) - rtor)^2 + z^2 = r^2
 //
-// Full rotation only (no startphi / deltaphi support).
+// Supports optional azimuthal phi-cut via start_phi / delta_phi.
 class Torus : public Geometry {
 public:
     Torus();
     Torus(double rtor, double rmax, double rmin);
     Torus(Placement const &);
     Torus(Placement const &, double rtor, double rmax, double rmin);
+    Torus(double rtor, double rmax, double rmin, double start_phi, double delta_phi);
+    Torus(Placement const &, double rtor, double rmax, double rmin, double start_phi, double delta_phi);
     Torus(const Torus&);
 
     template<typename Archive>
@@ -48,6 +50,8 @@ public:
             archive(::cereal::make_nvp("MajorRadius", rtor_));
             archive(::cereal::make_nvp("OuterRadius", rmax_));
             archive(::cereal::make_nvp("InnerRadius", rmin_));
+            archive(::cereal::make_nvp("StartPhi", start_phi_));
+            archive(::cereal::make_nvp("DeltaPhi", delta_phi_));
             archive(cereal::virtual_base_class<Geometry>(this));
         } else {
             throw std::runtime_error("Torus only supports version <= 0!");
@@ -70,6 +74,8 @@ public:
     double GetMajorRadius() const { return rtor_; }
     double GetMinorRadius() const { return rmax_; }
     double GetInnerRadius() const { return rmin_; }
+    double GetStartPhi() const { return start_phi_; }
+    double GetDeltaPhi() const { return delta_phi_; }
 
 protected:
     virtual bool equal(const Geometry&) const override;
@@ -80,6 +86,9 @@ private:
     double rtor_; //!< major radius (z-axis to tube center)
     double rmax_; //!< outer tube radius
     double rmin_; //!< inner tube radius (0 for solid)
+    double start_phi_;    //!< starting azimuthal angle (radians, default 0)
+    double delta_phi_;    //!< azimuthal extent (radians, default 2*pi)
+    bool has_phi_cut_;    //!< true if delta_phi < 2*pi (precomputed)
 };
 
 } // namespace geometry

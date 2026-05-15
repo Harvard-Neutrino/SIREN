@@ -591,34 +591,20 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             double rmin = SafeParseDouble(SafeAttrVal(node, "rmin"), data.constants) * lscale;
             double rmax = SafeParseDouble(SafeAttrVal(node, "rmax"), data.constants) * lscale;
 
-            // Check angular parameters for partial sphere
-            double starttheta = SafeParseDouble(SafeAttrVal(node, "starttheta"), data.constants) * ascale;
-            double deltatheta = SafeParseDouble(SafeAttrVal(node, "deltatheta"), data.constants) * ascale;
-            double startphi = SafeParseDouble(SafeAttrVal(node, "startphi"), data.constants) * ascale;
-            double deltaphi = SafeParseDouble(SafeAttrVal(node, "deltaphi"), data.constants) * ascale;
-            // Default GDML sphere: starttheta=0, deltatheta=pi, startphi=0, deltaphi=2*pi
-            // Use defaults if the attribute was not specified (value is 0 from SafeParseDouble)
-            const char* st_val = SafeAttrVal(node, "starttheta");
-            const char* dt_val = SafeAttrVal(node, "deltatheta");
+            double startphi = 0.0;
+            double deltaphi = 2.0 * PI;
+            double starttheta = 0.0;
+            double deltatheta = PI;
             const char* sp_val = SafeAttrVal(node, "startphi");
+            if(sp_val[0] != '\0') startphi = SafeParseDouble(sp_val, data.constants) * ascale;
             const char* dp_val = SafeAttrVal(node, "deltaphi");
-            if((st_val[0] != '\0' && std::fabs(starttheta) > ANG_TOL) ||
-               (dt_val[0] != '\0' && std::fabs(deltatheta - PI) > ANG_TOL) ||
-               (sp_val[0] != '\0' && std::fabs(startphi) > ANG_TOL) ||
-               (dp_val[0] != '\0' && std::fabs(deltaphi - 2.0 * PI) > ANG_TOL)) {
-                std::ostringstream oss;
-                oss << "sphere '" << name
-                    << "' has non-full-rotation angular parameters"
-                    << " (starttheta=" << starttheta
-                    << " deltatheta=" << deltatheta
-                    << " startphi=" << startphi
-                    << " deltaphi=" << deltaphi
-                    << "); SIREN does not support partial spheres,"
-                    << " creating full sphere";
-                EmitWarning(data, options, oss.str());
-            }
+            if(dp_val[0] != '\0') deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
+            const char* st_val = SafeAttrVal(node, "starttheta");
+            if(st_val[0] != '\0') starttheta = SafeParseDouble(st_val, data.constants) * ascale;
+            const char* dt_val = SafeAttrVal(node, "deltatheta");
+            if(dt_val[0] != '\0') deltatheta = SafeParseDouble(dt_val, data.constants) * ascale;
 
-            geo = Sphere(rmax, rmin).create();
+            geo = Sphere(rmax, rmin, startphi, deltaphi, starttheta, deltatheta).create();
         }
         else if(tag == "orb") {
             double r = SafeParseDouble(SafeAttrVal(node, "r"), data.constants) * lscale;
@@ -794,24 +780,15 @@ static void ParseAllSolids(rapidxml::xml_node<>* root_node, GDMLData & data, GDM
             double rmax_t = SafeParseDouble(SafeAttrVal(node, "rmax"), data.constants) * lscale;
             double rtor = SafeParseDouble(SafeAttrVal(node, "rtor"), data.constants) * lscale;
 
-            // Check angular extent for partial torus
+            double startphi = 0.0;
+            double deltaphi = 2.0 * PI;
             const char* sp_val = SafeAttrVal(node, "startphi");
-            if(sp_val[0] != '\0') {
-                double startphi = SafeParseDouble(sp_val, data.constants) * ascale;
-                if(std::fabs(startphi) > ANG_TOL) {
-                    EmitWarning(data, options, "torus '" + name + "' has partial angular extent (startphi=" + std::to_string(startphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(sp_val[0] != '\0') startphi = SafeParseDouble(sp_val, data.constants) * ascale;
             const char* dp_val = SafeAttrVal(node, "deltaphi");
-            if(dp_val[0] != '\0') {
-                double deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
-                if(std::fabs(deltaphi - 2.0 * PI) > ANG_TOL) {
-                    EmitWarning(data, options, "torus '" + name + "' has partial angular extent (deltaphi=" + std::to_string(deltaphi) + "); SIREN creates full rotation");
-                }
-            }
+            if(dp_val[0] != '\0') deltaphi = SafeParseDouble(dp_val, data.constants) * ascale;
 
             if(rtor > 0 && rmax_t > 0) {
-                geo = Torus(rtor, rmax_t, rmin_t).create();
+                geo = Torus(rtor, rmax_t, rmin_t, startphi, deltaphi).create();
             }
         }
         else if(!tag.empty()) {

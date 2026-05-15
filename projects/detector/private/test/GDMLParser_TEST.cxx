@@ -1355,9 +1355,40 @@ TEST(GDMLParser, TorusIntegration) {
 }
 
 // =========================================================================
-// Torus: partial deltaphi emits warning
+// Partial sphere parses without warnings (angular extent now supported)
 // =========================================================================
-TEST(GDMLParser, PartialTorusWarning) {
+TEST(GDMLParser, PartialSphereParses) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <sphere name="hemi" rmin="0" rmax="100" starttheta="0" deltatheta="90" startphi="0" deltaphi="360" lunit="mm" aunit="deg"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="hemi"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("hemi") > 0);
+    // No warnings about partial sphere (it is now supported)
+    for(auto const & w : data.warnings) {
+        EXPECT_TRUE(w.find("sphere") == std::string::npos && w.find("angular") == std::string::npos)
+            << "Unexpected sphere angular warning: " << w;
+    }
+}
+
+// =========================================================================
+// Partial torus parses without warnings (angular extent now supported)
+// =========================================================================
+TEST(GDMLParser, PartialTorusParses) {
     std::string gdml = R"(<?xml version="1.0"?>
 <gdml>
   <define/>
@@ -1377,13 +1408,42 @@ TEST(GDMLParser, PartialTorusWarning) {
 </gdml>)";
 
     GDMLData data = ParseGDMLString(gdml);
-    // Should still parse (creates full torus) with a warning
     ASSERT_TRUE(data.solids.count("elbow") > 0);
-    bool found_warning = false;
+    // No warnings about partial torus (it is now supported)
     for(auto const & w : data.warnings) {
-        if(w.find("torus") != std::string::npos && w.find("deltaphi") != std::string::npos) {
-            found_warning = true;
-        }
+        EXPECT_TRUE(w.find("torus") == std::string::npos && w.find("angular") == std::string::npos)
+            << "Unexpected torus angular warning: " << w;
     }
-    EXPECT_TRUE(found_warning) << "Expected warning about partial torus angular extent";
+}
+
+// =========================================================================
+// Partial cylinder still warns (not yet supported)
+// =========================================================================
+TEST(GDMLParser, PartialCylinderStillWarns) {
+    std::string gdml = R"(<?xml version="1.0"?>
+<gdml>
+  <define/>
+  <materials/>
+  <solids>
+    <tube name="wedge" rmin="0" rmax="100" z="200" deltaphi="180" lunit="mm" aunit="deg"/>
+  </solids>
+  <structure>
+    <volume name="World">
+      <materialref ref=""/>
+      <solidref ref="wedge"/>
+    </volume>
+  </structure>
+  <setup name="Default" version="1.0">
+    <world ref="World"/>
+  </setup>
+</gdml>)";
+
+    GDMLData data = ParseGDMLString(gdml);
+    ASSERT_TRUE(data.solids.count("wedge") > 0);
+    // Should still warn because cylinder partial phi is not yet supported
+    bool found = false;
+    for(auto const & w : data.warnings) {
+        if(w.find("tube") != std::string::npos || w.find("tubs") != std::string::npos) found = true;
+    }
+    EXPECT_TRUE(found) << "Expected warning about partial cylinder angular extent";
 }

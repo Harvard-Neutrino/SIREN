@@ -1,6 +1,7 @@
 #include "SIREN/geometry/Torus.h"
 
 #include <cmath>
+#include <limits>
 #include <tuple>
 #include <string>
 #include <vector>
@@ -17,6 +18,29 @@ namespace siren {
 namespace geometry {
 
 namespace {
+
+static const double TWO_PI = 2.0 * M_PI;
+
+// Normalize angle to [0, 2*pi)
+double NormalizePhi(double phi) {
+    phi = std::fmod(phi, TWO_PI);
+    if(phi < 0) phi += TWO_PI;
+    return phi;
+}
+
+// Check if the azimuthal angle of point (x,y) falls within
+// [start_phi, start_phi + delta_phi]. Handles wraparound.
+bool PhiInRange(double x, double y, double start_phi, double delta_phi) {
+    double phi = NormalizePhi(std::atan2(y, x));
+    double sp = NormalizePhi(start_phi);
+    double ep = sp + delta_phi;
+    if(ep <= TWO_PI + 1e-9) {
+        return phi >= sp - 1e-9 && phi <= ep + 1e-9;
+    } else {
+        // Wraps around 2*pi: phi >= sp OR phi <= (ep - 2*pi)
+        return phi >= sp - 1e-9 || phi <= NormalizePhi(ep) + 1e-9;
+    }
+}
 
 // =========================================================================
 // Cubic and quartic solvers for ray-torus intersection
@@ -157,14 +181,20 @@ Torus::Torus()
     : Geometry((std::string)("Torus"))
     , rtor_(0.0)
     , rmax_(0.0)
-      , rmin_(0.0) {
+    , rmin_(0.0)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
 }
 
 Torus::Torus(double rtor, double rmax, double rmin)
     : Geometry((std::string)("Torus"))
     , rtor_(rtor)
     , rmax_(rmax)
-      , rmin_(rmin) {
+    , rmin_(rmin)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     if(rtor_ <= 0) {
         throw std::invalid_argument("Torus major radius must be positive!");
     }
@@ -183,14 +213,20 @@ Torus::Torus(Placement const & placement)
     : Geometry((std::string)("Torus"), placement)
     , rtor_(0.0)
     , rmax_(0.0)
-      , rmin_(0.0) {
+    , rmin_(0.0)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
 }
 
 Torus::Torus(Placement const & placement, double rtor, double rmax, double rmin)
     : Geometry((std::string)("Torus"), placement)
     , rtor_(rtor)
     , rmax_(rmax)
-      , rmin_(rmin) {
+    , rmin_(rmin)
+    , start_phi_(0.0)
+    , delta_phi_(2.0 * M_PI)
+    , has_phi_cut_(false) {
     if(rtor_ <= 0) {
         throw std::invalid_argument("Torus major radius must be positive!");
     }
@@ -205,11 +241,65 @@ Torus::Torus(Placement const & placement, double rtor, double rmax, double rmin)
     }
 }
 
+Torus::Torus(double rtor, double rmax, double rmin, double start_phi, double delta_phi)
+    : Geometry((std::string)("Torus"))
+    , rtor_(rtor)
+    , rmax_(rmax)
+    , rmin_(rmin)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi) {
+    if(rtor_ <= 0) {
+        throw std::invalid_argument("Torus major radius must be positive!");
+    }
+    if(rmax_ <= 0) {
+        throw std::invalid_argument("Torus outer tube radius must be positive!");
+    }
+    if(rmin_ < 0) {
+        throw std::invalid_argument("Torus inner tube radius must be non-negative!");
+    }
+    if(rmin_ >= rmax_) {
+        throw std::invalid_argument("Torus inner tube radius must be less than outer tube radius!");
+    }
+    if(delta_phi_ <= 0 || delta_phi_ > 2.0 * M_PI + 1e-9) {
+        throw std::invalid_argument("Torus delta_phi must be in (0, 2*pi]!");
+    }
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+}
+
+Torus::Torus(Placement const & placement, double rtor, double rmax, double rmin,
+             double start_phi, double delta_phi)
+    : Geometry((std::string)("Torus"), placement)
+    , rtor_(rtor)
+    , rmax_(rmax)
+    , rmin_(rmin)
+    , start_phi_(start_phi)
+    , delta_phi_(delta_phi) {
+    if(rtor_ <= 0) {
+        throw std::invalid_argument("Torus major radius must be positive!");
+    }
+    if(rmax_ <= 0) {
+        throw std::invalid_argument("Torus outer tube radius must be positive!");
+    }
+    if(rmin_ < 0) {
+        throw std::invalid_argument("Torus inner tube radius must be non-negative!");
+    }
+    if(rmin_ >= rmax_) {
+        throw std::invalid_argument("Torus inner tube radius must be less than outer tube radius!");
+    }
+    if(delta_phi_ <= 0 || delta_phi_ > 2.0 * M_PI + 1e-9) {
+        throw std::invalid_argument("Torus delta_phi must be in (0, 2*pi]!");
+    }
+    has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+}
+
 Torus::Torus(const Torus& torus)
     : Geometry(torus)
     , rtor_(torus.rtor_)
     , rmax_(torus.rmax_)
-      , rmin_(torus.rmin_) {
+    , rmin_(torus.rmin_)
+    , start_phi_(torus.start_phi_)
+    , delta_phi_(torus.delta_phi_)
+    , has_phi_cut_(torus.has_phi_cut_) {
 }
 
 // =========================================================================
@@ -224,6 +314,9 @@ void Torus::swap(Geometry& geometry) {
     std::swap(rtor_, torus->rtor_);
     std::swap(rmax_, torus->rmax_);
     std::swap(rmin_, torus->rmin_);
+    std::swap(start_phi_, torus->start_phi_);
+    std::swap(delta_phi_, torus->delta_phi_);
+    std::swap(has_phi_cut_, torus->has_phi_cut_);
 }
 
 Torus& Torus::operator=(const Geometry& geometry) {
@@ -239,20 +332,23 @@ Torus& Torus::operator=(const Geometry& geometry) {
 bool Torus::equal(const Geometry& geometry) const {
     const Torus* torus = dynamic_cast<const Torus*>(&geometry);
     if(!torus) return false;
-    return rtor_ == torus->rtor_ && rmax_ == torus->rmax_ && rmin_ == torus->rmin_;
+    return rtor_ == torus->rtor_ && rmax_ == torus->rmax_ && rmin_ == torus->rmin_
+        && start_phi_ == torus->start_phi_ && delta_phi_ == torus->delta_phi_;
 }
 
 bool Torus::less(const Geometry& geometry) const {
     const Torus* torus = dynamic_cast<const Torus*>(&geometry);
     if(!torus) return false;
-    return std::tie(rtor_, rmax_, rmin_)
-         < std::tie(torus->rtor_, torus->rmax_, torus->rmin_);
+    return std::tie(rtor_, rmax_, rmin_, start_phi_, delta_phi_)
+         < std::tie(torus->rtor_, torus->rmax_, torus->rmin_, torus->start_phi_, torus->delta_phi_);
 }
 
 void Torus::print(std::ostream& os) const {
     os << "Major radius: " << rtor_
        << "\tOuter tube radius: " << rmax_
-       << "\tInner tube radius: " << rmin_ << '\n';
+       << "\tInner tube radius: " << rmin_;
+    if(has_phi_cut_) os << "\tStartPhi: " << start_phi_ << "\tDeltaPhi: " << delta_phi_;
+    os << '\n';
 }
 
 // =========================================================================
@@ -280,8 +376,8 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
 
     double R = rtor_;
 
-    // At most 4 outer + 4 inner = 8 intersections for hollow torus
-    Intersection hits[8];
+    // At most 4 outer + 4 inner + phi-plane hits = 16
+    Intersection hits[16];
     int n_hits = 0;
 
     auto solve_surface = [&](double r, bool invert_entering) {
@@ -336,6 +432,8 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
             double iy = py + t * dy;
             double iz = pz + t * dz;
 
+            if(has_phi_cut_ && !PhiInRange(ix, iy, start_phi_, delta_phi_)) continue;
+
             // Determine entering/exiting using the torus surface normal.
             // The outward normal at a point on the torus surface is:
             //   n = (point - R * (Pxy_hat, 0))
@@ -372,10 +470,69 @@ std::vector<Geometry::Intersection> Torus::ComputeIntersections(
         solve_surface(rmin_, true);
     }
 
+    // Phi-boundary plane intersections
+    if(has_phi_cut_) {
+        for(int face = 0; face < 2; ++face) {
+            double alpha = start_phi_ + face * delta_phi_;
+            double ca = std::cos(alpha), sa = std::sin(alpha);
+            // Outward-pointing normal (away from phi range interior)
+            // Face 0 (start_phi): outward = clockwise from radial
+            // Face 1 (end_phi): outward = counter-clockwise from radial
+            double nx, ny;
+            if(face == 0) { nx = sa; ny = -ca; }
+            else { nx = -sa; ny = ca; }
+            double n_dot_d = nx*dx + ny*dy;
+            if(std::fabs(n_dot_d) < GEOMETRY_PRECISION) continue;
+            double n_dot_p = nx*px + ny*py;
+            double t = -n_dot_p / n_dot_d;
+            if(t > 0 && t < GEOMETRY_PRECISION) t = 0;
+
+            double hx = px + t*dx, hy = py + t*dy, hz = pz + t*dz;
+            // Must be on outward side of z-axis
+            if(hx*ca + hy*sa < -GEOMETRY_PRECISION) continue;
+            // Must be within torus cross-section
+            double rxy = std::sqrt(hx*hx + hy*hy);
+            double d2 = (rxy - R)*(rxy - R) + hz*hz;
+            if(d2 > rmax_*rmax_ + GEOMETRY_PRECISION) continue;
+            if(rmin_ > 0 && d2 < rmin_*rmin_ - GEOMETRY_PRECISION) continue;
+            // Entering
+            bool entering = (n_dot_d < 0);
+            hits[n_hits].distance = t;
+            hits[n_hits].hierarchy = 0;
+            hits[n_hits].entering = entering;
+            hits[n_hits].position = siren::math::Vector3D(hx, hy, hz);
+            n_hits++;
+        }
+    }
+
     if(n_hits == 0) return {};
     std::sort(hits, hits + n_hits, [](Intersection const & a, Intersection const & b) {
         return a.distance < b.distance;
     });
+    // Phi-cut edge fixup: rays grazing the boundary where a phi plane meets
+    // the curved surface can produce an odd hit count due to one surface's
+    // intersection being just inside tolerance and its counterpart just outside.
+    // Discard the unpaired boundary hit to maintain even parity.
+    if(has_phi_cut_ && n_hits % 2 != 0) {
+        // Find and remove the hit closest to a phi boundary plane
+        int best = 0;
+        double best_dist = std::numeric_limits<double>::max();
+        for(int i = 0; i < n_hits; ++i) {
+            double hx = hits[i].position.GetX(), hy = hits[i].position.GetY();
+            for(int f = 0; f < 2; ++f) {
+                double alpha = start_phi_ + f * delta_phi_;
+                double nx = std::sin(alpha), ny = -std::cos(alpha);
+                double plane_dist = std::fabs(nx*hx + ny*hy);
+                if(plane_dist < best_dist) {
+                    best_dist = plane_dist;
+                    best = i;
+                }
+            }
+        }
+        // Remove the hit at index best by shifting
+        for(int i = best; i < n_hits - 1; ++i) hits[i] = hits[i + 1];
+        n_hits--;
+    }
     return {hits, hits + n_hits};
 }
 

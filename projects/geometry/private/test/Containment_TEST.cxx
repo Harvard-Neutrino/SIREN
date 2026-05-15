@@ -141,6 +141,54 @@ bool InsidePolyhedra(Vector3D const & p, int n, double start_phi,
     return false;
 }
 
+bool InsideSpherePartial(Vector3D const & p, double r_outer, double r_inner,
+                         double start_phi, double delta_phi,
+                         double start_theta, double delta_theta) {
+    double r2 = p.GetX()*p.GetX() + p.GetY()*p.GetY() + p.GetZ()*p.GetZ();
+    if(r2 >= r_outer*r_outer || r2 <= r_inner*r_inner) return false;
+    // Phi check
+    double phi = std::atan2(p.GetY(), p.GetX());
+    if(phi < 0) phi += 2.0 * M_PI;
+    double sp = start_phi;
+    while(sp < 0) sp += 2.0 * M_PI;
+    while(sp >= 2.0 * M_PI) sp -= 2.0 * M_PI;
+    double ep = sp + delta_phi;
+    bool phi_ok;
+    if(ep <= 2.0 * M_PI + 1e-9) {
+        phi_ok = phi >= sp && phi <= ep;
+    } else {
+        phi_ok = phi >= sp || phi <= (ep - 2.0 * M_PI);
+    }
+    if(!phi_ok) return false;
+    // Theta check
+    double r = std::sqrt(r2);
+    double ct = p.GetZ() / r;
+    if(ct > 1.0) ct = 1.0;
+    if(ct < -1.0) ct = -1.0;
+    double theta = std::acos(ct);
+    return theta >= start_theta && theta <= start_theta + delta_theta;
+}
+
+bool InsideTorusPartial(Vector3D const & p, double R, double rmax, double rmin,
+                        double start_phi, double delta_phi) {
+    double rxy = std::sqrt(p.GetX()*p.GetX() + p.GetY()*p.GetY());
+    double d2 = (rxy - R)*(rxy - R) + p.GetZ()*p.GetZ();
+    if(d2 >= rmax*rmax) return false;
+    if(rmin > 0 && d2 <= rmin*rmin) return false;
+    // Phi check
+    double phi = std::atan2(p.GetY(), p.GetX());
+    if(phi < 0) phi += 2.0 * M_PI;
+    double sp = start_phi;
+    while(sp < 0) sp += 2.0 * M_PI;
+    while(sp >= 2.0 * M_PI) sp -= 2.0 * M_PI;
+    double ep = sp + delta_phi;
+    if(ep <= 2.0 * M_PI + 1e-9) {
+        return phi >= sp && phi <= ep;
+    } else {
+        return phi >= sp || phi <= (ep - 2.0 * M_PI);
+    }
+}
+
 // Helper: test a shape with N random points, comparing IsInside against the
 // independent check. Uses multiple random directions per point since IsInside
 // result should be direction-independent for interior points.
@@ -775,4 +823,78 @@ TEST(Containment, TorusValidation) {
     // Valid configurations
     EXPECT_NO_THROW(Torus(10, 3, 0));
     EXPECT_NO_THROW(Torus(10, 3, 2));
+}
+
+// =========================================================================
+// Partial angular extent: Sphere
+// =========================================================================
+
+TEST(Containment, SphereThetaCut) {
+    // Upper hemisphere: theta from 0 to pi/2
+    double r = 5;
+    double st = 0, dt = M_PI / 2.0;
+    Placement pl(Vector3D(0, 0, 0));
+    Sphere sphere(pl, r, 0, 0, 2*M_PI, st, dt);
+    ValidateContainment(sphere, pl, [=](Vector3D const & p) {
+        return InsideSpherePartial(p, r, 0, 0, 2*M_PI, st, dt);
+    }, 8, 10000, "SphereThetaCut");
+}
+
+TEST(Containment, SpherePhiCut) {
+    // Half sphere in phi: phi from 0 to pi
+    double r = 5;
+    double sp = 0, dp = M_PI;
+    Placement pl(Vector3D(0, 0, 0));
+    Sphere sphere(pl, r, 0, sp, dp, 0, M_PI);
+    ValidateContainment(sphere, pl, [=](Vector3D const & p) {
+        return InsideSpherePartial(p, r, 0, sp, dp, 0, M_PI);
+    }, 8, 10000, "SpherePhiCut");
+}
+
+TEST(Containment, SpherePhiThetaCut) {
+    // Quarter sphere: phi [0,pi], theta [0,pi/2]
+    double r = 5;
+    double sp = 0, dp = M_PI, st = 0, dt = M_PI / 2.0;
+    Placement pl(Vector3D(0, 0, 0));
+    Sphere sphere(pl, r, 0, sp, dp, st, dt);
+    ValidateContainment(sphere, pl, [=](Vector3D const & p) {
+        return InsideSpherePartial(p, r, 0, sp, dp, st, dt);
+    }, 8, 10000, "SpherePhiThetaCut");
+}
+
+TEST(Containment, SphereHollowThetaCut) {
+    // Hollow upper hemisphere
+    double r_out = 5, r_in = 2;
+    double st = 0, dt = M_PI / 2.0;
+    Placement pl(Vector3D(0, 0, 0));
+    Sphere sphere(pl, r_out, r_in, 0, 2*M_PI, st, dt);
+    ValidateContainment(sphere, pl, [=](Vector3D const & p) {
+        return InsideSpherePartial(p, r_out, r_in, 0, 2*M_PI, st, dt);
+    }, 8, 10000, "SphereHollowThetaCut");
+}
+
+// =========================================================================
+// Partial angular extent: Torus
+// =========================================================================
+
+TEST(Containment, TorusPhiCut) {
+    // Quarter torus: phi from 0 to pi/2
+    double R = 10, r = 3;
+    double sp = 0, dp = M_PI / 2.0;
+    Placement pl(Vector3D(0, 0, 0));
+    Torus torus(pl, R, r, 0, sp, dp);
+    ValidateContainment(torus, pl, [=](Vector3D const & p) {
+        return InsideTorusPartial(p, R, r, 0, sp, dp);
+    }, 15, 10000, "TorusPhiCut");
+}
+
+TEST(Containment, TorusPhiCutHalf) {
+    // Half torus: phi from 0 to pi
+    double R = 10, r = 3;
+    double sp = 0, dp = M_PI;
+    Placement pl(Vector3D(0, 0, 0));
+    Torus torus(pl, R, r, 0, sp, dp);
+    ValidateContainment(torus, pl, [=](Vector3D const & p) {
+        return InsideTorusPartial(p, R, r, 0, sp, dp);
+    }, 15, 10000, "TorusPhiCutHalf");
 }

@@ -29,6 +29,12 @@ public:
     Sphere(double radius, double inner_radius);
     Sphere(Placement const &);
     Sphere(Placement const &, double radius, double inner_radius);
+    Sphere(double radius, double inner_radius,
+           double start_phi, double delta_phi,
+           double start_theta, double delta_theta);
+    Sphere(Placement const &, double radius, double inner_radius,
+           double start_phi, double delta_phi,
+           double start_theta, double delta_theta);
     Sphere(const Sphere&);
 
     template<typename Archive>
@@ -36,6 +42,10 @@ public:
         if(version == 0) {
             archive(::cereal::make_nvp("OuterRadius", radius_));
             archive(::cereal::make_nvp("InnerRadius", inner_radius_));
+            archive(::cereal::make_nvp("StartPhi", start_phi_));
+            archive(::cereal::make_nvp("DeltaPhi", delta_phi_));
+            archive(::cereal::make_nvp("StartTheta", start_theta_));
+            archive(::cereal::make_nvp("DeltaTheta", delta_theta_));
             archive(cereal::virtual_base_class<Geometry>(this));
         } else {
             throw std::runtime_error("Sphere only supports version <= 0!");
@@ -55,12 +65,13 @@ public:
     std::vector<Intersection> ComputeIntersections(math::Vector3D const & position, math::Vector3D const & direction) const override;
     AABB GetBoundingBox() const override;
 
-    // Getter & Setter
+    // Getter
     double GetInnerRadius() const { return inner_radius_; }
     double GetRadius() const { return radius_; }
-
-    void SetInnerRadius(double inner_radius) { inner_radius_ = inner_radius; };
-    void SetRadius(double radius) { radius_ = radius; };
+    double GetStartPhi() const { return start_phi_; }
+    double GetDeltaPhi() const { return delta_phi_; }
+    double GetStartTheta() const { return start_theta_; }
+    double GetDeltaTheta() const { return delta_theta_; }
 
 protected:
     virtual bool equal(const Geometry&) const override;
@@ -70,6 +81,12 @@ private:
 
     double radius_;       //!< the radius of the sphere/ cylinder
     double inner_radius_; //!< for spherical shells or hollow cylinder (0 for sphere / cylinder)
+    double start_phi_;    //!< starting azimuthal angle (radians, default 0)
+    double delta_phi_;    //!< azimuthal extent (radians, default 2*pi)
+    double start_theta_;  //!< starting polar angle from +z (radians, default 0)
+    double delta_theta_;  //!< polar extent (radians, default pi)
+    bool has_phi_cut_;    //!< true if delta_phi < 2*pi (precomputed)
+    bool has_theta_cut_;  //!< true if start_theta > 0 or delta_theta < pi (precomputed)
 };
 
 

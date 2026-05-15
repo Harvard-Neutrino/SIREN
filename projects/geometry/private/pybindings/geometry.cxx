@@ -108,12 +108,16 @@ PYBIND11_MODULE(geometry,m) {
     class_<Torus, std::shared_ptr<Torus>, Geometry>(m, "Torus")
         .def(init<>())
         .def(init<double, double, double>())
+        .def(init<double, double, double, double, double>())
         .def(init<Placement const &>())
         .def(init<Placement const &, double, double, double>())
+        .def(init<Placement const &, double, double, double, double, double>())
         .def(init<const Torus&>())
         .def_property_readonly("MajorRadius",&Torus::GetMajorRadius)
         .def_property_readonly("MinorRadius",&Torus::GetMinorRadius)
-        .def_property_readonly("InnerRadius",&Torus::GetInnerRadius);
+        .def_property_readonly("InnerRadius",&Torus::GetInnerRadius)
+        .def_property_readonly("StartPhi",&Torus::GetStartPhi)
+        .def_property_readonly("DeltaPhi",&Torus::GetDeltaPhi);
 
     // Polycone
 
@@ -172,11 +176,17 @@ PYBIND11_MODULE(geometry,m) {
     class_<Sphere, std::shared_ptr<Sphere>, Geometry>(m, "Sphere")
         .def(init<>())
         .def(init<double, double>())
+        .def(init<double, double, double, double, double, double>())
         .def(init<Placement const &>())
         .def(init<Placement const &, double, double>())
+        .def(init<Placement const &, double, double, double, double, double, double>())
         .def(init<const Sphere&>())
-        .def_property("InnerRadius",&Sphere::GetInnerRadius, &Sphere::SetInnerRadius)
-        .def_property("Radius",&Sphere::GetRadius, &Sphere::SetRadius);
+        .def_property_readonly("InnerRadius",&Sphere::GetInnerRadius)
+        .def_property_readonly("Radius",&Sphere::GetRadius)
+        .def_property_readonly("StartPhi",&Sphere::GetStartPhi)
+        .def_property_readonly("DeltaPhi",&Sphere::GetDeltaPhi)
+        .def_property_readonly("StartTheta",&Sphere::GetStartTheta)
+        .def_property_readonly("DeltaTheta",&Sphere::GetDeltaTheta);
 
     class_<Placement, std::shared_ptr<Placement>>(m, "Placement")
         .def(init<>())

@@ -153,6 +153,17 @@ std::vector<ShapeEntry> MakeShapes() {
     shapes.push_back({"TorusHollow(R=10,3,1)", Torus(10, 3, 1).create(), -1, -1, 0});
     shapes.push_back({"TorusThin(R=8,r=0.5,0)", Torus(8, 0.5, 0).create(), -1, -1, 0});
 
+    // Partial spheres
+    shapes.push_back({"SphereThetaHemi", Sphere(5, 0, 0, 2*M_PI, 0, M_PI/2).create(), -1, -1, 0});
+    shapes.push_back({"SpherePhiHalf", Sphere(5, 0, 0, M_PI, 0, M_PI).create(), -1, -1, 0});
+    shapes.push_back({"SpherePhiTheta", Sphere(5, 0, 0, M_PI, 0, M_PI/2).create(), -1, -1, 0});
+    shapes.push_back({"SphereHollowThetaHemi", Sphere(5, 2, 0, 2*M_PI, 0, M_PI/2).create(), -1, -1, 0});
+
+    // Partial torus
+    shapes.push_back({"TorusQuarter", Torus(10, 3, 0, 0, M_PI/2).create(), -1, -1, 0});
+    shapes.push_back({"TorusHalf", Torus(10, 3, 0, 0, M_PI).create(), -1, -1, 0});
+    shapes.push_back({"TorusHollowQuarter", Torus(10, 3, 1, 0, M_PI/2).create(), -1, -1, 0});
+
     // Polycone with step-change (#8)
     shapes.push_back({"PolyconeStep", Polycone({-0.05, 0.05, 0.05, 0.15}, {0, 0, 0, 0}, {0.03, 0.03, 0.05, 0.05}).create(), -1, -1, 0});
 
