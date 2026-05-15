@@ -149,6 +149,7 @@ bool Cylinder::equal(const Geometry& geometry) const
 bool Cylinder::less(const Geometry& geometry) const
 {
     const Cylinder* cylinder = dynamic_cast<const Cylinder*>(&geometry);
+    if(!cylinder) return false;
 
     return
         std::tie(inner_radius_, radius_, z_)

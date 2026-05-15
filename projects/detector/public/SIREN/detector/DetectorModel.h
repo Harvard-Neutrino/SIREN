@@ -78,9 +78,9 @@ friend siren::detector::Path;
     // BVH acceleration structure for spatial queries
     struct BVHNode {
         geometry::AABB bounds;
-        int left_child;    // index into bvh_nodes_, or -1
-        int right_child;   // index into bvh_nodes_, or -1
-        int sector_index;  // index into sectors_ for leaf nodes, -1 for internal
+        int left_child = -1;    // index into bvh_nodes_, or -1
+        int right_child = -1;   // index into bvh_nodes_, or -1
+        int sector_index = -1;  // index into sectors_ for leaf nodes, -1 for internal
     };
     mutable std::vector<BVHNode> bvh_nodes_;
     // Indices into sectors_ for volumes excluded from BVH (e.g. infinite UNIVERSE)

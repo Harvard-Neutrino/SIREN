@@ -86,6 +86,7 @@ void ExtrPoly::swap(Geometry& geometry)
 
     std::swap(polygon_, extr->polygon_);
     std::swap(zsections_, extr->zsections_);
+    std::swap(planes_, extr->planes_);
 }
 
 //------------------------------------------------------------------------- //

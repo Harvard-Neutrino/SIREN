@@ -358,7 +358,7 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
     }
 
     // --- Top cap (z = +z_/2) annular disk ---
-    if(dz != 0) {
+    if(std::fabs(dz) > GEOMETRY_PRECISION) {
         double t = (z_calc_pos - pz) / dz;
 
         if(t > 0 && t < GEOMETRY_PRECISION)
@@ -380,7 +380,7 @@ std::vector<Geometry::Intersection> Cone::ComputeIntersections(siren::math::Vect
     }
 
     // --- Bottom cap (z = -z_/2) annular disk ---
-    if(dz != 0) {
+    if(std::fabs(dz) > GEOMETRY_PRECISION) {
         double t = (z_calc_neg - pz) / dz;
 
         if(t > 0 && t < GEOMETRY_PRECISION)

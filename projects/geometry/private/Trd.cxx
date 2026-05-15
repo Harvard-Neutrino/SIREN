@@ -37,6 +37,9 @@ Trd::Trd(double dx1, double dx2, double dy1, double dy2, double dz)
     if(dz_ <= 0) {
         throw std::invalid_argument("Trd half-height dz must be positive!");
     }
+    if(dx1_ < 0 || dx2_ < 0 || dy1_ < 0 || dy2_ < 0) {
+        throw std::invalid_argument("Trd half-widths (dx1, dx2, dy1, dy2) must be non-negative!");
+    }
 }
 
 Trd::Trd(Placement const & placement)
@@ -58,6 +61,9 @@ Trd::Trd(Placement const & placement, double dx1, double dx2, double dy1, double
       , dz_(dz) {
     if(dz_ <= 0) {
         throw std::invalid_argument("Trd half-height dz must be positive!");
+    }
+    if(dx1_ < 0 || dx2_ < 0 || dy1_ < 0 || dy2_ < 0) {
+        throw std::invalid_argument("Trd half-widths (dx1, dx2, dy1, dy2) must be non-negative!");
     }
 }
 
@@ -177,7 +183,7 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
     double inv2dz = (dz_ > 0.0) ? 1.0 / (2.0 * dz_) : 0.0;
 
     // --- Top face: z = +dz_ ---
-    if(dz != 0) {
+    if(std::fabs(dz) > GEOMETRY_PRECISION) {
         t = (dz_ - pz) / dz;
 
         if(t > 0 && t < GEOMETRY_PRECISION)
@@ -197,7 +203,7 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
     }
 
     // --- Bottom face: z = -dz_ ---
-    if(dz != 0) {
+    if(std::fabs(dz) > GEOMETRY_PRECISION) {
         t = (-dz_ - pz) / dz;
 
         if(t > 0 && t < GEOMETRY_PRECISION)
@@ -238,7 +244,7 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
         double nx = 2.0 * dz_;
         double nz = dx1_ - dx2_;
         double denom = nx * dx + nz * dz; // n . direction
-        if(denom != 0) {
+        if(std::fabs(denom) > GEOMETRY_PRECISION) {
             // n . (P1 - position) = nx*(dx1_ - px) + nz*(-dz_ - pz)
             double num = nx * (dx1_ - px) + nz * (-dz_ - pz);
             t = num / denom;
@@ -269,7 +275,7 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
         double nx = -2.0 * dz_;
         double nz = dx1_ - dx2_;
         double denom = nx * dx + nz * dz;
-        if(denom != 0) {
+        if(std::fabs(denom) > GEOMETRY_PRECISION) {
             double num = nx * (-dx1_ - px) + nz * (-dz_ - pz);
             t = num / denom;
 
@@ -303,7 +309,7 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
         double ny = 2.0 * dz_;
         double nz = dy1_ - dy2_;
         double denom = ny * dy + nz * dz;
-        if(denom != 0) {
+        if(std::fabs(denom) > GEOMETRY_PRECISION) {
             double num = ny * (dy1_ - py) + nz * (-dz_ - pz);
             t = num / denom;
 
@@ -332,7 +338,7 @@ std::vector<Geometry::Intersection> Trd::ComputeIntersections(siren::math::Vecto
         double ny = -2.0 * dz_;
         double nz = dy1_ - dy2_;
         double denom = ny * dy + nz * dz;
-        if(denom != 0) {
+        if(std::fabs(denom) > GEOMETRY_PRECISION) {
             double num = ny * (-dy1_ - py) + nz * (-dz_ - pz);
             t = num / denom;
 

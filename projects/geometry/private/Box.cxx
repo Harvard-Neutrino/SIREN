@@ -137,6 +137,7 @@ bool Box::equal(const Geometry& geometry) const
 bool Box::less(const Geometry& geometry) const
 {
     const Box* box = dynamic_cast<const Box*>(&geometry);
+    if(!box) return false;
 
     return
         std::tie(x_, y_, z_)
