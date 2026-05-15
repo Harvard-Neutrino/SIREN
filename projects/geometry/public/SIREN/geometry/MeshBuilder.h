@@ -149,20 +149,20 @@ double dot(Point const & a, Point const & b);
 Point mul(Point const & a, double x);
 Point add(Point const & a, Point const & b);
 Point subtract(Point const & a, Point const & b);
-bool isEvent(int i);
+bool isEven(int i);
 OrientationResult classifyPointAxisPlane(Point const & pt, int index, double val, const double eps = 1e-8);
 Point findIntersectionPoint(Point const & a, Point const & b, int index, double val);
 void clipAxisPlane(PolygonData const * prevPoly, PolygonData * currentPoly, int index, double val);
 
-std::vector<EventPlaneSide> ClassifyEventLeftRightBoth(std::vector<Event> & E, AxisAlignedPlane const & p, PlanarEventSide side);
-void AddPlanarEvent(std::vector<Event> & events, Voxel const & tri_box, AxisAlignedPlane axis, int tri_id);
-void AddStartEndEvents(std::vector<Event> & events, Voxel const & tri_box, AxisAlignedPlane axis, int tri_id);
+std::vector<EventPlaneSide> ClassifyEventLeftRightBoth(std::vector<Event> const & E, AxisAlignedPlane const & p, PlanarEventSide side);
+void AddPlanarEvent(std::vector<Event> & events, Voxel const & tri_box, Axis axis, TriangleID triangle);
+void AddStartEndEvents(std::vector<Event> & events, Voxel const & tri_box, Axis axis, TriangleID triangle);
 void GenerateNonClippedTriangleVoxelEvents(std::vector<Event> & events, TData const & tri_data, TriangleID triangle);
 void GenerateClippedTriangleVoxelEvents(std::vector<Event> & events, TData const & tri_data, TriangleID triangle, Voxel const & voxel_box);
 void GeneratePlaneEvents(std::vector<Event> & events_L, std::vector<Event> & events_R, std::vector<TData> const & triangle_data, std::vector<TriangleID> const & intersecting_tris, Voxel const & voxel, AxisAlignedPlane const & plane);
 int TauEventType(EventType etype);
 bool EventCompare(Event const & a, Event const & b);
-void SplitEventsByPlane(std::vector<Event> const & events, std::vector<TData> const & triangle_data, Voxel const & voxel, AxisAlignedPlane const & plane, std::vector<Event> & EL, std::vector<Event> & ER, PlanarEventSide const & side);
+void SplitEventsByPlane(std::vector<Event> const & events, std::vector<TData> const & triangle_data, Voxel const & voxel, AxisAlignedPlane const & plane, std::vector<Event> & EL, std::vector<Event> & ER, std::vector<TriangleID> & TL, std::vector<TriangleID> & TR, PlanarEventSide const & side);
 
 
 struct KDNode {

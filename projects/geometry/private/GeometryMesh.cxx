@@ -1,5 +1,6 @@
 #include "SIREN/geometry/GeometryMesh.h"
 
+#include <set>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -174,22 +175,33 @@ std::vector<Geometry::Intersection> TriangularMesh::ComputeIntersections(math::V
     std::vector<Mesh::TriangleID> hit_tri_ids;
     Mesh::TraverseKDTree(kd_root_, triangle_data_, origin, dir, inv_dir, hits, hit_tri_ids);
 
+    // Deduplicate hits by triangle ID.
+    // A triangle can appear in multiple KD-tree leaves and produce
+    // duplicate intersections. Build an index sorted by distance,
+    // then keep only the first occurrence of each triangle ID.
+    std::vector<size_t> order(hits.size());
+    for(size_t i = 0; i < order.size(); ++i) {
+        order[i] = i;
+    }
+    std::sort(order.begin(), order.end(),
+        [&hits](size_t a, size_t b) {
+            return hits[a].t < hits[b].t;
+        });
+
+    std::set<Mesh::TriangleID> seen_tris;
     result.reserve(hits.size());
-    for(size_t i = 0; i < hits.size(); ++i) {
+    for(size_t idx : order) {
+        if(!seen_tris.insert(hit_tri_ids[idx]).second) {
+            continue; // duplicate triangle, skip
+        }
         Intersection isect;
-        isect.distance = hits[i].t;
+        isect.distance = hits[idx].t;
         isect.hierarchy = 0;
-        isect.entering = hits[i].front_face;
+        isect.entering = hits[idx].front_face;
         isect.matID = 0;
-        isect.position = position + direction * hits[i].t;
+        isect.position = position + direction * hits[idx].t;
         result.push_back(isect);
     }
-
-    // Sort by distance
-    std::sort(result.begin(), result.end(),
-        [](Intersection const & a, Intersection const & b) {
-            return a.distance < b.distance;
-        });
 
     return result;
 }

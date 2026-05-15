@@ -888,8 +888,8 @@ void SplitEventsByPlane(std::vector<Event> const & events,
     GeneratePlaneEvents(EBLtemp, EBRtemp, triangle_data, intersecting_tris, voxel, plane);
     std::sort(EBLtemp.begin(), EBLtemp.end(), EventCompare);
     std::sort(EBRtemp.begin(), EBRtemp.end(), EventCompare);
-    std::merge(ELtemp.begin(), ELtemp.end(), EBLtemp.begin(), EBLtemp.end(), EL.begin(), EventCompare);
-    std::merge(ERtemp.begin(), ERtemp.end(), EBRtemp.begin(), EBRtemp.end(), ER.begin(), EventCompare);
+    std::merge(ELtemp.begin(), ELtemp.end(), EBLtemp.begin(), EBLtemp.end(), std::back_inserter(EL), EventCompare);
+    std::merge(ERtemp.begin(), ERtemp.end(), EBRtemp.begin(), EBRtemp.end(), std::back_inserter(ER), EventCompare);
 	for(unsigned int i=0; i<EL.size(); ++i) {
         Event const & e = EL[i];
         if(e.axis != plane.axis)
