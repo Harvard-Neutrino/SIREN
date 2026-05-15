@@ -182,6 +182,7 @@ bool Polyhedra::equal(const Geometry& geometry) const
 bool Polyhedra::less(const Geometry& geometry) const
 {
     const Polyhedra* polyhedra = dynamic_cast<const Polyhedra*>(&geometry);
+    if(!polyhedra) return false;
 
     return
         std::tie(num_sides_, start_phi_, z_planes_, rmin_, rmax_)
@@ -264,6 +265,24 @@ static bool PointInAnnularPolygon(double px, double py,
     return true;
 }
 
+static bool PointInConvexFace3D(double qx, double qy, double qz,
+                                double nx, double ny, double nz,
+                                const double* vx, const double* vy, const double* vz,
+                                int nv, double eps) {
+    bool has_pos = false;
+    bool has_neg = false;
+    for(int i = 0; i < nv; ++i) {
+        int j = (i + 1) % nv;
+        double ex = vx[j] - vx[i], ey = vy[j] - vy[i], ez = vz[j] - vz[i];
+        double fx = qx - vx[i], fy = qy - vy[i], fz = qz - vz[i];
+        double c = nx * (ey*fz - ez*fy) + ny * (ez*fx - ex*fz) + nz * (ex*fy - ey*fx);
+        if(c > eps) has_pos = true;
+        if(c < -eps) has_neg = true;
+        if(has_pos && has_neg) return false;
+    }
+    return true;
+}
+
 std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math::Vector3D const & position, siren::math::Vector3D const & direction) const {
 
     if(z_planes_.size() < 2 || num_sides_ < 3) {
@@ -304,6 +323,11 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             continue;
         }
 
+        // Horizontal ray cannot hit lateral faces outside its z-plane
+        if(std::fabs(dz) < GEOMETRY_PRECISION && (pz <= z_lo || pz >= z_hi)) {
+            continue;
+        }
+
         double rmax_lo = rmax_[seg];
         double rmax_hi = rmax_[seg + 1];
         double rmin_lo = rmin_[seg];
@@ -321,14 +345,23 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             //   v1 = (rmax_lo * cos_k1, rmax_lo * sin_k1, z_lo)
             //   v2 = (rmax_hi * cos_k1, rmax_hi * sin_k1, z_hi)
             //   v3 = (rmax_hi * cos_k,  rmax_hi * sin_k,  z_hi)
+            // When one radius is zero, v0==v1 or v2==v3, making the quad
+            // degenerate to a triangle. Use a non-degenerate edge pair
+            // for the normal computation.
             {
                 double v0x = rmax_lo * cos_k,  v0y = rmax_lo * sin_k,  v0z = z_lo;
                 double v1x = rmax_lo * cos_k1, v1y = rmax_lo * sin_k1, v1z = z_lo;
                 double v3x = rmax_hi * cos_k,  v3y = rmax_hi * sin_k,  v3z = z_hi;
 
-                // Two edge vectors from v0
-                double e1x = v1x - v0x, e1y = v1y - v0y, e1z = v1z - v0z;
-                double e2x = v3x - v0x, e2y = v3y - v0y, e2z = v3z - v0z;
+                double e1x, e1y, e1z, e2x, e2y, e2z;
+                if(rmax_lo < GEOMETRY_PRECISION) {
+                    double v2x = rmax_hi * cos_k1, v2y = rmax_hi * sin_k1;
+                    e1x = v3x - v2x; e1y = v3y - v2y; e1z = 0;
+                    e2x = v0x - v3x; e2y = v0y - v3y; e2z = v0z - v3z;
+                } else {
+                    e1x = v1x - v0x; e1y = v1y - v0y; e1z = v1z - v0z;
+                    e2x = v3x - v0x; e2y = v3y - v0y; e2z = v3z - v0z;
+                }
 
                 // Normal = e1 x e2 (points outward for outer face)
                 double nx = e1y * e2z - e1z * e2y;
@@ -353,34 +386,28 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
                     if(intersection_z >= z_lo - GEOMETRY_PRECISION &&
                         intersection_z <= z_hi + GEOMETRY_PRECISION) {
 
-                        // Check if hit point is inside the quad using
-                        // the cross-product winding test.
                         double v2x = rmax_hi * cos_k1, v2y = rmax_hi * sin_k1, v2z = z_hi;
-
                         double qx = intersection_x, qy = intersection_y, qz = intersection_z;
 
-                        // Cross product of (v1-v0) x (q-v0) dot n
-                        double c0 = nx * ((v1y - v0y) * (qz - v0z) - (v1z - v0z) * (qy - v0y))
-                                  + ny * ((v1z - v0z) * (qx - v0x) - (v1x - v0x) * (qz - v0z))
-                                  + nz * ((v1x - v0x) * (qy - v0y) - (v1y - v0y) * (qx - v0x));
+                        bool inside_face;
+                        if(rmax_lo < GEOMETRY_PRECISION) {
+                            double fvx[] = {v0x, v2x, v3x};
+                            double fvy[] = {v0y, v2y, v3y};
+                            double fvz[] = {v0z, v2z, v3z};
+                            inside_face = PointInConvexFace3D(qx, qy, qz, nx, ny, nz, fvx, fvy, fvz, 3, GEOMETRY_PRECISION);
+                        } else if(rmax_hi < GEOMETRY_PRECISION) {
+                            double fvx[] = {v0x, v1x, v2x};
+                            double fvy[] = {v0y, v1y, v2y};
+                            double fvz[] = {v0z, v1z, v2z};
+                            inside_face = PointInConvexFace3D(qx, qy, qz, nx, ny, nz, fvx, fvy, fvz, 3, GEOMETRY_PRECISION);
+                        } else {
+                            double fvx[] = {v0x, v1x, v2x, v3x};
+                            double fvy[] = {v0y, v1y, v2y, v3y};
+                            double fvz[] = {v0z, v1z, v2z, v3z};
+                            inside_face = PointInConvexFace3D(qx, qy, qz, nx, ny, nz, fvx, fvy, fvz, 4, GEOMETRY_PRECISION);
+                        }
 
-                        double c1 = nx * ((v2y - v1y) * (qz - v1z) - (v2z - v1z) * (qy - v1y))
-                                  + ny * ((v2z - v1z) * (qx - v1x) - (v2x - v1x) * (qz - v1z))
-                                  + nz * ((v2x - v1x) * (qy - v1y) - (v2y - v1y) * (qx - v1x));
-
-                        double c2 = nx * ((v3y - v2y) * (qz - v2z) - (v3z - v2z) * (qy - v2y))
-                                  + ny * ((v3z - v2z) * (qx - v2x) - (v3x - v2x) * (qz - v2z))
-                                  + nz * ((v3x - v2x) * (qy - v2y) - (v3y - v2y) * (qx - v2x));
-
-                        double c3 = nx * ((v0y - v3y) * (qz - v3z) - (v0z - v3z) * (qy - v3y))
-                                  + ny * ((v0z - v3z) * (qx - v3x) - (v0x - v3x) * (qz - v3z))
-                                  + nz * ((v0x - v3x) * (qy - v3y) - (v0y - v3y) * (qx - v3x));
-
-                        if((c0 >= -GEOMETRY_PRECISION && c1 >= -GEOMETRY_PRECISION &&
-                             c2 >= -GEOMETRY_PRECISION && c3 >= -GEOMETRY_PRECISION) ||
-                            (c0 <= GEOMETRY_PRECISION && c1 <= GEOMETRY_PRECISION &&
-                             c2 <= GEOMETRY_PRECISION && c3 <= GEOMETRY_PRECISION)) {
-
+                        if(inside_face) {
                             if(n_hits < MAX_HITS) {
                                 hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
                                 hits[n_hits].distance = t;
@@ -399,12 +426,16 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
                 double v1x = rmin_lo * cos_k1, v1y = rmin_lo * sin_k1, v1z = z_lo;
                 double v3x = rmin_hi * cos_k,  v3y = rmin_hi * sin_k,  v3z = z_hi;
 
-                // Edge vectors from v0
-                double e1x = v1x - v0x, e1y = v1y - v0y, e1z = v1z - v0z;
-                double e2x = v3x - v0x, e2y = v3y - v0y, e2z = v3z - v0z;
+                double e1x, e1y, e1z, e2x, e2y, e2z;
+                if(rmin_lo < GEOMETRY_PRECISION) {
+                    double v2x = rmin_hi * cos_k1, v2y = rmin_hi * sin_k1;
+                    e1x = v3x - v2x; e1y = v3y - v2y; e1z = 0;
+                    e2x = v0x - v3x; e2y = v0y - v3y; e2z = v0z - v3z;
+                } else {
+                    e1x = v1x - v0x; e1y = v1y - v0y; e1z = v1z - v0z;
+                    e2x = v3x - v0x; e2y = v3y - v0y; e2z = v3z - v0z;
+                }
 
-                // Normal = e1 x e2 (points outward from center, but for the
-                // inner surface the "outside" of the solid is inward)
                 double nx = e1y * e2z - e1z * e2y;
                 double ny = e1z * e2x - e1x * e2z;
                 double nz = e1x * e2y - e1y * e2x;
@@ -428,29 +459,25 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
                         double v2x = rmin_hi * cos_k1, v2y = rmin_hi * sin_k1, v2z = z_hi;
                         double qx = intersection_x, qy = intersection_y, qz = intersection_z;
 
-                        double c0 = nx * ((v1y - v0y) * (qz - v0z) - (v1z - v0z) * (qy - v0y))
-                                  + ny * ((v1z - v0z) * (qx - v0x) - (v1x - v0x) * (qz - v0z))
-                                  + nz * ((v1x - v0x) * (qy - v0y) - (v1y - v0y) * (qx - v0x));
+                        bool inside_face;
+                        if(rmin_lo < GEOMETRY_PRECISION) {
+                            double fvx[] = {v0x, v2x, v3x};
+                            double fvy[] = {v0y, v2y, v3y};
+                            double fvz[] = {v0z, v2z, v3z};
+                            inside_face = PointInConvexFace3D(qx, qy, qz, nx, ny, nz, fvx, fvy, fvz, 3, GEOMETRY_PRECISION);
+                        } else if(rmin_hi < GEOMETRY_PRECISION) {
+                            double fvx[] = {v0x, v1x, v2x};
+                            double fvy[] = {v0y, v1y, v2y};
+                            double fvz[] = {v0z, v1z, v2z};
+                            inside_face = PointInConvexFace3D(qx, qy, qz, nx, ny, nz, fvx, fvy, fvz, 3, GEOMETRY_PRECISION);
+                        } else {
+                            double fvx[] = {v0x, v1x, v2x, v3x};
+                            double fvy[] = {v0y, v1y, v2y, v3y};
+                            double fvz[] = {v0z, v1z, v2z, v3z};
+                            inside_face = PointInConvexFace3D(qx, qy, qz, nx, ny, nz, fvx, fvy, fvz, 4, GEOMETRY_PRECISION);
+                        }
 
-                        double c1 = nx * ((v2y - v1y) * (qz - v1z) - (v2z - v1z) * (qy - v1y))
-                                  + ny * ((v2z - v1z) * (qx - v1x) - (v2x - v1x) * (qz - v1z))
-                                  + nz * ((v2x - v1x) * (qy - v1y) - (v2y - v1y) * (qx - v1x));
-
-                        double c2 = nx * ((v3y - v2y) * (qz - v2z) - (v3z - v2z) * (qy - v2y))
-                                  + ny * ((v3z - v2z) * (qx - v2x) - (v3x - v2x) * (qz - v2z))
-                                  + nz * ((v3x - v2x) * (qy - v2y) - (v3y - v2y) * (qx - v2x));
-
-                        double c3 = nx * ((v0y - v3y) * (qz - v3z) - (v0z - v3z) * (qy - v3y))
-                                  + ny * ((v0z - v3z) * (qx - v3x) - (v0x - v3x) * (qz - v3z))
-                                  + nz * ((v0x - v3x) * (qy - v3y) - (v0y - v3y) * (qx - v3x));
-
-                        if((c0 >= -GEOMETRY_PRECISION && c1 >= -GEOMETRY_PRECISION &&
-                             c2 >= -GEOMETRY_PRECISION && c3 >= -GEOMETRY_PRECISION) ||
-                            (c0 <= GEOMETRY_PRECISION && c1 <= GEOMETRY_PRECISION &&
-                             c2 <= GEOMETRY_PRECISION && c3 <= GEOMETRY_PRECISION)) {
-
-                            // Inner surface: entering is inverted relative to
-                            // the normal direction.
+                        if(inside_face) {
                             if(n_hits < MAX_HITS) {
                                 hits[n_hits].position = siren::math::Vector3D(intersection_x, intersection_y, intersection_z);
                                 hits[n_hits].distance = t;
@@ -479,7 +506,8 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             intersection_y = py + t * dy;
             intersection_z = pz + t * dz;
 
-            if(PointInAnnularPolygon(intersection_x, intersection_y,
+            if(rmax_.front() >= GEOMETRY_PRECISION &&
+               PointInAnnularPolygon(intersection_x, intersection_y,
                                        num_sides_, cp, sp,
                                        rmin_.front(), rmax_.front())) {
                 if(n_hits < MAX_HITS) {
@@ -504,7 +532,8 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             intersection_y = py + t * dy;
             intersection_z = pz + t * dz;
 
-            if(PointInAnnularPolygon(intersection_x, intersection_y,
+            if(rmax_.back() >= GEOMETRY_PRECISION &&
+               PointInAnnularPolygon(intersection_x, intersection_y,
                                        num_sides_, cp, sp,
                                        rmin_.back(), rmax_.back())) {
                 if(n_hits < MAX_HITS) {
@@ -548,7 +577,8 @@ std::vector<Geometry::Intersection> Polyhedra::ComputeIntersections(siren::math:
             intersection_y = py + t * dy;
             intersection_z = pz + t * dz;
 
-            if(PointInAnnularPolygon(intersection_x, intersection_y,
+            if(rmax_[i] >= GEOMETRY_PRECISION &&
+               PointInAnnularPolygon(intersection_x, intersection_y,
                                        num_sides_, cp, sp,
                                        rmin_[i], rmax_[i])) {
                 // Determine entering based on step direction
