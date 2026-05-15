@@ -47,6 +47,8 @@ public:
             archive(::cereal::make_nvp("StartTheta", start_theta_));
             archive(::cereal::make_nvp("DeltaTheta", delta_theta_));
             archive(cereal::virtual_base_class<Geometry>(this));
+            has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
+            has_theta_cut_ = (start_theta_ > 1e-9 || delta_theta_ < M_PI - 1e-9);
         } else {
             throw std::runtime_error("Sphere only supports version <= 0!");
         }

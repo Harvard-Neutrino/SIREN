@@ -53,6 +53,7 @@ public:
             archive(::cereal::make_nvp("StartPhi", start_phi_));
             archive(::cereal::make_nvp("DeltaPhi", delta_phi_));
             archive(cereal::virtual_base_class<Geometry>(this));
+            has_phi_cut_ = (delta_phi_ < 2.0 * M_PI - 1e-9);
         } else {
             throw std::runtime_error("Torus only supports version <= 0!");
         }
