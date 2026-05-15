@@ -1,5 +1,6 @@
 #include "SIREN/geometry/Geometry.h"
 
+#include <mutex>
 #include <string>
 #include <vector>
 #include <ostream>
@@ -94,7 +95,7 @@ bool Geometry::operator==(const Geometry& geometry) const
 // ------------------------------------------------------------------------- //
 bool Geometry::operator<(const Geometry& geometry) const
 {
-    if(typeid(this) == typeid(&geometry)) {
+    if(typeid(*this) == typeid(geometry)) {
         if(name_ != geometry.name_)
             return name_ < geometry.name_;
         else if(placement_ != geometry.placement_)
@@ -102,7 +103,7 @@ bool Geometry::operator<(const Geometry& geometry) const
         else
             return this->less(geometry);
     } else
-        return std::type_index(typeid(this)) < std::type_index(typeid(&geometry));
+        return std::type_index(typeid(*this)) < std::type_index(typeid(geometry));
 }
 
 // ------------------------------------------------------------------------- //
@@ -164,8 +165,25 @@ siren::math::Vector3D Geometry::GlobalToLocalDirection(siren::math::Vector3D con
     return placement_.GlobalToLocalDirection(p0);
 }
 
+// Per-instance mutex for GetWorldBoundingBox() double-checked locking.
+// Stored externally to avoid adding non-trivial members to Geometry
+// (which would break implicit copy/assignment in the many derived classes).
+static std::recursive_mutex & GetWorldAABBMutex(Geometry const * geo) {
+    static std::recursive_mutex global_mtx;
+    // Recursive mutex needed because BooleanGeometry::GetBoundingBox() calls
+    // GetWorldBoundingBox() on its children while the parent's lock is held.
+    (void)geo;
+    return global_mtx;
+}
+
 AABB Geometry::GetWorldBoundingBox() const {
     if(world_aabb_valid_.load(std::memory_order_acquire)) {
+        return cached_world_aabb_;
+    }
+
+    std::lock_guard<std::recursive_mutex> lock(GetWorldAABBMutex(this));
+    // Double-check after acquiring the lock
+    if(world_aabb_valid_.load(std::memory_order_relaxed)) {
         return cached_world_aabb_;
     }
 
